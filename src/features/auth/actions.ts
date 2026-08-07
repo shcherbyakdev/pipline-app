@@ -1,5 +1,6 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { env } from "@/env";
 import { emailSchema, type AuthState } from "./schema";
@@ -19,4 +20,10 @@ export async function sendMagicLink(
 
   if (error) return { error: error.message };
   return { sent: true };
+}
+
+export async function signOut(): Promise<void> {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect("/login");
 }
