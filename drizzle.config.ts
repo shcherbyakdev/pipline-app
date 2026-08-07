@@ -1,3 +1,8 @@
+import { loadEnvFile } from "node:process";
+try {
+  loadEnvFile(".env.local");
+} catch {}
+
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
