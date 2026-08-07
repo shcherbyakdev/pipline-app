@@ -22,11 +22,12 @@ export type Org = { id: string; name: string; slug: string };
 export async function getCurrentOrg(): Promise<Org | null> {
   const supabase = await createClient();
   // RLS returns only orgs the caller belongs to; the first is their org.
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orgs")
     .select("id, name, slug")
     .limit(1)
     .maybeSingle();
+  if (error) throw error;
   return data ?? null;
 }
 
