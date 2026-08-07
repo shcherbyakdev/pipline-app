@@ -16,3 +16,23 @@ export async function requireUser(): Promise<User> {
   if (!user) redirect("/login");
   return user;
 }
+
+export type Org = { id: string; name: string; slug: string };
+
+export async function getCurrentOrg(): Promise<Org | null> {
+  const supabase = await createClient();
+  // RLS returns only orgs the caller belongs to; the first is their org.
+  const { data } = await supabase
+    .from("orgs")
+    .select("id, name, slug")
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
+}
+
+export async function requireOrg(): Promise<{ user: User; org: Org }> {
+  const user = await requireUser();
+  const org = await getCurrentOrg();
+  if (!org) redirect("/onboarding");
+  return { user, org };
+}
