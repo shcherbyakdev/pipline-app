@@ -14,23 +14,97 @@ Table/Virtual/Query.
 
 ## Getting started
 
+**Prerequisites:** [Docker Desktop](https://docs.docker.com/desktop/) running,
+the [Supabase CLI](https://supabase.com/docs/guides/cli), and Node 24
+(`nvm use` picks it up from `.nvmrc`).
+
 ```bash
-cp .env.example .env.local   # then fill in Supabase + DATABASE_URL
 npm install
-npm run dev                  # http://localhost:3000
+npm run dev
 ```
+
+That's it. `npm run dev` runs a preflight that starts Docker's Supabase stack,
+writes the local credentials into `.env.local`, and applies pending migrations
+before booting Next.js on http://localhost:3000.
+
+Seed a demo account with `npm run db:reset`, then sign in as
+`demo@rolloutos.local` / `Password123!`.
+
+### Local services
+
+| Service | URL |
+|---|---|
+| App | http://localhost:3000 |
+| Supabase API | http://127.0.0.1:54351 |
+| Postgres | `postgresql://postgres:postgres@127.0.0.1:54352/postgres` |
+| Supabase Studio | http://127.0.0.1:54353 |
+| Mailpit (outbound email) | http://127.0.0.1:54354 |
+
+Ports are offset by +30 from the Supabase defaults so a second Supabase project
+can run alongside this one.
 
 ## Scripts
 
 | Script | Purpose |
 |---|---|
-| `npm run dev` | Dev server (Turbopack) |
+| `npm run dev` | Preflight, then the dev server |
+| `npm run setup` | Preflight only — Docker, Supabase, `.env.local`, migrations |
+| `npm run verify` | Everything CI runs: lint + typecheck + test |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
-| `npm run db:generate` | Generate a Drizzle migration from schema |
-| `npm run db:migrate` | Apply migrations |
-| `npm run db:push` | Push schema directly (dev) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test` | Vitest (`test:watch` for watch mode) |
+| `npm run db:reset` | Wipe, re-migrate, and re-seed the local database |
+| `npm run db:generate` | Generate a Drizzle migration from the schema |
+| `npm run db:migrate` | Apply pending migrations |
+| `npm run db:seed` | Demo org + user (idempotent) |
 | `npm run db:studio` | Drizzle Studio |
+| `npm run supabase:start` / `:stop` / `:status` | Manage the local stack |
+
+Skip the preflight with `SKIP_PREFLIGHT=1 npm run dev` — useful when working
+offline or pointing at a remote Supabase project.
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `Docker isn't running` | Start Docker Desktop and wait for it to settle |
+| Port 54351–54354 already in use | `npm run supabase:stop`, then `npm run dev` |
+| Login fails / app sees no data | `npm run db:reset` |
+| `.env.local` has the wrong values | Delete it and run `npm run setup` |
+| Containers stuck after a crash | `supabase stop --no-backup && npm run dev` |
+| `db:seed` refuses to run (`refusing to seed non-local host`) | Expected — it only seeds a loopback Supabase URL, to keep the fixed demo login (`demo@rolloutos.local` / `Password123!`) off remote projects. Seeding a remote project on purpose? Set `ALLOW_REMOTE_SEED=1`. |
+
+## Migrations
+
+Drizzle owns migrations; they live in `src/db/migrations/`, **not**
+`supabase/migrations/`. Change `src/db/schema/`, then:
+
+```bash
+npm run db:generate   # writes a new migration
+npm run db:migrate    # applies it locally
+```
+
+CI fails if the schema and the committed migrations have drifted.
+
+Production migrations run automatically from `.github/workflows/deploy.yml`
+*before* the new build is promoted — so a migration must be backward compatible
+with the currently-deployed code. Make additive changes only; split destructive
+changes (dropping a column, renaming) across two releases.
+
+## CI/CD
+
+Every PR runs lint, typecheck, tests, a production build, and a database job
+that applies migrations to an empty database and checks for schema drift.
+Require the single `ci` status in branch protection.
+
+Merges to `main` trigger `Deploy`, which migrates the production database and
+then builds and promotes to Vercel. Vercel's own Git auto-deploy must stay
+**disabled** so the two never race.
+
+Secrets required under the `production` GitHub Environment: `DATABASE_URL`
+(direct connection, port 5432), `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
+`VERCEL_PROJECT_ID`.
 
 ## Layout
 
