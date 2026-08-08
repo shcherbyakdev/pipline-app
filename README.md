@@ -49,7 +49,7 @@ can run alongside this one.
 |---|---|
 | `npm run dev` | Preflight, then the dev server |
 | `npm run setup` | Preflight only — Docker, Supabase, `.env.local`, migrations |
-| `npm run verify` | Everything CI runs: lint + typecheck + test |
+| `npm run verify` | Fast local subset: lint + typecheck + test |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
@@ -57,9 +57,13 @@ can run alongside this one.
 | `npm run db:reset` | Wipe, re-migrate, and re-seed the local database |
 | `npm run db:generate` | Generate a Drizzle migration from the schema |
 | `npm run db:migrate` | Apply pending migrations |
+| `npm run db:push` | Push schema directly, bypassing migrations — don't use; CI's drift check will fail if schema and migrations disagree |
 | `npm run db:seed` | Demo org + user (idempotent) |
 | `npm run db:studio` | Drizzle Studio |
 | `npm run supabase:start` / `:stop` / `:status` | Manage the local stack |
+
+CI additionally runs a production build and the migration/drift job (see
+CI/CD below), so a green `verify` doesn't guarantee CI will pass.
 
 Skip the preflight with `SKIP_PREFLIGHT=1 npm run dev` — useful when working
 offline or pointing at a remote Supabase project.
