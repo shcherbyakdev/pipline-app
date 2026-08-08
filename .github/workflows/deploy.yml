@@ -24,6 +24,12 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
+    # Bounds a hung step (e.g. a stuck `drizzle-kit migrate` against production).
+    # The `deploy-production` concurrency lock is held for the job's full
+    # duration, so an unbounded hang would block every subsequent deploy for up
+    # to GitHub's default 6-hour job timeout. 20 minutes comfortably covers a
+    # normal run (npm ci + migrate + vercel pull/build/deploy) with headroom.
+    timeout-minutes: 20
     steps:
       # workflow_run defaults to the tip of main, which may have moved past the
       # commit CI actually verified. Check out the verified SHA.
@@ -46,8 +52,14 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      # Pinned to a major version: this CLI builds and promotes production, so
+      # it must not change under us with zero diff in this repo the way
+      # `@latest` would allow. Patch/minor fixes still arrive automatically;
+      # a breaking major cannot land silently. Dependabot does not cover
+      # globally-installed CLIs like this one, so the pin is manual and must
+      # be bumped by hand when a new major is adopted deliberately.
       - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+        run: npm install --global vercel@^58.0.0
 
       - name: Pull Vercel environment
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
