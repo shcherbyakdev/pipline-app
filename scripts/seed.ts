@@ -28,6 +28,43 @@ if (!url || !anonKey || !serviceKey) {
   process.exit(1);
 }
 
+// Refuse to run against anything but a local Supabase instance. This script
+// creates a fixed, publicly-documented, admin-capable login
+// (demo@rolloutos.local / Password123!) — safe on a throwaway local DB,
+// a liability against a real project. Parse with `new URL` and compare the
+// resolved `hostname`, not a substring match, so a URL crafted like
+// "https://evil.com/?x=127.0.0.1" cannot slip through.
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+
+function assertLocalSupabaseUrl(rawUrl: string): void {
+  let hostname: string;
+  try {
+    hostname = new URL(rawUrl).hostname;
+  } catch {
+    console.error(`seed: NEXT_PUBLIC_SUPABASE_URL is not a valid URL: "${rawUrl}"`);
+    process.exit(1);
+  }
+
+  if (LOOPBACK_HOSTS.has(hostname)) return;
+
+  if (process.env.ALLOW_REMOTE_SEED === "1") {
+    console.warn(`seed: WARNING — seeding a NON-LOCAL Supabase project at host "${hostname}".`);
+    console.warn(`seed: this creates the known-password account ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
+    console.warn("seed: on that project. Proceeding because ALLOW_REMOTE_SEED=1.");
+    return;
+  }
+
+  console.error(`seed: refusing to seed non-local host "${hostname}".`);
+  console.error(`seed: this script creates a publicly-documented account`);
+  console.error(`seed: (${DEMO_EMAIL} / ${DEMO_PASSWORD}) — safe for a local Supabase, a`);
+  console.error("seed: liability against a remote or staging project.");
+  console.error("seed: only loopback hosts (127.0.0.1, localhost, [::1]) are allowed.");
+  console.error("seed: to seed a remote project on purpose, set ALLOW_REMOTE_SEED=1.");
+  process.exit(1);
+}
+
+assertLocalSupabaseUrl(url);
+
 const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -38,8 +75,13 @@ async function ensureDemoUser(): Promise<void> {
     password: DEMO_PASSWORD,
     email_confirm: true,
   });
+  if (!error) return;
   // Re-running the seed is expected; an existing user is not a failure.
-  if (error && !/already been registered|already exists/i.test(error.message)) throw error;
+  // Prefer the stable typed error code from @supabase/auth-js; fall back to
+  // matching the message text for older/edge responses that omit it.
+  const isExistingUser =
+    error.code === "email_exists" || /already been registered|already exists/i.test(error.message);
+  if (!isExistingUser) throw error;
 }
 
 async function main(): Promise<void> {
