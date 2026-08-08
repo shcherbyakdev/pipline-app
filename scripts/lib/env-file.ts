@@ -4,9 +4,11 @@
  * string out, so the overwrite guarantee in `fillBlankEnvValues` is testable.
  */
 
-// KEY=value, tolerating surrounding whitespace. Value runs to end of line so
-// connection strings keep their own `=` characters.
-const ASSIGNMENT = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
+// KEY=value, tolerating surrounding whitespace and an optional leading
+// `export ` (dotenv — which Next.js uses — and shells both honour it, so a
+// parser that ignores it would miss real assignments). Value runs to end of
+// line so connection strings keep their own `=` characters.
+const ASSIGNMENT = /^\s*(export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
 
 function unquote(raw: string): string {
   const value = raw.trim();
@@ -20,7 +22,7 @@ export function parseEnvFile(contents: string): Record<string, string> {
   for (const line of contents.split("\n")) {
     if (line.trim().startsWith("#")) continue;
     const match = ASSIGNMENT.exec(line);
-    if (match) out[match[1]] = unquote(match[2]);
+    if (match) out[match[2]] = unquote(match[3]);
   }
   return out;
 }
@@ -71,12 +73,15 @@ export function fillBlankEnvValues(
     const match = ASSIGNMENT.exec(line);
     if (!match) return line;
 
-    const [, key, rawValue] = match;
+    const [, exportPrefix, key, rawValue] = match;
     seen.add(key);
     if (unquote(rawValue) !== "" || !values[key]) return line;
 
     filled.push(key);
-    return `${key}=${values[key]}`;
+    // Preserve the `export ` prefix verbatim (including its exact
+    // whitespace) so filling a blank value doesn't rewrite the developer's
+    // file style.
+    return `${exportPrefix ?? ""}${key}=${values[key]}`;
   });
 
   // Drop a single trailing empty line so appends and the final newline below

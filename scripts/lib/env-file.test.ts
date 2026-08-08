@@ -34,6 +34,12 @@ describe("parseEnvFile", () => {
   it("records a declared-but-empty key as an empty string", () => {
     expect(parseEnvFile("DATABASE_URL=")).toEqual({ DATABASE_URL: "" });
   });
+
+  it("recognises a leading `export ` prefix (dotenv/shell honour it)", () => {
+    expect(parseEnvFile("export DATABASE_URL=postgres://REMOTE-PRODUCTION")).toEqual({
+      DATABASE_URL: "postgres://REMOTE-PRODUCTION",
+    });
+  });
 });
 
 describe("parseSupabaseStatusEnv", () => {
@@ -116,5 +122,27 @@ describe("fillBlankEnvValues", () => {
   it("returns an empty filled list when there is nothing to do", () => {
     const result = fillBlankEnvValues("A=1\n", { A: "2" });
     expect(result.filled).toEqual([]);
+  });
+
+  it("NEVER overwrites a non-empty exported value, and does not duplicate it", () => {
+    const contents = "export DATABASE_URL=postgres://REMOTE-PRODUCTION\n";
+    const result = fillBlankEnvValues(contents, { DATABASE_URL: "postgres://local" });
+
+    expect(result.contents).toBe(contents);
+    expect(result.filled).toEqual([]);
+  });
+
+  it("fills a declared-but-blank exported key in place, preserving the `export ` prefix", () => {
+    const result = fillBlankEnvValues("export DATABASE_URL=\n", { DATABASE_URL: "postgres://local" });
+
+    expect(result.contents).toBe("export DATABASE_URL=postgres://local\n");
+    expect(result.filled).toEqual(["DATABASE_URL"]);
+  });
+
+  it("still behaves exactly as before for a plain, non-exported line", () => {
+    const result = fillBlankEnvValues("DATABASE_URL=\n", { DATABASE_URL: "postgres://local" });
+
+    expect(result.contents).toBe("DATABASE_URL=postgres://local\n");
+    expect(result.filled).toEqual(["DATABASE_URL"]);
   });
 });
