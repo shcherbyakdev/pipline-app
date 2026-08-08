@@ -150,6 +150,21 @@ const envLocalPopulated: Check = {
 };
 
 /**
+ * Mirrors drizzle.config.ts's own resolution: it calls
+ * `loadEnvFile(".env.local")` (which never overwrites an already-exported
+ * variable) and then reads `process.env.DATABASE_URL`. This process never
+ * loads `.env.local` itself — that only happens inside the `drizzle-kit`
+ * child process — so to inspect the URL *before* spawning that child we
+ * have to replicate the same precedence: an exported env var wins, and
+ * `.env.local` is the fallback.
+ */
+function resolveDatabaseUrl(): string | undefined {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  if (!existsSync(ENV_FILE)) return undefined;
+  return parseEnvFile(readFileSync(ENV_FILE, "utf8")).DATABASE_URL || undefined;
+}
+
+/**
  * `drizzle-kit migrate` applies DDL using `DATABASE_URL` from `.env.local`
  * (see drizzle.config.ts). A developer pointed at a remote or staging
  * project must never have that database migrated behind their back just
@@ -161,7 +176,7 @@ const envLocalPopulated: Check = {
 const migrationsApplied: Check = {
   name: "Database migrations",
   run() {
-    const rawUrl = process.env.DATABASE_URL;
+    const rawUrl = resolveDatabaseUrl();
     const hostname = hostnameOf(rawUrl);
 
     if (hostname === null) {
