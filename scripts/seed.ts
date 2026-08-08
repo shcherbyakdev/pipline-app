@@ -7,6 +7,7 @@
  */
 import { loadEnvFile } from "node:process";
 import { createClient } from "@supabase/supabase-js";
+import { hostnameOf, isLoopbackHost } from "./lib/host-guard";
 
 try {
   loadEnvFile(".env.local");
@@ -31,21 +32,17 @@ if (!url || !anonKey || !serviceKey) {
 // Refuse to run against anything but a local Supabase instance. This script
 // creates a fixed, publicly-documented, admin-capable login
 // (demo@rolloutos.local / Password123!) — safe on a throwaway local DB,
-// a liability against a real project. Parse with `new URL` and compare the
-// resolved `hostname`, not a substring match, so a URL crafted like
-// "https://evil.com/?x=127.0.0.1" cannot slip through.
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
-
+// a liability against a real project. `hostnameOf` parses with `new URL`
+// and compares the resolved `hostname`, not a substring match, so a URL
+// crafted like "https://evil.com/?x=127.0.0.1" cannot slip through.
 function assertLocalSupabaseUrl(rawUrl: string): void {
-  let hostname: string;
-  try {
-    hostname = new URL(rawUrl).hostname;
-  } catch {
+  const hostname = hostnameOf(rawUrl);
+  if (hostname === null) {
     console.error(`seed: NEXT_PUBLIC_SUPABASE_URL is not a valid URL: "${rawUrl}"`);
     process.exit(1);
   }
 
-  if (LOOPBACK_HOSTS.has(hostname)) return;
+  if (isLoopbackHost(hostname)) return;
 
   if (process.env.ALLOW_REMOTE_SEED === "1") {
     console.warn(`seed: WARNING — seeding a NON-LOCAL Supabase project at host "${hostname}".`);

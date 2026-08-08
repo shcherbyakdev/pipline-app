@@ -6,6 +6,7 @@ import {
   supabaseEnvToAppEnv,
   fillBlankEnvValues,
 } from "./env-file";
+import { hostnameOf, isLoopbackHost } from "./host-guard";
 
 export type CheckResult =
   | { ok: true; note?: string }
@@ -148,9 +149,38 @@ const envLocalPopulated: Check = {
   },
 };
 
+/**
+ * `drizzle-kit migrate` applies DDL using `DATABASE_URL` from `.env.local`
+ * (see drizzle.config.ts). A developer pointed at a remote or staging
+ * project must never have that database migrated behind their back just
+ * because they ran `npm run dev` — so this check migrates only when the
+ * target is confirmed loopback, and otherwise warns and steps aside rather
+ * than failing (a developer deliberately working against a remote project
+ * should still get a working dev server).
+ */
 const migrationsApplied: Check = {
   name: "Database migrations",
   run() {
+    const rawUrl = process.env.DATABASE_URL;
+    const hostname = hostnameOf(rawUrl);
+
+    if (hostname === null) {
+      console.warn(
+        `\n  ! Database migrations: DATABASE_URL is missing or not a valid Postgres URL — skipping.\n` +
+          "    Set it to your local Supabase instance, or apply migrations yourself if this is intentional.\n",
+      );
+      return { ok: true, note: "skipped — DATABASE_URL unset or unparseable" };
+    }
+
+    if (!isLoopbackHost(hostname)) {
+      console.warn(
+        `\n  ! Database migrations: DATABASE_URL points at non-loopback host "${hostname}" — refusing to run\n` +
+          "    `drizzle-kit migrate` against it. This looks like a remote or staging project; skipping so it\n" +
+          "    isn't modified. Migrate it yourself if that's what you intend.\n",
+      );
+      return { ok: true, note: `skipped — non-local host "${hostname}"` };
+    }
+
     try {
       run("npx", ["drizzle-kit", "migrate"]);
       return { ok: true };
