@@ -57,11 +57,42 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
           NEXT_PUBLIC_APP_URL: http://localhost:3000
 
+  db:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54352/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Only db + auth are needed. Excluding the rest saves roughly a minute.
+      # auth is NOT optional: 0001_foundation_rls.sql calls auth.uid().
+      - name: Start Supabase
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+
+      - name: Apply migrations to an empty database
+        run: npx drizzle-kit migrate
+
+      - name: Check for schema/migration drift
+        run: |
+          npx drizzle-kit generate
+          if ! git diff --quiet --exit-code src/db/migrations; then
+            echo "::error::src/db/schema was changed without generating a migration."
+            echo "Run 'npm run db:generate' and commit the result."
+            git diff --stat src/db/migrations
+            exit 1
+          fi
+          echo "No drift: committed migrations match the Drizzle schema."
+
   ci:
     # Single required status for branch protection: adding a job above never
     # requires editing the protection rule.
     if: always()
-    needs: [lint, typecheck, test, build]
+    needs: [lint, typecheck, test, build, db]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all checks passed
