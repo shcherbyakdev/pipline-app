@@ -26,4 +26,7 @@ for (const check of checks) {
   process.exit(1);
 }
 
-console.log("  ✓ ready — http://localhost:3000\n");
+// This preflight runs before Next.js picks a port, so it cannot know the
+// dev server's URL (e.g. 3000 is sometimes already taken and Next falls
+// back to 3001). Let Next's own "Local: http://…" line be the URL of record.
+console.log("  ✓ preflight complete — starting Next.js\n");

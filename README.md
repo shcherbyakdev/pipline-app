@@ -25,7 +25,8 @@ npm run dev
 
 That's it. `npm run dev` runs a preflight that starts Docker's Supabase stack,
 writes the local credentials into `.env.local`, and applies pending migrations
-before booting Next.js on http://localhost:3000.
+before booting Next.js. Next prints the actual URL it's listening on — it'll
+use the next free port (e.g. 3001) if 3000 is already taken.
 
 Seed a demo account with `npm run db:reset`, then sign in as
 `demo@rolloutos.local` / `Password123!`.
