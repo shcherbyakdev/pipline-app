@@ -1,0 +1,11 @@
+-- Intentionally empty.
+--
+-- `supabase db reset` runs this file immediately after applying migrations
+-- from supabase/migrations/ — but this project's migrations are owned by
+-- Drizzle and live in src/db/migrations/, which the CLI does not read. At the
+-- moment this file executes, public.orgs does not exist yet, so any seed
+-- statement referencing application tables would fail.
+--
+-- Demo data is seeded afterwards by scripts/seed.ts. Use:
+--
+--   npm run db:reset   # supabase db reset -> db:migrate -> db:seed

@@ -15,6 +15,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:reset": "supabase db reset && npm run db:migrate && npm run db:seed",
     "setup": "tsx scripts/dev-preflight.ts",
     "predev": "tsx scripts/dev-preflight.ts",
     "supabase:start": "supabase start",
