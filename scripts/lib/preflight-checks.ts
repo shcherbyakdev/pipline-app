@@ -25,6 +25,40 @@ function run(command: string, args: string[]): string {
   return execFileSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
+const MAX_ERROR_LINES = 5;
+
+/** Narrows a thrown `execFileSync` error just enough to read its captured streams. */
+function hasStream(error: unknown, key: "stderr" | "stdout"): error is Record<typeof key, unknown> {
+  return typeof error === "object" && error !== null && key in error;
+}
+
+function streamText(value: unknown): string {
+  if (Buffer.isBuffer(value)) return value.toString("utf8");
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Turn a thrown `execFileSync` error into something a developer can act on.
+ * `error.message` alone is just "Command failed: <cmd>" — the actual cause
+ * lives in the child's stderr (falling back to stdout, then the bare
+ * message if the process never produced output). Trimmed to the last few
+ * non-blank lines: that's where the real failure is, and an unbounded dump
+ * would swamp the terminal.
+ */
+function describeExecError(error: unknown): string {
+  const stderr = hasStream(error, "stderr") ? streamText(error.stderr) : "";
+  const stdout = hasStream(error, "stdout") ? streamText(error.stdout) : "";
+  const message = error instanceof Error ? error.message : String(error);
+
+  const text = stderr.trim() || stdout.trim() || message;
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  return lines.slice(-MAX_ERROR_LINES).join("\n") || message;
+}
+
 function supabaseIsUp(): boolean {
   try {
     // `status` exits non-zero when the stack is down, which is the signal.
@@ -61,7 +95,7 @@ const supabaseRunning: Check = {
     } catch (error) {
       return {
         ok: false,
-        reason: `\`supabase start\` failed: ${(error as Error).message.split("\n")[0]}`,
+        reason: `\`supabase start\` failed: ${describeExecError(error)}`,
         remedy: "Try `npm run supabase:stop && npm run supabase:start`. If a port is in use, check what else is on 54351-54354.",
       };
     }
@@ -88,7 +122,7 @@ const envLocalPopulated: Check = {
     } catch (error) {
       return {
         ok: false,
-        reason: `Could not read Supabase credentials: ${(error as Error).message.split("\n")[0]}`,
+        reason: `Could not read Supabase credentials: ${describeExecError(error)}`,
         remedy: "Run `npm run supabase:status` to see what the CLI reports.",
       };
     }
@@ -123,7 +157,7 @@ const migrationsApplied: Check = {
     } catch (error) {
       return {
         ok: false,
-        reason: `\`drizzle-kit migrate\` failed: ${(error as Error).message.split("\n")[0]}`,
+        reason: `\`drizzle-kit migrate\` failed: ${describeExecError(error)}`,
         remedy: "Run `npm run db:reset` to rebuild the local database from scratch.",
       };
     }
