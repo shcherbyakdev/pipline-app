@@ -43,3 +43,6 @@ next-env.d.ts
 
 # graphify (derived knowledge graph - rebuild with `graphify update .`)
 /graphify-out/
+
+# claude code — machine-local settings (hooks with absolute paths, permission grants)
+.claude/settings.local.json
