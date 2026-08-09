@@ -11,6 +11,8 @@ import {
   renameUnitInput,
   deleteUnitInput,
   setUnitStageStatusInput,
+  saveResponseInput,
+  clearResponseInput,
   GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
@@ -137,10 +139,62 @@ export async function setUnitStageStatus(input: unknown): Promise<ActionState> {
     .from("unit_stages")
     .update({ status: parsed.data.done ? "done" : "pending" })
     .eq("id", parsed.data.id)
-    .select("program_id")
+    .select("program_id, unit_id")
     .maybeSingle();
   if (error || !data) return fail("setUnitStageStatus", error ?? "unit stage not visible");
   revalidatePath("/programs");
   revalidatePath(`/programs/${data.program_id}`);
+  revalidatePath(`/programs/${data.program_id}/units/${data.unit_id}`);
+  return { ok: true };
+}
+
+export async function saveResponse(input: unknown): Promise<ActionState> {
+  const parsed = saveResponseInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const d = parsed.data;
+  const values = {
+    value_text: d.type === "text" || d.type === "choice" ? d.value : null,
+    value_number: d.type === "number" ? d.value : null,
+    value_bool: d.type === "boolean" ? d.value : null,
+    value_date: d.type === "date" ? d.value : null,
+  };
+  const supabase = await createClient();
+  // The trust trigger derives org/unit/program/type and validates the pair;
+  // the conflict target is the (unit_stage, requirement) uniqueness.
+  const { data, error } = await supabase
+    .from("unit_stage_responses")
+    .upsert(
+      {
+        unit_stage_id: d.unitStageId,
+        program_stage_requirement_id: d.requirementId,
+        ...values,
+      },
+      { onConflict: "unit_stage_id,program_stage_requirement_id" },
+    )
+    .select("program_id, unit_id")
+    .maybeSingle();
+  if (error || !data) return fail("saveResponse", error ?? "response not visible");
+  revalidatePath(`/programs/${data.program_id}`);
+  revalidatePath(`/programs/${data.program_id}/units/${data.unit_id}`);
+  return { ok: true };
+}
+
+export async function clearResponse(input: unknown): Promise<ActionState> {
+  const parsed = clearResponseInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("unit_stage_responses")
+    .delete()
+    .eq("unit_stage_id", parsed.data.unitStageId)
+    .eq("program_stage_requirement_id", parsed.data.requirementId)
+    .select("program_id, unit_id")
+    .maybeSingle();
+  if (error) return fail("clearResponse", error);
+  // Deleting an absent response is a no-op success (idempotent clear).
+  if (data) {
+    revalidatePath(`/programs/${data.program_id}`);
+    revalidatePath(`/programs/${data.program_id}/units/${data.unit_id}`);
+  }
   return { ok: true };
 }
