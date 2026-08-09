@@ -109,10 +109,20 @@ function RequirementField({
           defaultValue={r.value === null ? "" : String(r.value)}
           onBlur={(e) => {
             const raw = e.target.value.trim();
-            if (raw === "" || raw === String(r.value ?? "")) return;
+            // Uncontrolled input: on any branch that doesn't save, reset the
+            // DOM value back to the stored one — mirrors StageRow's
+            // empty-blur reset, since a keyed remount won't fire here
+            // (r.value hasn't changed).
+            if (raw === "" || raw === String(r.value ?? "")) {
+              e.target.value = r.value === null ? "" : String(r.value);
+              return;
+            }
             if (r.type === "number") {
               const n = Number(raw);
-              if (!Number.isFinite(n)) return;
+              if (!Number.isFinite(n)) {
+                e.target.value = r.value === null ? "" : String(r.value);
+                return;
+              }
               onSave(n);
             } else {
               onSave(raw);
