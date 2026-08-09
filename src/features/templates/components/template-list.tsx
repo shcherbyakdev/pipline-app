@@ -5,7 +5,7 @@ export function TemplateList({ templates }: { templates: TemplateListItem[] }) {
   if (templates.length === 0) {
     return (
       <div className="text-muted-foreground rounded-lg border border-dashed p-10 text-center text-sm">
-        No templates yet. Create one to define the stages your rollouts will run.
+        No templates yet. Create one to define the stages your programs will run.
       </div>
     );
   }

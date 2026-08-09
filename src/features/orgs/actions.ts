@@ -22,5 +22,5 @@ export async function createOrg(
   const { error } = await supabase.rpc("create_org", { p_name: parsed.data.name });
   if (error) return { error: error.message };
 
-  redirect("/rollouts");
+  redirect("/programs");
 }

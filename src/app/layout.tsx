@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "RolloutOS",
-  description: "Turn your rollout spreadsheet into a live operations portal.",
+  description: "Turn your program spreadsheet into a live operations portal.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

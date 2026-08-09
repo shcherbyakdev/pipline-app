@@ -1,7 +1,7 @@
 import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 
-// Workflow templates. Rollouts will COPY a template's stages at creation
+// Workflow templates. Programs will COPY a template's stages at creation
 // (copy-on-use), so templates stay freely editable and hard-deletable.
 export const templates = pgTable(
   "templates",

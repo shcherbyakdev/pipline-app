@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { createRollout, type CreateRolloutState } from "@/features/rollouts/actions";
+import { createProgram, type CreateProgramState } from "@/features/programs/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,19 +19,19 @@ import {
 
 export type TemplateOption = { id: string; name: string; stageCount: number };
 
-const initial: CreateRolloutState = {};
+const initial: CreateProgramState = {};
 
-export function CreateRolloutDialog({ templates }: { templates: TemplateOption[] }) {
+export function CreateProgramDialog({ templates }: { templates: TemplateOption[] }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const urlOpen = searchParams.get("new") === "1";
   const [manuallyOpened, setManuallyOpened] = React.useState(false);
   const open = urlOpen || manuallyOpened;
-  const [state, action, pending] = useActionState(createRollout, initial);
+  const [state, action, pending] = useActionState(createProgram, initial);
 
   const onOpenChange = (next: boolean) => {
     setManuallyOpened(next);
-    if (!next && urlOpen) router.replace("/rollouts");
+    if (!next && urlOpen) router.replace("/programs");
   };
 
   const usable = templates.filter((t) => t.stageCount > 0);
@@ -41,17 +41,17 @@ export function CreateRolloutDialog({ templates }: { templates: TemplateOption[]
       <DialogTrigger
         render={
           <Button size="sm">
-            <Plus className="size-4" /> New rollout
+            <Plus className="size-4" /> New program
           </Button>
         }
       />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New rollout</DialogTitle>
+          <DialogTitle>New program</DialogTitle>
         </DialogHeader>
         {templates.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            Rollouts are created from a template, and you don&apos;t have any yet.{" "}
+            Programs are created from a template, and you don&apos;t have any yet.{" "}
             <Link href="/templates?new=1" className="text-foreground underline">
               Create a template first
             </Link>
@@ -60,9 +60,9 @@ export function CreateRolloutDialog({ templates }: { templates: TemplateOption[]
         ) : (
           <form action={action} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="rollout-template">Template</Label>
+              <Label htmlFor="program-template">Template</Label>
               <select
-                id="rollout-template"
+                id="program-template"
                 name="templateId"
                 required
                 defaultValue={usable[0]?.id ?? ""}
@@ -77,12 +77,12 @@ export function CreateRolloutDialog({ templates }: { templates: TemplateOption[]
               </select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="rollout-name">Name</Label>
-              <Input id="rollout-name" name="name" required maxLength={80} autoFocus />
+              <Label htmlFor="program-name">Name</Label>
+              <Input id="program-name" name="name" required maxLength={80} autoFocus />
             </div>
             {state.error ? <p className="text-destructive text-sm">{state.error}</p> : null}
             <Button type="submit" disabled={pending || usable.length === 0}>
-              {pending ? "Creating…" : "Create rollout"}
+              {pending ? "Creating…" : "Create program"}
             </Button>
           </form>
         )}

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 
-export type RolloutListItem = {
+export type ProgramListItem = {
   id: string;
   name: string;
   templateName: string | null;
@@ -11,7 +11,7 @@ export type RolloutListItem = {
   createdAt: string;
 };
 
-export type RolloutStage = { id: string; name: string; position: number };
+export type ProgramStage = { id: string; name: string; position: number };
 export type UnitStageCell = { unitStageId: string; stageId: string; done: boolean };
 export type Unit = {
   id: string;
@@ -20,37 +20,37 @@ export type Unit = {
   stages: UnitStageCell[];
 };
 
-export type RolloutDetail = {
+export type ProgramDetail = {
   id: string;
   name: string;
   templateName: string | null;
   createdAt: string;
-  stages: RolloutStage[];
+  stages: ProgramStage[];
   units: Unit[];
 };
 
 // RLS scopes every read to the caller's orgs.
-export async function listRollouts(): Promise<RolloutListItem[]> {
+export async function listPrograms(): Promise<ProgramListItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("rollouts")
+    .from("programs")
     .select(
-      "id, name, created_at, templates(name), rollout_stages(count), units(count), done:unit_stages(count)",
+      "id, name, created_at, templates(name), program_stages(count), units(count), done:unit_stages(count)",
     )
     .eq("done.status", "done")
     .order("created_at", { ascending: false });
   if (error) throw error;
-  type RolloutRow = {
+  type ProgramRow = {
     id: string;
     name: string;
     created_at: string;
     templates: { name: string } | null;
-    rollout_stages: { count: number }[];
+    program_stages: { count: number }[];
     units: { count: number }[];
     done: { count: number }[];
   };
-  return ((data ?? []) as unknown as RolloutRow[]).map((r) => {
-    const stageCount = r.rollout_stages[0]?.count ?? 0;
+  return ((data ?? []) as unknown as ProgramRow[]).map((r) => {
+    const stageCount = r.program_stages[0]?.count ?? 0;
     const unitCount = r.units[0]?.count ?? 0;
     return {
       id: r.id,
@@ -66,33 +66,33 @@ export async function listRollouts(): Promise<RolloutListItem[]> {
   });
 }
 
-export async function getRollout(id: string): Promise<RolloutDetail | null> {
+export async function getProgram(id: string): Promise<ProgramDetail | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("rollouts")
+    .from("programs")
     .select(
-      "id, name, created_at, templates(name), rollout_stages(id, name, position), units(id, name, external_ref, created_at, unit_stages(id, rollout_stage_id, status))",
+      "id, name, created_at, templates(name), program_stages(id, name, position), units(id, name, external_ref, created_at, unit_stages(id, program_stage_id, status))",
     )
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  type RolloutDetailRow = {
+  type ProgramDetailRow = {
     id: string;
     name: string;
     created_at: string;
     templates: { name: string } | null;
-    rollout_stages: { id: string; name: string; position: number }[];
+    program_stages: { id: string; name: string; position: number }[];
     units: {
       id: string;
       name: string;
       external_ref: string | null;
       created_at: string;
-      unit_stages: { id: string; rollout_stage_id: string; status: string }[];
+      unit_stages: { id: string; program_stage_id: string; status: string }[];
     }[];
   };
-  const row = data as unknown as RolloutDetailRow;
-  const stages = [...row.rollout_stages]
+  const row = data as unknown as ProgramDetailRow;
+  const stages = [...row.program_stages]
     .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
     .map((s) => ({ id: s.id, name: s.name, position: s.position }));
   return {
@@ -106,7 +106,7 @@ export async function getRollout(id: string): Promise<RolloutDetail | null> {
       .map((u) => {
         // Cell order comes from the already-sorted stages array, never from
         // the embed.
-        const byStage = new Map(u.unit_stages.map((us) => [us.rollout_stage_id, us]));
+        const byStage = new Map(u.unit_stages.map((us) => [us.program_stage_id, us]));
         return {
           id: u.id,
           name: u.name,

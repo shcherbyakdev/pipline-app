@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Trash2 } from "lucide-react";
-import type { Unit } from "@/features/rollouts/queries";
+import type { Unit } from "@/features/programs/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StageDots } from "./stage-dots";

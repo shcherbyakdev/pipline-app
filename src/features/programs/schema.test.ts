@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
-  rolloutName,
+  programName,
   unitName,
   externalRef,
-  createRolloutInput,
-  renameRolloutInput,
-  deleteRolloutInput,
+  createProgramInput,
+  renameProgramInput,
+  deleteProgramInput,
   addUnitInput,
   renameUnitInput,
   deleteUnitInput,
@@ -14,14 +14,14 @@ import {
 
 const UUID = "6f1e2d3c-4b5a-4678-9abc-def012345678";
 
-describe("rolloutName", () => {
+describe("programName", () => {
   it("trims and accepts 1–80", () => {
-    expect(rolloutName.parse("  Q3 Refresh  ")).toBe("Q3 Refresh");
-    expect(rolloutName.safeParse("x".repeat(80)).success).toBe(true);
+    expect(programName.parse("  Q3 Refresh  ")).toBe("Q3 Refresh");
+    expect(programName.safeParse("x".repeat(80)).success).toBe(true);
   });
   it("rejects empty-after-trim and 81", () => {
-    expect(rolloutName.safeParse("   ").success).toBe(false);
-    expect(rolloutName.safeParse("x".repeat(81)).success).toBe(false);
+    expect(programName.safeParse("   ").success).toBe(false);
+    expect(programName.safeParse("x".repeat(81)).success).toBe(false);
   });
 });
 
@@ -37,32 +37,32 @@ describe("unitName / externalRef", () => {
   });
 });
 
-describe("createRolloutInput", () => {
+describe("createProgramInput", () => {
   it("happy path parses", () => {
-    expect(createRolloutInput.safeParse({ templateId: UUID, name: "Q3" }).success).toBe(true);
+    expect(createProgramInput.safeParse({ templateId: UUID, name: "Q3" }).success).toBe(true);
   });
   it("rejects non-uuid templateId", () => {
-    expect(createRolloutInput.safeParse({ templateId: "nope", name: "Q3" }).success).toBe(false);
+    expect(createProgramInput.safeParse({ templateId: "nope", name: "Q3" }).success).toBe(false);
   });
 });
 
 describe("addUnitInput", () => {
   it("externalRef is optional; happy path parses", () => {
-    expect(addUnitInput.safeParse({ rolloutId: UUID, name: "Store #101" }).success).toBe(true);
+    expect(addUnitInput.safeParse({ programId: UUID, name: "Store #101" }).success).toBe(true);
     expect(
-      addUnitInput.safeParse({ rolloutId: UUID, name: "Store #101", externalRef: "S-101" }).success,
+      addUnitInput.safeParse({ programId: UUID, name: "Store #101", externalRef: "S-101" }).success,
     ).toBe(true);
   });
 });
 
 describe("remaining action inputs", () => {
-  it("renameRolloutInput happy path and rejects invalid uuid", () => {
-    expect(renameRolloutInput.safeParse({ id: UUID, name: "Q4" }).success).toBe(true);
-    expect(renameRolloutInput.safeParse({ id: "nope", name: "Q4" }).success).toBe(false);
+  it("renameProgramInput happy path and rejects invalid uuid", () => {
+    expect(renameProgramInput.safeParse({ id: UUID, name: "Q4" }).success).toBe(true);
+    expect(renameProgramInput.safeParse({ id: "nope", name: "Q4" }).success).toBe(false);
   });
-  it("deleteRolloutInput happy path and rejects invalid uuid", () => {
-    expect(deleteRolloutInput.safeParse({ id: UUID }).success).toBe(true);
-    expect(deleteRolloutInput.safeParse({ id: "nope" }).success).toBe(false);
+  it("deleteProgramInput happy path and rejects invalid uuid", () => {
+    expect(deleteProgramInput.safeParse({ id: UUID }).success).toBe(true);
+    expect(deleteProgramInput.safeParse({ id: "nope" }).success).toBe(false);
   });
   it("renameUnitInput happy path and rejects invalid uuid", () => {
     expect(renameUnitInput.safeParse({ id: UUID, name: "Store #102" }).success).toBe(true);

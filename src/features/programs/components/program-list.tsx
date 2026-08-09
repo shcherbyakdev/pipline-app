@@ -1,11 +1,11 @@
 import Link from "next/link";
-import type { RolloutListItem } from "@/features/rollouts/queries";
+import type { ProgramListItem } from "@/features/programs/queries";
 
-export function RolloutList({ rollouts }: { rollouts: RolloutListItem[] }) {
-  if (rollouts.length === 0) {
+export function ProgramList({ programs }: { programs: ProgramListItem[] }) {
+  if (programs.length === 0) {
     return (
       <div className="text-muted-foreground rounded-lg border border-dashed p-10 text-center text-sm">
-        No rollouts yet. Create one from a template to start tracking units.
+        No programs yet. Create one from a template to start tracking units.
       </div>
     );
   }
@@ -24,10 +24,10 @@ export function RolloutList({ rollouts }: { rollouts: RolloutListItem[] }) {
           </tr>
         </thead>
         <tbody>
-          {rollouts.map((r) => (
+          {programs.map((r) => (
             <tr key={r.id} className="hover:bg-muted/50 border-b last:border-0">
               <td className="p-3">
-                <Link href={`/rollouts/${r.id}`} className="font-medium hover:underline">
+                <Link href={`/programs/${r.id}`} className="font-medium hover:underline">
                   {r.name}
                 </Link>
               </td>

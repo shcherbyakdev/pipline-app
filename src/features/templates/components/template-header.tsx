@@ -72,7 +72,7 @@ export function TemplateHeader({
             <DialogTitle>Delete this template?</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm">
-            Deletes the template and its stages. Rollouts are unaffected — they copy stages
+            Deletes the template and its stages. Programs are unaffected — they copy stages
             when created.
           </p>
           <DialogFooter>

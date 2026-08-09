@@ -1,7 +1,7 @@
-import type { RolloutStage } from "@/features/rollouts/queries";
+import type { ProgramStage } from "@/features/programs/queries";
 
-// Read-only by design: a rollout's stages are a frozen snapshot (copy-on-use).
-export function StageStrip({ stages }: { stages: RolloutStage[] }) {
+// Read-only by design: a program's stages are a frozen snapshot (copy-on-use).
+export function StageStrip({ stages }: { stages: ProgramStage[] }) {
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-muted-foreground text-sm font-medium">Stages ({stages.length})</h2>
