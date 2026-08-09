@@ -6,6 +6,8 @@ export type RolloutListItem = {
   templateName: string | null;
   stageCount: number;
   unitCount: number;
+  doneCount: number;
+  totalCount: number;
   createdAt: string;
 };
 
@@ -32,7 +34,10 @@ export async function listRollouts(): Promise<RolloutListItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("rollouts")
-    .select("id, name, created_at, templates(name), rollout_stages(count), units(count)")
+    .select(
+      "id, name, created_at, templates(name), rollout_stages(count), units(count), done:unit_stages(count)",
+    )
+    .eq("done.status", "done")
     .order("created_at", { ascending: false });
   if (error) throw error;
   type RolloutRow = {
@@ -42,15 +47,23 @@ export async function listRollouts(): Promise<RolloutListItem[]> {
     templates: { name: string } | null;
     rollout_stages: { count: number }[];
     units: { count: number }[];
+    done: { count: number }[];
   };
-  return ((data ?? []) as unknown as RolloutRow[]).map((r) => ({
-    id: r.id,
-    name: r.name,
-    templateName: r.templates?.name ?? null,
-    stageCount: r.rollout_stages[0]?.count ?? 0,
-    unitCount: r.units[0]?.count ?? 0,
-    createdAt: r.created_at,
-  }));
+  return ((data ?? []) as unknown as RolloutRow[]).map((r) => {
+    const stageCount = r.rollout_stages[0]?.count ?? 0;
+    const unitCount = r.units[0]?.count ?? 0;
+    return {
+      id: r.id,
+      name: r.name,
+      templateName: r.templates?.name ?? null,
+      stageCount,
+      unitCount,
+      doneCount: r.done[0]?.count ?? 0,
+      // Fan-out invariant: every unit has exactly one row per stage.
+      totalCount: stageCount * unitCount,
+      createdAt: r.created_at,
+    };
+  });
 }
 
 export async function getRollout(id: string): Promise<RolloutDetail | null> {
