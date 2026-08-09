@@ -10,7 +10,13 @@ export type RolloutListItem = {
 };
 
 export type RolloutStage = { id: string; name: string; position: number };
-export type Unit = { id: string; name: string; externalRef: string | null };
+export type UnitStageCell = { unitStageId: string; stageId: string; done: boolean };
+export type Unit = {
+  id: string;
+  name: string;
+  externalRef: string | null;
+  stages: UnitStageCell[];
+};
 
 export type RolloutDetail = {
   id: string;
@@ -52,7 +58,7 @@ export async function getRollout(id: string): Promise<RolloutDetail | null> {
   const { data, error } = await supabase
     .from("rollouts")
     .select(
-      "id, name, created_at, templates(name), rollout_stages(id, name, position), units(id, name, external_ref, created_at)",
+      "id, name, created_at, templates(name), rollout_stages(id, name, position), units(id, name, external_ref, created_at, unit_stages(id, rollout_stage_id, status))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -64,19 +70,39 @@ export async function getRollout(id: string): Promise<RolloutDetail | null> {
     created_at: string;
     templates: { name: string } | null;
     rollout_stages: { id: string; name: string; position: number }[];
-    units: { id: string; name: string; external_ref: string | null; created_at: string }[];
+    units: {
+      id: string;
+      name: string;
+      external_ref: string | null;
+      created_at: string;
+      unit_stages: { id: string; rollout_stage_id: string; status: string }[];
+    }[];
   };
   const row = data as unknown as RolloutDetailRow;
+  const stages = [...row.rollout_stages]
+    .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
+    .map((s) => ({ id: s.id, name: s.name, position: s.position }));
   return {
     id: row.id,
     name: row.name,
     templateName: row.templates?.name ?? null,
     createdAt: row.created_at,
-    stages: [...row.rollout_stages]
-      .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
-      .map((s) => ({ id: s.id, name: s.name, position: s.position })),
+    stages,
     units: [...row.units]
       .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
-      .map((u) => ({ id: u.id, name: u.name, externalRef: u.external_ref })),
+      .map((u) => {
+        // Cell order comes from the already-sorted stages array, never from
+        // the embed.
+        const byStage = new Map(u.unit_stages.map((us) => [us.rollout_stage_id, us]));
+        return {
+          id: u.id,
+          name: u.name,
+          externalRef: u.external_ref,
+          stages: stages.flatMap((s) => {
+            const us = byStage.get(s.id);
+            return us ? [{ unitStageId: us.id, stageId: s.id, done: us.status === "done" }] : [];
+          }),
+        };
+      }),
   };
 }

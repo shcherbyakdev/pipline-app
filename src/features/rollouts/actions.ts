@@ -10,6 +10,7 @@ import {
   addUnitInput,
   renameUnitInput,
   deleteUnitInput,
+  setUnitStageStatusInput,
   GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
@@ -123,6 +124,22 @@ export async function deleteUnit(input: unknown): Promise<ActionState> {
     .select("rollout_id")
     .maybeSingle();
   if (error || !data) return fail("deleteUnit", error ?? "unit not visible");
+  revalidatePath("/rollouts");
+  revalidatePath(`/rollouts/${data.rollout_id}`);
+  return { ok: true };
+}
+
+export async function setUnitStageStatus(input: unknown): Promise<ActionState> {
+  const parsed = setUnitStageStatusInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("unit_stages")
+    .update({ status: parsed.data.done ? "done" : "pending" })
+    .eq("id", parsed.data.id)
+    .select("rollout_id")
+    .maybeSingle();
+  if (error || !data) return fail("setUnitStageStatus", error ?? "unit stage not visible");
   revalidatePath("/rollouts");
   revalidatePath(`/rollouts/${data.rollout_id}`);
   return { ok: true };
