@@ -125,6 +125,7 @@ export async function renameStage(input: unknown): Promise<TemplateActionState> 
     .select("template_id")
     .maybeSingle();
   if (error || !data) return fail("renameStage", error ?? "stage not visible");
+  revalidatePath("/templates");
   revalidatePath(`/templates/${data.template_id}`);
   return { ok: true };
 }
