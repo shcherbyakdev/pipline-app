@@ -36,6 +36,20 @@
       "when": 1786277025315,
       "tag": "0004_table_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786289137073,
+      "tag": "0005_nosy_human_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786289147928,
+      "tag": "0006_rollouts_rls",
+      "breakpoints": true
     }
   ]
 }
