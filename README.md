@@ -92,10 +92,11 @@ npm run db:migrate    # applies it locally
 
 CI fails if the schema and the committed migrations have drifted.
 
-Production migrations run automatically from `.github/workflows/deploy.yml`
-*before* the new build is promoted — so a migration must be backward compatible
-with the currently-deployed code. Make additive changes only; split destructive
-changes (dropping a column, renaming) across two releases.
+When deploys are enabled, production migrations run automatically from
+`.github/workflows/deploy.yml` *before* the new build is promoted — so a
+migration must be backward compatible with the currently-deployed code. Make
+additive changes only; split destructive changes (dropping a column, renaming)
+across two releases. (Deploys are currently disabled — see CI/CD below.)
 
 ## CI/CD
 
@@ -103,13 +104,14 @@ Every PR runs lint, typecheck, tests, a production build, and a database job
 that applies migrations to an empty database and checks for schema drift.
 Require the single `ci` status in branch protection.
 
-Merges to `main` trigger `Deploy`, which migrates the production database and
-then builds and promotes to Vercel. Vercel's own Git auto-deploy must stay
-**disabled** so the two never race.
-
-Secrets required under the `production` GitHub Environment: `DATABASE_URL`
-(direct connection, port 5432), `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
-`VERCEL_PROJECT_ID`.
+**Deploys are currently disabled** — this project runs local-only for now. The
+`Deploy` workflow exists but its automatic trigger is commented out in
+`.github/workflows/deploy.yml`; the re-enable steps are documented at the top
+of that file. When enabled, it migrates the production database and then builds
+and promotes to Vercel, gated on a green CI run. (Vercel's own Git auto-deploy
+must stay **disabled** so the two never race, and the `production` GitHub
+Environment needs `DATABASE_URL` — direct connection, port 5432 —
+`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.)
 
 ## Layout
 

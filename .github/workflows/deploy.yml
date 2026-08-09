@@ -1,13 +1,28 @@
 name: Deploy
 
+# ─── DEPLOYS DISABLED — local development only for now ────────────────────────
+# The automatic trigger below is commented out, so this workflow never fires on
+# its own. (Manual `workflow_dispatch` remains, but without the `production`
+# environment secrets it would fail immediately — nothing can reach a real
+# database or Vercel.)
+#
+# To re-enable production deploys:
+#   1. Uncomment the `workflow_run` block below.
+#   2. Create the `production` GitHub Environment with secrets: DATABASE_URL
+#      (direct connection, port 5432 — not the pooler), VERCEL_TOKEN,
+#      VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+#   3. In Vercel → Settings → Git, disable automatic deployments (otherwise
+#      Vercel races the migration step).
+# ──────────────────────────────────────────────────────────────────────────────
+
 # Triggered by CI finishing, not by the push itself — so a green CI run is a
 # structural precondition of this workflow starting, rather than a step inside
 # it that could be skipped or reordered.
 on:
-  workflow_run:
-    workflows: [CI]
-    branches: [main]
-    types: [completed]
+  # workflow_run:
+  #   workflows: [CI]
+  #   branches: [main]
+  #   types: [completed]
   workflow_dispatch:
 
 permissions:
