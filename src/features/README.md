@@ -23,3 +23,13 @@ Rules of thumb:
 
 Aggregates: `templates`, `rollouts`, `units`, `stages`, `evidence`,
 `approvals`, `blockers`, `participants`, `import`, `portal`.
+
+## Optimistic mutations (project convention)
+
+Established in `templates/components/stage-list.tsx`. Client components own a
+`useOptimistic(serverData, reducer)` pair; every mutation (1) dispatches the
+optimistic event inside a transition, (2) awaits the Server Action, (3) on
+`{ ok: false }` shows `toast.error` — the action's `revalidatePath` re-renders
+server truth either way. Actions return `{ ok: true } | { ok: false; error }`
+with the generic copy from `GENERIC_WRITE_ERROR`; raw errors are logged
+server-side only.
