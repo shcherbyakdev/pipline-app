@@ -1,0 +1,95 @@
+name: Deploy
+
+# ─── DEPLOYS DISABLED — local development only for now ────────────────────────
+# The automatic trigger below is commented out, so this workflow never fires on
+# its own. (Manual `workflow_dispatch` remains, but without the `production`
+# environment secrets it would fail immediately — nothing can reach a real
+# database or Vercel.)
+#
+# To re-enable production deploys:
+#   1. Uncomment the `workflow_run` block below.
+#   2. Create the `production` GitHub Environment with secrets: DATABASE_URL
+#      (direct connection, port 5432 — not the pooler), VERCEL_TOKEN,
+#      VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+#   3. In Vercel → Settings → Git, disable automatic deployments (otherwise
+#      Vercel races the migration step).
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Triggered by CI finishing, not by the push itself — so a green CI run is a
+# structural precondition of this workflow starting, rather than a step inside
+# it that could be skipped or reordered.
+on:
+  # workflow_run:
+  #   workflows: [CI]
+  #   branches: [main]
+  #   types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Deploys queue rather than overlap: two concurrent `drizzle-kit migrate` runs
+# against one database is a corruption risk.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    # Bounds a hung step (e.g. a stuck `drizzle-kit migrate` against production).
+    # The `deploy-production` concurrency lock is held for the job's full
+    # duration, so an unbounded hang would block every subsequent deploy for up
+    # to GitHub's default 6-hour job timeout. 20 minutes comfortably covers a
+    # normal run (npm ci + migrate + vercel pull/build/deploy) with headroom.
+    timeout-minutes: 20
+    steps:
+      # workflow_run defaults to the tip of main, which may have moved past the
+      # commit CI actually verified. Check out the verified SHA.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Migrate BEFORE promoting, so the schema is always at or ahead of the
+      # code. Between this step and the deploy below, the currently-live code
+      # runs against the new schema — migrations must be backward compatible.
+      - name: Migrate production database
+        run: npx drizzle-kit migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      # Pinned to a major version: this CLI builds and promotes production, so
+      # it must not change under us with zero diff in this repo the way
+      # `@latest` would allow. Patch/minor fixes still arrive automatically;
+      # a breaking major cannot land silently. Dependabot does not cover
+      # globally-installed CLIs like this one, so the pin is manual and must
+      # be bumped by hand when a new major is adopted deliberately.
+      - name: Install Vercel CLI
+        run: npm install --global vercel@^58.0.0
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

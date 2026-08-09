@@ -5,10 +5,23 @@
  *           SUPABASE_SERVICE_ROLE_KEY in the environment (.env.local).
  */
 import { createClient } from "@supabase/supabase-js";
+import { hostnameOf, isLoopbackHost } from "./lib/host-guard";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+// Refuse to run against anything but a local Supabase instance — this
+// script creates confirmed users with a fixed, publicly-known password via
+// the admin API. Safe on a throwaway local DB, a liability against a
+// remote or staging project. Mirrors the guard in scripts/seed.ts.
+const verifyHostname = hostnameOf(url);
+if (verifyHostname === null || !isLoopbackHost(verifyHostname)) {
+  console.error(`verify-foundation: refusing to run against non-local host "${verifyHostname ?? url}".`);
+  console.error("verify-foundation: this script creates confirmed users with a fixed password.");
+  console.error("verify-foundation: only loopback hosts (127.0.0.1, localhost, [::1]) are allowed.");
+  process.exit(1);
+}
 
 const admin = createClient(url, service, { auth: { autoRefreshToken: false, persistSession: false } });
 
