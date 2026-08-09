@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, index, unique, boolean, jsonb, numeric, date } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 import { templates } from "./templates";
 
@@ -47,6 +47,39 @@ export const programStages = pgTable(
   ],
 );
 
+// The frozen requirement copy. Written only inside create_program (which
+// also expands checklist requirements into per-item booleans); API roles
+// hold select-only grants — the program_stages precedent.
+export const programStageRequirements = pgTable(
+  "program_stage_requirements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    programStageId: uuid("program_stage_id")
+      .notNull()
+      .references(() => programStages.id, { onDelete: "cascade" }),
+    // Denormalized for PostgREST embeds and per-program reads.
+    programId: uuid("program_id")
+      .notNull()
+      .references(() => programs.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    // 'text'|'number'|'boolean'|'date'|'choice'|'photo' — checklist expanded away
+    type: text("type").notNull(),
+    label: text("label").notNull(),
+    required: boolean("required").notNull(),
+    // {options} for choice; {group: <checklist label>} for expanded items
+    config: jsonb("config").notNull().default({}),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("program_stage_requirements_program_stage_id_idx").on(t.programStageId),
+    index("program_stage_requirements_program_id_idx").on(t.programId),
+    index("program_stage_requirements_org_id_idx").on(t.orgId),
+  ],
+);
+
 export const units = pgTable(
   "units",
   {
@@ -89,6 +122,9 @@ export const unitStages = pgTable(
     // 'pending' | 'done' — CHECK lives in 0008 (custom SQL keeps it and the
     // grants/policies in one reviewable place).
     status: text("status").notNull().default("pending"),
+    // 'requirements' (derived) | 'override' (staff said so) | null (pending).
+    // No client grant — maintained only by 0011's triggers (the done_at pattern).
+    doneSource: text("done_source"),
     doneAt: timestamp("done_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -98,5 +134,52 @@ export const unitStages = pgTable(
     index("unit_stages_program_stage_id_idx").on(t.programStageId),
     index("unit_stages_program_id_idx").on(t.programId),
     index("unit_stages_org_id_idx").on(t.orgId),
+  ],
+);
+
+// One answer per (unit_stage × requirement). Clients supply ONLY the id
+// pair + one value column; a BEFORE trigger (0011) fills unit_id/
+// program_id/org_id/type from the parent rows and validates the pair.
+// The one-value-matching-type CHECK lives in 0011.
+export const unitStageResponses = pgTable(
+  "unit_stage_responses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    unitStageId: uuid("unit_stage_id")
+      .notNull()
+      .references(() => unitStages.id, { onDelete: "cascade" }),
+    programStageRequirementId: uuid("program_stage_requirement_id")
+      .notNull()
+      .references(() => programStageRequirements.id, { onDelete: "cascade" }),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id, { onDelete: "cascade" }),
+    programId: uuid("program_id")
+      .notNull()
+      .references(() => programs.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    valueText: text("value_text"),
+    valueNumber: numeric("value_number"),
+    valueBool: boolean("value_bool"),
+    valueDate: date("value_date"),
+    answeredByUserId: uuid("answered_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    unique("unit_stage_responses_stage_requirement_uq").on(
+      t.unitStageId,
+      t.programStageRequirementId,
+    ),
+    index("unit_stage_responses_unit_stage_id_idx").on(t.unitStageId),
+    index("unit_stage_responses_requirement_id_idx").on(t.programStageRequirementId),
+    index("unit_stage_responses_unit_id_idx").on(t.unitId),
+    index("unit_stage_responses_program_id_idx").on(t.programId),
+    index("unit_stage_responses_org_id_idx").on(t.orgId),
+    // Recurrence (slice 11) scans expiry dates.
+    index("unit_stage_responses_value_date_idx").on(t.valueDate),
   ],
 );

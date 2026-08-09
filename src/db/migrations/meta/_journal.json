@@ -71,6 +71,13 @@
       "when": 1786312967000,
       "tag": "0009_programs_rename",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786314713191,
+      "tag": "0010_easy_falcon",
+      "breakpoints": true
     }
   ]
 }
