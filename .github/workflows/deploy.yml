@@ -48,7 +48,7 @@ jobs:
     steps:
       # workflow_run defaults to the tip of main, which may have moved past the
       # commit CI actually verified. Check out the verified SHA.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
