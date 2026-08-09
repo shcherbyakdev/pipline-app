@@ -42,7 +42,7 @@ describe("RLS unit_stages", () => {
   let alice: SupabaseClient;
   let bob: SupabaseClient;
   let aliceOrgId: string;
-  let aliceRolloutId: string;
+  let aliceProgramId: string;
   let aliceUnitId: string;
   let stageIds: string[] = [];
   let firstUnitStageId: string;
@@ -75,26 +75,26 @@ describe("RLS unit_stages", () => {
     const { error: e4 } = await alice.from("template_stages").insert(stages);
     if (e4) throw e4;
 
-    const { data: rollout, error: e5 } = await alice.rpc("create_rollout", {
+    const { data: program, error: e5 } = await alice.rpc("create_program", {
       p_template_id: templateId,
       p_name: "Progress R1",
     });
     if (e5) throw e5;
-    aliceRolloutId = (rollout as { id: string }).id;
+    aliceProgramId = (program as { id: string }).id;
 
-    const { data: rolloutStages, error: e6 } = await alice
-      .from("rollout_stages")
+    const { data: programStages, error: e6 } = await alice
+      .from("program_stages")
       .select("id")
-      .eq("rollout_id", aliceRolloutId)
+      .eq("program_id", aliceProgramId)
       .order("position");
     if (e6) throw e6;
-    stageIds = (rolloutStages ?? []).map((s) => s.id);
+    stageIds = (programStages ?? []).map((s) => s.id);
   });
 
   it("inserting a unit fans out one pending row per stage", async () => {
     const { data: unit, error } = await alice
       .from("units")
-      .insert({ rollout_id: aliceRolloutId, org_id: aliceOrgId, name: "U1" })
+      .insert({ program_id: aliceProgramId, org_id: aliceOrgId, name: "U1" })
       .select("id")
       .single();
     expect(error).toBeNull();
@@ -102,17 +102,17 @@ describe("RLS unit_stages", () => {
 
     const { data: rows } = await alice
       .from("unit_stages")
-      .select("id, rollout_stage_id, rollout_id, org_id, status, done_at")
+      .select("id, program_stage_id, program_id, org_id, status, done_at")
       .eq("unit_id", aliceUnitId);
     expect(rows).toHaveLength(2);
-    expect(new Set(rows!.map((r) => r.rollout_stage_id))).toEqual(new Set(stageIds));
+    expect(new Set(rows!.map((r) => r.program_stage_id))).toEqual(new Set(stageIds));
     for (const row of rows!) {
       expect(row.status).toBe("pending");
       expect(row.done_at).toBeNull();
-      expect(row.rollout_id).toBe(aliceRolloutId);
+      expect(row.program_id).toBe(aliceProgramId);
       expect(row.org_id).toBe(aliceOrgId);
     }
-    firstUnitStageId = rows!.find((r) => r.rollout_stage_id === stageIds[0])!.id;
+    firstUnitStageId = rows!.find((r) => r.program_stage_id === stageIds[0])!.id;
   });
 
   it("owner toggles done and back; done_at follows", async () => {
@@ -150,8 +150,8 @@ describe("RLS unit_stages", () => {
     // both are errors, so a plain error assertion is portable.
     const { error } = await alice.from("unit_stages").insert({
       unit_id: aliceUnitId,
-      rollout_stage_id: stageIds[0],
-      rollout_id: aliceRolloutId,
+      program_stage_id: stageIds[0],
+      program_id: aliceProgramId,
       org_id: aliceOrgId,
     });
     expect(error).not.toBeNull();
@@ -176,7 +176,7 @@ describe("RLS unit_stages", () => {
     const { data: seen } = await bob
       .from("unit_stages")
       .select("id")
-      .eq("rollout_id", aliceRolloutId);
+      .eq("program_id", aliceProgramId);
     expect(seen).toHaveLength(0);
 
     const { data: updateData, error: updateError } = await bob

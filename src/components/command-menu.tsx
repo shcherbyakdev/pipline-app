@@ -40,16 +40,16 @@ export function CommandMenu() {
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Navigate">
-          <CommandItem onSelect={() => go("/rollouts")}>
-            <LayoutGrid className="size-4" /> Rollouts
+          <CommandItem onSelect={() => go("/programs")}>
+            <LayoutGrid className="size-4" /> Programs
           </CommandItem>
           <CommandItem onSelect={() => go("/templates")}>
             <FileStack className="size-4" /> Templates
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={() => go("/rollouts?new=1")}>
-            <Plus className="size-4" /> Create rollout
+          <CommandItem onSelect={() => go("/programs?new=1")}>
+            <Plus className="size-4" /> Create program
           </CommandItem>
           <CommandItem onSelect={() => go("/templates?new=1")}>
             <Plus className="size-4" /> Create template

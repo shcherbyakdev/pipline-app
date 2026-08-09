@@ -3,37 +3,37 @@ import { orgs } from "./orgs";
 import { templates } from "./templates";
 
 // One execution of a template's workflow across many units. Creating a
-// rollout SNAPSHOTS the template's stages (copy-on-use); the snapshot is
+// program SNAPSHOTS the template's stages (copy-on-use); the snapshot is
 // immutable and the template link is provenance only.
-export const rollouts = pgTable(
-  "rollouts",
+export const programs = pgTable(
+  "programs",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     orgId: uuid("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
     // Provenance only — the snapshot carries all load-bearing data, so a
-    // deleted template leaves the rollout intact with template_id null.
+    // deleted template leaves the program intact with template_id null.
     templateId: uuid("template_id").references(() => templates.id, {
       onDelete: "set null",
     }),
     name: text("name").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    // Set app-side by renameRollout; list ordering uses created_at.
+    // Set app-side by renameProgram; list ordering uses created_at.
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("rollouts_org_id_idx").on(t.orgId), index("rollouts_template_id_idx").on(t.templateId)],
+  (t) => [index("programs_org_id_idx").on(t.orgId), index("programs_template_id_idx").on(t.templateId)],
 );
 
-// The frozen copy. Written only inside the create_rollout RPC; API roles
+// The frozen copy. Written only inside the create_program RPC; API roles
 // hold select-only grants, so no client write path exists at any layer.
-export const rolloutStages = pgTable(
-  "rollout_stages",
+export const programStages = pgTable(
+  "program_stages",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    rolloutId: uuid("rollout_id")
+    programId: uuid("program_id")
       .notNull()
-      .references(() => rollouts.id, { onDelete: "cascade" }),
+      .references(() => programs.id, { onDelete: "cascade" }),
     orgId: uuid("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
@@ -42,8 +42,8 @@ export const rolloutStages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    index("rollout_stages_rollout_id_idx").on(t.rolloutId),
-    index("rollout_stages_org_id_idx").on(t.orgId),
+    index("program_stages_program_id_idx").on(t.programId),
+    index("program_stages_org_id_idx").on(t.orgId),
   ],
 );
 
@@ -51,9 +51,9 @@ export const units = pgTable(
   "units",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    rolloutId: uuid("rollout_id")
+    programId: uuid("program_id")
       .notNull()
-      .references(() => rollouts.id, { onDelete: "cascade" }),
+      .references(() => programs.id, { onDelete: "cascade" }),
     orgId: uuid("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
@@ -63,7 +63,7 @@ export const units = pgTable(
     externalRef: text("external_ref"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("units_rollout_id_idx").on(t.rolloutId), index("units_org_id_idx").on(t.orgId)],
+  (t) => [index("units_program_id_idx").on(t.programId), index("units_org_id_idx").on(t.orgId)],
 );
 
 // One row per (unit × stage) — fanned out by the units AFTER INSERT trigger
@@ -76,13 +76,13 @@ export const unitStages = pgTable(
     unitId: uuid("unit_id")
       .notNull()
       .references(() => units.id, { onDelete: "cascade" }),
-    rolloutStageId: uuid("rollout_stage_id")
+    programStageId: uuid("program_stage_id")
       .notNull()
-      .references(() => rolloutStages.id, { onDelete: "cascade" }),
-    // Denormalized for PostgREST embeds and per-rollout counts.
-    rolloutId: uuid("rollout_id")
+      .references(() => programStages.id, { onDelete: "cascade" }),
+    // Denormalized for PostgREST embeds and per-program counts.
+    programId: uuid("program_id")
       .notNull()
-      .references(() => rollouts.id, { onDelete: "cascade" }),
+      .references(() => programs.id, { onDelete: "cascade" }),
     orgId: uuid("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
@@ -93,10 +93,10 @@ export const unitStages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    unique("unit_stages_unit_stage_uq").on(t.unitId, t.rolloutStageId),
+    unique("unit_stages_unit_stage_uq").on(t.unitId, t.programStageId),
     index("unit_stages_unit_id_idx").on(t.unitId),
-    index("unit_stages_rollout_stage_id_idx").on(t.rolloutStageId),
-    index("unit_stages_rollout_id_idx").on(t.rolloutId),
+    index("unit_stages_program_stage_id_idx").on(t.programStageId),
+    index("unit_stages_program_id_idx").on(t.programId),
     index("unit_stages_org_id_idx").on(t.orgId),
   ],
 );

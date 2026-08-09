@@ -21,7 +21,7 @@ Rules of thumb:
 - Every Server Action validates its input with a Zod schema from `schema.ts`.
 - Keep files small and single-purpose; when one grows large, it's doing too much.
 
-Aggregates: `templates`, `rollouts`, `units`, `stages`, `evidence`,
+Aggregates: `templates`, `programs`, `units`, `stages`, `evidence`,
 `approvals`, `blockers`, `participants`, `import`, `portal`.
 
 ## Optimistic mutations (project convention)

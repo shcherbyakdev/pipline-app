@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { renameRollout, deleteRollout } from "@/features/rollouts/actions";
+import { renameProgram, deleteProgram } from "@/features/programs/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function RolloutHeader({
+export function ProgramHeader({
   id,
   name,
   templateName,
@@ -35,7 +35,7 @@ export function RolloutHeader({
       return;
     }
     startTransition(async () => {
-      const result = await renameRollout({ id, name: next });
+      const result = await renameProgram({ id, name: next });
       if (!result.ok) {
         setValue(name);
         toast.error(result.error);
@@ -52,7 +52,7 @@ export function RolloutHeader({
           onBlur={commitRename}
           onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
           maxLength={80}
-          aria-label="Rollout name"
+          aria-label="Program name"
           className="border-transparent text-lg font-semibold shadow-none focus-visible:border-input"
         />
         {templateName ? (
@@ -62,17 +62,17 @@ export function RolloutHeader({
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogTrigger
           render={
-            <Button variant="ghost" size="icon" aria-label="Delete rollout">
+            <Button variant="ghost" size="icon" aria-label="Delete program">
               <Trash2 className="size-4" />
             </Button>
           }
         />
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete this rollout?</DialogTitle>
+            <DialogTitle>Delete this program?</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm">
-            Deletes the rollout, its stages, and its units. Templates are unaffected.
+            Deletes the program, its stages, and its units. Templates are unaffected.
           </p>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
@@ -83,7 +83,7 @@ export function RolloutHeader({
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
-                  const result = await deleteRollout({ id });
+                  const result = await deleteProgram({ id });
                   // On success the action redirects; only failures return.
                   if (result && !result.ok) toast.error(result.error);
                 })

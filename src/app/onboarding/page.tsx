@@ -5,7 +5,7 @@ import { OnboardingForm } from "./onboarding-form";
 export default async function OnboardingPage() {
   await requireUser();
   const org = await getCurrentOrg();
-  if (org) redirect("/rollouts"); // already onboarded
+  if (org) redirect("/programs"); // already onboarded
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
@@ -14,7 +14,7 @@ export default async function OnboardingPage() {
           Create your organization
         </h1>
         <p className="text-muted-foreground mb-6 text-sm">
-          This is your workspace for rollouts, units, and your team.
+          This is your workspace for programs, units, and your team.
         </p>
         <OnboardingForm />
       </div>

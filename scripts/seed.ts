@@ -17,10 +17,10 @@ try {
 
 const DEMO_EMAIL = "demo@rolloutos.local";
 const DEMO_PASSWORD = "Password123!";
-const DEMO_ORG = "Demo Rollouts";
+const DEMO_ORG = "Demo Programs";
 const DEMO_TEMPLATE = "Store Refresh";
 const DEMO_STAGES = ["Survey", "Install", "QA", "Sign-off"];
-const DEMO_ROLLOUT = "Q3 Store Refresh";
+const DEMO_PROGRAM = "Q3 Store Refresh";
 const DEMO_UNITS: Array<{ name: string; ref: string }> = [
   { name: "Store #101 — Kraków", ref: "S-101" },
   { name: "Store #102 — Gdańsk", ref: "S-102" },
@@ -126,16 +126,16 @@ async function ensureDemoTemplate(
   console.log(`seed: created template "${DEMO_TEMPLATE}" with ${DEMO_STAGES.length} stages`);
 }
 
-async function ensureDemoRollout(client: SupabaseClient, orgId: string): Promise<void> {
+async function ensureDemoProgram(client: SupabaseClient, orgId: string): Promise<void> {
   const { data: found, error: findError } = await client
-    .from("rollouts")
+    .from("programs")
     .select("id")
     .eq("org_id", orgId)
-    .eq("name", DEMO_ROLLOUT)
+    .eq("name", DEMO_PROGRAM)
     .maybeSingle();
   if (findError) throw findError;
   if (found) {
-    console.log(`seed: rollout "${DEMO_ROLLOUT}" already exists — nothing to do`);
+    console.log(`seed: program "${DEMO_PROGRAM}" already exists — nothing to do`);
     return;
   }
 
@@ -150,43 +150,43 @@ async function ensureDemoRollout(client: SupabaseClient, orgId: string): Promise
   if (templateError) throw templateError;
   if (!template) throw new Error(`seed: template "${DEMO_TEMPLATE}" not found`);
 
-  const { data: rollout, error: rpcError } = await client.rpc("create_rollout", {
+  const { data: program, error: rpcError } = await client.rpc("create_program", {
     p_template_id: template.id,
-    p_name: DEMO_ROLLOUT,
+    p_name: DEMO_PROGRAM,
   });
   if (rpcError) throw rpcError;
 
   const { error: unitsError } = await client.from("units").insert(
     DEMO_UNITS.map((u) => ({
-      rollout_id: (rollout as { id: string }).id,
+      program_id: (program as { id: string }).id,
       org_id: orgId,
       name: u.name,
       external_ref: u.ref,
     })),
   );
   if (unitsError) throw unitsError;
-  console.log(`seed: created rollout "${DEMO_ROLLOUT}" with ${DEMO_UNITS.length} units`);
+  console.log(`seed: created program "${DEMO_PROGRAM}" with ${DEMO_UNITS.length} units`);
 }
 
 async function ensureDemoProgress(client: SupabaseClient, orgId: string): Promise<void> {
-  const { data: rollout, error: rolloutError } = await client
-    .from("rollouts")
+  const { data: program, error: programError } = await client
+    .from("programs")
     .select("id")
     .eq("org_id", orgId)
-    .eq("name", DEMO_ROLLOUT)
+    .eq("name", DEMO_PROGRAM)
     .maybeSingle();
-  if (rolloutError) throw rolloutError;
-  if (!rollout) throw new Error(`seed: rollout "${DEMO_ROLLOUT}" not found`);
+  if (programError) throw programError;
+  if (!program) throw new Error(`seed: program "${DEMO_PROGRAM}" not found`);
 
   const { data: stages, error: stagesError } = await client
-    .from("rollout_stages")
+    .from("program_stages")
     .select("id, name")
-    .eq("rollout_id", rollout.id);
+    .eq("program_id", program.id);
   if (stagesError) throw stagesError;
   const { data: units, error: unitsError } = await client
     .from("units")
     .select("id, name")
-    .eq("rollout_id", rollout.id);
+    .eq("program_id", program.id);
   if (unitsError) throw unitsError;
 
   // Idempotent: plain status updates converge on re-run; done_at is
@@ -202,7 +202,7 @@ async function ensureDemoProgress(client: SupabaseClient, orgId: string): Promis
       .from("unit_stages")
       .update({ status: "done" })
       .eq("unit_id", unit.id)
-      .in("rollout_stage_id", stageIds);
+      .in("program_stage_id", stageIds);
     if (error) throw error;
   }
   console.log("seed: demo progress applied");
@@ -236,7 +236,7 @@ async function main(): Promise<void> {
   }
 
   await ensureDemoTemplate(client, orgId);
-  await ensureDemoRollout(client, orgId);
+  await ensureDemoProgram(client, orgId);
   await ensureDemoProgress(client, orgId);
   console.log(`seed: sign in as ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }

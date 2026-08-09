@@ -3,8 +3,8 @@
 import * as React from "react";
 import { useOptimistic } from "react";
 import { toast } from "sonner";
-import { addUnit, renameUnit, deleteUnit, setUnitStageStatus } from "@/features/rollouts/actions";
-import type { RolloutStage, Unit } from "@/features/rollouts/queries";
+import { addUnit, renameUnit, deleteUnit, setUnitStageStatus } from "@/features/programs/actions";
+import type { ProgramStage, Unit } from "@/features/programs/queries";
 import { UnitRow } from "./unit-row";
 import { AddUnit } from "./add-unit";
 
@@ -49,13 +49,13 @@ function applyEvent(units: Unit[], event: UnitEvent): Unit[] {
 }
 
 export function UnitList({
-  rolloutId,
+  programId,
   units,
   stages,
 }: {
-  rolloutId: string;
+  programId: string;
   units: Unit[];
-  stages: RolloutStage[];
+  stages: ProgramStage[];
 }) {
   const [optimistic, dispatch] = useOptimistic(units, applyEvent);
   const [, startTransition] = React.useTransition();
@@ -114,7 +114,7 @@ export function UnitList({
       </ol>
       {optimistic.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          No units yet — add the people or things moving through this rollout.
+          No units yet — add the people or things moving through this program.
         </p>
       ) : null}
       <AddUnit
@@ -135,7 +135,7 @@ export function UnitList({
                 done: false,
               })),
             },
-            () => addUnit({ rolloutId, name, externalRef }),
+            () => addUnit({ programId, name, externalRef }),
           )
         }
       />
