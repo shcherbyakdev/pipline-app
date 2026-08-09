@@ -130,6 +130,11 @@ describe("addRequirementInput", () => {
         ...base, type: "text", label: "Notes", required: true, options: ["x", "y"],
       }).success,
     ).toBe(false);
+    expect(
+      addRequirementInput.safeParse({
+        ...base, type: "text", label: "Notes", required: true, items: ["x"],
+      }).success,
+    ).toBe(false);
   });
 
   it("label is trimmed and bounded at 120", () => {

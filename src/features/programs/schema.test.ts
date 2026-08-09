@@ -101,4 +101,9 @@ describe("saveResponseInput", () => {
     expect(saveResponseInput.safeParse({ ...ids, type: "date", value: "14/03/2027" }).success).toBe(false);
     expect(saveResponseInput.safeParse({ ...ids, type: "text", value: "  " }).success).toBe(false);
   });
+
+  it("choice variant accepts valid values and rejects over-length", () => {
+    expect(saveResponseInput.safeParse({ ...ids, type: "choice", value: "Front" }).success).toBe(true);
+    expect(saveResponseInput.safeParse({ ...ids, type: "choice", value: "x".repeat(121) }).success).toBe(false);
+  });
 });
