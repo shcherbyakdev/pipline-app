@@ -10,6 +10,7 @@ import {
   renameUnitInput,
   deleteUnitInput,
   setUnitStageStatusInput,
+  saveResponseInput,
 } from "./schema";
 
 const UUID = "6f1e2d3c-4b5a-4678-9abc-def012345678";
@@ -82,5 +83,22 @@ describe("setUnitStageStatusInput", () => {
   it("rejects invalid uuid and non-boolean done", () => {
     expect(setUnitStageStatusInput.safeParse({ id: "nope", done: true }).success).toBe(false);
     expect(setUnitStageStatusInput.safeParse({ id: UUID, done: "yes" }).success).toBe(false);
+  });
+});
+
+describe("saveResponseInput", () => {
+  const ids = {
+    unitStageId: "550e8400-e29b-41d4-a716-446655440000",
+    requirementId: "550e8400-e29b-41d4-a716-446655440001",
+  };
+
+  it("types the value per requirement type", () => {
+    expect(saveResponseInput.safeParse({ ...ids, type: "text", value: "ok" }).success).toBe(true);
+    expect(saveResponseInput.safeParse({ ...ids, type: "number", value: 3 }).success).toBe(true);
+    expect(saveResponseInput.safeParse({ ...ids, type: "boolean", value: true }).success).toBe(true);
+    expect(saveResponseInput.safeParse({ ...ids, type: "date", value: "2027-03-14" }).success).toBe(true);
+    expect(saveResponseInput.safeParse({ ...ids, type: "number", value: "3" }).success).toBe(false);
+    expect(saveResponseInput.safeParse({ ...ids, type: "date", value: "14/03/2027" }).success).toBe(false);
+    expect(saveResponseInput.safeParse({ ...ids, type: "text", value: "  " }).success).toBe(false);
   });
 });
