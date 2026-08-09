@@ -37,6 +37,11 @@ async function signedInUser(tag: string): Promise<SupabaseClient> {
 }
 
 describe("RLS tenant isolation", () => {
+  // These `it` blocks are ORDER-DEPENDENT, not independent cases: an early
+  // test creates aliceTemplateId (and its stages), and every later test
+  // consumes that state. Do not mark any of these `.concurrent` and do not
+  // let the runner shuffle/reorder them — they must run sequentially, in
+  // file order, exactly as vitest does by default.
   let alice: SupabaseClient;
   let bob: SupabaseClient;
   let aliceOrgId: string;
@@ -82,11 +87,119 @@ describe("RLS tenant isolation", () => {
     expect(data).toHaveLength(0);
   });
 
+  it("another org's member cannot read a foreign template's stages directly", async () => {
+    const { data: byTemplate } = await bob
+      .from("template_stages")
+      .select("id")
+      .eq("template_id", aliceTemplateId);
+    expect(byTemplate).toHaveLength(0);
+
+    const { data: aliceStages } = await alice
+      .from("template_stages")
+      .select("id")
+      .eq("template_id", aliceTemplateId);
+    const stageId = aliceStages![0].id;
+
+    const { data: byId } = await bob.from("template_stages").select("id").eq("id", stageId);
+    expect(byId).toHaveLength(0);
+  });
+
   it("another org's member cannot insert into a foreign org", async () => {
     const { error } = await bob
       .from("templates")
       .insert({ org_id: aliceOrgId, name: "Intrusion" });
     expect(error).not.toBeNull();
+  });
+
+  it("another org's member cannot insert a stage into a foreign template", async () => {
+    // Either RLS's with-check (org_id not in Bob's orgs) or the
+    // check_template_stage_org trigger (org mismatch against the real
+    // template owner) can be what fails this — both are a pass. The error
+    // text is not a stable contract, so we don't assert on it.
+    const { error } = await bob.from("template_stages").insert({
+      template_id: aliceTemplateId,
+      org_id: aliceOrgId,
+      name: "Intrusion Stage",
+      position: 99,
+    });
+    expect(error).not.toBeNull();
+  });
+
+  it("another org's member cannot update a foreign template", async () => {
+    // PostgREST + RLS does not error on a filtered update — the USING
+    // clause hides the row from Bob, so the update matches 0 rows and
+    // returns no error. The proof is the pair: 0 rows affected here, AND
+    // the value unchanged when re-read as the owner below.
+    const { data, error } = await bob
+      .from("templates")
+      .update({ name: "Hijacked" })
+      .eq("id", aliceTemplateId)
+      .select();
+    expect(error).toBeNull();
+    expect(data).toHaveLength(0);
+
+    const { data: check } = await alice
+      .from("templates")
+      .select("name")
+      .eq("id", aliceTemplateId)
+      .single();
+    expect(check!.name).toBe("Store Refresh");
+  });
+
+  it("another org's member cannot update a foreign stage", async () => {
+    const { data: stages } = await alice
+      .from("template_stages")
+      .select("id, name")
+      .eq("template_id", aliceTemplateId)
+      .order("position");
+    const target = stages![0];
+
+    const { data, error } = await bob
+      .from("template_stages")
+      .update({ name: "Hijacked Stage" })
+      .eq("id", target.id)
+      .select();
+    expect(error).toBeNull();
+    expect(data).toHaveLength(0);
+
+    const { data: check } = await alice
+      .from("template_stages")
+      .select("name")
+      .eq("id", target.id)
+      .single();
+    expect(check!.name).toBe(target.name);
+  });
+
+  it("another org's member cannot delete a foreign template", async () => {
+    // Same reasoning as the update case: a filtered delete matches 0 rows
+    // and returns no error, so we assert 0 affected AND that the row still
+    // exists under the owner's view.
+    const { data, error } = await bob.from("templates").delete().eq("id", aliceTemplateId).select();
+    expect(error).toBeNull();
+    expect(data).toHaveLength(0);
+
+    const { data: check } = await alice.from("templates").select("id").eq("id", aliceTemplateId);
+    expect(check).toHaveLength(1);
+  });
+
+  it("another org's member cannot delete a foreign stage", async () => {
+    const { data: stages } = await alice
+      .from("template_stages")
+      .select("id")
+      .eq("template_id", aliceTemplateId)
+      .order("position");
+    const target = stages![0];
+
+    const { data, error } = await bob
+      .from("template_stages")
+      .delete()
+      .eq("id", target.id)
+      .select();
+    expect(error).toBeNull();
+    expect(data).toHaveLength(0);
+
+    const { data: check } = await alice.from("template_stages").select("id").eq("id", target.id);
+    expect(check).toHaveLength(1);
   });
 
   it("reorder RPC rejects a foreign template", async () => {
