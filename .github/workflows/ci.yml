@@ -88,6 +88,16 @@ jobs:
           fi
           echo "No drift: committed migrations match the Drizzle schema."
 
+      - name: RLS integration tests
+        run: |
+          set -a
+          eval "$(supabase status -o env | grep -E '^[A-Z_]+=')"
+          set +a
+          export NEXT_PUBLIC_SUPABASE_URL="$API_URL"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          npm run test:integration
+
   ci:
     # Single required status for branch protection: adding a job above never
     # requires editing the protection rule.

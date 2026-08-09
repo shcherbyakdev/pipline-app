@@ -6,7 +6,7 @@
  * and the caller's owner membership are created the same way onboarding does.
  */
 import { loadEnvFile } from "node:process";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { hostnameOf, isLoopbackHost } from "./lib/host-guard";
 
 try {
@@ -18,6 +18,8 @@ try {
 const DEMO_EMAIL = "demo@rolloutos.local";
 const DEMO_PASSWORD = "Password123!";
 const DEMO_ORG = "Demo Rollouts";
+const DEMO_TEMPLATE = "Store Refresh";
+const DEMO_STAGES = ["Survey", "Install", "QA", "Sign-off"];
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -81,6 +83,40 @@ async function ensureDemoUser(): Promise<void> {
   if (!isExistingUser) throw error;
 }
 
+async function ensureDemoTemplate(
+  client: SupabaseClient,
+  orgId: string,
+): Promise<void> {
+  const { data: found, error: findError } = await client
+    .from("templates")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("name", DEMO_TEMPLATE)
+    .maybeSingle();
+  if (findError) throw findError;
+  if (found) {
+    console.log(`seed: template "${DEMO_TEMPLATE}" already exists — nothing to do`);
+    return;
+  }
+
+  const { data: template, error: templateError } = await client
+    .from("templates")
+    .insert({ org_id: orgId, name: DEMO_TEMPLATE, description: "Demo workflow" })
+    .select("id")
+    .single();
+  if (templateError) throw templateError;
+
+  const stagesData = DEMO_STAGES.map((name, position) => ({
+    template_id: template.id,
+    org_id: orgId,
+    name,
+    position,
+  }));
+  const { error: stagesError } = await client.from("template_stages").insert(stagesData);
+  if (stagesError) throw stagesError;
+  console.log(`seed: created template "${DEMO_TEMPLATE}" with ${DEMO_STAGES.length} stages`);
+}
+
 async function main(): Promise<void> {
   await ensureDemoUser();
 
@@ -95,15 +131,20 @@ async function main(): Promise<void> {
   const { data: existing, error: selectError } = await client.from("orgs").select("id, name");
   if (selectError) throw selectError;
 
+  let orgId: string;
   if (existing && existing.length > 0) {
-    console.log(`seed: ${DEMO_EMAIL} already owns "${existing[0].name}" — nothing to do`);
-    return;
+    console.log(`seed: ${DEMO_EMAIL} already owns "${existing[0].name}"`);
+    orgId = existing[0].id;
+  } else {
+    const { data: created, error: rpcError } = await client.rpc("create_org", {
+      p_name: DEMO_ORG,
+    });
+    if (rpcError) throw rpcError;
+    orgId = (created as { id: string }).id;
+    console.log(`seed: created "${DEMO_ORG}"`);
   }
 
-  const { error: rpcError } = await client.rpc("create_org", { p_name: DEMO_ORG });
-  if (rpcError) throw rpcError;
-
-  console.log(`seed: created "${DEMO_ORG}"`);
+  await ensureDemoTemplate(client, orgId);
   console.log(`seed: sign in as ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }
 
