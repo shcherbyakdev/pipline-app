@@ -80,25 +80,30 @@ grant select on table public.program_stage_requirements to service_role;
 -- PostgREST upsert's conflict-UPDATE branch sets every supplied column;
 -- repointing is still safe — the prepare trigger re-validates the pair and
 -- the derive trigger recomputes BOTH affected unit_stages.
+--
+-- Local dev images retain a default ACL (ALTER DEFAULT PRIVILEGES for role
+-- postgres, schema public) that hands `authenticated` full column
+-- privileges on any table postgres creates — CI strips it (the 0004
+-- convention already assumes it's absent). id and created_at are the two
+-- response columns prepare_unit_stage_response never overwrites (unlike
+-- org_id/unit_id/program_id/type, which it unconditionally re-derives), so
+-- they need the same revoke-then-narrow-grant treatment as unit_stages
+-- below. The revoke must precede the column grants — a table-level revoke
+-- drops column-level grants too.
 grant select, delete on table public.unit_stage_responses to authenticated;
+revoke insert, update on table public.unit_stage_responses from authenticated;
 grant insert (unit_stage_id, program_stage_requirement_id, value_text, value_number, value_bool, value_date)
   on table public.unit_stage_responses to authenticated;
 grant update (unit_stage_id, program_stage_requirement_id, value_text, value_number, value_bool, value_date)
   on table public.unit_stage_responses to authenticated;
 grant select on table public.unit_stage_responses to service_role;
 
--- Deviation from the brief (see task-3-report.md): local dev images retain
--- a default ACL (ALTER DEFAULT PRIVILEGES for role postgres in schema
--- public) that hands `authenticated` full column privileges on any table
--- `postgres` creates — CI strips it (the 0004 grants convention already
--- assumes it's absent). done_source has no such default column grant to
--- rely on for protection like the responses table's derived columns do
--- (those are re-derived unconditionally by prepare_unit_stage_response
--- regardless of grants): maintain_unit_stage_done_at only fires BEFORE
--- UPDATE OF status, so a request that touches done_source alone never
--- passes through it. Revoke-then-narrow-grant (the 0008 units precedent)
--- closes the gap in both environments instead of leaving it local-ACL
--- dependent.
+-- Same idiom for unit_stages.done_source: it has no trigger backstop like
+-- the responses' derived columns above (maintain_unit_stage_done_at only
+-- fires BEFORE UPDATE OF status, so a request touching done_source alone
+-- never passes through it), so the grant layer is its only protection.
+-- Revoke-then-narrow-grant (the 0008 units precedent) closes the local-ACL
+-- gap in both environments.
 revoke update on table public.unit_stages from authenticated;
 grant update (status) on table public.unit_stages to authenticated;
 
@@ -240,8 +245,12 @@ declare
   v_satisfied int;
   v_done boolean;
 begin
-  select count(*) filter (where r.required),
-         count(*) filter (where r.required and resp.id is not null
+  -- photo satisfaction is defined in slice 8 (evidence uploads); until then
+  -- photo never blocks derivation, so it's excluded from both counts —
+  -- otherwise a required photo requirement (insertable today; the CHECK
+  -- allows it) would leave its stage permanently underivable.
+  select count(*) filter (where r.required and r.type <> 'photo'),
+         count(*) filter (where r.required and r.type <> 'photo' and resp.id is not null
                             and (r.type <> 'boolean' or resp.value_bool))
     into v_required, v_satisfied
     from public.unit_stages us
@@ -263,6 +272,15 @@ begin
           or done_source is distinct from case when v_done then 'requirements' else null end);
 end;
 $$;
+
+-- SECURITY DEFINER + an exposed schema means PostgREST would otherwise
+-- expose this as POST /rest/v1/rpc/derive_unit_stage — reachable with just
+-- the anon key (default EXECUTE for PUBLIC, plus the local default-ACL
+-- grant to anon/authenticated), no login, no membership check, free write
+-- access to any unit_stage by id. The only legitimate caller is
+-- derive_unit_stage_status below, which is unaffected: it runs as the
+-- (owner) trigger, and owners always retain access to what they own.
+revoke execute on function public.derive_unit_stage(uuid) from public, anon, authenticated, service_role;
 
 create or replace function public.derive_unit_stage_status()
 returns trigger

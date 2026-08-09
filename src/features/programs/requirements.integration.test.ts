@@ -259,6 +259,30 @@ describe("requirements: snapshot, trust, derivation, override", () => {
     expect(error).not.toBeNull(); // no column grant
   });
 
+  it("derive_unit_stage is not callable directly (execute revoked)", async () => {
+    // SECURITY DEFINER + an exposed schema would otherwise let anyone with
+    // an API key drive any unit_stage by id via POST
+    // /rest/v1/rpc/derive_unit_stage, with no membership check at all. Only
+    // derive_unit_stage_status (the AFTER trigger, running as owner) may
+    // call it — 0011 revokes execute from public/anon/authenticated/
+    // service_role.
+    const { error } = await bob.rpc("derive_unit_stage", { p_unit_stage_id: inspectUnitStageId });
+    expect(error).not.toBeNull();
+  });
+
+  it("clients cannot forge created_at on a response", async () => {
+    // "Valid until" has no prior answer on this unit_stage, so a rejected
+    // insert here can only be the missing column grant, not the
+    // (unit_stage_id, program_stage_requirement_id) uniqueness constraint.
+    const { error } = await alice.from("unit_stage_responses").insert({
+      unit_stage_id: inspectUnitStageId,
+      program_stage_requirement_id: byLabel("Valid until").id,
+      value_date: "2030-01-01",
+      created_at: "2020-01-01T00:00:00Z",
+    });
+    expect(error).not.toBeNull(); // no column grant
+  });
+
   it("a foreign member sees and writes nothing", async () => {
     const { data } = await bob
       .from("unit_stage_responses").select("id").eq("unit_stage_id", inspectUnitStageId);
@@ -269,5 +293,65 @@ describe("requirements: snapshot, trust, derivation, override", () => {
       value_text: "intrusion",
     });
     expect(error).not.toBeNull();
+  });
+
+  it("a required photo requirement never blocks derivation (no response path until slice 8)", async () => {
+    // Self-contained: its own template/program/unit, so it doesn't disturb
+    // the shared fixtures the earlier tests depend on.
+    const { data: t2 } = await alice
+      .from("templates").insert({ org_id: orgId, name: "Photo Template" }).select("id").single();
+    const { data: s2 } = await alice
+      .from("template_stages")
+      .insert({ template_id: t2!.id, org_id: orgId, name: "Evidence", position: 0 })
+      .select("id")
+      .single();
+    const { error: reqErr } = await alice.from("template_stage_requirements").insert([
+      { template_stage_id: s2!.id, org_id: orgId, type: "text", label: "Summary", required: true, config: {}, position: 0 },
+      { template_stage_id: s2!.id, org_id: orgId, type: "photo", label: "Proof", required: true, config: {}, position: 1 },
+    ]);
+    expect(reqErr).toBeNull();
+
+    const { data: program2, error: progErr } = await alice.rpc("create_program", {
+      p_template_id: t2!.id, p_name: "Photo Program",
+    });
+    expect(progErr).toBeNull();
+
+    const { data: pStages2 } = await alice
+      .from("program_stages").select("id, name").eq("program_id", (program2 as { id: string }).id);
+    const evidenceStageId = pStages2!.find((s) => s.name === "Evidence")!.id;
+
+    const { data: pReqs2 } = await alice
+      .from("program_stage_requirements")
+      .select("id, type, label")
+      .eq("program_stage_id", evidenceStageId);
+    const summaryReq = pReqs2!.find((r) => r.label === "Summary")!;
+    const photoReq = pReqs2!.find((r) => r.label === "Proof")!;
+    expect(photoReq.type).toBe("photo"); // snapshot copies photo as-is (unlike checklist)
+
+    const { data: unit2 } = await alice
+      .from("units")
+      .insert({ program_id: (program2 as { id: string }).id, org_id: orgId, name: "Photo Site" })
+      .select("id")
+      .single();
+    const { data: unitStages2 } = await alice
+      .from("unit_stages")
+      .select("id, program_stage_id")
+      .eq("unit_id", unit2!.id);
+    const evidenceUnitStageId = unitStages2!.find((us) => us.program_stage_id === evidenceStageId)!.id;
+
+    // Answer only the text requirement — the required photo is left
+    // unanswered. If derive_unit_stage counted it, this stage could never
+    // reach 'done' (no response path exists for photo until slice 8).
+    const { error: ansErr } = await alice.from("unit_stage_responses").insert({
+      unit_stage_id: evidenceUnitStageId,
+      program_stage_requirement_id: summaryReq.id,
+      value_text: "All good",
+    });
+    expect(ansErr).toBeNull();
+
+    const { data: stage2 } = await alice
+      .from("unit_stages").select("status, done_source").eq("id", evidenceUnitStageId).single();
+    expect(stage2!.status).toBe("done");
+    expect(stage2!.done_source).toBe("requirements");
   });
 });
