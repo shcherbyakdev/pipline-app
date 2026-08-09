@@ -15,6 +15,20 @@
       "when": 1786134044806,
       "tag": "0001_foundation_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786263955850,
+      "tag": "0002_marvelous_venus",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786263965393,
+      "tag": "0003_templates_rls",
+      "breakpoints": true
     }
   ]
 }

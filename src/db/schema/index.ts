@@ -2,3 +2,4 @@
 // As the domain grows, add: templates, stages, rollouts, waves, units,
 // unitStages, fields, evidence, approvals, blockers, participants.
 export * from "./orgs";
+export * from "./templates";
