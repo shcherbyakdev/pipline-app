@@ -9,6 +9,7 @@ import {
   addUnitInput,
   renameUnitInput,
   deleteUnitInput,
+  setUnitStageStatusInput,
 } from "./schema";
 
 const UUID = "6f1e2d3c-4b5a-4678-9abc-def012345678";
@@ -70,5 +71,16 @@ describe("remaining action inputs", () => {
   it("deleteUnitInput happy path and rejects invalid uuid", () => {
     expect(deleteUnitInput.safeParse({ id: UUID }).success).toBe(true);
     expect(deleteUnitInput.safeParse({ id: "nope" }).success).toBe(false);
+  });
+});
+
+describe("setUnitStageStatusInput", () => {
+  it("happy path parses for both directions", () => {
+    expect(setUnitStageStatusInput.safeParse({ id: UUID, done: true }).success).toBe(true);
+    expect(setUnitStageStatusInput.safeParse({ id: UUID, done: false }).success).toBe(true);
+  });
+  it("rejects invalid uuid and non-boolean done", () => {
+    expect(setUnitStageStatusInput.safeParse({ id: "nope", done: true }).success).toBe(false);
+    expect(setUnitStageStatusInput.safeParse({ id: UUID, done: "yes" }).success).toBe(false);
   });
 });
