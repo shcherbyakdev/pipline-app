@@ -12,6 +12,7 @@ import {
 import type { Stage } from "@/features/templates/queries";
 import { StageRow } from "./stage-row";
 import { AddStage } from "./add-stage";
+import { RequirementList } from "./requirement-list";
 
 // Project convention (see features/README.md): useOptimistic over the
 // server-provided array; every mutation applies optimistically inside a
@@ -27,7 +28,7 @@ function applyEvent(stages: Stage[], event: StageEvent): Stage[] {
   switch (event.type) {
     case "add": {
       const position = stages.reduce((max, s) => Math.max(max, s.position), -1) + 1;
-      return [...stages, { id: event.id, name: event.name, position }];
+      return [...stages, { id: event.id, name: event.name, position, requirements: [] }];
     }
     case "rename":
       return stages.map((s) => (s.id === event.id ? { ...s, name: event.name } : s));
@@ -75,27 +76,29 @@ export function StageList({ templateId, stages }: { templateId: string; stages: 
       </h2>
       <ol className="flex flex-col gap-1">
         {optimistic.map((stage, index) => (
-          <StageRow
-            // Keyed remount: when the server-truth name changes (a
-            // successful rename re-renders with new server data), a fresh
-            // key remounts StageRow so its local input state re-derives from
-            // `stage.name` — the sanctioned alternative to syncing local
-            // state from props in an effect (react-hooks/set-state-in-effect).
-            key={`${stage.id}:${stage.name}`}
-            stage={stage}
-            isFirst={index === 0}
-            isLast={index === optimistic.length - 1}
-            moveDisabled={isPending}
-            onRename={(name) =>
-              run({ type: "rename", id: stage.id, name }, () =>
-                renameStage({ id: stage.id, name }),
-              )
-            }
-            onDelete={() =>
-              run({ type: "delete", id: stage.id }, () => deleteStage({ id: stage.id }))
-            }
-            onMove={(direction) => onMove(stage.id, direction)}
-          />
+          // Keyed remount: when the server-truth name changes (a successful
+          // rename re-renders with new server data), a fresh key remounts
+          // StageRow so its local input state re-derives from `stage.name`
+          // — the sanctioned alternative to syncing local state from props
+          // in an effect (react-hooks/set-state-in-effect).
+          <li key={`${stage.id}:${stage.name}`} className="flex flex-col">
+            <StageRow
+              stage={stage}
+              isFirst={index === 0}
+              isLast={index === optimistic.length - 1}
+              moveDisabled={isPending}
+              onRename={(name) =>
+                run({ type: "rename", id: stage.id, name }, () =>
+                  renameStage({ id: stage.id, name }),
+                )
+              }
+              onDelete={() =>
+                run({ type: "delete", id: stage.id }, () => deleteStage({ id: stage.id }))
+              }
+              onMove={(direction) => onMove(stage.id, direction)}
+            />
+            <RequirementList templateStageId={stage.id} requirements={stage.requirements} />
+          </li>
         ))}
       </ol>
       {optimistic.length === 0 ? (
