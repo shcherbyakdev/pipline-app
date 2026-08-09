@@ -1,10 +1,11 @@
 # RolloutOS
 
-B2B SaaS for service providers who run one repeatable workflow across many
-similar physical units (stores, vehicles, sites, devices). One **rollout** holds
-many **units**, each moving independently through the same **stage** lifecycle.
+B2B SaaS for businesses that run one repeatable process across many similar
+subjects — client sites, stores, vehicles, cases. One **program** holds many
+**units**, each moving independently through the same **stage** lifecycle,
+with a branded no-login flow for the people who do the work.
 
-> One workflow. Hundreds of locations. Zero spreadsheet chaos.
+> One process. Hundreds of clients. Zero spreadsheet chaos.
 
 ## Stack
 
@@ -121,4 +122,5 @@ Environment needs `DATABASE_URL` — direct connection, port 5432 —
 - `src/db/` — Drizzle schema, migrations, RLS SQL.
 - `src/lib/` — Supabase clients, auth, email, sms, storage helpers.
 
-Design & scope: `docs/superpowers/specs/2026-08-07-rolloutos-mvp-design.md`.
+Design & scope: `docs/superpowers/specs/2026-08-09-client-flow-vision-and-roadmap-design.md`
+(stack details: `docs/superpowers/specs/2026-08-07-rolloutos-mvp-design.md`).
