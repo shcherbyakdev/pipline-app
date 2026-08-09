@@ -20,6 +20,11 @@ const DEMO_PASSWORD = "Password123!";
 const DEMO_ORG = "Demo Rollouts";
 const DEMO_TEMPLATE = "Store Refresh";
 const DEMO_STAGES = ["Survey", "Install", "QA", "Sign-off"];
+const DEMO_ROLLOUT = "Q3 Store Refresh";
+const DEMO_UNITS: Array<{ name: string; ref: string }> = [
+  { name: "Store #101 — Kraków", ref: "S-101" },
+  { name: "Store #102 — Gdańsk", ref: "S-102" },
+];
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -117,6 +122,48 @@ async function ensureDemoTemplate(
   console.log(`seed: created template "${DEMO_TEMPLATE}" with ${DEMO_STAGES.length} stages`);
 }
 
+async function ensureDemoRollout(client: SupabaseClient, orgId: string): Promise<void> {
+  const { data: found, error: findError } = await client
+    .from("rollouts")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("name", DEMO_ROLLOUT)
+    .maybeSingle();
+  if (findError) throw findError;
+  if (found) {
+    console.log(`seed: rollout "${DEMO_ROLLOUT}" already exists — nothing to do`);
+    return;
+  }
+
+  // Runs outside ensureDemoTemplate's early-return: look the template up
+  // regardless of whether it was just created.
+  const { data: template, error: templateError } = await client
+    .from("templates")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("name", DEMO_TEMPLATE)
+    .maybeSingle();
+  if (templateError) throw templateError;
+  if (!template) throw new Error(`seed: template "${DEMO_TEMPLATE}" not found`);
+
+  const { data: rollout, error: rpcError } = await client.rpc("create_rollout", {
+    p_template_id: template.id,
+    p_name: DEMO_ROLLOUT,
+  });
+  if (rpcError) throw rpcError;
+
+  const { error: unitsError } = await client.from("units").insert(
+    DEMO_UNITS.map((u) => ({
+      rollout_id: (rollout as { id: string }).id,
+      org_id: orgId,
+      name: u.name,
+      external_ref: u.ref,
+    })),
+  );
+  if (unitsError) throw unitsError;
+  console.log(`seed: created rollout "${DEMO_ROLLOUT}" with ${DEMO_UNITS.length} units`);
+}
+
 async function main(): Promise<void> {
   await ensureDemoUser();
 
@@ -145,6 +192,7 @@ async function main(): Promise<void> {
   }
 
   await ensureDemoTemplate(client, orgId);
+  await ensureDemoRollout(client, orgId);
   console.log(`seed: sign in as ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }
 
