@@ -109,6 +109,7 @@ export async function addStage(input: unknown): Promise<TemplateActionState> {
     position: nextPosition,
   });
   if (error) return fail("addStage", error);
+  revalidatePath("/templates");
   revalidatePath(`/templates/${template.id}`);
   return { ok: true };
 }
@@ -140,6 +141,7 @@ export async function deleteStage(input: unknown): Promise<TemplateActionState> 
     .select("template_id")
     .maybeSingle();
   if (error || !data) return fail("deleteStage", error ?? "stage not visible");
+  revalidatePath("/templates");
   revalidatePath(`/templates/${data.template_id}`);
   return { ok: true };
 }
@@ -153,6 +155,7 @@ export async function reorderStages(input: unknown): Promise<TemplateActionState
     p_stage_ids: parsed.data.stageIds,
   });
   if (error) return fail("reorderStages", error);
+  revalidatePath("/templates");
   revalidatePath(`/templates/${parsed.data.templateId}`);
   return { ok: true };
 }
