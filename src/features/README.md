@@ -32,4 +32,8 @@ optimistic event inside a transition, (2) awaits the Server Action, (3) on
 `{ ok: false }` shows `toast.error` — the action's `revalidatePath` re-renders
 server truth either way. Actions return `{ ok: true } | { ok: false; error }`
 with the generic copy from `GENERIC_WRITE_ERROR`; raw errors are logged
-server-side only.
+server-side only. Row-level editors that hold local input state derived from
+server props (e.g. `StageRow`'s name field) must not sync that state with a
+`useEffect` (flagged by `react-hooks/set-state-in-effect`) — key the row on
+`` `${id}:${serverValue}` `` at the call site instead, so a server-truth change
+remounts the row and re-derives local state for free.

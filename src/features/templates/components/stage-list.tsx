@@ -46,7 +46,13 @@ function applyEvent(stages: Stage[], event: StageEvent): Stage[] {
 
 export function StageList({ templateId, stages }: { templateId: string; stages: Stage[] }) {
   const [optimistic, dispatch] = useOptimistic(stages, applyEvent);
-  const [, startTransition] = React.useTransition();
+  // isPending guards the move arrows only (see onMove): reorder is the one
+  // mutation that derives its payload from a snapshot of `optimistic` taken
+  // in an event-handler closure, so a second move fired before the first
+  // move's transition re-renders would compute from stale pre-first-move
+  // order and persist the wrong result. Add/rename/delete key off a single
+  // stage id and don't depend on array order, so they don't need this guard.
+  const [isPending, startTransition] = React.useTransition();
 
   const run = (event: StageEvent, act: () => Promise<{ ok: boolean; error?: string }>) =>
     startTransition(async () => {
@@ -79,6 +85,7 @@ export function StageList({ templateId, stages }: { templateId: string; stages: 
             stage={stage}
             isFirst={index === 0}
             isLast={index === optimistic.length - 1}
+            moveDisabled={isPending}
             onRename={(name) =>
               run({ type: "rename", id: stage.id, name }, () =>
                 renameStage({ id: stage.id, name }),

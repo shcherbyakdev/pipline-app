@@ -10,6 +10,7 @@ export function StageRow({
   stage,
   isFirst,
   isLast,
+  moveDisabled,
   onRename,
   onDelete,
   onMove,
@@ -17,6 +18,9 @@ export function StageRow({
   stage: Stage;
   isFirst: boolean;
   isLast: boolean;
+  // True while a move (reorder) is in flight — see stage-list.tsx for why
+  // only moves need this guard.
+  moveDisabled: boolean;
   onRename: (name: string) => void;
   onDelete: () => void;
   onMove: (direction: -1 | 1) => void;
@@ -44,7 +48,7 @@ export function StageRow({
           size="icon"
           className="size-6"
           aria-label={`Move ${stage.name} up`}
-          disabled={isFirst}
+          disabled={isFirst || moveDisabled}
           onClick={() => onMove(-1)}
         >
           <ChevronUp className="size-3.5" />
@@ -54,7 +58,7 @@ export function StageRow({
           size="icon"
           className="size-6"
           aria-label={`Move ${stage.name} down`}
-          disabled={isLast}
+          disabled={isLast || moveDisabled}
           onClick={() => onMove(1)}
         >
           <ChevronDown className="size-3.5" />
