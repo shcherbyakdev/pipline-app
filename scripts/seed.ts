@@ -6,7 +6,7 @@
  * and the caller's owner membership are created the same way onboarding does.
  */
 import { loadEnvFile } from "node:process";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { hostnameOf, isLoopbackHost } from "./lib/host-guard";
 
 try {
@@ -84,7 +84,7 @@ async function ensureDemoUser(): Promise<void> {
 }
 
 async function ensureDemoTemplate(
-  client: ReturnType<typeof createClient>,
+  client: SupabaseClient,
   orgId: string,
 ): Promise<void> {
   const { data: found, error: findError } = await client
@@ -101,20 +101,17 @@ async function ensureDemoTemplate(
 
   const { data: template, error: templateError } = await client
     .from("templates")
-    // @ts-expect-error untyped database table access
     .insert({ org_id: orgId, name: DEMO_TEMPLATE, description: "Demo workflow" })
     .select("id")
     .single();
   if (templateError) throw templateError;
 
   const stagesData = DEMO_STAGES.map((name, position) => ({
-    // @ts-expect-error untyped database table access
     template_id: template.id,
     org_id: orgId,
     name,
     position,
   }));
-  // @ts-expect-error untyped database table access
   const { error: stagesError } = await client.from("template_stages").insert(stagesData);
   if (stagesError) throw stagesError;
   console.log(`seed: created template "${DEMO_TEMPLATE}" with ${DEMO_STAGES.length} stages`);
@@ -147,7 +144,7 @@ async function main(): Promise<void> {
     console.log(`seed: created "${DEMO_ORG}"`);
   }
 
-  await ensureDemoTemplate(client as unknown as ReturnType<typeof createClient>, orgId);
+  await ensureDemoTemplate(client, orgId);
   console.log(`seed: sign in as ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }
 
