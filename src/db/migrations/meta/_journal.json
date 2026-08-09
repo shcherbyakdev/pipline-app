@@ -50,6 +50,13 @@
       "when": 1786289147928,
       "tag": "0006_rollouts_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786296175775,
+      "tag": "0007_thankful_colossus",
+      "breakpoints": true
     }
   ]
 }
