@@ -3,12 +3,12 @@ import { z } from "zod";
 // Validated environment. NEXT_PUBLIC_* vars are referenced literally so
 // Next.js can inline them into the client bundle at build time.
 //
-// Server-only vars are optional for now so a freshly scaffolded app boots
-// before a Supabase project exists. Tighten to `.min(1)` / `.url()`
-// (non-optional) once real credentials are in `.env.local`.
+// Real Supabase credentials now exist, so the public Supabase vars are
+// required. Server-only vars stay optional for now — not every environment
+// needs the service role key or a direct database URL.
 const envSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   DATABASE_URL: z.string().url().optional(),

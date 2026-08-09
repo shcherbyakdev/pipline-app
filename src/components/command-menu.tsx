@@ -48,6 +48,9 @@ export function CommandMenu() {
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Actions">
+          <CommandItem onSelect={() => go("/rollouts?new=1")}>
+            <Plus className="size-4" /> Create rollout
+          </CommandItem>
           <CommandItem onSelect={() => go("/templates?new=1")}>
             <Plus className="size-4" /> Create template
           </CommandItem>

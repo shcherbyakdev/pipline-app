@@ -19,8 +19,7 @@ export const reorderStagesInput = z
     message: "stageIds must be unique",
   });
 
-// Result shape every stage/template mutation returns to the client.
-export type TemplateActionState = { ok: true } | { ok: false; error: string };
-
-// Client-facing copy for any failed write. Raw errors are logged server-side.
-export const GENERIC_WRITE_ERROR = "Couldn't save. Try again.";
+export {
+  GENERIC_WRITE_ERROR,
+  type ActionState as TemplateActionState,
+} from "@/lib/actions";
