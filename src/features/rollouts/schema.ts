@@ -16,3 +16,4 @@ export const addUnitInput = z.object({
 });
 export const renameUnitInput = z.object({ id: z.uuid(), name: unitName });
 export const deleteUnitInput = z.object({ id: z.uuid() });
+export const setUnitStageStatusInput = z.object({ id: z.uuid(), done: z.boolean() });

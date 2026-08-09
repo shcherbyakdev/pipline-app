@@ -25,6 +25,10 @@ const DEMO_UNITS: Array<{ name: string; ref: string }> = [
   { name: "Store #101 — Kraków", ref: "S-101" },
   { name: "Store #102 — Gdańsk", ref: "S-102" },
 ];
+const DEMO_PROGRESS: Array<{ unit: string; stages: string[] }> = [
+  { unit: "Store #101 — Kraków", stages: ["Survey", "Install"] },
+  { unit: "Store #102 — Gdańsk", stages: ["Survey"] },
+];
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -164,6 +168,46 @@ async function ensureDemoRollout(client: SupabaseClient, orgId: string): Promise
   console.log(`seed: created rollout "${DEMO_ROLLOUT}" with ${DEMO_UNITS.length} units`);
 }
 
+async function ensureDemoProgress(client: SupabaseClient, orgId: string): Promise<void> {
+  const { data: rollout, error: rolloutError } = await client
+    .from("rollouts")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("name", DEMO_ROLLOUT)
+    .maybeSingle();
+  if (rolloutError) throw rolloutError;
+  if (!rollout) throw new Error(`seed: rollout "${DEMO_ROLLOUT}" not found`);
+
+  const { data: stages, error: stagesError } = await client
+    .from("rollout_stages")
+    .select("id, name")
+    .eq("rollout_id", rollout.id);
+  if (stagesError) throw stagesError;
+  const { data: units, error: unitsError } = await client
+    .from("units")
+    .select("id, name")
+    .eq("rollout_id", rollout.id);
+  if (unitsError) throw unitsError;
+
+  // Idempotent: plain status updates converge on re-run; done_at is
+  // trigger-maintained (done → done leaves it untouched).
+  for (const target of DEMO_PROGRESS) {
+    const unit = (units ?? []).find((u) => u.name === target.unit);
+    if (!unit) continue;
+    const stageIds = (stages ?? [])
+      .filter((s) => target.stages.includes(s.name))
+      .map((s) => s.id);
+    if (stageIds.length === 0) continue;
+    const { error } = await client
+      .from("unit_stages")
+      .update({ status: "done" })
+      .eq("unit_id", unit.id)
+      .in("rollout_stage_id", stageIds);
+    if (error) throw error;
+  }
+  console.log("seed: demo progress applied");
+}
+
 async function main(): Promise<void> {
   await ensureDemoUser();
 
@@ -193,6 +237,7 @@ async function main(): Promise<void> {
 
   await ensureDemoTemplate(client, orgId);
   await ensureDemoRollout(client, orgId);
+  await ensureDemoProgress(client, orgId);
   console.log(`seed: sign in as ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }
 

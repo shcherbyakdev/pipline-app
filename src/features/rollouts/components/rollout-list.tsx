@@ -19,6 +19,7 @@ export function RolloutList({ rollouts }: { rollouts: RolloutListItem[] }) {
             <th className="p-3 font-medium">Template</th>
             <th className="p-3 font-medium">Stages</th>
             <th className="p-3 font-medium">Units</th>
+            <th className="p-3 font-medium">Progress</th>
             <th className="p-3 font-medium">Created</th>
           </tr>
         </thead>
@@ -33,6 +34,9 @@ export function RolloutList({ rollouts }: { rollouts: RolloutListItem[] }) {
               <td className="text-muted-foreground p-3">{r.templateName ?? "—"}</td>
               <td className="p-3 tabular-nums">{r.stageCount}</td>
               <td className="p-3 tabular-nums">{r.unitCount}</td>
+              <td className="text-muted-foreground p-3 tabular-nums">
+                {r.totalCount === 0 ? "—" : `${Math.round((r.doneCount / r.totalCount) * 100)}%`}
+              </td>
               <td className="text-muted-foreground p-3">
                 {new Date(r.createdAt).toLocaleDateString()}
               </td>

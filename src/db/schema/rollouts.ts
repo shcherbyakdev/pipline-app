@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, index, unique } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 import { templates } from "./templates";
 
@@ -64,4 +64,39 @@ export const units = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("units_rollout_id_idx").on(t.rolloutId), index("units_org_id_idx").on(t.orgId)],
+);
+
+// One row per (unit × stage) — fanned out by the units AFTER INSERT trigger
+// (see 0008), backfilled for pre-feature units. Clients may update ONLY
+// `status` (column-scoped grant); `done_at` is trigger-maintained.
+export const unitStages = pgTable(
+  "unit_stages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id, { onDelete: "cascade" }),
+    rolloutStageId: uuid("rollout_stage_id")
+      .notNull()
+      .references(() => rolloutStages.id, { onDelete: "cascade" }),
+    // Denormalized for PostgREST embeds and per-rollout counts.
+    rolloutId: uuid("rollout_id")
+      .notNull()
+      .references(() => rollouts.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    // 'pending' | 'done' — CHECK lives in 0008 (custom SQL keeps it and the
+    // grants/policies in one reviewable place).
+    status: text("status").notNull().default("pending"),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    unique("unit_stages_unit_stage_uq").on(t.unitId, t.rolloutStageId),
+    index("unit_stages_unit_id_idx").on(t.unitId),
+    index("unit_stages_rollout_stage_id_idx").on(t.rolloutStageId),
+    index("unit_stages_rollout_id_idx").on(t.rolloutId),
+    index("unit_stages_org_id_idx").on(t.orgId),
+  ],
 );
