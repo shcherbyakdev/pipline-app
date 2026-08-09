@@ -22,9 +22,10 @@ Decisions made during brainstorm:
    customer's own store number / VIN / site code; CSV import will key on it).
 3. **No status lifecycle.** Created → exists → hard-deletable (confirm dialog;
    cascade removes stages/units — no execution history exists yet to protect).
-4. **Snapshot mechanics via RPC** (`create_rollout`, SECURITY INVOKER): one
-   transaction — validate, insert rollout, copy stages, return row. App-side
-   multi-insert (non-atomic) and trigger-copy (implicit magic) were rejected.
+4. **Snapshot mechanics via RPC** (`create_rollout`, SECURITY DEFINER — see
+   §RPC for why definer): one transaction — validate, insert rollout, copy
+   stages, return row. App-side multi-insert (non-atomic) and trigger-copy
+   (implicit magic) were rejected.
 5. **env.ts rider included** (long-deferred chore, see §env).
 
 ## Data model
@@ -40,7 +41,7 @@ rollouts
   template_id uuid → templates(id) on delete set null   -- provenance only; nullable
   name        text not null
   created_at  timestamptz not null default now()
-  updated_at  timestamptz not null default now()        -- touched on rename only; no unit-touch trigger
+  updated_at  timestamptz not null default now()        -- set app-side by renameRollout (like renameTemplate); no unit-touch trigger; list orders by created_at
   indexes: org_id, template_id
 
 rollout_stages                                          -- the frozen copy
@@ -70,16 +71,24 @@ rollout fully intact with `template_id = null`.
 
 All policies use the established predicate `org_id in (select public.user_orgs())`.
 
-- **`rollouts`**: member CRUD — select/insert/update/delete policies + matching
-  grants to `authenticated` (same shape as `templates`).
-- **`units`**: member CRUD — same.
+- **`rollouts`**: select/update/delete policies for members — **no insert
+  policy and no insert grant**. Creation flows only through the RPC (the
+  select-only-plus-RPC precedent from `orgs`); a direct member insert would
+  bypass the RPC's guards (stage-less rollouts, and the FK check on a
+  chosen `template_id` would act as an existence oracle for foreign template
+  UUIDs). The update grant is **column-scoped**: `grant update (name,
+  updated_at) on rollouts to authenticated` — so `org_id`/`template_id` can
+  never be repointed by any client, closing the dual-org-member repoint hole.
+- **`units`**: member CRUD — select/insert/update/delete policies + grants.
 - **`rollout_stages`**: **select-only** policy AND **select-only grant** for
-  `authenticated`. Immutability is enforced in the database, not the UI: no
-  insert/update/delete path exists for API roles. Rows are written only inside
-  the `create_rollout` RPC transaction and removed only by the rollout's
-  cascade delete (runs as table owner, exempt from grants/RLS).
-- `service_role` gets full CRUD grants on all three (bypassrls still requires
-  grants — the 0004 lesson).
+  `authenticated` — and select-only for `service_role` too (nothing in this
+  slice writes it via the API; the definer RPC and owner-run cascades are the
+  only writers). Immutability is enforced in the database, not the UI. Rows
+  are written only inside the `create_rollout` RPC transaction and removed
+  only by the rollout's cascade delete (referential actions run as table
+  owner, exempt from grants/RLS).
+- `service_role` gets full CRUD grants on `rollouts` and `units` (bypassrls
+  still requires grants — the 0004 lesson).
 - A `BEFORE INSERT OR UPDATE OF rollout_id, org_id` validation trigger on
   `units` checks `units.org_id` matches its rollout's real `org_id` (same
   defense-in-depth as `check_template_stage_org` on template_stages).
@@ -88,14 +97,17 @@ All policies use the established predicate `org_id in (select public.user_orgs()
 ### RPC
 
 `public.create_rollout(p_template_id uuid, p_name text) returns public.rollouts`
-— plpgsql, SECURITY INVOKER, `set search_path = ''`:
+— plpgsql, **SECURITY DEFINER**, `set search_path = ''`:
 
-1. Select the template under RLS; not visible → `raise exception 'template not found'`.
-2. Count its stages; zero → `raise exception 'template has no stages'` (the
-   create dialog also disables 0-stage templates, but the RPC guard is
-   authoritative).
-3. Insert the rollout (`org_id` from the template row, `template_id`
-   provenance, trimmed name).
+1. `auth.uid()` null → raise. Template's org not in `public.user_orgs()` →
+   `raise exception 'template not found'` (explicit membership test — definer
+   bypasses RLS).
+2. `p_name` null or empty after trim, or longer than 80 → `raise exception
+   'invalid name'`. Count the template's stages; zero → `raise exception
+   'template has no stages'`. (The create dialog also guards both, but the
+   RPC is authoritative.)
+3. Insert the rollout (`org_id` from the template row — there is no org
+   parameter to confuse; `template_id` provenance; trimmed name).
 4. Copy `template_stages` ordered by `position, id` into `rollout_stages` with
    contiguous positions 0..n-1.
 5. Return the rollout row.
@@ -143,7 +155,9 @@ immutability absolute.
 - `components/` — `rollout-list.tsx` (table + empty state),
   `create-rollout-dialog.tsx` (URL-state open via `useSearchParams` — the
   Templates fix pattern, not the buggy mount-seed; template `<select>` from
-  server-passed options, 0-stage templates disabled with a hint),
+  server-passed options, 0-stage templates disabled with a hint; when the org
+  has NO templates the form is replaced by an empty state linking to
+  `/templates?new=1` and submit is absent),
   `rollout-header.tsx` (inline rename + delete confirm),
   `stage-strip.tsx` (read-only ordered chips — server component),
   `unit-list.tsx` (client; `useOptimistic` + keyed-remount per the documented
@@ -181,6 +195,8 @@ immutability absolute.
   - Cross-tenant: foreign member sees no rollouts/units; cannot insert a unit
     into a foreign rollout; update/delete denial on rollouts + units using the
     0-rows-affected + owner-reread pattern.
+  - RPC-only creation: a direct `insert` into `rollouts` fails even for the
+    member's OWN org (no insert policy/grant — permission denied).
   - RPC: rejects a foreign template ('template not found'); rejects a 0-stage
     template ('template has no stages'); creates rollout + stages atomically
     for the owner.
@@ -191,8 +207,13 @@ immutability absolute.
     creation; editing the template afterwards does NOT change the rollout;
     deleting the template leaves the rollout intact with `template_id` null.
 - **Seed:** demo org gains rollout "Q3 Store Refresh" created from the "Store
-  Refresh" template via the RPC, plus 2 units ("Store #101 — Kraków",
-  ref "S-101"; "Store #102 — Gdańsk", ref "S-102"), idempotent.
+  Refresh" template via the RPC (the seed's signed-in demo session runs as
+  `authenticated`, so the definer RPC is callable), plus 2 units
+  ("Store #101 — Kraków", ref "S-101"; "Store #102 — Gdańsk", ref "S-102").
+  Sequencing: rollout seeding runs AFTER and OUTSIDE `ensureDemoTemplate`'s
+  early-return branch — it looks up the template id regardless of whether the
+  template was just created, and keys its own idempotency on the rollout name
+  (org-scoped lookup, skip if present).
 
 ## Out of scope
 
