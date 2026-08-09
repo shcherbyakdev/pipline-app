@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { LayoutGrid, FileStack, Moon, Sun } from "lucide-react";
+import { LayoutGrid, FileStack, Moon, Plus, Sun } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -45,6 +45,11 @@ export function CommandMenu() {
           </CommandItem>
           <CommandItem onSelect={() => go("/templates")}>
             <FileStack className="size-4" /> Templates
+          </CommandItem>
+        </CommandGroup>
+        <CommandGroup heading="Actions">
+          <CommandItem onSelect={() => go("/templates?new=1")}>
+            <Plus className="size-4" /> Create template
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Preferences">
