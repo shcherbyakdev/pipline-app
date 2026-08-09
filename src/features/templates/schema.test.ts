@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   templateName,
+  templateDescription,
   stageName,
   createTemplateInput,
   reorderStagesInput,
@@ -16,6 +17,9 @@ describe("templateName", () => {
   it("rejects empty after trim", () => {
     expect(templateName.safeParse("   ").success).toBe(false);
   });
+  it("accepts 80 chars", () => {
+    expect(templateName.safeParse("x".repeat(80)).success).toBe(true);
+  });
   it("rejects 81 chars", () => {
     expect(templateName.safeParse("x".repeat(81)).success).toBe(false);
   });
@@ -28,13 +32,35 @@ describe("stageName", () => {
   });
 });
 
+describe("templateDescription", () => {
+  it("accepts 500 chars", () => {
+    expect(templateDescription.safeParse("x".repeat(500)).success).toBe(true);
+  });
+  it("rejects 501 chars", () => {
+    expect(templateDescription.safeParse("x".repeat(501)).success).toBe(false);
+  });
+  it("trims surrounding whitespace", () => {
+    expect(templateDescription.parse("  hi  ")).toBe("hi");
+  });
+});
+
 describe("createTemplateInput", () => {
   it("description is optional", () => {
     expect(createTemplateInput.safeParse({ name: "A" }).success).toBe(true);
   });
+  it("rejects description over 500 chars", () => {
+    expect(
+      createTemplateInput.safeParse({ name: "A", description: "x".repeat(501) }).success,
+    ).toBe(false);
+  });
 });
 
 describe("reorderStagesInput", () => {
+  it("accepts valid templateId and unique stageIds", () => {
+    expect(
+      reorderStagesInput.safeParse({ templateId: UUID_A, stageIds: [UUID_A, UUID_B] }).success,
+    ).toBe(true);
+  });
   it("rejects a non-uuid templateId", () => {
     expect(
       reorderStagesInput.safeParse({ templateId: "nope", stageIds: [UUID_A] }).success,
