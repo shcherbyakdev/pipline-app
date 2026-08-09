@@ -19,11 +19,26 @@
 --
 -- `anon` intentionally receives nothing: this app has no unauthenticated
 -- public reads, so anon should not be able to touch these tables at all.
+--
+-- Least privilege: `orgs`/`org_members` are select-only-plus-RPC by design
+-- (0001 defines no insert/update/delete policies for authenticated;
+-- mutations flow only through the SECURITY DEFINER create_org() function).
+-- Granting authenticated write privileges on them would be inert today
+-- since RLS default-denies with no matching policy, but it would be a
+-- latent write path — silently active the moment a future migration ever
+-- added a write policy. So authenticated gets select only on those two.
+-- `templates`/`template_stages` do have matching member write policies
+-- (0003), so authenticated gets full CRUD there. `service_role` bypasses
+-- RLS but still needs explicit grants to touch these tables at all, so it
+-- gets full CRUD on all four regardless of policy shape.
 grant usage on schema public to authenticated, service_role;
 
-grant select, insert, update, delete on table
+grant select on table
   public.orgs,
-  public.org_members,
+  public.org_members
+to authenticated;
+
+grant select, insert, update, delete on table
   public.templates,
   public.template_stages
 to authenticated;
