@@ -32,6 +32,42 @@ create policy "template_stages_delete_member" on public.template_stages
   for delete to authenticated
   using (org_id in (select public.user_orgs()));
 
+-- Guard: a stage's org_id must reflect the true owner of its template.
+-- Without this, a member could insert/repoint a stage with their own
+-- org_id while template_id points at a foreign template. Fires on every
+-- INSERT and on UPDATE only when template_id or org_id actually changes,
+-- so the reorder RPC's position-only updates never trip it. SECURITY
+-- INVOKER: the templates lookup runs under the caller's RLS, so a
+-- template in another org is invisible (looks like "not found") rather
+-- than leaking its existence.
+create or replace function public.check_template_stage_org()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_template_org_id uuid;
+begin
+  select org_id into v_template_org_id
+    from public.templates
+   where id = new.template_id;
+
+  if v_template_org_id is null then
+    raise exception 'template not found';
+  end if;
+
+  if v_template_org_id <> new.org_id then
+    raise exception 'org mismatch';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger template_stages_check_org
+before insert or update of template_id, org_id on public.template_stages
+for each row execute function public.check_template_stage_org();
+
 -- Freshness: stage changes touch the parent template's updated_at. Runs as
 -- the acting user (RLS applies; members hold the update policy). During a
 -- template's cascade delete the UPDATE matches 0 rows, which is fine.
