@@ -3,7 +3,6 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 import {
   createRolloutInput,
   renameRolloutInput,
@@ -11,6 +10,8 @@ import {
   addUnitInput,
   renameUnitInput,
   deleteUnitInput,
+  GENERIC_WRITE_ERROR,
+  type ActionState,
 } from "./schema";
 
 export type CreateRolloutState = { error?: string };

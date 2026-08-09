@@ -33,14 +33,14 @@ export async function listRollouts(): Promise<RolloutListItem[]> {
     id: string;
     name: string;
     created_at: string;
-    templates: { name: string }[];
+    templates: { name: string } | null;
     rollout_stages: { count: number }[];
     units: { count: number }[];
   };
-  return (data ?? []).map((r: RolloutRow) => ({
+  return ((data ?? []) as unknown as RolloutRow[]).map((r) => ({
     id: r.id,
     name: r.name,
-    templateName: r.templates?.[0]?.name ?? null,
+    templateName: r.templates?.name ?? null,
     stageCount: r.rollout_stages[0]?.count ?? 0,
     unitCount: r.units[0]?.count ?? 0,
     createdAt: r.created_at,
@@ -62,15 +62,15 @@ export async function getRollout(id: string): Promise<RolloutDetail | null> {
     id: string;
     name: string;
     created_at: string;
-    templates: { name: string }[];
+    templates: { name: string } | null;
     rollout_stages: { id: string; name: string; position: number }[];
     units: { id: string; name: string; external_ref: string | null; created_at: string }[];
   };
-  const row = data as RolloutDetailRow;
+  const row = data as unknown as RolloutDetailRow;
   return {
     id: row.id,
     name: row.name,
-    templateName: row.templates?.[0]?.name ?? null,
+    templateName: row.templates?.name ?? null,
     createdAt: row.created_at,
     stages: [...row.rollout_stages]
       .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
