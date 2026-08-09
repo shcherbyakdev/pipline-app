@@ -5,15 +5,20 @@ import { Trash2 } from "lucide-react";
 import type { Unit } from "@/features/rollouts/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StageDots } from "./stage-dots";
 
 export function UnitRow({
   unit,
+  stageNames,
   onRename,
   onDelete,
+  onToggleStage,
 }: {
   unit: Unit;
+  stageNames: Record<string, string>;
   onRename: (name: string) => void;
   onDelete: () => void;
+  onToggleStage: (unitStageId: string, done: boolean) => void;
 }) {
   // No effect syncing local state from `unit.name`: the call site
   // (unit-list.tsx) keys this component on `${unit.id}:${unit.name}`, so a
@@ -30,8 +35,10 @@ export function UnitRow({
     onRename(next);
   };
 
+  const doneCount = unit.stages.filter((s) => s.done).length;
+
   return (
-    <li className="group flex items-center gap-1 rounded-md border px-2 py-1">
+    <li className="group flex items-center gap-2 rounded-md border px-2 py-1">
       <Input
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -41,6 +48,17 @@ export function UnitRow({
         aria-label={`Unit name: ${unit.name}`}
         className="border-transparent shadow-none focus-visible:border-input"
       />
+      <StageDots
+        stages={unit.stages.map((s) => ({
+          unitStageId: s.unitStageId,
+          name: stageNames[s.stageId] ?? "stage",
+          done: s.done,
+        }))}
+        onToggle={onToggleStage}
+      />
+      <span className="text-muted-foreground shrink-0 font-mono text-xs tabular-nums">
+        {doneCount}/{unit.stages.length}
+      </span>
       {unit.externalRef !== null ? (
         <span className="text-muted-foreground shrink-0 font-mono text-xs">
           {unit.externalRef}

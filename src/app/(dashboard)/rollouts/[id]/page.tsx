@@ -15,7 +15,7 @@ export default async function RolloutDetailPage({ params }: PageProps<"/rollouts
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
       <RolloutHeader id={rollout.id} name={rollout.name} templateName={rollout.templateName} />
       <StageStrip stages={rollout.stages} />
-      <UnitList rolloutId={rollout.id} units={rollout.units} />
+      <UnitList rolloutId={rollout.id} units={rollout.units} stages={rollout.stages} />
     </div>
   );
 }

@@ -3,8 +3,8 @@
 import * as React from "react";
 import { useOptimistic } from "react";
 import { toast } from "sonner";
-import { addUnit, renameUnit, deleteUnit } from "@/features/rollouts/actions";
-import type { Unit } from "@/features/rollouts/queries";
+import { addUnit, renameUnit, deleteUnit, setUnitStageStatus } from "@/features/rollouts/actions";
+import type { RolloutStage, Unit } from "@/features/rollouts/queries";
 import { UnitRow } from "./unit-row";
 import { AddUnit } from "./add-unit";
 
@@ -12,27 +12,57 @@ import { AddUnit } from "./add-unit";
 // server-provided array; every mutation applies optimistically inside a
 // transition, calls the Server Action, and toasts on failure. The action's
 // revalidatePath re-renders the server truth, which resets optimistic state.
-// Units are unordered (no position/move), so the reducer only handles
-// add/rename/delete.
 type UnitEvent =
-  | { type: "add"; id: string; name: string; externalRef?: string }
+  | { type: "add"; id: string; name: string; externalRef?: string; stages: Unit["stages"] }
   | { type: "rename"; id: string; name: string }
-  | { type: "delete"; id: string };
+  | { type: "delete"; id: string }
+  | { type: "setStage"; unitId: string; unitStageId: string; done: boolean };
 
 function applyEvent(units: Unit[], event: UnitEvent): Unit[] {
   switch (event.type) {
     case "add":
-      return [...units, { id: event.id, name: event.name, externalRef: event.externalRef ?? null }];
+      return [
+        ...units,
+        {
+          id: event.id,
+          name: event.name,
+          externalRef: event.externalRef ?? null,
+          stages: event.stages,
+        },
+      ];
     case "rename":
       return units.map((u) => (u.id === event.id ? { ...u, name: event.name } : u));
     case "delete":
       return units.filter((u) => u.id !== event.id);
+    case "setStage":
+      return units.map((u) =>
+        u.id === event.unitId
+          ? {
+              ...u,
+              stages: u.stages.map((s) =>
+                s.unitStageId === event.unitStageId ? { ...s, done: event.done } : s,
+              ),
+            }
+          : u,
+      );
   }
 }
 
-export function UnitList({ rolloutId, units }: { rolloutId: string; units: Unit[] }) {
+export function UnitList({
+  rolloutId,
+  units,
+  stages,
+}: {
+  rolloutId: string;
+  units: Unit[];
+  stages: RolloutStage[];
+}) {
   const [optimistic, dispatch] = useOptimistic(units, applyEvent);
   const [, startTransition] = React.useTransition();
+
+  const stageNames: Record<string, string> = Object.fromEntries(
+    stages.map((s) => [s.id, s.name]),
+  );
 
   const run = (event: UnitEvent, act: () => Promise<{ ok: boolean; error?: string }>) =>
     startTransition(async () => {
@@ -41,9 +71,20 @@ export function UnitList({ rolloutId, units }: { rolloutId: string; units: Unit[
       if (!result.ok) toast.error(result.error ?? "Couldn't save. Try again.");
     });
 
+  const cells = optimistic.flatMap((u) => u.stages);
+  const doneCells = cells.filter((c) => c.done).length;
+
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-muted-foreground text-sm font-medium">Units ({optimistic.length})</h2>
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-muted-foreground text-sm font-medium">Units ({optimistic.length})</h2>
+        {cells.length > 0 ? (
+          <p className="text-muted-foreground text-xs tabular-nums">
+            {doneCells} of {cells.length} stages done ·{" "}
+            {Math.round((doneCells / cells.length) * 100)}%
+          </p>
+        ) : null}
+      </div>
       <ol className="flex flex-col gap-1">
         {optimistic.map((unit) => (
           <UnitRow
@@ -54,6 +95,7 @@ export function UnitList({ rolloutId, units }: { rolloutId: string; units: Unit[
             // from props in an effect (react-hooks/set-state-in-effect).
             key={`${unit.id}:${unit.name}`}
             unit={unit}
+            stageNames={stageNames}
             onRename={(name) =>
               run({ type: "rename", id: unit.id, name }, () =>
                 renameUnit({ id: unit.id, name }),
@@ -61,6 +103,11 @@ export function UnitList({ rolloutId, units }: { rolloutId: string; units: Unit[
             }
             onDelete={() =>
               run({ type: "delete", id: unit.id }, () => deleteUnit({ id: unit.id }))
+            }
+            onToggleStage={(unitStageId, done) =>
+              run({ type: "setStage", unitId: unit.id, unitStageId, done }, () =>
+                setUnitStageStatus({ id: unitStageId, done }),
+              )
             }
           />
         ))}
@@ -72,8 +119,23 @@ export function UnitList({ rolloutId, units }: { rolloutId: string; units: Unit[
       ) : null}
       <AddUnit
         onAdd={(name, externalRef) =>
-          run({ type: "add", id: crypto.randomUUID(), name, externalRef }, () =>
-            addUnit({ rolloutId, name, externalRef }),
+          run(
+            {
+              type: "add",
+              id: crypto.randomUUID(),
+              name,
+              externalRef,
+              // Synthesized pending cells so the optimistic row renders real
+              // dots; server truth replaces the temp ids on revalidation. A
+              // click on a temp id fails safe: generic error toast, then
+              // reconciliation.
+              stages: stages.map((s) => ({
+                unitStageId: crypto.randomUUID(),
+                stageId: s.id,
+                done: false,
+              })),
+            },
+            () => addUnit({ rolloutId, name, externalRef }),
           )
         }
       />
