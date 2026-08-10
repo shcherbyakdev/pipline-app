@@ -27,6 +27,7 @@ function applyEvent(units: Unit[], event: UnitEvent): Unit[] {
           id: event.id,
           name: event.name,
           externalRef: event.externalRef ?? null,
+          assignedParticipantId: null,
           stages: event.stages,
         },
       ];

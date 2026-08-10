@@ -17,6 +17,7 @@ export type Unit = {
   id: string;
   name: string;
   externalRef: string | null;
+  assignedParticipantId: string | null;
   stages: UnitStageCell[];
 };
 
@@ -174,7 +175,7 @@ export async function getProgram(id: string): Promise<ProgramDetail | null> {
   const { data, error } = await supabase
     .from("programs")
     .select(
-      "id, name, created_at, templates(name), program_stages(id, name, position, program_stage_requirements(count)), units(id, name, external_ref, created_at, unit_stages(id, program_stage_id, status))",
+      "id, name, created_at, templates(name), program_stages(id, name, position, program_stage_requirements(count)), units(id, name, external_ref, assigned_participant_id, created_at, unit_stages(id, program_stage_id, status))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -195,6 +196,7 @@ export async function getProgram(id: string): Promise<ProgramDetail | null> {
       id: string;
       name: string;
       external_ref: string | null;
+      assigned_participant_id: string | null;
       created_at: string;
       unit_stages: { id: string; program_stage_id: string; status: string }[];
     }[];
@@ -224,6 +226,7 @@ export async function getProgram(id: string): Promise<ProgramDetail | null> {
           id: u.id,
           name: u.name,
           externalRef: u.external_ref,
+          assignedParticipantId: u.assigned_participant_id,
           stages: stages.flatMap((s) => {
             const us = byStage.get(s.id);
             return us ? [{ unitStageId: us.id, stageId: s.id, done: us.status === "done" }] : [];
