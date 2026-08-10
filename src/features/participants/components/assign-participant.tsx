@@ -36,7 +36,13 @@ export function AssignParticipant({
         }
         setOptimistic(created.id);
         const assigned = await assignUnit({ unitId, participantId: created.id });
-        if (!assigned.ok) toast.error(assigned.error);
+        if (!assigned.ok) {
+          // The participant now exists but isn't assigned — the select would
+          // otherwise show a dangling id with no matching option. Revert to
+          // the last known-good value and say so explicitly.
+          setOptimistic(value);
+          toast.error("Participant created, but assigning failed. Pick them from the list.");
+        }
       });
       return;
     }
@@ -44,7 +50,12 @@ export function AssignParticipant({
     setOptimistic(participantId);
     startTransition(async () => {
       const result = await assignUnit({ unitId, participantId });
-      if (!result.ok) toast.error(result.error ?? "Couldn't save. Try again.");
+      if (!result.ok) {
+        toast.error(result.error ?? "Couldn't save. Try again.");
+        // A failed action doesn't revalidate, so there's no server-truth
+        // re-render to reset optimistic state — the control must revert itself.
+        setOptimistic(value);
+      }
     });
   };
 

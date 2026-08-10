@@ -91,12 +91,14 @@ export function UnitList({
       <ol className="flex flex-col gap-1">
         {optimistic.map((unit) => (
           <UnitRow
-            // Keyed remount: when the server-truth name changes (a
-            // successful rename re-renders with new server data), a fresh
-            // key remounts UnitRow so its local input state re-derives from
-            // `unit.name` — the sanctioned alternative to syncing local state
-            // from props in an effect (react-hooks/set-state-in-effect).
-            key={`${unit.id}:${unit.name}`}
+            // Keyed remount: when the server-truth name or assigned
+            // participant changes (a successful rename or assignment
+            // re-renders with new server data), a fresh key remounts UnitRow
+            // so its local input state re-derives from `unit.name` and its
+            // AssignParticipant child re-seeds from `unit.assignedParticipantId`
+            // — the sanctioned alternative to syncing local state from props
+            // in an effect (react-hooks/set-state-in-effect).
+            key={`${unit.id}:${unit.name}:${unit.assignedParticipantId ?? ""}`}
             unit={unit}
             programId={programId}
             stageMeta={stageMeta}
