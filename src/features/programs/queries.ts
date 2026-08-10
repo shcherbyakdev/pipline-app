@@ -75,6 +75,12 @@ export type EvidencePhoto = {
   createdAt: string;
   uploadedBy: string | null; // participant name, when known
   url: string | null; // short-lived signed URL; null → filename tile
+  // Client-only optimistic placeholder marker (never set by a read model —
+  // both readers below only ever build real rows). Distinct from `url ===
+  // null`, which also happens for a genuinely stored photo whose signing
+  // failed; that photo must stay removable, so removal is gated on this
+  // flag, not on `url`.
+  optimistic?: true;
 };
 
 export type SectionRequirement = {

@@ -6,6 +6,18 @@ import type { SectionRequirement } from "@/features/programs/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+// Display-only: client-supplied filenames are stored with only a length
+// cap, so control characters, newlines, and bidi-override codepoints (e.g.
+// U+202E, which can visually reverse an apparent file extension) survive
+// into the DB verbatim. Never alters what's stored -- this only sanitizes
+// the four places a filename is rendered, below. Strips C0/C1 controls and
+// the explicit bidi formatting characters.
+const UNSAFE_FILENAME_CHARS =
+  /[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+function displayFilename(filename: string): string {
+  return filename.replace(UNSAFE_FILENAME_CHARS, "");
+}
+
 export function RequirementField({
   requirement,
   onSave,
@@ -53,8 +65,9 @@ export function RequirementField({
       ) : r.type === "photo" ? (
         <div className="flex flex-wrap items-center gap-2">
           {r.photos.map((p) => {
+            const safeFilename = displayFilename(p.filename);
             const meta = [
-              p.filename,
+              safeFilename,
               `${Math.max(1, Math.round(p.sizeBytes / 1024))} KB`,
               p.uploadedBy ?? undefined,
               p.createdAt ? new Date(p.createdAt).toLocaleString() : undefined,
@@ -70,7 +83,7 @@ export function RequirementField({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={p.url}
-                      alt={p.filename}
+                      alt={safeFilename}
                       className="h-16 w-16 rounded-md border object-cover"
                     />
                   </a>
@@ -79,15 +92,19 @@ export function RequirementField({
                     title={meta}
                     className="bg-muted text-muted-foreground inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border p-1 text-center text-[10px] break-all"
                   >
-                    {p.filename}
+                    {safeFilename}
                   </span>
                 )}
-                {onRemovePhoto ? (
+                {onRemovePhoto && !p.optimistic ? (
+                  // Withheld on the optimistic placeholder: its id is a
+                  // client-generated string, never the uuid removePhoto's
+                  // schema requires, so tapping this before revalidation
+                  // lands could only ever fail server-side.
                   <Button
                     variant="secondary"
                     size="icon"
                     className="absolute -top-2 -right-2 size-5 rounded-full"
-                    aria-label={`Remove ${p.filename}`}
+                    aria-label={`Remove ${safeFilename}`}
                     onClick={() => onRemovePhoto(p.id)}
                   >
                     <Trash2 className="size-3" />
@@ -101,6 +118,7 @@ export function RequirementField({
               <Plus className="size-4" />
               Add photo
               <input
+                id={inputId}
                 type="file"
                 accept="image/*"
                 capture="environment"

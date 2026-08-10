@@ -108,6 +108,15 @@ describe("addRequirementInput", () => {
         options: ["a", "b"],
       }).success,
     ).toBe(false);
+    expect(
+      addRequirementInput.safeParse({
+        ...base,
+        type: "photo",
+        label: "Photo",
+        required: true,
+        items: ["a"],
+      }).success,
+    ).toBe(false);
   });
 
   it("choice requires >=2 options and forbids items", () => {

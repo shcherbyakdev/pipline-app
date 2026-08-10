@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 type SectionEvent =
   | { type: "setValue"; unitStageId: string; requirementId: string; value: string | number | boolean }
   | { type: "clear"; unitStageId: string; requirementId: string }
-  | { type: "addPhoto"; unitStageId: string; requirementId: string; filename: string }
+  | { type: "addPhoto"; unitStageId: string; requirementId: string; filename: string; placeholderId: string }
   | { type: "removePhoto"; unitStageId: string; requirementId: string; evidenceId: string };
 
 function derive(section: StageSection): StageSection {
@@ -49,6 +49,17 @@ function applyEvent(sections: StageSection[], event: SectionEvent): StageSection
       }
       case "addPhoto":
         // Placeholder tile (no URL yet); revalidation replaces it with truth.
+        // `placeholderId` is generated once, at event creation (onUploadPhoto
+        // below), NOT derived from r.photos.length here — useOptimistic
+        // replays pending actions in order over base state on every render,
+        // so an id computed from a length that itself depends on earlier
+        // pending events in the same replay can collide across two
+        // concurrent addPhoto events, producing a duplicate React key and a
+        // removePhoto filter that drops both tiles. `optimistic: true` marks
+        // this as a placeholder — never set by a real read model — so the
+        // remove button can be withheld for it (see requirement-field.tsx):
+        // tapping it can only ever fail server-side, since the server's
+        // evidenceId is a uuid and this id never is.
         return derive({
           ...s,
           requirements: s.requirements.map((r) =>
@@ -58,12 +69,13 @@ function applyEvent(sections: StageSection[], event: SectionEvent): StageSection
                   photos: [
                     ...r.photos,
                     {
-                      id: `optimistic-${r.photos.length}`,
+                      id: event.placeholderId,
                       filename: event.filename,
                       sizeBytes: 0,
                       createdAt: "",
                       uploadedBy: null,
                       url: null,
+                      optimistic: true,
                     },
                   ],
                 }
@@ -160,7 +172,11 @@ export function ParticipantStageSections({
                     onUploadPhoto={(file) => {
                       // Pre-check before any bytes move; the server and the
                       // bucket both re-check.
-                      if (!isAllowedPhotoType(file.type) || file.size > PHOTO_MAX_BYTES) {
+                      if (
+                        !isAllowedPhotoType(file.type) ||
+                        file.size === 0 ||
+                        file.size > PHOTO_MAX_BYTES
+                      ) {
                         toast.error("Photos must be JPEG, PNG, WebP, or HEIC and under 15MB.");
                         return;
                       }
@@ -170,7 +186,15 @@ export function ParticipantStageSections({
                       fd.set("requirementId", r.id);
                       fd.set("file", file);
                       run(
-                        { type: "addPhoto", unitStageId: s.unitStageId, requirementId: r.id, filename: file.name },
+                        {
+                          type: "addPhoto",
+                          unitStageId: s.unitStageId,
+                          requirementId: r.id,
+                          filename: file.name,
+                          // Generated once here, at event creation, so it's
+                          // stable across useOptimistic's replays.
+                          placeholderId: `optimistic-${crypto.randomUUID()}`,
+                        },
                         () => uploadPhoto(fd),
                       );
                     }}
