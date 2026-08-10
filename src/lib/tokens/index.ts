@@ -4,3 +4,4 @@
 export { generateAccessToken, hashToken } from "./mint";
 export { clientKeyFrom } from "./rate-limit";
 export * from "./participant";
+export * from "./portal";
