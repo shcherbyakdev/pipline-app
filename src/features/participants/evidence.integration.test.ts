@@ -938,14 +938,16 @@ describe("photo evidence: record, delete, derivation, guards", () => {
       "image/heif",
     ]);
 
-    // "ZERO storage policies" is the migration's own claim (0015:8): a
-    // policy referencing this bucket in USING or WITH CHECK would be a
-    // second, RLS-shaped door into objects that the definer RPCs are
-    // supposed to be the only way through.
+    // "ZERO storage policies" is the migration's own claim (0015:8): the
+    // stack ships none at all, on ANY bucket. Filtering by name (e.g.
+    // `qual ilike '%evidence%'`) would miss a blanket policy like
+    // `create policy … on storage.objects for select to anon using (true)`
+    // — the most plausible way a future migration re-opens the bucket,
+    // since it mentions no bucket and so no name filter catches it. Assert
+    // zero policies on storage.objects outright instead.
     const bucketPolicies = await sql<{ policyname: string }[]>`
       select policyname from pg_policies
        where schemaname = 'storage' and tablename = 'objects'
-         and (qual ilike '%evidence%' or with_check ilike '%evidence%')
     `;
     expect(bucketPolicies).toHaveLength(0);
   });
@@ -991,5 +993,82 @@ describe("photo evidence: record, delete, derivation, guards", () => {
         await tx`truncate table public.evidence`;
       }),
     ).rejects.toMatchObject({ code: "42501" });
+  });
+
+  // ---------- Fix wave: 0016's staff-delete guard on the photo anchor.
+  it("guard: a staff session cannot delete a photo anchor row directly — the participant's own last-photo delete still can", async () => {
+    // Fresh unit/response/evidence trio, isolated from every other test's
+    // state in this file.
+    const { data: u } = await alice
+      .from("units")
+      .insert({ program_id: programId, org_id: orgId, name: "Unit Guard Trigger", assigned_participant_id: p1 })
+      .select("id")
+      .single();
+    const unitGuard = u!.id as string;
+
+    const { data: guardEvidenceId, error: eRec } = await record(
+      t1.token,
+      unitGuard,
+      photoReqId,
+      `${orgId}/${programId}/${unitGuard}/guard.jpg`,
+    );
+    expect(eRec).toBeNull();
+
+    const { data: usGuard } = await alice
+      .from("unit_stages")
+      .select("id")
+      .eq("unit_id", unitGuard)
+      .eq("program_stage_id", stageId)
+      .single();
+    const { data: respBefore } = await alice
+      .from("unit_stage_responses")
+      .select("id")
+      .eq("unit_stage_id", usGuard!.id)
+      .eq("program_stage_requirement_id", photoReqId)
+      .single();
+    const responseId = respBefore!.id as string;
+
+    // A member (authenticated staff session, auth.uid() non-null) deleting
+    // the anchor directly — exactly what the exported clearResponse server
+    // action does, and exactly what a raw PostgREST DELETE with the same
+    // session cookie reaches too — must be refused by the 0016 trigger. If
+    // the trigger is removed, this DELETE succeeds (error becomes null),
+    // which is the first way this test fails.
+    const { error: staffDelete } = await alice
+      .from("unit_stage_responses")
+      .delete()
+      .eq("id", responseId);
+    expect(staffDelete?.code).toBe("P0001");
+
+    // The anchor must still exist, and evidence must still point at it —
+    // without the trigger, the DELETE above succeeds and the FK (ON DELETE
+    // SET NULL) detaches the evidence row from its now-gone response,
+    // which is the second, independent way this test fails if the trigger
+    // is removed.
+    const { data: stillThere } = await alice
+      .from("unit_stage_responses")
+      .select("id")
+      .eq("id", responseId)
+      .maybeSingle();
+    expect(stillThere).not.toBeNull();
+    const { count: evidenceStillLinked } = await alice
+      .from("evidence")
+      .select("id", { count: "exact", head: true })
+      .eq("response_id", responseId);
+    expect(evidenceStillLinked).toBe(1);
+
+    // The gate is auth.uid(), not "who deletes it": the participant's OWN
+    // last-photo delete goes through delete_photo_evidence (anon-callable,
+    // SECURITY DEFINER, auth.uid() null under the anon path) and must
+    // still succeed — proving the trigger targets staff sessions
+    // specifically, not every deleter of a photo anchor.
+    const { error: participantDelete } = await del(t1.token, guardEvidenceId as string);
+    expect(participantDelete).toBeNull();
+    const { data: goneNow } = await alice
+      .from("unit_stage_responses")
+      .select("id")
+      .eq("id", responseId)
+      .maybeSingle();
+    expect(goneNow).toBeNull();
   });
 });

@@ -116,7 +116,7 @@ slice 7.
 ## Storage
 
 - Private bucket **`evidence`**, created by migration, with
-  `file_size_limit` = 15MB and `allowed_mime_types` = jpeg/png/webp/heic.
+  `file_size_limit` = 15MB and `allowed_mime_types` = jpeg/png/webp/heic/heif.
   **Zero storage RLS policies** — every object read/write goes through the
   server-only service-role client (`lib/supabase/admin.ts`).
 - Object path: `org_id/program_id/unit_id/<uuid>.<ext>` — server-generated

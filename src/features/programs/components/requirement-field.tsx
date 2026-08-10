@@ -35,10 +35,15 @@ export function RequirementField({
 }) {
   const r = requirement;
   const inputId = `req-${r.id}`;
+  // The photo branch only renders an element carrying `inputId` (the file
+  // input, below) when onUploadPhoto is passed — the read-only console/done
+  // display renders neither an input nor a label target. Every other
+  // branch always renders its id'd control, so htmlFor is safe there.
+  const hasIdTarget = r.type !== "photo" || Boolean(onUploadPhoto);
 
   return (
     <div className="flex items-center gap-2">
-      <label htmlFor={inputId} className="w-56 shrink-0 truncate text-sm" title={r.label}>
+      <label htmlFor={hasIdTarget ? inputId : undefined} className="w-56 shrink-0 truncate text-sm" title={r.label}>
         {r.label}
         {r.required ? null : <span className="text-muted-foreground"> (optional)</span>}
       </label>

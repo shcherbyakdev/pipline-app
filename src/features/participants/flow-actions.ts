@@ -107,7 +107,7 @@ export async function uploadPhoto(formData: FormData): Promise<ActionState> {
   }
 
   const anon = createAnonServerClient();
-  const { error, status } = await anon.rpc("record_photo_evidence", {
+  const { error } = await anon.rpc("record_photo_evidence", {
     p_token: d.token,
     p_unit_id: d.unitId,
     p_requirement_id: d.requirementId,
@@ -120,18 +120,22 @@ export async function uploadPhoto(formData: FormData): Promise<ActionState> {
   if (error) {
     console.error("[participants] uploadPhoto:", error.code || error.message || "rpc error");
     // Only compensate on a DEFINITE server-side rejection: a non-empty
-    // error.code, or an HTTP status the server actually sent (>=400), means
-    // Postgres answered and refused — the row was never committed, so the
-    // object is a genuine orphan and safe to delete. A transport failure
-    // (timeout/abort/network drop) comes back with code "" and status 0: we
-    // then have NO idea whether the row committed before the response was
-    // lost. Deleting the object in that case is exactly the corruption this
-    // object-before-row ordering exists to prevent (a committed evidence row
-    // pointing at a missing object) — so on an indeterminate outcome we
-    // deliberately leave the object as an orphan, the same cheap accepted
-    // wart deleteEvidenceObject already carries elsewhere. Do not "simplify"
-    // this back to an unconditional delete.
-    if (error.code || status >= 400) {
+    // error.code means PostgREST/Postgres actually answered and refused (a
+    // RAISE from the RPC as P0001, a grants failure as 42501, a protocol
+    // error as PGRST*) — the row was never committed, so the object is a
+    // genuine orphan and safe to delete. Everything else is indeterminate
+    // and must NOT compensate: a transport failure (timeout/abort/network
+    // drop) comes back with code "" and status 0, and a gateway failure in
+    // front of PostgREST (502/503/504) comes back with code "" and
+    // status>=400 — in both cases we have NO idea whether the statement
+    // committed before the response was lost. `status` alone is not a
+    // signal PostgREST produced; do not resurrect a `|| status >= 400`
+    // check here. Deleting the object on an indeterminate outcome is
+    // exactly the corruption this object-before-row ordering exists to
+    // prevent (a committed evidence row pointing at a missing object) — so
+    // we deliberately leave the object as an orphan, the same cheap
+    // accepted wart deleteEvidenceObject already carries elsewhere.
+    if (error.code) {
       await deleteEvidenceObject(path);
     }
     return { ok: false, error: GENERIC_WRITE_ERROR };

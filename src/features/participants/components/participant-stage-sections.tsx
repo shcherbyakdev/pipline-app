@@ -126,10 +126,33 @@ export function ParticipantStageSections({
               : r.value !== null && r.value !== "",
         ).length;
         if (s.status === "done") {
+          // Thumbnails visible, no controls (design spec): reuse
+          // RequirementField's own read-only branch — the same one the
+          // staff console gets by omitting onUploadPhoto/onRemovePhoto —
+          // rather than a second photo renderer. Only requirements that
+          // actually have photos get a row, so a stage completed entirely
+          // by scalar answers still collapses to just the summary line.
+          const photoRequirements = s.requirements.filter(
+            (r) => r.type === "photo" && r.photos.length > 0,
+          );
           return (
-            <section key={s.unitStageId} className="flex items-center gap-2 rounded-lg border px-4 py-2">
-              <h2 className="text-sm font-medium">{s.name}</h2>
-              <Badge variant="secondary" className="ml-auto text-[10px]">done</Badge>
+            <section key={s.unitStageId} className="flex flex-col gap-2 rounded-lg border px-4 py-2">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-medium">{s.name}</h2>
+                <Badge variant="secondary" className="ml-auto text-[10px]">done</Badge>
+              </div>
+              {photoRequirements.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  {photoRequirements.map((r) => (
+                    <RequirementField
+                      key={`${r.id}:${r.photos.length}`}
+                      requirement={r}
+                      onSave={() => {}}
+                      onClear={() => {}}
+                    />
+                  ))}
+                </div>
+              ) : null}
             </section>
           );
         }
@@ -177,7 +200,7 @@ export function ParticipantStageSections({
                         file.size === 0 ||
                         file.size > PHOTO_MAX_BYTES
                       ) {
-                        toast.error("Photos must be JPEG, PNG, WebP, or HEIC and under 15MB.");
+                        toast.error("Photos must be JPEG, PNG, WebP, HEIC, or HEIF and under 15MB.");
                         return;
                       }
                       const fd = new FormData();
