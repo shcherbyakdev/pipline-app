@@ -13,11 +13,13 @@ const NEW_SENTINEL = "__new__";
 export function AssignParticipant({
   unitId,
   unitName,
+  programId,
   participants,
   value,
 }: {
   unitId: string;
   unitName: string;
+  programId: string;
   participants: ParticipantListItem[];
   value: string | null;
 }) {
@@ -29,7 +31,7 @@ export function AssignParticipant({
       const name = window.prompt("New participant name")?.trim();
       if (!name) return;
       startTransition(async () => {
-        const created = await createParticipant({ name });
+        const created = await createParticipant({ name, programId });
         if (!created.ok) {
           toast.error(created.error);
           return;

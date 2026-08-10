@@ -19,11 +19,23 @@ export type TokenScope = {
 
 export type ResolveResult =
   | { status: "not_found" }
+  | { status: "rate_limited" }
   | { status: "expired" | "revoked"; orgName: string }
   | { status: "ok"; scope: TokenScope };
 
-// DoS hygiene only — the boundary is token entropy (see lib/tokens/mint.ts).
-const limiter = new SlidingWindowLimiter(30, 60_000);
+// DoS hygiene only — the boundary is token entropy (see lib/tokens/mint.ts),
+// never this counter. Sized generously (120/min) because EVERY flow action
+// revalidates the page, which re-resolves the token: a participant working
+// through a 30-field checklist legitimately burns a slot per save. A tighter
+// budget would brick a live session mid-form, and x-forwarded-for is
+// client-settable anyway — so this is a noise floor, not a defence.
+const limiter = new SlidingWindowLimiter(120, 60_000);
+
+// Both /p pages derive the limiter bucket the same way; keep it in one place
+// so the two can never drift. An IP when the proxy sets one, else "server".
+export function clientKeyFrom(h: Headers): string {
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "server";
+}
 
 // THE chokepoint: the only code that hands a raw token to the database.
 // clientKey groups rate-limit hits (an IP, or "server" when unknown).
@@ -32,7 +44,9 @@ export async function resolveParticipantToken(
   token: string,
   clientKey: string,
 ): Promise<ResolveResult> {
-  if (!limiter.allow(`${clientKey}:${token.slice(0, 8)}`)) return { status: "not_found" };
+  // Distinct from not_found: a throttled caller sees "try again in a minute",
+  // not a 404 that reads as "your link is dead".
+  if (!limiter.allow(`${clientKey}:${token.slice(0, 8)}`)) return { status: "rate_limited" };
   if (token.length < 20 || token.length > 200) return { status: "not_found" };
 
   const anon = createAnonServerClient();
@@ -46,6 +60,9 @@ export async function resolveParticipantToken(
   if (row.status === "expired" || row.status === "revoked") {
     return { status: row.status, orgName: row.org_name as string };
   }
+  // Fail closed: only an explicit "ok" opens the scope. A future status the
+  // SQL grows (or a malformed row) reads as nonexistent rather than valid.
+  if (row.status !== "ok") return { status: "not_found" };
   return {
     status: "ok",
     scope: {

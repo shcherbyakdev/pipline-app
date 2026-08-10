@@ -14,20 +14,29 @@ import { Input } from "@/components/ui/input";
 export function LinksPanel({
   programId,
   participants,
+  units,
   links,
 }: {
   programId: string;
   participants: ParticipantListItem[];
+  units: { id: string; name: string }[];
   links: ProgramLink[];
 }) {
   const [participantId, setParticipantId] = React.useState("");
+  // "" = whole program. A chosen unit pins the link to that unit only —
+  // the DB re-checks the pin on every resolve, this select just wires it up.
+  const [unitId, setUnitId] = React.useState("");
   const [freshUrl, setFreshUrl] = React.useState<string | null>(null);
   const [isPending, startTransition] = React.useTransition();
 
   const issue = () => {
     if (!participantId) return;
     startTransition(async () => {
-      const result = await issueLink({ participantId, programId });
+      const result = await issueLink({
+        participantId,
+        programId,
+        ...(unitId ? { unitId } : {}),
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -37,8 +46,14 @@ export function LinksPanel({
   };
 
   const copy = async (url: string) => {
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copied");
+    // Clipboard access is permission-gated and unavailable on insecure
+    // origins; a rejected promise must not leave a false "copied" toast.
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Couldn't copy — select the link text and copy manually.");
+    }
   };
 
   const revoke = (id: string) =>
@@ -60,6 +75,17 @@ export function LinksPanel({
           <option value="">Choose participant…</option>
           {participants.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+        <select
+          value={unitId}
+          onChange={(e) => setUnitId(e.target.value)}
+          aria-label="Scope of the issued link"
+          className="border-input h-8 max-w-40 rounded-md border bg-transparent px-2 text-sm"
+        >
+          <option value="">Whole program</option>
+          {units.map((u) => (
+            <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </select>
         <Button size="sm" variant="secondary" disabled={!participantId || isPending} onClick={issue}>
@@ -89,6 +115,9 @@ export function LinksPanel({
               >
                 {l.status}
               </Badge>
+              <span className="text-muted-foreground shrink-0 tabular-nums">
+                issued {new Date(l.createdAt).toLocaleDateString()}
+              </span>
               <span className="text-muted-foreground shrink-0 tabular-nums">
                 exp {new Date(l.expiresAt).toLocaleDateString()}
               </span>

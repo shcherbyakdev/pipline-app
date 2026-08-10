@@ -76,6 +76,7 @@ export function UnitRow({
       <AssignParticipant
         unitId={unit.id}
         unitName={unit.name}
+        programId={programId}
         participants={participants}
         value={unit.assignedParticipantId}
       />

@@ -22,7 +22,12 @@ export default async function ProgramDetailPage({ params }: PageProps<"/programs
       <ProgramHeader id={program.id} name={program.name} templateName={program.templateName} />
       <StageStrip stages={program.stages} />
       <UnitList programId={program.id} units={program.units} stages={program.stages} participants={participants} />
-      <LinksPanel programId={program.id} participants={participants} links={links} />
+      <LinksPanel
+        programId={program.id}
+        participants={participants}
+        units={program.units.map((u) => ({ id: u.id, name: u.name }))}
+        links={links}
+      />
     </div>
   );
 }

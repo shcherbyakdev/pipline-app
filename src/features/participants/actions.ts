@@ -43,6 +43,9 @@ export async function createParticipant(
     .single();
   if (error || !data) return fail("createParticipant", error);
   revalidatePath("/programs");
+  // The list this participant must appear in lives on the program page the
+  // caller created them from; /programs alone would leave that stale.
+  if (parsed.data.programId) revalidatePath(`/programs/${parsed.data.programId}`);
   return { ok: true, id: data.id };
 }
 

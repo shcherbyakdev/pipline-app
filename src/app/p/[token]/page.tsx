@@ -1,16 +1,27 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { resolveParticipantToken, getParticipantUnits } from "@/lib/tokens";
+import { resolveParticipantToken, getParticipantUnits, clientKeyFrom } from "@/lib/tokens";
 import { Badge } from "@/components/ui/badge";
 
 export default async function ParticipantEntryPage({ params }: PageProps<"/p/[token]">) {
   const { token } = await params;
   const h = await headers();
-  const clientKey = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "server";
-  const resolved = await resolveParticipantToken(token, clientKey);
+  const resolved = await resolveParticipantToken(token, clientKeyFrom(h));
 
   if (resolved.status === "not_found") notFound();
+  // Throttled, not dead — never a 404, which would read as "your link was
+  // taken away" for what is a wait-a-moment condition.
+  if (resolved.status === "rate_limited") {
+    return (
+      <main className="flex flex-col gap-2 pt-16 text-center">
+        <h1 className="text-lg font-semibold">Too many requests</h1>
+        <p className="text-muted-foreground text-sm">
+          Too many requests — wait a minute and reload.
+        </p>
+      </main>
+    );
+  }
   // `!== "ok"` (rather than `=== "expired" || === "revoked"`) so TS narrows
   // the remaining union to the "ok" arm below — the discriminant on this
   // arm is a literal union ("expired" | "revoked"), which equality
@@ -53,7 +64,7 @@ export default async function ParticipantEntryPage({ params }: PageProps<"/p/[to
                   ) : null}
                 </span>
                 <Badge variant={u.outstanding === 0 ? "secondary" : "outline"} className="ml-auto text-[10px]">
-                  {u.outstanding === 0 ? "all done" : `${u.outstanding} of ${u.total} open`}
+                  {u.outstanding === 0 ? "all done" : `${u.outstanding} of ${u.total} stages open`}
                 </Badge>
               </Link>
             </li>

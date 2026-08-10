@@ -5,6 +5,9 @@ export const createParticipantInput = z.object({
   name: participantName,
   email: z.string().trim().email().max(200).optional(),
   phone: z.string().trim().min(5).max(30).optional(),
+  // Where the creation happened, so the action can revalidate the page the
+  // caller is actually looking at (a program detail page) — not just /programs.
+  programId: z.uuid().optional(),
 });
 export const assignUnitInput = z.object({
   unitId: z.uuid(),

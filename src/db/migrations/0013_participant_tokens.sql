@@ -66,6 +66,12 @@ revoke insert, update, delete on table public.access_tokens from authenticated;
 grant select, insert on table public.access_tokens to authenticated;
 grant update (revoked_at) on table public.access_tokens to authenticated;
 grant select on table public.access_tokens to service_role;
+-- service_role is read-only here on purpose: every legitimate token mutation
+-- (mint, revoke) goes through an authenticated, RLS-checked session, and the
+-- resolve RPC is SECURITY DEFINER (owner postgres), so it never needs this
+-- role. Revoking the writes means a leaked service key cannot mint itself a
+-- link. TRUNCATE is included — it is not RLS-governed at all.
+revoke insert, update, delete, truncate on table public.access_tokens from service_role;
 
 -- units: additive column grant for assignment (0008 scoped it to name/external_ref)
 grant update (assigned_participant_id) on table public.units to authenticated;
@@ -82,6 +88,11 @@ grant update (assigned_participant_id) on table public.units to authenticated;
 -- revoke is table-privilege-only — schema USAGE and the function EXECUTE
 -- grants elsewhere in this file are untouched.
 revoke all on all tables in schema public from anon;
+-- ...and the same for tables that do not exist yet. The revoke above is a
+-- point-in-time sweep; without this, the very next migration that creates a
+-- table re-inherits the default ACL and silently hands anon a fresh blanket
+-- grant. Future slices get anon-free tables by default.
+alter default privileges for role postgres in schema public revoke all on tables from anon;
 
 -- ---------- Guard: token scope must be internally consistent with its org.
 -- SECURITY INVOKER: foreign rows are RLS-invisible, so they read as
@@ -144,6 +155,9 @@ before insert or update of assigned_participant_id, org_id on public.units
 for each row execute function public.check_unit_assigned_participant();
 
 -- ---------- The sole validity authority.
+-- Depends on pgcrypto: extensions.digest() hashes the presented token. The
+-- extension ships enabled in the Supabase image (schema `extensions`); a
+-- plain Postgres target would need `create extension pgcrypto` first.
 create or replace function public.resolve_participant_token(p_token text)
 returns table(
   status text, org_name text, org_id uuid,
@@ -190,9 +204,11 @@ grant execute on function public.resolve_participant_token(text) to anon;
 
 -- ---------- Locate a unit_stage inside a token's LIVE scope, or raise.
 -- Not exposed: internal helper for the two write RPCs.
+-- o_type is the requirement's declared type, handed back so callers can apply
+-- type-aware value validation without re-reading the requirement row.
 create or replace function public.participant_scope_unit_stage(
   p_token text, p_unit_id uuid, p_requirement_id uuid,
-  out o_unit_stage_id uuid, out o_participant_id uuid
+  out o_unit_stage_id uuid, out o_participant_id uuid, out o_type text
 )
 language plpgsql
 security definer
@@ -228,6 +244,7 @@ begin
     raise exception 'not found';
   end if;
   o_participant_id := v_scope.participant_id;
+  o_type := v_req.type;
 end;
 $$;
 
@@ -246,9 +263,10 @@ as $$
 declare
   v_unit_stage_id uuid;
   v_participant_id uuid;
+  v_type text;
 begin
-  select o_unit_stage_id, o_participant_id
-    into v_unit_stage_id, v_participant_id
+  select o_unit_stage_id, o_participant_id, o_type
+    into v_unit_stage_id, v_participant_id, v_type
     from public.participant_scope_unit_stage(p_token, p_unit_id, p_requirement_id);
 
   -- Anon-facing write: cap text length before it reaches the table (matches
@@ -259,6 +277,25 @@ begin
   -- non-text requirement types.
   if char_length(p_value_text) > 2000 then
     raise exception 'not found';
+  end if;
+
+  -- Type-aware validation for 'choice'. The one-value CHECK (0011) proves a
+  -- choice answer is a non-empty string; it cannot know the option list, so
+  -- without this an anon caller could store arbitrary prose in a dropdown
+  -- field. Mirrors the client-side Zod contract: max 120 chars, and the value
+  -- must be one of config->'options'. A null p_value_text fails the
+  -- membership test (null ? null is null → no row), so this fails closed.
+  if v_type = 'choice' then
+    if char_length(p_value_text) > 120 then
+      raise exception 'not found';
+    end if;
+    perform 1
+      from public.program_stage_requirements r
+     where r.id = p_requirement_id
+       and (r.config -> 'options') ? p_value_text;
+    if not found then
+      raise exception 'not found';
+    end if;
   end if;
 
   insert into public.unit_stage_responses

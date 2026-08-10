@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 
+// Deliberately id+name only: this list is serialized into the RSC payload of
+// every program page, and nothing renders contact details. Keeping email and
+// phone out of the select keeps that PII off the wire entirely.
 export type ParticipantListItem = {
   id: string;
   name: string;
-  email: string | null;
-  phone: string | null;
 };
 
 export type ProgramLink = {
@@ -25,7 +26,7 @@ export async function listParticipants(): Promise<ParticipantListItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("participants")
-    .select("id, name, email, phone")
+    .select("id, name")
     .order("name");
   if (error) throw error;
   return data ?? [];

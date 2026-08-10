@@ -62,8 +62,10 @@ describe("participant tokens: mint, resolve, scope, attribution", () => {
   let stageId: string; // the single program stage
   let textReqId: string;
   let boolReqId: string;
+  let choiceReqId: string;
   let unit1: string; // assigned to P1
   let unit2: string; // assigned to P2
+  let unit3: string; // assigned to NOBODY
   let p1: string;
   let p2: string;
   let t1: { token: string; tokenHash: string }; // program-scoped, P1
@@ -121,6 +123,18 @@ describe("participant tokens: mint, resolve, scope, attribution", () => {
         config: {},
         position: 1,
       },
+      // required:false on purpose — derive_unit_stage only counts required
+      // requirements, so this option list can exist without changing what
+      // "stage done" means for the derivation tests below.
+      {
+        template_stage_id: s!.id,
+        org_id: orgId,
+        type: "choice",
+        label: "Route",
+        required: false,
+        config: { options: ["Front", "Rear"] },
+        position: 2,
+      },
     ]);
     const { data: program, error: e3 } = await alice.rpc("create_program", {
       p_template_id: t!.id,
@@ -139,6 +153,7 @@ describe("participant tokens: mint, resolve, scope, attribution", () => {
       .eq("program_id", programId);
     textReqId = reqs!.find((r) => r.label === "Notes")!.id;
     boolReqId = reqs!.find((r) => r.label === "Safe")!.id;
+    choiceReqId = reqs!.find((r) => r.label === "Route")!.id;
 
     const { data: parts } = await alice
       .from("participants")
@@ -162,6 +177,19 @@ describe("participant tokens: mint, resolve, scope, attribution", () => {
       .select("id")
       .single();
     unit2 = u2!.id;
+    // Genuinely unassigned: in the program, in the org, nobody's. The
+    // assignment filter — not the unit pin — is what must reject it.
+    const { data: u3 } = await alice
+      .from("units")
+      .insert({
+        program_id: programId,
+        org_id: orgId,
+        name: "Unit 3",
+        assigned_participant_id: null,
+      })
+      .select("id")
+      .single();
+    unit3 = u3!.id;
 
     t1 = mint();
     t2 = mint();
@@ -212,6 +240,26 @@ describe("participant tokens: mint, resolve, scope, attribution", () => {
       .eq("token_hash", t1.tokenHash)
       .single();
     expect(data!.last_used_at).not.toBeNull();
+  });
+
+  it("throttles last_used_at writes to once per 60s", async () => {
+    // Every flow action revalidates the /p page, which re-resolves the token.
+    // Without the 60s guard that is an UPDATE per keystroke-ish save on a hot
+    // row. Two back-to-back resolves must leave the timestamp untouched.
+    const lastUsed = async () =>
+      (
+        await alice
+          .from("access_tokens")
+          .select("last_used_at")
+          .eq("token_hash", t1.tokenHash)
+          .single()
+      ).data!.last_used_at as string;
+
+    await resolve(t1.token);
+    const first = await lastUsed();
+    await resolve(t1.token);
+    const second = await lastUsed();
+    expect(second).toBe(first);
   });
 
   it("reports expired and revoked distinctly", async () => {
@@ -341,19 +389,58 @@ describe("participant tokens: mint, resolve, scope, attribution", () => {
     expect(resp!.value_text).toHaveLength(2000);
   });
 
+  it("validates choice values against the requirement's option list", async () => {
+    // A valid option goes through.
+    const { error: ok } = await submit(t1.token, unit1, choiceReqId, { p_value_text: "Front" });
+    expect(ok).toBeNull();
+
+    // Off-list: the one-value CHECK is happy (non-empty text) — only the
+    // RPC's option-list test can catch this, and it raises like everything
+    // else in the 404 discipline.
+    const { error: offList } = await submit(t1.token, unit1, choiceReqId, {
+      p_value_text: "Sideways",
+    });
+    expect(offList?.code).toBe("P0001");
+
+    // Over the 120-char choice cap (which is far below the 2000 text cap).
+    const { error: tooLong } = await submit(t1.token, unit1, choiceReqId, {
+      p_value_text: "x".repeat(121),
+    });
+    expect(tooLong?.code).toBe("P0001");
+
+    // The valid answer above survived both rejected attempts.
+    const { data: resp } = await alice
+      .from("unit_stage_responses")
+      .select("value_text")
+      .eq("unit_id", unit1)
+      .eq("program_stage_requirement_id", choiceReqId)
+      .single();
+    expect(resp!.value_text).toBe("Front");
+  });
+
   it("the core scope test: a token cannot touch a unit outside its scope", async () => {
+    // Load-bearing: these must be the plpgsql `raise` from
+    // participant_scope_unit_stage (P0001), not an incidental failure that
+    // would keep passing if the scope check were deleted.
     // P1's program-scoped token vs unit2 (assigned to P2)
     const { error: cross } = await submit(t1.token, unit2, textReqId, { p_value_text: "x" });
-    expect(cross).not.toBeNull();
+    expect(cross?.code).toBe("P0001");
     // P2's unit2-scoped token vs unit1
     const { error: cross2 } = await submit(t2.token, unit1, textReqId, { p_value_text: "x" });
-    expect(cross2).not.toBeNull();
+    expect(cross2?.code).toBe("P0001");
+  });
+
+  it("a program-scoped token cannot touch an unassigned unit", async () => {
+    // unit3 belongs to the same org and program and is nobody's. The token is
+    // NOT unit-pinned, so only the live-assignment clause rejects this.
+    const { error } = await submit(t1.token, unit3, textReqId, { p_value_text: "x" });
+    expect(error?.code).toBe("P0001");
   });
 
   it("reassignment kills scope", async () => {
     await alice.from("units").update({ assigned_participant_id: null }).eq("id", unit2);
     const { error } = await submit(t2.token, unit2, textReqId, { p_value_text: "x" });
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe("P0001");
     await alice.from("units").update({ assigned_participant_id: p2 }).eq("id", unit2);
   });
 
@@ -421,7 +508,7 @@ describe("participant tokens: mint, resolve, scope, attribution", () => {
     const { data: r } = await resolve(t2.token);
     expect((r as Resolved[])[0].status).toBe("revoked");
     const { error } = await submit(t2.token, unit2, textReqId, { p_value_text: "x" });
-    expect(error).not.toBeNull();
+    expect(error?.code).toBe("P0001"); // the scope helper's raise, not a CHECK
   });
 
   it("authenticated cannot execute the write RPCs; staff cannot set participant attribution; anon has no table access", async () => {
@@ -434,7 +521,14 @@ describe("participant tokens: mint, resolve, scope, attribution", () => {
       p_value_bool: null,
       p_value_date: null,
     });
-    expect(e1).not.toBeNull();
+    expect(e1?.code).toBe("42501"); // insufficient_privilege, not a scope raise
+
+    const { error: eClear } = await alice.rpc("clear_participant_response", {
+      p_token: t1.token,
+      p_unit_id: unit1,
+      p_requirement_id: textReqId,
+    });
+    expect(eClear?.code).toBe("42501");
 
     const { error: e2 } = await alice.from("unit_stage_responses").upsert(
       {
@@ -454,9 +548,14 @@ describe("participant tokens: mint, resolve, scope, attribution", () => {
     );
     expect(e2).not.toBeNull(); // no column grant
 
-    const { data: leak, error: e3 } = await anon.from("access_tokens").select("id");
-    expect(e3 !== null || (leak ?? []).length === 0).toBe(true);
-    const { data: leak2, error: e4 } = await anon.from("unit_stage_responses").select("id");
-    expect(e4 !== null || (leak2 ?? []).length === 0).toBe(true);
+    // Deterministic, not disjunctive: "zero rows" would also pass on an empty
+    // table. anon must be REFUSED at the grant layer (0013's blanket revoke),
+    // which is 42501 — insufficient_privilege.
+    const { error: e3 } = await anon.from("access_tokens").select("id");
+    expect(e3).not.toBeNull();
+    expect(e3!.code).toBe("42501");
+    const { error: e4 } = await anon.from("unit_stage_responses").select("id");
+    expect(e4).not.toBeNull();
+    expect(e4!.code).toBe("42501");
   });
 });

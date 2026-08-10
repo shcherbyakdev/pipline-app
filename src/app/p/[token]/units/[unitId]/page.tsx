@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { resolveParticipantToken, getParticipantUnitDetail } from "@/lib/tokens";
+import { resolveParticipantToken, getParticipantUnitDetail, clientKeyFrom } from "@/lib/tokens";
 import { ParticipantStageSections } from "@/features/participants/components/participant-stage-sections";
 
 export default async function ParticipantUnitPage({
@@ -12,11 +12,22 @@ export default async function ParticipantUnitPage({
   if (!z.uuid().safeParse(unitId).success) notFound();
 
   const h = await headers();
-  const clientKey = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "server";
-  const resolved = await resolveParticipantToken(token, clientKey);
+  const resolved = await resolveParticipantToken(token, clientKeyFrom(h));
   // Expired/revoked mid-flow: bounce to the entry page, which renders the
   // renewal message. Unknown: 404.
   if (resolved.status === "not_found") notFound();
+  // Saving a requirement revalidates this page, so a long checklist re-resolves
+  // the token many times over. If the limiter trips, say so — never 404.
+  if (resolved.status === "rate_limited") {
+    return (
+      <main className="flex flex-col gap-2 pt-16 text-center">
+        <h1 className="text-lg font-semibold">Too many requests</h1>
+        <p className="text-muted-foreground text-sm">
+          Too many requests — wait a minute and reload.
+        </p>
+      </main>
+    );
+  }
   if (resolved.status !== "ok") {
     return (
       <main className="pt-16 text-center">
