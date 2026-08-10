@@ -2,7 +2,8 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createAnonServerClient } from "@/lib/supabase/anon-server";
 import { env } from "@/env";
-import type { StageSection } from "@/features/programs/queries";
+import type { EvidencePhoto, StageSection } from "@/features/programs/queries";
+import { signEvidencePaths } from "@/lib/storage/evidence";
 import { SlidingWindowLimiter } from "./rate-limit";
 
 export { generateParticipantToken, hashToken } from "./mint";
@@ -132,25 +133,35 @@ export async function getParticipantUnitDetail(
   if (!unit) return null;
 
   // Every service-role query carries its own org filter — never rely on the early-return above for tenancy.
-  const [{ data: stages, error: e1 }, { data: reqs, error: e2 }, { data: resps, error: e3 }] =
-    await Promise.all([
-      db
-        .from("program_stages")
-        .select("id, name, position")
-        .eq("program_id", f.programId)
-        .eq("org_id", scope.orgId),
-      db
-        .from("program_stage_requirements")
-        .select("id, program_stage_id, type, label, required, config, position")
-        .eq("program_id", f.programId)
-        .eq("org_id", scope.orgId),
-      db
-        .from("unit_stage_responses")
-        .select("program_stage_requirement_id, type, value_text, value_number, value_bool, value_date")
-        .eq("unit_id", unitId)
-        .eq("org_id", scope.orgId),
-    ]);
-  if (e1 || e2 || e3) throw e1 ?? e2 ?? e3;
+  const [
+    { data: stages, error: e1 },
+    { data: reqs, error: e2 },
+    { data: resps, error: e3 },
+    { data: ev, error: e4 },
+  ] = await Promise.all([
+    db
+      .from("program_stages")
+      .select("id, name, position")
+      .eq("program_id", f.programId)
+      .eq("org_id", scope.orgId),
+    db
+      .from("program_stage_requirements")
+      .select("id, program_stage_id, type, label, required, config, position")
+      .eq("program_id", f.programId)
+      .eq("org_id", scope.orgId),
+    db
+      .from("unit_stage_responses")
+      .select("id, program_stage_requirement_id, type, value_text, value_number, value_bool, value_date")
+      .eq("unit_id", unitId)
+      .eq("org_id", scope.orgId),
+    // Service-role read → carries its own org filter, per the comment above.
+    db
+      .from("evidence")
+      .select("id, response_id, path, filename, size_bytes, created_at, participants(name)")
+      .eq("unit_id", unitId)
+      .eq("org_id", scope.orgId),
+  ]);
+  if (e1 || e2 || e3 || e4) throw e1 ?? e2 ?? e3 ?? e4;
 
   type RespRow = NonNullable<typeof resps>[number];
   const valueOf = (r: RespRow): string | number | boolean | null =>
@@ -163,6 +174,30 @@ export async function getParticipantUnitDetail(
           : r.value_text;
   const responseByReq = new Map((resps ?? []).map((r) => [r.program_stage_requirement_id, valueOf(r)]));
   const usByStage = new Map(unit.unit_stages.map((us) => [us.program_stage_id, us]));
+
+  // Admin client bypasses RLS entirely — the explicit .eq("org_id", ...) on
+  // the evidence query above is what scopes this, not RLS. Signing is
+  // display-only.
+  const respIdToReq = new Map((resps ?? []).map((r) => [r.id, r.program_stage_requirement_id]));
+  const photoRows = [...(ev ?? [])].sort(
+    (a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+  );
+  const signed = await signEvidencePaths(photoRows.map((e) => e.path));
+  const photosByReq = new Map<string, EvidencePhoto[]>();
+  for (const e of photoRows) {
+    const reqId = e.response_id ? respIdToReq.get(e.response_id) : undefined;
+    if (!reqId) continue; // detached evidence: kept in the table, not shown per-requirement
+    const list = photosByReq.get(reqId) ?? [];
+    list.push({
+      id: e.id,
+      filename: e.filename,
+      sizeBytes: e.size_bytes,
+      createdAt: e.created_at,
+      uploadedBy: (e.participants as unknown as { name: string } | null)?.name ?? null,
+      url: signed.get(e.path) ?? null,
+    });
+    photosByReq.set(reqId, list);
+  }
 
   return {
     id: unit.id,
@@ -190,6 +225,7 @@ export async function getParticipantUnitDetail(
               required: r.required,
               config: (r.config ?? {}) as StageSection["requirements"][number]["config"],
               value: responseByReq.get(r.id) ?? null,
+              photos: photosByReq.get(r.id) ?? [],
             })),
         }];
       }),

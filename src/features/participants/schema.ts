@@ -37,4 +37,14 @@ export const participantSaveResponseInput = z.discriminatedUnion("type", [
 ]);
 export const participantClearResponseInput = z.object(flowIds);
 
+// Photo evidence (slice 8). The file itself arrives as FormData and is
+// validated imperatively in the action (size/mime caps from lib/storage/
+// photo) — Zod sees only the ids.
+export const uploadPhotoInput = z.object(flowIds);
+export const removePhotoInput = z.object({
+  token: flowIds.token,
+  unitId: z.uuid(), // for revalidation of the unit page
+  evidenceId: z.uuid(),
+});
+
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";

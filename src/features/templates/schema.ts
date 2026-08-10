@@ -24,10 +24,10 @@ export {
   type ActionState as TemplateActionState,
 } from "@/lib/actions";
 
-// Requirement editing. `photo` is deliberately absent until slice 8 wires
-// evidence; `checklist` exists only template-side (create_program expands it).
+// Requirement editing. `photo` is satisfied via evidence uploads (slice 8);
+// `checklist` exists only template-side (create_program expands it).
 export const requirementType = z.enum([
-  "text", "number", "boolean", "date", "choice", "checklist",
+  "text", "number", "boolean", "date", "choice", "photo", "checklist",
 ]);
 export const requirementLabel = z.string().trim().min(1).max(120);
 const configLines = z.array(z.string().trim().min(1).max(120)).max(50);

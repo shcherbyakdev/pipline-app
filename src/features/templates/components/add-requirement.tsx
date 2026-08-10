@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-const TYPES = ["text", "number", "boolean", "date", "choice", "checklist"] as const;
+const TYPES = ["text", "number", "boolean", "date", "choice", "photo", "checklist"] as const;
 export type EditorType = (typeof TYPES)[number];
 
 export function AddRequirement({
