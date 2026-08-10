@@ -175,7 +175,9 @@ export async function getParticipantUnitDetail(
   const responseByReq = new Map((resps ?? []).map((r) => [r.program_stage_requirement_id, valueOf(r)]));
   const usByStage = new Map(unit.unit_stages.map((us) => [us.program_stage_id, us]));
 
-  // RLS proved org scope; signing is display-only.
+  // Admin client bypasses RLS entirely — the explicit .eq("org_id", ...) on
+  // the evidence query above is what scopes this, not RLS. Signing is
+  // display-only.
   const respIdToReq = new Map((resps ?? []).map((r) => [r.id, r.program_stage_requirement_id]));
   const photoRows = [...(ev ?? [])].sort(
     (a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
