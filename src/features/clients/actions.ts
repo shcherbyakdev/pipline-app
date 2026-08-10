@@ -87,6 +87,25 @@ export async function assignClient(input: unknown): Promise<ActionState> {
   // Read the prior client_id before the update: `.select()` on the update
   // below only returns the NEW row, and reassignment must also revalidate
   // the client detail page the unit is leaving.
+  //
+  // This read-then-write is NOT atomic. If two assignClient calls race on
+  // the same unit, the loser's pre-read can capture a client_id that's
+  // already stale by the time its update lands, so it revalidates the wrong
+  // (or a no-longer-current) "departing" client page. The winner's own call
+  // still revalidates correctly for whichever client_id was actually
+  // current at ITS pre-read, and every call always revalidates its own
+  // target (new) client correctly — a writer never fails to reflect its own
+  // assignment. The residual failure mode is narrow: the departing client's
+  // detail page can occasionally miss a revalidation under rapid overlapping
+  // writes to the same unit, which self-heals on the next hard navigation
+  // or action against that unit. `/clients/[id]` and `/programs/[id]` are
+  // both dynamically rendered in production (they call cookies() for auth),
+  // so there is no Full Route Cache entry to go permanently stale — the
+  // exposure is limited to the client-side Router Cache on soft navigation.
+  // A DB-level guard (advisory lock / SECURITY DEFINER RPC serializing the
+  // read+write) would close this fully but is disproportionate for a
+  // per-row admin control with no observed concurrent-editor usage; revisit
+  // if multi-user concurrent editing of the same unit becomes real.
   const { data: before, error: beforeError } = await supabase
     .from("units")
     .select("client_id")

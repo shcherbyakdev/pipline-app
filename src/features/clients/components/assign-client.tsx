@@ -24,7 +24,7 @@ export function AssignClient({
   value: string | null;
 }) {
   const [optimistic, setOptimistic] = React.useState(value);
-  const [, startTransition] = React.useTransition();
+  const [isPending, startTransition] = React.useTransition();
 
   const onChange = (next: string) => {
     if (next === NEW_SENTINEL) {
@@ -39,6 +39,9 @@ export function AssignClient({
         setOptimistic(created.id);
         const assigned = await assignClient({ unitId, clientId: created.id });
         if (!assigned.ok) {
+          // The client now exists but isn't assigned — the select would
+          // otherwise show a dangling id with no matching option. Revert to
+          // the last known-good value and say so explicitly.
           setOptimistic(value);
           toast.error("Client created, but assigning failed. Pick them from the list.");
         }
@@ -61,8 +64,9 @@ export function AssignClient({
     <select
       value={optimistic ?? ""}
       onChange={(e) => onChange(e.target.value)}
+      disabled={isPending}
       aria-label={`Assign client for ${unitName}`}
-      className="border-input text-muted-foreground h-7 max-w-36 shrink-0 truncate rounded-md border bg-transparent px-1.5 text-xs"
+      className="border-input text-muted-foreground h-7 max-w-36 shrink-0 truncate rounded-md border bg-transparent px-1.5 text-xs disabled:opacity-50"
     >
       <option value="">No client</option>
       {clients.map((c) => (
