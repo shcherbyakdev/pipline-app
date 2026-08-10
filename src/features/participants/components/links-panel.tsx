@@ -9,6 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+// Deterministic across server/client: fixed locale + UTC (toLocaleDateString
+// varies by runtime locale/timezone and breaks hydration).
+const formatDate = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(iso));
+
 // Issue + list + revoke. The raw URL exists only in issueLink's return
 // value — rendered once here, never fetchable again.
 export function LinksPanel({
@@ -116,14 +121,14 @@ export function LinksPanel({
                 {l.status}
               </Badge>
               <span className="text-muted-foreground shrink-0 tabular-nums">
-                issued {new Date(l.createdAt).toLocaleDateString()}
+                issued {formatDate(l.createdAt)}
               </span>
               <span className="text-muted-foreground shrink-0 tabular-nums">
-                exp {new Date(l.expiresAt).toLocaleDateString()}
+                exp {formatDate(l.expiresAt)}
               </span>
               {l.lastUsedAt ? (
                 <span className="text-muted-foreground shrink-0 tabular-nums">
-                  used {new Date(l.lastUsedAt).toLocaleDateString()}
+                  used {formatDate(l.lastUsedAt)}
                 </span>
               ) : null}
               {l.status === "active" ? (
