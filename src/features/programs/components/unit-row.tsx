@@ -1,21 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, Trash2 } from "lucide-react";
 import type { Unit } from "@/features/programs/queries";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StageDots } from "./stage-dots";
 
 export function UnitRow({
   unit,
-  stageNames,
+  programId,
+  stageMeta,
   onRename,
   onDelete,
   onToggleStage,
 }: {
   unit: Unit;
-  stageNames: Record<string, string>;
+  programId: string;
+  stageMeta: Record<string, { name: string; hasRequirements: boolean }>;
   onRename: (name: string) => void;
   onDelete: () => void;
   onToggleStage: (unitStageId: string, done: boolean) => void;
@@ -49,11 +52,17 @@ export function UnitRow({
         className="border-transparent shadow-none focus-visible:border-input"
       />
       <StageDots
-        stages={unit.stages.map((s) => ({
-          unitStageId: s.unitStageId,
-          name: stageNames[s.stageId] ?? "stage",
-          done: s.done,
-        }))}
+        stages={unit.stages.map((s) => {
+          const meta = stageMeta[s.stageId] ?? { name: "stage", hasRequirements: false };
+          return {
+            unitStageId: s.unitStageId,
+            name: meta.name,
+            done: s.done,
+            href: meta.hasRequirements
+              ? `/programs/${programId}/units/${unit.id}#stage-${s.stageId}`
+              : null,
+          };
+        })}
         onToggle={onToggleStage}
       />
       <span className="text-muted-foreground shrink-0 font-mono text-xs tabular-nums">
@@ -64,6 +73,19 @@ export function UnitRow({
           {unit.externalRef}
         </span>
       ) : null}
+      {/*
+        A plain styled Link, not <Button render={<Link .../>}>: base-ui's
+        Button enforces button semantics (role="button", keyboard handling)
+        on whatever it renders, and its own docs say links should not be
+        passed through that render prop — style the anchor directly instead.
+      */}
+      <Link
+        href={`/programs/${programId}/units/${unit.id}`}
+        aria-label={`Open ${unit.name}`}
+        className={buttonVariants({ variant: "ghost", size: "icon", className: "size-7" })}
+      >
+        <ArrowUpRight className="size-3.5" />
+      </Link>
       <Button
         variant="ghost"
         size="icon"

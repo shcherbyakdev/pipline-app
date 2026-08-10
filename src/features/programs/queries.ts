@@ -11,7 +11,7 @@ export type ProgramListItem = {
   createdAt: string;
 };
 
-export type ProgramStage = { id: string; name: string; position: number };
+export type ProgramStage = { id: string; name: string; position: number; hasRequirements: boolean };
 export type UnitStageCell = { unitStageId: string; stageId: string; done: boolean };
 export type Unit = {
   id: string;
@@ -174,7 +174,7 @@ export async function getProgram(id: string): Promise<ProgramDetail | null> {
   const { data, error } = await supabase
     .from("programs")
     .select(
-      "id, name, created_at, templates(name), program_stages(id, name, position), units(id, name, external_ref, created_at, unit_stages(id, program_stage_id, status))",
+      "id, name, created_at, templates(name), program_stages(id, name, position, program_stage_requirements(count)), units(id, name, external_ref, created_at, unit_stages(id, program_stage_id, status))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -185,7 +185,12 @@ export async function getProgram(id: string): Promise<ProgramDetail | null> {
     name: string;
     created_at: string;
     templates: { name: string } | null;
-    program_stages: { id: string; name: string; position: number }[];
+    program_stages: {
+      id: string;
+      name: string;
+      position: number;
+      program_stage_requirements: { count: number }[];
+    }[];
     units: {
       id: string;
       name: string;
@@ -197,7 +202,12 @@ export async function getProgram(id: string): Promise<ProgramDetail | null> {
   const row = data as unknown as ProgramDetailRow;
   const stages = [...row.program_stages]
     .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
-    .map((s) => ({ id: s.id, name: s.name, position: s.position }));
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      position: s.position,
+      hasRequirements: (s.program_stage_requirements[0]?.count ?? 0) > 0,
+    }));
   return {
     id: row.id,
     name: row.name,
