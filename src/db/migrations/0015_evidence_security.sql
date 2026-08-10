@@ -15,14 +15,21 @@
 --     with all-null values is the (only) valid all-null shape — the wiring
 --     0011 explicitly deferred to slice 8.
 --   * derive_unit_stage: photo joins the derivation; satisfied := response
---     row exists AND >=1 evidence row via response_id. A new AFTER trigger
---     on evidence re-derives (insert/delete only — evidence is immutable).
+--     row exists AND >=1 evidence row via response_id, pinned to the same
+--     unit_stage_id. A new AFTER trigger on evidence re-derives (insert/
+--     delete only — evidence is immutable).
 
 -- ---------- Bucket (private; caps enforced at the storage floor too)
+-- do update, not do nothing: a pre-existing bucket row must not leave the
+-- caps environment-dependent — this insert is the single source of truth
+-- for public/size/mime on every apply, not just the first one.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('evidence', 'evidence', false, 15728640,
         array['image/jpeg','image/png','image/webp','image/heic','image/heif'])
-on conflict (id) do nothing;
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
 
 -- ---------- CHECKs
 alter table public.evidence
@@ -52,6 +59,18 @@ alter table public.unit_stage_responses
     or (type = 'photo' and value_text is null and value_number is null
       and value_bool is null and value_date is null)
   );
+
+-- ---------- Indexes (custom SQL, the 0013 precedent: added here rather than
+-- the drizzle schema file, which would make db:generate emit a duplicate).
+--   * evidence_path_uq: without it, two rows could share one `path` — a
+--     direct PostgREST caller with a valid token can do this deliberately —
+--     and delete_photo_evidence's unconditional `return v_ev.path` would
+--     then have its caller delete a storage object a surviving row still
+--     points at.
+--   * evidence_uploaded_by_participant_id_idx: the index-every-FK convention
+--     (0013:23-26 review carry-forward) — this FK had no covering index.
+create unique index evidence_path_uq on public.evidence (path);
+create index evidence_uploaded_by_participant_id_idx on public.evidence (uploaded_by_participant_id);
 
 -- ---------- RLS & grants
 alter table public.evidence enable row level security;
@@ -91,9 +110,15 @@ begin
   select count(*) filter (where r.required),
          count(*) filter (where r.required and resp.id is not null
                             and (r.type <> 'boolean' or resp.value_bool)
+                            -- e.unit_stage_id = resp.unit_stage_id pins
+                            -- satisfaction to THIS stage: members hold a
+                            -- column grant on responses.unit_stage_id, so a
+                            -- repointed anchor could otherwise carry its
+                            -- evidence's satisfaction to a foreign stage.
                             and (r.type <> 'photo' or exists (
                               select 1 from public.evidence e
-                               where e.response_id = resp.id)))
+                               where e.response_id = resp.id
+                                 and e.unit_stage_id = resp.unit_stage_id)))
     into v_required, v_satisfied
     from public.unit_stages us
     join public.program_stage_requirements r on r.program_stage_id = us.program_stage_id
@@ -173,11 +198,15 @@ begin
   -- Anon-facing metadata caps (the submit_participant_response precedent):
   -- uniform 'not found', no diagnostic detail. The storage bucket enforces
   -- size/mime on the bytes; these caps keep the METADATA row honest too.
+  -- p_path !~ '\.\.' makes the prefix check below unconditional: `left()` is
+  -- a literal compare, so without this a path like
+  -- `org/prog/unit/../../elsewhere.jpg` would satisfy the prefix while
+  -- actually resolving outside it once storage normalizes the key.
   if p_filename is null or char_length(p_filename) < 1 or char_length(p_filename) > 200
      or p_mime not in ('image/jpeg','image/png','image/webp','image/heic','image/heif')
      or p_size_bytes is null or p_size_bytes < 1 or p_size_bytes > 15728640
      or p_checksum_sha256 is null or p_checksum_sha256 !~ '^[0-9a-f]{64}$'
-     or p_path is null or char_length(p_path) > 300 then
+     or p_path is null or char_length(p_path) > 300 or p_path ~ '\.\.' then
     raise exception 'not found';
   end if;
 
@@ -199,6 +228,13 @@ begin
   on conflict (unit_stage_id, program_stage_requirement_id) do update
     set answered_by_participant_id = excluded.answered_by_participant_id
   returning id into v_response_id;
+
+  -- Backstop for the anon-reachable path: the TS limiter guards the Next
+  -- route, not /rest/v1/rpc. A valid token is not a licence to fill the
+  -- bucket. Generous enough that no real inspection hits it.
+  if (select count(*) from public.evidence where response_id = v_response_id) >= 20 then
+    raise exception 'not found';
+  end if;
 
   insert into public.evidence
     (org_id, unit_id, unit_stage_id, response_id, provider, path, filename,
@@ -368,3 +404,20 @@ $$;
 
 revoke all on function public.clear_participant_response(text, uuid, uuid) from public, anon, authenticated, service_role;
 grant execute on function public.clear_participant_response(text, uuid, uuid) to anon;
+
+-- ---------- backfill: re-derive stages whose "done" no longer holds
+-- Derivation semantics changed above; leave no stage asserting a 'done' it
+-- no longer earns. Scoped to stages that actually hold a required photo
+-- requirement — every other stage's derivation is unchanged.
+do $$
+declare r record;
+begin
+  for r in select distinct us.id
+             from public.unit_stages us
+             join public.program_stage_requirements psr
+               on psr.program_stage_id = us.program_stage_id
+            where psr.required and psr.type = 'photo'
+  loop
+    perform public.derive_unit_stage(r.id);
+  end loop;
+end $$;
