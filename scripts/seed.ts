@@ -20,6 +20,19 @@ const DEMO_PASSWORD = "Password123!";
 const DEMO_ORG = "Demo Programs";
 const DEMO_TEMPLATE = "Store Refresh";
 const DEMO_STAGES = ["Survey", "Install", "QA", "Sign-off"];
+const DEMO_REQUIREMENTS: Record<
+  string,
+  Array<{ type: string; label: string; required: boolean; config?: Record<string, unknown> }>
+> = {
+  Survey: [
+    { type: "date", label: "Survey date", required: true },
+    { type: "choice", label: "Access route", required: true, config: { options: ["Front", "Rear"] } },
+  ],
+  Install: [
+    { type: "number", label: "Fixtures installed", required: true },
+    { type: "checklist", label: "Install checks", required: true, config: { items: ["Power connected", "Area cleaned"] } },
+  ],
+};
 const DEMO_PROGRAM = "Q3 Store Refresh";
 const DEMO_UNITS: Array<{ name: string; ref: string }> = [
   { name: "Store #101 — Kraków", ref: "S-101" },
@@ -124,6 +137,30 @@ async function ensureDemoTemplate(
   const { error: stagesError } = await client.from("template_stages").insert(stagesData);
   if (stagesError) throw stagesError;
   console.log(`seed: created template "${DEMO_TEMPLATE}" with ${DEMO_STAGES.length} stages`);
+
+  const { data: createdStages, error: stagesReadError } = await client
+    .from("template_stages")
+    .select("id, name")
+    .eq("template_id", template.id);
+  if (stagesReadError) throw stagesReadError;
+  const requirementRows = (createdStages ?? []).flatMap((stage) =>
+    (DEMO_REQUIREMENTS[stage.name] ?? []).map((r, position) => ({
+      template_stage_id: stage.id,
+      org_id: orgId,
+      type: r.type,
+      label: r.label,
+      required: r.required,
+      config: r.config ?? {},
+      position,
+    })),
+  );
+  if (requirementRows.length > 0) {
+    const { error: reqError } = await client
+      .from("template_stage_requirements")
+      .insert(requirementRows);
+    if (reqError) throw reqError;
+    console.log(`seed: added ${requirementRows.length} requirements to "${DEMO_TEMPLATE}"`);
+  }
 }
 
 async function ensureDemoProgram(client: SupabaseClient, orgId: string): Promise<void> {
