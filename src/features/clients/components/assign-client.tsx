@@ -1,0 +1,74 @@
+"use client";
+
+import * as React from "react";
+import { toast } from "sonner";
+import { assignClient, createClient } from "@/features/clients/actions";
+import type { ClientOption } from "@/features/clients/queries";
+
+const NEW_SENTINEL = "__new__";
+
+// Compact per-row control. Optimistic value; server truth reconciles via
+// revalidatePath. Inline "New…" prompts for a name (window.prompt keeps v1
+// minimal — the assign-participant precedent).
+export function AssignClient({
+  unitId,
+  unitName,
+  programId,
+  clients,
+  value,
+}: {
+  unitId: string;
+  unitName: string;
+  programId: string;
+  clients: ClientOption[];
+  value: string | null;
+}) {
+  const [optimistic, setOptimistic] = React.useState(value);
+  const [, startTransition] = React.useTransition();
+
+  const onChange = (next: string) => {
+    if (next === NEW_SENTINEL) {
+      const name = window.prompt("New client name")?.trim();
+      if (!name) return;
+      startTransition(async () => {
+        const created = await createClient({ name, programId });
+        if (!created.ok) {
+          toast.error(created.error);
+          return;
+        }
+        setOptimistic(created.id);
+        const assigned = await assignClient({ unitId, clientId: created.id });
+        if (!assigned.ok) {
+          setOptimistic(value);
+          toast.error("Client created, but assigning failed. Pick them from the list.");
+        }
+      });
+      return;
+    }
+    const clientId = next === "" ? null : next;
+    setOptimistic(clientId);
+    startTransition(async () => {
+      const result = await assignClient({ unitId, clientId });
+      if (!result.ok) {
+        toast.error(result.error ?? "Couldn't save. Try again.");
+        // A failed action doesn't revalidate — the control reverts itself.
+        setOptimistic(value);
+      }
+    });
+  };
+
+  return (
+    <select
+      value={optimistic ?? ""}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={`Assign client for ${unitName}`}
+      className="border-input text-muted-foreground h-7 max-w-36 shrink-0 truncate rounded-md border bg-transparent px-1.5 text-xs"
+    >
+      <option value="">No client</option>
+      {clients.map((c) => (
+        <option key={c.id} value={c.id}>{c.name}</option>
+      ))}
+      <option value={NEW_SENTINEL}>+ New client…</option>
+    </select>
+  );
+}

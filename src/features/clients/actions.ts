@@ -84,6 +84,15 @@ export async function assignClient(input: unknown): Promise<ActionState> {
   const parsed = assignClientInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createSupabase();
+  // Read the prior client_id before the update: `.select()` on the update
+  // below only returns the NEW row, and reassignment must also revalidate
+  // the client detail page the unit is leaving.
+  const { data: before, error: beforeError } = await supabase
+    .from("units")
+    .select("client_id")
+    .eq("id", parsed.data.unitId)
+    .maybeSingle();
+  if (beforeError || !before) return fail("assignClient", beforeError ?? "unit not visible");
   const { data, error } = await supabase
     .from("units")
     .update({ client_id: parsed.data.clientId })
@@ -93,6 +102,10 @@ export async function assignClient(input: unknown): Promise<ActionState> {
   if (error || !data) return fail("assignClient", error ?? "unit not visible");
   revalidatePath(`/programs/${data.program_id}`);
   revalidatePath("/clients");
+  const oldClientId = before.client_id;
+  const newClientId = parsed.data.clientId;
+  if (oldClientId) revalidatePath(`/clients/${oldClientId}`);
+  if (newClientId && newClientId !== oldClientId) revalidatePath(`/clients/${newClientId}`);
   return { ok: true };
 }
 

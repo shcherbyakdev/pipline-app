@@ -5,7 +5,9 @@ import Link from "next/link";
 import { ArrowUpRight, Trash2 } from "lucide-react";
 import type { Unit } from "@/features/programs/queries";
 import type { ParticipantListItem } from "@/features/participants/queries";
+import type { ClientOption } from "@/features/clients/queries";
 import { AssignParticipant } from "@/features/participants/components/assign-participant";
+import { AssignClient } from "@/features/clients/components/assign-client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -16,6 +18,7 @@ export function UnitRow({
   programId,
   stageMeta,
   participants,
+  clients,
   onRename,
   onDelete,
   onToggleStage,
@@ -24,6 +27,7 @@ export function UnitRow({
   programId: string;
   stageMeta: Record<string, { name: string; hasRequirements: boolean }>;
   participants: ParticipantListItem[];
+  clients: ClientOption[];
   onRename: (name: string) => void;
   onDelete: () => void;
   onToggleStage: (unitStageId: string, done: boolean) => void;
@@ -79,6 +83,13 @@ export function UnitRow({
         programId={programId}
         participants={participants}
         value={unit.assignedParticipantId}
+      />
+      <AssignClient
+        unitId={unit.id}
+        unitName={unit.name}
+        programId={programId}
+        clients={clients}
+        value={unit.clientId}
       />
       {unit.externalRef !== null ? (
         <span className="text-muted-foreground shrink-0 font-mono text-xs">
