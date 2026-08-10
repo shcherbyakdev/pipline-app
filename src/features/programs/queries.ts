@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { signEvidencePaths } from "@/lib/storage/evidence";
 
 export type ProgramListItem = {
   id: string;
@@ -67,6 +68,15 @@ export async function listPrograms(): Promise<ProgramListItem[]> {
   });
 }
 
+export type EvidencePhoto = {
+  id: string;
+  filename: string;
+  sizeBytes: number;
+  createdAt: string;
+  uploadedBy: string | null; // participant name, when known
+  url: string | null; // short-lived signed URL; null → filename tile
+};
+
 export type SectionRequirement = {
   id: string;
   type: "text" | "number" | "boolean" | "date" | "choice" | "photo";
@@ -75,6 +85,8 @@ export type SectionRequirement = {
   config: { options?: string[]; group?: string };
   // The stored answer, normalized: string (text/choice/date), number, boolean, or null.
   value: string | number | boolean | null;
+  // Photo requirements only; [] for scalar types.
+  photos: EvidencePhoto[];
 };
 
 export type StageSection = {
@@ -109,19 +121,27 @@ export async function getUnit(programId: string, unitId: string): Promise<UnitDe
   if (error) throw error;
   if (!unit) return null;
 
-  const [{ data: stages, error: e1 }, { data: reqs, error: e2 }, { data: resps, error: e3 }] =
-    await Promise.all([
-      supabase.from("program_stages").select("id, name, position").eq("program_id", programId),
-      supabase
-        .from("program_stage_requirements")
-        .select("id, program_stage_id, type, label, required, config, position")
-        .eq("program_id", programId),
-      supabase
-        .from("unit_stage_responses")
-        .select("program_stage_requirement_id, type, value_text, value_number, value_bool, value_date")
-        .eq("unit_id", unitId),
-    ]);
-  if (e1 || e2 || e3) throw e1 ?? e2 ?? e3;
+  const [
+    { data: stages, error: e1 },
+    { data: reqs, error: e2 },
+    { data: resps, error: e3 },
+    { data: ev, error: e4 },
+  ] = await Promise.all([
+    supabase.from("program_stages").select("id, name, position").eq("program_id", programId),
+    supabase
+      .from("program_stage_requirements")
+      .select("id, program_stage_id, type, label, required, config, position")
+      .eq("program_id", programId),
+    supabase
+      .from("unit_stage_responses")
+      .select("id, program_stage_requirement_id, type, value_text, value_number, value_bool, value_date")
+      .eq("unit_id", unitId),
+    supabase
+      .from("evidence")
+      .select("id, response_id, path, filename, size_bytes, created_at, participants(name)")
+      .eq("unit_id", unitId),
+  ]);
+  if (e1 || e2 || e3 || e4) throw e1 ?? e2 ?? e3 ?? e4;
 
   type RespRow = NonNullable<typeof resps>[number];
   // PostgREST serializes numeric as a string — normalize here, once.
@@ -135,6 +155,28 @@ export async function getUnit(programId: string, unitId: string): Promise<UnitDe
           : r.value_text;
   const responseByReq = new Map((resps ?? []).map((r) => [r.program_stage_requirement_id, valueOf(r)]));
   const usByStage = new Map(unit.unit_stages.map((us) => [us.program_stage_id, us]));
+
+  // RLS proved org scope; signing is display-only.
+  const respIdToReq = new Map((resps ?? []).map((r) => [r.id, r.program_stage_requirement_id]));
+  const photoRows = [...(ev ?? [])].sort(
+    (a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+  );
+  const signed = await signEvidencePaths(photoRows.map((e) => e.path));
+  const photosByReq = new Map<string, EvidencePhoto[]>();
+  for (const e of photoRows) {
+    const reqId = e.response_id ? respIdToReq.get(e.response_id) : undefined;
+    if (!reqId) continue; // detached evidence: kept in the table, not shown per-requirement
+    const list = photosByReq.get(reqId) ?? [];
+    list.push({
+      id: e.id,
+      filename: e.filename,
+      sizeBytes: e.size_bytes,
+      createdAt: e.created_at,
+      uploadedBy: (e.participants as unknown as { name: string } | null)?.name ?? null,
+      url: signed.get(e.path) ?? null,
+    });
+    photosByReq.set(reqId, list);
+  }
 
   return {
     id: unit.id,
@@ -164,6 +206,7 @@ export async function getUnit(programId: string, unitId: string): Promise<UnitDe
               required: r.required,
               config: (r.config ?? {}) as SectionRequirement["config"],
               value: responseByReq.get(r.id) ?? null,
+              photos: photosByReq.get(r.id) ?? [],
             })),
         }];
       }),
