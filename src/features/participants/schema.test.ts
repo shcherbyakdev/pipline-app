@@ -3,6 +3,8 @@ import {
   createParticipantInput,
   issueLinkInput,
   participantSaveResponseInput,
+  uploadPhotoInput,
+  removePhotoInput,
 } from "./schema";
 
 const uuid = "550e8400-e29b-41d4-a716-446655440000";
@@ -26,5 +28,34 @@ describe("participants schemas", () => {
     expect(participantSaveResponseInput.safeParse({ ...ids, type: "text", value: "ok" }).success).toBe(true);
     expect(participantSaveResponseInput.safeParse({ ...ids, token: "short", type: "text", value: "ok" }).success).toBe(false);
     expect(participantSaveResponseInput.safeParse({ ...ids, type: "number", value: "3" }).success).toBe(false);
+  });
+});
+
+describe("uploadPhotoInput / removePhotoInput", () => {
+  const ids = {
+    token: "x".repeat(40),
+    unitId: uuid,
+  };
+  it("accepts well-formed upload metadata", () => {
+    expect(
+      uploadPhotoInput.safeParse({
+        ...ids,
+        requirementId: uuid,
+      }).success,
+    ).toBe(true);
+  });
+  it("rejects short tokens and non-uuid ids", () => {
+    expect(
+      uploadPhotoInput.safeParse({ ...ids, token: "short", requirementId: ids.unitId }).success,
+    ).toBe(false);
+    expect(
+      uploadPhotoInput.safeParse({ ...ids, requirementId: "nope" }).success,
+    ).toBe(false);
+  });
+  it("removePhotoInput requires token, unitId, evidenceId", () => {
+    expect(
+      removePhotoInput.safeParse({ ...ids, evidenceId: ids.unitId }).success,
+    ).toBe(true);
+    expect(removePhotoInput.safeParse({ ...ids }).success).toBe(false);
   });
 });

@@ -1,10 +1,17 @@
 "use server";
 
+import { createHash, randomUUID } from "node:crypto";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createAnonServerClient } from "@/lib/supabase/anon-server";
+import { resolveParticipantToken, clientKeyFrom } from "@/lib/tokens";
+import { evidencePathFor, isAllowedPhotoType, PHOTO_MAX_BYTES } from "@/lib/storage/photo";
+import { uploadEvidenceObject, deleteEvidenceObject } from "@/lib/storage/evidence";
 import {
   participantSaveResponseInput,
   participantClearResponseInput,
+  uploadPhotoInput,
+  removePhotoInput,
   GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
@@ -50,6 +57,81 @@ export async function clearResponse(input: unknown): Promise<ActionState> {
     console.error("[participants] clearResponse:", error.code ?? "rpc error");
     return { ok: false, error: GENERIC_WRITE_ERROR };
   }
+  revalidatePath(`/p/${d.token}`);
+  revalidatePath(`/p/${d.token}/units/${d.unitId}`);
+  return { ok: true };
+}
+
+// Server-relay upload: resolve the token FIRST (the path prefix comes from
+// the resolved scope), hash the exact bytes we store, upload, then let the
+// RPC re-check scope and record the row. Object-before-row ordering means a
+// failed RPC leaves at worst an invisible orphan object (compensated
+// below) — never a row pointing at nothing.
+export async function uploadPhoto(formData: FormData): Promise<ActionState> {
+  const parsed = uploadPhotoInput.safeParse({
+    token: formData.get("token"),
+    unitId: formData.get("unitId"),
+    requirementId: formData.get("requirementId"),
+  });
+  const file = formData.get("file");
+  if (!parsed.success || !(file instanceof File)) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  if (file.size === 0 || file.size > PHOTO_MAX_BYTES || !isAllowedPhotoType(file.type)) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  const d = parsed.data;
+
+  const resolved = await resolveParticipantToken(d.token, clientKeyFrom(await headers()));
+  if (resolved.status !== "ok") return { ok: false, error: GENERIC_WRITE_ERROR };
+  const scope = resolved.scope;
+
+  const bytes = await file.arrayBuffer();
+  const checksum = createHash("sha256").update(Buffer.from(bytes)).digest("hex");
+  const path = evidencePathFor(scope.orgId, scope.programId, d.unitId, randomUUID(), file.type);
+  if (!path) return { ok: false, error: GENERIC_WRITE_ERROR };
+
+  if (!(await uploadEvidenceObject(path, bytes, file.type))) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+
+  const anon = createAnonServerClient();
+  const { error } = await anon.rpc("record_photo_evidence", {
+    p_token: d.token,
+    p_unit_id: d.unitId,
+    p_requirement_id: d.requirementId,
+    p_path: path,
+    p_filename: file.name.slice(0, 200) || "photo",
+    p_mime: file.type,
+    p_size_bytes: file.size,
+    p_checksum_sha256: checksum,
+  });
+  if (error) {
+    console.error("[participants] uploadPhoto:", error.code ?? "rpc error");
+    await deleteEvidenceObject(path); // compensate the orphan
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  revalidatePath(`/p/${d.token}`);
+  revalidatePath(`/p/${d.token}/units/${d.unitId}`);
+  return { ok: true };
+}
+
+// Row first (the RPC is the authority and returns the path), object second;
+// a failed object delete is a logged, accepted orphan.
+export async function removePhoto(input: unknown): Promise<ActionState> {
+  const parsed = removePhotoInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const d = parsed.data;
+  const anon = createAnonServerClient();
+  const { data, error } = await anon.rpc("delete_photo_evidence", {
+    p_token: d.token,
+    p_evidence_id: d.evidenceId,
+  });
+  if (error) {
+    console.error("[participants] removePhoto:", error.code ?? "rpc error");
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  if (typeof data === "string" && data.length > 0) await deleteEvidenceObject(data);
   revalidatePath(`/p/${d.token}`);
   revalidatePath(`/p/${d.token}/units/${d.unitId}`);
   return { ok: true };
