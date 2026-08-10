@@ -32,30 +32,30 @@ describe("participants schemas", () => {
 });
 
 describe("uploadPhotoInput / removePhotoInput", () => {
-  const ids = {
-    token: "x".repeat(40),
-    unitId: uuid,
-  };
+  // Three distinct UUIDs (not one reused value) so a field mix-up in the
+  // schema definitions — e.g. unitId and evidenceId swapped — would actually
+  // show up as a test failure instead of passing by coincidence.
+  const token = "x".repeat(40);
+  const unitId = "11111111-1111-4111-8111-111111111111";
+  const requirementId = "22222222-2222-4222-8222-222222222222";
+  const evidenceId = "33333333-3333-4333-8333-333333333333";
   it("accepts well-formed upload metadata", () => {
     expect(
-      uploadPhotoInput.safeParse({
-        ...ids,
-        requirementId: uuid,
-      }).success,
+      uploadPhotoInput.safeParse({ token, unitId, requirementId }).success,
     ).toBe(true);
   });
   it("rejects short tokens and non-uuid ids", () => {
     expect(
-      uploadPhotoInput.safeParse({ ...ids, token: "short", requirementId: ids.unitId }).success,
+      uploadPhotoInput.safeParse({ token: "short", unitId, requirementId }).success,
     ).toBe(false);
     expect(
-      uploadPhotoInput.safeParse({ ...ids, requirementId: "nope" }).success,
+      uploadPhotoInput.safeParse({ token, unitId, requirementId: "nope" }).success,
     ).toBe(false);
   });
   it("removePhotoInput requires token, unitId, evidenceId", () => {
     expect(
-      removePhotoInput.safeParse({ ...ids, evidenceId: ids.unitId }).success,
+      removePhotoInput.safeParse({ token, unitId, evidenceId }).success,
     ).toBe(true);
-    expect(removePhotoInput.safeParse({ ...ids }).success).toBe(false);
+    expect(removePhotoInput.safeParse({ token, unitId }).success).toBe(false);
   });
 });
