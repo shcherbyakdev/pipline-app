@@ -94,9 +94,17 @@ export const units = pgTable(
     // The customer's own identifier (store number, VIN, site code); CSV
     // import will key on it next slice.
     externalRef: text("external_ref"),
+    // v1 assignment model: unit-level, one participant. Set-null keeps the
+    // unit when a participant is deleted. Guard trigger in 0013 pins the
+    // participant to the unit's org.
+    assignedParticipantId: uuid("assigned_participant_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("units_program_id_idx").on(t.programId), index("units_org_id_idx").on(t.orgId)],
+  (t) => [
+    index("units_program_id_idx").on(t.programId),
+    index("units_org_id_idx").on(t.orgId),
+    index("units_assigned_participant_id_idx").on(t.assignedParticipantId),
+  ],
 );
 
 // One row per (unit × stage) — fanned out by the units AFTER INSERT trigger
@@ -166,6 +174,10 @@ export const unitStageResponses = pgTable(
     valueBool: boolean("value_bool"),
     valueDate: date("value_date"),
     answeredByUserId: uuid("answered_by_user_id"),
+    // Set ONLY inside the participant RPCs (no client column grant on any
+    // role); the prepare trigger nulls it on staff writes (attribution
+    // symmetry — the audit trail never shows both).
+    answeredByParticipantId: uuid("answered_by_participant_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
