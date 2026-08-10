@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { LayoutGrid, FileStack, Moon, Plus, Sun } from "lucide-react";
+import { LayoutGrid, FileStack, Building2, Moon, Plus, Sun } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -46,6 +46,9 @@ export function CommandMenu() {
           <CommandItem onSelect={() => go("/templates")}>
             <FileStack className="size-4" /> Templates
           </CommandItem>
+          <CommandItem onSelect={() => go("/clients")}>
+            <Building2 className="size-4" /> Clients
+          </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Actions">
           <CommandItem onSelect={() => go("/programs?new=1")}>
@@ -53,6 +56,9 @@ export function CommandMenu() {
           </CommandItem>
           <CommandItem onSelect={() => go("/templates?new=1")}>
             <Plus className="size-4" /> Create template
+          </CommandItem>
+          <CommandItem onSelect={() => go("/clients?new=1")}>
+            <Plus className="size-4" /> Create client
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Preferences">
