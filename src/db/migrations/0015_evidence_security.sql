@@ -59,6 +59,16 @@ alter table public.evidence enable row level security;
 create policy "evidence_select_member" on public.evidence
   for select to authenticated using (org_id in (select public.user_orgs()));
 
+-- Revoke-then-grant (the 0011 unit_stage_responses idiom): local dev images
+-- retain a default ACL handing `authenticated` blanket privileges on every
+-- table postgres creates, and CI strips it. Without the revoke, "members
+-- cannot delete evidence" is environment-dependent — RLS with no DELETE
+-- policy silently filters rows and returns SUCCESS with 0 deleted, rather
+-- than refusing. Evidence is written ONLY by the definer RPCs below, so
+-- both API roles keep select and nothing else. TRUNCATE is included: it is
+-- not RLS-governed at all (the 0013 access_tokens lesson).
+revoke insert, update, delete, truncate on table public.evidence from authenticated;
+revoke insert, update, delete, truncate on table public.evidence from service_role;
 grant select on table public.evidence to authenticated;
 -- lib/tokens reads evidence for the participant flow via the admin client.
 grant select on table public.evidence to service_role;
