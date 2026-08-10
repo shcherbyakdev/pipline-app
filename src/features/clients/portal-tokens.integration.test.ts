@@ -57,7 +57,6 @@ describe("portal tokens: resolve, scope CHECKs, guards, cascade, branding", () =
   let programId: string;
   let unit1: string;
   let clientA: string; // Acme — unit1 belongs to it
-  let clientB: string; // Bridgewater — no units
   let bobClient: string;
   let tA: { token: string; tokenHash: string };
 
@@ -92,9 +91,6 @@ describe("portal tokens: resolve, scope CHECKs, guards, cascade, branding", () =
     const { data: cA } = await alice
       .from("clients").insert({ org_id: orgId, name: "Acme Retail" }).select("id").single();
     clientA = cA!.id;
-    const { data: cB } = await alice
-      .from("clients").insert({ org_id: orgId, name: "Bridgewater" }).select("id").single();
-    clientB = cB!.id;
     const { data: cBob } = await bob
       .from("clients").insert({ org_id: bobOrgId, name: "BetaCorp" }).select("id").single();
     bobClient = cBob!.id;
@@ -172,11 +168,20 @@ describe("portal tokens: resolve, scope CHECKs, guards, cascade, branding", () =
   });
 
   it("portal scope CHECK: client required; participant/program/unit must be null", async () => {
+    // A null client_id on a portal row never reaches the CHECK: the
+    // check_access_token_org BEFORE INSERT trigger's portal branch (0018)
+    // does `select org_id from clients where id = new.client_id` first,
+    // finds no row for a null id, and raises 'client not found' (P0001)
+    // ahead of access_tokens_portal_scope_check. So this half pins the
+    // trigger's shadowing behavior, not the CHECK's client-required
+    // clause — asserting the exact error keeps it from going vacuous if
+    // that clause were ever loosened.
     const noClient = await alice.from("access_tokens").insert({
       org_id: orgId, token_hash: mint().tokenHash, kind: "portal",
       expires_at: new Date(Date.now() + 86_400_000).toISOString(), created_by: aliceId,
     });
-    expect(noClient.error).not.toBeNull();
+    expect(noClient.error?.code).toBe("P0001");
+    expect(noClient.error?.message).toBe("client not found");
 
     const withProgram = await alice.from("access_tokens").insert({
       org_id: orgId, token_hash: mint().tokenHash, kind: "portal", client_id: clientA,
