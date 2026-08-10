@@ -8,7 +8,7 @@
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { hostnameOf, isLoopbackHost } from "./lib/host-guard";
-import { generateParticipantToken } from "../src/lib/tokens/mint";
+import { generateAccessToken } from "../src/lib/tokens/mint";
 
 try {
   loadEnvFile(".env.local");
@@ -329,7 +329,7 @@ async function ensureDemoParticipant(client: SupabaseClient, orgId: string): Pro
     return;
   }
 
-  const { token, tokenHash } = generateParticipantToken();
+  const { token, tokenHash } = generateAccessToken();
   const { data: me } = await client.auth.getUser();
   const { error: mintError } = await client.from("access_tokens").insert({
     org_id: orgId,

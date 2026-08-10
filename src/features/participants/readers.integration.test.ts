@@ -23,7 +23,7 @@ try {
 // @/env, which validates process.env at module-evaluation time. A static
 // import is hoisted above the env load and would fail that validation.
 // (`import type` above is erased, so it costs nothing at runtime.)
-const { resolveParticipantToken, getParticipantUnits, getParticipantUnitDetail, generateParticipantToken } =
+const { resolveParticipantToken, getParticipantUnits, getParticipantUnitDetail, generateAccessToken } =
   await import("@/lib/tokens");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -127,8 +127,8 @@ describe("token-scoped readers", () => {
 
     // Real tokens, real hashes, real RPC resolution — the scope objects under
     // test are whatever the production chokepoint actually produces.
-    const t1 = generateParticipantToken();
-    const t2 = generateParticipantToken();
+    const t1 = generateAccessToken();
+    const t2 = generateAccessToken();
     const in30d = new Date(Date.now() + 30 * 86400_000).toISOString();
     const { data: me } = await alice.auth.getUser();
     const { error: mintError } = await alice.from("access_tokens").insert([
@@ -312,7 +312,7 @@ describe("getParticipantUnitDetail: photo evidence mapping", () => {
       .eq("unit_id", unitId);
     unitStageId = unitStages!.find((us) => us.program_stage_id === stageId)!.id;
 
-    const tok = generateParticipantToken();
+    const tok = generateAccessToken();
     const in30d = new Date(Date.now() + 30 * 86400_000).toISOString();
     const { data: me } = await alice.auth.getUser();
     const { error: mintError } = await alice.from("access_tokens").insert({
