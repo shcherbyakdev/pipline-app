@@ -66,9 +66,10 @@ export type PortalProgramGroup = {
 };
 
 // Home read model. Admin client bypasses RLS entirely — EVERY query below
-// carries its own explicit org_id AND client_id filters (slice-8 rule:
-// never rely on an earlier check for tenancy). Units with client_id null
-// do not exist as far as any portal token is concerned.
+// carries its own explicit org_id, plus client_id or an already-scoped
+// unit_id (slice-8 rule: never rely on an earlier check for tenancy).
+// Units with client_id null do not exist as far as any portal token is
+// concerned.
 export async function getPortalUnits(scope: PortalScope): Promise<PortalProgramGroup[]> {
   const db = createAdminClient();
   const { data, error } = await db
