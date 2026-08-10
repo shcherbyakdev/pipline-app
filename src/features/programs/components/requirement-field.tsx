@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { SectionRequirement } from "@/features/programs/queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,16 @@ export function RequirementField({
   requirement,
   onSave,
   onClear,
+  onUploadPhoto,
+  onRemovePhoto,
 }: {
   requirement: SectionRequirement;
   onSave: (value: string | number | boolean) => void;
   onClear: () => void;
+  // Photo controls: pass both from the participant flow while the stage is
+  // pending; omit both for the read-only console display.
+  onUploadPhoto?: (file: File) => void;
+  onRemovePhoto?: (evidenceId: string) => void;
 }) {
   const r = requirement;
   const inputId = `req-${r.id}`;
@@ -45,7 +51,71 @@ export function RequirementField({
           ))}
         </select>
       ) : r.type === "photo" ? (
-        <span className="text-muted-foreground text-xs">photo evidence arrives in a later release</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {r.photos.map((p) => {
+            const meta = [
+              p.filename,
+              `${Math.max(1, Math.round(p.sizeBytes / 1024))} KB`,
+              p.uploadedBy ?? undefined,
+              p.createdAt ? new Date(p.createdAt).toLocaleString() : undefined,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return (
+              <span key={p.id} className="relative inline-flex">
+                {p.url ? (
+                  <a href={p.url} target="_blank" rel="noreferrer" title={meta}>
+                    {/* Short-lived signed URLs: next/image's optimizer and
+                        remotePatterns add nothing for a private bucket. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.url}
+                      alt={p.filename}
+                      className="h-16 w-16 rounded-md border object-cover"
+                    />
+                  </a>
+                ) : (
+                  <span
+                    title={meta}
+                    className="bg-muted text-muted-foreground inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-md border p-1 text-center text-[10px] break-all"
+                  >
+                    {p.filename}
+                  </span>
+                )}
+                {onRemovePhoto ? (
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="absolute -top-2 -right-2 size-5 rounded-full"
+                    aria-label={`Remove ${p.filename}`}
+                    onClick={() => onRemovePhoto(p.id)}
+                  >
+                    <Trash2 className="size-3" />
+                  </Button>
+                ) : null}
+              </span>
+            );
+          })}
+          {onUploadPhoto ? (
+            <label className="border-input text-muted-foreground hover:bg-accent inline-flex h-16 w-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-[10px]">
+              <Plus className="size-4" />
+              Add photo
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="sr-only"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onUploadPhoto(f);
+                  e.target.value = ""; // same file can be re-picked after a failure
+                }}
+              />
+            </label>
+          ) : r.photos.length === 0 ? (
+            <span className="text-muted-foreground text-xs">Awaiting photo</span>
+          ) : null}
+        </div>
       ) : (
         // text | number | date share the commit-on-blur Input. Keyed remount
         // (call site) re-derives defaultValue when the server truth changes.

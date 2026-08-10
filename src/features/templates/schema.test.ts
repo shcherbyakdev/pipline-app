@@ -91,10 +91,22 @@ describe("addRequirementInput", () => {
     ).toBe(true);
   });
 
-  it("rejects photo — not offered by the editor until slice 8", () => {
+  it("accepts a photo requirement — no options/items needed", () => {
     expect(
       addRequirementInput.safeParse({ ...base, type: "photo", label: "Photo", required: true })
         .success,
+    ).toBe(true);
+  });
+
+  it("rejects photo with stray options or items config", () => {
+    expect(
+      addRequirementInput.safeParse({
+        ...base,
+        type: "photo",
+        label: "Photo",
+        required: true,
+        options: ["a", "b"],
+      }).success,
     ).toBe(false);
   });
 

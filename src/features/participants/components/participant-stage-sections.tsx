@@ -3,9 +3,10 @@
 import * as React from "react";
 import { useOptimistic } from "react";
 import { toast } from "sonner";
-import { submitResponse, clearResponse } from "@/features/participants/flow-actions";
+import { submitResponse, clearResponse, uploadPhoto, removePhoto } from "@/features/participants/flow-actions";
 import { RequirementField } from "@/features/programs/components/requirement-field";
 import type { SectionRequirement, StageSection } from "@/features/programs/queries";
+import { isAllowedPhotoType, PHOTO_MAX_BYTES } from "@/lib/storage/photo";
 import { Badge } from "@/components/ui/badge";
 
 // The participant twin of unit-stage-sections: same optimistic derive
@@ -13,13 +14,19 @@ import { Badge } from "@/components/ui/badge";
 // 'requirements' and 'override'). Done stages collapse to a summary line.
 type SectionEvent =
   | { type: "setValue"; unitStageId: string; requirementId: string; value: string | number | boolean }
-  | { type: "clear"; unitStageId: string; requirementId: string };
+  | { type: "clear"; unitStageId: string; requirementId: string }
+  | { type: "addPhoto"; unitStageId: string; requirementId: string; filename: string }
+  | { type: "removePhoto"; unitStageId: string; requirementId: string; evidenceId: string };
 
 function derive(section: StageSection): StageSection {
-  const required = section.requirements.filter((r) => r.required && r.type !== "photo");
+  const required = section.requirements.filter((r) => r.required);
   if (required.length === 0) return section;
   const satisfied = required.every((r) =>
-    r.type === "boolean" ? r.value === true : r.value !== null && r.value !== "",
+    r.type === "photo"
+      ? r.photos.length > 0
+      : r.type === "boolean"
+        ? r.value === true
+        : r.value !== null && r.value !== "",
   );
   return satisfied
     ? { ...section, status: "done", doneSource: "requirements" }
@@ -29,13 +36,50 @@ function derive(section: StageSection): StageSection {
 function applyEvent(sections: StageSection[], event: SectionEvent): StageSection[] {
   return sections.map((s) => {
     if (s.unitStageId !== event.unitStageId) return s;
-    const value = event.type === "setValue" ? event.value : null;
-    return derive({
-      ...s,
-      requirements: s.requirements.map((r) =>
-        r.id === event.requirementId ? { ...r, value } : r,
-      ),
-    });
+    switch (event.type) {
+      case "setValue":
+      case "clear": {
+        const value = event.type === "setValue" ? event.value : null;
+        return derive({
+          ...s,
+          requirements: s.requirements.map((r) =>
+            r.id === event.requirementId ? { ...r, value } : r,
+          ),
+        });
+      }
+      case "addPhoto":
+        // Placeholder tile (no URL yet); revalidation replaces it with truth.
+        return derive({
+          ...s,
+          requirements: s.requirements.map((r) =>
+            r.id === event.requirementId
+              ? {
+                  ...r,
+                  photos: [
+                    ...r.photos,
+                    {
+                      id: `optimistic-${r.photos.length}`,
+                      filename: event.filename,
+                      sizeBytes: 0,
+                      createdAt: "",
+                      uploadedBy: null,
+                      url: null,
+                    },
+                  ],
+                }
+              : r,
+          ),
+        });
+      case "removePhoto":
+        return derive({
+          ...s,
+          requirements: s.requirements.map((r) =>
+            r.id === event.requirementId
+              ? { ...r, photos: r.photos.filter((p) => p.id !== event.evidenceId) }
+              : r,
+          ),
+        });
+    }
   });
 }
 
@@ -61,9 +105,13 @@ export function ParticipantStageSections({
   return (
     <div className="flex flex-col gap-4">
       {optimistic.map((s) => {
-        const required = s.requirements.filter((r) => r.required && r.type !== "photo");
+        const required = s.requirements.filter((r) => r.required);
         const satisfied = required.filter((r) =>
-          r.type === "boolean" ? r.value === true : r.value !== null && r.value !== "",
+          r.type === "photo"
+            ? r.photos.length > 0
+            : r.type === "boolean"
+              ? r.value === true
+              : r.value !== null && r.value !== "",
         ).length;
         if (s.status === "done") {
           return (
@@ -89,7 +137,7 @@ export function ParticipantStageSections({
               <div className="flex flex-col gap-2">
                 {s.requirements.map((r: SectionRequirement) => (
                   <RequirementField
-                    key={`${r.id}:${String(r.value)}`}
+                    key={`${r.id}:${String(r.value)}:${r.photos.length}`}
                     requirement={r}
                     onSave={(value) =>
                       run(
@@ -107,6 +155,29 @@ export function ParticipantStageSections({
                     onClear={() =>
                       run({ type: "clear", unitStageId: s.unitStageId, requirementId: r.id }, () =>
                         clearResponse({ token, unitId, requirementId: r.id }),
+                      )
+                    }
+                    onUploadPhoto={(file) => {
+                      // Pre-check before any bytes move; the server and the
+                      // bucket both re-check.
+                      if (!isAllowedPhotoType(file.type) || file.size > PHOTO_MAX_BYTES) {
+                        toast.error("Photos must be JPEG, PNG, WebP, or HEIC and under 15MB.");
+                        return;
+                      }
+                      const fd = new FormData();
+                      fd.set("token", token);
+                      fd.set("unitId", unitId);
+                      fd.set("requirementId", r.id);
+                      fd.set("file", file);
+                      run(
+                        { type: "addPhoto", unitStageId: s.unitStageId, requirementId: r.id, filename: file.name },
+                        () => uploadPhoto(fd),
+                      );
+                    }}
+                    onRemovePhoto={(evidenceId) =>
+                      run(
+                        { type: "removePhoto", unitStageId: s.unitStageId, requirementId: r.id, evidenceId },
+                        () => removePhoto({ token, unitId, evidenceId }),
                       )
                     }
                   />

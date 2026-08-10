@@ -24,10 +24,14 @@ type SectionEvent =
   | { type: "override"; unitStageId: string; done: boolean };
 
 function derive(section: StageSection): StageSection {
-  const required = section.requirements.filter((r) => r.required && r.type !== "photo");
+  const required = section.requirements.filter((r) => r.required);
   if (required.length === 0) return section; // manual stage — leave as-is
   const satisfied = required.every((r) =>
-    r.type === "boolean" ? r.value === true : r.value !== null && r.value !== "",
+    r.type === "photo"
+      ? r.photos.length > 0
+      : r.type === "boolean"
+        ? r.value === true
+        : r.value !== null && r.value !== "",
   );
   return satisfied
     ? { ...section, status: "done", doneSource: "requirements" }
@@ -72,9 +76,13 @@ export function UnitStageSections({ sections }: { sections: StageSection[] }) {
   return (
     <div className="flex flex-col gap-6">
       {optimistic.map((s) => {
-        const required = s.requirements.filter((r) => r.required && r.type !== "photo");
+        const required = s.requirements.filter((r) => r.required);
         const satisfied = required.filter((r) =>
-          r.type === "boolean" ? r.value === true : r.value !== null && r.value !== "",
+          r.type === "photo"
+            ? r.photos.length > 0
+            : r.type === "boolean"
+              ? r.value === true
+              : r.value !== null && r.value !== "",
         ).length;
         const isManual = required.length === 0;
         return (
@@ -115,7 +123,7 @@ export function UnitStageSections({ sections }: { sections: StageSection[] }) {
                 {s.requirements.map((r) => (
                   <RequirementField
                     // Keyed remount on server-truth change (convention).
-                    key={`${r.id}:${String(r.value)}`}
+                    key={`${r.id}:${String(r.value)}:${r.photos.length}`}
                     requirement={r}
                     onSave={(value) =>
                       run(
