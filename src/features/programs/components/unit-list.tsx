@@ -5,6 +5,7 @@ import { useOptimistic } from "react";
 import { toast } from "sonner";
 import { addUnit, renameUnit, deleteUnit, setUnitStageStatus } from "@/features/programs/actions";
 import type { ProgramStage, Unit } from "@/features/programs/queries";
+import type { ParticipantListItem } from "@/features/participants/queries";
 import { UnitRow } from "./unit-row";
 import { AddUnit } from "./add-unit";
 
@@ -53,10 +54,12 @@ export function UnitList({
   programId,
   units,
   stages,
+  participants,
 }: {
   programId: string;
   units: Unit[];
   stages: ProgramStage[];
+  participants: ParticipantListItem[];
 }) {
   const [optimistic, dispatch] = useOptimistic(units, applyEvent);
   const [, startTransition] = React.useTransition();
@@ -97,6 +100,7 @@ export function UnitList({
             unit={unit}
             programId={programId}
             stageMeta={stageMeta}
+            participants={participants}
             onRename={(name) =>
               run({ type: "rename", id: unit.id, name }, () =>
                 renameUnit({ id: unit.id, name }),
