@@ -5,6 +5,7 @@ import { useOptimistic } from "react";
 import { toast } from "sonner";
 import { addUnit, renameUnit, deleteUnit, setUnitStageStatus } from "@/features/programs/actions";
 import type { ProgramStage, Unit } from "@/features/programs/queries";
+import type { ParticipantListItem } from "@/features/participants/queries";
 import { UnitRow } from "./unit-row";
 import { AddUnit } from "./add-unit";
 
@@ -27,6 +28,7 @@ function applyEvent(units: Unit[], event: UnitEvent): Unit[] {
           id: event.id,
           name: event.name,
           externalRef: event.externalRef ?? null,
+          assignedParticipantId: null,
           stages: event.stages,
         },
       ];
@@ -52,10 +54,12 @@ export function UnitList({
   programId,
   units,
   stages,
+  participants,
 }: {
   programId: string;
   units: Unit[];
   stages: ProgramStage[];
+  participants: ParticipantListItem[];
 }) {
   const [optimistic, dispatch] = useOptimistic(units, applyEvent);
   const [, startTransition] = React.useTransition();
@@ -87,15 +91,18 @@ export function UnitList({
       <ol className="flex flex-col gap-1">
         {optimistic.map((unit) => (
           <UnitRow
-            // Keyed remount: when the server-truth name changes (a
-            // successful rename re-renders with new server data), a fresh
-            // key remounts UnitRow so its local input state re-derives from
-            // `unit.name` — the sanctioned alternative to syncing local state
-            // from props in an effect (react-hooks/set-state-in-effect).
-            key={`${unit.id}:${unit.name}`}
+            // Keyed remount: when the server-truth name or assigned
+            // participant changes (a successful rename or assignment
+            // re-renders with new server data), a fresh key remounts UnitRow
+            // so its local input state re-derives from `unit.name` and its
+            // AssignParticipant child re-seeds from `unit.assignedParticipantId`
+            // — the sanctioned alternative to syncing local state from props
+            // in an effect (react-hooks/set-state-in-effect).
+            key={`${unit.id}:${unit.name}:${unit.assignedParticipantId ?? ""}`}
             unit={unit}
             programId={programId}
             stageMeta={stageMeta}
+            participants={participants}
             onRename={(name) =>
               run({ type: "rename", id: unit.id, name }, () =>
                 renameUnit({ id: unit.id, name }),

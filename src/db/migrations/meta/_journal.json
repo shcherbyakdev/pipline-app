@@ -85,6 +85,20 @@
       "when": 1786315531779,
       "tag": "0011_requirements_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786347181611,
+      "tag": "0012_gigantic_stellaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786347482838,
+      "tag": "0013_participant_tokens",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
 
@@ -5,6 +6,17 @@ import tsconfigPaths from "vite-tsconfig-paths";
 // .env.local locally (loaded by the test file) or exported vars in CI.
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  // `server-only` is a Next.js build-time marker with no Node resolution, so
+  // importing anything from @/lib/tokens (or the Supabase clients) blows up
+  // under plain Vitest. Alias it to an empty module — the guarantee it
+  // encodes is enforced by `next build`, not by the test runner.
+  // fileURLToPath, not URL.pathname: the latter percent-encodes, which breaks
+  // the moment the checkout path contains a space.
+  resolve: {
+    alias: {
+      "server-only": fileURLToPath(new URL("./src/test/server-only-stub.ts", import.meta.url)),
+    },
+  },
   test: {
     environment: "node",
     include: ["src/**/*.integration.test.ts"],

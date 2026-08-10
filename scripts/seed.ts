@@ -8,6 +8,7 @@
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { hostnameOf, isLoopbackHost } from "./lib/host-guard";
+import { generateParticipantToken } from "../src/lib/tokens/mint";
 
 try {
   loadEnvFile(".env.local");
@@ -45,6 +46,7 @@ const DEMO_PROGRESS: Array<{ unit: string; stages: string[] }> = [
   { unit: "Store #101 — Kraków", stages: ["Install"] },
   { unit: "Store #102 — Gdańsk", stages: ["Survey"] },
 ];
+const DEMO_PARTICIPANT = "Alex Kowalski";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -292,6 +294,56 @@ async function ensureDemoProgress(client: SupabaseClient, orgId: string): Promis
   console.log("seed: demo progress applied");
 }
 
+async function ensureDemoParticipant(client: SupabaseClient, orgId: string): Promise<void> {
+  const { data: program } = await client
+    .from("programs").select("id").eq("org_id", orgId).eq("name", DEMO_PROGRAM).maybeSingle();
+  if (!program) throw new Error(`seed: program "${DEMO_PROGRAM}" not found`);
+
+  let { data: participant } = await client
+    .from("participants").select("id").eq("org_id", orgId).eq("name", DEMO_PARTICIPANT).maybeSingle();
+  if (!participant) {
+    const { data: created, error } = await client
+      .from("participants")
+      .insert({ org_id: orgId, name: DEMO_PARTICIPANT, email: "alex@rolloutos.local" })
+      .select("id").single();
+    if (error) throw error;
+    participant = created;
+    console.log(`seed: created participant "${DEMO_PARTICIPANT}"`);
+  }
+
+  const { error: assignError } = await client
+    .from("units")
+    .update({ assigned_participant_id: participant!.id })
+    .eq("program_id", program.id);
+  if (assignError) throw assignError;
+
+  const { data: existing } = await client
+    .from("access_tokens")
+    .select("id")
+    .eq("participant_id", participant!.id)
+    .eq("program_id", program.id)
+    .is("revoked_at", null)
+    .gt("expires_at", new Date().toISOString());
+  if ((existing ?? []).length > 0) {
+    console.log("seed: an active participant link already exists (revoke it to re-issue)");
+    return;
+  }
+
+  const { token, tokenHash } = generateParticipantToken();
+  const { data: me } = await client.auth.getUser();
+  const { error: mintError } = await client.from("access_tokens").insert({
+    org_id: orgId,
+    token_hash: tokenHash,
+    kind: "participant",
+    participant_id: participant!.id,
+    program_id: program.id,
+    expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+    created_by: me!.user!.id,
+  });
+  if (mintError) throw mintError;
+  console.log(`seed: participant link (shown once) → http://localhost:3000/p/${token}`);
+}
+
 async function main(): Promise<void> {
   await ensureDemoUser();
 
@@ -322,6 +374,7 @@ async function main(): Promise<void> {
   await ensureDemoTemplate(client, orgId);
   await ensureDemoProgram(client, orgId);
   await ensureDemoProgress(client, orgId);
+  await ensureDemoParticipant(client, orgId);
   console.log(`seed: sign in as ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }
 
