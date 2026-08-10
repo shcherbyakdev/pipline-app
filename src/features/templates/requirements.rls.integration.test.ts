@@ -106,8 +106,12 @@ describe("requirement RLS + reorder", () => {
   });
 
   it("org-mismatch insert is rejected by the guard trigger", async () => {
-    // Bob supplies his own org_id but Alice's stage — the trigger compares
-    // against the stage's true owner.
+    // Bob supplies his own org_id but Alice's stage. The guard trigger is
+    // SECURITY INVOKER, so it runs as Bob and the stage lookup is subject to
+    // RLS: Alice's stage is invisible to him, the lookup returns no row, and
+    // the trigger raises 'stage not found' — not 'org mismatch' (that branch
+    // is unreachable for a foreign caller; it only fires for an org member
+    // supplying a mismatched org_id on their own org's stage).
     const { data: bobOrg } = await bob.from("orgs").select("id").single();
     const { error } = await bob.from("template_stage_requirements").insert({
       template_stage_id: stageId, org_id: bobOrg!.id,

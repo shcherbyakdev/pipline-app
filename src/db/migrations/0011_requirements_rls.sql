@@ -22,13 +22,16 @@ alter table public.template_stage_requirements
 alter table public.program_stage_requirements
   add constraint program_stage_requirements_type_check
   check (type in ('text','number','boolean','date','choice','photo'));
+alter table public.template_stage_requirements
+  add constraint template_stage_requirements_checklist_items_check
+  check (type <> 'checklist' or jsonb_typeof(config->'items') = 'array');
 alter table public.unit_stage_responses
   add constraint unit_stage_responses_type_check
   check (type in ('text','number','boolean','date','choice'));
 alter table public.unit_stage_responses
   add constraint unit_stage_responses_one_value_check
   check (
-    (type in ('text','choice') and value_text is not null
+    (type in ('text','choice') and value_text is not null and value_text <> ''
       and value_number is null and value_bool is null and value_date is null)
     or (type = 'number' and value_number is not null
       and value_text is null and value_bool is null and value_date is null)

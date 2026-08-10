@@ -174,6 +174,7 @@ export async function saveResponse(input: unknown): Promise<ActionState> {
     .select("program_id, unit_id")
     .maybeSingle();
   if (error || !data) return fail("saveResponse", error ?? "response not visible");
+  revalidatePath("/programs");
   revalidatePath(`/programs/${data.program_id}`);
   revalidatePath(`/programs/${data.program_id}/units/${data.unit_id}`);
   return { ok: true };
@@ -193,6 +194,7 @@ export async function clearResponse(input: unknown): Promise<ActionState> {
   if (error) return fail("clearResponse", error);
   // Deleting an absent response is a no-op success (idempotent clear).
   if (data) {
+    revalidatePath("/programs");
     revalidatePath(`/programs/${data.program_id}`);
     revalidatePath(`/programs/${data.program_id}/units/${data.unit_id}`);
   }

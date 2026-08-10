@@ -43,6 +43,7 @@ describe("requirements: snapshot, trust, derivation, override", () => {
   let alice: SupabaseClient;
   let bob: SupabaseClient;
   let orgId: string;
+  let programId: string;
   let inspectStageId: string;   // program stage WITH requirements
   let signoffStageId: string;   // program stage WITHOUT requirements
   let inspectUnitStageId: string;
@@ -82,7 +83,7 @@ describe("requirements: snapshot, trust, derivation, override", () => {
       p_template_id: t!.id, p_name: "Der Program",
     });
     if (e3) throw e3;
-    const programId = (program as { id: string }).id;
+    programId = (program as { id: string }).id;
 
     const { data: pStages } = await alice
       .from("program_stages").select("id, name").eq("program_id", programId);
@@ -146,7 +147,7 @@ describe("requirements: snapshot, trust, derivation, override", () => {
 
   it("program_stage_requirements is immutable to API roles", async () => {
     const { error: insErr } = await alice.from("program_stage_requirements").insert({
-      program_stage_id: inspectStageId, program_id: reqs[0].id, org_id: orgId,
+      program_stage_id: inspectStageId, program_id: programId, org_id: orgId,
       type: "text", label: "Sneak", required: true, config: {}, position: 99,
     });
     expect(insErr).not.toBeNull();
@@ -157,6 +158,14 @@ describe("requirements: snapshot, trust, derivation, override", () => {
       .select();
     // Grant-level denial errors; policy-level denial returns 0 rows. Accept either.
     expect(updErr !== null || updData!.length === 0).toBe(true);
+  });
+
+  it("a foreign member sees no program_stage_requirements", async () => {
+    const { data } = await bob
+      .from("program_stage_requirements")
+      .select("id")
+      .eq("program_stage_id", inspectStageId);
+    expect(data).toHaveLength(0);
   });
 
   it("responses derive their denormalized columns and reject cross-stage pairs", async () => {

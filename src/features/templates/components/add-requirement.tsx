@@ -28,7 +28,7 @@ export function AddRequirement({
   const [lines, setLines] = React.useState("");
 
   const needsLines = type === "choice" || type === "checklist";
-  const parsedLines = lines.split("\n").map((l) => l.trim()).filter((l) => l !== "");
+  const parsedLines = [...new Set(lines.split("\n").map((l) => l.trim()).filter((l) => l !== ""))];
   const linesValid = !needsLines || parsedLines.length >= (type === "choice" ? 2 : 1);
   const valid = label.trim() !== "" && linesValid;
 
