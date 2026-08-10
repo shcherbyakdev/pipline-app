@@ -996,7 +996,16 @@ describe("photo evidence: record, delete, derivation, guards", () => {
   });
 
   // ---------- Fix wave: 0016's staff-delete guard on the photo anchor.
-  it("guard: a staff session cannot delete a photo anchor row directly — the participant's own last-photo delete still can", async () => {
+  // Revised from a BEFORE DELETE trigger (auth.uid()-gated) to a table
+  // privilege revoke + SECURITY DEFINER RPC: the trigger fired on RI
+  // cascade deletes too (deleteUnit -> units -> unit_stages ->
+  // unit_stage_responses), and auth.uid() reads the session's JWT claim,
+  // not current_user, so it stayed non-null through a staff-session cascade
+  // and blocked deleteUnit()/deleteProgram() outright for any unit/program
+  // holding photo evidence. Table privileges don't gate RI cascades (those
+  // run as the table owner), so the revoke below closes the same direct-
+  // delete hole without that regression — see the cascade-survives test.
+  it("guard: a staff session cannot delete a photo anchor row directly (no DELETE grant at all) — the participant's own last-photo delete still can", async () => {
     // Fresh unit/response/evidence trio, isolated from every other test's
     // state in this file.
     const { data: u } = await alice
@@ -1028,23 +1037,24 @@ describe("photo evidence: record, delete, derivation, guards", () => {
       .single();
     const responseId = respBefore!.id as string;
 
-    // A member (authenticated staff session, auth.uid() non-null) deleting
-    // the anchor directly — exactly what the exported clearResponse server
-    // action does, and exactly what a raw PostgREST DELETE with the same
-    // session cookie reaches too — must be refused by the 0016 trigger. If
-    // the trigger is removed, this DELETE succeeds (error becomes null),
-    // which is the first way this test fails.
+    // A member (authenticated staff session) deleting the anchor directly
+    // via the raw table endpoint — exactly what a raw PostgREST DELETE with
+    // the same session cookie would reach — must be refused. `authenticated`
+    // holds no DELETE grant on unit_stage_responses at all any more (0016),
+    // so this dies at the privilege check (42501) before RLS or any trigger
+    // even runs. If the grant is ever restored, this DELETE succeeds (error
+    // becomes null), which is the first way this test fails.
     const { error: staffDelete } = await alice
       .from("unit_stage_responses")
       .delete()
       .eq("id", responseId);
-    expect(staffDelete?.code).toBe("P0001");
+    expect(staffDelete?.code).toBe("42501");
 
     // The anchor must still exist, and evidence must still point at it —
-    // without the trigger, the DELETE above succeeds and the FK (ON DELETE
+    // without the revoke, the DELETE above succeeds and the FK (ON DELETE
     // SET NULL) detaches the evidence row from its now-gone response,
-    // which is the second, independent way this test fails if the trigger
-    // is removed.
+    // which is the second, independent way this test fails if the grant is
+    // restored.
     const { data: stillThere } = await alice
       .from("unit_stage_responses")
       .select("id")
@@ -1057,11 +1067,12 @@ describe("photo evidence: record, delete, derivation, guards", () => {
       .eq("response_id", responseId);
     expect(evidenceStillLinked).toBe(1);
 
-    // The gate is auth.uid(), not "who deletes it": the participant's OWN
+    // The gate is the API role, not "who deletes it": the participant's OWN
     // last-photo delete goes through delete_photo_evidence (anon-callable,
-    // SECURITY DEFINER, auth.uid() null under the anon path) and must
-    // still succeed — proving the trigger targets staff sessions
-    // specifically, not every deleter of a photo anchor.
+    // SECURITY DEFINER, its own internal logic — not the authenticated
+    // table grant at all) and must still succeed — proving the revoke
+    // targets staff sessions specifically, not every deleter of a photo
+    // anchor.
     const { error: participantDelete } = await del(t1.token, guardEvidenceId as string);
     expect(participantDelete).toBeNull();
     const { data: goneNow } = await alice
@@ -1070,5 +1081,218 @@ describe("photo evidence: record, delete, derivation, guards", () => {
       .eq("id", responseId)
       .maybeSingle();
     expect(goneNow).toBeNull();
+  });
+
+  // ---------- Fix wave: cascade-safe revision (0016) — the RPC that
+  // replaces the trigger, and the regression it exists to fix.
+  it("guard: clear_unit_stage_response refuses a PHOTO response — 'not found', matching the anon-side clear_participant_response rule", async () => {
+    const { data: u } = await alice
+      .from("units")
+      .insert({
+        program_id: programId,
+        org_id: orgId,
+        name: "Unit Clear Photo Refused",
+        assigned_participant_id: p1,
+      })
+      .select("id")
+      .single();
+    const unitClearPhoto = u!.id as string;
+
+    const { data: evId, error: eRec } = await record(
+      t1.token,
+      unitClearPhoto,
+      photoReqId,
+      `${orgId}/${programId}/${unitClearPhoto}/clear-refused.jpg`,
+    );
+    expect(eRec).toBeNull();
+    expect(evId).toBeTruthy();
+
+    const { data: usClear } = await alice
+      .from("unit_stages")
+      .select("id")
+      .eq("unit_id", unitClearPhoto)
+      .eq("program_stage_id", stageId)
+      .single();
+    const { data: respBefore } = await alice
+      .from("unit_stage_responses")
+      .select("id")
+      .eq("unit_stage_id", usClear!.id)
+      .eq("program_stage_requirement_id", photoReqId)
+      .single();
+
+    const { error: clearErr } = await alice.rpc("clear_unit_stage_response", {
+      p_unit_stage_id: usClear!.id,
+      p_requirement_id: photoReqId,
+    });
+    expect(clearErr?.code).toBe("P0001");
+
+    // Refused, not silently no-op'd: the anchor must still be there.
+    const { data: stillThere } = await alice
+      .from("unit_stage_responses")
+      .select("id")
+      .eq("id", respBefore!.id)
+      .maybeSingle();
+    expect(stillThere).not.toBeNull();
+  });
+
+  it("clear_unit_stage_response clears a SCALAR response and returns its program/unit for revalidation — the replacement path actually works, not merely refuses", async () => {
+    const { data: u } = await alice
+      .from("units")
+      .insert({
+        program_id: programId,
+        org_id: orgId,
+        name: "Unit Clear Scalar",
+        assigned_participant_id: p1,
+      })
+      .select("id")
+      .single();
+    const unitClearScalar = u!.id as string;
+    const { data: usClear } = await alice
+      .from("unit_stages")
+      .select("id")
+      .eq("unit_id", unitClearScalar)
+      .eq("program_stage_id", stageId)
+      .single();
+
+    // Staff writes a scalar answer directly (the 0011 column-grant path —
+    // untouched by this fix, which only ever revoked DELETE).
+    const { error: eIns } = await alice.from("unit_stage_responses").upsert(
+      { unit_stage_id: usClear!.id, program_stage_requirement_id: boolReqId, value_bool: true },
+      { onConflict: "unit_stage_id,program_stage_requirement_id" },
+    );
+    expect(eIns).toBeNull();
+
+    const { data, error: clearErr } = await alice.rpc("clear_unit_stage_response", {
+      p_unit_stage_id: usClear!.id,
+      p_requirement_id: boolReqId,
+    });
+    expect(clearErr).toBeNull();
+    const row = (data as Array<{ program_id: string; unit_id: string }> | null)?.[0];
+    expect(row).toBeTruthy();
+    expect(row!.program_id).toBe(programId);
+    expect(row!.unit_id).toBe(unitClearScalar);
+
+    const { data: gone } = await alice
+      .from("unit_stage_responses")
+      .select("id")
+      .eq("unit_stage_id", usClear!.id)
+      .eq("program_stage_requirement_id", boolReqId)
+      .maybeSingle();
+    expect(gone).toBeNull();
+  });
+
+  it("clear_unit_stage_response is a no-op success when nothing matches (idempotent clear, same contract as the DELETE it replaces)", async () => {
+    const { data: u } = await alice
+      .from("units")
+      .insert({ program_id: programId, org_id: orgId, name: "Unit Clear Noop", assigned_participant_id: p1 })
+      .select("id")
+      .single();
+    const { data: usClear } = await alice
+      .from("unit_stages")
+      .select("id")
+      .eq("unit_id", u!.id)
+      .eq("program_stage_id", stageId)
+      .single();
+
+    const { data, error } = await alice.rpc("clear_unit_stage_response", {
+      p_unit_stage_id: usClear!.id,
+      p_requirement_id: boolReqId,
+    });
+    expect(error).toBeNull();
+    expect((data as unknown[] | null) ?? []).toHaveLength(0);
+  });
+
+  it("guard: a member of another org cannot clear a response through clear_unit_stage_response — 'not found', not a silent no-op", async () => {
+    const { data: u } = await alice
+      .from("units")
+      .insert({
+        program_id: programId,
+        org_id: orgId,
+        name: "Unit Cross Org Clear",
+        assigned_participant_id: p1,
+      })
+      .select("id")
+      .single();
+    const unitCrossOrg = u!.id as string;
+    const { data: usCrossOrg } = await alice
+      .from("unit_stages")
+      .select("id")
+      .eq("unit_id", unitCrossOrg)
+      .eq("program_stage_id", stageId)
+      .single();
+    const { error: eIns } = await alice.from("unit_stage_responses").upsert(
+      { unit_stage_id: usCrossOrg!.id, program_stage_requirement_id: boolReqId, value_bool: true },
+      { onConflict: "unit_stage_id,program_stage_requirement_id" },
+    );
+    expect(eIns).toBeNull();
+
+    // bob belongs to a different org entirely (EvBeta, minted in beforeAll).
+    // The definer RPC bypasses RLS, so the explicit org_id check inside it
+    // is the ONLY thing standing between bob and alice's response — without
+    // it this would silently succeed exactly like a plain DELETE an RLS
+    // policy filtered to zero rows.
+    const { error: crossErr } = await bob.rpc("clear_unit_stage_response", {
+      p_unit_stage_id: usCrossOrg!.id,
+      p_requirement_id: boolReqId,
+    });
+    expect(crossErr?.code).toBe("P0001");
+
+    const { data: stillThere } = await alice
+      .from("unit_stage_responses")
+      .select("id")
+      .eq("unit_stage_id", usCrossOrg!.id)
+      .eq("program_stage_requirement_id", boolReqId)
+      .maybeSingle();
+    expect(stillThere).not.toBeNull();
+  });
+
+  // ---------- THE regression test. This must FAIL against the original
+  // 0016 trigger (staff-session cascade raises P0001 from inside the
+  // units -> unit_stages -> unit_stage_responses delete cascade) and PASS
+  // against the privilege+RPC revision (RI cascades run as the table
+  // owner, unaffected by the authenticated DELETE revoke).
+  it("regression: staff deleting a unit that holds photo evidence SUCCEEDS (the cascade the trigger broke)", async () => {
+    const { data: u } = await alice
+      .from("units")
+      .insert({
+        program_id: programId,
+        org_id: orgId,
+        name: "Unit Cascade Delete",
+        assigned_participant_id: p1,
+      })
+      .select("id")
+      .single();
+    const unitCascade = u!.id as string;
+
+    const { data: evIdCascade, error: eRec } = await record(
+      t1.token,
+      unitCascade,
+      photoReqId,
+      `${orgId}/${programId}/${unitCascade}/cascade.jpg`,
+    );
+    expect(eRec).toBeNull();
+    expect(evIdCascade).toBeTruthy();
+
+    // Sanity: the photo anchor and its evidence really are there before the
+    // delete — otherwise a "successful" delete below would be vacuous.
+    const { count: evBefore } = await alice
+      .from("evidence")
+      .select("id", { count: "exact", head: true })
+      .eq("unit_id", unitCascade);
+    expect(evBefore).toBe(1);
+
+    // The actual regression: a plain staff-session DELETE on the unit —
+    // the same call deleteUnit() (features/programs/actions.ts) issues.
+    const { error: deleteErr } = await alice.from("units").delete().eq("id", unitCascade);
+    expect(deleteErr).toBeNull();
+
+    const { data: unitGone } = await alice.from("units").select("id").eq("id", unitCascade);
+    expect(unitGone).toHaveLength(0);
+    // The whole subtree cascades away — no orphaned response or evidence row.
+    const { count: evAfter } = await alice
+      .from("evidence")
+      .select("id", { count: "exact", head: true })
+      .eq("unit_id", unitCascade);
+    expect(evAfter).toBe(0);
   });
 });

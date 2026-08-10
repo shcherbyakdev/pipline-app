@@ -238,12 +238,15 @@ describe("requirements: snapshot, trust, derivation, override", () => {
     expect(s.status).toBe("done");
     expect(s.done_source).toBe("requirements"); // optional date never blocked
 
-    // Removing a required answer reopens.
-    const { error: delErr } = await alice
-      .from("unit_stage_responses")
-      .delete()
-      .eq("unit_stage_id", inspectUnitStageId)
-      .eq("program_stage_requirement_id", byLabel("Route").id);
+    // Removing a required answer reopens. Routed through the
+    // clear_unit_stage_response RPC (0016 fix wave), not a direct DELETE:
+    // `authenticated` no longer holds a DELETE grant on
+    // unit_stage_responses at all — staff clears go exclusively through
+    // this SECURITY DEFINER RPC now (see 0016_photo_response_guard.sql).
+    const { error: delErr } = await alice.rpc("clear_unit_stage_response", {
+      p_unit_stage_id: inspectUnitStageId,
+      p_requirement_id: byLabel("Route").id,
+    });
     expect(delErr).toBeNull();
     s = (await stage()).data!;
     expect(s.status).toBe("pending");

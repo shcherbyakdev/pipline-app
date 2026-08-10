@@ -184,19 +184,21 @@ export async function clearResponse(input: unknown): Promise<ActionState> {
   const parsed = clearResponseInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("unit_stage_responses")
-    .delete()
-    .eq("unit_stage_id", parsed.data.unitStageId)
-    .eq("program_stage_requirement_id", parsed.data.requirementId)
-    .select("program_id, unit_id")
-    .maybeSingle();
+  // Definer RPC, not a direct table DELETE: `authenticated` holds no DELETE
+  // grant on unit_stage_responses at all (0016) — a photo-type response
+  // anchors evidence and must survive a staff clear, and only the RPC can
+  // tell the two apart. See 0016_photo_response_guard.sql for why.
+  const { data, error } = await supabase.rpc("clear_unit_stage_response", {
+    p_unit_stage_id: parsed.data.unitStageId,
+    p_requirement_id: parsed.data.requirementId,
+  });
   if (error) return fail("clearResponse", error);
   // Deleting an absent response is a no-op success (idempotent clear).
-  if (data) {
+  const row = (data as Array<{ program_id: string; unit_id: string }> | null)?.[0];
+  if (row) {
     revalidatePath("/programs");
-    revalidatePath(`/programs/${data.program_id}`);
-    revalidatePath(`/programs/${data.program_id}/units/${data.unit_id}`);
+    revalidatePath(`/programs/${row.program_id}`);
+    revalidatePath(`/programs/${row.program_id}/units/${row.unit_id}`);
   }
   return { ok: true };
 }
