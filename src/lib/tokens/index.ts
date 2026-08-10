@@ -114,17 +114,24 @@ export async function getParticipantUnitDetail(
   if (error) throw error;
   if (!unit) return null;
 
+  // Every service-role query carries its own org filter — never rely on the early-return above for tenancy.
   const [{ data: stages, error: e1 }, { data: reqs, error: e2 }, { data: resps, error: e3 }] =
     await Promise.all([
-      db.from("program_stages").select("id, name, position").eq("program_id", f.programId),
+      db
+        .from("program_stages")
+        .select("id, name, position")
+        .eq("program_id", f.programId)
+        .eq("org_id", scope.orgId),
       db
         .from("program_stage_requirements")
         .select("id, program_stage_id, type, label, required, config, position")
-        .eq("program_id", f.programId),
+        .eq("program_id", f.programId)
+        .eq("org_id", scope.orgId),
       db
         .from("unit_stage_responses")
         .select("program_stage_requirement_id, type, value_text, value_number, value_bool, value_date")
-        .eq("unit_id", unitId),
+        .eq("unit_id", unitId)
+        .eq("org_id", scope.orgId),
     ]);
   if (e1 || e2 || e3) throw e1 ?? e2 ?? e3;
 
