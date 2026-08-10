@@ -20,13 +20,29 @@ const DEMO_PASSWORD = "Password123!";
 const DEMO_ORG = "Demo Programs";
 const DEMO_TEMPLATE = "Store Refresh";
 const DEMO_STAGES = ["Survey", "Install", "QA", "Sign-off"];
+const DEMO_REQUIREMENTS: Record<
+  string,
+  Array<{ type: string; label: string; required: boolean; config?: Record<string, unknown> }>
+> = {
+  Survey: [
+    { type: "date", label: "Survey date", required: true },
+    { type: "choice", label: "Access route", required: true, config: { options: ["Front", "Rear"] } },
+  ],
+  Install: [
+    { type: "number", label: "Fixtures installed", required: true },
+    { type: "checklist", label: "Install checks", required: true, config: { items: ["Power connected", "Area cleaned"] } },
+  ],
+};
 const DEMO_PROGRAM = "Q3 Store Refresh";
 const DEMO_UNITS: Array<{ name: string; ref: string }> = [
   { name: "Store #101 — Kraków", ref: "S-101" },
   { name: "Store #102 — Gdańsk", ref: "S-102" },
 ];
+// Store #101's Survey stage is demonstrated via the requirements path below
+// (ensureDemoProgress inserts responses that satisfy it); DEMO_PROGRESS only
+// lists the stages still shown via the bare status override chip.
 const DEMO_PROGRESS: Array<{ unit: string; stages: string[] }> = [
-  { unit: "Store #101 — Kraków", stages: ["Survey", "Install"] },
+  { unit: "Store #101 — Kraków", stages: ["Install"] },
   { unit: "Store #102 — Gdańsk", stages: ["Survey"] },
 ];
 
@@ -124,6 +140,30 @@ async function ensureDemoTemplate(
   const { error: stagesError } = await client.from("template_stages").insert(stagesData);
   if (stagesError) throw stagesError;
   console.log(`seed: created template "${DEMO_TEMPLATE}" with ${DEMO_STAGES.length} stages`);
+
+  const { data: createdStages, error: stagesReadError } = await client
+    .from("template_stages")
+    .select("id, name")
+    .eq("template_id", template.id);
+  if (stagesReadError) throw stagesReadError;
+  const requirementRows = (createdStages ?? []).flatMap((stage) =>
+    (DEMO_REQUIREMENTS[stage.name] ?? []).map((r, position) => ({
+      template_stage_id: stage.id,
+      org_id: orgId,
+      type: r.type,
+      label: r.label,
+      required: r.required,
+      config: r.config ?? {},
+      position,
+    })),
+  );
+  if (requirementRows.length > 0) {
+    const { error: reqError } = await client
+      .from("template_stage_requirements")
+      .insert(requirementRows);
+    if (reqError) throw reqError;
+    console.log(`seed: added ${requirementRows.length} requirements to "${DEMO_TEMPLATE}"`);
+  }
 }
 
 async function ensureDemoProgram(client: SupabaseClient, orgId: string): Promise<void> {
@@ -188,6 +228,50 @@ async function ensureDemoProgress(client: SupabaseClient, orgId: string): Promis
     .select("id, name")
     .eq("program_id", program.id);
   if (unitsError) throw unitsError;
+
+  // Store #101's Survey stage demos the requirements path: answer its
+  // requirements so the derive trigger marks the stage done
+  // (done_source='requirements'), instead of the bare status override used
+  // for the other demo stages below.
+  const store101 = (units ?? []).find((u) => u.name === "Store #101 — Kraków");
+  const surveyStage = (stages ?? []).find((s) => s.name === "Survey");
+  if (store101 && surveyStage) {
+    const { data: surveyUnitStage, error: surveyUnitStageError } = await client
+      .from("unit_stages")
+      .select("id")
+      .eq("unit_id", store101.id)
+      .eq("program_stage_id", surveyStage.id)
+      .maybeSingle();
+    if (surveyUnitStageError) throw surveyUnitStageError;
+    const { data: surveyReqs, error: surveyReqsError } = await client
+      .from("program_stage_requirements")
+      .select("id, label")
+      .eq("program_stage_id", surveyStage.id);
+    if (surveyReqsError) throw surveyReqsError;
+    const surveyDateReq = (surveyReqs ?? []).find((r) => r.label === "Survey date");
+    const accessRouteReq = (surveyReqs ?? []).find((r) => r.label === "Access route");
+    if (surveyUnitStage && surveyDateReq && accessRouteReq) {
+      // Idempotent: upsert on the (unit_stage, requirement) conflict target
+      // converges on re-run, same as the status updates below.
+      const { error: responseError } = await client.from("unit_stage_responses").upsert(
+        [
+          {
+            unit_stage_id: surveyUnitStage.id,
+            program_stage_requirement_id: surveyDateReq.id,
+            value_date: "2026-08-01",
+          },
+          {
+            unit_stage_id: surveyUnitStage.id,
+            program_stage_requirement_id: accessRouteReq.id,
+            value_text: "Front",
+          },
+        ],
+        { onConflict: "unit_stage_id,program_stage_requirement_id" },
+      );
+      if (responseError) throw responseError;
+      console.log("seed: answered Survey requirements for Store #101");
+    }
+  }
 
   // Idempotent: plain status updates converge on re-run; done_at is
   // trigger-maintained (done → done leaves it untouched).

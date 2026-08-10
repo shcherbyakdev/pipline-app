@@ -5,6 +5,9 @@ import {
   stageName,
   createTemplateInput,
   reorderStagesInput,
+  addRequirementInput,
+  renameRequirementInput,
+  reorderRequirementsInput,
 } from "./schema";
 
 const UUID_A = "6f1e2d3c-4b5a-4678-9abc-def012345678";
@@ -74,6 +77,82 @@ describe("reorderStagesInput", () => {
   it("rejects duplicate stage ids", () => {
     expect(
       reorderStagesInput.safeParse({ templateId: UUID_A, stageIds: [UUID_B, UUID_B] }).success,
+    ).toBe(false);
+  });
+});
+
+describe("addRequirementInput", () => {
+  const base = { templateStageId: "550e8400-e29b-41d4-a716-446655440000" };
+
+  it("accepts a plain text requirement", () => {
+    expect(
+      addRequirementInput.safeParse({ ...base, type: "text", label: "Notes", required: true })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects photo — not offered by the editor until slice 8", () => {
+    expect(
+      addRequirementInput.safeParse({ ...base, type: "photo", label: "Photo", required: true })
+        .success,
+    ).toBe(false);
+  });
+
+  it("choice requires >=2 options and forbids items", () => {
+    expect(
+      addRequirementInput.safeParse({ ...base, type: "choice", label: "Route", required: true })
+        .success,
+    ).toBe(false);
+    expect(
+      addRequirementInput.safeParse({
+        ...base, type: "choice", label: "Route", required: true, options: ["Front"],
+      }).success,
+    ).toBe(false);
+    expect(
+      addRequirementInput.safeParse({
+        ...base, type: "choice", label: "Route", required: true, options: ["Front", "Rear"],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("checklist requires >=1 item; other types forbid options/items", () => {
+    expect(
+      addRequirementInput.safeParse({ ...base, type: "checklist", label: "Checks", required: true })
+        .success,
+    ).toBe(false);
+    expect(
+      addRequirementInput.safeParse({
+        ...base, type: "checklist", label: "Checks", required: true, items: ["Power on"],
+      }).success,
+    ).toBe(true);
+    expect(
+      addRequirementInput.safeParse({
+        ...base, type: "text", label: "Notes", required: true, options: ["x", "y"],
+      }).success,
+    ).toBe(false);
+    expect(
+      addRequirementInput.safeParse({
+        ...base, type: "text", label: "Notes", required: true, items: ["x"],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("label is trimmed and bounded at 120", () => {
+    expect(
+      renameRequirementInput.safeParse({ id: base.templateStageId, label: "  " }).success,
+    ).toBe(false);
+    expect(
+      renameRequirementInput.safeParse({ id: base.templateStageId, label: "x".repeat(121) })
+        .success,
+    ).toBe(false);
+  });
+
+  it("reorder rejects duplicate ids", () => {
+    expect(
+      reorderRequirementsInput.safeParse({
+        templateStageId: base.templateStageId,
+        requirementIds: [base.templateStageId, base.templateStageId],
+      }).success,
     ).toBe(false);
   });
 });

@@ -26,8 +26,8 @@ export function StageRow({
   onMove: (direction: -1 | 1) => void;
 }) {
   // No effect syncing local state from `stage.name`: the call site
-  // (stage-list.tsx) keys this component on `${stage.id}:${stage.name}`, so
-  // a server-truth name change remounts this row instead of requiring a
+  // (stage-list.tsx) keys the wrapping `<li>` on `${stage.id}:${stage.name}`,
+  // so a server-truth name change remounts this row instead of requiring a
   // `useEffect` state sync (react-hooks/set-state-in-effect).
   const [value, setValue] = React.useState(stage.name);
 
@@ -41,7 +41,7 @@ export function StageRow({
   };
 
   return (
-    <li className="group flex items-center gap-1 rounded-md border px-2 py-1">
+    <div className="group flex items-center gap-1 rounded-md border px-2 py-1">
       <div className="flex flex-col">
         <Button
           variant="ghost"
@@ -82,6 +82,6 @@ export function StageRow({
       >
         <Trash2 className="size-3.5" />
       </Button>
-    </li>
+    </div>
   );
 }

@@ -11,6 +11,10 @@ import {
   renameStageInput,
   deleteStageInput,
   reorderStagesInput,
+  addRequirementInput,
+  renameRequirementInput,
+  deleteRequirementInput,
+  reorderRequirementsInput,
   GENERIC_WRITE_ERROR,
   type TemplateActionState,
 } from "./schema";
@@ -158,5 +162,98 @@ export async function reorderStages(input: unknown): Promise<TemplateActionState
   if (error) return fail("reorderStages", error);
   revalidatePath("/templates");
   revalidatePath(`/templates/${parsed.data.templateId}`);
+  return { ok: true };
+}
+
+export async function addRequirement(input: unknown): Promise<TemplateActionState> {
+  const parsed = addRequirementInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+
+  // Parent lookup doubles as the tenancy/org_id source; RLS hides foreign rows.
+  const { data: stage } = await supabase
+    .from("template_stages")
+    .select("id, org_id, template_id, template_stage_requirements(position)")
+    .eq("id", parsed.data.templateStageId)
+    .maybeSingle();
+  if (!stage) return fail("addRequirement", "stage not visible");
+
+  const nextPosition =
+    stage.template_stage_requirements.reduce((max, r) => Math.max(max, r.position), -1) + 1;
+  const config =
+    parsed.data.type === "choice"
+      ? { options: parsed.data.options }
+      : parsed.data.type === "checklist"
+        ? { items: parsed.data.items }
+        : {};
+
+  const { error } = await supabase.from("template_stage_requirements").insert({
+    template_stage_id: stage.id,
+    org_id: stage.org_id,
+    type: parsed.data.type,
+    label: parsed.data.label,
+    required: parsed.data.required,
+    config,
+    position: nextPosition,
+  });
+  if (error) return fail("addRequirement", error);
+  revalidatePath("/templates");
+  revalidatePath(`/templates/${stage.template_id}`);
+  return { ok: true };
+}
+
+export async function renameRequirement(input: unknown): Promise<TemplateActionState> {
+  const parsed = renameRequirementInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("template_stage_requirements")
+    .update({ label: parsed.data.label })
+    .eq("id", parsed.data.id)
+    .select("template_stage_id, template_stages(template_id)")
+    .maybeSingle();
+  if (error || !data) return fail("renameRequirement", error ?? "requirement not visible");
+  revalidatePath("/templates");
+  revalidatePath(
+    `/templates/${(data.template_stages as unknown as { template_id: string }).template_id}`,
+  );
+  return { ok: true };
+}
+
+export async function deleteRequirement(input: unknown): Promise<TemplateActionState> {
+  const parsed = deleteRequirementInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  // Plain delete — position gaps are harmless under ORDER BY position, id.
+  const { data, error } = await supabase
+    .from("template_stage_requirements")
+    .delete()
+    .eq("id", parsed.data.id)
+    .select("template_stage_id, template_stages(template_id)")
+    .maybeSingle();
+  if (error || !data) return fail("deleteRequirement", error ?? "requirement not visible");
+  revalidatePath("/templates");
+  revalidatePath(
+    `/templates/${(data.template_stages as unknown as { template_id: string }).template_id}`,
+  );
+  return { ok: true };
+}
+
+export async function reorderRequirements(input: unknown): Promise<TemplateActionState> {
+  const parsed = reorderRequirementsInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reorder_stage_requirements", {
+    p_template_stage_id: parsed.data.templateStageId,
+    p_requirement_ids: parsed.data.requirementIds,
+  });
+  if (error) return fail("reorderRequirements", error);
+  const { data: stage } = await supabase
+    .from("template_stages")
+    .select("template_id")
+    .eq("id", parsed.data.templateStageId)
+    .maybeSingle();
+  revalidatePath("/templates");
+  if (stage) revalidatePath(`/templates/${stage.template_id}`);
   return { ok: true };
 }

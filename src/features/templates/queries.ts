@@ -8,7 +8,16 @@ export type TemplateListItem = {
   updatedAt: string;
 };
 
-export type Stage = { id: string; name: string; position: number };
+export type Requirement = {
+  id: string;
+  type: "text" | "number" | "boolean" | "date" | "choice" | "checklist" | "photo";
+  label: string;
+  required: boolean;
+  config: { options?: string[]; items?: string[] };
+  position: number;
+};
+
+export type Stage = { id: string; name: string; position: number; requirements: Requirement[] };
 
 export type TemplateDetail = {
   id: string;
@@ -39,7 +48,9 @@ export async function getTemplate(id: string): Promise<TemplateDetail | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("templates")
-    .select("id, name, description, updated_at, template_stages(id, name, position)")
+    .select(
+      "id, name, description, updated_at, template_stages(id, name, position, template_stage_requirements(id, type, label, required, config, position))",
+    )
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -49,8 +60,15 @@ export async function getTemplate(id: string): Promise<TemplateDetail | null> {
     name: data.name,
     description: data.description,
     updatedAt: data.updated_at,
-    stages: [...data.template_stages].sort(
-      (a, b) => a.position - b.position || a.id.localeCompare(b.id),
-    ),
+    stages: [...data.template_stages]
+      .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        position: s.position,
+        requirements: [...s.template_stage_requirements].sort(
+          (a, b) => a.position - b.position || a.id.localeCompare(b.id),
+        ) as Requirement[],
+      })),
   };
 }

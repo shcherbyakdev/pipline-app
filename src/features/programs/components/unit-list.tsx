@@ -60,9 +60,8 @@ export function UnitList({
   const [optimistic, dispatch] = useOptimistic(units, applyEvent);
   const [, startTransition] = React.useTransition();
 
-  const stageNames: Record<string, string> = Object.fromEntries(
-    stages.map((s) => [s.id, s.name]),
-  );
+  const stageMeta: Record<string, { name: string; hasRequirements: boolean }> =
+    Object.fromEntries(stages.map((s) => [s.id, { name: s.name, hasRequirements: s.hasRequirements }]));
 
   const run = (event: UnitEvent, act: () => Promise<{ ok: boolean; error?: string }>) =>
     startTransition(async () => {
@@ -95,7 +94,8 @@ export function UnitList({
             // from props in an effect (react-hooks/set-state-in-effect).
             key={`${unit.id}:${unit.name}`}
             unit={unit}
-            stageNames={stageNames}
+            programId={programId}
+            stageMeta={stageMeta}
             onRename={(name) =>
               run({ type: "rename", id: unit.id, name }, () =>
                 renameUnit({ id: unit.id, name }),
