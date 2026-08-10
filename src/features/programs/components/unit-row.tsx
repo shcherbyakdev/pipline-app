@@ -6,6 +6,7 @@ import { ArrowUpRight, Trash2 } from "lucide-react";
 import type { Unit } from "@/features/programs/queries";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { StageDots } from "./stage-dots";
 
 export function UnitRow({
@@ -82,7 +83,7 @@ export function UnitRow({
       <Link
         href={`/programs/${programId}/units/${unit.id}`}
         aria-label={`Open ${unit.name}`}
-        className={buttonVariants({ variant: "ghost", size: "icon", className: "size-7" })}
+        className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "size-7")}
       >
         <ArrowUpRight className="size-3.5" />
       </Link>
