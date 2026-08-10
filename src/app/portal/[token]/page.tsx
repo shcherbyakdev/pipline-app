@@ -47,8 +47,11 @@ export default async function PortalEntryPage({ params }: PageProps<"/portal/[to
         orgName={scope.orgName}
         accentColor={branding.accentColor}
         logoUrl={branding.logoUrl}
-        subtitle={scope.clientName}
       />
+      {/* Heading-navigable landing point (screen readers land on <h1>, not
+          BrandedHeader's plain <span>/<p>). scope.clientName only — no
+          attribution, no data this page didn't already have. */}
+      <h1 className="text-lg font-semibold">{scope.clientName}</h1>
       {groups.length === 0 ? (
         <p className="text-muted-foreground text-sm">Nothing here yet — check back soon.</p>
       ) : (

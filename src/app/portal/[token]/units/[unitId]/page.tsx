@@ -72,7 +72,7 @@ export default async function PortalUnitPage({ params }: PageProps<"/portal/[tok
         {unit.stages.map((s) => (
           <li key={s.id} className="rounded-lg border p-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{s.name}</span>
+              <h2 className="text-sm font-medium">{s.name}</h2>
               {s.status === "done" ? (
                 <Badge variant="secondary" className="ml-auto shrink-0 text-[10px]">
                   done{s.doneAt ? ` · ${formatDate(s.doneAt)}` : ""}
@@ -83,8 +83,10 @@ export default async function PortalUnitPage({ params }: PageProps<"/portal/[tok
                 </Badge>
               )}
             </div>
-            {/* THE portal rule: pending stages render nothing below the name. */}
-            {s.items.length > 0 ? (
+            {/* THE portal rule, enforced HERE too (not just trusted from the
+                reader's items:[] invariant): pending stages render nothing
+                below the name, regardless of what items happens to hold. */}
+            {s.status === "done" && s.items.length > 0 ? (
               <dl className="mt-2 flex flex-col gap-1.5">
                 {s.items.map((item) => (
                   <div key={item.id} className="flex flex-col gap-1">
