@@ -70,6 +70,19 @@ grant select on table public.access_tokens to service_role;
 -- units: additive column grant for assignment (0008 scoped it to name/external_ref)
 grant update (assigned_participant_id) on table public.units to authenticated;
 
+-- ---------- Hardening: anon has zero table access (security review I1).
+-- Local dev images retain a default ACL (ALTER DEFAULT PRIVILEGES for role
+-- postgres, schema public — the same one called out in 0011) that hands
+-- PUBLIC/anon a blanket arwdDxtm on every table postgres creates: SELECT,
+-- INSERT, UPDATE, DELETE, TRUNCATE (TRUNCATE is not RLS-governed at all).
+-- Slice 7 is the first time anon becomes a live PostgREST caller, so this
+-- was always latent but never live until now. anon's only legitimate
+-- access is EXECUTE on the three SECURITY DEFINER RPCs below; it needs
+-- (and after this line, has) no direct table privilege whatsoever. This
+-- revoke is table-privilege-only — schema USAGE and the function EXECUTE
+-- grants elsewhere in this file are untouched.
+revoke all on all tables in schema public from anon;
+
 -- ---------- Guard: token scope must be internally consistent with its org.
 -- SECURITY INVOKER: foreign rows are RLS-invisible, so they read as
 -- 'not found' rather than leaking existence (check_template_stage_org
@@ -238,6 +251,16 @@ begin
     into v_unit_stage_id, v_participant_id
     from public.participant_scope_unit_stage(p_token, p_unit_id, p_requirement_id);
 
+  -- Anon-facing write: cap text length before it reaches the table (matches
+  -- the Zod cap on the authenticated staff path). Uniform 'not found' per
+  -- the 404 discipline used throughout this migration — an oversized
+  -- payload gets no more diagnostic detail than a bad token or a
+  -- stale scope. char_length(null) is null, so this is a no-op for the
+  -- non-text requirement types.
+  if char_length(p_value_text) > 2000 then
+    raise exception 'not found';
+  end if;
+
   insert into public.unit_stage_responses
     (unit_stage_id, program_stage_requirement_id,
      value_text, value_number, value_bool, value_date, answered_by_participant_id)
@@ -250,8 +273,12 @@ begin
         value_bool = excluded.value_bool,
         value_date = excluded.value_date,
         answered_by_participant_id = excluded.answered_by_participant_id;
-  -- The slice-6 prepare trigger validates/derives the rest; the derive
-  -- trigger recomputes the stage. Both fire unchanged.
+  -- The prepare trigger derives type/denorms (unit_id/program_id/org_id/
+  -- type) from the parent rows; it does not validate the value columns.
+  -- unit_stage_responses_one_value_check (0011) is what actually enforces
+  -- a single, correctly-typed, non-empty value — a null, wrong-type, or
+  -- empty-string submission dies at that CHECK, not here. The derive
+  -- trigger then recomputes the stage. All three fire unchanged.
 end;
 $$;
 

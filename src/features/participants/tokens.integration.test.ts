@@ -295,6 +295,52 @@ describe("participant tokens: mint, resolve, scope, attribution", () => {
     expect(us!.done_source).toBe("requirements");
   });
 
+  it("submit rejects null/mismatched/empty values via the one-value CHECK (I2)", async () => {
+    // (a) all-null against a text requirement: no column satisfies the
+    // 'text' branch of unit_stage_responses_one_value_check.
+    const { error: allNull } = await submit(t1.token, unit1, textReqId, {});
+    expect(allNull).not.toBeNull();
+
+    // (b) wrong-typed value (bool) against a text requirement.
+    const { error: wrongType } = await submit(t1.token, unit1, textReqId, { p_value_bool: true });
+    expect(wrongType).not.toBeNull();
+
+    // (c) empty string: the CHECK requires value_text <> '' as well as
+    // not null.
+    const { error: empty } = await submit(t1.token, unit1, textReqId, { p_value_text: "" });
+    expect(empty).not.toBeNull();
+
+    // None of the rejected attempts touched the row written by the
+    // previous test — each insert/upsert fails atomically at the CHECK.
+    const { data: resp } = await alice
+      .from("unit_stage_responses")
+      .select("value_text")
+      .eq("unit_id", unit1)
+      .eq("program_stage_requirement_id", textReqId)
+      .single();
+    expect(resp!.value_text).toBe("All good");
+  });
+
+  it("submit caps p_value_text at 2000 chars (I3)", async () => {
+    const { error: tooLong } = await submit(t1.token, unit1, textReqId, {
+      p_value_text: "x".repeat(2001),
+    });
+    expect(tooLong).not.toBeNull();
+
+    const { error: atCap } = await submit(t1.token, unit1, textReqId, {
+      p_value_text: "x".repeat(2000),
+    });
+    expect(atCap).toBeNull();
+
+    const { data: resp } = await alice
+      .from("unit_stage_responses")
+      .select("value_text")
+      .eq("unit_id", unit1)
+      .eq("program_stage_requirement_id", textReqId)
+      .single();
+    expect(resp!.value_text).toHaveLength(2000);
+  });
+
   it("the core scope test: a token cannot touch a unit outside its scope", async () => {
     // P1's program-scoped token vs unit2 (assigned to P2)
     const { error: cross } = await submit(t1.token, unit2, textReqId, { p_value_text: "x" });
