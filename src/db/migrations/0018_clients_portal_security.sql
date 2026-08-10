@@ -61,8 +61,16 @@ create policy "clients_update_member" on public.clients
 create policy "clients_delete_member" on public.clients
   for delete to authenticated using (org_id in (select public.user_orgs()));
 
--- 0004 convention; blanket-ACL revoke first (0011 lesson).
-revoke insert, update, delete on table public.clients from authenticated;
+-- 0004 convention; blanket-ACL revoke first (0011 lesson). truncate is
+-- included: it is not RLS-governed at all (the 0013 access_tokens lesson,
+-- restated by 0015 for evidence) — without it, authenticated could wipe
+-- every org's clients in one call despite RLS scoping every other
+-- operation to its own org. service_role is untouched here (unlike 0015's
+-- evidence, where service_role is deliberately locked to select-only):
+-- clients follows the 0013 participants precedent, where service_role
+-- holds full CRUD by design, and an RLS-bypassing DELETE already lets it
+-- clear the whole table, so a truncate revoke would add no real boundary.
+revoke insert, update, delete, truncate on table public.clients from authenticated;
 grant select, insert, update, delete on table public.clients to authenticated;
 grant select, insert, update, delete on table public.clients to service_role;
 -- (0013's default-privileges revoke already keeps anon at zero here.)
@@ -183,9 +191,12 @@ grant execute on function public.resolve_portal_token(text) to anon;
 -- ---------- Branding writes. orgs stays select-only for authenticated;
 -- this RPC is the only write path. FULL-STATE semantics: callers pass the
 -- complete desired branding every call (the settings form always holds
--- both values). The prefix check pins logo_path inside the caller's own
--- org folder (record_photo_evidence precedent — defence in depth even
--- though the server action derives the path itself).
+-- both values). logo_path is capped at 300 chars, rejected on `..`, and
+-- pinned inside the caller's own org folder (record_photo_evidence
+-- precedent, 0015: `left()`/`LIKE` is a literal compare, so a path like
+-- `<org_id>/../../../elsewhere.png` would satisfy the prefix while
+-- actually resolving outside it once storage normalizes the key) —
+-- defence in depth even though the server action derives the path itself.
 create or replace function public.update_org_branding(
   p_org_id uuid, p_accent_color text, p_logo_path text
 )
@@ -198,7 +209,11 @@ begin
   if p_org_id is null or p_org_id not in (select public.user_orgs()) then
     raise exception 'not found';
   end if;
-  if p_logo_path is not null and p_logo_path not like p_org_id::text || '/%' then
+  if p_logo_path is not null and (
+       char_length(p_logo_path) > 300
+       or p_logo_path ~ '\.\.'
+       or p_logo_path not like p_org_id::text || '/%'
+     ) then
     raise exception 'not found';
   end if;
   -- lower(): defence in depth ahead of the column CHECK (Zod already
