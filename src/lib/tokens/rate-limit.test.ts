@@ -26,4 +26,20 @@ describe("SlidingWindowLimiter", () => {
     expect(l.allow("b", 0)).toBe(true);
     expect(l.allow("a", 1)).toBe(false);
   });
+
+  it("bounds the map to maxKeys, evicting the oldest-touched key for new keys", () => {
+    const l = new SlidingWindowLimiter(5, 60_000, 2);
+    expect(l.allow("a", 0)).toBe(true);
+    expect(l.size).toBeLessThanOrEqual(2);
+    expect(l.allow("b", 1)).toBe(true);
+    expect(l.size).toBeLessThanOrEqual(2);
+    // Map is at the cap and no entries have aged out (window is 60s), so
+    // "c" forces eviction of "a" (the oldest-touched key).
+    expect(l.allow("c", 2)).toBe(true);
+    expect(l.size).toBeLessThanOrEqual(2);
+    // "a" was evicted, not merely rate-limited, so it behaves as a fresh
+    // key and is still allowed.
+    expect(l.allow("a", 3)).toBe(true);
+    expect(l.size).toBeLessThanOrEqual(2);
+  });
 });
