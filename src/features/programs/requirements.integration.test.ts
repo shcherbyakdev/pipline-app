@@ -3,9 +3,10 @@
  * real test. Requires the local Supabase stack (npm run setup). Creates two
  * throwaway users+orgs per run; a fresh stack (CI) or db:reset clears them.
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import postgres from "postgres";
 
 try {
   loadEnvFile(".env.local");
@@ -20,6 +21,15 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
+
+// Direct-Postgres escape hatch for one fixture below (the photo/evidence
+// test): `public.evidence` is written ONLY by the definer RPCs — neither
+// `authenticated` nor `service_role` holds insert on it via PostgREST (0015
+// deliberately revokes it). Standing up a full participant-token flow just
+// to seed one fixture row is disproportionate here, so this connects as the
+// table owner instead — the same DATABASE_URL drizzle-kit itself uses — and
+// only that one test touches it.
+const sql = postgres(process.env.DATABASE_URL!, { prepare: false });
 
 async function signedInUser(tag: string): Promise<SupabaseClient> {
   const email = `rls_${tag}_${Date.now()}@example.com`;
@@ -304,7 +314,7 @@ describe("requirements: snapshot, trust, derivation, override", () => {
     expect(error).not.toBeNull();
   });
 
-  it("a required photo requirement never blocks derivation (no response path until slice 8)", async () => {
+  it("a required photo requirement blocks derivation until evidence exists", async () => {
     // Self-contained: its own template/program/unit, so it doesn't disturb
     // the shared fixtures the earlier tests depend on.
     const { data: t2 } = await alice
@@ -349,8 +359,8 @@ describe("requirements: snapshot, trust, derivation, override", () => {
     const evidenceUnitStageId = unitStages2!.find((us) => us.program_stage_id === evidenceStageId)!.id;
 
     // Answer only the text requirement — the required photo is left
-    // unanswered. If derive_unit_stage counted it, this stage could never
-    // reach 'done' (no response path exists for photo until slice 8).
+    // unanswered. Slice 8 makes derive_unit_stage count photo like any other
+    // required type, so an unsatisfied photo now correctly withholds 'done'.
     const { error: ansErr } = await alice.from("unit_stage_responses").insert({
       unit_stage_id: evidenceUnitStageId,
       program_stage_requirement_id: summaryReq.id,
@@ -360,7 +370,34 @@ describe("requirements: snapshot, trust, derivation, override", () => {
 
     const { data: stage2 } = await alice
       .from("unit_stages").select("status, done_source").eq("id", evidenceUnitStageId).single();
-    expect(stage2!.status).toBe("done");
-    expect(stage2!.done_source).toBe("requirements");
+    expect(stage2!.status).toBe("pending");
+    expect(stage2!.done_source).toBeNull();
+
+    // Satisfy the photo requirement the way record_photo_evidence does: an
+    // all-null response anchor plus a linked evidence row (see the `sql`
+    // comment above for why this goes straight to Postgres instead of
+    // through a client).
+    const [{ id: photoResponseId }] = await sql<{ id: string }[]>`
+      insert into public.unit_stage_responses (unit_stage_id, program_stage_requirement_id)
+      values (${evidenceUnitStageId}, ${photoReq.id})
+      returning id
+    `;
+    await sql`
+      insert into public.evidence
+        (org_id, unit_id, unit_stage_id, response_id, path, filename, mime, size_bytes, checksum_sha256)
+      values
+        (${orgId}, ${unit2!.id}, ${evidenceUnitStageId}, ${photoResponseId},
+         ${"test-fixtures/" + evidenceUnitStageId + "/proof.jpg"}, 'proof.jpg', 'image/jpeg', 12345,
+         ${"a".repeat(64)})
+    `;
+
+    const { data: stage3 } = await alice
+      .from("unit_stages").select("status, done_source").eq("id", evidenceUnitStageId).single();
+    expect(stage3!.status).toBe("done");
+    expect(stage3!.done_source).toBe("requirements");
+  });
+
+  afterAll(async () => {
+    await sql.end();
   });
 });
