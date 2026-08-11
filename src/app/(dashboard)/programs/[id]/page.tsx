@@ -5,13 +5,15 @@ import { StageStrip } from "@/features/programs/components/stage-strip";
 import { UnitList } from "@/features/programs/components/unit-list";
 import { listParticipants, listProgramLinks } from "@/features/participants/queries";
 import { LinksPanel } from "@/features/participants/components/links-panel";
+import { listClientOptions } from "@/features/clients/queries";
 
 export default async function ProgramDetailPage({ params }: PageProps<"/programs/[id]">) {
   const { id } = await params;
-  const [program, participants, links] = await Promise.all([
+  const [program, participants, links, clients] = await Promise.all([
     getProgram(id),
     listParticipants(),
     listProgramLinks(id),
+    listClientOptions(),
   ]);
   // RLS returns nothing for foreign orgs' programs — indistinguishable from a
   // nonexistent id, which is exactly the 404 we want.
@@ -21,7 +23,13 @@ export default async function ProgramDetailPage({ params }: PageProps<"/programs
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
       <ProgramHeader id={program.id} name={program.name} templateName={program.templateName} />
       <StageStrip stages={program.stages} />
-      <UnitList programId={program.id} units={program.units} stages={program.stages} participants={participants} />
+      <UnitList
+        programId={program.id}
+        units={program.units}
+        stages={program.stages}
+        participants={participants}
+        clients={clients}
+      />
       <LinksPanel
         programId={program.id}
         participants={participants}

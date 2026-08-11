@@ -1,6 +1,7 @@
 import { pgTable, uuid, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 import { programs, units } from "./programs";
+import { clients } from "./clients";
 
 // External people — installers, engineers, site contacts. NEVER auth users:
 // the product must never force accounts on external collaborators.
@@ -35,6 +36,10 @@ export const accessTokens = pgTable(
     participantId: uuid("participant_id").references(() => participants.id, {
       onDelete: "cascade",
     }),
+    // Portal tokens only (kind='portal'); CHECK in 0018 keeps the two kinds'
+    // scope columns mutually exclusive. Cascade: when the client goes, its
+    // link history goes with it (the participants precedent).
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "cascade" }),
     programId: uuid("program_id").references(() => programs.id, { onDelete: "cascade" }),
     // null ⇒ every unit currently assigned to the participant
     unitId: uuid("unit_id").references(() => units.id, { onDelete: "cascade" }),
@@ -48,6 +53,7 @@ export const accessTokens = pgTable(
     uniqueIndex("access_tokens_token_hash_uq").on(t.tokenHash),
     index("access_tokens_org_id_idx").on(t.orgId),
     index("access_tokens_participant_id_idx").on(t.participantId),
+    index("access_tokens_client_id_idx").on(t.clientId),
     index("access_tokens_program_id_idx").on(t.programId),
     index("access_tokens_unit_id_idx").on(t.unitId),
   ],

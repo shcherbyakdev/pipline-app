@@ -1,6 +1,7 @@
 import { pgTable, uuid, text, integer, timestamp, index, unique, boolean, jsonb, numeric, date } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 import { templates } from "./templates";
+import { clients } from "./clients";
 
 // One execution of a template's workflow across many units. Creating a
 // program SNAPSHOTS the template's stages (copy-on-use); the snapshot is
@@ -98,12 +99,17 @@ export const units = pgTable(
     // unit when a participant is deleted. Guard trigger in 0013 pins the
     // participant to the unit's org.
     assignedParticipantId: uuid("assigned_participant_id"),
+    // The customer's customer this unit belongs to; scopes the portal.
+    // Set-null keeps the unit (and its history) when a client is deleted.
+    // Guard trigger in 0018 pins the client to the unit's org.
+    clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     index("units_program_id_idx").on(t.programId),
     index("units_org_id_idx").on(t.orgId),
     index("units_assigned_participant_id_idx").on(t.assignedParticipantId),
+    index("units_client_id_idx").on(t.clientId),
   ],
 );
 

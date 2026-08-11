@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { addUnit, renameUnit, deleteUnit, setUnitStageStatus } from "@/features/programs/actions";
 import type { ProgramStage, Unit } from "@/features/programs/queries";
 import type { ParticipantListItem } from "@/features/participants/queries";
+import type { ClientOption } from "@/features/clients/queries";
 import { UnitRow } from "./unit-row";
 import { AddUnit } from "./add-unit";
 
@@ -29,6 +30,7 @@ function applyEvent(units: Unit[], event: UnitEvent): Unit[] {
           name: event.name,
           externalRef: event.externalRef ?? null,
           assignedParticipantId: null,
+          clientId: null,
           stages: event.stages,
         },
       ];
@@ -55,11 +57,13 @@ export function UnitList({
   units,
   stages,
   participants,
+  clients,
 }: {
   programId: string;
   units: Unit[];
   stages: ProgramStage[];
   participants: ParticipantListItem[];
+  clients: ClientOption[];
 }) {
   const [optimistic, dispatch] = useOptimistic(units, applyEvent);
   const [, startTransition] = React.useTransition();
@@ -96,13 +100,15 @@ export function UnitList({
             // re-renders with new server data), a fresh key remounts UnitRow
             // so its local input state re-derives from `unit.name` and its
             // AssignParticipant child re-seeds from `unit.assignedParticipantId`
-            // — the sanctioned alternative to syncing local state from props
-            // in an effect (react-hooks/set-state-in-effect).
-            key={`${unit.id}:${unit.name}:${unit.assignedParticipantId ?? ""}`}
+            // (and AssignClient from `unit.clientId`) — the sanctioned
+            // alternative to syncing local state from props in an effect
+            // (react-hooks/set-state-in-effect).
+            key={`${unit.id}:${unit.name}:${unit.assignedParticipantId ?? ""}:${unit.clientId ?? ""}`}
             unit={unit}
             programId={programId}
             stageMeta={stageMeta}
             participants={participants}
+            clients={clients}
             onRename={(name) =>
               run({ type: "rename", id: unit.id, name }, () =>
                 renameUnit({ id: unit.id, name }),

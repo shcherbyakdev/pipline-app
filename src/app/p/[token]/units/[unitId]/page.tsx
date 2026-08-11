@@ -4,6 +4,8 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { resolveParticipantToken, getParticipantUnitDetail, clientKeyFrom } from "@/lib/tokens";
 import { ParticipantStageSections } from "@/features/participants/components/participant-stage-sections";
+import { getOrgBranding } from "@/lib/org-branding";
+import { BrandedHeader } from "@/components/branded-header";
 
 export default async function ParticipantUnitPage({
   params,
@@ -36,21 +38,25 @@ export default async function ParticipantUnitPage({
     );
   }
 
-  const unit = await getParticipantUnitDetail(resolved.scope, unitId);
+  const [unit, branding] = await Promise.all([
+    getParticipantUnitDetail(resolved.scope, unitId),
+    getOrgBranding(resolved.scope.orgId),
+  ]);
   if (!unit) notFound(); // out of scope reads as nonexistent
 
   return (
     <main className="flex flex-col gap-4">
+      <BrandedHeader
+        orgName={resolved.scope.orgName}
+        accentColor={branding.accentColor}
+        logoUrl={branding.logoUrl}
+      />
       <header className="flex flex-col gap-0.5">
         {resolved.scope.unitId === null ? (
           <Link href={`/p/${token}`} className="text-muted-foreground w-fit text-xs hover:underline">
             ← All units
           </Link>
-        ) : (
-          <p className="text-muted-foreground text-xs">
-            {resolved.scope.orgName} · {resolved.scope.programName}
-          </p>
-        )}
+        ) : null}
         <div className="flex items-baseline gap-2">
           <h1 className="text-lg font-semibold">{unit.name}</h1>
           {unit.externalRef ? (

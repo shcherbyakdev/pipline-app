@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { resolveParticipantToken, getParticipantUnits, clientKeyFrom } from "@/lib/tokens";
 import { Badge } from "@/components/ui/badge";
+import { getOrgBranding } from "@/lib/org-branding";
+import { BrandedHeader } from "@/components/branded-header";
 
 export default async function ParticipantEntryPage({ params }: PageProps<"/p/[token]">) {
   const { token } = await params;
@@ -40,13 +42,19 @@ export default async function ParticipantEntryPage({ params }: PageProps<"/p/[to
   const { scope } = resolved;
   if (scope.unitId) redirect(`/p/${token}/units/${scope.unitId}`);
 
-  const units = await getParticipantUnits(scope);
+  const [units, branding] = await Promise.all([
+    getParticipantUnits(scope),
+    getOrgBranding(scope.orgId),
+  ]);
   return (
     <main className="flex flex-col gap-4">
-      <header className="flex flex-col gap-0.5">
-        <p className="text-muted-foreground text-xs">{scope.orgName} · {scope.programName}</p>
-        <h1 className="text-lg font-semibold">Hi {scope.participantName}</h1>
-      </header>
+      <BrandedHeader
+        orgName={scope.orgName}
+        accentColor={branding.accentColor}
+        logoUrl={branding.logoUrl}
+        subtitle={scope.programName}
+      />
+      <h1 className="text-lg font-semibold">Hi {scope.participantName}</h1>
       {units.length === 0 ? (
         <p className="text-muted-foreground text-sm">Nothing assigned to you right now.</p>
       ) : (

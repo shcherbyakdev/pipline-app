@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { LayoutGrid, FileStack, Moon, Plus, Sun } from "lucide-react";
+import { Moon, Plus, Sun } from "lucide-react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -12,6 +12,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { NAV_ITEMS } from "@/components/shell/nav";
 
 export function CommandMenu() {
   const [open, setOpen] = React.useState(false);
@@ -40,12 +41,16 @@ export function CommandMenu() {
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Navigate">
-          <CommandItem onSelect={() => go("/programs")}>
-            <LayoutGrid className="size-4" /> Programs
-          </CommandItem>
-          <CommandItem onSelect={() => go("/templates")}>
-            <FileStack className="size-4" /> Templates
-          </CommandItem>
+          {/* Sourced from the same NAV_ITEMS as the sidebar so the two lists
+              can't drift again (this slice is what caused Settings to be in
+              one but not the other). Actions below stays hand-listed —
+              "create X" only makes sense for the three entity pages, not
+              Settings, so there's no drift risk to guard against there. */}
+          {NAV_ITEMS.map((item) => (
+            <CommandItem key={item.href} onSelect={() => go(item.href)}>
+              <item.icon className="size-4" /> {item.label}
+            </CommandItem>
+          ))}
         </CommandGroup>
         <CommandGroup heading="Actions">
           <CommandItem onSelect={() => go("/programs?new=1")}>
@@ -53,6 +58,9 @@ export function CommandMenu() {
           </CommandItem>
           <CommandItem onSelect={() => go("/templates?new=1")}>
             <Plus className="size-4" /> Create template
+          </CommandItem>
+          <CommandItem onSelect={() => go("/clients?new=1")}>
+            <Plus className="size-4" /> Create client
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Preferences">

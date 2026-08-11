@@ -120,6 +120,20 @@
       "when": 1786380931424,
       "tag": "0016_photo_response_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786387220791,
+      "tag": "0017_sticky_firestar",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786387594133,
+      "tag": "0018_clients_portal_security",
+      "breakpoints": true
     }
   ]
 }

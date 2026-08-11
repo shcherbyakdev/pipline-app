@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { generateParticipantToken, buildParticipantUrl } from "@/lib/tokens";
+import { generateAccessToken, buildParticipantUrl } from "@/lib/tokens";
 import {
   createParticipantInput,
   assignUnitInput,
@@ -82,7 +82,7 @@ export async function issueLink(
   const { data: me } = await supabase.auth.getUser();
   if (!me.user) return fail("issueLink", "no user");
 
-  const { token, tokenHash } = generateParticipantToken();
+  const { token, tokenHash } = generateAccessToken();
   const expiresAt = new Date(Date.now() + parsed.data.expiresDays * 86_400_000).toISOString();
   const { error } = await supabase.from("access_tokens").insert({
     org_id: program.org_id,
@@ -108,6 +108,7 @@ export async function revokeLink(input: unknown): Promise<ActionState> {
     .from("access_tokens")
     .update({ revoked_at: new Date().toISOString() })
     .eq("id", parsed.data.id)
+    .eq("kind", "participant")
     .select("program_id")
     .maybeSingle();
   if (error || !data) return fail("revokeLink", error ?? "link not visible");

@@ -6,6 +6,11 @@ export const orgs = pgTable("orgs", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  // Portal/participant-surface branding. Written ONLY via the
+  // update_org_branding definer RPC (orgs stays select-only for
+  // authenticated — 0004). Hex CHECK lives in 0018.
+  accentColor: text("accent_color"),
+  logoPath: text("logo_path"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

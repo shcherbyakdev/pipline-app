@@ -46,3 +46,17 @@ export class SlidingWindowLimiter {
     if (oldestKey !== undefined) this.hits.delete(oldestKey);
   }
 }
+
+// DoS hygiene only — the boundary is token entropy (see mint.ts), never
+// this counter. ONE instance shared by the participant and portal
+// resolvers: both surfaces draw from the same 120/min noise floor. Sized
+// generously because every flow action revalidates the page, which
+// re-resolves the token; x-forwarded-for is client-settable anyway.
+export const tokenLimiter = new SlidingWindowLimiter(120, 60_000);
+
+// All token pages derive the limiter bucket the same way; keep it in one
+// place so surfaces can never drift. An IP when the proxy sets one, else
+// "server".
+export function clientKeyFrom(h: Headers): string {
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "server";
+}

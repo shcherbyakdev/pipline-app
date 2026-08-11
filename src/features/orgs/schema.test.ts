@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createOrgSchema } from "./schema";
+import { createOrgSchema, updateAccentInput } from "./schema";
 
 describe("createOrgSchema", () => {
   it("accepts a valid name", () => {
@@ -13,5 +13,16 @@ describe("createOrgSchema", () => {
   });
   it("trims surrounding whitespace before validating", () => {
     expect(createOrgSchema.safeParse({ name: "  Acme  " }).data?.name).toBe("Acme");
+  });
+});
+
+describe("accent colour input", () => {
+  it("normalises to lowercase and accepts null", () => {
+    expect(updateAccentInput.parse({ accentColor: "#0F766E" }).accentColor).toBe("#0f766e");
+    expect(updateAccentInput.parse({ accentColor: null }).accentColor).toBeNull();
+  });
+  it("rejects non-hex", () => {
+    expect(updateAccentInput.safeParse({ accentColor: "teal" }).success).toBe(false);
+    expect(updateAccentInput.safeParse({ accentColor: "#fff" }).success).toBe(false);
   });
 });
