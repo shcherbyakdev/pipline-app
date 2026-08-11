@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { resolvePortalToken, getPortalUnitDetail, clientKeyFrom } from "@/lib/tokens";
 import type { PortalItem } from "@/lib/tokens";
+import { stageDueState } from "@/features/recurrence/core";
 import { getOrgBranding } from "@/lib/org-branding";
 import { BrandedHeader } from "@/components/branded-header";
 import { Badge } from "@/components/ui/badge";
@@ -77,11 +78,22 @@ export default async function PortalUnitPage({ params }: PageProps<"/portal/[tok
                 <Badge variant="secondary" className="ml-auto shrink-0 text-[10px]">
                   done{s.doneAt ? ` · ${formatDate(s.doneAt)}` : ""}
                 </Badge>
-              ) : (
-                <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">
-                  awaiting
-                </Badge>
-              )}
+              ) : (() => {
+                const due = stageDueState(s.dueAt, s.status, new Date());
+                return due.kind === "lapsed" ? (
+                  <Badge variant="outline" className="ml-auto shrink-0 border-red-500 text-[10px] text-red-600">
+                    lapsed
+                  </Badge>
+                ) : due.kind === "due" ? (
+                  <Badge variant="outline" className="ml-auto shrink-0 border-amber-500 text-[10px] text-amber-600">
+                    renewal due by {formatDate(s.dueAt!)}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">
+                    awaiting
+                  </Badge>
+                );
+              })()}
             </div>
             {/* THE portal rule, enforced HERE too (not just trusted from the
                 reader's items:[] invariant): pending stages render nothing
