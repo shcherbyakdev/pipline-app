@@ -94,6 +94,12 @@ export type SectionRequirement = {
   value: string | number | boolean | null;
   // Photo requirements only; [] for scalar types.
   photos: EvidencePhoto[];
+  recurLeadDays: number | null;
+};
+
+export type PreviousRound = {
+  supersededAt: string;
+  items: { label: string; value: string }[];
 };
 
 export type StageSection = {
@@ -104,6 +110,8 @@ export type StageSection = {
   status: "pending" | "done";
   doneSource: "requirements" | "override" | null;
   requirements: SectionRequirement[];
+  dueAt: string | null;
+  previousRounds: PreviousRound[];
 };
 
 export type UnitDetail = {
@@ -120,7 +128,7 @@ export async function getUnit(programId: string, unitId: string): Promise<UnitDe
   const { data: unit, error } = await supabase
     .from("units")
     .select(
-      "id, name, external_ref, program_id, programs(name), unit_stages(id, program_stage_id, status, done_source)",
+      "id, name, external_ref, program_id, programs(name), unit_stages(id, program_stage_id, status, done_source, due_at)",
     )
     .eq("id", unitId)
     .eq("program_id", programId)
@@ -133,11 +141,12 @@ export async function getUnit(programId: string, unitId: string): Promise<UnitDe
     { data: reqs, error: e2 },
     { data: resps, error: e3 },
     { data: ev, error: e4 },
+    { data: archived, error: e5 },
   ] = await Promise.all([
     supabase.from("program_stages").select("id, name, position").eq("program_id", programId),
     supabase
       .from("program_stage_requirements")
-      .select("id, program_stage_id, type, label, required, config, position")
+      .select("id, program_stage_id, type, label, required, config, position, recur_lead_days")
       .eq("program_id", programId),
     supabase
       .from("unit_stage_responses")
@@ -147,8 +156,12 @@ export async function getUnit(programId: string, unitId: string): Promise<UnitDe
       .from("evidence")
       .select("id, response_id, path, filename, size_bytes, created_at, participants(name)")
       .eq("unit_id", unitId),
+    supabase
+      .from("unit_stage_response_archive")
+      .select("unit_stage_id, program_stage_requirement_id, type, value_text, value_number, value_bool, value_date, superseded_at")
+      .eq("unit_id", unitId),
   ]);
-  if (e1 || e2 || e3 || e4) throw e1 ?? e2 ?? e3 ?? e4;
+  if (e1 || e2 || e3 || e4 || e5) throw e1 ?? e2 ?? e3 ?? e4 ?? e5;
 
   type RespRow = NonNullable<typeof resps>[number];
   // PostgREST serializes numeric as a string — normalize here, once.
@@ -162,6 +175,26 @@ export async function getUnit(programId: string, unitId: string): Promise<UnitDe
           : r.value_text;
   const responseByReq = new Map((resps ?? []).map((r) => [r.program_stage_requirement_id, valueOf(r)]));
   const usByStage = new Map(unit.unit_stages.map((us) => [us.program_stage_id, us]));
+
+  type ArchiveRow = NonNullable<typeof archived>[number];
+  const displayValue = (r: ArchiveRow): string =>
+    r.type === "boolean"
+      ? r.value_bool ? "Yes" : "No"
+      : r.type === "number"
+        ? String(r.value_number ?? "—")
+        : r.type === "photo"
+          ? "photo"
+          : String(r.value_date ?? r.value_text ?? "—");
+  const reqLabel = new Map((reqs ?? []).map((r) => [r.id, r.label]));
+  // stage → superseded_at → items. Rounds render newest first.
+  const roundsByStage = new Map<string, Map<string, { label: string; value: string }[]>>();
+  for (const a of archived ?? []) {
+    const rounds = roundsByStage.get(a.unit_stage_id) ?? new Map();
+    const items = rounds.get(a.superseded_at) ?? [];
+    items.push({ label: reqLabel.get(a.program_stage_requirement_id) ?? "—", value: displayValue(a) });
+    rounds.set(a.superseded_at, items);
+    roundsByStage.set(a.unit_stage_id, rounds);
+  }
 
   // RLS proved org scope; signing is display-only.
   const respIdToReq = new Map((resps ?? []).map((r) => [r.id, r.program_stage_requirement_id]));
@@ -214,7 +247,12 @@ export async function getUnit(programId: string, unitId: string): Promise<UnitDe
               config: (r.config ?? {}) as SectionRequirement["config"],
               value: responseByReq.get(r.id) ?? null,
               photos: photosByReq.get(r.id) ?? [],
+              recurLeadDays: r.recur_lead_days,
             })),
+          dueAt: (us as { due_at?: string | null }).due_at ?? null,
+          previousRounds: [...(roundsByStage.get(us.id) ?? new Map())]
+            .sort((a, b) => b[0].localeCompare(a[0]))
+            .map(([supersededAt, items]) => ({ supersededAt, items })),
         }];
       }),
   };

@@ -210,7 +210,10 @@ export async function getParticipantUnitDetail(
               config: (r.config ?? {}) as StageSection["requirements"][number]["config"],
               value: responseByReq.get(r.id) ?? null,
               photos: photosByReq.get(r.id) ?? [],
+              recurLeadDays: null, // portal due/lapsed surfacing lands in a later task
             })),
+          dueAt: null, // portal due/lapsed surfacing lands in a later task
+          previousRounds: [],
         }];
       }),
   };
