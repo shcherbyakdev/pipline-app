@@ -149,3 +149,29 @@ itself is the receipt.
 ## New environment variables
 
 None. No new secrets, no new infra.
+
+## Amendments (2026-08-11, pre-plan)
+
+1. **The write path is an `import_units` RPC after all — SECURITY INVOKER,
+   not the plain PostgREST upsert.** Decision 5 assumed one
+   `upsert(..., { onConflict })` call; planning found it infeasible:
+   PostgREST compiles upsert to `ON CONFLICT DO UPDATE SET <every payload
+   column>`, and migration 0008 deliberately narrowed the staff `UPDATE`
+   grant on `units` to `(name, external_ref)` (plus 0013's
+   `assigned_participant_id`, 0018's `client_id`). `program_id`/`org_id` in
+   the SET list fail the column-level privilege check at plan time — even
+   when no row conflicts, and even though the values are identical.
+   Loosening the grant would let staff move units across programs/orgs;
+   per-row updates from the action would lose atomicity. So:
+   `import_units(p_program_id uuid, p_rows jsonb)`, **`security invoker`**
+   — RLS policies and existing grants enforce exactly as before (the
+   hand-written `DO UPDATE` sets only `name`, which staff may already
+   update); no definer escalation, unlike the service-role recurrence RPCs.
+   It ships in a custom-SQL migration with the 0022 revoke/grant idiom
+   (`revoke … from public, anon; grant … to authenticated`) and returns
+   exact `{inserted, updated}` counts — the post-import summary now uses
+   those instead of reusing preview counts.
+2. **Preview pagination.** Filtering the existing-refs select by up to
+   2,000 refs via `.in()` would blow up the request URL. Instead the
+   preview action pages through the program's non-null `external_ref`s
+   (1,000 per page, the PostgREST row cap) and intersects server-side.
