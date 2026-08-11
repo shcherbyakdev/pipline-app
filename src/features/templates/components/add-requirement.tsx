@@ -20,17 +20,22 @@ export function AddRequirement({
     options?: string[];
     items?: string[];
     config: Requirement["config"];
+    recurLeadDays?: number;
   }) => void;
 }) {
   const [label, setLabel] = React.useState("");
   const [type, setType] = React.useState<EditorType>("text");
   const [required, setRequired] = React.useState(true);
   const [lines, setLines] = React.useState("");
+  const [leadDays, setLeadDays] = React.useState("");
 
   const needsLines = type === "choice" || type === "checklist";
   const parsedLines = [...new Set(lines.split("\n").map((l) => l.trim()).filter((l) => l !== ""))];
   const linesValid = !needsLines || parsedLines.length >= (type === "choice" ? 2 : 1);
-  const valid = label.trim() !== "" && linesValid;
+  const parsedLead = leadDays.trim() === "" ? undefined : Number(leadDays);
+  const leadValid =
+    type !== "date" || leadDays.trim() === "" || (Number.isInteger(parsedLead) && parsedLead! >= 1);
+  const valid = label.trim() !== "" && linesValid && leadValid;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,9 +52,11 @@ export function AddRequirement({
           : type === "checklist"
             ? { items: parsedLines }
             : {},
+      recurLeadDays: type === "date" ? parsedLead : undefined,
     });
     setLabel("");
     setLines("");
+    setLeadDays("");
   };
 
   return (
@@ -73,6 +80,17 @@ export function AddRequirement({
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
+        {type === "date" ? (
+          <Input
+            type="number"
+            min={1}
+            value={leadDays}
+            onChange={(e) => setLeadDays(e.target.value)}
+            placeholder="re-arm days"
+            aria-label="Re-arm this many days before the date (blank = never)"
+            className="h-7 w-28 shrink-0 text-xs"
+          />
+        ) : null}
         <label className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs">
           <input
             type="checkbox"

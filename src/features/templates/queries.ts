@@ -15,6 +15,7 @@ export type Requirement = {
   required: boolean;
   config: { options?: string[]; items?: string[] };
   position: number;
+  recurLeadDays: number | null;
 };
 
 export type Stage = { id: string; name: string; position: number; requirements: Requirement[] };
@@ -49,7 +50,7 @@ export async function getTemplate(id: string): Promise<TemplateDetail | null> {
   const { data, error } = await supabase
     .from("templates")
     .select(
-      "id, name, description, updated_at, template_stages(id, name, position, template_stage_requirements(id, type, label, required, config, position))",
+      "id, name, description, updated_at, template_stages(id, name, position, template_stage_requirements(id, type, label, required, config, position, recur_lead_days))",
     )
     .eq("id", id)
     .maybeSingle();
@@ -66,9 +67,17 @@ export async function getTemplate(id: string): Promise<TemplateDetail | null> {
         id: s.id,
         name: s.name,
         position: s.position,
-        requirements: [...s.template_stage_requirements].sort(
-          (a, b) => a.position - b.position || a.id.localeCompare(b.id),
-        ) as Requirement[],
+        requirements: [...s.template_stage_requirements]
+          .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
+          .map((r) => ({
+            id: r.id,
+            type: r.type as Requirement["type"],
+            label: r.label,
+            required: r.required,
+            config: (r.config ?? {}) as Requirement["config"],
+            position: r.position,
+            recurLeadDays: r.recur_lead_days,
+          })),
       })),
   };
 }

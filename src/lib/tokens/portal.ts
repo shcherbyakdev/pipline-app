@@ -58,6 +58,7 @@ export type PortalUnitSummary = {
   done: number;
   total: number;
   lastActivity: string | null;
+  lapsed: boolean;
 };
 export type PortalProgramGroup = {
   programId: string;
@@ -74,7 +75,7 @@ export async function getPortalUnits(scope: PortalScope): Promise<PortalProgramG
   const db = createAdminClient();
   const { data, error } = await db
     .from("units")
-    .select("id, name, external_ref, program_id, programs(name), unit_stages(status, done_at)")
+    .select("id, name, external_ref, program_id, programs(name), unit_stages(status, done_at, due_at)")
     .eq("org_id", scope.orgId)
     .eq("client_id", scope.clientId);
   if (error) throw error;
@@ -108,6 +109,9 @@ export async function getPortalUnits(scope: PortalScope): Promise<PortalProgramG
       done: u.unit_stages.filter((s) => s.status === "done").length,
       total: u.unit_stages.length,
       lastActivity: candidates.length ? candidates.sort().at(-1)! : null,
+      lapsed: u.unit_stages.some(
+        (s) => s.status !== "done" && s.due_at !== null && new Date(s.due_at) < new Date(),
+      ),
     };
     const programName = (u.programs as unknown as { name: string } | null)?.name ?? "—";
     const group: PortalProgramGroup = groups.get(u.program_id) ?? {
@@ -140,6 +144,7 @@ export type PortalStage = {
   position: number;
   status: "pending" | "done";
   doneAt: string | null;
+  dueAt: string | null;
   items: PortalItem[];
 };
 export type PortalUnitDetail = {
@@ -161,7 +166,7 @@ export async function getPortalUnitDetail(
   const db = createAdminClient();
   const { data: unit, error } = await db
     .from("units")
-    .select("id, name, external_ref, program_id, programs(name), unit_stages(id, program_stage_id, status, done_at)")
+    .select("id, name, external_ref, program_id, programs(name), unit_stages(id, program_stage_id, status, done_at, due_at)")
     .eq("id", unitId)
     .eq("org_id", scope.orgId)
     .eq("client_id", scope.clientId)
@@ -252,6 +257,7 @@ export async function getPortalUnitDetail(
           position: s.position,
           status,
           doneAt: (us.done_at as string | null) ?? null,
+          dueAt: (us.due_at as string | null) ?? null,
           items,
         }];
       }),

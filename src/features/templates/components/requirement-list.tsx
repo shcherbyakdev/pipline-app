@@ -85,7 +85,7 @@ export function RequirementList({
         ))}
       </ol>
       <AddRequirement
-        onAdd={({ type, label, required, options, items, config }) =>
+        onAdd={({ type, label, required, options, items, config, recurLeadDays }) =>
           run(
             {
               type: "add",
@@ -96,9 +96,19 @@ export function RequirementList({
                 required,
                 config,
                 position: optimistic.reduce((max, r) => Math.max(max, r.position), -1) + 1,
+                recurLeadDays: recurLeadDays ?? null,
               },
             },
-            () => addRequirement({ templateStageId, type, label, required, options, items }),
+            () =>
+              addRequirement({
+                templateStageId,
+                type,
+                label,
+                required,
+                options,
+                items,
+                recurLeadDays,
+              }),
           )
         }
       />

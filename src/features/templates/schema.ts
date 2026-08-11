@@ -40,6 +40,7 @@ export const addRequirementInput = z
     required: z.boolean(),
     options: configLines.min(2).optional(), // choice only
     items: configLines.min(1).optional(),   // checklist only
+    recurLeadDays: z.number().int().min(1).max(3650).optional(),
   })
   .superRefine((v, ctx) => {
     if (v.type === "choice" && !v.options)
@@ -50,6 +51,8 @@ export const addRequirementInput = z
       ctx.addIssue({ code: "custom", message: "options only valid for choice" });
     if (v.type !== "checklist" && v.items)
       ctx.addIssue({ code: "custom", message: "items only valid for checklist" });
+    if (v.recurLeadDays !== undefined && v.type !== "date")
+      ctx.addIssue({ code: "custom", message: "recurLeadDays only valid for date" });
   });
 export const renameRequirementInput = z.object({ id: z.uuid(), label: requirementLabel });
 export const deleteRequirementInput = z.object({ id: z.uuid() });

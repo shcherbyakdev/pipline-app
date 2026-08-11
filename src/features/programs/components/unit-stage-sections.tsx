@@ -6,8 +6,12 @@ import { toast } from "sonner";
 import { saveResponse, clearResponse, setUnitStageStatus } from "@/features/programs/actions";
 import { RequirementField } from "@/features/programs/components/requirement-field";
 import type { SectionRequirement, StageSection } from "@/features/programs/queries";
+import { stageDueState } from "@/features/recurrence/core";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+const formatDate = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(iso));
 
 // Optimistic convention (features/README.md), with a twist: the reducer
 // mirrors the DB derivation rule so the status chip flips without waiting
@@ -85,6 +89,10 @@ export function UnitStageSections({ sections }: { sections: StageSection[] }) {
               : r.value !== null && r.value !== "",
         ).length;
         const isManual = required.length === 0;
+        const due = stageDueState(s.dueAt, s.status, new Date());
+        const driver = s.requirements.find(
+          (r) => r.type === "date" && r.recurLeadDays !== null && typeof r.value === "string",
+        );
         return (
           <section
             key={s.unitStageId}
@@ -102,6 +110,19 @@ export function UnitStageSections({ sections }: { sections: StageSection[] }) {
                   {isManual ? "pending" : `pending · ${satisfied}/${required.length}`}
                 </Badge>
               )}
+              {due.kind === "due" ? (
+                <Badge variant="outline" className="border-amber-500 text-[10px] text-amber-600">
+                  renewal due by {formatDate(due.dueAt.toISOString())}
+                </Badge>
+              ) : due.kind === "lapsed" ? (
+                <Badge variant="outline" className="border-red-500 text-[10px] text-red-600">
+                  lapsed {due.days}d
+                </Badge>
+              ) : s.status === "done" && driver ? (
+                <span className="text-muted-foreground text-[10px]">
+                  expires {formatDate(String(driver.value))}
+                </span>
+              ) : null}
               <div className="ml-auto">
                 <Button
                   variant="outline"
@@ -146,6 +167,28 @@ export function UnitStageSections({ sections }: { sections: StageSection[] }) {
                 ))}
               </div>
             )}
+            {s.previousRounds.length > 0 ? (
+              <details className="text-muted-foreground text-xs">
+                <summary className="cursor-pointer select-none">
+                  previous rounds ({s.previousRounds.length})
+                </summary>
+                <div className="mt-1.5 flex flex-col gap-2">
+                  {s.previousRounds.map((round) => (
+                    <div key={round.supersededAt} className="rounded-md border border-dashed p-2">
+                      <p className="mb-1 text-[10px]">archived {formatDate(round.supersededAt)}</p>
+                      <dl className="flex flex-col gap-0.5">
+                        {round.items.map((item, i) => (
+                          <div key={i} className="flex items-baseline justify-between gap-2">
+                            <dt className="min-w-0 truncate">{item.label}</dt>
+                            <dd className="shrink-0 font-medium">{item.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ) : null}
           </section>
         );
       })}

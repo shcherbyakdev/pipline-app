@@ -22,5 +22,12 @@ export default defineConfig({
     include: ["src/**/*.integration.test.ts"],
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    // Drain/recur ticks are deliberately table-wide (no org scoping — that's
+    // the whole point of a drain), so two files running in parallel workers
+    // race each other's due rows on the one shared local Supabase stack.
+    // In-file test order already carries each suite's sequencing
+    // assumptions; serializing FILES (not the tests within a file) removes
+    // the cross-file race without touching the table-wide design.
+    fileParallelism: false,
   },
 });

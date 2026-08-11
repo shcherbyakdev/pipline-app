@@ -81,6 +81,11 @@ export default async function PortalEntryPage({ params }: PageProps<"/portal/[to
                       <span className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">
                         {u.lastActivity ? formatDate(u.lastActivity) : "no activity yet"}
                       </span>
+                      {u.lapsed ? (
+                        <Badge variant="outline" className="shrink-0 border-red-500 text-[10px] text-red-600">
+                          lapsed
+                        </Badge>
+                      ) : null}
                       <Badge
                         variant={u.done === u.total && u.total > 0 ? "secondary" : "outline"}
                         className="shrink-0 text-[10px]"
