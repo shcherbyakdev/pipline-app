@@ -114,6 +114,9 @@ export const units = pgTable(
     index("units_org_id_idx").on(t.orgId),
     index("units_assigned_participant_id_idx").on(t.assignedParticipantId),
     index("units_client_id_idx").on(t.clientId),
+    // CSV import (slice 5b) upserts on this pair; NULL refs stay distinct,
+    // so manually-added units without a ref never collide.
+    unique("units_program_external_ref_uq").on(t.programId, t.externalRef),
   ],
 );
 
