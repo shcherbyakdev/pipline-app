@@ -46,6 +46,10 @@ describe("recurrence: SQL surface", () => {
   let unitId: string;
   let unitStageId: string; // the done stage carrying the near-expiry driver
   let requirementId: string; // program-side driver requirement
+  // Captured once (not recomputed per-test) so a UTC-midnight rollover
+  // between beforeAll and the re-arm test below can never flake the
+  // due_at/value_date assertions against a since-shifted dateFromToday(10).
+  let expiryA: string;
 
   beforeAll(async () => {
     alice = await signedInUser("recur_alice");
@@ -98,10 +102,11 @@ describe("recurrence: SQL surface", () => {
 
     // Expiry 10 days out with a 30-day lead → inside the window NOW; the
     // response insert also derives the stage to 'done'.
+    expiryA = dateFromToday(10);
     const { error: e3 } = await alice.from("unit_stage_responses").insert({
       unit_stage_id: unitStageId,
       program_stage_requirement_id: requirementId,
-      value_date: dateFromToday(10),
+      value_date: expiryA,
     });
     if (e3) throw e3;
     const { data: check } = await alice
@@ -174,7 +179,6 @@ describe("recurrence: SQL surface", () => {
   });
 
   it("recur_rearm archives the round, clears live rows, flips the stage, stamps due_at — atomically", async () => {
-    const expiry = dateFromToday(10);
     const { data: claimed, error } = await admin.rpc("recur_rearm", { p_unit_stage_id: unitStageId });
     expect(error).toBeNull();
     expect(claimed).toBe(true);
@@ -185,7 +189,7 @@ describe("recurrence: SQL surface", () => {
     expect(us!.done_source).toBeNull();
     expect(us!.done_at).toBeNull();
     expect(us!.due_at).not.toBeNull();
-    expect((us!.due_at as string).slice(0, 10)).toBe(expiry);
+    expect((us!.due_at as string).slice(0, 10)).toBe(expiryA);
 
     const { data: live } = await admin
       .from("unit_stage_responses").select("id").eq("unit_stage_id", unitStageId);
@@ -195,7 +199,7 @@ describe("recurrence: SQL surface", () => {
       .from("unit_stage_response_archive")
       .select("id, value_date, superseded_at").eq("unit_stage_id", unitStageId);
     expect(archived).toHaveLength(1);
-    expect(archived![0].value_date).toBe(expiry);
+    expect(archived![0].value_date).toBe(expiryA);
     expect(archived![0].superseded_at).not.toBeNull();
   });
 

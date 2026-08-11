@@ -112,7 +112,7 @@ export function UnitStageSections({ sections }: { sections: StageSection[] }) {
               )}
               {due.kind === "due" ? (
                 <Badge variant="outline" className="border-amber-500 text-[10px] text-amber-600">
-                  renewal due by {formatDate(s.dueAt!)}
+                  renewal due by {formatDate(due.dueAt.toISOString())}
                 </Badge>
               ) : due.kind === "lapsed" ? (
                 <Badge variant="outline" className="border-red-500 text-[10px] text-red-600">

@@ -65,7 +65,25 @@ export async function runDrain(deps: {
 
   // Recur phase FIRST: a freshly re-armed unit's chase is inserted with
   // next_send_at = now, so the due-scan below emails send #0 this same tick.
-  const recur = await runRecurPhase(db, now);
+  // Isolated from the chase phase below: a recur_due RPC error (bad data,
+  // outage) must never 500 the whole tick and withhold every chase email
+  // that's already due — the tick degrades to chase-only instead.
+  let recur: RecurSummary;
+  try {
+    recur = await runRecurPhase(db, now);
+  } catch (recurErr) {
+    console.error(
+      "[recurrence] recur phase failed:",
+      recurErr instanceof Error ? recurErr.message : recurErr,
+    );
+    recur = {
+      rearmed: 0,
+      chasesStarted: 0,
+      recurSkipped: 0,
+      recurFailed: 0,
+      recurError: recurErr instanceof Error ? recurErr.message.slice(0, 500) : "recur phase failed",
+    };
+  }
   const summary: DrainSummary = { ...recur, sent: 0, completed: 0, skipped: 0, failed: 0 };
 
   const { data: due, error } = await db

@@ -210,10 +210,11 @@ export async function getParticipantUnitDetail(
               config: (r.config ?? {}) as StageSection["requirements"][number]["config"],
               value: responseByReq.get(r.id) ?? null,
               photos: photosByReq.get(r.id) ?? [],
-              recurLeadDays: null, // portal due/lapsed surfacing lands in a later task
+              recurLeadDays: null, // the participant page intentionally does not surface due/lapsed (post-v1 if ever)
             })),
-          dueAt: null, // portal due/lapsed surfacing lands in a later task
-          previousRounds: [],
+          dueAt: null, // the participant page intentionally does not surface due/lapsed (post-v1 if ever)
+          previousRounds: [], // nor previous rounds — the participant page shows only the live round
+
         }];
       }),
   };

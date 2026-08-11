@@ -7,6 +7,7 @@ export type RecurSummary = {
   chasesStarted: number;
   recurSkipped: number;
   recurFailed: number;
+  recurError: string | null;
 };
 
 const RECUR_BATCH_LIMIT = 25; // bounded tick; leftovers are still due next tick
@@ -25,7 +26,13 @@ type DueStage = {
 // Phase 1 of the drain tick: re-arm due stages, then start their chases so
 // phase 2 (the chase due-scan) emails send #0 in the SAME tick.
 export async function runRecurPhase(db: SupabaseClient, now: Date): Promise<RecurSummary> {
-  const summary: RecurSummary = { rearmed: 0, chasesStarted: 0, recurSkipped: 0, recurFailed: 0 };
+  const summary: RecurSummary = {
+    rearmed: 0,
+    chasesStarted: 0,
+    recurSkipped: 0,
+    recurFailed: 0,
+    recurError: null,
+  };
   const { data, error } = await db.rpc("recur_due", {
     p_today: now.toISOString().slice(0, 10),
     p_limit: RECUR_BATCH_LIMIT,
@@ -57,6 +64,23 @@ export async function runRecurPhase(db: SupabaseClient, now: Date): Promise<Recu
       // Auto-chase only when there is someone to email; otherwise the stage
       // just sits outstanding in the console — by design, not an error.
       if (!row.assigned_participant_id || !row.participant_email) continue;
+
+      // Participant opt-out persists across renewal rounds: if this exact
+      // scope has a chase the participant stopped, the recur phase never
+      // auto-starts a new one — staff may still chase manually. The re-arm
+      // above already happened; only the auto-chase is skipped.
+      const { data: stopped, error: stoppedErr } = await db
+        .from("chases")
+        .select("id")
+        .eq("org_id", row.org_id)
+        .eq("participant_id", row.assigned_participant_id)
+        .eq("program_id", row.program_id)
+        .eq("unit_id", row.unit_id)
+        .not("stopped_at", "is", null)
+        .limit(1);
+      if (stoppedErr) throw stoppedErr;
+      if (stopped?.length) continue;
+
       const { error: chaseErr } = await db.from("chases").insert({
         org_id: row.org_id,
         participant_id: row.assigned_participant_id,

@@ -20,6 +20,8 @@ try {
 // process.env eagerly at module scope. A dynamic import keeps that
 // evaluation AFTER .env.local is loaded.
 const { runDrain } = await import("@/features/chasing/drain");
+// Same idiom: portal.ts also transitively imports @/env.
+const { getPortalUnitDetail, getPortalUnits } = await import("@/lib/tokens/portal");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -73,6 +75,18 @@ describe("recurrence: drain phase end to end", () => {
   let unitStageB: string;
   let unitStageC: string;
   let unitStageFar: string;
+  // Finding 2 fixture: own participant with email, own unit, plus a
+  // pre-inserted STOPPED chase for the exact same scope — proves the recur
+  // phase honors a prior opt-out and never auto-starts a new chase for it.
+  let participantD: string;
+  let unitD: string;
+  let unitStageD: string;
+  // Finding 5 fixture: a second re-armed unit whose driver expiry is
+  // already in the past at seed time, so after re-arm its due_at lands in
+  // the past too (lapsed), contrasting with unitA's future due_at (due).
+  let unitE: string;
+  let unitStageE: string;
+  let clientId: string;
 
   beforeAll(async () => {
     alice = await signedInUser("recur_drain_alice");
@@ -185,6 +199,80 @@ describe("recurrence: drain phase end to end", () => {
       value_date: far,
     });
     if (eFar) throw eFar;
+
+    // ---- Finding 2 fixture: participant D, own unit, near-expiry (done),
+    // plus a pre-inserted STOPPED chase for this exact scope.
+    const { data: pD } = await alice
+      .from("participants")
+      .insert({ org_id: orgId, name: "Delta", email: `delta_${Date.now()}@example.com` })
+      .select("id")
+      .single();
+    participantD = pD!.id;
+    const { data: uD } = await alice
+      .from("units")
+      .insert({ org_id: orgId, program_id: programId, name: "Unit D", assigned_participant_id: participantD })
+      .select("id")
+      .single();
+    unitD = uD!.id;
+    const { data: usD } = await alice.from("unit_stages").select("id").eq("unit_id", unitD).single();
+    unitStageD = usD!.id;
+    const { error: eD } = await alice.from("unit_stage_responses").insert({
+      unit_stage_id: unitStageD,
+      program_stage_requirement_id: requirementId,
+      value_date: near,
+    });
+    if (eD) throw eD;
+
+    const { data: me } = await alice.auth.getUser();
+    const aliceId = me.user!.id;
+    // stopped_at set, next_send_at null: a finished (opted-out) chase. The
+    // live-scope unique index only guards rows with next_send_at is not
+    // null, so this row does not collide with anything the drain inserts.
+    const { error: eStopped } = await alice.from("chases").insert({
+      org_id: orgId,
+      participant_id: participantD,
+      program_id: programId,
+      unit_id: unitD,
+      created_by: aliceId,
+      next_send_at: null,
+      stopped_at: new Date().toISOString(),
+    });
+    if (eStopped) throw eStopped;
+
+    // ---- Finding 5 fixture: a second re-armed unit whose expiry is
+    // already in the past (recur_due picks it up immediately; the re-arm
+    // stamps a past due_at → lapsed).
+    const { data: client } = await alice
+      .from("clients")
+      .insert({ org_id: orgId, name: "Recur Drain Client" })
+      .select("id")
+      .single();
+    clientId = client!.id;
+
+    const { data: uE } = await alice
+      .from("units")
+      .insert({
+        org_id: orgId,
+        program_id: programId,
+        name: "Unit E",
+        assigned_participant_id: participantA,
+        client_id: clientId,
+      })
+      .select("id")
+      .single();
+    unitE = uE!.id;
+    const { data: usE } = await alice.from("unit_stages").select("id").eq("unit_id", unitE).single();
+    unitStageE = usE!.id;
+    const { error: eE } = await alice.from("unit_stage_responses").insert({
+      unit_stage_id: unitStageE,
+      program_stage_requirement_id: requirementId,
+      value_date: dateFromToday(-5), // already past → re-armed due_at lands in the past too
+    });
+    if (eE) throw eE;
+
+    // unitA carries the "due" (future) half of the Finding 5 contrast.
+    const { error: eClientA } = await alice.from("units").update({ client_id: clientId }).eq("id", unitA);
+    if (eClientA) throw eClientA;
   });
 
   it("one tick: re-arms, starts an automatic chase, and sends email #0", async () => {
@@ -259,5 +347,54 @@ describe("recurrence: drain phase end to end", () => {
       .single();
     expect(us!.status).toBe("done");
     expect(us!.due_at).toBeNull();
+  });
+
+  // Finding 2: participant opt-out persists across renewal rounds. unitD's
+  // stage still re-arms (the renewal itself is unaffected), but the
+  // pre-existing stopped chase for the exact scope means no new automatic
+  // chase gets started — staff may still chase manually.
+  it("participant opt-out persists: re-arms without starting a new auto-chase", async () => {
+    const { data: us } = await admin
+      .from("unit_stages")
+      .select("status, due_at")
+      .eq("id", unitStageD)
+      .single();
+    expect(us!.status).toBe("pending");
+    expect(us!.due_at).not.toBeNull();
+
+    const { data: chases } = await admin
+      .from("chases")
+      .select("id, stopped_at")
+      .eq("org_id", orgId)
+      .eq("participant_id", participantD)
+      .eq("program_id", programId)
+      .eq("unit_id", unitD);
+    expect(chases).toHaveLength(1); // still just the pre-inserted stopped one
+    expect(chases![0].stopped_at).not.toBeNull();
+  });
+
+  // Finding 5: portal due/lapsed derivation, exercised end to end off the
+  // re-armed stages above. unitA's due_at is ~10 days in the future (due,
+  // not lapsed); unitE's expiry was already past at seed time, so its
+  // re-armed due_at is in the past (lapsed).
+  it("portal: dueAt surfaces on a re-armed stage, and lapsed reflects due_at vs now", async () => {
+    const scope = { orgId, orgName: "x", clientId, clientName: "x" };
+
+    const detailA = await getPortalUnitDetail(scope, unitA);
+    expect(detailA).not.toBeNull();
+    expect(detailA!.stages[0].dueAt).not.toBeNull();
+
+    const detailE = await getPortalUnitDetail(scope, unitE);
+    expect(detailE).not.toBeNull();
+    expect(detailE!.stages[0].dueAt).not.toBeNull();
+
+    const groups = await getPortalUnits(scope);
+    const units = groups.flatMap((g) => g.units);
+    const summaryA = units.find((u) => u.id === unitA);
+    const summaryE = units.find((u) => u.id === unitE);
+    expect(summaryA).toBeDefined();
+    expect(summaryE).toBeDefined();
+    expect(summaryA!.lapsed).toBe(false); // due_at in the future
+    expect(summaryE!.lapsed).toBe(true); // due_at in the past
   });
 });

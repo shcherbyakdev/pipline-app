@@ -244,3 +244,9 @@ unchanged, four *mechanisms* are corrected:
    `recur_due(p_today date, p_limit int)` — `security definer`,
    `service_role`-only, `p_today` injected so tests can time-travel. The
    pure `decideRearm` gate stays app-side as specified.
+5. **(2026-08-11, final review) Participant opt-out persists across
+   renewal rounds** — the recur phase never auto-chases a scope with a
+   stopped chase; staff may still chase manually. Two small display
+   deviations recorded: the chase panel does not label automatic chases
+   (creator column doesn't exist there), and the portal lapsed badge omits
+   the day count by design.

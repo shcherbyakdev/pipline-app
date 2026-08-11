@@ -86,7 +86,7 @@ export default async function PortalUnitPage({ params }: PageProps<"/portal/[tok
                   </Badge>
                 ) : due.kind === "due" ? (
                   <Badge variant="outline" className="ml-auto shrink-0 border-amber-500 text-[10px] text-amber-600">
-                    renewal due by {formatDate(s.dueAt!)}
+                    renewal due by {formatDate(due.dueAt.toISOString())}
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">
