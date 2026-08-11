@@ -9,6 +9,7 @@ import type { ParticipantListItem } from "@/features/participants/queries";
 import type { ClientOption } from "@/features/clients/queries";
 import { UnitRow } from "./unit-row";
 import { AddUnit } from "./add-unit";
+import { ImportCsvDialog } from "./import-csv-dialog";
 
 // Project convention (see features/README.md): useOptimistic over the
 // server-provided array; every mutation applies optimistically inside a
@@ -83,14 +84,17 @@ export function UnitList({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-center justify-between">
         <h2 className="text-muted-foreground text-sm font-medium">Units ({optimistic.length})</h2>
-        {cells.length > 0 ? (
-          <p className="text-muted-foreground text-xs tabular-nums">
-            {doneCells} of {cells.length} stages done ·{" "}
-            {Math.round((doneCells / cells.length) * 100)}%
-          </p>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {cells.length > 0 ? (
+            <p className="text-muted-foreground text-xs tabular-nums">
+              {doneCells} of {cells.length} stages done ·{" "}
+              {Math.round((doneCells / cells.length) * 100)}%
+            </p>
+          ) : null}
+          <ImportCsvDialog programId={programId} />
+        </div>
       </div>
       <ol className="flex flex-col gap-1">
         {optimistic.map((unit) => (
