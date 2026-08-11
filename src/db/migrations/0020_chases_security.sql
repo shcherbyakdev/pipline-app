@@ -42,6 +42,10 @@ create policy "chases_update_member" on public.chases
 
 -- ---------- Grants (0004 convention). anon gets nothing (0013 default-
 -- privileges sweep already guarantees new tables start anon-free).
+-- Revoke the blanket default ACL first — otherwise the column-scoped
+-- update grant below is inert and authenticated keeps table-wide UPDATE
+-- (0011's revoke-then-narrow-grant rule; 0013/0018 precedent).
+revoke insert, update, delete, truncate on table public.chases from authenticated;
 grant select, insert on table public.chases to authenticated;
 grant update (stopped_at) on table public.chases to authenticated;
 grant select, insert, update on table public.chases to service_role;

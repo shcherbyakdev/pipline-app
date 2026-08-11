@@ -203,6 +203,18 @@ describe("chases: RLS, grants, guard, RPCs", () => {
     expect(c!.stopped_at).not.toBeNull();
   });
 
+  it("a member cannot update columns outside the stopped_at grant", async () => {
+    // Column-scoped grant check: the table-wide UPDATE must be revoked, or
+    // this passes vacuously regardless of what the column grant says.
+    const { error: e1 } = await alice
+      .from("chases")
+      .update({ completed_at: new Date().toISOString() })
+      .eq("id", chaseId);
+    expect(e1).not.toBeNull();
+    const { error: e2 } = await alice.from("chases").update({ sends_done: 99 }).eq("id", chaseId);
+    expect(e2).not.toBeNull();
+  });
+
   it("complete_chase revokes exactly the chase's tokens, not hand-issued ones", async () => {
     // Un-stop so completion is meaningful for this test scope.
     await admin.from("chases").update({ stopped_at: null }).eq("id", chaseId);
@@ -232,5 +244,17 @@ describe("chases: RLS, grants, guard, RPCs", () => {
       .eq("token_hash", hand.tokenHash)
       .single();
     expect(handTok!.revoked_at).toBeNull();
+  });
+
+  it("mint_chase_token refuses a completed chase", async () => {
+    // chaseId is completed by the previous test — the live-chase check
+    // must reject minting against it.
+    const { tokenHash } = mint();
+    const { error } = await admin.rpc("mint_chase_token", {
+      p_chase_id: chaseId,
+      p_token_hash: tokenHash,
+      p_expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    expect(error).not.toBeNull();
   });
 });
