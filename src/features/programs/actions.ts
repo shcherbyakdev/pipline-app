@@ -13,6 +13,8 @@ import {
   setUnitStageStatusInput,
   saveResponseInput,
   clearResponseInput,
+  previewUnitsImportInput,
+  importUnitsInput,
   GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
@@ -129,6 +131,61 @@ export async function deleteUnit(input: unknown): Promise<ActionState> {
   revalidatePath("/programs");
   revalidatePath(`/programs/${data.program_id}`);
   return { ok: true };
+}
+
+export async function previewUnitsImport(
+  input: unknown,
+): Promise<{ ok: true; existingRefs: string[] } | { ok: false; error: string }> {
+  const parsed = previewUnitsImportInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+
+  // Parent lookup doubles as tenancy proof; RLS hides foreign programs.
+  const { data: program } = await supabase
+    .from("programs")
+    .select("id")
+    .eq("id", parsed.data.programId)
+    .maybeSingle();
+  if (!program) return fail("previewUnitsImport", "program not visible");
+
+  // Filtering by up to 2000 refs via .in() would blow up the request URL,
+  // so page through the program's refs (1000 = PostgREST's row cap) and
+  // intersect here. Bounded: programs are a few thousand units at most.
+  const existing = new Set<string>();
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("units")
+      .select("external_ref")
+      .eq("program_id", parsed.data.programId)
+      .not("external_ref", "is", null)
+      .order("id")
+      .range(from, from + PAGE - 1);
+    if (error) return fail("previewUnitsImport", error);
+    for (const row of data) if (row.external_ref) existing.add(row.external_ref);
+    if (data.length < PAGE) break;
+  }
+  return { ok: true, existingRefs: parsed.data.refs.filter((r) => existing.has(r)) };
+}
+
+export async function importUnits(
+  input: unknown,
+): Promise<{ ok: true; inserted: number; updated: number } | { ok: false; error: string }> {
+  const parsed = importUnitsInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+
+  // Tenancy, atomicity, and the upsert all live in the invoker RPC.
+  const { data, error } = await supabase.rpc("import_units", {
+    p_program_id: parsed.data.programId,
+    p_rows: parsed.data.rows.map((r) => ({ name: r.name, external_ref: r.externalRef })),
+  });
+  if (error || !data) return fail("importUnits", error ?? "no result");
+
+  revalidatePath("/programs");
+  revalidatePath(`/programs/${parsed.data.programId}`);
+  const counts = data as { inserted: number; updated: number };
+  return { ok: true, inserted: counts.inserted, updated: counts.updated };
 }
 
 export async function setUnitStageStatus(input: unknown): Promise<ActionState> {
