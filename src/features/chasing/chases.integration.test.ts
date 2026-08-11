@@ -107,7 +107,14 @@ describe("chases: RLS, grants, guard, RPCs", () => {
         participant_id: participantId,
         program_id: programId,
         unit_id: unitId,
-        next_send_at: new Date().toISOString(),
+        // Future-dated on purpose: this fixture's unit is never assigned to
+        // a participant, so a REAL drain would see "no outstanding work"
+        // and complete_chase it. next_send_at = now would make this chase
+        // live-and-due for the whole file's lifetime, which a concurrently
+        // running drain.integration.test.ts (table-wide due-scan, full
+        // suite) can and did pick up mid-file. Future-dating keeps it out
+        // of every due-scan without changing what this file asserts.
+        next_send_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
         created_by: userId,
       })
       .select("id")

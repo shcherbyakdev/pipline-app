@@ -280,3 +280,22 @@ chase).
 | `RESEND_API_KEY` | server | optional; absent locally (SMTP path) |
 | `EMAIL_FROM` | server | optional with a dev default; the from address |
 | `SMTP_URL` (or host/port pair) | server | optional; local Mailpit |
+
+## Amendments (2026-08-11, post-review)
+
+1. **Retry cap.** A chase's send attempts are capped at `CHASE_MAX_ATTEMPTS =
+   5` (`drain.ts`). Once `attempt_count` reaches the cap, the drain gives up
+   instead of retrying forever: it clears `next_send_at` (so the row drops
+   out of every future due-scan) and records `last_error`, without minting
+   another token. This bounds orphan tokens at 5 mints per chase — each one
+   still dies at its own expiry or at completion, same as before. The
+   console surfaces this as a new `"stalled"` status, distinct from
+   `"exhausted"` (which means the chase finished its whole cadence
+   normally, not that it gave up early).
+2. **Live-scope index treats stalled/exhausted chases as non-blocking.**
+   `chases_live_scope_uq` (0020) now requires `next_send_at is not null` in
+   addition to `completed_at is null and stopped_at is null`. A chase that
+   ran its cadence dry or hit the retry cap above no longer occupies its
+   scope, so staff can start a fresh chase for the same
+   (participant, program, unit) once the old one goes quiet — they are not
+   stuck waiting on a dead row indefinitely.

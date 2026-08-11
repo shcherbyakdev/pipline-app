@@ -18,10 +18,14 @@ alter table public.access_tokens
 
 -- ---------- One live chase per scope. coalesce because unique treats
 -- nulls as distinct; the zero uuid stands in for "whole program".
+-- next_send_at is not null excludes exhausted/stalled chases (cadence ran
+-- dry, or the drain's retry cap gave up) from blocking — staff can start a
+-- fresh chase for the scope without waiting on a dead one. Accepted: the
+-- final send's claim window can in theory admit a redundant duplicate row.
 create unique index chases_live_scope_uq
   on public.chases (org_id, participant_id, program_id,
     coalesce(unit_id, '00000000-0000-0000-0000-000000000000'::uuid))
-  where completed_at is null and stopped_at is null;
+  where completed_at is null and stopped_at is null and next_send_at is not null;
 
 -- ---------- Due-scan index: the drain's only query shape.
 create index chases_due_idx on public.chases (next_send_at)

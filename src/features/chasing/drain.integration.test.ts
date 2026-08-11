@@ -72,7 +72,9 @@ const past = (msAgo = 60_000) => new Date(Date.now() - msAgo).toISOString();
 describe("drain: runDrain against the local stack", () => {
   // ORDER-DEPENDENT: one chase (pinned to unit1) is driven through send →
   // send → failed-send → stop across the first five tests; a second chase
-  // (unit2) is used for the completion path in the last test.
+  // (unit2) is used for the completion path in test 6; a third (also
+  // unit1 — chaseId is stopped by then, freeing the scope) covers the
+  // retry-cap/stall path in test 7.
   let alice: SupabaseClient;
   let userId: string;
   let orgId: string;
@@ -317,5 +319,54 @@ describe("drain: runDrain against the local stack", () => {
       .eq("chase_id", chase2Id);
     expect(tokens!.length).toBeGreaterThan(0);
     for (const t of tokens!) expect(t.revoked_at).not.toBeNull();
+  });
+
+  it("attempt cap reached → drain gives up: no mint, no send, next_send_at cleared, last_error set", async () => {
+    // A fresh chase reusing unit1's scope — chaseId is stopped by now, so
+    // the live-scope index doesn't block this insert. unit1's stage is
+    // still pending (never marked done), so this chase has real outstanding
+    // work and would otherwise take the send path.
+    const { sent: sent3, transport: transport3 } = fakeTransport();
+    const { data: chase3, error } = await alice
+      .from("chases")
+      .insert({
+        org_id: orgId,
+        participant_id: participantId,
+        program_id: programId,
+        unit_id: unit1,
+        next_send_at: past(),
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    const chase3Id = chase3!.id;
+    // Simulate 5 prior failed attempts without actually driving the chase
+    // through them — attempt_count is the only thing the cap reads.
+    await admin.from("chases").update({ attempt_count: 5, next_send_at: past() }).eq("id", chase3Id);
+
+    const { data: tokensBefore } = await admin
+      .from("access_tokens")
+      .select("id")
+      .eq("chase_id", chase3Id);
+
+    const summary = await runDrain({ db: admin, transport: transport3, now: new Date() });
+    expect(summary.failed).toBeGreaterThanOrEqual(1);
+    expect(sent3).toHaveLength(0); // never reached the send
+
+    const { data: tokensAfter } = await admin
+      .from("access_tokens")
+      .select("id")
+      .eq("chase_id", chase3Id);
+    expect(tokensAfter).toHaveLength(tokensBefore!.length); // no mint either
+
+    const { data: c3 } = await admin
+      .from("chases")
+      .select("next_send_at, last_error, sends_done")
+      .eq("id", chase3Id)
+      .single();
+    expect(c3!.next_send_at).toBeNull();
+    expect(c3!.last_error).toContain("gave up after 5 attempts");
+    expect(c3!.sends_done).toBe(0); // never claimed
   });
 });

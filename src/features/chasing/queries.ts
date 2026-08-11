@@ -7,7 +7,7 @@ export type ChaseListItem = {
   participantName: string;
   unitName: string | null;
   sendsDone: number;
-  status: "active" | "stopped" | "completed" | "exhausted";
+  status: "active" | "stopped" | "completed" | "exhausted" | "stalled";
   createdAt: string;
   stoppedAt: string | null;
 };
@@ -32,9 +32,13 @@ export async function getProgramChases(programId: string): Promise<ChaseListItem
       ? "completed"
       : c.stopped_at
         ? "stopped"
-        : c.sends_done >= CHASE_MAX_SENDS
-          ? "exhausted"
-          : "active",
+        // Gave up before finishing the cadence (drain.ts's retry cap) —
+        // distinct from "exhausted" (finished all 4 sends normally).
+        : c.next_send_at === null && c.sends_done < CHASE_MAX_SENDS
+          ? "stalled"
+          : c.sends_done >= CHASE_MAX_SENDS
+            ? "exhausted"
+            : "active",
     createdAt: c.created_at,
     stoppedAt: c.stopped_at,
   }));

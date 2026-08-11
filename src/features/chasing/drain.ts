@@ -11,6 +11,11 @@ export type DrainSummary = { sent: number; completed: number; skipped: number; f
 
 const BATCH_LIMIT = 25; // bounded tick; leftovers are still due next tick
 const TOKEN_EXPIRES_DAYS = 30; // issueLink's default, kept in step
+// Bounds orphan tokens at 5 mints per chase. Past this, the chase stalls
+// (next_send_at cleared) instead of retrying forever — surfaced to staff
+// as "stalled" in queries.ts; each orphaned token still dies at its own
+// expiry or at completion.
+const CHASE_MAX_ATTEMPTS = 5;
 
 type DueRow = {
   id: string;
@@ -89,6 +94,21 @@ export async function runDrain(deps: {
         continue;
       }
 
+      // decision.kind === "send" from here. Check the retry cap BEFORE
+      // claiming or minting anything — a chase this far gone gets no more
+      // tokens, regardless of whether an email is even present.
+      if (raw.attempt_count >= CHASE_MAX_ATTEMPTS) {
+        await db
+          .from("chases")
+          .update({
+            next_send_at: null,
+            last_error: `gave up after ${CHASE_MAX_ATTEMPTS} attempts`,
+          })
+          .eq("id", raw.id);
+        summary.failed++;
+        continue;
+      }
+
       const email = raw.participants?.email;
       if (!email) {
         // Email removed since the chase started. Record and leave due — the
@@ -154,6 +174,10 @@ export async function runDrain(deps: {
         // The minted token (if any) stays live until completion/expiry —
         // an accepted orphan; the idempotency key makes the retry safe even
         // if the failure was a lie (timeout after delivery).
+        // Guarded by completed_at/stopped_at is null: if complete_chase or
+        // stop_chase landed while the send was in flight, next_send_at is
+        // already null (or the row is otherwise finished) — this rollback
+        // must not resurrect a due date on a row that just finished.
         await db
           .from("chases")
           .update({
@@ -163,7 +187,9 @@ export async function runDrain(deps: {
             attempt_count: raw.attempt_count + 1,
           })
           .eq("id", raw.id)
-          .eq("sends_done", decision.sendIndex + 1);
+          .eq("sends_done", decision.sendIndex + 1)
+          .is("completed_at", null)
+          .is("stopped_at", null);
         summary.failed++;
       }
     } catch (rowErr) {

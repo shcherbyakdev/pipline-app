@@ -87,7 +87,8 @@ export function ChasePanel({
                 variant={c.status === "active" ? "secondary" : "outline"}
                 className={
                   "ml-auto shrink-0 text-[10px]" +
-                  (c.status === "stopped" ? " border-amber-500 text-amber-600" : "")
+                  (c.status === "stopped" ? " border-amber-500 text-amber-600" : "") +
+                  (c.status === "stalled" ? " border-red-500 text-red-600" : "")
                 }
               >
                 {c.status === "stopped" ? "asked to stop" : c.status}
