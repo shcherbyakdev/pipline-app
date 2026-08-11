@@ -11,6 +11,11 @@ import {
   deleteUnitInput,
   setUnitStageStatusInput,
   saveResponseInput,
+  MAX_IMPORT_ROWS,
+  importExternalRef,
+  importRow,
+  previewUnitsImportInput,
+  importUnitsInput,
 } from "./schema";
 
 const UUID = "6f1e2d3c-4b5a-4678-9abc-def012345678";
@@ -105,5 +110,37 @@ describe("saveResponseInput", () => {
   it("choice variant accepts valid values and rejects over-length", () => {
     expect(saveResponseInput.safeParse({ ...ids, type: "choice", value: "Front" }).success).toBe(true);
     expect(saveResponseInput.safeParse({ ...ids, type: "choice", value: "x".repeat(121) }).success).toBe(false);
+  });
+});
+
+describe("import schemas (slice 5b)", () => {
+  const row = (ref: string) => ({ name: `Unit ${ref}`, externalRef: ref });
+
+  it("importExternalRef trims, requires non-empty, caps at 120", () => {
+    expect(importExternalRef.parse("  S-101  ")).toBe("S-101");
+    expect(importExternalRef.safeParse("   ").success).toBe(false);
+    expect(importExternalRef.safeParse("x".repeat(121)).success).toBe(false);
+  });
+
+  it("importRow parses and bounds name like unitName", () => {
+    expect(importRow.safeParse(row("S-1")).success).toBe(true);
+    expect(importRow.safeParse({ name: "  ", externalRef: "S-1" }).success).toBe(false);
+    expect(importRow.safeParse({ name: "ok", externalRef: "" }).success).toBe(false);
+  });
+
+  it("importUnitsInput rejects empty, oversize, and duplicate refs", () => {
+    expect(importUnitsInput.safeParse({ programId: UUID, rows: [row("A")] }).success).toBe(true);
+    expect(importUnitsInput.safeParse({ programId: UUID, rows: [] }).success).toBe(false);
+    expect(
+      importUnitsInput.safeParse({ programId: UUID, rows: [row("A"), row("A")] }).success,
+    ).toBe(false);
+    const tooMany = Array.from({ length: MAX_IMPORT_ROWS + 1 }, (_, i) => row(`S-${i}`));
+    expect(importUnitsInput.safeParse({ programId: UUID, rows: tooMany }).success).toBe(false);
+  });
+
+  it("previewUnitsImportInput bounds refs 1..MAX", () => {
+    expect(previewUnitsImportInput.safeParse({ programId: UUID, refs: ["A"] }).success).toBe(true);
+    expect(previewUnitsImportInput.safeParse({ programId: UUID, refs: [] }).success).toBe(false);
+    expect(previewUnitsImportInput.safeParse({ programId: "nope", refs: ["A"] }).success).toBe(false);
   });
 });
