@@ -6,8 +6,14 @@ import { env } from "@/env";
 import type { EmailTransport } from "@/lib/email/transport";
 import { decide, chaseIdempotencyKey, type ChaseState } from "./cadence";
 import { chaseEmail } from "./templates";
+import { runRecurPhase, type RecurSummary } from "@/features/recurrence/drain";
 
-export type DrainSummary = { sent: number; completed: number; skipped: number; failed: number };
+export type DrainSummary = {
+  sent: number;
+  completed: number;
+  skipped: number;
+  failed: number;
+} & RecurSummary;
 
 const BATCH_LIMIT = 25; // bounded tick; leftovers are still due next tick
 const TOKEN_EXPIRES_DAYS = 30; // issueLink's default, kept in step
@@ -56,7 +62,11 @@ export async function runDrain(deps: {
 }): Promise<DrainSummary> {
   const { db, transport } = deps;
   const now = deps.now ?? new Date();
-  const summary: DrainSummary = { sent: 0, completed: 0, skipped: 0, failed: 0 };
+
+  // Recur phase FIRST: a freshly re-armed unit's chase is inserted with
+  // next_send_at = now, so the due-scan below emails send #0 this same tick.
+  const recur = await runRecurPhase(db, now);
+  const summary: DrainSummary = { ...recur, sent: 0, completed: 0, skipped: 0, failed: 0 };
 
   const { data: due, error } = await db
     .from("chases")
