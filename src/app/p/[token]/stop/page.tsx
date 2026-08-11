@@ -51,11 +51,14 @@ export default async function ParticipantStopPage({
   // Inline server action: a POST-only mutation on a page an email client may
   // prefetch via GET. Redirects to this same page with ?stopped=1 rather
   // than returning action state, so a reload after confirming re-renders
-  // the same confirmation without resubmitting.
+  // the same confirmation without resubmitting. Branch on the RPC result
+  // BEFORE calling redirect — redirect() throws internally to unwind
+  // control flow, so it must be the last thing this function does, called
+  // exactly once, never inside a try/catch that could swallow that throw.
   async function stop() {
     "use server";
-    await stopChase({ token });
-    redirect(`/p/${token}/stop?stopped=1`);
+    const result = await stopChase({ token });
+    redirect(`/p/${token}/stop?stopped=${result.ok ? "1" : "error"}`);
   }
 
   return (
@@ -75,14 +78,25 @@ export default async function ParticipantStopPage({
         </div>
       ) : (
         <div className="flex flex-col gap-4 pt-8 text-center">
-          <h1 className="text-lg font-semibold">
-            Stop reminders for {scope.programName}
-            {unitName ? ` — ${unitName}` : ""}?
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            You&apos;ll stop getting reminder emails for this. Your link keeps working if you
-            change your mind.
-          </p>
+          {stopped === "error" ? (
+            <>
+              <h1 className="text-lg font-semibold">Something went wrong</h1>
+              <p className="text-muted-foreground text-sm">
+                We couldn&apos;t stop the reminders — please try again.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-lg font-semibold">
+                Stop reminders for {scope.programName}
+                {unitName ? ` — ${unitName}` : ""}?
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                You&apos;ll stop getting reminder emails for this. Your link keeps working if you
+                change your mind.
+              </p>
+            </>
+          )}
           <form action={stop}>
             <Button type="submit" variant="outline" className="w-full">
               Stop reminders
