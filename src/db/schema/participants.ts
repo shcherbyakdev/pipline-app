@@ -43,6 +43,10 @@ export const accessTokens = pgTable(
     programId: uuid("program_id").references(() => programs.id, { onDelete: "cascade" }),
     // null ⇒ every unit currently assigned to the participant
     unitId: uuid("unit_id").references(() => units.id, { onDelete: "cascade" }),
+    // Which chase minted this token (null = hand-issued). Lets completion
+    // revoke exactly the chase's token set. FK added in 0020 (module-cycle
+    // constraint in schema TS — the 0013 precedent).
+    chaseId: uuid("chase_id"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
@@ -56,5 +60,6 @@ export const accessTokens = pgTable(
     index("access_tokens_client_id_idx").on(t.clientId),
     index("access_tokens_program_id_idx").on(t.programId),
     index("access_tokens_unit_id_idx").on(t.unitId),
+    index("access_tokens_chase_id_idx").on(t.chaseId),
   ],
 );
