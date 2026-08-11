@@ -221,10 +221,10 @@ describe("drain: runDrain against the local stack", () => {
     expect(c!.sends_done).toBe(2);
   });
 
-  it("transport failure → last_error set, sends_done rolled back, row still due", async () => {
+  it("transport failure → last_error set, sends_done rolled back, row still due, attempt_count bumped", async () => {
     const { data: before } = await admin
       .from("chases")
-      .select("sends_done")
+      .select("sends_done, attempt_count")
       .eq("id", chaseId)
       .single();
     await admin.from("chases").update({ next_send_at: past() }).eq("id", chaseId);
@@ -236,11 +236,16 @@ describe("drain: runDrain against the local stack", () => {
 
     const { data: after } = await admin
       .from("chases")
-      .select("sends_done, next_send_at, last_error")
+      .select("sends_done, next_send_at, last_error, attempt_count")
       .eq("id", chaseId)
       .single();
     expect(after!.sends_done).toBe(before!.sends_done); // rolled back, not advanced
     expect(after!.last_error).toContain("boom");
+    // attempt_count is the retry cap's only input (CHASE_MAX_ATTEMPTS in
+    // drain.ts) — a regression that stops bumping it here would silently
+    // disable the cap and let a permanently-failing row monopolize every
+    // due-scan batch forever.
+    expect(after!.attempt_count).toBe(before!.attempt_count + 1);
     // Rolled back to the same forced-past next_send_at — still due.
     expect(new Date(after!.next_send_at!).getTime()).toBeLessThanOrEqual(Date.now());
     // The real transport (used by earlier tests) never saw this attempt.

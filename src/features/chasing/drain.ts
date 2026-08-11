@@ -98,25 +98,38 @@ export async function runDrain(deps: {
       // claiming or minting anything — a chase this far gone gets no more
       // tokens, regardless of whether an email is even present.
       if (raw.attempt_count >= CHASE_MAX_ATTEMPTS) {
-        await db
+        const { error: capErr } = await db
           .from("chases")
           .update({
             next_send_at: null,
             last_error: `gave up after ${CHASE_MAX_ATTEMPTS} attempts`,
           })
           .eq("id", raw.id);
+        if (capErr) {
+          console.error("[chasing] cap update failed:", raw.id, capErr.code ?? capErr.message);
+        }
         summary.failed++;
         continue;
       }
 
       const email = raw.participants?.email;
       if (!email) {
-        // Email removed since the chase started. Record and leave due — the
-        // console shows last_error; re-adding an address resumes the chase.
-        await db
+        // Email removed since the chase started. Record and bump
+        // attempt_count (next_send_at is left as-is, so the row stays due) —
+        // without the bump this row would never hit the retry cap and, since
+        // the due-scan orders next_send_at asc, would monopolize every batch
+        // forever. The console surfaces last_error; re-adding an address
+        // resumes the chase.
+        const { error: noEmailErr } = await db
           .from("chases")
-          .update({ last_error: "participant has no email" })
+          .update({
+            last_error: "participant has no email",
+            attempt_count: raw.attempt_count + 1,
+          })
           .eq("id", raw.id);
+        if (noEmailErr) {
+          console.error("[chasing] no-email update failed:", raw.id, noEmailErr.code ?? noEmailErr.message);
+        }
         summary.failed++;
         continue;
       }
@@ -178,7 +191,7 @@ export async function runDrain(deps: {
         // stop_chase landed while the send was in flight, next_send_at is
         // already null (or the row is otherwise finished) — this rollback
         // must not resurrect a due date on a row that just finished.
-        await db
+        const { error: rollbackErr } = await db
           .from("chases")
           .update({
             sends_done: decision.sendIndex,
@@ -190,15 +203,30 @@ export async function runDrain(deps: {
           .eq("sends_done", decision.sendIndex + 1)
           .is("completed_at", null)
           .is("stopped_at", null);
+        if (rollbackErr) {
+          // Rollback is the recovery path for a failed send — if IT also
+          // fails, the row is left claimed with no due date and no visible
+          // error. That's unrecoverable without this log line.
+          console.error("[chasing] rollback update failed:", raw.id, rollbackErr.code ?? rollbackErr.message);
+        }
         summary.failed++;
       }
     } catch (rowErr) {
-      // Per-chase isolation: one bad row never stops the batch.
-      console.error("[chasing] drain row failed:", rowErr instanceof Error ? rowErr.message : rowErr);
-      await db
+      // Per-chase isolation: one bad row never stops the batch. Bump
+      // attempt_count here too — an unexpected/thrown failure is just as
+      // capable of recurring forever as a transport failure, and the retry
+      // cap only ever reads this counter.
+      console.error("[chasing] drain row failed:", raw.id, rowErr instanceof Error ? rowErr.message : rowErr);
+      const { error: catchErr } = await db
         .from("chases")
-        .update({ last_error: rowErr instanceof Error ? rowErr.message.slice(0, 500) : "drain error" })
+        .update({
+          last_error: rowErr instanceof Error ? rowErr.message.slice(0, 500) : "drain error",
+          attempt_count: raw.attempt_count + 1,
+        })
         .eq("id", raw.id);
+      if (catchErr) {
+        console.error("[chasing] catch update failed:", raw.id, catchErr.code ?? catchErr.message);
+      }
       summary.failed++;
     }
   }

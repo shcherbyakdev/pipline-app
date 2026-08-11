@@ -10,6 +10,7 @@ export type ChaseListItem = {
   status: "active" | "stopped" | "completed" | "exhausted" | "stalled";
   createdAt: string;
   stoppedAt: string | null;
+  lastError: string | null;
 };
 
 // RLS-scoped member read for the console panel.
@@ -18,7 +19,7 @@ export async function getProgramChases(programId: string): Promise<ChaseListItem
   const { data, error } = await supabase
     .from("chases")
     .select(
-      "id, sends_done, next_send_at, stopped_at, completed_at, created_at, participants(name), units(name)",
+      "id, sends_done, next_send_at, stopped_at, completed_at, created_at, last_error, participants(name), units(name)",
     )
     .eq("program_id", programId)
     .order("created_at", { ascending: false });
@@ -41,5 +42,6 @@ export async function getProgramChases(programId: string): Promise<ChaseListItem
             : "active",
     createdAt: c.created_at,
     stoppedAt: c.stopped_at,
+    lastError: c.last_error,
   }));
 }

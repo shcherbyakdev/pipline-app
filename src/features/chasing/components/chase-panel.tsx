@@ -93,6 +93,14 @@ export function ChasePanel({
               >
                 {c.status === "stopped" ? "asked to stop" : c.status}
               </Badge>
+              {/* Non-active rows can carry a last_error from the drain (e.g. a
+                  stalled or once-failed send). Muted + truncated to match this
+                  row's existing text idiom; full text on hover via title. */}
+              {c.status !== "active" && c.lastError ? (
+                <span className="text-muted-foreground max-w-40 shrink-0 truncate" title={c.lastError}>
+                  {c.lastError}
+                </span>
+              ) : null}
               <span className="text-muted-foreground shrink-0 tabular-nums">
                 {c.sendsDone}/4 sent
               </span>
