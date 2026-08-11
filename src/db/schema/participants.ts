@@ -50,7 +50,8 @@ export const accessTokens = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
-    createdBy: uuid("created_by").notNull(),
+    // null = minted for an automatic (recurrence-started) chase.
+    createdBy: uuid("created_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [

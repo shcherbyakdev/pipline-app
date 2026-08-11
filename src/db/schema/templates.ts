@@ -60,6 +60,10 @@ export const templateStageRequirements = pgTable(
     required: boolean("required").notNull().default(true),
     // {options: string[]} for choice, {items: string[]} for checklist, else {}
     config: jsonb("config").notNull().default({}),
+    // Recurrence driver (slice 11): non-null on a date requirement means
+    // "re-arm the stage this many days before value_date". CHECKs (positive;
+    // date-only) live in 0022. Copied by create_program like every column.
+    recurLeadDays: integer("recur_lead_days"),
     // Per stage, 0..n-1; gaps allowed (reorder RPC rewrites). ORDER BY position, id.
     position: integer("position").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

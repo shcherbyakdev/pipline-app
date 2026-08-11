@@ -33,7 +33,9 @@ export const chases = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     lastError: text("last_error"),
     attemptCount: integer("attempt_count").notNull().default(0),
-    createdBy: uuid("created_by").notNull(),
+    // null = started by recurrence (slice 11); the console renders it as
+    // "automatic". mint_chase_token copies this into access_tokens.
+    createdBy: uuid("created_by"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
