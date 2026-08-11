@@ -213,3 +213,34 @@ lapsed.
 ## New environment variables
 
 None. The recur phase rides the existing drain secret and transports.
+
+## Amendments (2026-08-11, pre-plan)
+
+Found while mapping the spec onto the actual code; the *decisions* above are
+unchanged, four *mechanisms* are corrected:
+
+1. **Archive table, not a `superseded_at` column.** Staff response saves go
+   through PostgREST upsert (`programs/actions.ts`:
+   `onConflict: "unit_stage_id,program_stage_requirement_id"`), and
+   PostgREST's `ON CONFLICT` cannot infer a *partial* unique index — the
+   planned index swap would break every existing response write. Instead:
+   a new `unit_stage_response_archive` table (same columns +
+   `superseded_at`); `recur_rearm` copies the round there and **deletes**
+   the live rows. The live table keeps its constraint, every upsert path,
+   and the derivation trigger untouched.
+2. **Old photos detach, by existing design.** `evidence.response_id` is
+   `on delete set null` ("evidence survives its response — the audit
+   trail"), and 0015's derivation requires response + link for photo
+   satisfaction. So re-arm's delete detaches the previous round's photos:
+   they survive in the table and storage but leave the per-requirement
+   display, and the new round starts blank — exactly the reset+archive
+   semantics. The archived-round block shows scalar values only in v1.
+3. **`access_tokens.created_by` becomes nullable too.** `mint_chase_token`
+   copies `chases.created_by` into the token row; a system-started chase
+   (`created_by` null) therefore needs the token column nullable as well.
+   Null = minted for an automatic chase.
+4. **The due-scan is an RPC.** PostgREST cannot express the per-row
+   `value_date - recur_lead_days <= today` comparison, so the scan lives in
+   `recur_due(p_today date, p_limit int)` — `security definer`,
+   `service_role`-only, `p_today` injected so tests can time-travel. The
+   pure `decideRearm` gate stays app-side as specified.
