@@ -195,6 +195,7 @@ export async function addRequirement(input: unknown): Promise<TemplateActionStat
     required: parsed.data.required,
     config,
     position: nextPosition,
+    recur_lead_days: parsed.data.recurLeadDays ?? null,
   });
   if (error) return fail("addRequirement", error);
   revalidatePath("/templates");

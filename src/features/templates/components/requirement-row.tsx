@@ -42,7 +42,9 @@ export function RequirementRow({
       ? (requirement.config.options ?? []).join(" / ")
       : requirement.type === "checklist"
         ? `${(requirement.config.items ?? []).length} items`
-        : null;
+        : requirement.type === "date" && requirement.recurLeadDays !== null
+          ? `re-arms ${requirement.recurLeadDays}d before`
+          : null;
 
   return (
     <li className="group flex items-center gap-1 rounded-md border border-dashed px-2 py-0.5">

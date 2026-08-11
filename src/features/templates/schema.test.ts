@@ -177,3 +177,30 @@ describe("addRequirementInput", () => {
     ).toBe(false);
   });
 });
+
+const recurBase = {
+  templateStageId: "5b4b2c9a-9d3a-4d3e-8f6a-1a2b3c4d5e6f",
+  label: "Certificate expiry",
+  required: true,
+};
+
+describe("addRequirementInput recurLeadDays", () => {
+  it("accepts a positive lead on a date requirement", () => {
+    const r = addRequirementInput.safeParse({ ...recurBase, type: "date", recurLeadDays: 30 });
+    expect(r.success).toBe(true);
+  });
+  it("rejects a lead on a non-date requirement", () => {
+    const r = addRequirementInput.safeParse({ ...recurBase, type: "text", recurLeadDays: 30 });
+    expect(r.success).toBe(false);
+  });
+  it("rejects zero, negative, and fractional leads", () => {
+    for (const bad of [0, -5, 1.5]) {
+      const r = addRequirementInput.safeParse({ ...recurBase, type: "date", recurLeadDays: bad });
+      expect(r.success).toBe(false);
+    }
+  });
+  it("stays optional", () => {
+    const r = addRequirementInput.safeParse({ ...recurBase, type: "date" });
+    expect(r.success).toBe(true);
+  });
+});
