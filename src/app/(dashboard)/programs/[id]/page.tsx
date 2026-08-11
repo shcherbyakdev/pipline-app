@@ -6,14 +6,17 @@ import { UnitList } from "@/features/programs/components/unit-list";
 import { listParticipants, listProgramLinks } from "@/features/participants/queries";
 import { LinksPanel } from "@/features/participants/components/links-panel";
 import { listClientOptions } from "@/features/clients/queries";
+import { getProgramChases } from "@/features/chasing/queries";
+import { ChasePanel } from "@/features/chasing/components/chase-panel";
 
 export default async function ProgramDetailPage({ params }: PageProps<"/programs/[id]">) {
   const { id } = await params;
-  const [program, participants, links, clients] = await Promise.all([
+  const [program, participants, links, clients, chases] = await Promise.all([
     getProgram(id),
     listParticipants(),
     listProgramLinks(id),
     listClientOptions(),
+    getProgramChases(id),
   ]);
   // RLS returns nothing for foreign orgs' programs — indistinguishable from a
   // nonexistent id, which is exactly the 404 we want.
@@ -35,6 +38,12 @@ export default async function ProgramDetailPage({ params }: PageProps<"/programs
         participants={participants}
         units={program.units.map((u) => ({ id: u.id, name: u.name }))}
         links={links}
+      />
+      <ChasePanel
+        programId={program.id}
+        participants={participants}
+        units={program.units.map((u) => ({ id: u.id, name: u.name }))}
+        chases={chases}
       />
     </div>
   );
