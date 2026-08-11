@@ -301,9 +301,18 @@ describe("drain: runDrain against the local stack", () => {
     expect(seedSummary.sent).toBeGreaterThanOrEqual(1);
     expect(sentFor2(chase2Id, 0)).toBeDefined();
 
-    // Finish unit2's outstanding work directly — the recipe's "admin update
-    // status='done'", standing in for the participant completing the form.
-    await admin.from("unit_stages").update({ status: "done" }).eq("unit_id", unit2);
+    // Finish unit2's outstanding work as the MEMBER (staff override path).
+    // Not the admin client: service_role holds only SELECT on unit_stages
+    // (0008 — rows are system-managed), and the write "working" locally was
+    // the default-ACL mirage 0013 documents; CI's newer image drops that
+    // ACL and rejects it. authenticated's update(status) grant is explicit.
+    const { data: doneStages, error: doneErr } = await alice
+      .from("unit_stages")
+      .update({ status: "done" })
+      .eq("unit_id", unit2)
+      .select("id");
+    expect(doneErr).toBeNull();
+    expect(doneStages!.length).toBeGreaterThan(0);
     await admin.from("chases").update({ next_send_at: past() }).eq("id", chase2Id);
 
     const beforeSentCount = sent2.length;
