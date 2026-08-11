@@ -86,7 +86,7 @@ export function PortalLinksPanel({ clientId, links }: { clientId: string; links:
                   size="icon"
                   variant="ghost"
                   className="ml-auto size-6"
-                  aria-label="Revoke portal link"
+                  aria-label={`Revoke portal link issued ${formatDate(l.createdAt)}`}
                   onClick={() => revoke(l.id)}
                 >
                   <Link2Off className="size-3" />

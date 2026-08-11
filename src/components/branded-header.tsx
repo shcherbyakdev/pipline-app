@@ -1,6 +1,10 @@
-/* Shared header for the two token surfaces (/p and /portal). Pure and
-   server-compatible; branding comes from getOrgBranding at the call site.
-   The accent is a CHECK-validated #rrggbb hex, safe for inline style. */
+/* Shared header for the two token surfaces (/p and /portal) plus the
+   BrandingForm settings preview. Pure and server-compatible. /p and /portal
+   source branding from getOrgBranding at the call site; the preview sources
+   it from getBrandingSettings but overrides the accent with the form's own
+   client-regex-validated (not DB CHECK-validated) input while the user is
+   typing an unsaved value. Either way the accent is expected to already be
+   a #rrggbb hex, safe for inline style. */
 export function BrandedHeader({
   orgName,
   accentColor,

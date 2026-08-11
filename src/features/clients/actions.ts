@@ -170,6 +170,7 @@ export async function revokePortalLink(input: unknown): Promise<ActionState> {
     .from("access_tokens")
     .update({ revoked_at: new Date().toISOString() })
     .eq("id", parsed.data.id)
+    .eq("kind", "portal")
     .select("client_id")
     .maybeSingle();
   if (error || !data) return fail("revokePortalLink", error ?? "link not visible");

@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { isAllowedLogoType, logoPathFor, LOGO_MAX_BYTES } from "@/lib/storage/logo";
+import { isAllowedLogoType, matchesLogoMagicBytes, logoPathFor, LOGO_MAX_BYTES } from "@/lib/storage/logo";
 import { uploadBrandingObject, deleteBrandingObject } from "@/lib/storage/branding";
 import {
   createOrgSchema,
@@ -37,14 +37,17 @@ export async function createOrg(
 
 type OrgBrandingRow = { id: string; accent_color: string | null; logo_path: string | null };
 
-async function currentOrgBranding(): Promise<OrgBrandingRow | null> {
+// Propagates the read error (rather than discarding it) so callers can log
+// a transient failure distinctly from a genuinely missing org — the
+// queries.ts/session.ts siblings propagate the same way.
+async function currentOrgBranding(): Promise<{ org: OrgBrandingRow | null; error: unknown }> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orgs")
     .select("id, accent_color, logo_path")
     .limit(1)
     .maybeSingle();
-  return data ?? null;
+  return { org: data ?? null, error };
 }
 
 function brandingFail(context: string, error: unknown): { ok: false; error: string } {
@@ -58,8 +61,8 @@ function brandingFail(context: string, error: unknown): { ok: false; error: stri
 export async function updateAccent(input: unknown): Promise<ActionState> {
   const parsed = updateAccentInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
-  const org = await currentOrgBranding();
-  if (!org) return brandingFail("updateAccent", "no org");
+  const { org, error: orgError } = await currentOrgBranding();
+  if (!org) return brandingFail("updateAccent", orgError ?? "no org");
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_org_branding", {
     p_org_id: org.id,
@@ -77,13 +80,20 @@ export async function uploadLogo(formData: FormData): Promise<ActionState> {
   if (file.size === 0 || file.size > LOGO_MAX_BYTES || !isAllowedLogoType(file.type)) {
     return { ok: false, error: GENERIC_WRITE_ERROR };
   }
-  const org = await currentOrgBranding();
-  if (!org) return brandingFail("uploadLogo", "no org");
+  const { org, error: orgError } = await currentOrgBranding();
+  if (!org) return brandingFail("uploadLogo", orgError ?? "no org");
 
   const bytes = await file.arrayBuffer();
   // Re-check the buffered bytes, not just the File's reported size
   // (slice-8 photo precedent).
   if (bytes.byteLength === 0 || bytes.byteLength > LOGO_MAX_BYTES) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  // Sniff the buffered bytes against the declared MIME — isAllowedLogoType
+  // above only checked the label, and `branding` is a public, directly-
+  // navigable bucket, so a relabeled file (e.g. SVG as image/png) must be
+  // caught here before it ever reaches storage.
+  if (!matchesLogoMagicBytes(new Uint8Array(bytes), file.type)) {
     return { ok: false, error: GENERIC_WRITE_ERROR };
   }
   const checksum = createHash("sha256").update(Buffer.from(bytes)).digest("hex");
@@ -116,8 +126,8 @@ export async function uploadLogo(formData: FormData): Promise<ActionState> {
 }
 
 export async function removeLogo(): Promise<ActionState> {
-  const org = await currentOrgBranding();
-  if (!org) return brandingFail("removeLogo", "no org");
+  const { org, error: orgError } = await currentOrgBranding();
+  if (!org) return brandingFail("removeLogo", orgError ?? "no org");
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_org_branding", {
     p_org_id: org.id,

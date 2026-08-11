@@ -189,8 +189,12 @@ portal to be reachable logged-out.
   portal load. Path: `org_id/logo-<sha256(bytes)>.<ext>` — content-hashed,
   so replacement busts caches for free; the org_id prefix is an unguessable
   uuid and bucket listing is not public.
-- **Formats:** PNG, JPEG, WebP; 1 MB max, enforced server-side (magic-bytes
-  sniff like slice 8's photo path). No SVG.
+- **Formats:** PNG, JPEG, WebP; 1 MB max, enforced server-side. Unlike
+  slice 8's photo path (a declared-MIME allowlist only), the logo path also
+  sniffs the buffered bytes' magic numbers against the declared MIME before
+  upload — because `branding` is a public, directly-navigable bucket, a
+  declared-MIME check alone would let a relabeled scriptable file (e.g. SVG
+  bytes sent as `image/png`) through. No SVG.
 - **`update_org_branding(p_org_id, p_accent_color, p_logo_path)`** —
   SECURITY DEFINER, `search_path = ''`, verifies `p_org_id IN
   (SELECT public.user_orgs())`, and **prefix-checks `p_logo_path` against

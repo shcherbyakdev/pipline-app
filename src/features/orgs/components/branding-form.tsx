@@ -59,6 +59,7 @@ export function BrandingForm({ settings }: { settings: BrandingSettings }) {
     startTransition(async () => {
       const result = await removeLogo();
       if (!result.ok) toast.error(result.error);
+      else toast.success("Logo removed");
     });
 
   const previewAccent = HEX_RE.test(accent.trim()) ? accent.trim().toLowerCase() : settings.accentColor;
@@ -101,6 +102,7 @@ export function BrandingForm({ settings }: { settings: BrandingSettings }) {
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             placeholder="#0f766e"
             maxLength={7}
+            disabled={pending}
             className="max-w-32 font-mono"
           />
         </div>

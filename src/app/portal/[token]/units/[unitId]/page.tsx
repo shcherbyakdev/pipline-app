@@ -98,24 +98,25 @@ export default async function PortalUnitPage({ params }: PageProps<"/portal/[tok
                     </div>
                     {item.photos.length > 0 ? (
                       <dd className="flex flex-wrap gap-2">
-                        {item.photos.map((p) =>
-                          p.url ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- short-lived signed Supabase URL
-                            <img
-                              key={p.id}
-                              src={p.url}
-                              alt={p.filename}
-                              className="h-20 w-20 rounded-md border object-cover"
-                            />
-                          ) : (
-                            <span
-                              key={p.id}
-                              className="text-muted-foreground flex h-20 w-20 items-center justify-center rounded-md border p-1 text-center text-[10px]"
-                            >
-                              {p.filename}
-                            </span>
-                          ),
-                        )}
+                        {item.photos.map((p) => (
+                          <figure key={p.id} className="flex w-20 flex-col items-center gap-1">
+                            {p.url ? (
+                              // eslint-disable-next-line @next/next/no-img-element -- short-lived signed Supabase URL
+                              <img
+                                src={p.url}
+                                alt={p.filename}
+                                className="h-20 w-20 rounded-md border object-cover"
+                              />
+                            ) : (
+                              <span className="text-muted-foreground flex h-20 w-20 items-center justify-center rounded-md border p-1 text-center text-[10px]">
+                                {p.filename}
+                              </span>
+                            )}
+                            <figcaption className="text-muted-foreground text-[10px] tabular-nums">
+                              added {formatDate(p.createdAt)}
+                            </figcaption>
+                          </figure>
+                        ))}
                       </dd>
                     ) : null}
                   </div>

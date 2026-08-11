@@ -108,6 +108,7 @@ export async function revokeLink(input: unknown): Promise<ActionState> {
     .from("access_tokens")
     .update({ revoked_at: new Date().toISOString() })
     .eq("id", parsed.data.id)
+    .eq("kind", "participant")
     .select("program_id")
     .maybeSingle();
   if (error || !data) return fail("revokeLink", error ?? "link not visible");
