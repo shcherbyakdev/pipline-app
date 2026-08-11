@@ -5,5 +5,6 @@ export * from "./orgs";
 export * from "./templates";
 export * from "./programs";
 export * from "./participants";
+export * from "./chases";
 export * from "./evidence";
 export * from "./clients";
