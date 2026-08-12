@@ -30,7 +30,8 @@ Extend `src/features/auth/actions.ts`; each action follows the existing `(prev: 
 
 ### Schema additions (`src/features/auth/schema.ts`)
 
-- `passwordSchema`: email + password (password `z.string().min(8)` — length over composition rules, per NIST; no complexity requirements).
+- `signInSchema`: email + password presence only (`min(1)`) — the signup policy must not lock out accounts created before the 8-char minimum.
+- `signUpSchema`: email + password `z.string().min(8)` — length over composition rules, per NIST; no complexity requirements.
 - `newPasswordSchema`: password min 8 + confirm; the match check returns a field-level error ("Passwords don't match").
 - `AuthState` unchanged (`{ error?, sent? }`).
 
