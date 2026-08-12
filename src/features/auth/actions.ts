@@ -24,7 +24,7 @@ export async function sendMagicLink(
     options: { emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/confirm` },
   });
 
-  if (error) return { error: error.message };
+  if (error) return { error: "Could not send the link. Try again shortly." };
   return { sent: true };
 }
 
@@ -84,9 +84,12 @@ export async function requestPasswordReset(
   const supabase = await createClient();
   // The recovery template hardcodes next=/reset-password; redirectTo only
   // feeds {{ .RedirectTo }}, kept for hosted-template parity.
-  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
     redirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/confirm?next=/reset-password`,
   });
+
+  // Server-side trace only — the client response must stay identical either way.
+  if (error) console.error("requestPasswordReset failed:", error.message);
 
   // Always report success — errors here would reveal account existence.
   return { sent: true };

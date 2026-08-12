@@ -28,6 +28,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import {
+  sendMagicLink,
   signInWithPassword,
   signUp,
   requestPasswordReset,
@@ -42,6 +43,16 @@ function form(entries: Record<string, string>): FormData {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("sendMagicLink", () => {
+  it("maps Supabase errors to generic copy (no raw error messages)", async () => {
+    auth.signInWithOtp.mockResolvedValue({
+      error: { message: "rate limit exceeded" },
+    });
+    const state = await sendMagicLink({}, form({ email: "a@b.com" }));
+    expect(state.error).toBe("Could not send the link. Try again shortly.");
+  });
 });
 
 describe("signInWithPassword", () => {
@@ -97,11 +108,13 @@ describe("signUp", () => {
 
 describe("requestPasswordReset", () => {
   it("returns sent even when Supabase reports an error (anti-enumeration)", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     auth.resetPasswordForEmail.mockResolvedValue({
       error: { message: "User not found" },
     });
     const state = await requestPasswordReset({}, form({ email: "a@b.com" }));
     expect(state).toEqual({ sent: true });
+    consoleErrorSpy.mockRestore();
   });
 
   it("rejects an invalid email before calling Supabase", async () => {
