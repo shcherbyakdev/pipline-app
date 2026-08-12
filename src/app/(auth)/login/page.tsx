@@ -1,6 +1,13 @@
+import Link from "next/link";
 import { LoginForm } from "./login-form";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   return (
     <main className="flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-sm">
@@ -8,9 +15,20 @@ export default function LoginPage() {
           Sign in to RolloutOS
         </h1>
         <p className="text-muted-foreground mb-6 text-sm">
-          We&apos;ll email you a magic link — no password needed.
+          Use your email and password, or get a magic link.
         </p>
+        {error === "auth" ? (
+          <p className="text-destructive mb-4 text-sm">
+            That link is invalid or has expired — request a new one.
+          </p>
+        ) : null}
         <LoginForm />
+        <p className="text-muted-foreground mt-6 text-sm">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="text-foreground hover:underline">
+            Sign up
+          </Link>
+        </p>
       </div>
     </main>
   );
