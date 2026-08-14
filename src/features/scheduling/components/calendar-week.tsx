@@ -1,13 +1,18 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
 import {
-  zonedParts, hourRange, closedIntervals, serviceAccent,
+  zonedParts, hourRange, closedIntervals, serviceAccent, snap15, minToTime,
 } from "@/features/scheduling/calendar-geometry";
 import { addDaysISO } from "@/features/scheduling/slots";
+import { blockTimeRange, reopenDay } from "@/features/scheduling/actions";
+import { Button } from "@/components/ui/button";
 import { BookingDetailDialog } from "./booking-detail-dialog";
+import { CreateBookingDialog } from "./create-booking-dialog";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HATCH: React.CSSProperties = {
@@ -47,6 +52,51 @@ export function CalendarWeek({
 
   const [selected, setSelected] = React.useState<AdminBooking | null>(null);
 
+  const router = useRouter();
+  const [busy, startBusy] = React.useTransition();
+  type Selection = { date: string; startMin: number; endMin: number };
+  const [selection, setSelection] = React.useState<Selection | null>(null);
+  const [dragging, setDragging] = React.useState(false);
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const dayHasExceptions = (d: string) => exceptions.some((e) => e.date === d);
+
+  // Escape clears an in-progress or pending selection. Event-driven state
+  // change (inside the keydown callback, not the effect body directly) —
+  // same idiom as command-menu.tsx's Cmd-K listener — so the
+  // set-state-in-effect lint rule doesn't fire.
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelection(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const blockSelected = () => {
+    if (!selection) return;
+    startBusy(async () => {
+      const result = await blockTimeRange({
+        date: selection.date,
+        startTime: minToTime(selection.startMin),
+        endTime: minToTime(selection.endMin),
+      });
+      if (!result.ok) toast.error(result.error);
+      else toast.success("Time blocked.");
+      setSelection(null);
+      router.refresh();
+    });
+  };
+
+  const reopenSelected = (date: string) => {
+    startBusy(async () => {
+      const result = await reopenDay({ date });
+      if (!result.ok) toast.error(result.error);
+      else toast.success("Day reopened — weekly hours restored.");
+      setSelection(null);
+      router.refresh();
+    });
+  };
+
   const byDay = (date: string) =>
     bookings.filter((b) => zonedParts(new Date(b.startsAt), timeZone).date === date);
 
@@ -74,7 +124,30 @@ export function CalendarWeek({
         </div>
         {/* day columns */}
         {days.map((d, di) => (
-          <div key={d} className="relative border-l" style={{ height: `${(endHour - startHour) * 48}px` }}>
+          <div
+            key={d}
+            className="relative border-l"
+            style={{ height: `${(endHour - startHour) * 48}px` }}
+            onPointerDown={(e) => {
+              if ((e.target as HTMLElement).closest("button")) return; // cards handle themselves
+              // Capture on the column itself so drag-move keeps firing here
+              // even if the pointer strays outside the column bounds —
+              // avoids a stuck `dragging` from a pointerup that lands
+              // elsewhere (chosen over a window pointerup listener).
+              e.currentTarget.setPointerCapture(e.pointerId);
+              const rect = e.currentTarget.getBoundingClientRect();
+              const min = snap15(startHour * 60 + ((e.clientY - rect.top) / rect.height) * totalMin);
+              setSelection({ date: d, startMin: min, endMin: min + 15 });
+              setDragging(true);
+            }}
+            onPointerMove={(e) => {
+              if (!dragging || !selection || selection.date !== d) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const min = snap15(startHour * 60 + ((e.clientY - rect.top) / rect.height) * totalMin) + 15;
+              setSelection({ ...selection, endMin: Math.max(min, selection.startMin + 15) });
+            }}
+            onPointerUp={() => setDragging(false)}
+          >
             {Array.from({ length: endHour - startHour }, (_, i) => (
               <div key={i} className="absolute inset-x-0 border-t border-border/50"
                 style={{ top: `${pct((startHour + i) * 60)}%` }} />
@@ -109,6 +182,28 @@ export function CalendarWeek({
                 </button>
               );
             })}
+            {selection?.date === d ? (
+              <div
+                className="absolute inset-x-1 z-20 rounded border border-primary bg-primary/10"
+                style={{ top: `${pct(selection.startMin)}%`, height: `${pct(selection.endMin) - pct(selection.startMin)}%` }}
+              >
+                {!dragging ? (
+                  <div className="absolute left-0 top-full z-30 mt-1 flex w-max flex-col gap-1 rounded-md border bg-popover p-2 text-sm shadow-md">
+                    <span className="text-xs text-muted-foreground">
+                      {minToTime(selection.startMin)}–{minToTime(selection.endMin)}
+                    </span>
+                    <Button size="sm" onClick={() => setCreateOpen(true)}>New booking</Button>
+                    <Button size="sm" variant="ghost" onClick={blockSelected} disabled={busy}>Block time</Button>
+                    {dayHasExceptions(d) ? (
+                      <Button size="sm" variant="ghost" onClick={() => reopenSelected(d)} disabled={busy}>
+                        Reopen day (restore weekly hours)
+                      </Button>
+                    ) : null}
+                    <Button size="sm" variant="ghost" onClick={() => setSelection(null)}>Dismiss</Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
@@ -118,6 +213,17 @@ export function CalendarWeek({
         open={selected !== null}
         onOpenChange={(o) => { if (!o) setSelected(null); }}
       />
+      {selection ? (
+        <CreateBookingDialog
+          open={createOpen}
+          onOpenChange={(o) => { setCreateOpen(o); if (!o) setSelection(null); }}
+          date={selection.date}
+          startMin={selection.startMin}
+          timeZone={timeZone}
+          services={services}
+          windows={windowsByDay[days.indexOf(selection.date)] ?? []}
+        />
+      ) : null}
     </div>
   );
 }
