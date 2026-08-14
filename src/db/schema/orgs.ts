@@ -11,6 +11,14 @@ export const orgs = pgTable("orgs", {
   // authenticated — 0004). Hex CHECK lives in 0018.
   accentColor: text("accent_color"),
   logoPath: text("logo_path"),
+  // Public booking URL segment (/book/[handle]). Nullable — the booking
+  // page 404s until the provider picks one in Settings. Written ONLY via
+  // the update_org_scheduling definer RPC (orgs stays select-only — 0004).
+  // Format CHECK lives in 0026. Distinct from slug (legacy, non-editable).
+  handle: text("handle").unique(),
+  // IANA zone for availability wall-times. Validated against
+  // pg_timezone_names inside update_org_scheduling.
+  timezone: text("timezone").default("UTC").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

@@ -1,5 +1,4 @@
-import { pgTable, uuid, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
+import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 
 // The customer's customer — scopes the read-only portal. RLS (member CRUD),
@@ -13,11 +12,12 @@ export const clients = pgTable(
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    // Booking-created clients are keyed by email; hand-created ones may
+    // lack it. Partial unique (org_id, lower(email)) lives in 0026.
+    email: text("email"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     index("clients_org_id_idx").on(t.orgId),
-    // A duplicate "Acme Retail Ltd" is a typo, not a case.
-    uniqueIndex("clients_org_lower_name_uq").on(t.orgId, sql`lower(${t.name})`),
   ],
 );
