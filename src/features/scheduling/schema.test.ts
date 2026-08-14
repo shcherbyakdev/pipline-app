@@ -16,6 +16,7 @@ describe("serviceInput", () => {
       expect(r.data.bufferBeforeMin).toBe(0);
       expect(r.data.bookingWindowDays).toBe(60);
       expect(r.data.active).toBe(true);
+      expect(r.data.maxPerDay).toBeNull();
     }
   });
   it("rejects out-of-range duration and empty name", () => {
@@ -52,6 +53,16 @@ describe("availabilityExceptionInput", () => {
   });
   it("rejects open exception without a window", () => {
     expect(availabilityExceptionInput.safeParse({ date: "2027-01-04", closed: false }).success).toBe(false);
+  });
+  it("rejects a closed exception that carries a window", () => {
+    expect(
+      availabilityExceptionInput.safeParse({
+        date: "2027-01-04",
+        closed: true,
+        startTime: "10:00",
+        endTime: "12:00",
+      }).success,
+    ).toBe(false);
   });
 });
 
