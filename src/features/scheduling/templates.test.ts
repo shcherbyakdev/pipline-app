@@ -5,6 +5,7 @@ import {
   bookingRescheduledEmail,
   bookingReminderEmail,
   providerCancelledEmail,
+  providerRescheduledEmail,
 } from "./templates";
 
 describe("booking lifecycle templates", () => {
@@ -46,6 +47,18 @@ describe("booking lifecycle templates", () => {
       clientName: "A & B",
     });
     expect(msg.html).toContain("&lt;script&gt;");
+    expect(msg.html).toContain("A &amp; B");
+  });
+
+  it("provider rescheduled email shows both times and escapes clientName", () => {
+    const msg = providerRescheduledEmail({
+      serviceName: "Cut",
+      oldWhenLine: "OLD-TIME",
+      whenLine: "NEW-TIME",
+      clientName: "A & B",
+    });
+    expect(msg.text).toContain("Was: OLD-TIME");
+    expect(msg.text).toContain("Now: NEW-TIME");
     expect(msg.html).toContain("A &amp; B");
   });
 });
