@@ -7,10 +7,7 @@ import {
   getSlotsInput,
   createBookingInput,
   manageTokenInput,
-  manageSlotsInput,
   rescheduleBookingInput,
-  bookingIdInput,
-  adminRescheduleInput,
   adminSlotsInput,
 } from "./schema";
 
