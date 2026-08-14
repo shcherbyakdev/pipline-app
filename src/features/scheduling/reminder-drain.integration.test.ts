@@ -168,4 +168,47 @@ describe("reminder drain", () => {
     expect(summary.sent).toBe(0);
     expect(sent.length).toBe(0);
   });
+
+  it("stamps emailless bookings as suppressed without sending", async () => {
+    // Booked well in advance (like the "due" fixture above) so decideReminder
+    // returns "send", not the lateness "suppress" — the only way to prove
+    // the null-email guard, not the timing guard, is what skips this row.
+    const { data: inserted, error } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        service_id: serviceId,
+        client_name: "Walk-in",
+        client_email: null,
+        starts_at: hours(12),
+        ends_at: hours(13),
+        created_at: hours(-48),
+        status: "confirmed",
+        cancel_token_hash: generateAccessToken().tokenHash,
+      })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+
+    const sends: (string | null)[] = [];
+    const summary = await runReminderDrain({
+      db: admin,
+      transport: {
+        send: async (m) => {
+          sends.push(m.to);
+          return { id: "t-emailless" };
+        },
+      },
+    });
+
+    expect(summary.failed).toBe(0);
+    expect(sends).not.toContain(null);
+    const { data: row } = await admin
+      .from("bookings")
+      .select("reminder_sent_at, reminder_attempts")
+      .eq("id", inserted!.id)
+      .single();
+    expect(row!.reminder_sent_at).not.toBeNull(); // stamped = suppressed, never rescanned
+    expect(row!.reminder_attempts).toBe(0);
+  });
 });

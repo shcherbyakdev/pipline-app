@@ -36,7 +36,9 @@ async function currentOrg(): Promise<{ id: string; name: string; timezone: strin
 
 export async function cancelBookingAdmin(
   input: unknown,
-): Promise<{ ok: true; emailed: boolean } | { ok: false; error: string }> {
+): Promise<
+  { ok: true; emailed: boolean; noEmail?: boolean } | { ok: false; error: string }
+> {
   const parsed = bookingIdInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   try {
@@ -55,34 +57,40 @@ export async function cancelBookingAdmin(
     if (error) return fail("cancelBookingAdmin", error);
     const row = (data as unknown as Array<{
       id: string;
-      client_email: string;
+      client_email: string | null;
       starts_at: string;
       services: { name: string } | null;
     }>)?.[0];
     if (!row) return { ok: false, error: "Only a confirmed booking can be cancelled." };
 
-    let emailed = true;
-    try {
-      const msg = bookingCancelledEmail({
-        orgName: org.name,
-        serviceName: row.services?.name ?? "Appointment",
-        whenLine: formatWhenLine(new Date(row.starts_at), org.timezone),
-        cancelledBy: "provider",
-      });
-      await selectTransport().send({
-        to: row.client_email,
-        subject: msg.subject,
-        html: msg.html,
-        text: msg.text,
-        idempotencyKey: bookingLifecycleKey(row.id, "cancelled"),
-      });
-    } catch (mailError) {
-      console.error("[scheduling] admin cancel email failed:", mailError);
-      emailed = false;
+    let emailed = false;
+    let noEmail = false;
+    if (!row.client_email) {
+      noEmail = true;
+    } else {
+      emailed = true;
+      try {
+        const msg = bookingCancelledEmail({
+          orgName: org.name,
+          serviceName: row.services?.name ?? "Appointment",
+          whenLine: formatWhenLine(new Date(row.starts_at), org.timezone),
+          cancelledBy: "provider",
+        });
+        await selectTransport().send({
+          to: row.client_email,
+          subject: msg.subject,
+          html: msg.html,
+          text: msg.text,
+          idempotencyKey: bookingLifecycleKey(row.id, "cancelled"),
+        });
+      } catch (mailError) {
+        console.error("[scheduling] admin cancel email failed:", mailError);
+        emailed = false;
+      }
     }
 
     revalidatePath("/bookings");
-    return { ok: true, emailed };
+    return { ok: true, emailed, noEmail };
   } catch (error) {
     return fail("cancelBookingAdmin", error);
   }
@@ -122,7 +130,8 @@ export async function getAdminSlots(
 export async function rescheduleBookingAdmin(
   input: unknown,
 ): Promise<
-  { ok: true; emailed: boolean } | { ok: false; error: string; slotTaken?: boolean }
+  | { ok: true; emailed: boolean; noEmail?: boolean }
+  | { ok: false; error: string; slotTaken?: boolean }
 > {
   const parsed = adminRescheduleInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
@@ -171,32 +180,38 @@ export async function rescheduleBookingAdmin(
       return fail("rescheduleBookingAdmin", error);
     }
 
-    let emailed = true;
-    try {
-      const msg = bookingRescheduledEmail({
-        orgName: org.name,
-        serviceName: ctx.service.name,
-        oldWhenLine: formatWhenLine(new Date(booking.starts_at), org.timezone),
-        whenLine: formatWhenLine(starts, org.timezone),
-        manageUrl: buildBookingManageUrl(fresh.token),
-        icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
-      });
-      await selectTransport().send({
-        to: booking.client_email,
-        subject: msg.subject,
-        html: msg.html,
-        text: msg.text,
-        // Keyed on the OLD id: the new id isn't returned with the email
-        // fields, and old-id + kind is just as collision-free.
-        idempotencyKey: bookingLifecycleKey(booking.id, "rescheduled"),
-      });
-    } catch (mailError) {
-      console.error("[scheduling] admin reschedule email failed:", mailError);
-      emailed = false;
+    let emailed = false;
+    let noEmail = false;
+    if (!booking.client_email) {
+      noEmail = true;
+    } else {
+      emailed = true;
+      try {
+        const msg = bookingRescheduledEmail({
+          orgName: org.name,
+          serviceName: ctx.service.name,
+          oldWhenLine: formatWhenLine(new Date(booking.starts_at), org.timezone),
+          whenLine: formatWhenLine(starts, org.timezone),
+          manageUrl: buildBookingManageUrl(fresh.token),
+          icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+        });
+        await selectTransport().send({
+          to: booking.client_email,
+          subject: msg.subject,
+          html: msg.html,
+          text: msg.text,
+          // Keyed on the OLD id: the new id isn't returned with the email
+          // fields, and old-id + kind is just as collision-free.
+          idempotencyKey: bookingLifecycleKey(booking.id, "rescheduled"),
+        });
+      } catch (mailError) {
+        console.error("[scheduling] admin reschedule email failed:", mailError);
+        emailed = false;
+      }
     }
 
     revalidatePath("/bookings");
-    return { ok: true, emailed };
+    return { ok: true, emailed, noEmail };
   } catch (error) {
     return fail("rescheduleBookingAdmin", error);
   }

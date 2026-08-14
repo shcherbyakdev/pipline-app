@@ -91,7 +91,7 @@ export type AdminBooking = {
   serviceId: string;
   serviceName: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail: string | null;
   startsAt: string;
   endsAt: string;
   status: string;

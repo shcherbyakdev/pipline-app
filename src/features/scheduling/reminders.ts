@@ -30,7 +30,7 @@ export function decideReminder(
 
 type CandidateRow = {
   id: string;
-  client_email: string;
+  client_email: string | null;
   starts_at: string;
   created_at: string;
   reminder_attempts: number;
@@ -82,8 +82,8 @@ export async function runReminderDrain(deps: {
         continue;
       }
 
-      if (decision === "suppress") {
-        summary.skipped += 1; // stamped, never rescanned
+      if (decision === "suppress" || !row.client_email) {
+        summary.skipped += 1; // stamped, never rescanned (suppressed or no address)
         continue;
       }
 
