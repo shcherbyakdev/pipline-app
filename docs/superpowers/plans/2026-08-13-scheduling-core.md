@@ -343,6 +343,8 @@ alter table public.availability_exceptions
     check (
       (closed and start_time is null and end_time is null)
       or (not closed
+          and start_time is not null
+          and end_time is not null
           and start_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
           and end_time   ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
           and start_time < end_time)
@@ -912,7 +914,10 @@ describe("create_booking RPC", () => {
     if (e2) throw e2;
     const { data: svc, error: e3 } = await owner
       .from("services")
-      .insert({ org_id: orgId, name: "Consult", duration_min: 60 })
+      // window 365: the fixed 2027 test dates must stay inside the
+      // booking window create_booking enforces (default 60 would reject
+      // them with its uniform 'not found').
+      .insert({ org_id: orgId, name: "Consult", duration_min: 60, booking_window_days: 365 })
       .select("id")
       .single();
     if (e3) throw e3;
@@ -1183,6 +1188,16 @@ describe("wallTimeToUtc", () => {
   it("passes UTC through untouched", () => {
     expect(iso(wallTimeToUtc("2027-02-01", "09:00", "UTC"))).toBe("2027-02-01T09:00:00.000Z");
   });
+  it("resolves nonexistent gap-hour times by shifting forward", () => {
+    // 02:30 local never exists on 2027-03-28 in Berlin (02:00 → 03:00).
+    // Convention: shift forward across the gap → 03:30 local = 01:30Z.
+    expect(iso(wallTimeToUtc("2027-03-28", "02:30", TZ))).toBe("2027-03-28T01:30:00.000Z");
+  });
+  it("resolves ambiguous fall-back times deterministically", () => {
+    // 02:30 local occurs twice on 2027-10-31; the algorithm lands on the
+    // second (CET, +1) occurrence every time.
+    expect(iso(wallTimeToUtc("2027-10-31", "02:30", TZ))).toBe("2027-10-31T01:30:00.000Z");
+  });
 });
 
 describe("dateInZone / addDaysISO", () => {
@@ -1368,7 +1383,13 @@ export function wallTimeToUtc(date: string, time: string, timeZone: string): Dat
   for (let i = 0; i < 2; i++) {
     utc += target - wallClockOf(new Date(utc), timeZone);
   }
-  return new Date(utc);
+  // A wall time inside a DST spring-forward gap has no fixed point, so the
+  // loop oscillates between the two adjacent-offset candidates. Resolve
+  // deterministically by shifting FORWARD across the gap (the conventional
+  // treatment of nonexistent local times): take the later candidate. For
+  // every existing wall time `other === utc` and this is a no-op.
+  const other = utc + (target - wallClockOf(new Date(utc), timeZone));
+  return new Date(Math.max(utc, other));
 }
 
 export function dateInZone(instant: Date, timeZone: string): string {
@@ -1669,6 +1690,7 @@ describe("serviceInput", () => {
       expect(r.data.bufferBeforeMin).toBe(0);
       expect(r.data.bookingWindowDays).toBe(60);
       expect(r.data.active).toBe(true);
+      expect(r.data.maxPerDay).toBeNull();
     }
   });
   it("rejects out-of-range duration and empty name", () => {
@@ -1706,6 +1728,16 @@ describe("availabilityExceptionInput", () => {
   it("rejects open exception without a window", () => {
     expect(availabilityExceptionInput.safeParse({ date: "2027-01-04", closed: false }).success).toBe(false);
   });
+  it("rejects a closed exception that carries a window", () => {
+    expect(
+      availabilityExceptionInput.safeParse({
+        date: "2027-01-04",
+        closed: true,
+        startTime: "10:00",
+        endTime: "12:00",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("schedulingSettingsInput", () => {
@@ -1726,7 +1758,7 @@ describe("public inputs", () => {
     expect(
       getSlotsInput.safeParse({
         handle: "demo-studio",
-        serviceId: "11111111-2222-3333-4444-555555555555",
+        serviceId: "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
         fromDate: "2027-02-01",
         days: 7,
       }).success,
@@ -1734,7 +1766,7 @@ describe("public inputs", () => {
     expect(
       getSlotsInput.safeParse({
         handle: "demo-studio",
-        serviceId: "11111111-2222-3333-4444-555555555555",
+        serviceId: "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
         fromDate: "2027-02-01",
         days: 60,
       }).success,
@@ -1743,7 +1775,7 @@ describe("public inputs", () => {
   it("createBookingInput validates email and trims name", () => {
     const r = createBookingInput.safeParse({
       handle: "demo-studio",
-      serviceId: "11111111-2222-3333-4444-555555555555",
+      serviceId: "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
       startsAt: "2027-03-01T10:00:00.000Z",
       name: "  Jamie  ",
       email: "jamie@example.com",
@@ -1753,7 +1785,7 @@ describe("public inputs", () => {
     expect(
       createBookingInput.safeParse({
         handle: "demo-studio",
-        serviceId: "11111111-2222-3333-4444-555555555555",
+        serviceId: "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
         startsAt: "2027-03-01T10:00:00.000Z",
         name: "Jamie",
         email: "not-an-email",
@@ -2736,9 +2768,11 @@ async function currentOrgId(): Promise<string | null> {
   return data?.id ?? null;
 }
 
-function toServiceRow(orgId: string, d: import("zod").infer<typeof serviceInput>) {
+// No org_id here: inserts add it explicitly, updates must never rewrite it
+// (a multi-org user's currentOrgId() pick could otherwise migrate the row
+// between their orgs — security-review hardening).
+function toServiceRow(d: import("zod").infer<typeof serviceInput>) {
   return {
-    org_id: orgId,
     name: d.name,
     description: d.description ?? null,
     duration_min: d.durationMin,
@@ -2758,7 +2792,9 @@ export async function createService(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase.from("services").insert(toServiceRow(orgId, parsed.data));
+  const { error } = await supabase
+    .from("services")
+    .insert({ org_id: orgId, ...toServiceRow(parsed.data) });
   if (error) return fail("createService", error);
   revalidatePath("/services");
   return { ok: true };
@@ -2773,8 +2809,11 @@ export async function updateService(input: unknown): Promise<ActionState> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
-    .update(toServiceRow(orgId, rest))
+    .update(toServiceRow(rest))
     .eq("id", id)
+    // RLS already hides foreign rows; the explicit org scope is
+    // defense-in-depth and keeps multi-org sessions unambiguous.
+    .eq("org_id", orgId)
     .select("id")
     .maybeSingle();
   if (error) return fail("updateService", error);
@@ -2786,8 +2825,14 @@ export async function updateService(input: unknown): Promise<ActionState> {
 export async function deleteService(input: unknown): Promise<ActionState> {
   const parsed = serviceIdInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase.from("services").delete().eq("id", parsed.data.id);
+  const { error } = await supabase
+    .from("services")
+    .delete()
+    .eq("id", parsed.data.id)
+    .eq("org_id", orgId);
   if (error) {
     if (error.code === "23503") {
       return { ok: false, error: "Service has bookings — deactivate it instead." };
@@ -2932,8 +2977,14 @@ export async function addAvailabilityRule(input: unknown): Promise<ActionState> 
 export async function deleteAvailabilityRule(input: unknown): Promise<ActionState> {
   const parsed = ruleIdInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase.from("availability_rules").delete().eq("id", parsed.data.id);
+  const { error } = await supabase
+    .from("availability_rules")
+    .delete()
+    .eq("id", parsed.data.id)
+    .eq("org_id", orgId);
   if (error) return fail("deleteAvailabilityRule", error);
   revalidatePath("/availability");
   return { ok: true };
@@ -2960,11 +3011,14 @@ export async function addAvailabilityException(input: unknown): Promise<ActionSt
 export async function deleteAvailabilityException(input: unknown): Promise<ActionState> {
   const parsed = exceptionIdInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
   const { error } = await supabase
     .from("availability_exceptions")
     .delete()
-    .eq("id", parsed.data.id);
+    .eq("id", parsed.data.id)
+    .eq("org_id", orgId);
   if (error) return fail("deleteAvailabilityException", error);
   revalidatePath("/availability");
   return { ok: true };
