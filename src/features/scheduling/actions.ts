@@ -10,10 +10,13 @@ import {
   ruleIdInput,
   availabilityExceptionInput,
   exceptionIdInput,
+  blockTimeInput,
+  reopenDayInput,
   schedulingSettingsInput,
   GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
+import { effectiveWindows, subtractRange } from "./day-windows";
 
 function fail(context: string, error: unknown): { ok: false; error: string } {
   console.error(`[scheduling] ${context}:`, error);
@@ -168,6 +171,71 @@ export async function deleteAvailabilityException(input: unknown): Promise<Actio
     // Task 11 hardening precedent applied to the delete actions here.
     .eq("org_id", orgId);
   if (error) return fail("deleteAvailabilityException", error);
+  revalidatePath("/availability");
+  return { ok: true };
+}
+
+// Block [startTime,endTime) on one date: rewrite that date's exceptions to
+// (effective windows − range). Empty result ⇒ a single closed row. The day's
+// prior exceptions are consumed (they fed effectiveWindows). Sequential
+// calls, like the sibling availability actions — solo-admin orgs make the
+// non-atomic window negligible (spec).
+export async function blockTimeRange(input: unknown): Promise<ActionState> {
+  const parsed = blockTimeInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { date, startTime, endTime } = parsed.data;
+
+  const [rulesRes, exceptionsRes] = await Promise.all([
+    supabase.from("availability_rules").select("weekday, start_time, end_time").eq("org_id", orgId),
+    supabase.from("availability_exceptions").select("date, closed, start_time, end_time")
+      .eq("org_id", orgId).eq("date", date),
+  ]);
+  if (rulesRes.error) return fail("blockTimeRange", rulesRes.error);
+  if (exceptionsRes.error) return fail("blockTimeRange", exceptionsRes.error);
+
+  const windows = effectiveWindows(
+    date,
+    (rulesRes.data ?? []).map((r) => ({ weekday: r.weekday, startTime: r.start_time, endTime: r.end_time })),
+    (exceptionsRes.data ?? []).map((e) => ({
+      date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time,
+    })),
+  );
+  if (windows.length === 0) return { ok: true }; // already fully closed — no-op
+
+  const remaining = subtractRange(windows, startTime, endTime);
+
+  const { error: delError } = await supabase
+    .from("availability_exceptions").delete().eq("org_id", orgId).eq("date", date);
+  if (delError) return fail("blockTimeRange", delError);
+
+  const rows: Array<{ org_id: string; date: string; closed: boolean; start_time: string | null; end_time: string | null }> =
+    remaining.length === 0
+      ? [{ org_id: orgId, date, closed: true, start_time: null, end_time: null }]
+      : remaining.map((w) => ({
+          org_id: orgId, date, closed: false, start_time: w.startTime, end_time: w.endTime,
+        }));
+  const { error: insError } = await supabase.from("availability_exceptions").insert(rows);
+  if (insError) return fail("blockTimeRange", insError);
+
+  revalidatePath("/bookings");
+  revalidatePath("/availability");
+  return { ok: true };
+}
+
+// Delete a date's exceptions, restoring the weekly rules (spec: "Reopen day").
+export async function reopenDay(input: unknown): Promise<ActionState> {
+  const parsed = reopenDayInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("availability_exceptions").delete().eq("org_id", orgId).eq("date", parsed.data.date);
+  if (error) return fail("reopenDay", error);
+  revalidatePath("/bookings");
   revalidatePath("/availability");
   return { ok: true };
 }

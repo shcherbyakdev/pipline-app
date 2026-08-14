@@ -48,6 +48,16 @@ export const availabilityExceptionInput = z
   );
 export const exceptionIdInput = z.object({ id: z.uuid() });
 
+export const blockTimeInput = z
+  .object({
+    date: z.string().regex(DATE_RE),
+    startTime: timeField,
+    endTime: timeField,
+  })
+  .refine((r) => r.startTime < r.endTime, { message: "start must precede end" });
+
+export const reopenDayInput = z.object({ date: z.string().regex(DATE_RE) });
+
 export const schedulingSettingsInput = z.object({
   // "" (cleared field) → null: the provider can unpublish the booking page
   // or set a timezone before ever choosing a handle (S1 deferral).
