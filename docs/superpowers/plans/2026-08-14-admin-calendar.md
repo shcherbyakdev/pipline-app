@@ -1520,3 +1520,13 @@ git add -A && git commit -m "docs: calendar plan — record execution deviations
 ```
 
 - [ ] **Step 4:** Use superpowers:finishing-a-development-branch (or requesting-code-review first) — PR targets `scheduling-s2` if PR #23 is still open, else `main`.
+
+---
+
+## Execution deviations (recorded post-implementation)
+
+1. **Task 2 test fixture:** the plan's drain-test snippet lacked a `created_at` backdate, so the row would have hit the timing-suppress branch and passed even on unfixed code. Implemented with `created_at` −48h so the null-email guard is genuinely exercised (ruled correct in review).
+2. **Base UI, not Radix:** `Button asChild` doesn't exist in this repo's Base UI components — nav links use `buttonVariants` + `Link`; dialogs follow the repo's Base UI dialog API.
+3. **Lint-driven adaptations:** `react-hooks/set-state-in-effect` and `react-hooks/purity` are error-level here; the now-line clock and the min-notice `Date.now()` are seeded via `setTimeout` in effects, and the detail dialog's `confirming` reset is `onOpenChange`-driven instead of the plan's `useEffect`.
+4. **Pointer capture:** `setPointerCapture` added on pointerdown — fixes a latent stuck-drag bug in the plan's pseudocode when releasing outside the origin column.
+5. **Deferred minors** (ledger + final review triage): `BookingRow.client_email` typing, `serviceAccent` comment wording, past-midnight bookings render only on their start column, unclamped extreme drags, whitespace-only note.
