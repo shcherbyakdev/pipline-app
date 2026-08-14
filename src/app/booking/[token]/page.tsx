@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { clientKeyFrom } from "@/lib/tokens";
 import { resolveBookingToken } from "@/lib/tokens/booking";
 import { formatWhenLine } from "@/features/scheduling/templates";
+import { ManageBooking } from "@/features/scheduling/components/manage-booking";
 
 const STATUS_LINE: Record<string, string> = {
   confirmed: "Confirmed",
@@ -23,6 +24,8 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
   }
   if (result.status !== "ok") notFound();
   const b = result.booking;
+  // eslint-disable-next-line react-hooks/purity
+  const isInFuture = b.startsAt.getTime() > Date.now();
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-4 p-6">
       <h1 className="text-lg font-semibold">{b.orgName}</h1>
@@ -36,10 +39,13 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
           <a className="text-sm underline" href={`/booking/${token}/calendar.ics`}>
             Add to calendar (.ics)
           </a>
-          <p className="text-muted-foreground text-xs">
-            Need to change or cancel? Reply to your confirmation email — online changes are coming
-            soon.
-          </p>
+          {isInFuture ? (
+            <ManageBooking token={token} timeZone={b.orgTimezone} />
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              This booking has already started.
+            </p>
+          )}
         </>
       ) : null}
     </main>
