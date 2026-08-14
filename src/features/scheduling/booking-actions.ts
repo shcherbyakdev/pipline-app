@@ -12,16 +12,20 @@ import {
   bookingCancelledEmail,
   bookingRescheduledEmail,
   bookingLifecycleKey,
+  bookingConfirmationEmail,
+  bookingIdempotencyKey,
   formatWhenLine,
 } from "./templates";
 import {
   bookingIdInput,
   adminRescheduleInput,
   adminSlotsInput,
+  adminCreateBookingInput,
   GENERIC_WRITE_ERROR,
 } from "./schema";
 
 const SLOT_TAKEN = "That time was just taken — please pick another.";
+const OVERLAP = "That time overlaps an existing booking.";
 
 function fail(context: string, error: unknown): { ok: false; error: string } {
   console.error(`[scheduling] ${context}:`, error);
@@ -214,5 +218,61 @@ export async function rescheduleBookingAdmin(
     return { ok: true, emailed, noEmail };
   } catch (error) {
     return fail("rescheduleBookingAdmin", error);
+  }
+}
+
+export async function createBookingAdmin(
+  input: unknown,
+): Promise<{ ok: true; emailed: "sent" | "failed" | "none" } | { ok: false; error: string; overlap?: boolean }> {
+  const parsed = adminCreateBookingInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  try {
+    const org = await currentOrg();
+    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const supabase = await createClient();
+    const { token, tokenHash } = generateAccessToken();
+    const { data: bookingId, error } = await supabase.rpc("create_booking_admin", {
+      p_service_id: parsed.data.serviceId,
+      p_starts_at: parsed.data.startsAt,
+      p_name: parsed.data.name,
+      p_email: parsed.data.email ?? null,
+      p_note: parsed.data.note ?? null,
+      p_token_hash: tokenHash,
+    });
+    if (error) {
+      if (error.code === "23P01") return { ok: false, error: OVERLAP, overlap: true };
+      return fail("createBookingAdmin", error);
+    }
+
+    let emailed: "sent" | "failed" | "none" = "none";
+    if (parsed.data.email) {
+      const { data: svc } = await supabase
+        .from("services").select("name").eq("id", parsed.data.serviceId).maybeSingle();
+      try {
+        const msg = bookingConfirmationEmail({
+          orgName: org.name,
+          serviceName: svc?.name ?? "Appointment",
+          whenLine: formatWhenLine(new Date(parsed.data.startsAt), org.timezone),
+          manageUrl: buildBookingManageUrl(token),
+          icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+        });
+        await selectTransport().send({
+          to: parsed.data.email,
+          subject: msg.subject,
+          html: msg.html,
+          text: msg.text,
+          idempotencyKey: bookingIdempotencyKey(bookingId as string),
+        });
+        emailed = "sent";
+      } catch (mailError) {
+        console.error("[scheduling] admin create email failed:", mailError);
+        emailed = "failed";
+      }
+    }
+
+    revalidatePath("/bookings");
+    return { ok: true, emailed };
+  } catch (error) {
+    return fail("createBookingAdmin", error);
   }
 }

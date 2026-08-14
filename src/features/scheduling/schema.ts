@@ -112,3 +112,15 @@ export const adminSlotsInput = z.object({
   fromDate: z.string().regex(DATE_RE),
   days: z.number().int().min(1).max(31),
 });
+
+export const adminCreateBookingInput = z.object({
+  serviceId: z.uuid(),
+  startsAt: z.iso.datetime(),
+  name: z.string().trim().min(1).max(200),
+  // "" (untouched optional field) → undefined, mirroring the handle preprocess.
+  email: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.email().max(320).optional(),
+  ),
+  note: z.string().trim().max(2000).optional(),
+});
