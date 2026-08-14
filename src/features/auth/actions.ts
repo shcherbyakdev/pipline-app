@@ -43,7 +43,7 @@ export async function signInWithPassword(
   // Generic on purpose: raw Supabase messages distinguish unknown accounts
   // from unconfirmed ones, which leaks account existence.
   if (error) return { error: "Invalid email or password." };
-  redirect("/programs");
+  redirect("/bookings");
 }
 
 export async function signUp(
@@ -121,7 +121,7 @@ export async function updatePassword(
   if (error) {
     return { error: "Could not update your password. Request a new reset link." };
   }
-  redirect("/programs");
+  redirect("/bookings");
 }
 
 export async function signOut(): Promise<void> {

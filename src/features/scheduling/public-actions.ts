@@ -5,15 +5,10 @@ import { createAnonServerClient } from "@/lib/supabase/anon-server";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
-import {
-  getBookingOrg,
-  listPublicServices,
-  getAvailability,
-  getBusyIntervals,
-} from "@/lib/booking/public";
+import { getBookingOrg, loadOrgSlotContext } from "@/lib/booking/public";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
-import { computeSlots, addDaysISO, dateInZone } from "./slots";
+import { computeSlots, dateInZone } from "./slots";
 import {
   bookingConfirmationEmail,
   bookingIdempotencyKey,
@@ -32,18 +27,9 @@ async function limited(): Promise<boolean> {
 async function loadSlotContext(handle: string, serviceId: string, fromDate: string, days: number) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
-  const services = await listPublicServices(org.orgId);
-  const service = services.find((s) => s.id === serviceId);
-  if (!service) return null;
-  const { rules, exceptions } = await getAvailability(org.orgId);
-  // Fetch busy one day beyond both edges — buffers can reach across
-  // org-local midnight in UTC terms.
-  const busy = await getBusyIntervals(
-    org.orgId,
-    `${addDaysISO(fromDate, -1)}T00:00:00Z`,
-    `${addDaysISO(fromDate, days + 1)}T23:59:59Z`,
-  );
-  return { org, service, rules, exceptions, busy };
+  const ctx = await loadOrgSlotContext(org.orgId, serviceId, fromDate, days);
+  if (!ctx) return null;
+  return { org, ...ctx };
 }
 
 export async function getSlots(

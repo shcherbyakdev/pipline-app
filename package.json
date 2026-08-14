@@ -23,7 +23,8 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
-    "chase:drain": "tsx scripts/chase-drain.ts"
+    "chase:drain": "tsx scripts/chase-drain.ts",
+    "scheduling:drain": "tsx scripts/scheduling-drain.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -66,6 +66,18 @@ describe("create_booking RPC", () => {
       .single();
     if (e3) throw e3;
     serviceId = svc!.id;
+
+    // S2 hardening: create_booking now enforces availability containment —
+    // open the whole week so the fixed 2027 test instants stay bookable.
+    const { error: e4 } = await owner.from("availability_rules").insert(
+      [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+        org_id: orgId,
+        weekday,
+        start_time: "00:00",
+        end_time: "23:59",
+      })),
+    );
+    if (e4) throw e4;
   });
 
   it("update_org_scheduling rejects a bogus timezone and a bad handle", async () => {

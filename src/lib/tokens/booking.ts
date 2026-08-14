@@ -17,6 +17,8 @@ export type ResolveBookingResult =
         serviceName: string;
         orgName: string;
         orgTimezone: string;
+        orgId: string;
+        serviceId: string;
       };
     };
 
@@ -42,6 +44,8 @@ export async function resolveBookingToken(
     service_name: string;
     org_name: string;
     org_timezone: string;
+    org_id: string;
+    service_id: string;
   }> | null)?.[0];
   if (!row) return { status: "not_found" };
   return {
@@ -54,6 +58,8 @@ export async function resolveBookingToken(
       serviceName: row.service_name,
       orgName: row.org_name,
       orgTimezone: row.org_timezone,
+      orgId: row.org_id,
+      serviceId: row.service_id,
     },
   };
 }
