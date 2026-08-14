@@ -6,6 +6,12 @@ import {
   schedulingSettingsInput,
   getSlotsInput,
   createBookingInput,
+  manageTokenInput,
+  manageSlotsInput,
+  rescheduleBookingInput,
+  bookingIdInput,
+  adminRescheduleInput,
+  adminSlotsInput,
 } from "./schema";
 
 describe("serviceInput", () => {
@@ -116,6 +122,39 @@ describe("public inputs", () => {
         name: "Jamie",
         email: "not-an-email",
       }).success,
+    ).toBe(false);
+  });
+});
+
+describe("schedulingSettingsInput handle clearing", () => {
+  it("maps empty and whitespace handle to null", () => {
+    expect(schedulingSettingsInput.parse({ handle: "", timezone: "UTC" }).handle).toBeNull();
+    expect(schedulingSettingsInput.parse({ handle: "  ", timezone: "UTC" }).handle).toBeNull();
+  });
+  it("still rejects a malformed non-empty handle", () => {
+    expect(schedulingSettingsInput.safeParse({ handle: "Bad Handle!", timezone: "UTC" }).success).toBe(false);
+  });
+  it("passes a valid handle through", () => {
+    expect(schedulingSettingsInput.parse({ handle: "my-studio", timezone: "UTC" }).handle).toBe("my-studio");
+  });
+});
+
+describe("lifecycle inputs", () => {
+  it("manageTokenInput bounds token length", () => {
+    expect(manageTokenInput.safeParse({ token: "short" }).success).toBe(false);
+    expect(manageTokenInput.safeParse({ token: "x".repeat(43) }).success).toBe(true);
+  });
+  it("rescheduleBookingInput requires an ISO instant", () => {
+    expect(
+      rescheduleBookingInput.safeParse({ token: "x".repeat(43), startsAt: "tomorrow" }).success,
+    ).toBe(false);
+    expect(
+      rescheduleBookingInput.safeParse({ token: "x".repeat(43), startsAt: "2027-04-05T10:00:00Z" }).success,
+    ).toBe(true);
+  });
+  it("adminSlotsInput caps the scan window", () => {
+    expect(
+      adminSlotsInput.safeParse({ serviceId: crypto.randomUUID(), fromDate: "2027-04-05", days: 60 }).success,
     ).toBe(false);
   });
 });

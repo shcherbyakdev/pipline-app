@@ -49,7 +49,13 @@ export const availabilityExceptionInput = z
 export const exceptionIdInput = z.object({ id: z.uuid() });
 
 export const schedulingSettingsInput = z.object({
-  handle: z.string().regex(HANDLE_RE),
+  // "" (cleared field) → null: the provider can unpublish the booking page
+  // or set a timezone before ever choosing a handle (S1 deferral).
+  // update_org_scheduling already accepts a null handle.
+  handle: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.union([z.string().regex(HANDLE_RE), z.null()]),
+  ),
   timezone: z.string().min(1).max(64),
 });
 
@@ -67,4 +73,32 @@ export const createBookingInput = z.object({
   name: z.string().trim().min(1).max(200),
   email: z.email().max(320),
   note: z.string().trim().max(2000).optional(),
+});
+
+const tokenField = z.string().min(20).max(200);
+
+export const manageTokenInput = z.object({ token: tokenField });
+
+export const manageSlotsInput = z.object({
+  token: tokenField,
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(31),
+});
+
+export const rescheduleBookingInput = z.object({
+  token: tokenField,
+  startsAt: z.iso.datetime(),
+});
+
+export const bookingIdInput = z.object({ id: z.uuid() });
+
+export const adminRescheduleInput = z.object({
+  id: z.uuid(),
+  startsAt: z.iso.datetime(),
+});
+
+export const adminSlotsInput = z.object({
+  serviceId: z.uuid(),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(31),
 });

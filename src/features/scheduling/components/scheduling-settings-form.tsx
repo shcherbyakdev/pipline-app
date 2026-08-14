@@ -60,7 +60,8 @@ export function SchedulingSettingsForm({ settings }: { settings: SchedulingSetti
           className="max-w-72"
         />
         <p className="text-muted-foreground text-xs">
-          Lowercase letters, digits and hyphens, 3–50 characters.
+          Lowercase letters, digits and hyphens, 3–50 characters. Leave empty
+          to unpublish your booking page.
         </p>
       </div>
       <div className="flex flex-col gap-2">
