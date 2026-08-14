@@ -226,9 +226,13 @@ describe("portal tokens: resolve, scope CHECKs, guards, cascade, branding", () =
     expect(anonErr).not.toBeNull();
   });
 
-  it("duplicate client name in the same org is rejected case-insensitively", async () => {
+  it("duplicate client name in the same org is allowed (name uniqueness dropped by the scheduling pivot)", async () => {
+    // clients_org_lower_name_uq (0017) was intentionally dropped in 0025: two
+    // different bookers can legitimately share a display name. Uniqueness is
+    // now keyed on (org_id, lower(email)) — see booking-rpc.integration.test's
+    // "re-booking with the same email reuses the client row".
     const { error } = await alice.from("clients").insert({ org_id: orgId, name: "acme retail ltd" });
-    expect(error).not.toBeNull(); // clients_org_lower_name_uq
+    expect(error).toBeNull();
   });
 
   it("update_org_branding: member writes land; non-member and foreign prefix raise", async () => {
