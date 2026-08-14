@@ -93,7 +93,8 @@ export const bookings = pgTable(
     // deletion — the denormalized name/email below keep it self-contained.
     clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
     clientName: text("client_name").notNull(),
-    clientEmail: text("client_email").notNull(),
+    // nullable since admin walk-ins (calendar slice)
+    clientEmail: text("client_email"),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     // 'confirmed' | 'cancelled_by_client' | 'cancelled_by_provider' |
