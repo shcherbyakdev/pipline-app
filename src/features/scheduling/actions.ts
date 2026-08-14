@@ -6,6 +6,10 @@ import {
   serviceInput,
   updateServiceInput,
   serviceIdInput,
+  availabilityRuleInput,
+  ruleIdInput,
+  availabilityExceptionInput,
+  exceptionIdInput,
   GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
@@ -93,5 +97,76 @@ export async function deleteService(input: unknown): Promise<ActionState> {
     return fail("deleteService", error);
   }
   revalidatePath("/services");
+  return { ok: true };
+}
+
+export async function addAvailabilityRule(input: unknown): Promise<ActionState> {
+  const parsed = availabilityRuleInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { error } = await supabase.from("availability_rules").insert({
+    org_id: orgId,
+    weekday: parsed.data.weekday,
+    start_time: parsed.data.startTime,
+    end_time: parsed.data.endTime,
+  });
+  if (error) return fail("addAvailabilityRule", error);
+  revalidatePath("/availability");
+  return { ok: true };
+}
+
+export async function deleteAvailabilityRule(input: unknown): Promise<ActionState> {
+  const parsed = ruleIdInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("availability_rules")
+    .delete()
+    .eq("id", parsed.data.id)
+    // Explicit org scope (defense-in-depth, mirrors deleteService) —
+    // Task 11 hardening precedent applied to the delete actions here.
+    .eq("org_id", orgId);
+  if (error) return fail("deleteAvailabilityRule", error);
+  revalidatePath("/availability");
+  return { ok: true };
+}
+
+export async function addAvailabilityException(input: unknown): Promise<ActionState> {
+  const parsed = availabilityExceptionInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { error } = await supabase.from("availability_exceptions").insert({
+    org_id: orgId,
+    date: parsed.data.date,
+    closed: parsed.data.closed,
+    start_time: parsed.data.startTime ?? null,
+    end_time: parsed.data.endTime ?? null,
+  });
+  if (error) return fail("addAvailabilityException", error);
+  revalidatePath("/availability");
+  return { ok: true };
+}
+
+export async function deleteAvailabilityException(input: unknown): Promise<ActionState> {
+  const parsed = exceptionIdInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("availability_exceptions")
+    .delete()
+    .eq("id", parsed.data.id)
+    // Explicit org scope (defense-in-depth, mirrors deleteService) —
+    // Task 11 hardening precedent applied to the delete actions here.
+    .eq("org_id", orgId);
+  if (error) return fail("deleteAvailabilityException", error);
+  revalidatePath("/availability");
   return { ok: true };
 }

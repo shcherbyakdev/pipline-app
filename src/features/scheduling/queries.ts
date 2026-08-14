@@ -40,3 +40,48 @@ export async function listServices(): Promise<ServiceRow[]> {
     sortOrder: s.sort_order,
   }));
 }
+
+export type RuleRow = { id: string; weekday: number; startTime: string; endTime: string };
+export type ExceptionRow = {
+  id: string;
+  date: string;
+  closed: boolean;
+  startTime: string | null;
+  endTime: string | null;
+};
+
+export async function getAvailabilityAdmin(): Promise<{
+  rules: RuleRow[];
+  exceptions: ExceptionRow[];
+}> {
+  const supabase = await createClient();
+  const [rulesRes, exceptionsRes] = await Promise.all([
+    supabase
+      .from("availability_rules")
+      .select("id, weekday, start_time, end_time")
+      .order("weekday")
+      .order("start_time"),
+    supabase
+      .from("availability_exceptions")
+      .select("id, date, closed, start_time, end_time")
+      .gte("date", new Date().toISOString().slice(0, 10))
+      .order("date"),
+  ]);
+  if (rulesRes.error) throw rulesRes.error;
+  if (exceptionsRes.error) throw exceptionsRes.error;
+  return {
+    rules: (rulesRes.data ?? []).map((r) => ({
+      id: r.id,
+      weekday: r.weekday,
+      startTime: r.start_time,
+      endTime: r.end_time,
+    })),
+    exceptions: (exceptionsRes.data ?? []).map((e) => ({
+      id: e.id,
+      date: e.date,
+      closed: e.closed,
+      startTime: e.start_time,
+      endTime: e.end_time,
+    })),
+  };
+}
