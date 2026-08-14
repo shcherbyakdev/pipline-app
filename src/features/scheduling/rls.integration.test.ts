@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { generateAccessToken } from "@/lib/tokens/mint";
 
 try {
   loadEnvFile(".env.local");
@@ -133,7 +134,7 @@ describe("RLS scheduling", () => {
       client_email: "x@example.com",
       starts_at: "2027-01-05T10:00:00Z",
       ends_at: "2027-01-05T10:30:00Z",
-      cancel_token_hash: "a".repeat(64),
+      cancel_token_hash: generateAccessToken().tokenHash,
     });
     expect(error).not.toBeNull();
   });
@@ -146,7 +147,7 @@ describe("RLS scheduling", () => {
       client_email: "seeded@example.com",
       starts_at: "2027-01-06T10:00:00Z",
       ends_at: "2027-01-06T10:30:00Z",
-      cancel_token_hash: "b".repeat(64),
+      cancel_token_hash: generateAccessToken().tokenHash,
     });
     expect(error).toBeNull();
     const { data: mine } = await alice.from("bookings").select("id").eq("org_id", aliceOrgId);
@@ -169,7 +170,7 @@ describe("RLS scheduling", () => {
       client_email: "x2@example.com",
       starts_at: "2027-01-07T10:00:00Z",
       ends_at: "2027-01-07T10:30:00Z",
-      cancel_token_hash: "c".repeat(64),
+      cancel_token_hash: generateAccessToken().tokenHash,
     });
     expect(error).not.toBeNull();
   });

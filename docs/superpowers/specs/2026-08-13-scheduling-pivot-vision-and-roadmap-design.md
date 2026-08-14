@@ -99,6 +99,7 @@ Inside the existing app shell; legacy nav items removed.
 - Anon role: read active services + branding only; **no direct table writes** — bookings go through server actions (anon server client + definer-style boundaries as in the portal).
 - Manage tokens stored hashed, single-purpose.
 - Data collected: name, email, optional note only (solo-operator constraint: no sensitive personal data).
+- S1 residual (accepted): rate limiting + fine-grained slot validation are app-side; the anon `create_booking` RPC itself enforces only integrity checks, the booking window, and the EXCLUDE guard. S2 hardens the RPC (per-org throttle / availability check).
 
 ## Testing
 

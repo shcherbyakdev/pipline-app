@@ -132,7 +132,9 @@ create policy "bookings_select_member" on public.bookings
 -- anon starts with nothing thanks to 0013's default-privileges sweep).
 revoke insert, update, delete, truncate on table public.services from authenticated;
 grant select, insert, update, delete on table public.services to authenticated;
-grant select on table public.services to service_role;
+-- service_role: update for test seeding/toggles; the doctrine (0004) says
+-- never rely on image default ACLs for any privilege we actually use.
+grant select, update on table public.services to service_role;
 revoke truncate on table public.services from authenticated, service_role;
 
 revoke insert, update, delete, truncate on table public.availability_rules from authenticated;

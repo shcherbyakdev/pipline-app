@@ -187,7 +187,11 @@ describe("create_booking RPC", () => {
     expect(badHandle).not.toBeNull();
     expect(badHandle!.message).toContain("not found");
 
-    await admin.from("services").update({ active: false }).eq("id", serviceId);
+    const { error: deactivateErr } = await admin
+      .from("services")
+      .update({ active: false })
+      .eq("id", serviceId);
+    expect(deactivateErr).toBeNull();
     const { error: inactive } = await anon.rpc("create_booking", {
       p_handle: HANDLE,
       p_service_id: serviceId,
@@ -198,7 +202,11 @@ describe("create_booking RPC", () => {
       p_token_hash: generateAccessToken().tokenHash,
     });
     expect(inactive).not.toBeNull();
-    await admin.from("services").update({ active: true }).eq("id", serviceId);
+    const { error: reactivateErr } = await admin
+      .from("services")
+      .update({ active: true })
+      .eq("id", serviceId);
+    expect(reactivateErr).toBeNull();
 
     const { error: past } = await anon.rpc("create_booking", {
       p_handle: HANDLE,

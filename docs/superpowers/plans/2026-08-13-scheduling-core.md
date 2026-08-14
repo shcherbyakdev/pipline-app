@@ -31,6 +31,7 @@
 4. Confirmation email is sent **inline once** (try/catch, booking survives failure); retry machinery arrives with S2's drain.
 5. A **minimal read-only `/booking/[token]` page ships in S1** so the manage link in the email isn't dead; cancel/reschedule actions remain S2.
 6. `orgs.slug` stays untouched (legacy); the new nullable `orgs.handle` governs the booking URL. The booking page 404s until the provider sets a handle in Settings.
+7. **Direct-RPC residual (accepted for S1):** the 30/min rate limit and fine-grained slot validation (grid, min-notice, max-per-day, availability) live in the server actions only; a caller hitting `create_booking` directly via PostgREST bypasses both — the RPC enforces org/service integrity, basic sanity, the booking window, and the EXCLUDE overlap guard. Accepted as Calendly-MVP-grade abuse posture; S2 hardening: per-org insert throttle and/or availability check inside the RPC.
 
 ## File Structure
 
