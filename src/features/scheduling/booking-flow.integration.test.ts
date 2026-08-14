@@ -32,6 +32,7 @@ const admin = createClient(url, serviceKey, {
 });
 
 const HANDLE = `flow-${Date.now()}`;
+const CLIENT_EMAIL = `flow-${Date.now()}@example.com`;
 
 async function signedInUser(tag: string): Promise<SupabaseClient> {
   const email = `rls_${tag}_${Date.now()}@example.com`;
@@ -49,6 +50,7 @@ async function signedInUser(tag: string): Promise<SupabaseClient> {
 }
 
 let serviceId: string;
+let orgId: string;
 const fromDate = addDaysISO(new Date().toISOString().slice(0, 10), 7);
 
 describe("booking flow e2e (action layer)", () => {
@@ -56,7 +58,7 @@ describe("booking flow e2e (action layer)", () => {
     const owner = await signedInUser("flow_owner");
     const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "FlowCo" });
     if (e1) throw e1;
-    const orgId = (org as { id: string }).id;
+    orgId = (org as { id: string }).id;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
@@ -99,7 +101,7 @@ describe("booking flow e2e (action layer)", () => {
       serviceId,
       startsAt: new Date(new Date(first).getTime() + 7 * 60_000).toISOString(),
       name: "Flow Client",
-      email: "flow@example.com",
+      email: CLIENT_EMAIL,
     });
     expect(offGrid.ok).toBe(false);
     if (!offGrid.ok) expect(offGrid.slotTaken).toBe(true);
@@ -109,7 +111,7 @@ describe("booking flow e2e (action layer)", () => {
       serviceId,
       startsAt: first,
       name: "Flow Client",
-      email: "flow@example.com",
+      email: CLIENT_EMAIL,
       note: "e2e",
     });
     expect(created.ok).toBe(true);
@@ -140,7 +142,8 @@ describe("booking flow e2e (action layer)", () => {
     const { data: oldRows } = await admin
       .from("bookings")
       .select("status")
-      .eq("client_email", "flow@example.com")
+      .eq("org_id", orgId)
+      .eq("client_email", CLIENT_EMAIL)
       .eq("starts_at", first);
     expect(oldRows![0].status).toBe("rescheduled");
 
@@ -150,7 +153,8 @@ describe("booking flow e2e (action layer)", () => {
     const { data: newRows } = await admin
       .from("bookings")
       .select("status")
-      .eq("client_email", "flow@example.com")
+      .eq("org_id", orgId)
+      .eq("client_email", CLIENT_EMAIL)
       .eq("starts_at", third);
     expect(newRows![0].status).toBe("cancelled_by_client");
 
