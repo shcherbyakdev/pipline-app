@@ -32,7 +32,11 @@ function Row({
     startTransition(async () => {
       const result = await cancelBookingAdmin({ id: booking.id });
       if (!result.ok) toast.error(result.error);
-      else toast.success("Booking cancelled — the client has been emailed");
+      else if (result.emailed) toast.success("Booking cancelled — the client has been emailed");
+      else
+        toast.warning(
+          "Booking cancelled — but the email to the client failed. Contact them directly.",
+        );
       setConfirming(false);
     });
 

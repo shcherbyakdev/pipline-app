@@ -19,10 +19,9 @@ import {
   adminRescheduleInput,
   adminSlotsInput,
   GENERIC_WRITE_ERROR,
-  type ActionState,
 } from "./schema";
 
-const SLOT_TAKEN = "That time was just taken — pick another.";
+const SLOT_TAKEN = "That time was just taken — please pick another.";
 
 function fail(context: string, error: unknown): { ok: false; error: string } {
   console.error(`[scheduling] ${context}:`, error);
@@ -35,7 +34,9 @@ async function currentOrg(): Promise<{ id: string; name: string; timezone: strin
   return data ?? null;
 }
 
-export async function cancelBookingAdmin(input: unknown): Promise<ActionState> {
+export async function cancelBookingAdmin(
+  input: unknown,
+): Promise<{ ok: true; emailed: boolean } | { ok: false; error: string }> {
   const parsed = bookingIdInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   try {
@@ -58,8 +59,9 @@ export async function cancelBookingAdmin(input: unknown): Promise<ActionState> {
       starts_at: string;
       services: { name: string } | null;
     }>)?.[0];
-    if (!row) return { ok: false, error: "Only an upcoming confirmed booking can be cancelled." };
+    if (!row) return { ok: false, error: "Only a confirmed booking can be cancelled." };
 
+    let emailed = true;
     try {
       const msg = bookingCancelledEmail({
         orgName: org.name,
@@ -76,10 +78,11 @@ export async function cancelBookingAdmin(input: unknown): Promise<ActionState> {
       });
     } catch (mailError) {
       console.error("[scheduling] admin cancel email failed:", mailError);
+      emailed = false;
     }
 
     revalidatePath("/bookings");
-    return { ok: true };
+    return { ok: true, emailed };
   } catch (error) {
     return fail("cancelBookingAdmin", error);
   }
@@ -118,7 +121,9 @@ export async function getAdminSlots(
 
 export async function rescheduleBookingAdmin(
   input: unknown,
-): Promise<{ ok: true } | { ok: false; error: string; slotTaken?: boolean }> {
+): Promise<
+  { ok: true; emailed: boolean } | { ok: false; error: string; slotTaken?: boolean }
+> {
   const parsed = adminRescheduleInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   try {
@@ -166,6 +171,7 @@ export async function rescheduleBookingAdmin(
       return fail("rescheduleBookingAdmin", error);
     }
 
+    let emailed = true;
     try {
       const msg = bookingRescheduledEmail({
         orgName: org.name,
@@ -186,10 +192,11 @@ export async function rescheduleBookingAdmin(
       });
     } catch (mailError) {
       console.error("[scheduling] admin reschedule email failed:", mailError);
+      emailed = false;
     }
 
     revalidatePath("/bookings");
-    return { ok: true };
+    return { ok: true, emailed };
   } catch (error) {
     return fail("rescheduleBookingAdmin", error);
   }

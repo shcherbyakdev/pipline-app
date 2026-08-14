@@ -73,11 +73,11 @@ describe("signInWithPassword", () => {
     expect(state.error).toBe("Invalid email or password.");
   });
 
-  it("redirects to /programs on success", async () => {
+  it("redirects to /bookings on success", async () => {
     auth.signInWithPassword.mockResolvedValue({ error: null });
     await expect(
       signInWithPassword({}, form({ email: "a@b.com", password: "right-pass" })),
-    ).rejects.toThrow("REDIRECT:/programs");
+    ).rejects.toThrow("REDIRECT:/bookings");
   });
 });
 
@@ -141,12 +141,12 @@ describe("updatePassword", () => {
     expect(auth.updateUser).not.toHaveBeenCalled();
   });
 
-  it("updates and redirects to /programs on success", async () => {
+  it("updates and redirects to /bookings on success", async () => {
     auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
     auth.updateUser.mockResolvedValue({ error: null });
     await expect(
       updatePassword({}, form({ password: "12345678", confirm: "12345678" })),
-    ).rejects.toThrow("REDIRECT:/programs");
+    ).rejects.toThrow("REDIRECT:/bookings");
     expect(auth.updateUser).toHaveBeenCalledWith({ password: "12345678" });
   });
 

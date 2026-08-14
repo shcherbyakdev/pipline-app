@@ -479,6 +479,7 @@ async function ensureDemoScheduling(client: SupabaseClient, orgId: string): Prom
         cancel_token_hash: tokenHash,
       });
       if (error) throw error;
+      // Deliberate exception to "raw tokens are never logged": loopback-guarded demo seed — the printed link IS the deliverable.
       console.log(`seed: demo booking -> http://localhost:3000/booking/${token}`);
     }
   }

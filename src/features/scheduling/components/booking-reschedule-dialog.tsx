@@ -64,7 +64,11 @@ export function BookingRescheduleDialog({
         toast.error(res.error);
         if ("slotTaken" in res && res.slotTaken) loadSlots(fromDate);
       } else {
-        toast.success("Booking moved — the client has been emailed");
+        if (res.emailed) toast.success("Booking moved — the client has been emailed");
+        else
+          toast.warning(
+            "Booking moved — but the email with the new manage link failed. Contact the client directly.",
+          );
         setOpen(false);
       }
     });
