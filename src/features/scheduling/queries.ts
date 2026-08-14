@@ -85,3 +85,74 @@ export async function getAvailabilityAdmin(): Promise<{
     })),
   };
 }
+
+export type AdminBooking = {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  clientName: string;
+  clientEmail: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  note: string | null;
+  rescheduledFromId: string | null;
+};
+
+const BOOKING_COLUMNS =
+  "id, service_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, services(name)";
+
+type BookingRow = {
+  id: string;
+  service_id: string;
+  client_name: string;
+  client_email: string;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  note: string | null;
+  rescheduled_from_id: string | null;
+  services: { name: string } | null;
+};
+
+function toAdminBooking(b: BookingRow): AdminBooking {
+  return {
+    id: b.id,
+    serviceId: b.service_id,
+    serviceName: b.services?.name ?? "—",
+    clientName: b.client_name,
+    clientEmail: b.client_email,
+    startsAt: b.starts_at,
+    endsAt: b.ends_at,
+    status: b.status,
+    note: b.note,
+    rescheduledFromId: b.rescheduled_from_id,
+  };
+}
+
+export async function listBookings(): Promise<{ upcoming: AdminBooking[]; past: AdminBooking[] }> {
+  const supabase = await createClient();
+  const nowIso = new Date().toISOString();
+  const [upcomingRes, pastRes] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select(BOOKING_COLUMNS)
+      .eq("status", "confirmed")
+      .gte("starts_at", nowIso)
+      .order("starts_at", { ascending: true }),
+    // History: anything cancelled/rescheduled, plus confirmed-but-started.
+    // Capped — S5's calendar view is the archaeology surface.
+    supabase
+      .from("bookings")
+      .select(BOOKING_COLUMNS)
+      .or(`status.neq.confirmed,starts_at.lt.${nowIso}`)
+      .order("starts_at", { ascending: false })
+      .limit(50),
+  ]);
+  if (upcomingRes.error) throw upcomingRes.error;
+  if (pastRes.error) throw pastRes.error;
+  return {
+    upcoming: ((upcomingRes.data ?? []) as unknown as BookingRow[]).map(toAdminBooking),
+    past: ((pastRes.data ?? []) as unknown as BookingRow[]).map(toAdminBooking),
+  };
+}
