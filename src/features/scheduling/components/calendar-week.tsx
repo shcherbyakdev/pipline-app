@@ -7,6 +7,7 @@ import {
   zonedParts, hourRange, closedIntervals, serviceAccent,
 } from "@/features/scheduling/calendar-geometry";
 import { addDaysISO } from "@/features/scheduling/slots";
+import { BookingDetailDialog } from "./booking-detail-dialog";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HATCH: React.CSSProperties = {
@@ -43,6 +44,8 @@ export function CalendarWeek({
     };
   }, []);
   const nowParts = now ? zonedParts(now, timeZone) : null;
+
+  const [selected, setSelected] = React.useState<AdminBooking | null>(null);
 
   const byDay = (date: string) =>
     bookings.filter((b) => zonedParts(new Date(b.startsAt), timeZone).date === date);
@@ -91,6 +94,7 @@ export function CalendarWeek({
                 <button
                   key={b.id}
                   type="button"
+                  onClick={() => setSelected(b)}
                   className="absolute inset-x-1 z-10 overflow-hidden rounded border bg-card p-1 text-left text-xs shadow-sm hover:shadow"
                   style={{
                     top: `${pct(s.minutes)}%`,
@@ -108,6 +112,12 @@ export function CalendarWeek({
           </div>
         ))}
       </div>
+      <BookingDetailDialog
+        booking={selected}
+        timeZone={timeZone}
+        open={selected !== null}
+        onOpenChange={(o) => { if (!o) setSelected(null); }}
+      />
     </div>
   );
 }
