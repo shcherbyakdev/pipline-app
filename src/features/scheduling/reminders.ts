@@ -104,6 +104,25 @@ export async function runReminderDrain(deps: {
       } catch (sendError) {
         // Roll the claim back so the row is due next tick; cap attempts.
         const message = sendError instanceof Error ? sendError.message : String(sendError);
+        const { error: rollbackError } = await deps.db
+          .from("bookings")
+          .update({
+            reminder_sent_at: null,
+            reminder_attempts: row.reminder_attempts + 1,
+            reminder_last_error: message.slice(0, 500),
+          })
+          .eq("id", row.id)
+          .eq("reminder_attempts", row.reminder_attempts);
+        if (rollbackError) {
+          console.error("[scheduling] reminder rollback failed (row stays claimed):", rollbackError);
+        }
+        summary.failed += 1;
+      }
+    } catch (rowError) {
+      // Per-row isolation: one bad row never stops the batch.
+      console.error("[scheduling] reminder row failed:", rowError);
+      try {
+        const message = rowError instanceof Error ? rowError.message : String(rowError);
         await deps.db
           .from("bookings")
           .update({
@@ -113,11 +132,9 @@ export async function runReminderDrain(deps: {
           })
           .eq("id", row.id)
           .eq("reminder_attempts", row.reminder_attempts);
-        summary.failed += 1;
+      } catch {
+        // best-effort: the console.error above is the last resort
       }
-    } catch (rowError) {
-      // Per-row isolation: one bad row never stops the batch.
-      console.error("[scheduling] reminder row failed:", rowError);
       summary.failed += 1;
     }
   }
