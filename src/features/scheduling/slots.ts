@@ -58,7 +58,13 @@ export function wallTimeToUtc(date: string, time: string, timeZone: string): Dat
   for (let i = 0; i < 2; i++) {
     utc += target - wallClockOf(new Date(utc), timeZone);
   }
-  return new Date(utc);
+  // A wall time inside a DST spring-forward gap has no fixed point, so the
+  // loop oscillates between the two adjacent-offset candidates. Resolve
+  // deterministically by shifting FORWARD across the gap (the conventional
+  // treatment of nonexistent local times): take the later candidate. For
+  // every existing wall time `other === utc` and this is a no-op.
+  const other = utc + (target - wallClockOf(new Date(utc), timeZone));
+  return new Date(Math.max(utc, other));
 }
 
 export function dateInZone(instant: Date, timeZone: string): string {

@@ -47,6 +47,16 @@ describe("wallTimeToUtc", () => {
   it("passes UTC through untouched", () => {
     expect(iso(wallTimeToUtc("2027-02-01", "09:00", "UTC"))).toBe("2027-02-01T09:00:00.000Z");
   });
+  it("resolves nonexistent gap-hour times by shifting forward", () => {
+    // 02:30 local never exists on 2027-03-28 in Berlin (02:00 → 03:00).
+    // Convention: shift forward across the gap → 03:30 local = 01:30Z.
+    expect(iso(wallTimeToUtc("2027-03-28", "02:30", TZ))).toBe("2027-03-28T01:30:00.000Z");
+  });
+  it("resolves ambiguous fall-back times deterministically", () => {
+    // 02:30 local occurs twice on 2027-10-31; the algorithm lands on the
+    // second (CET, +1) occurrence every time.
+    expect(iso(wallTimeToUtc("2027-10-31", "02:30", TZ))).toBe("2027-10-31T01:30:00.000Z");
+  });
 });
 
 describe("dateInZone / addDaysISO", () => {
