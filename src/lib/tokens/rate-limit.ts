@@ -54,6 +54,10 @@ export class SlidingWindowLimiter {
 // re-resolves the token; x-forwarded-for is client-settable anyway.
 export const tokenLimiter = new SlidingWindowLimiter(120, 60_000);
 
+// Public booking surface (slot queries + booking creation). Tighter than
+// tokenLimiter: every request does real work (slot computation / an RPC).
+export const publicBookingLimiter = new SlidingWindowLimiter(30, 60_000);
+
 // All token pages derive the limiter bucket the same way; keep it in one
 // place so surfaces can never drift. An IP when the proxy sets one, else
 // "server".

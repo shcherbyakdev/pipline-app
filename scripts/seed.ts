@@ -48,6 +48,12 @@ const DEMO_PROGRESS: Array<{ unit: string; stages: string[] }> = [
 ];
 const DEMO_PARTICIPANT = "Alex Kowalski";
 const DEMO_CLIENT = "Acme Retail Ltd";
+const DEMO_HANDLE = "demo-studio";
+const DEMO_TIMEZONE = "Europe/Berlin";
+const DEMO_SERVICES = [
+  { name: "Intro Call", duration_min: 30, price_label: null },
+  { name: "Consultation", duration_min: 60, price_label: "€80" },
+];
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -390,6 +396,50 @@ async function ensureDemoClient(client: SupabaseClient, orgId: string): Promise<
   console.log(`seed: portal link (shown once) → http://localhost:3000/portal/${token}`);
 }
 
+async function ensureDemoScheduling(client: SupabaseClient, orgId: string): Promise<void> {
+  const { data: org } = await client.from("orgs").select("handle").eq("id", orgId).maybeSingle();
+  if (!org?.handle) {
+    const { error } = await client.rpc("update_org_scheduling", {
+      p_org_id: orgId,
+      p_handle: DEMO_HANDLE,
+      p_timezone: DEMO_TIMEZONE,
+    });
+    if (error) throw error;
+    console.log(`seed: set booking handle "${DEMO_HANDLE}" (${DEMO_TIMEZONE})`);
+  }
+  for (const svc of DEMO_SERVICES) {
+    const { data: existing } = await client
+      .from("services")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("name", svc.name)
+      .maybeSingle();
+    if (!existing) {
+      const { error } = await client.from("services").insert({ org_id: orgId, ...svc });
+      if (error) throw error;
+      console.log(`seed: created service "${svc.name}"`);
+    }
+  }
+  const { data: anyRule } = await client
+    .from("availability_rules")
+    .select("id")
+    .eq("org_id", orgId)
+    .limit(1)
+    .maybeSingle();
+  if (!anyRule) {
+    const rows = [1, 2, 3, 4, 5].map((weekday) => ({
+      org_id: orgId,
+      weekday,
+      start_time: "09:00",
+      end_time: "17:00",
+    }));
+    const { error } = await client.from("availability_rules").insert(rows);
+    if (error) throw error;
+    console.log("seed: availability Mon-Fri 09:00-17:00");
+  }
+  console.log(`seed: booking page -> http://localhost:3000/book/${DEMO_HANDLE}`);
+}
+
 async function main(): Promise<void> {
   await ensureDemoUser();
 
@@ -422,6 +472,7 @@ async function main(): Promise<void> {
   await ensureDemoProgress(client, orgId);
   await ensureDemoParticipant(client, orgId);
   await ensureDemoClient(client, orgId);
+  await ensureDemoScheduling(client, orgId);
   console.log(`seed: sign in as ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }
 

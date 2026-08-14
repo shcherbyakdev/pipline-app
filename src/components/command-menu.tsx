@@ -44,7 +44,7 @@ export function CommandMenu() {
           {/* Sourced from the same NAV_ITEMS as the sidebar so the two lists
               can't drift again (this slice is what caused Settings to be in
               one but not the other). Actions below stays hand-listed —
-              "create X" only makes sense for the three entity pages, not
+              "create X" only makes sense for Services, not Availability or
               Settings, so there's no drift risk to guard against there. */}
           {NAV_ITEMS.map((item) => (
             <CommandItem key={item.href} onSelect={() => go(item.href)}>
@@ -53,14 +53,8 @@ export function CommandMenu() {
           ))}
         </CommandGroup>
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={() => go("/programs?new=1")}>
-            <Plus className="size-4" /> Create program
-          </CommandItem>
-          <CommandItem onSelect={() => go("/templates?new=1")}>
-            <Plus className="size-4" /> Create template
-          </CommandItem>
-          <CommandItem onSelect={() => go("/clients?new=1")}>
-            <Plus className="size-4" /> Create client
+          <CommandItem onSelect={() => go("/services?new=1")}>
+            <Plus className="size-4" /> New service
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Preferences">
