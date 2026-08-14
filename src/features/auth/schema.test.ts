@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { emailSchema } from "./schema";
+import {
+  emailSchema,
+  signInSchema,
+  signUpSchema,
+  newPasswordSchema,
+} from "./schema";
 
 describe("emailSchema", () => {
   it("accepts a valid email", () => {
@@ -9,3 +14,61 @@ describe("emailSchema", () => {
     expect(emailSchema.safeParse({ email: "nope" }).success).toBe(false);
   });
 });
+
+describe("signInSchema", () => {
+  it("accepts a valid email with any non-empty password", () => {
+    expect(
+      signInSchema.safeParse({ email: "a@b.com", password: "short1" }).success,
+    ).toBe(true);
+  });
+  it("rejects an empty password", () => {
+    expect(
+      signInSchema.safeParse({ email: "a@b.com", password: "" }).success,
+    ).toBe(false);
+  });
+  it("rejects a malformed email", () => {
+    expect(
+      signInSchema.safeParse({ email: "nope", password: "whatever1" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("signUpSchema", () => {
+  it("rejects passwords shorter than 8 characters", () => {
+    expect(
+      signUpSchema.safeParse({ email: "a@b.com", password: "1234567" }).success,
+    ).toBe(false);
+  });
+  it("accepts passwords of 8+ characters", () => {
+    expect(
+      signUpSchema.safeParse({ email: "a@b.com", password: "12345678" })
+        .success,
+    ).toBe(true);
+  });
+});
+
+describe("newPasswordSchema", () => {
+  it("rejects a mismatched confirmation", () => {
+    const result = newPasswordSchema.safeParse({
+      password: "12345678",
+      confirm: "12345679",
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("Passwords don't match.");
+    }
+  });
+  it("rejects passwords shorter than 8 characters even when matching", () => {
+    expect(
+      newPasswordSchema.safeParse({ password: "1234567", confirm: "1234567" })
+        .success,
+    ).toBe(false);
+  });
+  it("accepts a matching 8+ character pair", () => {
+    expect(
+      newPasswordSchema.safeParse({ password: "12345678", confirm: "12345678" })
+        .success,
+    ).toBe(true);
+  });
+});
+
