@@ -54,6 +54,8 @@ alter table public.availability_exceptions
     check (
       (closed and start_time is null and end_time is null)
       or (not closed
+          and start_time is not null
+          and end_time is not null
           and start_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
           and end_time   ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
           and start_time < end_time)
