@@ -21,9 +21,11 @@ async function currentOrgId(): Promise<string | null> {
   return data?.id ?? null;
 }
 
-function toServiceRow(orgId: string, d: import("zod").infer<typeof serviceInput>) {
+// No org_id here: inserts add it explicitly, updates must never rewrite it
+// (a multi-org user's currentOrgId() pick could otherwise migrate the row
+// between their orgs — security-review hardening).
+function toServiceRow(d: import("zod").infer<typeof serviceInput>) {
   return {
-    org_id: orgId,
     name: d.name,
     description: d.description ?? null,
     duration_min: d.durationMin,
@@ -43,7 +45,9 @@ export async function createService(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase.from("services").insert(toServiceRow(orgId, parsed.data));
+  const { error } = await supabase
+    .from("services")
+    .insert({ org_id: orgId, ...toServiceRow(parsed.data) });
   if (error) return fail("createService", error);
   revalidatePath("/services");
   return { ok: true };
@@ -58,8 +62,11 @@ export async function updateService(input: unknown): Promise<ActionState> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
-    .update(toServiceRow(orgId, rest))
+    .update(toServiceRow(rest))
     .eq("id", id)
+    // RLS already hides foreign rows; the explicit org scope is
+    // defense-in-depth and keeps multi-org sessions unambiguous.
+    .eq("org_id", orgId)
     .select("id")
     .maybeSingle();
   if (error) return fail("updateService", error);
@@ -71,8 +78,14 @@ export async function updateService(input: unknown): Promise<ActionState> {
 export async function deleteService(input: unknown): Promise<ActionState> {
   const parsed = serviceIdInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase.from("services").delete().eq("id", parsed.data.id);
+  const { error } = await supabase
+    .from("services")
+    .delete()
+    .eq("id", parsed.data.id)
+    .eq("org_id", orgId);
   if (error) {
     if (error.code === "23503") {
       return { ok: false, error: "Service has bookings — deactivate it instead." };
