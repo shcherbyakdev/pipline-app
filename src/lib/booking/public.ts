@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { SlotRule, SlotException } from "@/features/scheduling/slots";
+import { addDaysISO, type SlotRule, type SlotException } from "@/features/scheduling/slots";
 
 // Admin-client reads for the anonymous booking page (getOrgBranding
 // precedent: the public surface stays off the anon SQL grant surface;
@@ -94,18 +94,60 @@ export async function getBusyIntervals(
   orgId: string,
   fromIso: string,
   toIso: string,
+  excludeBookingId?: string,
 ): Promise<Array<{ startsAt: Date; endsAt: Date }>> {
   const admin = createAdminClient();
-  const { data, error } = await admin
+  let query = admin
     .from("bookings")
     .select("starts_at, ends_at")
     .eq("org_id", orgId)
     .eq("status", "confirmed")
     .gte("ends_at", fromIso)
     .lte("starts_at", toIso);
+  // Reschedule pickers drop the booking's own interval: the RPC frees the
+  // old row before inserting, so "overlaps itself" is a legal target.
+  if (excludeBookingId) query = query.neq("id", excludeBookingId);
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []).map((b) => ({
     startsAt: new Date(b.starts_at),
     endsAt: new Date(b.ends_at),
   }));
+}
+
+export async function getPublicServiceById(
+  orgId: string,
+  serviceId: string,
+): Promise<PublicService | null> {
+  const services = await listPublicServices(orgId);
+  return services.find((s) => s.id === serviceId) ?? null;
+}
+
+// Everything the slot engine needs for one org+service. Shared by the
+// public booking page, the tokenized manage page, and the admin
+// reschedule dialog (public-actions' former loadSlotContext, org-keyed).
+export async function loadOrgSlotContext(
+  orgId: string,
+  serviceId: string,
+  fromDate: string,
+  days: number,
+  opts?: { excludeBookingId?: string },
+): Promise<{
+  service: PublicService;
+  rules: SlotRule[];
+  exceptions: SlotException[];
+  busy: Array<{ startsAt: Date; endsAt: Date }>;
+} | null> {
+  const service = await getPublicServiceById(orgId, serviceId);
+  if (!service) return null;
+  const { rules, exceptions } = await getAvailability(orgId);
+  // Fetch busy one day beyond both edges — buffers can reach across
+  // org-local midnight in UTC terms.
+  const busy = await getBusyIntervals(
+    orgId,
+    `${addDaysISO(fromDate, -1)}T00:00:00Z`,
+    `${addDaysISO(fromDate, days + 1)}T23:59:59Z`,
+    opts?.excludeBookingId,
+  );
+  return { service, rules, exceptions, busy };
 }
