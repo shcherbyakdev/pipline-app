@@ -9,6 +9,7 @@ import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { hostnameOf, isLoopbackHost } from "./lib/host-guard";
 import { generateAccessToken } from "../src/lib/tokens/mint";
+import { wallTimeToUtc, addDaysISO } from "../src/features/scheduling/slots";
 
 try {
   loadEnvFile(".env.local");
@@ -438,6 +439,49 @@ async function ensureDemoScheduling(client: SupabaseClient, orgId: string): Prom
     console.log("seed: availability Mon-Fri 09:00-17:00");
   }
   console.log(`seed: booking page -> http://localhost:3000/book/${DEMO_HANDLE}`);
+
+  // Demo confirmed booking (idempotent: skip when any future confirmed
+  // booking exists). Books next week 10:00 org-local against the demo
+  // service so /bookings and the manage link have something to show.
+  // Inserted via the module-level service-role `admin` client, not the
+  // hardened create_booking RPC — a weekend slot outside Mon-Fri
+  // availability is fine here since RLS/RPC checks only constrain the
+  // client-facing booking flow, not this seed.
+  const { data: futureBookings } = await admin
+    .from("bookings")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("status", "confirmed")
+    .gt("starts_at", new Date().toISOString())
+    .limit(1);
+  if (!futureBookings?.length) {
+    const { data: demoService } = await admin
+      .from("services")
+      .select("id, duration_min")
+      .eq("org_id", orgId)
+      .limit(1)
+      .maybeSingle();
+    if (demoService) {
+      const { token, tokenHash } = generateAccessToken();
+      const startsAt = wallTimeToUtc(
+        addDaysISO(new Date().toISOString().slice(0, 10), 7),
+        "10:00",
+        DEMO_TIMEZONE,
+      );
+      const endsAt = new Date(startsAt.getTime() + demoService.duration_min * 60_000);
+      const { error } = await admin.from("bookings").insert({
+        org_id: orgId,
+        service_id: demoService.id,
+        client_name: "Demo Client",
+        client_email: "demo-client@example.com",
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+        cancel_token_hash: tokenHash,
+      });
+      if (error) throw error;
+      console.log(`seed: demo booking -> http://localhost:3000/booking/${token}`);
+    }
+  }
 }
 
 async function main(): Promise<void> {
