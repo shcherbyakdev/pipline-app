@@ -107,6 +107,13 @@ export const bookings = pgTable(
     // gymnastics; the deferred-FK idiom from access_tokens.chase_id is
     // simpler and established).
     rescheduledFromId: uuid("rescheduled_from_id"),
+    // Reminder drain state (chasing idiom, S2). reminder_sent_at doubles as
+    // the claim marker: set-before-send, rolled back on transport failure.
+    // Suppressed reminders (booked <24h ahead) are stamped too — the drain
+    // scan (partial index in 0028) only ever sees NULLs.
+    reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+    reminderAttempts: integer("reminder_attempts").default(0).notNull(),
+    reminderLastError: text("reminder_last_error"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
