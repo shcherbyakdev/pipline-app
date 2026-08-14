@@ -32,7 +32,15 @@ export function CalendarWeek({
 }) {
   const days = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
   const windowsByDay = days.map((d) => effectiveWindows(d, rules, exceptions));
-  const { startHour, endHour } = hourRange(windowsByDay);
+  // Confirmed bookings may legally sit outside open hours (admin-created)
+  // or fall outside them after availability shrinks — widen the range so
+  // they're never clipped off-grid (finding: invisible off-hours bookings).
+  const bookingSpans = bookings.map((b) => {
+    const s = zonedParts(new Date(b.startsAt), timeZone);
+    const e = zonedParts(new Date(b.endsAt), timeZone);
+    return { startMin: s.minutes, endMin: e.date === s.date ? e.minutes : 24 * 60 };
+  });
+  const { startHour, endHour } = hourRange(windowsByDay, bookingSpans);
   const totalMin = (endHour - startHour) * 60;
   const pct = (min: number) => ((min - startHour * 60) / totalMin) * 100;
 
@@ -101,10 +109,18 @@ export function CalendarWeek({
     bookings.filter((b) => zonedParts(new Date(b.startsAt), timeZone).date === date);
 
   return (
-    <div className="overflow-x-auto rounded-md border">
+    // Vertical scrolling happens inside this container (not the page) so
+    // `sticky top-0` below has a real scrollport to stick against — with
+    // overflow-x-auto alone (and no explicit overflow-y), the browser
+    // implicitly makes overflow-y `auto` too per the CSS Overflow spec,
+    // which made this element the sticky containing block without ever
+    // giving it a bounded scrollport, so the header never actually stuck.
+    // Bounding the height and scrolling in both axes here is the cleaner
+    // fix vs. dropping sticky entirely, since the grid can run tall.
+    <div className="max-h-[75vh] overflow-auto rounded-md border">
       <div className="grid min-w-[840px] grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
         {/* header row */}
-        <div className="sticky top-0 z-10 border-b bg-background" />
+        <div className="sticky top-0 left-0 z-20 border-b bg-background" />
         {days.map((d, i) => (
           <div key={d} className="sticky top-0 z-10 border-b border-l bg-background p-2 text-center text-sm">
             <span className="text-muted-foreground">{DAY_LABELS[(i + 1) % 7]}</span>{" "}
@@ -114,7 +130,7 @@ export function CalendarWeek({
           </div>
         ))}
         {/* gutter */}
-        <div className="relative" style={{ height: `${(endHour - startHour) * 48}px` }}>
+        <div className="sticky left-0 z-10 bg-background" style={{ height: `${(endHour - startHour) * 48}px` }}>
           {Array.from({ length: endHour - startHour }, (_, i) => (
             <div key={i} className="absolute right-1 -translate-y-1/2 text-xs text-muted-foreground"
               style={{ top: `${pct((startHour + i) * 60)}%` }}>
@@ -136,14 +152,19 @@ export function CalendarWeek({
               // elsewhere (chosen over a window pointerup listener).
               e.currentTarget.setPointerCapture(e.pointerId);
               const rect = e.currentTarget.getBoundingClientRect();
-              const min = snap15(startHour * 60 + ((e.clientY - rect.top) / rect.height) * totalMin);
+              const raw = snap15(startHour * 60 + ((e.clientY - rect.top) / rect.height) * totalMin);
+              // Clamp so an extreme drag (pointer released past the grid
+              // edge) can't produce a selection start outside the grid.
+              const min = Math.min(Math.max(raw, startHour * 60), endHour * 60 - 15);
               setSelection({ date: d, startMin: min, endMin: min + 15 });
               setDragging(true);
             }}
             onPointerMove={(e) => {
               if (!dragging || !selection || selection.date !== d) return;
               const rect = e.currentTarget.getBoundingClientRect();
-              const min = snap15(startHour * 60 + ((e.clientY - rect.top) / rect.height) * totalMin) + 15;
+              const raw = snap15(startHour * 60 + ((e.clientY - rect.top) / rect.height) * totalMin) + 15;
+              // Same clamp for the drag-derived end.
+              const min = Math.min(Math.max(raw, startHour * 60 + 15), endHour * 60);
               setSelection({ ...selection, endMin: Math.max(min, selection.startMin + 15) });
             }}
             onPointerUp={() => setDragging(false)}
@@ -161,7 +182,11 @@ export function CalendarWeek({
             {byDay(d).map((b) => {
               const s = zonedParts(new Date(b.startsAt), timeZone);
               const e = zonedParts(new Date(b.endsAt), timeZone);
-              const endMin = e.date === d ? e.minutes : endHour * 60;
+              // Next-day bookings clamp to the grid bottom; same-day
+              // bookings that still overrun endHour (shouldn't happen now
+              // that hourRange accounts for bookings, but kept as a
+              // defensive clamp) mirror that same clip.
+              const endMin = e.date === d ? Math.min(e.minutes, endHour * 60) : endHour * 60;
               const compact = endMin - s.minutes < 30;
               return (
                 <button
@@ -177,7 +202,12 @@ export function CalendarWeek({
                 >
                   <span className="font-medium">{b.serviceName}</span>
                   {compact ? null : (
-                    <span className="block truncate text-muted-foreground">{b.clientName}</span>
+                    <>
+                      <span className="block truncate text-muted-foreground">{b.clientName}</span>
+                      <span className="block text-muted-foreground">
+                        {minToTime(s.minutes)}–{minToTime(e.minutes)}
+                      </span>
+                    </>
                   )}
                 </button>
               );

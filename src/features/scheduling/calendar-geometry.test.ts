@@ -33,6 +33,34 @@ describe("calendar-geometry", () => {
     expect(hourRange([[], []])).toEqual({ startHour: 8, endHour: 18 });
   });
 
+  it("hourRange widens the start for an early booking outside open hours", () => {
+    // Window is 9–17; a booking starting at 06:30 must pull startHour down.
+    expect(
+      hourRange([[{ startTime: "09:00", endTime: "17:00" }]], [{ startMin: 390, endMin: 450 }]),
+    ).toEqual({ startHour: 5, endHour: 18 });
+  });
+
+  it("hourRange widens the end for a late booking outside open hours", () => {
+    // Window is 9–17; a booking ending at 21:15 must push endHour up.
+    expect(
+      hourRange([[{ startTime: "09:00", endTime: "17:00" }]], [{ startMin: 1200, endMin: 1275 }]),
+    ).toEqual({ startHour: 8, endHour: 23 });
+  });
+
+  it("hourRange is determined by bookings alone when there are no windows", () => {
+    expect(hourRange([[], []], [{ startMin: 600, endMin: 660 }])).toEqual({
+      startHour: 9,
+      endHour: 12,
+    });
+  });
+
+  it("hourRange clamps to 0/24 even when booking spans overshoot", () => {
+    expect(hourRange([[]], [{ startMin: 10, endMin: 1430 }])).toEqual({
+      startHour: 0,
+      endHour: 24,
+    });
+  });
+
   it("snap15 floors to the grid", () => {
     expect(snap15(547)).toBe(540);
     expect(snap15(540)).toBe(540);

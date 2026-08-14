@@ -40,8 +40,17 @@ export default async function BookingsPage({
     );
   }
 
+  // A well-shaped `?week=` (DATE_RE) can still be a calendrically invalid
+  // date (e.g. "2027-13-45") — `new Date(...)` on it yields NaN, which
+  // would blow up `mondayOf`'s `toISOString()` with a 500. Fall back to
+  // today (in the org's tz) for anything that doesn't parse.
+  const weekParam = params.week;
   const weekStart = mondayOf(
-    params.week && DATE_RE.test(params.week) ? params.week : dateInZone(new Date(), timeZone),
+    weekParam !== undefined &&
+      DATE_RE.test(weekParam) &&
+      !Number.isNaN(new Date(`${weekParam}T12:00:00Z`).getTime())
+      ? weekParam
+      : dateInZone(new Date(), timeZone),
   );
   const weekEnd = addDaysISO(weekStart, 6);
   const fromIso = wallTimeToUtc(weekStart, "00:00", timeZone).toISOString();

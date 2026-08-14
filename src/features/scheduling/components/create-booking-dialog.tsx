@@ -33,6 +33,12 @@ export function CreateBookingDialog({
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [note, setNote] = React.useState("");
+  // Overlap failures render inline (spec: this is a validation error tied
+  // to the form, not a fire-and-forget notification) rather than only a
+  // toast; cleared on the next submit or whenever an input changes so a
+  // stale error can't linger against edited values.
+  const [overlapError, setOverlapError] = React.useState<string | null>(null);
+  const clearOverlap = () => setOverlapError(null);
 
   // `Date.now()` is an impure call and react-hooks/purity (React Compiler
   // rule) forbids calling it during render. Snapshot it once via the same
@@ -56,6 +62,7 @@ export function CreateBookingDialog({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    setOverlapError(null);
     startTransition(async () => {
       const result = await createBookingAdmin({
         serviceId,
@@ -65,7 +72,8 @@ export function CreateBookingDialog({
         note: note || undefined,
       });
       if (!result.ok) {
-        toast.error(result.error);
+        if (result.overlap) setOverlapError(result.error);
+        else toast.error(result.error);
         return;
       }
       if (result.emailed === "sent") toast.success("Booking created — the client has been emailed");
@@ -94,7 +102,7 @@ export function CreateBookingDialog({
               id="cb-service"
               className="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
               value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
+              onChange={(e) => { setServiceId(e.target.value); clearOverlap(); }}
             >
               {services.map((s) => (
                 <option key={s.id} value={s.id}>{s.name} ({s.durationMin} min)</option>
@@ -103,15 +111,32 @@ export function CreateBookingDialog({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cb-name">Client name</Label>
-            <Input id="cb-name" required maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id="cb-name"
+              required
+              maxLength={200}
+              value={name}
+              onChange={(e) => { setName(e.target.value); clearOverlap(); }}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cb-email">Email (optional — confirmation is sent only if given)</Label>
-            <Input id="cb-email" type="email" maxLength={320} value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              id="cb-email"
+              type="email"
+              maxLength={320}
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); clearOverlap(); }}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cb-note">Note (optional)</Label>
-            <Textarea id="cb-note" maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
+            <Textarea
+              id="cb-note"
+              maxLength={2000}
+              value={note}
+              onChange={(e) => { setNote(e.target.value); clearOverlap(); }}
+            />
           </div>
           {outsideHours ? (
             <p className="text-sm text-amber-600 dark:text-amber-500">
@@ -123,6 +148,7 @@ export function CreateBookingDialog({
               Inside this service’s minimum-notice window — allowed for bookings you create yourself.
             </p>
           ) : null}
+          {overlapError ? <p className="text-destructive text-sm">{overlapError}</p> : null}
           <Button type="submit" disabled={pending || !serviceId}>
             {pending ? "Creating…" : "Create booking"}
           </Button>

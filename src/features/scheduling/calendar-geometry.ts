@@ -35,11 +35,27 @@ export function mondayOf(date: string): string {
   return new Date(Date.UTC(y, mo - 1, d) - back * 86_400_000).toISOString().slice(0, 10);
 }
 
-export function hourRange(windowsByDay: DayWindow[][]): { startHour: number; endHour: number } {
-  const all = windowsByDay.flat();
-  if (all.length === 0) return { startHour: 8, endHour: 18 };
-  const min = Math.min(...all.map((w) => timeToMin(w.startTime)));
-  const max = Math.max(...all.map((w) => timeToMin(w.endTime)));
+// Bookings may legally sit outside open hours (created directly by the
+// admin) or end up outside them after availability shrinks. `bookingSpans`
+// (each booking's zoned start/end minutes-since-midnight, for the days in
+// view) widens the range so those cards are never clipped off-grid. The
+// 8–18 fallback only applies when there are neither windows nor bookings.
+export function hourRange(
+  windowsByDay: DayWindow[][],
+  bookingSpans: Array<{ startMin: number; endMin: number }> = [],
+): { startHour: number; endHour: number } {
+  const windows = windowsByDay.flat();
+  if (windows.length === 0 && bookingSpans.length === 0) return { startHour: 8, endHour: 18 };
+  const mins = [
+    ...windows.map((w) => timeToMin(w.startTime)),
+    ...bookingSpans.map((b) => b.startMin),
+  ];
+  const maxs = [
+    ...windows.map((w) => timeToMin(w.endTime)),
+    ...bookingSpans.map((b) => b.endMin),
+  ];
+  const min = Math.min(...mins);
+  const max = Math.max(...maxs);
   return {
     startHour: Math.max(0, Math.floor(min / 60) - 1),
     endHour: Math.min(24, Math.ceil(max / 60) + 1),
