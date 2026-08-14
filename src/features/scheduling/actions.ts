@@ -10,6 +10,7 @@ import {
   ruleIdInput,
   availabilityExceptionInput,
   exceptionIdInput,
+  schedulingSettingsInput,
   GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
@@ -168,5 +169,24 @@ export async function deleteAvailabilityException(input: unknown): Promise<Actio
     .eq("org_id", orgId);
   if (error) return fail("deleteAvailabilityException", error);
   revalidatePath("/availability");
+  return { ok: true };
+}
+
+export async function updateSchedulingSettings(input: unknown): Promise<ActionState> {
+  const parsed = schedulingSettingsInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_org_scheduling", {
+    p_org_id: orgId,
+    p_handle: parsed.data.handle,
+    p_timezone: parsed.data.timezone,
+  });
+  if (error) {
+    if (error.code === "23505") return { ok: false, error: "That handle is already taken." };
+    return fail("updateSchedulingSettings", error);
+  }
+  revalidatePath("/settings");
   return { ok: true };
 }

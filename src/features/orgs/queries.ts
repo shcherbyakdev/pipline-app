@@ -27,3 +27,18 @@ export async function getBrandingSettings(): Promise<BrandingSettings | null> {
     logoUrl: data.logo_path ? publicLogoUrl(data.logo_path) : null,
   };
 }
+
+export async function getSchedulingSettings(): Promise<{
+  orgId: string;
+  handle: string | null;
+  timezone: string;
+} | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("orgs")
+    .select("id, handle, timezone")
+    .limit(1)
+    .maybeSingle();
+  if (!data) return null;
+  return { orgId: data.id, handle: data.handle, timezone: data.timezone };
+}
