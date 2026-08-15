@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
@@ -10,18 +11,23 @@ import {
 } from "@/features/scheduling/calendar-geometry";
 import { addDaysISO } from "@/features/scheduling/slots";
 import { blockTimeRange, reopenDay } from "@/features/scheduling/actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { BookingDetailDialog } from "./booking-detail-dialog";
 import { CreateBookingDialog } from "./create-booking-dialog";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HATCH: React.CSSProperties = {
   backgroundImage:
-    "repeating-linear-gradient(45deg, transparent, transparent 6px, var(--border) 6px, var(--border) 7px)",
+    "repeating-linear-gradient(45deg, transparent, transparent 5px, var(--border) 5px, var(--border) 6px)",
 };
+// Shared by the header and body rows so their columns stay aligned:
+// [left rail][7 day columns][right time axis] — the time axis sits on the
+// right like the reference design.
+const GRID_COLS = "grid-cols-[2.5rem_repeat(7,minmax(0,1fr))_3.5rem]";
 
 export function CalendarWeek({
-  weekStart, timeZone, bookings, rules, exceptions, services,
+  weekStart, timeZone, bookings, rules, exceptions, services, prevHref, nextHref,
 }: {
   weekStart: string;
   timeZone: string;
@@ -29,6 +35,8 @@ export function CalendarWeek({
   rules: RuleRow[];
   exceptions: ExceptionRow[];
   services: ServiceRow[];
+  prevHref: string;
+  nextHref: string;
 }) {
   const days = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
   const windowsByDay = days.map((d) => effectiveWindows(d, rules, exceptions));
@@ -109,41 +117,55 @@ export function CalendarWeek({
     bookings.filter((b) => zonedParts(new Date(b.startsAt), timeZone).date === date);
 
   return (
-    // Vertical scrolling happens inside this container (not the page) so
-    // `sticky top-0` below has a real scrollport to stick against — with
-    // overflow-x-auto alone (and no explicit overflow-y), the browser
-    // implicitly makes overflow-y `auto` too per the CSS Overflow spec,
-    // which made this element the sticky containing block without ever
-    // giving it a bounded scrollport, so the header never actually stuck.
-    // Bounding the height and scrolling in both axes here is the cleaner
-    // fix vs. dropping sticky entirely, since the grid can run tall.
-    <div className="max-h-[75vh] overflow-auto rounded-md border">
-      <div className="grid min-w-[840px] grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
-        {/* header row */}
-        <div className="sticky top-0 left-0 z-20 border-b bg-background" />
-        {days.map((d, i) => (
-          <div key={d} className="sticky top-0 z-10 border-b border-l bg-background p-2 text-center text-sm">
-            <span className="text-muted-foreground">{DAY_LABELS[(i + 1) % 7]}</span>{" "}
-            <span className={nowParts?.date === d ? "rounded bg-primary px-1.5 py-0.5 font-semibold text-primary-foreground" : "font-medium"}>
-              {Number(d.slice(8, 10))}
-            </span>
-          </div>
-        ))}
-        {/* gutter */}
-        <div className="sticky left-0 z-10 bg-background" style={{ height: `${(endHour - startHour) * 48}px` }}>
-          {Array.from({ length: endHour - startHour }, (_, i) => (
-            <div key={i} className="absolute right-1 -translate-y-1/2 text-xs text-muted-foreground"
-              style={{ top: `${pct((startHour + i) * 60)}%` }}>
-              {i === 0 ? "" : `${String(startHour + i).padStart(2, "0")}:00`}
-            </div>
-          ))}
+    // The grid fills whatever height `main` gives the page (the page root
+    // is flex-1) instead of scrolling inside a capped box — rows are
+    // percent-positioned, so they compress/stretch with the viewport like
+    // the reference. min-h is the graceful floor: below it the page
+    // scrolls rather than crushing the rows.
+    <div className="flex min-h-[520px] flex-1 flex-col overflow-x-auto rounded-lg border">
+      <div className="flex min-h-0 min-w-[840px] flex-1 flex-col">
+        {/* header row: week arrows live inside the grid, like the reference */}
+        <div className={cn("grid shrink-0 border-b", GRID_COLS)}>
+          <Link
+            href={prevHref}
+            aria-label="Previous week"
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "self-center justify-self-center px-2")}
+          >
+            ←
+          </Link>
+          {days.map((d, i) => {
+            const isToday = nowParts?.date === d;
+            return (
+              <div key={d} className="flex items-center justify-center py-2">
+                <span
+                  className={cn(
+                    "flex items-baseline gap-1.5 rounded-md px-2.5 py-1",
+                    isToday && "bg-primary text-primary-foreground",
+                  )}
+                >
+                  <span className={cn("text-xs", isToday ? "text-primary-foreground/75" : "text-muted-foreground")}>
+                    {DAY_LABELS[(i + 1) % 7]}
+                  </span>
+                  <span className="text-sm font-semibold">{Number(d.slice(8, 10))}</span>
+                </span>
+              </div>
+            );
+          })}
+          <Link
+            href={nextHref}
+            aria-label="Next week"
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "self-center justify-self-center px-2")}
+          >
+            →
+          </Link>
         </div>
-        {/* day columns */}
-        {days.map((d, di) => (
+        {/* body row: left rail, 7 day columns, right time axis */}
+        <div className={cn("grid min-h-0 flex-1", GRID_COLS)}>
+          <div />
+          {days.map((d, di) => (
           <div
             key={d}
-            className="relative border-l"
-            style={{ height: `${(endHour - startHour) * 48}px` }}
+            className="relative border-l border-border/60"
             onPointerDown={(e) => {
               if ((e.target as HTMLElement).closest("button")) return; // cards handle themselves
               // Capture on the column itself so drag-move keeps firing here
@@ -170,11 +192,11 @@ export function CalendarWeek({
             onPointerUp={() => setDragging(false)}
           >
             {Array.from({ length: endHour - startHour }, (_, i) => (
-              <div key={i} className="absolute inset-x-0 border-t border-border/50"
+              <div key={i} className="absolute inset-x-0 border-t border-border/40"
                 style={{ top: `${pct((startHour + i) * 60)}%` }} />
             ))}
             {closedIntervals(windowsByDay[di], startHour, endHour).map((c, i) => (
-              <div key={i} className="absolute inset-x-0 bg-muted/30" style={{ ...HATCH, top: `${pct(c.startMin)}%`, height: `${pct(c.endMin) - pct(c.startMin)}%` }} />
+              <div key={i} className="absolute inset-x-0 bg-muted/20" style={{ ...HATCH, top: `${pct(c.startMin)}%`, height: `${pct(c.endMin) - pct(c.startMin)}%` }} />
             ))}
             {nowParts?.date === d ? (
               <div className="absolute inset-x-0 z-20 border-t-2 border-primary" style={{ top: `${pct(nowParts.minutes)}%` }} />
@@ -235,7 +257,20 @@ export function CalendarWeek({
               </div>
             ) : null}
           </div>
-        ))}
+          ))}
+          {/* time axis (right edge, like the reference) */}
+          <div className="relative border-l border-border/60">
+            {Array.from({ length: endHour - startHour }, (_, i) => (
+              <div
+                key={i}
+                className="absolute left-1.5 -translate-y-1/2 text-[11px] text-muted-foreground"
+                style={{ top: `${pct((startHour + i) * 60)}%` }}
+              >
+                {i === 0 ? "" : `${String(startHour + i).padStart(2, "0")}:00`}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
       <BookingDetailDialog
         booking={selected}

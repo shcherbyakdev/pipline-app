@@ -64,24 +64,14 @@ export default async function BookingsPage({
   ]);
 
   return (
-    <div className="flex w-full flex-col gap-4 p-6">
+    // flex-1 + min-h-0: the calendar fills main's leftover viewport height
+    // (week arrows live inside the grid header; see CalendarWeek).
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-lg font-semibold">Bookings</h1>
         <div className="flex items-center gap-2">
-          <Link
-            href={`/bookings?week=${addDaysISO(weekStart, -7)}`}
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-          >
-            ←
-          </Link>
           <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
             Today
-          </Link>
-          <Link
-            href={`/bookings?week=${addDaysISO(weekStart, 7)}`}
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-          >
-            →
           </Link>
           <Link
             href="/bookings?view=list"
@@ -98,6 +88,8 @@ export default async function BookingsPage({
         rules={rules}
         exceptions={exceptions}
         services={services.filter((s) => s.active)}
+        prevHref={`/bookings?week=${addDaysISO(weekStart, -7)}`}
+        nextHref={`/bookings?week=${addDaysISO(weekStart, 7)}`}
       />
     </div>
   );
