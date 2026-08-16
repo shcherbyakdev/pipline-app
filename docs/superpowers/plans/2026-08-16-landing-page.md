@@ -1053,3 +1053,17 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - **Spec coverage:** routing/deletion (T2), light scope + metadata (T2), site data (T1), nav (T3), hero + booking mock (T4), how-it-works + features (T5), product module + calendar mock (T6), embed module + snippet mock (T7), FAQ + final CTA (T8), footer (T3), tests/verify/build/visual QA (T1, T9), a11y (`aria-labelledby`, `scroll-mt-20`, `aria-hidden` mocks, single h1) across tasks, out-of-scope items untouched.
 - **Placeholders:** none; every code step is complete.
 - **Type consistency:** `SITE.links.{home,login,signup}`, `SITE.anchors.{how,features,faq}`, `FeatureIcon` union values match the `ICONS` map keys in T5, section ids match `SITE.anchors`, component names match their imports in T8's final page listing.
+
+---
+
+## Execution deviations (Task 9 visual QA)
+
+Everything below is a class-level change made during the QA pass; no new sections, copy, dependencies, gradients, animation libraries or `dark:` utilities were introduced.
+
+1. **Calendar mock scrolls below 44rem** (`mocks/calendar-mock.tsx`) — the spec describes the week grid as a plain bordered card. At 390px the five day columns squeezed booking chips down to "Co…", so the grid now sits in an `overflow-x-auto` wrapper with `min-w-[44rem]`; the card border and radius stay fixed while the grid scrolls inside it. Page-level `scrollWidth` at 390px is still exactly 390 (measured over CDP).
+2. **FAQ uses the page grid instead of `max-w-3xl`** (`faq.tsx`) — the plan's centred 3xl column put the FAQ heading ~190px right of every other section heading, which read as drift. It is now `max-w-6xl` with `lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]`: heading left (aligned with the rest of the page), accordion right. Single column below `lg`; markup and `<details>` semantics unchanged.
+3. **Hairline rules on the how-it-works steps** (`how-it-works.tsx`) — each `<li>` gained `border-t pt-6` (plus `tabular-nums` on the numeral and `text-balance` on the title) so the three-step sequence reads as structure. `md:gap-8` tightens the column gap now that the rules delimit the steps.
+4. **Landing-scoped focus ring** (`src/app/(marketing)/layout.tsx`) — the shared `.light` block sets `--ring: oklch(0.708 0 0)`, roughly 1.5:1 grey on white. The marketing wrapper now sets `--ring: var(--primary)` via an inline style so focus is clearly visible in the landing's teal accent. Inline rather than a utility class because the `.light` rule is unlayered and would otherwise win; scoped to this wrapper rather than the `.light` block so the app's own light theme (next-themes can put `.light` on `<html>`) keeps its neutral ring.
+5. **Footer copyright hairline** (`marketing-footer.tsx`) — `border-t py-8` on the copyright row, aligned to the 6xl content width.
+6. **Hero secondary CTA arrow nudge** (`hero.tsx`) — CSS-only `group-hover/cta:translate-x-0.5` with `motion-reduce:transition-none`.
+7. **Unused import removed** (`site.test.ts`) — `FOOTER_COLUMNS` was imported but unused (footer hrefs are already covered through `allInternalHrefs()`), and was the only remaining lint warning. `npm run verify` is now silent.
