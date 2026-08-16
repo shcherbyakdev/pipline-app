@@ -644,3 +644,14 @@ export async function resendManageLink(
 - [ ] **Step 2:** `graphify update .`
 - [ ] **Step 3:** Record execution deviations in this plan file; commit.
 - [ ] **Step 4:** superpowers:finishing-a-development-branch — PR targets `main`.
+
+---
+
+## Execution deviations (recorded post-implementation)
+
+1. **globals.css border selector tightened** (Task 3): the plan's `[class*="border"]` override would have flattened focus-ring/invalid-state borders (unlayered CSS beats Tailwind layers); shipped with `:not(.wt-primary):not(:focus-visible):not([aria-invalid="true"])` exclusions — ruled a correct bug fix in review.
+2. **Snippet fix round** (Task 5): plan's dialog code omitted the spec-mandated `async` on the script tag; caught in review, fixed, and `snippetFor` extracted to a pure module with 4 unit tests.
+3. **No-email Resend button** (Task 6): brief's `title`-only disabled state replaced with Button's `disabled` + `focusableWhenDisabled` (Base UI native pattern) after review found the hand-rolled version looked fully clickable.
+4. **`bookingLifecycleKey` kind union widened** with `` `manage-${string}` `` (type-only) rather than a sibling helper.
+5. **`flushSync` in the widget's service-select handler** (Task 7) so the slots region exists before `.focus()` — event-driven, lint-safe.
+6. **Deferred minors** (ledger + final-review triage): rotate-token past-booking test gap, uppercase hex in client regex, unused font `variable` options, reporter body-vs-documentElement metric, dead `revalidatePath("/bookings")` in updateWidgetTheme, widget arrow aria-labels + error live region (pre-existing).
