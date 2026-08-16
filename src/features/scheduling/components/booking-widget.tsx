@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +33,7 @@ export function BookingWidget({
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
+  const slotsRegionRef = React.useRef<HTMLDivElement>(null);
 
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
@@ -128,7 +130,10 @@ export function BookingWidget({
             <li key={s.id}>
               <button
                 type="button"
-                onClick={() => setService(s)}
+                onClick={() => {
+                  flushSync(() => setService(s));
+                  slotsRegionRef.current?.focus();
+                }}
                 className="hover:bg-accent/50 flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
               >
                 <span>
@@ -149,16 +154,18 @@ export function BookingWidget({
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">
               {service.name}{" "}
-              <button
-                type="button"
-                className="text-muted-foreground underline"
-                onClick={() => {
-                  setService(services.length === 1 ? service : null);
-                  setSlots([]);
-                }}
-              >
-                {services.length > 1 ? "change" : ""}
-              </button>
+              {services.length > 1 ? (
+                <button
+                  type="button"
+                  className="text-muted-foreground underline"
+                  onClick={() => {
+                    setService(null);
+                    setSlots([]);
+                  }}
+                >
+                  change
+                </button>
+              ) : null}
             </p>
             <div className="flex gap-2">
               <Button
@@ -174,26 +181,34 @@ export function BookingWidget({
               </Button>
             </div>
           </div>
-          {pending ? (
-            <p className="text-muted-foreground text-sm">Loading times…</p>
-          ) : byDay.size === 0 ? (
-            <p className="text-muted-foreground text-sm">No free times this week — try the next.</p>
-          ) : (
-            [...byDay.entries()].map(([day, daySlots]) => (
-              <div key={day} className="flex flex-col gap-2">
-                <p className="text-muted-foreground text-xs font-medium">
-                  {dayFmt.format(new Date(daySlots[0]))}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {daySlots.map((s) => (
-                    <Button key={s} variant="outline" size="sm" onClick={() => setSlot(s)}>
-                      {timeFmt.format(new Date(s))}
-                    </Button>
-                  ))}
+          <div ref={slotsRegionRef} tabIndex={-1} aria-live="polite" className="flex flex-col gap-4">
+            {pending ? (
+              <p className="text-muted-foreground text-sm">Loading times…</p>
+            ) : byDay.size === 0 ? (
+              <p className="text-muted-foreground text-sm">No free times this week — try the next.</p>
+            ) : (
+              [...byDay.entries()].map(([day, daySlots]) => (
+                <div key={day} className="flex flex-col gap-2">
+                  <p className="text-muted-foreground text-xs font-medium">
+                    {dayFmt.format(new Date(daySlots[0]))}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {daySlots.map((s) => (
+                      <Button
+                        key={s}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSlot(s)}
+                        aria-label={`${dayFmt.format(new Date(s))}, ${timeFmt.format(new Date(s))}`}
+                      >
+                        {timeFmt.format(new Date(s))}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
           <p className="text-muted-foreground text-xs">Times shown in your timezone ({viewerTz}).</p>
           {viewerTz !== orgTimeZone ? (
             <p className="text-muted-foreground text-xs">
