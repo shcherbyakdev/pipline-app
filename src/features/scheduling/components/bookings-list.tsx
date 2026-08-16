@@ -3,7 +3,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { formatWhenLine } from "@/features/scheduling/templates";
-import { cancelBookingAdmin } from "@/features/scheduling/booking-actions";
+import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,18 @@ function Row({
       setConfirming(false);
     });
 
+  const resend = () =>
+    startTransition(async () => {
+      if (!booking.clientEmail) return;
+      const result = await resendManageLink({ id: booking.id });
+      if (!result.ok) toast.error(result.error);
+      else if (result.emailed) toast.success("A fresh booking link is on its way to the client.");
+      else
+        toast.warning(
+          "Link was reset, but the email failed — the old link no longer works. Contact the client directly.",
+        );
+    });
+
   return (
     <li className="flex flex-col gap-2 rounded-md border p-3 text-sm">
       <div className="flex items-center justify-between gap-2">
@@ -59,6 +71,16 @@ function Row({
       {actionable ? (
         <div className="flex items-center gap-2">
           <BookingRescheduleDialog booking={booking} timeZone={timeZone} />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={resend}
+            disabled={pending}
+            aria-disabled={!booking.clientEmail}
+            title={booking.clientEmail ? undefined : "No email on file"}
+          >
+            Resend link
+          </Button>
           {confirming ? (
             <>
               <Button variant="ghost" size="sm" onClick={cancel} disabled={pending}>
