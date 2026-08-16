@@ -10,6 +10,7 @@ import type { PublicService } from "@/lib/booking/public";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { snippetFor } from "./widget-embed-snippet";
 
 // Six slots across two future days, far in the future so this never needs
 // to be refreshed to stay "future" for the preview widget.
@@ -45,14 +46,6 @@ const FONT_OPTIONS: Array<{ value: WidgetThemeConfig["font"]; label: string }> =
 
 // create-booking-dialog.tsx's native-<select> idiom.
 const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
-
-function snippetFor(appUrl: string, handle: string): string {
-  return (
-    `<iframe src="${appUrl}/embed/${handle}" data-rollout-embed `
-    + `style="width:100%;border:0" title="Book an appointment"></iframe>\n`
-    + `<script src="${appUrl}/embed.js"></script>`
-  );
-}
 
 export function WidgetAppearance({
   initial,
