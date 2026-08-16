@@ -143,3 +143,41 @@
     @apply font-sans;
   }
 }
+
+/* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text
+   from per-org config) win over these class defaults. */
+.widget-theme {
+  background: var(--widget-bg);
+  color: var(--widget-text);
+}
+.widget-theme :is(button, input, textarea, select, [class*="rounded"]) {
+  border-radius: var(--widget-radius);
+}
+.wt-light { --widget-bg: #ffffff; --widget-text: #18181b; --widget-line: #e4e4e7; }
+.wt-dark  { --widget-bg: #18181b; --widget-text: #fafafa; --widget-line: #3f3f46; }
+.wt-auto  { --widget-bg: #ffffff; --widget-text: #18181b; --widget-line: #e4e4e7; }
+@media (prefers-color-scheme: dark) {
+  .wt-auto { --widget-bg: #18181b; --widget-text: #fafafa; --widget-line: #3f3f46; }
+}
+.widget-theme .wt-primary {
+  background: var(--widget-accent);
+  color: #ffffff;
+  border-color: transparent;
+}
+/* Scoped to plain `.border`/`border-*` tokens (attribute *contains* match,
+   not `.border` exact-token) so Input/Textarea/Button's `border-input`,
+   `border-transparent`, etc. all pick up the widget's own line color instead
+   of the app shell's hardcoded dark-theme --border/--input vars. Excluded:
+   - `.wt-primary` — its own rule above sets border-color: transparent, and
+     this file has no `@layer`, so unlayered rules always beat Tailwind's
+     layered utilities regardless of specificity; without the exclusion this
+     rule (declared later) would repaint a visible line around the accent
+     confirm button.
+   - `:focus-visible` / `[aria-invalid="true"]` — shadcn's focus-visible:border-ring
+     and aria-invalid:border-destructive utilities carry the same "contains
+     border" substring and, for the same unlayered-always-wins reason, would
+     otherwise be flattened to the neutral line color, dulling the focus and
+     validation-error indicators on Input/Textarea. */
+.widget-theme :is(.border, [class*="border"]):not(.wt-primary):not(:focus-visible):not([aria-invalid="true"]) {
+  border-color: var(--widget-line);
+}

@@ -2,7 +2,11 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { publicLogoUrl } from "@/lib/storage/branding";
 
-export type OrgBranding = { accentColor: string | null; logoUrl: string | null };
+export type OrgBranding = {
+  accentColor: string | null;
+  logoUrl: string | null;
+  themeRaw: unknown;
+};
 
 // Branding rides OUTSIDE the token RPCs on purpose: growing a RETURNS
 // TABLE signature forces drop + recreate + re-grant of a battle-tested
@@ -13,15 +17,16 @@ export async function getOrgBranding(orgId: string): Promise<OrgBranding> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("orgs")
-    .select("accent_color, logo_path")
+    .select("accent_color, logo_path, widget_theme")
     .eq("id", orgId)
     .maybeSingle();
   if (error || !data) {
     if (error) console.error("[branding] read failed:", error.message);
-    return { accentColor: null, logoUrl: null };
+    return { accentColor: null, logoUrl: null, themeRaw: null };
   }
   return {
     accentColor: data.accent_color,
     logoUrl: data.logo_path ? publicLogoUrl(data.logo_path) : null,
+    themeRaw: data.widget_theme,
   };
 }

@@ -208,7 +208,7 @@ export function BookingWidget({
             <Label htmlFor="note">Note (optional)</Label>
             <Textarea id="note" name="note" maxLength={2000} rows={3} />
           </div>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" className="wt-primary" disabled={pending}>
             {pending ? "Booking…" : "Confirm booking"}
           </Button>
         </form>

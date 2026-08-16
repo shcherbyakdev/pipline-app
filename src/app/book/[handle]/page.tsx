@@ -3,6 +3,8 @@ import { getBookingOrg, listPublicServices } from "@/lib/booking/public";
 import { getOrgBranding } from "@/lib/org-branding";
 import { BrandedHeader } from "@/components/branded-header";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
+import { WidgetTheme } from "@/components/widget-theme";
+import { parseWidgetTheme } from "@/lib/widget-theme";
 
 export default async function BookPage({ params }: PageProps<"/book/[handle]">) {
   const { handle } = await params;
@@ -21,7 +23,9 @@ export default async function BookPage({ params }: PageProps<"/book/[handle]">) 
         accentColor={branding.accentColor}
         logoUrl={branding.logoUrl}
       />
-      <BookingWidget handle={handle} orgTimeZone={org.timeZone} services={services} />
+      <WidgetTheme config={parseWidgetTheme(branding.themeRaw)} accentColor={branding.accentColor}>
+        <BookingWidget handle={handle} orgTimeZone={org.timeZone} services={services} />
+      </WidgetTheme>
     </div>
   );
 }
