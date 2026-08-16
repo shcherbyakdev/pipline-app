@@ -5,17 +5,26 @@ import type { WidgetThemeConfig } from "@/lib/widget-theme";
 // The root layout already loads Inter/JetBrains Mono for the app shell —
 // these must only be imported from widget surfaces (booking widget, embed
 // wrapper), never from app pages, to keep the two font sets independent.
-const widgetInter = Inter({ subsets: ["latin"], variable: "--widget-font-inter" });
-const widgetDmSans = DM_Sans({ subsets: ["latin"], variable: "--widget-font-dm-sans" });
-const widgetLora = Lora({ subsets: ["latin"], variable: "--widget-font-lora" });
+// preload: false on every instance — a given embed only ever applies ONE of
+// these families (widgetFontClass below returns a single class), so
+// preloading all five would ship unused font preload links to every embed.
+const widgetInter = Inter({ subsets: ["latin"], variable: "--widget-font-inter", preload: false });
+const widgetDmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--widget-font-dm-sans",
+  preload: false,
+});
+const widgetLora = Lora({ subsets: ["latin"], variable: "--widget-font-lora", preload: false });
 const widgetSpaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   variable: "--widget-font-space-grotesk",
+  preload: false,
 });
 const widgetIbmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--widget-font-ibm-plex-mono",
+  preload: false,
 });
 
 export function widgetFontClass(font: WidgetThemeConfig["font"]): string {

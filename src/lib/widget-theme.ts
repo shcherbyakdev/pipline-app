@@ -16,6 +16,16 @@ export const WIDGET_THEME_DEFAULTS: WidgetThemeConfig = {
   hidePoweredBy: false,
 };
 
+// The bg/text pair each named theme paints when the corresponding override
+// is absent — must mirror the .wt-light/.wt-dark/.wt-auto rules in
+// globals.css. Used by effectiveContrast() to fill in whichever side of the
+// pair the org didn't override, so a lone override can't slip an unreadable
+// combination past the guard.
+export const WIDGET_THEME_DEFAULT_COLORS = {
+  light: { background: "#ffffff", text: "#18181b" },
+  dark: { background: "#18181b", text: "#fafafa" },
+} as const;
+
 export const WIDGET_FONT_IDS = [
   "system",
   "inter",
@@ -123,6 +133,39 @@ export function contrastRatio(hexA: string, hexB: string): number {
   const lMin = Math.min(luminanceA, luminanceB);
 
   return (lMax + 0.05) / (lMin + 0.05);
+}
+
+/**
+ * Contrast ratio the widget will actually render, filling in whichever of
+ * background/text the config *doesn't* override with that theme's default
+ * (see WIDGET_THEME_DEFAULT_COLORS) — so a single override (e.g. background
+ * only) is checked against the default it will actually sit next to, not
+ * skipped just because the other side is unset.
+ *
+ * theme "auto" renders as light or dark depending on the visitor's system,
+ * so both variants are computed and the WORSE (lower) ratio is returned —
+ * the guard must hold in whichever variant the visitor lands on.
+ *
+ * When neither background nor text is overridden, the theme's own default
+ * pair is used and returns a safe ratio (guard is moot either way).
+ */
+export function effectiveContrast(config: WidgetThemeConfig): number {
+  if (!config.background && !config.text) return 21;
+
+  if (config.theme === "auto") {
+    const light = contrastRatio(
+      config.background ?? WIDGET_THEME_DEFAULT_COLORS.light.background,
+      config.text ?? WIDGET_THEME_DEFAULT_COLORS.light.text,
+    );
+    const dark = contrastRatio(
+      config.background ?? WIDGET_THEME_DEFAULT_COLORS.dark.background,
+      config.text ?? WIDGET_THEME_DEFAULT_COLORS.dark.text,
+    );
+    return Math.min(light, dark);
+  }
+
+  const defaults = WIDGET_THEME_DEFAULT_COLORS[config.theme];
+  return contrastRatio(config.background ?? defaults.background, config.text ?? defaults.text);
 }
 
 function getLuminance(hex: string): number {

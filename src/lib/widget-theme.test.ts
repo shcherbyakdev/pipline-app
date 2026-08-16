@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  WIDGET_THEME_DEFAULTS, parseWidgetTheme, themeCssVars, contrastRatio,
+  WIDGET_THEME_DEFAULTS, parseWidgetTheme, themeCssVars, contrastRatio, effectiveContrast,
 } from "./widget-theme";
 
 describe("parseWidgetTheme", () => {
@@ -40,5 +40,47 @@ describe("contrastRatio", () => {
   it("is symmetric and flags low-contrast pairs", () => {
     expect(contrastRatio("#777777", "#888888")).toBeLessThan(1.3);
     expect(contrastRatio("#ffffff", "#000000")).toBeCloseTo(contrastRatio("#000000", "#ffffff"), 5);
+  });
+});
+
+describe("effectiveContrast", () => {
+  it("no overrides → safe ratio (guard moot)", () => {
+    expect(effectiveContrast({ ...WIDGET_THEME_DEFAULTS, theme: "light" })).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("background-only override on light collides with the default text colour", () => {
+    // light default text is #18181b — overriding background to the same
+    // colour should be caught even though `text` was never touched.
+    const ratio = effectiveContrast({
+      ...WIDGET_THEME_DEFAULTS, theme: "light", background: "#18181b",
+    });
+    expect(ratio).toBeCloseTo(1, 0);
+  });
+
+  it("text-only override on dark collides with the default background colour", () => {
+    // dark default background is #18181b — overriding text to the same
+    // colour should be caught even though `background` was never touched.
+    const ratio = effectiveContrast({
+      ...WIDGET_THEME_DEFAULTS, theme: "dark", text: "#18181b",
+    });
+    expect(ratio).toBeCloseTo(1, 0);
+  });
+
+  it("auto returns the worse of the light/dark variants", () => {
+    // Background overridden to the dark theme's default (#18181b): fine
+    // against the light variant's default text, but collides against the
+    // dark variant's default text (#fafafa is fine, but here we pin text
+    // too, to a colour that only collides in one variant).
+    const ratio = effectiveContrast({
+      ...WIDGET_THEME_DEFAULTS, theme: "auto", background: "#18181b",
+    });
+    // Light-variant text default (#18181b) sits on a #18181b background →
+    // ~1:1; dark-variant text default (#fafafa) on #18181b → high contrast.
+    // The worse (lower) of the two must win.
+    expect(ratio).toBeCloseTo(1, 0);
+  });
+
+  it("auto with no overrides stays safe", () => {
+    expect(effectiveContrast({ ...WIDGET_THEME_DEFAULTS, theme: "auto" })).toBeGreaterThanOrEqual(4.5);
   });
 });

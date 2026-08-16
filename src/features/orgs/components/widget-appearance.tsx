@@ -3,7 +3,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { updateWidgetTheme } from "@/features/orgs/actions";
-import { contrastRatio, type WidgetThemeConfig } from "@/lib/widget-theme";
+import { effectiveContrast, type WidgetThemeConfig } from "@/lib/widget-theme";
 import { WidgetTheme } from "@/components/widget-theme";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import type { PublicService } from "@/lib/booking/public";
@@ -63,8 +63,11 @@ export function WidgetAppearance({
   const [config, setConfig] = React.useState<WidgetThemeConfig>(initial);
   const [pending, startTransition] = React.useTransition();
 
-  const ratio =
-    config.background && config.text ? contrastRatio(config.background, config.text) : null;
+  // Show/guard the ratio as soon as EITHER side is overridden — a lone
+  // override still gets checked against the theme's default for the other
+  // side (effectiveContrast), not skipped until both are set.
+  const hasOverride = Boolean(config.background || config.text);
+  const ratio = hasOverride ? effectiveContrast(config) : null;
   const contrastBlocked = ratio !== null && ratio < 3;
   const contrastWarn = ratio !== null && ratio < 4.5;
 

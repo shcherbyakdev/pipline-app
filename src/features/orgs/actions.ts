@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isAllowedLogoType, matchesLogoMagicBytes, logoPathFor, LOGO_MAX_BYTES } from "@/lib/storage/logo";
 import { uploadBrandingObject, deleteBrandingObject } from "@/lib/storage/branding";
-import { contrastRatio } from "@/lib/widget-theme";
+import { effectiveContrast } from "@/lib/widget-theme";
 import {
   createOrgSchema,
   updateAccentInput,
@@ -82,9 +82,12 @@ export async function updateWidgetTheme(input: unknown): Promise<ActionState> {
   const parsed = widgetThemeInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const cfg = parsed.data;
-  // Server-side contrast floor (mirrors the form's block threshold). Only
-  // meaningful when both overrides are present; theme-pair defaults pass.
-  if (cfg.background && cfg.text && contrastRatio(cfg.background, cfg.text) < 3) {
+  // Server-side contrast floor (mirrors the form's block threshold).
+  // effectiveContrast fills in whichever side (bg/text) isn't overridden
+  // with that theme's default, so a lone override that collides with the
+  // theme's default for the other side is still caught — not just pairs
+  // where both are overridden.
+  if (effectiveContrast(cfg) < 3) {
     return { ok: false, error: CONTRAST_BLOCK };
   }
   const { org, error: orgError } = await currentOrgBranding();

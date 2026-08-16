@@ -152,5 +152,22 @@ describe("rotate_booking_token", () => {
       p_booking_id: cancelId, p_token_hash: generateAccessToken().tokenHash,
     });
     expect(cancelledErr).not.toBeNull();
+    // past: create in the future (create_booking rejects past starts_at
+    // outright), then admin-backdate starts_at/ends_at, then rotate must fail.
+    const p = generateAccessToken();
+    const { data: pastId } = await anon.rpc("create_booking", {
+      p_handle: HANDLE, p_service_id: serviceId,
+      p_starts_at: "2027-06-01T14:00:00Z", p_name: "Past",
+      p_email: "past@example.com", p_note: null, p_token_hash: p.tokenHash,
+    });
+    const { error: backdateErr } = await admin
+      .from("bookings")
+      .update({ starts_at: "2020-01-01T10:00:00Z", ends_at: "2020-01-01T11:00:00Z" })
+      .eq("id", pastId);
+    if (backdateErr) throw backdateErr;
+    const { error: pastErr } = await owner.rpc("rotate_booking_token", {
+      p_booking_id: pastId, p_token_hash: generateAccessToken().tokenHash,
+    });
+    expect(pastErr).not.toBeNull();
   });
 });

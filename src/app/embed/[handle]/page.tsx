@@ -19,7 +19,7 @@ export default async function EmbedPage({ params }: PageProps<"/embed/[handle]">
   if (services.length === 0) notFound();
   const theme = parseWidgetTheme(branding.themeRaw);
   return (
-    <WidgetTheme config={theme} accentColor={branding.accentColor}>
+    <WidgetTheme config={theme} accentColor={branding.accentColor} className="min-h-dvh p-4">
       <EmbedResizeReporter />
       {branding.logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
