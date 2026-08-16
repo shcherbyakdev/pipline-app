@@ -2,7 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Nested `.light` surfaces opt out of `dark:` variants; nothing under (dashboard) sits inside `.light`. */
+@custom-variant dark (&:is(.dark *):not(.light *));
 
 @theme inline {
   --color-background: var(--background);
@@ -130,6 +131,45 @@
   --status-complete: oklch(0.68 0.17 150);
   --status-at-risk: oklch(0.78 0.15 75);
   --status-blocked: oklch(0.63 0.22 25);
+}
+
+/* Light scope for surfaces rendered under the dark <html> (marketing landing).
+   Custom properties resolve from the nearest ancestor, so this wins over
+   `.dark` on <html> regardless of specificity. Intentionally covers only the
+   core tokens the marketing surface uses — no sidebar, chart or status tokens;
+   anything nested here that needs those must add them. */
+.light {
+  color-scheme: light;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.62 0.12 187);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+}
+
+/* Marketing landing: teal focus ring. Compound selector (0-2-0) so it beats
+   the unlayered `.light` token block (0-1-0); a Tailwind utility on the same
+   element could not, because `.light` is unlayered CSS. */
+.light.marketing {
+  /* Darker teal within the marketing scope so 16px button labels
+     (white on --primary: 3.28:1 → 4.96:1) and the hero eyebrow
+     (--primary on white: 3.37:1 → 5.08:1) reach AA ≥4.5:1.
+     App tokens are unchanged — this override never leaves the landing page. */
+  --primary: oklch(0.52 0.11 187);
+  --ring: var(--primary);
 }
 
 @layer base {
