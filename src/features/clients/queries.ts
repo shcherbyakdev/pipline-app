@@ -65,12 +65,19 @@ export async function listClientOptions(): Promise<ClientOption[]> {
   return data ?? [];
 }
 
-export async function getClient(id: string): Promise<{ id: string; name: string } | null> {
+export async function getClient(
+  id: string,
+): Promise<{ id: string; name: string; email: string | null; createdAt: string } | null> {
   const supabase = await createSupabase();
   const { data, error } = await supabase
-    .from("clients").select("id, name").eq("id", id).maybeSingle();
+    .from("clients")
+    .select("id, name, email, created_at")
+    .eq("id", id)
+    .maybeSingle();
   if (error) throw error;
-  return data;
+  return data
+    ? { id: data.id, name: data.name, email: data.email, createdAt: data.created_at }
+    : null;
 }
 
 export async function listClientUnits(clientId: string): Promise<ClientUnitRow[]> {
@@ -123,5 +130,72 @@ export async function listClientLinks(clientId: string): Promise<ClientLink[]> {
     revokedAt: r.revoked_at,
     lastUsedAt: r.last_used_at,
     status: r.revoked_at ? "revoked" : Date.parse(r.expires_at) < now ? "expired" : "active",
+  }));
+}
+
+export type ClientDirectoryRow = {
+  id: string;
+  name: string;
+  email: string | null;
+  bookingCount: number;
+};
+
+// Scheduling directory (S5): embedded count rides member RLS on bookings.
+export async function listClientsDirectory(): Promise<ClientDirectoryRow[]> {
+  const supabase = await createSupabase();
+  const { data, error } = await supabase
+    .from("clients")
+    .select("id, name, email, bookings(count)")
+    .order("name");
+  if (error) throw error;
+  type Row = {
+    id: string;
+    name: string;
+    email: string | null;
+    bookings: { count: number }[];
+  };
+  return ((data ?? []) as unknown as Row[])
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      bookingCount: c.bookings[0]?.count ?? 0,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export type ClientBookingRow = {
+  id: string;
+  serviceName: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  note: string | null;
+};
+
+export async function listClientBookings(clientId: string): Promise<ClientBookingRow[]> {
+  const supabase = await createSupabase();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("id, starts_at, ends_at, status, note, services(name)")
+    .eq("client_id", clientId)
+    .order("starts_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  type Row = {
+    id: string;
+    starts_at: string;
+    ends_at: string;
+    status: string;
+    note: string | null;
+    services: { name: string } | null;
+  };
+  return ((data ?? []) as unknown as Row[]).map((b) => ({
+    id: b.id,
+    serviceName: b.services?.name ?? "—",
+    startsAt: b.starts_at,
+    endsAt: b.ends_at,
+    status: b.status,
+    note: b.note,
   }));
 }

@@ -150,10 +150,26 @@ describe("create_booking RPC", () => {
     expect(error).toBeNull();
     const { data: clients } = await admin
       .from("clients")
-      .select("id")
+      .select("id, name")
       .eq("org_id", orgId)
       .eq("email", "jamie@example.com");
     expect(clients!.length).toBe(1);
+    // 0034: first-typed name wins — an unverified re-booker can't rename the
+    // client. The provider renames via the directory.
+    expect(clients![0].name).toBe("Jamie Doe");
+  });
+
+  it("member reads clients with an embedded booking count (directory query shape)", async () => {
+    const { data, error } = await owner
+      .from("clients")
+      .select("id, name, email, bookings(count)")
+      .order("name");
+    expect(error).toBeNull();
+    const jamie = (
+      data as Array<{ email: string | null; bookings: { count: number }[] }>
+    ).find((c) => c.email === "jamie@example.com");
+    expect(jamie).toBeDefined();
+    expect(jamie!.bookings[0].count).toBeGreaterThanOrEqual(2);
   });
 
   it("overlapping confirmed booking is rejected with 23P01", async () => {

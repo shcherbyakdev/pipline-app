@@ -25,6 +25,13 @@ export function formatWhenLine(starts: Date, timeZone: string): string {
   }).format(starts);
 }
 
+export const STATUS_LABEL: Record<string, string> = {
+  confirmed: "Confirmed",
+  cancelled_by_client: "Cancelled by client",
+  cancelled_by_provider: "Cancelled by you",
+  rescheduled: "Rescheduled",
+};
+
 export function bookingConfirmationEmail(input: {
   orgName: string;
   serviceName: string;

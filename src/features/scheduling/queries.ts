@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { type StatsBookingRow } from "./stats";
 
 export type ServiceRow = {
   id: string;
@@ -106,7 +107,7 @@ type BookingRow = {
   id: string;
   service_id: string;
   client_name: string;
-  client_email: string;
+  client_email: string | null;
   starts_at: string;
   ends_at: string;
   status: string;
@@ -187,5 +188,21 @@ export async function listExceptionsBetween(
   if (error) throw error;
   return (data ?? []).map((e) => ({
     id: e.id, date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time,
+  }));
+}
+
+// Overview tiles (S5): minimal columns, single 90-day starts_at window —
+// see stats.ts for why that also covers the created_at-based tile.
+export async function listStatsBookings(fromIso: string): Promise<StatsBookingRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("starts_at, status, created_at")
+    .gte("starts_at", fromIso);
+  if (error) throw error;
+  return (data ?? []).map((b) => ({
+    startsAt: b.starts_at,
+    status: b.status,
+    createdAt: b.created_at,
   }));
 }

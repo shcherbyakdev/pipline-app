@@ -239,6 +239,13 @@
       "when": 1786891654306,
       "tag": "0033_s3_widget_security",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1786903647211,
+      "tag": "0034_s5_client_name",
+      "breakpoints": true
     }
   ]
 }
