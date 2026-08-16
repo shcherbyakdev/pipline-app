@@ -49,3 +49,5 @@ next-env.d.ts
 
 # Claude Code internals (session worktrees, scratch)
 .claude/
+.playwright-mcp/
+/book-clean.png
