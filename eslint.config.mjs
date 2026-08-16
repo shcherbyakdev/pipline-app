@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Code internals (worktrees from other sessions, SDD scratch) —
+    // not project sources; without this, npm run verify walks them.
+    ".claude/**",
+    ".superpowers/**",
   ]),
 ]);
 
