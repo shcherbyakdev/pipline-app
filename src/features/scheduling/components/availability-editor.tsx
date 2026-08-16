@@ -81,9 +81,23 @@ function WeekdayRow({ weekday, rules }: { weekday: number; rules: RuleRow[] }) {
         <p className="text-muted-foreground text-xs">Closed</p>
       )}
       <form ref={formRef} onSubmit={onAdd} className="flex flex-wrap items-center gap-2">
-        <Input type="time" step={300} name="startTime" required className="w-auto" />
+        <Input
+          type="time"
+          step={300}
+          name="startTime"
+          required
+          className="w-auto"
+          aria-label={`${WEEKDAY_LABELS[weekday]} start time`}
+        />
         <span className="text-muted-foreground text-xs">–</span>
-        <Input type="time" step={300} name="endTime" required className="w-auto" />
+        <Input
+          type="time"
+          step={300}
+          name="endTime"
+          required
+          className="w-auto"
+          aria-label={`${WEEKDAY_LABELS[weekday]} end time`}
+        />
         <Button type="submit" size="sm" variant="outline" disabled={pending}>
           Add
         </Button>
@@ -151,7 +165,7 @@ function AddExceptionForm() {
 
   return (
     <form ref={formRef} onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
-      <Input type="date" name="date" required className="w-auto" />
+      <Input type="date" name="date" required className="w-auto" aria-label="Exception date" />
       <label className="flex items-center gap-1.5 text-sm">
         <input
           type="checkbox"
@@ -163,9 +177,23 @@ function AddExceptionForm() {
       </label>
       {!closed ? (
         <>
-          <Input type="time" step={300} name="startTime" required={!closed} className="w-auto" />
+          <Input
+            type="time"
+            step={300}
+            name="startTime"
+            required={!closed}
+            className="w-auto"
+            aria-label="Exception start time"
+          />
           <span className="text-muted-foreground text-xs">–</span>
-          <Input type="time" step={300} name="endTime" required={!closed} className="w-auto" />
+          <Input
+            type="time"
+            step={300}
+            name="endTime"
+            required={!closed}
+            className="w-auto"
+            aria-label="Exception end time"
+          />
         </>
       ) : null}
       <Button type="submit" size="sm" variant="outline" disabled={pending}>

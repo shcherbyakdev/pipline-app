@@ -1,0 +1,86 @@
+import { describe, it, expect } from "vitest";
+import {
+  WIDGET_THEME_DEFAULTS, parseWidgetTheme, themeCssVars, contrastRatio, effectiveContrast,
+} from "./widget-theme";
+
+describe("parseWidgetTheme", () => {
+  it("null → defaults", () => {
+    expect(parseWidgetTheme(null)).toEqual(WIDGET_THEME_DEFAULTS);
+  });
+  it("merges partial stored config over defaults and drops junk", () => {
+    expect(parseWidgetTheme({ theme: "dark", font: "lora", bogus: 1 })).toEqual({
+      ...WIDGET_THEME_DEFAULTS, theme: "dark", font: "lora",
+    });
+  });
+  it("ignores invalid stored values", () => {
+    expect(parseWidgetTheme({ theme: "neon", background: "red" })).toEqual(WIDGET_THEME_DEFAULTS);
+  });
+});
+
+describe("themeCssVars", () => {
+  it("maps radius and accent, omits bg/text unless overridden", () => {
+    const vars = themeCssVars({ ...WIDGET_THEME_DEFAULTS, radius: "round" }, "#ff0000");
+    expect(vars).toEqual({ "--widget-accent": "#ff0000", "--widget-radius": "12px" });
+  });
+  it("includes overrides when set and falls back accent", () => {
+    const vars = themeCssVars(
+      { ...WIDGET_THEME_DEFAULTS, background: "#101010", text: "#fafafa" }, null,
+    );
+    expect(vars["--widget-bg" as keyof typeof vars]).toBe("#101010");
+    expect(vars["--widget-text" as keyof typeof vars]).toBe("#fafafa");
+    expect(vars["--widget-accent" as keyof typeof vars]).toBe("#0f172a");
+  });
+});
+
+describe("contrastRatio", () => {
+  it("black on white is 21, self is 1", () => {
+    expect(contrastRatio("#000000", "#ffffff")).toBeCloseTo(21, 0);
+    expect(contrastRatio("#808080", "#808080")).toBe(1);
+  });
+  it("is symmetric and flags low-contrast pairs", () => {
+    expect(contrastRatio("#777777", "#888888")).toBeLessThan(1.3);
+    expect(contrastRatio("#ffffff", "#000000")).toBeCloseTo(contrastRatio("#000000", "#ffffff"), 5);
+  });
+});
+
+describe("effectiveContrast", () => {
+  it("no overrides → safe ratio (guard moot)", () => {
+    expect(effectiveContrast({ ...WIDGET_THEME_DEFAULTS, theme: "light" })).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("background-only override on light collides with the default text colour", () => {
+    // light default text is #18181b — overriding background to the same
+    // colour should be caught even though `text` was never touched.
+    const ratio = effectiveContrast({
+      ...WIDGET_THEME_DEFAULTS, theme: "light", background: "#18181b",
+    });
+    expect(ratio).toBeCloseTo(1, 0);
+  });
+
+  it("text-only override on dark collides with the default background colour", () => {
+    // dark default background is #18181b — overriding text to the same
+    // colour should be caught even though `background` was never touched.
+    const ratio = effectiveContrast({
+      ...WIDGET_THEME_DEFAULTS, theme: "dark", text: "#18181b",
+    });
+    expect(ratio).toBeCloseTo(1, 0);
+  });
+
+  it("auto returns the worse of the light/dark variants", () => {
+    // Background overridden to the dark theme's default (#18181b): fine
+    // against the light variant's default text, but collides against the
+    // dark variant's default text (#fafafa is fine, but here we pin text
+    // too, to a colour that only collides in one variant).
+    const ratio = effectiveContrast({
+      ...WIDGET_THEME_DEFAULTS, theme: "auto", background: "#18181b",
+    });
+    // Light-variant text default (#18181b) sits on a #18181b background →
+    // ~1:1; dark-variant text default (#fafafa) on #18181b → high contrast.
+    // The worse (lower) of the two must win.
+    expect(ratio).toBeCloseTo(1, 0);
+  });
+
+  it("auto with no overrides stays safe", () => {
+    expect(effectiveContrast({ ...WIDGET_THEME_DEFAULTS, theme: "auto" })).toBeGreaterThanOrEqual(4.5);
+  });
+});

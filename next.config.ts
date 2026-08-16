@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
     return [
       { source: "/p/:path*", headers: tokenSurface },
       { source: "/portal/:path*", headers: tokenSurface },
+      // Embeds are meant to be framed (widget iframe); just keep them out
+      // of search indexes. No frame-blocking header — embedding is the point.
+      { source: "/embed/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex" }] },
     ];
   },
 };

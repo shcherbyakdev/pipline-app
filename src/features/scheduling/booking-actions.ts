@@ -13,6 +13,7 @@ import {
   bookingRescheduledEmail,
   bookingLifecycleKey,
   bookingConfirmationEmail,
+  bookingManageLinkEmail,
   bookingIdempotencyKey,
   formatWhenLine,
 } from "./templates";
@@ -218,6 +219,67 @@ export async function rescheduleBookingAdmin(
     return { ok: true, emailed, noEmail };
   } catch (error) {
     return fail("rescheduleBookingAdmin", error);
+  }
+}
+
+export async function resendManageLink(
+  input: unknown,
+): Promise<{ ok: true; emailed: boolean } | { ok: false; error: string; noEmail?: boolean }> {
+  const parsed = bookingIdInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  try {
+    const org = await currentOrg();
+    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const supabase = await createClient();
+    const { data: booking, error: readError } = await supabase
+      .from("bookings")
+      .select("id, client_email, starts_at, services(name)")
+      .eq("id", parsed.data.id)
+      .eq("org_id", org.id)
+      .eq("status", "confirmed")
+      .maybeSingle();
+    if (readError) return fail("resendManageLink", readError);
+    if (!booking) return { ok: false, error: "Only a confirmed booking has a manage link." };
+    if (!booking.client_email) {
+      return { ok: false, error: "No email on file for this client.", noEmail: true };
+    }
+
+    // Rotate first — the old link is dead the moment this succeeds, whether
+    // or not the send below works. Don't reorder.
+    const fresh = generateAccessToken();
+    const { error } = await supabase.rpc("rotate_booking_token", {
+      p_booking_id: booking.id,
+      p_token_hash: fresh.tokenHash,
+    });
+    if (error) return fail("resendManageLink", error);
+
+    let emailed = true;
+    try {
+      const msg = bookingManageLinkEmail({
+        orgName: org.name,
+        serviceName:
+          (booking as unknown as { services: { name: string } | null }).services?.name ??
+          "Appointment",
+        whenLine: formatWhenLine(new Date(booking.starts_at), org.timezone),
+        manageUrl: buildBookingManageUrl(fresh.token),
+        icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+      });
+      await selectTransport().send({
+        to: booking.client_email,
+        subject: msg.subject,
+        html: msg.html,
+        text: msg.text,
+        // Keyed per rotation (hash prefix) — resending later must not be
+        // deduped against the previous send.
+        idempotencyKey: bookingLifecycleKey(booking.id, `manage-${fresh.tokenHash.slice(0, 8)}`),
+      });
+    } catch (mailError) {
+      console.error("[scheduling] resend manage link email failed:", mailError);
+      emailed = false;
+    }
+    return { ok: true, emailed };
+  } catch (error) {
+    return fail("resendManageLink", error);
   }
 }
 

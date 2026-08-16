@@ -1,0 +1,1 @@
+ALTER TABLE "orgs" ADD COLUMN "widget_theme" jsonb;

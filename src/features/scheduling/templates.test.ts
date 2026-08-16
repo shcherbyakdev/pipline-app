@@ -4,6 +4,7 @@ import {
   bookingCancelledEmail,
   bookingRescheduledEmail,
   bookingReminderEmail,
+  bookingManageLinkEmail,
   providerCancelledEmail,
   providerRescheduledEmail,
 } from "./templates";
@@ -12,6 +13,10 @@ describe("booking lifecycle templates", () => {
   it("lifecycle keys are stable per booking+kind", () => {
     expect(bookingLifecycleKey("b1", "reminder")).toBe("booking/b1/reminder");
     expect(bookingLifecycleKey("b1", "cancelled")).toBe("booking/b1/cancelled");
+  });
+
+  it("lifecycle key accepts a per-rotation manage kind", () => {
+    expect(bookingLifecycleKey("b1", "manage-abcd1234")).toBe("booking/b1/manage-abcd1234");
   });
 
   it("cancellation copy differs by initiator", () => {
@@ -48,6 +53,21 @@ describe("booking lifecycle templates", () => {
     });
     expect(msg.html).toContain("&lt;script&gt;");
     expect(msg.html).toContain("A &amp; B");
+  });
+
+  it("manage link email states the previous link is dead and carries the fresh one", () => {
+    const msg = bookingManageLinkEmail({
+      orgName: "Studio",
+      serviceName: "Cut",
+      whenLine: "Mon, 05 Apr",
+      manageUrl: "https://app/booking/fresh-tok",
+      icsUrl: "https://app/booking/fresh-tok/calendar.ics",
+    });
+    expect(msg.subject).toContain("Cut");
+    expect(msg.subject).toContain("Studio");
+    expect(msg.text).toContain("no longer works");
+    expect(msg.html).toContain("https://app/booking/fresh-tok");
+    expect(msg.text).toContain("https://app/booking/fresh-tok");
   });
 
   it("provider rescheduled email shows both times and escapes clientName", () => {
