@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   timeToMin, minToTime, zonedParts, mondayOf, hourRange, snap15,
-  closedIntervals, serviceAccent,
+  closedIntervals, hourTileState, serviceAccent,
 } from "./calendar-geometry";
 
 describe("calendar-geometry", () => {
@@ -78,5 +78,40 @@ describe("calendar-geometry", () => {
     const a = serviceAccent("3f8b1c2e-0000-4000-8000-000000000001");
     expect(a).toBe(serviceAccent("3f8b1c2e-0000-4000-8000-000000000001"));
     expect(a).toMatch(/^hsl\(/);
+  });
+});
+
+describe("hourTileState", () => {
+  const W = [
+    { startTime: "09:00", endTime: "14:00" },
+    { startTime: "14:30", endTime: "17:00" },
+  ];
+  it("reports a sub-hour block inside an otherwise open hour", () => {
+    // Regression: blocking 14:00–14:30 must be visible on the 14:00 tile.
+    expect(hourTileState(W, 14)).toEqual({
+      fullyClosed: false,
+      closed: [{ startMin: 840, endMin: 870 }],
+    });
+  });
+  it("reports a fully open hour with no closed segments", () => {
+    expect(hourTileState(W, 10)).toEqual({ fullyClosed: false, closed: [] });
+  });
+  it("reports a fully closed hour", () => {
+    expect(hourTileState(W, 7)).toEqual({
+      fullyClosed: true,
+      closed: [{ startMin: 420, endMin: 480 }],
+    });
+  });
+  it("reports an hour split by a mid-hour boundary block", () => {
+    // Block 13:45–14:15 over the same windows: 13-tile loses its tail.
+    const w2 = [{ startTime: "09:00", endTime: "13:45" }, { startTime: "14:15", endTime: "17:00" }];
+    expect(hourTileState(w2, 13)).toEqual({
+      fullyClosed: false,
+      closed: [{ startMin: 825, endMin: 840 }],
+    });
+    expect(hourTileState(w2, 14)).toEqual({
+      fullyClosed: false,
+      closed: [{ startMin: 840, endMin: 855 }],
+    });
   });
 });

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
 import {
-  zonedParts, hourRange, serviceAccent, snap15, minToTime, timeToMin,
+  zonedParts, hourRange, serviceAccent, snap15, minToTime, hourTileState,
 } from "@/features/scheduling/calendar-geometry";
 import { addDaysISO } from "@/features/scheduling/slots";
 import { blockTimeRange, reopenDay } from "@/features/scheduling/actions";
@@ -203,23 +203,36 @@ export function CalendarWeek({
           >
             {Array.from({ length: endHour - startHour }, (_, i) => {
               const h = startHour + i;
-              // A tile is "open" if the hour's midpoint falls inside an
-              // open window — whole-tile granularity like the reference
-              // (fractional open hours read as their dominant state).
-              const midMin = h * 60 + 30;
-              const open = windowsByDay[di].some(
-                (w) => timeToMin(w.startTime) <= midMin && midMin < timeToMin(w.endTime),
-              );
+              const tile = hourTileState(windowsByDay[di], h);
               return (
                 <div
                   key={i}
-                  className={cn("absolute inset-x-0 rounded-md", open ? "bg-muted/40" : "bg-muted/15")}
+                  className={cn(
+                    "absolute inset-x-0 rounded-md",
+                    tile.fullyClosed ? "bg-muted/15" : "bg-muted/40",
+                  )}
                   style={{
                     top: `calc(${pct(h * 60)}% + 2px)`,
                     height: `calc(${pct((h + 1) * 60) - pct(h * 60)}% - 4px)`,
-                    ...(open ? {} : HATCH),
+                    ...(tile.fullyClosed ? HATCH : {}),
                   }}
-                />
+                >
+                  {/* exact blocked slices inside a partially open hour —
+                      without these, a sub-hour block is invisible */}
+                  {!tile.fullyClosed &&
+                    tile.closed.map((c, ci) => (
+                      <div
+                        key={ci}
+                        className="absolute inset-x-0 rounded-sm bg-muted/30"
+                        style={{
+                          ...HATCH,
+                          // tile-local offsets: the tile spans [h*60, (h+1)*60]
+                          top: `${((c.startMin - h * 60) / 60) * 100}%`,
+                          height: `${((c.endMin - c.startMin) / 60) * 100}%`,
+                        }}
+                      />
+                    ))}
+                </div>
               );
             })}
             {nowParts?.date === d ? (

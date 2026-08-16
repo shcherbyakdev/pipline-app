@@ -84,7 +84,21 @@ export function closedIntervals(
   return out.filter((i) => i.startMin < i.endMin);
 }
 
-// Stable accent per service — golden-angle hue walk over a hash, avoiding
+// One calendar tile = one hour of one day. `closed` holds the exact
+// closed sub-intervals within that hour (column-absolute minutes), so a
+// partially blocked hour renders its blocked slice instead of guessing
+// the tile's dominant state (regression: sub-hour blocks were invisible
+// under a midpoint-only rule).
+export function hourTileState(
+  windows: DayWindow[],
+  hour: number,
+): { fullyClosed: boolean; closed: Array<{ startMin: number; endMin: number }> } {
+  const closed = closedIntervals(windows, hour, hour + 1);
+  const closedTotal = closed.reduce((sum, c) => sum + (c.endMin - c.startMin), 0);
+  return { fullyClosed: closedTotal >= 60, closed };
+}
+
+// Stable accent per service — a rolling hash walks the hue wheel, avoiding
 // a color-settings surface (spec).
 export function serviceAccent(serviceId: string): string {
   let h = 0;
