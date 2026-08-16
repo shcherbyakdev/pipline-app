@@ -154,12 +154,14 @@ export async function listClientsDirectory(): Promise<ClientDirectoryRow[]> {
     email: string | null;
     bookings: { count: number }[];
   };
-  return ((data ?? []) as unknown as Row[]).map((c) => ({
-    id: c.id,
-    name: c.name,
-    email: c.email,
-    bookingCount: c.bookings[0]?.count ?? 0,
-  }));
+  return ((data ?? []) as unknown as Row[])
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      bookingCount: c.bookings[0]?.count ?? 0,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export type ClientBookingRow = {

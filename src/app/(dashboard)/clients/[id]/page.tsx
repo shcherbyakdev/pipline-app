@@ -30,7 +30,9 @@ export default async function ClientDetailPage({ params }: PageProps<"/clients/[
         </p>
       </div>
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium">Bookings ({bookings.length})</h2>
+        <h2 className="text-sm font-medium">
+          {bookings.length === 100 ? "Bookings (last 100)" : `Bookings (${bookings.length})`}
+        </h2>
         {bookings.length === 0 ? (
           <p className="text-muted-foreground text-sm">No bookings yet.</p>
         ) : (
