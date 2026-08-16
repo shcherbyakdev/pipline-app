@@ -26,8 +26,8 @@ export function MarketingFooter() {
           </div>
         ))}
       </div>
-      <div className="mx-auto w-full max-w-6xl px-6 pb-8">
-        <p className="text-muted-foreground text-xs">© 2026 {SITE.name}</p>
+      <div className="mx-auto w-full max-w-6xl px-6">
+        <p className="text-muted-foreground border-t py-8 text-xs">© 2026 {SITE.name}</p>
       </div>
     </footer>
   );

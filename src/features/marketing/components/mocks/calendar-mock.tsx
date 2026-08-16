@@ -14,44 +14,50 @@ const ITEMS: Item[] = [
 export function CalendarMock() {
   const gridHeight = `${HOURS.length * ROW}rem`;
   return (
-    <div aria-hidden="true" className="bg-card overflow-hidden rounded-xl border text-xs">
-      <div className="grid grid-cols-[3rem_repeat(5,1fr)] border-b">
-        <div />
-        {DAYS.map((d, i) => (
-          <div key={d} className={i === 2 ? "text-primary py-2 text-center font-medium" : "text-muted-foreground py-2 text-center"}>
-            {d}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-[3rem_repeat(5,1fr)]" style={{ height: gridHeight }}>
-        <div className="relative">
-          {HOURS.map((h, i) => (
-            <span key={h} className="text-muted-foreground absolute right-2 -translate-y-1/2" style={{ top: `${i * ROW}rem` }}>
-              {i === 0 ? "" : `${String(h).padStart(2, "0")}:00`}
-            </span>
-          ))}
-        </div>
-        {DAYS.map((_, day) => (
-          <div key={day} className="relative border-l">
-            {HOURS.map((h, i) => (
-              <div key={h} className="absolute inset-x-0 border-t" style={{ top: `${i * ROW}rem` }} />
-            ))}
-            {ITEMS.filter((it) => it.day === day).map((it) => (
-              <div
-                key={it.title + it.start}
-                className={
-                  it.kind === "blocked"
-                    ? "bg-muted text-muted-foreground absolute inset-x-1 rounded-md border border-dashed px-2 py-1"
-                    : "bg-primary/10 text-foreground border-primary absolute inset-x-1 rounded-md border-l-2 px-2 py-1"
-                }
-                style={{ top: `${(it.start - HOURS[0]) * ROW}rem`, height: `${(it.end - it.start) * ROW}rem` }}
-              >
-                <p className="truncate font-medium">{it.title}</p>
-                {it.who ? <p className="text-muted-foreground truncate">{it.who}</p> : null}
+    <div aria-hidden="true" className="bg-card overflow-hidden rounded-xl border">
+      {/* Below ~44rem the five day columns stop being legible, so the grid keeps
+          its minimum width and scrolls sideways inside the card instead. */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[44rem] text-xs">
+          <div className="grid grid-cols-[3rem_repeat(5,1fr)] border-b">
+            <div />
+            {DAYS.map((d, i) => (
+              <div key={d} className={i === 2 ? "text-primary py-2 text-center font-medium" : "text-muted-foreground py-2 text-center"}>
+                {d}
               </div>
             ))}
           </div>
-        ))}
+          <div className="grid grid-cols-[3rem_repeat(5,1fr)]" style={{ height: gridHeight }}>
+            <div className="relative">
+              {HOURS.map((h, i) => (
+                <span key={h} className="text-muted-foreground absolute right-2 -translate-y-1/2" style={{ top: `${i * ROW}rem` }}>
+                  {i === 0 ? "" : `${String(h).padStart(2, "0")}:00`}
+                </span>
+              ))}
+            </div>
+            {DAYS.map((_, day) => (
+              <div key={day} className="relative border-l">
+                {HOURS.map((h, i) => (
+                  <div key={h} className="absolute inset-x-0 border-t" style={{ top: `${i * ROW}rem` }} />
+                ))}
+                {ITEMS.filter((it) => it.day === day).map((it) => (
+                  <div
+                    key={it.title + it.start}
+                    className={
+                      it.kind === "blocked"
+                        ? "bg-muted text-muted-foreground absolute inset-x-1 rounded-md border border-dashed px-2 py-1"
+                        : "bg-primary/10 text-foreground border-primary absolute inset-x-1 rounded-md border-l-2 px-2 py-1"
+                    }
+                    style={{ top: `${(it.start - HOURS[0]) * ROW}rem`, height: `${(it.end - it.start) * ROW}rem` }}
+                  >
+                    <p className="truncate font-medium">{it.title}</p>
+                    {it.who ? <p className="text-muted-foreground truncate">{it.who}</p> : null}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

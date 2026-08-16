@@ -7,7 +7,6 @@ import {
   STEPS,
   FEATURES,
   FAQ,
-  FOOTER_COLUMNS,
   FORBIDDEN_COPY,
   allInternalHrefs,
 } from "./site";

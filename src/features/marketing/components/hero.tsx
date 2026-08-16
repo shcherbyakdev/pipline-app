@@ -18,8 +18,9 @@ export function Hero() {
           <Link href={SITE.links.signup} className={cn(buttonVariants({ size: "lg" }), "h-11 px-5 text-base")}>
             Get started free
           </Link>
-          <a href={SITE.anchors.how} className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "h-11 px-4 text-base")}>
-            See how it works <ArrowRight className="size-4" />
+          <a href={SITE.anchors.how} className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "group/cta h-11 px-4 text-base")}>
+            See how it works
+            <ArrowRight className="size-4 transition-transform group-hover/cta:translate-x-0.5 motion-reduce:transition-none" />
           </a>
         </div>
         <p className="text-muted-foreground mt-4 text-sm">{SITE.heroNote}</p>
