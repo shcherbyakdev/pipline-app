@@ -33,6 +33,28 @@ export function effectiveWindows(
   return windows.sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
+function toTime(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+// Inverse of subtractRange: open [start,end) on top of the given windows,
+// merging overlapping/adjacent windows into a canonical sorted list.
+export function addRange(windows: DayWindow[], start: string, end: string): DayWindow[] {
+  const intervals = [
+    ...windows.map((w) => [toMin(w.startTime), toMin(w.endTime)]),
+    [toMin(start), toMin(end)],
+  ].sort((a, b) => a[0] - b[0]);
+  const merged: number[][] = [];
+  for (const [s, e] of intervals) {
+    const last = merged[merged.length - 1];
+    if (last && s <= last[1]) last[1] = Math.max(last[1], e);
+    else merged.push([s, e]);
+  }
+  return merged.map(([s, e]) => ({ startTime: toTime(s), endTime: toTime(e) }));
+}
+
 export function subtractRange(windows: DayWindow[], start: string, end: string): DayWindow[] {
   const out: DayWindow[] = [];
   for (const w of windows) {

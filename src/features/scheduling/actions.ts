@@ -16,7 +16,7 @@ import {
   GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
-import { effectiveWindows, subtractRange } from "./day-windows";
+import { effectiveWindows, subtractRange, addRange } from "./day-windows";
 
 function fail(context: string, error: unknown): { ok: false; error: string } {
   console.error(`[scheduling] ${context}:`, error);
@@ -219,6 +219,55 @@ export async function blockTimeRange(input: unknown): Promise<ActionState> {
         }));
   const { error: insError } = await supabase.from("availability_exceptions").insert(rows);
   if (insError) return fail("blockTimeRange", insError);
+
+  revalidatePath("/bookings");
+  revalidatePath("/availability");
+  return { ok: true };
+}
+
+// Open [startTime,endTime) on one date: rewrite that date's exceptions to
+// (effective windows ∪ range). If the result lands exactly back on the
+// weekday rules, the exceptions are simply deleted — the day returns to
+// clean rules instead of carrying an equivalent override.
+export async function unblockTimeRange(input: unknown): Promise<ActionState> {
+  const parsed = blockTimeInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { date, startTime, endTime } = parsed.data;
+
+  const [rulesRes, exceptionsRes] = await Promise.all([
+    supabase.from("availability_rules").select("weekday, start_time, end_time").eq("org_id", orgId),
+    supabase.from("availability_exceptions").select("date, closed, start_time, end_time")
+      .eq("org_id", orgId).eq("date", date),
+  ]);
+  if (rulesRes.error) return fail("unblockTimeRange", rulesRes.error);
+  if (exceptionsRes.error) return fail("unblockTimeRange", exceptionsRes.error);
+
+  const rules = (rulesRes.data ?? []).map((r) => ({
+    weekday: r.weekday, startTime: r.start_time, endTime: r.end_time,
+  }));
+  const dayExceptions = (exceptionsRes.data ?? []).map((e) => ({
+    date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time,
+  }));
+  const merged = addRange(effectiveWindows(date, rules, dayExceptions), startTime, endTime);
+
+  const { error: delError } = await supabase
+    .from("availability_exceptions").delete().eq("org_id", orgId).eq("date", date);
+  if (delError) return fail("unblockTimeRange", delError);
+
+  // Rules-only effective windows for this date — if the merged result
+  // equals them, deleting the exceptions above already restored the day.
+  const ruleWindows = effectiveWindows(date, rules, []);
+  if (JSON.stringify(merged) !== JSON.stringify(ruleWindows)) {
+    const { error: insError } = await supabase.from("availability_exceptions").insert(
+      merged.map((w) => ({
+        org_id: orgId, date, closed: false, start_time: w.startTime, end_time: w.endTime,
+      })),
+    );
+    if (insError) return fail("unblockTimeRange", insError);
+  }
 
   revalidatePath("/bookings");
   revalidatePath("/availability");

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { effectiveWindows, subtractRange } from "./day-windows";
+import { effectiveWindows, subtractRange, addRange } from "./day-windows";
 
 const RULES = [
   { weekday: 2, startTime: "09:00", endTime: "12:00" },
@@ -57,5 +57,35 @@ describe("subtractRange", () => {
         "11:00", "14:00",
       ),
     ).toEqual([{ startTime: "09:00", endTime: "11:00" }, { startTime: "14:00", endTime: "17:00" }]);
+  });
+});
+
+describe("addRange", () => {
+  it("opens a range on an empty day", () => {
+    expect(addRange([], "10:00", "12:00")).toEqual([{ startTime: "10:00", endTime: "12:00" }]);
+  });
+  it("bridges adjacent windows back together (restore a blocked slot)", () => {
+    expect(
+      addRange(
+        [{ startTime: "09:00", endTime: "14:00" }, { startTime: "15:00", endTime: "17:00" }],
+        "14:00", "15:00",
+      ),
+    ).toEqual([{ startTime: "09:00", endTime: "17:00" }]);
+  });
+  it("keeps disjoint windows separate", () => {
+    expect(addRange([{ startTime: "09:00", endTime: "12:00" }], "14:00", "15:00")).toEqual([
+      { startTime: "09:00", endTime: "12:00" },
+      { startTime: "14:00", endTime: "15:00" },
+    ]);
+  });
+  it("is a no-op inside an already open window", () => {
+    expect(addRange([{ startTime: "09:00", endTime: "17:00" }], "10:00", "11:00")).toEqual([
+      { startTime: "09:00", endTime: "17:00" },
+    ]);
+  });
+  it("extends a window on partial overlap", () => {
+    expect(addRange([{ startTime: "09:00", endTime: "12:00" }], "11:00", "14:00")).toEqual([
+      { startTime: "09:00", endTime: "14:00" },
+    ]);
   });
 });

@@ -11,7 +11,7 @@ import {
   zonedParts, hourRange, serviceAccent, snap15, minToTime, timeToMin, hourTileState,
 } from "@/features/scheduling/calendar-geometry";
 import { addDaysISO } from "@/features/scheduling/slots";
-import { blockTimeRange, reopenDay } from "@/features/scheduling/actions";
+import { blockTimeRange, unblockTimeRange, reopenDay } from "@/features/scheduling/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BookingDetailDialog } from "./booking-detail-dialog";
@@ -76,11 +76,18 @@ export function CalendarWeek({
   const [dragging, setDragging] = React.useState(false);
   const [createOpen, setCreateOpen] = React.useState(false);
   const dayHasExceptions = (d: string) => exceptions.some((e) => e.date === d);
-  // "Block time" only makes sense when the selection touches open time —
-  // a fully blocked selection offers reopening instead.
-  const selectionTouchesOpen = (sel: { date: string; startMin: number; endMin: number }) =>
-    (windowsByDay[days.indexOf(sel.date)] ?? []).some(
-      (w) => timeToMin(w.startTime) < sel.endMin && sel.startMin < timeToMin(w.endTime),
+  // How many minutes of the selection fall inside open windows — drives
+  // which popover actions make sense: "Block time" needs some open time,
+  // "Unblock time" needs some blocked time.
+  const openMinutesIn = (sel: { date: string; startMin: number; endMin: number }) =>
+    (windowsByDay[days.indexOf(sel.date)] ?? []).reduce(
+      (sum, w) =>
+        sum +
+        Math.max(
+          0,
+          Math.min(timeToMin(w.endTime), sel.endMin) - Math.max(timeToMin(w.startTime), sel.startMin),
+        ),
+      0,
     );
 
   // Escape clears an in-progress or pending selection. Event-driven state
@@ -105,6 +112,21 @@ export function CalendarWeek({
       });
       if (!result.ok) toast.error(result.error);
       else toast.success("Time blocked.");
+      setSelection(null);
+      router.refresh();
+    });
+  };
+
+  const unblockSelected = () => {
+    if (!selection) return;
+    startBusy(async () => {
+      const result = await unblockTimeRange({
+        date: selection.date,
+        startTime: minToTime(selection.startMin),
+        endTime: minToTime(selection.endMin),
+      });
+      if (!result.ok) toast.error(result.error);
+      else toast.success("Time unblocked.");
       setSelection(null);
       router.refresh();
     });
@@ -282,23 +304,31 @@ export function CalendarWeek({
                 className="absolute inset-x-0 z-20 rounded-md border border-primary bg-primary/10"
                 style={{ top: `${pct(selection.startMin)}%`, height: `${pct(selection.endMin) - pct(selection.startMin)}%` }}
               >
-                {!dragging ? (
-                  <div className="absolute left-0 top-full z-30 mt-1 flex w-max flex-col gap-1 rounded-md border bg-popover p-2 text-sm shadow-md">
-                    <span className="text-xs text-muted-foreground">
-                      {minToTime(selection.startMin)}–{minToTime(selection.endMin)}
-                    </span>
-                    <Button size="sm" onClick={() => setCreateOpen(true)}>New booking</Button>
-                    {selectionTouchesOpen(selection) ? (
-                      <Button size="sm" variant="ghost" onClick={blockSelected} disabled={busy}>Block time</Button>
-                    ) : null}
-                    {dayHasExceptions(d) ? (
-                      <Button size="sm" variant="ghost" onClick={() => reopenSelected(d)} disabled={busy}>
-                        Reopen day (restore weekly hours)
-                      </Button>
-                    ) : null}
-                    <Button size="sm" variant="ghost" onClick={() => setSelection(null)}>Dismiss</Button>
-                  </div>
-                ) : null}
+                {!dragging ? (() => {
+                  const openMin = openMinutesIn(selection);
+                  const touchesOpen = openMin > 0;
+                  const touchesBlocked = openMin < selection.endMin - selection.startMin;
+                  return (
+                    <div className="absolute left-0 top-full z-30 mt-1 flex w-max flex-col gap-1 rounded-md border bg-popover p-2 text-sm shadow-md">
+                      <span className="text-xs text-muted-foreground">
+                        {minToTime(selection.startMin)}–{minToTime(selection.endMin)}
+                      </span>
+                      <Button size="sm" onClick={() => setCreateOpen(true)}>New booking</Button>
+                      {touchesOpen ? (
+                        <Button size="sm" variant="ghost" onClick={blockSelected} disabled={busy}>Block time</Button>
+                      ) : null}
+                      {touchesBlocked ? (
+                        <Button size="sm" variant="ghost" onClick={unblockSelected} disabled={busy}>Unblock time</Button>
+                      ) : null}
+                      {dayHasExceptions(d) ? (
+                        <Button size="sm" variant="ghost" onClick={() => reopenSelected(d)} disabled={busy}>
+                          Reopen day (restore weekly hours)
+                        </Button>
+                      ) : null}
+                      <Button size="sm" variant="ghost" onClick={() => setSelection(null)}>Dismiss</Button>
+                    </div>
+                  );
+                })() : null}
               </div>
             ) : null}
           </div>
