@@ -75,13 +75,18 @@ Rule: within one day (weekly) or one date (override), intervals must satisfy
    non-overlapping); single-interval mutations (`update`, `add`) additionally
    read the day's sibling rows and reject overlap.
 3. **DB (migration 0035)**: btree_gist EXCLUDE constraints — the bookings
-   0026 idiom applied to availability:
-   - `create type public.timerange as range (subtype = time);` (Postgres has
-     no built-in time-of-day range type)
+   0026 idiom applied to availability. Times are stored as TEXT `"HH:MM"`
+   (0025 decision) and text→time casts are only STABLE, so the constraint
+   expression uses an IMMUTABLE helper instead of a range type:
+   - `hm_to_min(text) returns int` — immutable `"HH:MM"` → minutes.
    - `availability_rules`: `exclude using gist (org_id with =, weekday with =,
-     timerange(start_time, end_time) with &&)`
+     int4range(hm_to_min(start_time), hm_to_min(end_time)) with &&)`
    - `availability_exceptions`: same over `(org_id, date)` with a
-     `where (not closed)` partial.
+     `where (not closed)` partial. `int4range` is half-open — touching OK.
+   - 0035 also adds the member UPDATE path on `availability_rules`
+     (column-scoped `grant update (start_time, end_time)` per the 0008 idiom
+     + an update policy) — 0026 granted only select/insert/delete, and
+     in-place interval editing needs it.
    - Violations surface as `23P01`; actions map that to the same friendly
      overlap message. Pre-existing overlapping rows (possible today) must be
      merged by the migration before adding the constraints (union per
