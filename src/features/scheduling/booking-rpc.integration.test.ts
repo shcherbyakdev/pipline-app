@@ -150,10 +150,13 @@ describe("create_booking RPC", () => {
     expect(error).toBeNull();
     const { data: clients } = await admin
       .from("clients")
-      .select("id")
+      .select("id, name")
       .eq("org_id", orgId)
       .eq("email", "jamie@example.com");
     expect(clients!.length).toBe(1);
+    // 0034: first-typed name wins — an unverified re-booker can't rename the
+    // client. The provider renames via the directory.
+    expect(clients![0].name).toBe("Jamie Doe");
   });
 
   it("overlapping confirmed booking is rejected with 23P01", async () => {
