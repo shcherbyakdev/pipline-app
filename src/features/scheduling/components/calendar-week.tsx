@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
@@ -129,9 +130,12 @@ export function CalendarWeek({
           <Link
             href={prevHref}
             aria-label="Previous week"
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "self-center justify-self-center px-2")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "size-7 self-center justify-self-center p-0",
+            )}
           >
-            ←
+            <ChevronLeft className="size-4" />
           </Link>
           {days.map((d, i) => {
             const isToday = nowParts?.date === d;
@@ -154,9 +158,12 @@ export function CalendarWeek({
           <Link
             href={nextHref}
             aria-label="Next week"
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "self-center justify-self-center px-2")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "size-7 self-center justify-self-center p-0",
+            )}
           >
-            →
+            <ChevronRight className="size-4" />
           </Link>
         </div>
         {/* body row: left rail, 7 day columns, right time axis */}
