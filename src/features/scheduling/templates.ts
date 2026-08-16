@@ -62,9 +62,58 @@ export function bookingConfirmationEmail(input: {
   return { subject, html, text };
 }
 
+// Resend: a fresh manage link after token rotation. The old link is already
+// dead by the time this is sent (rotation happens first) — the copy says so.
+export function bookingManageLinkEmail(input: {
+  orgName: string;
+  serviceName: string;
+  whenLine: string;
+  manageUrl: string;
+  icsUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `Your booking link — ${input.serviceName} with ${input.orgName}`;
+  const intro = `Here is a fresh link to view, reschedule, or cancel your booking (${input.whenLine}). Any previous link no longer works.`;
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
+  <p style="margin: 0 0 8px;">${esc(intro)}</p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
+  <p style="margin: 0 0 8px;">
+    <a href="${esc(input.icsUrl)}">Add to calendar (.ics)</a>
+  </p>
+  <p style="margin: 0 0 8px;">
+    <a href="${esc(input.manageUrl)}">View or manage this booking</a>
+  </p>
+  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
+    Keep this email — the link above replaces any previous manage link.
+  </p>
+</div>`.trim();
+  const text = [
+    input.orgName,
+    "",
+    intro,
+    input.serviceName,
+    input.whenLine,
+    "",
+    `Add to calendar: ${input.icsUrl}`,
+    `View or manage: ${input.manageUrl}`,
+  ].join("\n");
+  return { subject, html, text };
+}
+
 export function bookingLifecycleKey(
   bookingId: string,
-  kind: "cancelled" | "rescheduled" | "reminder" | "provider-cancelled" | "provider-rescheduled",
+  // `manage-${hash8}` is emitted per token rotation (resend) — widened here
+  // rather than adding a sibling helper, since the format is still just
+  // "booking/<id>/<kind>".
+  kind:
+    | "cancelled"
+    | "rescheduled"
+    | "reminder"
+    | "provider-cancelled"
+    | "provider-rescheduled"
+    | `manage-${string}`,
 ): string {
   return `booking/${bookingId}/${kind}`;
 }

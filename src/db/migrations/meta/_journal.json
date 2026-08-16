@@ -225,6 +225,20 @@
       "when": 1786890113427,
       "tag": "0031_admin_booking_duration",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1786891647435,
+      "tag": "0032_typical_magus",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1786891654306,
+      "tag": "0033_s3_widget_security",
+      "breakpoints": true
     }
   ]
 }

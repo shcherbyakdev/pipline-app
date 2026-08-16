@@ -183,3 +183,79 @@
     @apply font-sans;
   }
 }
+
+/* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text
+   from per-org config) win over these class defaults. */
+.widget-theme {
+  background: var(--widget-bg);
+  color: var(--widget-text);
+}
+.widget-theme :is(button, input, textarea, select, [class*="rounded"]) {
+  border-radius: var(--widget-radius);
+}
+.wt-light { --widget-bg: #ffffff; --widget-text: #18181b; --widget-line: #e4e4e7; }
+.wt-dark  { --widget-bg: #18181b; --widget-text: #fafafa; --widget-line: #3f3f46; }
+.wt-auto  { --widget-bg: #ffffff; --widget-text: #18181b; --widget-line: #e4e4e7; }
+@media (prefers-color-scheme: dark) {
+  .wt-auto { --widget-bg: #18181b; --widget-text: #fafafa; --widget-line: #3f3f46; }
+}
+.widget-theme .wt-primary {
+  background: var(--widget-accent);
+  color: #ffffff;
+  border-color: transparent;
+}
+/* Scoped to plain `.border`/`border-*` tokens (attribute *contains* match,
+   not `.border` exact-token) so Input/Textarea/Button's `border-input`,
+   `border-transparent`, etc. all pick up the widget's own line color instead
+   of the app shell's hardcoded dark-theme --border/--input vars. Excluded:
+   - `.wt-primary` — its own rule above sets border-color: transparent, and
+     this file has no `@layer`, so unlayered rules always beat Tailwind's
+     layered utilities regardless of specificity; without the exclusion this
+     rule (declared later) would repaint a visible line around the accent
+     confirm button.
+   - `:focus-visible` / `[aria-invalid="true"]` — shadcn's focus-visible:border-ring
+     and aria-invalid:border-destructive utilities carry the same "contains
+     border" substring and, for the same unlayered-always-wins reason, would
+     otherwise be flattened to the neutral line color, dulling the focus and
+     validation-error indicators on Input/Textarea. */
+.widget-theme :is(.border, [class*="border"]):not(.wt-primary):not(:focus-visible):not([aria-invalid="true"]) {
+  border-color: var(--widget-line);
+}
+/* Same unlayered-always-wins mechanism as the border-color rule above, for
+   fills. The service list / date-nav / time-slot buttons (booking-widget.tsx)
+   use shadcn Button's `outline` variant (`bg-background hover:bg-muted
+   dark:bg-input/30 dark:hover:bg-input/50`) or a bare `hover:bg-accent/50`.
+   Those all read dashboard tokens (--background/--muted/--accent/--input),
+   which .widget-theme never redefines — so they keep whatever value the
+   PAGE ROOT set. The root layout hardcodes `dark` on <html> for every route
+   (dashboard, /book, /embed alike), and Tailwind's `dark:` custom variant
+   (`&:is(.dark *)`) matches ANY descendant of a `.dark` ancestor, so
+   `dark:bg-input/30` fires unconditionally — even for a widget whose OWN
+   theme is wt-light. The result: washed-out dashboard-dark-mode grey boxes
+   that match neither the light nor the dark widget theme (the bug reported
+   from the Settings live preview, but present identically on /book and
+   /embed since the same `dark` class is on <html> there too). Marked
+   surfaces get an explicit widget-derived fill instead: transparent at
+   rest, a subtle tint mixed from the widget's own bg/text at hover. */
+.widget-theme .wt-surface {
+  background-color: transparent;
+}
+/* Text-alpha overlay instead of a bg-derived mix so the hover tint reads
+   correctly on solid AND transparent widget surfaces alike. */
+.widget-theme .wt-surface:hover {
+  background-color: color-mix(in oklab, transparent, var(--widget-text) 8%);
+}
+/* Embed default: paint NO background so the widget sits natively on any
+   host page (the org can still opt into a solid one by setting a
+   background override, which re-enables painting via --widget-bg). Text,
+   lines, and accent still come from the theme. */
+.widget-theme.wt-transparent {
+  background: transparent;
+}
+/* Form fields inside the widget: same dashboard-token bleed as the buttons
+   had (dark:bg-input/30 etc.) — keep them transparent so they inherit the
+   widget (or host) surface. Background only; focus/invalid borders are
+   handled by the border rule's exclusions above. */
+.widget-theme :is(input, textarea, select) {
+  background-color: transparent;
+}

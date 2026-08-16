@@ -49,3 +49,8 @@ next-env.d.ts
 
 # Superpowers SDD scratch workspace
 .superpowers/
+
+# Claude Code internals (session worktrees, scratch)
+.claude/
+.playwright-mcp/
+/book-clean.png

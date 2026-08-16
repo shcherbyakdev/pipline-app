@@ -6,13 +6,17 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isAllowedLogoType, matchesLogoMagicBytes, logoPathFor, LOGO_MAX_BYTES } from "@/lib/storage/logo";
 import { uploadBrandingObject, deleteBrandingObject } from "@/lib/storage/branding";
+import { effectiveContrast } from "@/lib/widget-theme";
 import {
   createOrgSchema,
   updateAccentInput,
+  widgetThemeInput,
   GENERIC_WRITE_ERROR,
   type OrgState,
   type ActionState,
 } from "./schema";
+
+const CONTRAST_BLOCK = "Text and background contrast is below 3:1 — pick more distinct colours.";
 
 export async function createOrg(
   _prev: OrgState,
@@ -71,6 +75,31 @@ export async function updateAccent(input: unknown): Promise<ActionState> {
   });
   if (error) return brandingFail("updateAccent", error);
   revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function updateWidgetTheme(input: unknown): Promise<ActionState> {
+  const parsed = widgetThemeInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const cfg = parsed.data;
+  // Server-side contrast floor (mirrors the form's block threshold).
+  // effectiveContrast fills in whichever side (bg/text) isn't overridden
+  // with that theme's default, so a lone override that collides with the
+  // theme's default for the other side is still caught — not just pairs
+  // where both are overridden.
+  if (effectiveContrast(cfg) < 3) {
+    return { ok: false, error: CONTRAST_BLOCK };
+  }
+  const { org, error: orgError } = await currentOrgBranding();
+  if (!org) return brandingFail("updateWidgetTheme", orgError ?? "no org");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_org_widget_theme", {
+    p_org_id: org.id,
+    p_theme: cfg,
+  });
+  if (error) return brandingFail("updateWidgetTheme", error);
+  revalidatePath("/settings");
+  revalidatePath("/bookings");
   return { ok: true };
 }
 

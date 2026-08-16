@@ -287,7 +287,12 @@ export function CalendarWeek({
                 </div>
               );
             })}
-            {nowParts?.date === d ? (
+            {nowParts?.date === d &&
+            nowParts.minutes >= startHour * 60 &&
+            nowParts.minutes <= endHour * 60 ? (
+              // Rendered only while "now" is inside the visible hour range —
+              // out-of-hours it would position past 100% and overflow the
+              // grid, spawning a phantom scrollbar.
               <div className="absolute inset-x-0 z-20 border-t-2 border-primary" style={{ top: `${pct(nowParts.minutes)}%` }} />
             ) : null}
             {byDay(d).map((b) => {
