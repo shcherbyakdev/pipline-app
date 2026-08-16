@@ -3,6 +3,7 @@ import { MarketingFooter } from "@/features/marketing/components/marketing-foote
 import { Hero } from "@/features/marketing/components/hero";
 import { HowItWorks } from "@/features/marketing/components/how-it-works";
 import { FeatureGrid } from "@/features/marketing/components/feature-grid";
+import { ProductShowcase } from "@/features/marketing/components/product-showcase";
 
 export default function LandingPage() {
   return (
@@ -12,6 +13,7 @@ export default function LandingPage() {
         <Hero />
         <HowItWorks />
         <FeatureGrid />
+        <ProductShowcase />
       </main>
       <MarketingFooter />
     </>
