@@ -44,7 +44,6 @@ function Row({
 
   const resend = () =>
     startTransition(async () => {
-      if (!booking.clientEmail) return;
       const result = await resendManageLink({ id: booking.id });
       if (!result.ok) toast.error(result.error);
       else if (result.emailed) toast.success("A fresh booking link is on its way to the client.");
@@ -75,8 +74,8 @@ function Row({
             variant="ghost"
             size="sm"
             onClick={resend}
-            disabled={pending}
-            aria-disabled={!booking.clientEmail}
+            disabled={pending || !booking.clientEmail}
+            focusableWhenDisabled={!booking.clientEmail}
             title={booking.clientEmail ? undefined : "No email on file"}
           >
             Resend link
