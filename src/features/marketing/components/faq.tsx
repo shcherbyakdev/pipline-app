@@ -9,7 +9,7 @@ export function Faq() {
         <div className="divide-y border-y">
           {FAQ.map((item) => (
             <details key={item.question} className="group py-4">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-sm font-medium [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-lg font-medium [&::-webkit-details-marker]:hidden">
                 {item.question}
                 <ChevronDown
                   className="text-muted-foreground size-4 shrink-0 transition-transform group-hover:text-foreground group-open:rotate-180"

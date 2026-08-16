@@ -157,6 +157,13 @@
   --ring: oklch(0.708 0 0);
 }
 
+/* Marketing landing: teal focus ring. Compound selector (0-2-0) so it beats
+   the unlayered `.light` token block (0-1-0); a Tailwind utility on the same
+   element could not, because `.light` is unlayered CSS. */
+.light.marketing {
+  --ring: var(--primary);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
