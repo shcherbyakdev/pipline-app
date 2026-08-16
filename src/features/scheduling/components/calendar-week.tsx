@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
@@ -101,6 +101,20 @@ export function CalendarWeek({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Click-away clears the selection (the popover has no Dismiss button).
+  // Day columns are exempt — pointerdown there replaces the selection —
+  // and so is the create dialog, which must not unmount mid-flow.
+  React.useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (createOpen) return;
+      const t = e.target as HTMLElement;
+      if (t.closest("[data-cal-popover]") || t.closest("[data-cal-column]")) return;
+      setSelection(null);
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [createOpen]);
 
   const blockSelected = () => {
     if (!selection) return;
@@ -203,6 +217,7 @@ export function CalendarWeek({
           {days.map((d, di) => (
           <div
             key={d}
+            data-cal-column
             className="relative"
             onPointerDown={(e) => {
               if ((e.target as HTMLElement).closest("button")) return; // cards handle themselves
@@ -236,8 +251,13 @@ export function CalendarWeek({
                 <div
                   key={i}
                   className={cn(
-                    "absolute inset-x-0 rounded-md",
+                    "group absolute inset-x-0 cursor-pointer rounded-md transition-colors",
                     tile.fullyClosed ? "bg-muted/15" : "bg-muted/40",
+                    // hover affordance goes quiet while a selection exists —
+                    // otherwise its ring + plus stack under the selection
+                    // outline as visual noise
+                    selection === null &&
+                      "hover:bg-primary/5 hover:ring-1 hover:ring-inset hover:ring-primary",
                   )}
                   style={{
                     top: `calc(${pct(h * 60)}% + 2px)`,
@@ -260,6 +280,10 @@ export function CalendarWeek({
                         }}
                       />
                     ))}
+                  {/* hover affordance: click/drag here starts a booking */}
+                  {selection === null ? (
+                    <Plus className="pointer-events-none absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
+                  ) : null}
                 </div>
               );
             })}
@@ -309,23 +333,35 @@ export function CalendarWeek({
                   const touchesOpen = openMin > 0;
                   const touchesBlocked = openMin < selection.endMin - selection.startMin;
                   return (
-                    <div className="absolute left-0 top-full z-30 mt-1 flex w-max flex-col gap-1 rounded-md border bg-popover p-2 text-sm shadow-md">
-                      <span className="text-xs text-muted-foreground">
+                    <div
+                      data-cal-popover
+                      className={cn(
+                        "absolute top-full z-30 mt-1 flex w-max items-center gap-1 rounded-lg border bg-popover p-1 shadow-md",
+                        // keep the row inside the grid near the week's edge
+                        di >= 5 ? "right-0" : "left-0",
+                      )}
+                    >
+                      <span className="px-1.5 text-xs tabular-nums text-muted-foreground">
                         {minToTime(selection.startMin)}–{minToTime(selection.endMin)}
                       </span>
-                      <Button size="sm" onClick={() => setCreateOpen(true)}>New booking</Button>
+                      <Button size="sm" className="h-7" onClick={() => setCreateOpen(true)}>
+                        New booking
+                      </Button>
                       {touchesOpen ? (
-                        <Button size="sm" variant="ghost" onClick={blockSelected} disabled={busy}>Block time</Button>
-                      ) : null}
-                      {touchesBlocked ? (
-                        <Button size="sm" variant="ghost" onClick={unblockSelected} disabled={busy}>Unblock time</Button>
-                      ) : null}
-                      {dayHasExceptions(d) ? (
-                        <Button size="sm" variant="ghost" onClick={() => reopenSelected(d)} disabled={busy}>
-                          Reopen day (restore weekly hours)
+                        <Button size="sm" variant="ghost" className="h-7" onClick={blockSelected} disabled={busy}>
+                          Block
                         </Button>
                       ) : null}
-                      <Button size="sm" variant="ghost" onClick={() => setSelection(null)}>Dismiss</Button>
+                      {touchesBlocked ? (
+                        <Button size="sm" variant="ghost" className="h-7" onClick={unblockSelected} disabled={busy}>
+                          Unblock
+                        </Button>
+                      ) : null}
+                      {dayHasExceptions(d) ? (
+                        <Button size="sm" variant="ghost" className="h-7" onClick={() => reopenSelected(d)} disabled={busy}>
+                          Reopen day
+                        </Button>
+                      ) : null}
                     </div>
                   );
                 })() : null}
@@ -360,6 +396,7 @@ export function CalendarWeek({
           onOpenChange={(o) => { setCreateOpen(o); if (!o) setSelection(null); }}
           date={selection.date}
           startMin={selection.startMin}
+          dragEndMin={selection.endMin}
           timeZone={timeZone}
           services={services}
           windows={windowsByDay[days.indexOf(selection.date)] ?? []}

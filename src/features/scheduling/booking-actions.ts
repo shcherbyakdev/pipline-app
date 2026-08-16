@@ -238,6 +238,7 @@ export async function createBookingAdmin(
       p_email: parsed.data.email ?? null,
       p_note: parsed.data.note ?? null,
       p_token_hash: tokenHash,
+      p_duration_min: parsed.data.durationMin ?? null,
     });
     if (error) {
       if (error.code === "23P01") return { ok: false, error: OVERLAP, overlap: true };

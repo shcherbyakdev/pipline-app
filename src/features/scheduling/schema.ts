@@ -116,6 +116,9 @@ export const adminSlotsInput = z.object({
 export const adminCreateBookingInput = z.object({
   serviceId: z.uuid(),
   startsAt: z.iso.datetime(),
+  // Per-booking span (calendar dialog's editable end time); omitted =
+  // service duration, matching the RPC default.
+  durationMin: z.number().int().min(5).max(480).optional(),
   name: z.string().trim().min(1).max(200),
   // "" (untouched optional field) → undefined, mirroring the handle preprocess.
   email: z.preprocess(

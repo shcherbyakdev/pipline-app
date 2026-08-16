@@ -147,3 +147,41 @@ describe("create_booking_admin", () => {
     expect(anonRes.error).not.toBeNull();
   });
 });
+
+describe("create_booking_admin custom duration", () => {
+  async function bookWithDuration(startsAt: string, durationMin: number | null) {
+    const { tokenHash } = generateAccessToken();
+    return owner.rpc("create_booking_admin", {
+      p_service_id: serviceId,
+      p_starts_at: startsAt,
+      p_name: "Custom Duration",
+      p_email: null,
+      p_note: null,
+      p_token_hash: tokenHash,
+      p_duration_min: durationMin,
+    });
+  }
+
+  it("honors a custom duration", async () => {
+    const { data, error } = await bookWithDuration("2027-05-06T09:00:00Z", 90);
+    expect(error).toBeNull();
+    const { data: row } = await admin
+      .from("bookings").select("starts_at, ends_at").eq("id", data as string).single();
+    expect(new Date(row!.ends_at).getTime() - new Date(row!.starts_at).getTime()).toBe(90 * 60 * 1000);
+  });
+
+  it("falls back to the service duration when null", async () => {
+    const { data, error } = await bookWithDuration("2027-05-06T12:00:00Z", null);
+    expect(error).toBeNull();
+    const { data: row } = await admin
+      .from("bookings").select("starts_at, ends_at").eq("id", data as string).single();
+    expect(new Date(row!.ends_at).getTime() - new Date(row!.starts_at).getTime()).toBe(60 * 60 * 1000);
+  });
+
+  it("rejects out-of-range durations", async () => {
+    const tooShort = await bookWithDuration("2027-05-06T14:00:00Z", 3);
+    expect(tooShort.error).not.toBeNull();
+    const tooLong = await bookWithDuration("2027-05-06T15:00:00Z", 600);
+    expect(tooLong.error).not.toBeNull();
+  });
+});
