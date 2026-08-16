@@ -15,6 +15,49 @@ export const SITE = {
   anchors: { how: "#how-it-works", features: "#features", faq: "#faq" },
 } as const;
 
+/** `#features` → `features`, so a section's `id` and the nav href that targets it share one source. */
+export function anchorId(anchor: string): string {
+  if (!anchor.startsWith("#")) throw new Error(`anchor must start with "#": ${anchor}`);
+  return anchor.slice(1);
+}
+
+/** Section headings, sub-lines and body copy. Components stay presentational. */
+export const SECTIONS = {
+  how: {
+    heading: "How it works",
+    sub: "Three steps from sign-up to your first booking.",
+  },
+  features: {
+    heading: "Everything a booking page should do",
+    sub: "Nothing you have to configure twice.",
+  },
+  product: {
+    heading: "Your week, at a glance",
+    sub: "One calendar for everything that’s booked, blocked or free.",
+    points: [
+      "See every booking for the week at a glance",
+      "Block time off with a drag — clients never see it",
+      "Add walk-in or phone bookings in seconds",
+    ],
+  },
+  embed: {
+    heading: "Paste one line. The widget resizes itself.",
+    paragraphs: [
+      "Drop the snippet into any website builder or plain HTML page. The booking widget loads inside your page, adjusts its own height as clients move through the steps, and never asks them to leave your site.",
+      "Prefer a link? The same page works standalone at your own handle — share it in email, on social, or in your bio.",
+    ],
+  },
+  faq: { heading: "Questions, answered" },
+} as const;
+
+/** Call-to-action button labels. */
+export const CTA = {
+  login: "Log in",
+  getStarted: "Get started",
+  getStartedFree: "Get started free",
+  seeHow: "See how it works",
+} as const;
+
 export type NavLink = { label: string; href: string };
 
 export const NAV_LINKS: NavLink[] = [
@@ -73,7 +116,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Account",
     links: [
-      { label: "Log in", href: SITE.links.login },
+      { label: CTA.login, href: SITE.links.login },
       { label: "Sign up", href: SITE.links.signup },
     ],
   },

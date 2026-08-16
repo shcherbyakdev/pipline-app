@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   SITE,
@@ -7,7 +7,10 @@ import {
   STEPS,
   FEATURES,
   FAQ,
+  SECTIONS,
+  CTA,
   FORBIDDEN_COPY,
+  anchorId,
   allInternalHrefs,
 } from "./site";
 
@@ -32,9 +35,28 @@ describe("site config", () => {
     }
   });
 
-  it("anchors used in nav exist as section ids", () => {
-    const anchors = Object.values(SITE.anchors);
+  it("every anchor yields a usable id and every nav href is one of them", () => {
+    const anchors: string[] = Object.values(SITE.anchors);
+    for (const a of anchors) expect(anchorId(a), `bad anchor ${a}`).not.toBe("");
     for (const l of NAV_LINKS) expect(anchors).toContain(l.href);
+  });
+
+  it("rejects an anchor without a leading #", () => {
+    expect(() => anchorId("features")).toThrow();
+  });
+
+  // Source-level guard: the sections must take their id from SITE.anchors, not a hardcoded string,
+  // so renaming an anchor can never silently break the nav links that point at it.
+  it("each section derives its id from SITE.anchors", () => {
+    const files: Record<string, keyof typeof SITE.anchors> = {
+      "how-it-works.tsx": "how",
+      "feature-grid.tsx": "features",
+      "faq.tsx": "faq",
+    };
+    for (const [file, key] of Object.entries(files)) {
+      const src = readFileSync(join(process.cwd(), "src/features/marketing/components", file), "utf8");
+      expect(src, `${file} should use anchorId(SITE.anchors.${key})`).toContain(`anchorId(SITE.anchors.${key})`);
+    }
   });
 
   it("has three numbered steps, six unique features, ≥5 FAQ items", () => {
@@ -51,6 +73,13 @@ describe("site config", () => {
       ...STEPS.flatMap((s) => [s.title, s.body]),
       ...FEATURES.flatMap((f) => [f.title, f.body]),
       ...FAQ.flatMap((f) => [f.question, f.answer]),
+      ...Object.values(SECTIONS).flatMap((s) => [
+        s.heading,
+        "sub" in s ? s.sub : "",
+        ...("points" in s ? s.points : []),
+        ...("paragraphs" in s ? s.paragraphs : []),
+      ]),
+      ...Object.values(CTA),
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);
   });

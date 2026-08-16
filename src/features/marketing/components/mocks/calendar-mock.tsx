@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 const DAYS = ["Mon 18", "Tue 19", "Wed 20", "Thu 21", "Fri 22"];
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16]; // 09:00–17:00
 const ROW = 2.25; // rem per hour
@@ -17,7 +19,8 @@ export function CalendarMock() {
     <div aria-hidden="true" className="bg-card overflow-hidden rounded-xl border">
       {/* Below ~44rem the five day columns stop being legible, so the grid keeps
           its minimum width and scrolls sideways inside the card instead. */}
-      <div className="overflow-x-auto">
+      {/* tabIndex={-1}: the card is aria-hidden, so this scroller must stay out of the tab order. */}
+      <div tabIndex={-1} className="overflow-x-auto">
         <div className="min-w-[44rem] text-xs">
           <div className="grid grid-cols-[3rem_repeat(5,1fr)] border-b">
             <div />
@@ -30,8 +33,14 @@ export function CalendarMock() {
           <div className="grid grid-cols-[3rem_repeat(5,1fr)]" style={{ height: gridHeight }}>
             <div className="relative">
               {HOURS.map((h, i) => (
-                <span key={h} className="text-muted-foreground absolute right-2 -translate-y-1/2" style={{ top: `${i * ROW}rem` }}>
-                  {i === 0 ? "" : `${String(h).padStart(2, "0")}:00`}
+                <span
+                  key={h}
+                  // Every label is centred on its gridline, except the first: centring it on the
+                  // grid's top edge would push it under the day-header row, so it hangs below instead.
+                  className={cn("text-muted-foreground absolute right-2", i === 0 ? "translate-y-0.5" : "-translate-y-1/2")}
+                  style={{ top: `${i * ROW}rem` }}
+                >
+                  {`${String(h).padStart(2, "0")}:00`}
                 </span>
               ))}
             </div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { SITE } from "@/features/marketing/site";
+import { CTA, SITE } from "@/features/marketing/site";
 
 export function FinalCta() {
   return (
@@ -11,10 +11,10 @@ export function FinalCta() {
         <p className="text-muted-foreground mx-auto mt-4 max-w-md">{SITE.heroNote}</p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link href={SITE.links.signup} className={cn(buttonVariants({ size: "lg" }), "h-11 px-5 text-base")}>
-            Get started free
+            {CTA.getStartedFree}
           </Link>
           <Link href={SITE.links.login} className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "h-11 px-4 text-base")}>
-            Log in
+            {CTA.login}
           </Link>
         </div>
       </div>

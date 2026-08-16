@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { SITE } from "@/features/marketing/site";
+import { CTA, SITE } from "@/features/marketing/site";
 import { BookingCardMock } from "./mocks/booking-card-mock";
 
 export function Hero() {
@@ -16,10 +16,10 @@ export function Hero() {
         <p className="text-muted-foreground mt-6 text-lg text-pretty">{SITE.subheadline}</p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Link href={SITE.links.signup} className={cn(buttonVariants({ size: "lg" }), "h-11 px-5 text-base")}>
-            Get started free
+            {CTA.getStartedFree}
           </Link>
           <a href={SITE.anchors.how} className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "group/cta h-11 px-4 text-base")}>
-            See how it works
+            {CTA.seeHow}
             <ArrowRight className="size-4 transition-transform group-hover/cta:translate-x-0.5 motion-reduce:transition-none" />
           </a>
         </div>

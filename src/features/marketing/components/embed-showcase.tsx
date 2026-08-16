@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+import { SECTIONS } from "@/features/marketing/site";
 import { EmbedSnippetMock } from "./mocks/embed-snippet-mock";
 
 export function EmbedShowcase() {
@@ -5,14 +7,12 @@ export function EmbedShowcase() {
     <section aria-labelledby="embed-heading" className="bg-muted/40 border-t">
       <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 py-20 md:py-28 lg:grid-cols-2">
         <div className="max-w-xl">
-          <h2 id="embed-heading" className="text-3xl font-semibold tracking-tight md:text-4xl">Paste one line. The widget resizes itself.</h2>
-          <p className="text-muted-foreground mt-4 leading-relaxed">
-            Drop the snippet into any website builder or plain HTML page. The booking widget loads inside your page,
-            adjusts its own height as clients move through the steps, and never asks them to leave your site.
-          </p>
-          <p className="text-muted-foreground mt-3 leading-relaxed">
-            Prefer a link? The same page works standalone at your own handle — share it in email, on social, or in your bio.
-          </p>
+          <h2 id="embed-heading" className="text-3xl font-semibold tracking-tight md:text-4xl">{SECTIONS.embed.heading}</h2>
+          {SECTIONS.embed.paragraphs.map((text, i) => (
+            <p key={text} className={cn("text-muted-foreground leading-relaxed", i === 0 ? "mt-4" : "mt-3")}>
+              {text}
+            </p>
+          ))}
         </div>
         <EmbedSnippetMock />
       </div>

@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { BellRing, CalendarCheck, CodeXml, Globe, Palette, RefreshCw } from "lucide-react";
-import { FEATURES, type FeatureIcon } from "@/features/marketing/site";
+import { anchorId, FEATURES, type FeatureIcon, SECTIONS, SITE } from "@/features/marketing/site";
 
 const ICONS: Record<FeatureIcon, LucideIcon> = {
   globe: Globe,
@@ -13,10 +13,10 @@ const ICONS: Record<FeatureIcon, LucideIcon> = {
 
 export function FeatureGrid() {
   return (
-    <section id="features" aria-labelledby="features-heading" className="bg-muted/40 scroll-mt-20 border-t">
+    <section id={anchorId(SITE.anchors.features)} aria-labelledby="features-heading" className="bg-muted/40 scroll-mt-20 border-t">
       <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
-        <h2 id="features-heading" className="text-3xl font-semibold tracking-tight md:text-4xl">Everything a booking page should do</h2>
-        <p className="text-muted-foreground mt-3 max-w-xl">Nothing you have to configure twice.</p>
+        <h2 id="features-heading" className="text-3xl font-semibold tracking-tight md:text-4xl">{SECTIONS.features.heading}</h2>
+        <p className="text-muted-foreground mt-3 max-w-xl">{SECTIONS.features.sub}</p>
         <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => {
             const Icon = ICONS[f.icon];

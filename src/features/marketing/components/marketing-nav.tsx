@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { NAV_LINKS, SITE } from "@/features/marketing/site";
+import { CTA, NAV_LINKS, SITE } from "@/features/marketing/site";
 
 export function MarketingNav() {
   return (
@@ -21,10 +21,10 @@ export function MarketingNav() {
         </ul>
         <div className="flex items-center gap-2">
           <Link href={SITE.links.login} className={cn(buttonVariants({ variant: "ghost", size: "lg" }))}>
-            Log in
+            {CTA.login}
           </Link>
           <Link href={SITE.links.signup} className={cn(buttonVariants({ size: "lg" }), "px-4")}>
-            Get started
+            {CTA.getStarted}
           </Link>
         </div>
       </nav>

@@ -2,7 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Nested `.light` surfaces opt out of `dark:` variants; nothing under (dashboard) sits inside `.light`. */
+@custom-variant dark (&:is(.dark *):not(.light *));
 
 @theme inline {
   --color-background: var(--background);
@@ -134,7 +135,9 @@
 
 /* Light scope for surfaces rendered under the dark <html> (marketing landing).
    Custom properties resolve from the nearest ancestor, so this wins over
-   `.dark` on <html> regardless of specificity. Keep in sync with :root. */
+   `.dark` on <html> regardless of specificity. Intentionally covers only the
+   core tokens the marketing surface uses — no sidebar, chart or status tokens;
+   anything nested here that needs those must add them. */
 .light {
   color-scheme: light;
   --background: oklch(1 0 0);
@@ -161,6 +164,11 @@
    the unlayered `.light` token block (0-1-0); a Tailwind utility on the same
    element could not, because `.light` is unlayered CSS. */
 .light.marketing {
+  /* Darker teal within the marketing scope so 16px button labels
+     (white on --primary: 3.28:1 → 4.96:1) and the hero eyebrow
+     (--primary on white: 3.37:1 → 5.08:1) reach AA ≥4.5:1.
+     App tokens are unchanged — this override never leaves the landing page. */
+  --primary: oklch(0.52 0.11 187);
   --ring: var(--primary);
 }
 
