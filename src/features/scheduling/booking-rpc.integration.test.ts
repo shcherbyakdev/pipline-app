@@ -159,6 +159,19 @@ describe("create_booking RPC", () => {
     expect(clients![0].name).toBe("Jamie Doe");
   });
 
+  it("member reads clients with an embedded booking count (directory query shape)", async () => {
+    const { data, error } = await owner
+      .from("clients")
+      .select("id, name, email, bookings(count)")
+      .order("name");
+    expect(error).toBeNull();
+    const jamie = (
+      data as Array<{ email: string | null; bookings: { count: number }[] }>
+    ).find((c) => c.email === "jamie@example.com");
+    expect(jamie).toBeDefined();
+    expect(jamie!.bookings[0].count).toBeGreaterThanOrEqual(2);
+  });
+
   it("overlapping confirmed booking is rejected with 23P01", async () => {
     const { tokenHash } = generateAccessToken();
     const { error } = await anon.rpc("create_booking", {
