@@ -1,0 +1,26 @@
+const LINES = [
+  `<div id="booklo-widget"></div>`,
+  `<script src="https://booklo.example/embed.js"`,
+  `        data-handle="anna-kovac" async></script>`,
+];
+
+export function EmbedSnippetMock() {
+  return (
+    <div aria-hidden="true" className="bg-card overflow-hidden rounded-xl border">
+      <div className="flex items-center gap-1.5 border-b px-4 py-2.5">
+        <span className="bg-muted-foreground/30 size-2.5 rounded-full" />
+        <span className="bg-muted-foreground/30 size-2.5 rounded-full" />
+        <span className="bg-muted-foreground/30 size-2.5 rounded-full" />
+        <span className="text-muted-foreground ml-2 text-xs">index.html</span>
+      </div>
+      <pre className="overflow-x-auto p-4 font-mono text-xs leading-6">
+        {LINES.map((l, i) => (
+          <div key={i} className="flex">
+            <span className="text-muted-foreground w-6 shrink-0 select-none">{i + 1}</span>
+            <span>{l}</span>
+          </div>
+        ))}
+      </pre>
+    </div>
+  );
+}
