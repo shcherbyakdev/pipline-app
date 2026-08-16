@@ -15,6 +15,11 @@ import {
   schedulingSettingsInput,
   GENERIC_WRITE_ERROR,
   type ActionState,
+  OVERLAP_ERROR,
+  updateRuleInput,
+  copyDayHoursInput,
+  dateOverrideInput,
+  deleteOverrideInput,
 } from "./schema";
 import { effectiveWindows, subtractRange, addRange } from "./day-windows";
 
@@ -104,6 +109,10 @@ export async function deleteService(input: unknown): Promise<ActionState> {
   return { ok: true };
 }
 
+// EXCLUDE-guard violations (0035) — the DB is the authority on overlaps;
+// map to the same message the client shows.
+const OVERLAP_DB_CODE = "23P01";
+
 export async function addAvailabilityRule(input: unknown): Promise<ActionState> {
   const parsed = availabilityRuleInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
@@ -116,8 +125,12 @@ export async function addAvailabilityRule(input: unknown): Promise<ActionState> 
     start_time: parsed.data.startTime,
     end_time: parsed.data.endTime,
   });
-  if (error) return fail("addAvailabilityRule", error);
+  if (error) {
+    if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    return fail("addAvailabilityRule", error);
+  }
   revalidatePath("/availability");
+  revalidatePath("/bookings");
   return { ok: true };
 }
 
@@ -136,6 +149,7 @@ export async function deleteAvailabilityRule(input: unknown): Promise<ActionStat
     .eq("org_id", orgId);
   if (error) return fail("deleteAvailabilityRule", error);
   revalidatePath("/availability");
+  revalidatePath("/bookings");
   return { ok: true };
 }
 
@@ -305,5 +319,120 @@ export async function updateSchedulingSettings(input: unknown): Promise<ActionSt
     return fail("updateSchedulingSettings", error);
   }
   revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function updateAvailabilityRule(input: unknown): Promise<ActionState> {
+  const parsed = updateRuleInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("availability_rules")
+    .update({ start_time: parsed.data.startTime, end_time: parsed.data.endTime })
+    .eq("id", parsed.data.id)
+    // Explicit org scope (defense-in-depth, mirrors the delete actions).
+    .eq("org_id", orgId)
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    return fail("updateAvailabilityRule", error);
+  }
+  if (!data) return fail("updateAvailabilityRule", "rule not visible");
+  revalidatePath("/availability");
+  revalidatePath("/bookings");
+  return { ok: true };
+}
+
+// Overwrite semantics (spec): each target day's rows are replaced by the
+// source day's rows — including "no rows" when the source day is empty.
+// The source is read server-side, never client-supplied. Delete-then-insert
+// is not atomic; a failure between the two leaves targets empty — visible
+// and retryable, accepted for a single-editor solo product (spec).
+export async function copyDayHours(input: unknown): Promise<ActionState> {
+  const parsed = copyDayHoursInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { data: source, error: readError } = await supabase
+    .from("availability_rules")
+    .select("start_time, end_time")
+    .eq("org_id", orgId)
+    .eq("weekday", parsed.data.sourceWeekday);
+  if (readError) return fail("copyDayHours", readError);
+  const { error: deleteError } = await supabase
+    .from("availability_rules")
+    .delete()
+    .eq("org_id", orgId)
+    .in("weekday", parsed.data.targetWeekdays);
+  if (deleteError) return fail("copyDayHours", deleteError);
+  if ((source ?? []).length > 0) {
+    const rows = parsed.data.targetWeekdays.flatMap((weekday) =>
+      (source ?? []).map((w) => ({
+        org_id: orgId,
+        weekday,
+        start_time: w.start_time,
+        end_time: w.end_time,
+      })),
+    );
+    const { error: insertError } = await supabase.from("availability_rules").insert(rows);
+    if (insertError) return fail("copyDayHours", insertError);
+  }
+  revalidatePath("/availability");
+  revalidatePath("/bookings");
+  return { ok: true };
+}
+
+// Replace-all-rows-for-the-date semantics (spec): one closed row, or N
+// window rows. Same non-atomicity note as copyDayHours.
+export async function setDateOverride(input: unknown): Promise<ActionState> {
+  const parsed = dateOverrideInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { error: deleteError } = await supabase
+    .from("availability_exceptions")
+    .delete()
+    .eq("org_id", orgId)
+    .eq("date", parsed.data.date);
+  if (deleteError) return fail("setDateOverride", deleteError);
+  const rows: Array<{ org_id: string; date: string; closed: boolean; start_time: string | null; end_time: string | null }> =
+    parsed.data.closed
+      ? [{ org_id: orgId, date: parsed.data.date, closed: true, start_time: null, end_time: null }]
+      : parsed.data.windows.map((w) => ({
+          org_id: orgId,
+          date: parsed.data.date,
+          closed: false,
+          start_time: w.startTime,
+          end_time: w.endTime,
+        }));
+  const { error: insertError } = await supabase.from("availability_exceptions").insert(rows);
+  if (insertError) {
+    if (insertError.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    return fail("setDateOverride", insertError);
+  }
+  revalidatePath("/availability");
+  revalidatePath("/bookings");
+  return { ok: true };
+}
+
+export async function deleteDateOverride(input: unknown): Promise<ActionState> {
+  const parsed = deleteOverrideInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("availability_exceptions")
+    .delete()
+    .eq("org_id", orgId)
+    .eq("date", parsed.data.date);
+  if (error) return fail("deleteDateOverride", error);
+  revalidatePath("/availability");
+  revalidatePath("/bookings");
   return { ok: true };
 }
