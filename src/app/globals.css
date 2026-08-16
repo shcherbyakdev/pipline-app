@@ -200,6 +200,22 @@
 .widget-theme .wt-surface {
   background-color: transparent;
 }
+/* Text-alpha overlay instead of a bg-derived mix so the hover tint reads
+   correctly on solid AND transparent widget surfaces alike. */
 .widget-theme .wt-surface:hover {
-  background-color: color-mix(in oklab, var(--widget-bg), var(--widget-text) 8%);
+  background-color: color-mix(in oklab, transparent, var(--widget-text) 8%);
+}
+/* Embed default: paint NO background so the widget sits natively on any
+   host page (the org can still opt into a solid one by setting a
+   background override, which re-enables painting via --widget-bg). Text,
+   lines, and accent still come from the theme. */
+.widget-theme.wt-transparent {
+  background: transparent;
+}
+/* Form fields inside the widget: same dashboard-token bleed as the buttons
+   had (dark:bg-input/30 etc.) — keep them transparent so they inherit the
+   widget (or host) surface. Background only; focus/invalid borders are
+   handled by the border rule's exclusions above. */
+.widget-theme :is(input, textarea, select) {
+  background-color: transparent;
 }

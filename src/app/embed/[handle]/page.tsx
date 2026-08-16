@@ -27,7 +27,14 @@ export default async function EmbedPage({ params }: PageProps<"/embed/[handle]">
     // to exactly body.offsetHeight, this wrapper fills the iframe on its
     // own; the moment before the first resize message is covered by the
     // transparent html/body background in embed/layout.tsx instead.
-    <WidgetTheme config={theme} accentColor={branding.accentColor} className="p-4">
+    <WidgetTheme
+      config={theme}
+      accentColor={branding.accentColor}
+      // No painted background unless the org explicitly set one — the
+      // widget should sit natively on the host page's own surface.
+      transparent={!theme.background}
+      className="p-4"
+    >
       <EmbedResizeReporter />
       {branding.logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
