@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
 import {
-  zonedParts, hourRange, closedIntervals, serviceAccent, snap15, minToTime,
+  zonedParts, hourRange, serviceAccent, snap15, minToTime, timeToMin,
 } from "@/features/scheduling/calendar-geometry";
 import { addDaysISO } from "@/features/scheduling/slots";
 import { blockTimeRange, reopenDay } from "@/features/scheduling/actions";
@@ -123,10 +123,10 @@ export function CalendarWeek({
     // percent-positioned, so they compress/stretch with the viewport like
     // the reference. min-h is the graceful floor: below it the page
     // scrolls rather than crushing the rows.
-    <div className="flex min-h-[520px] flex-1 flex-col overflow-x-auto rounded-lg border">
+    <div className="flex min-h-[520px] flex-1 flex-col overflow-x-auto">
       <div className="flex min-h-0 min-w-[840px] flex-1 flex-col">
         {/* header row: week arrows live inside the grid, like the reference */}
-        <div className={cn("grid shrink-0 border-b", GRID_COLS)}>
+        <div className={cn("grid shrink-0 pb-2", GRID_COLS)}>
           <Link
             href={prevHref}
             aria-label="Previous week"
@@ -166,13 +166,16 @@ export function CalendarWeek({
             <ChevronRight className="size-4" />
           </Link>
         </div>
-        {/* body row: left rail, 7 day columns, right time axis */}
-        <div className={cn("grid min-h-0 flex-1", GRID_COLS)}>
+        {/* body row: left rail, 7 day columns, right time axis. The grid
+            reads as discrete rounded hour tiles with gutters (reference
+            style) — the tiles are visual only; cards, selection, and
+            pointer math stay percent-positioned on the continuous column. */}
+        <div className={cn("grid min-h-0 flex-1 gap-x-1.5", GRID_COLS)}>
           <div />
           {days.map((d, di) => (
           <div
             key={d}
-            className="relative border-l border-border/60"
+            className="relative"
             onPointerDown={(e) => {
               if ((e.target as HTMLElement).closest("button")) return; // cards handle themselves
               // Capture on the column itself so drag-move keeps firing here
@@ -198,13 +201,27 @@ export function CalendarWeek({
             }}
             onPointerUp={() => setDragging(false)}
           >
-            {Array.from({ length: endHour - startHour }, (_, i) => (
-              <div key={i} className="absolute inset-x-0 border-t border-border/40"
-                style={{ top: `${pct((startHour + i) * 60)}%` }} />
-            ))}
-            {closedIntervals(windowsByDay[di], startHour, endHour).map((c, i) => (
-              <div key={i} className="absolute inset-x-0 bg-muted/20" style={{ ...HATCH, top: `${pct(c.startMin)}%`, height: `${pct(c.endMin) - pct(c.startMin)}%` }} />
-            ))}
+            {Array.from({ length: endHour - startHour }, (_, i) => {
+              const h = startHour + i;
+              // A tile is "open" if the hour's midpoint falls inside an
+              // open window — whole-tile granularity like the reference
+              // (fractional open hours read as their dominant state).
+              const midMin = h * 60 + 30;
+              const open = windowsByDay[di].some(
+                (w) => timeToMin(w.startTime) <= midMin && midMin < timeToMin(w.endTime),
+              );
+              return (
+                <div
+                  key={i}
+                  className={cn("absolute inset-x-0 rounded-md", open ? "bg-muted/40" : "bg-muted/15")}
+                  style={{
+                    top: `calc(${pct(h * 60)}% + 2px)`,
+                    height: `calc(${pct((h + 1) * 60) - pct(h * 60)}% - 4px)`,
+                    ...(open ? {} : HATCH),
+                  }}
+                />
+              );
+            })}
             {nowParts?.date === d ? (
               <div className="absolute inset-x-0 z-20 border-t-2 border-primary" style={{ top: `${pct(nowParts.minutes)}%` }} />
             ) : null}
@@ -222,7 +239,7 @@ export function CalendarWeek({
                   key={b.id}
                   type="button"
                   onClick={() => setSelected(b)}
-                  className="absolute inset-x-1 z-10 overflow-hidden rounded border bg-card p-1 text-left text-xs shadow-sm hover:shadow"
+                  className="absolute inset-x-0 z-10 overflow-hidden rounded-md border bg-card p-1.5 text-left text-xs shadow-sm hover:shadow"
                   style={{
                     top: `${pct(s.minutes)}%`,
                     height: `${Math.max(pct(endMin) - pct(s.minutes), 1.5)}%`,
@@ -243,7 +260,7 @@ export function CalendarWeek({
             })}
             {selection?.date === d ? (
               <div
-                className="absolute inset-x-1 z-20 rounded border border-primary bg-primary/10"
+                className="absolute inset-x-0 z-20 rounded-md border border-primary bg-primary/10"
                 style={{ top: `${pct(selection.startMin)}%`, height: `${pct(selection.endMin) - pct(selection.startMin)}%` }}
               >
                 {!dragging ? (
@@ -265,15 +282,16 @@ export function CalendarWeek({
             ) : null}
           </div>
           ))}
-          {/* time axis (right edge, like the reference) */}
-          <div className="relative border-l border-border/60">
+          {/* time axis (right edge, like the reference): one label per
+              hour row, centered on its tile */}
+          <div className="relative">
             {Array.from({ length: endHour - startHour }, (_, i) => (
               <div
                 key={i}
                 className="absolute left-1.5 -translate-y-1/2 text-[11px] text-muted-foreground"
-                style={{ top: `${pct((startHour + i) * 60)}%` }}
+                style={{ top: `${pct((startHour + i) * 60 + 30)}%` }}
               >
-                {i === 0 ? "" : `${String(startHour + i).padStart(2, "0")}:00`}
+                {`${String(startHour + i).padStart(2, "0")}:00`}
               </div>
             ))}
           </div>
