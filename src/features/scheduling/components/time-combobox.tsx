@@ -77,7 +77,10 @@ export function TimeCombobox({
   }
 
   function commit(hm: string) {
-    onCommit(hm)
+    // Re-selecting the already-current value is a no-op for the caller —
+    // still close (mirrors the "selecting closes" contract) but skip the
+    // redundant onCommit so consumers don't fire a pointless server action.
+    if (hm !== value) onCommit(hm)
     setOpen(false)
   }
 
@@ -150,6 +153,13 @@ export function TimeCombobox({
         value={open ? text : formatTime(value)}
         onFocus={() => openList(false)}
         onChange={(e) => {
+          // The popup can be closed while focus is retained (Escape, an
+          // option click, Enter-select — none of them blur the input). If
+          // the very next keystroke arrives while closed, reopen instead of
+          // letting the closed-state derivation (`open ? text :
+          // formatTime(value)`, below) overwrite what was just typed on the
+          // next render.
+          if (!open) setOpen(true)
           setText(e.target.value)
           setDirty(true)
           setHasNavigated(false)
@@ -188,6 +198,12 @@ export function TimeCombobox({
                       key={opt}
                       id={optionId(reactId, opt)}
                       role="option"
+                      // Deliberate departure from ARIA 1.2's usual
+                      // aria-selected-tracks-active-descendant convention:
+                      // here it tracks the *committed* value (a persistent
+                      // "you are here" marker, contract point 2) while
+                      // `aria-activedescendant`/`highlighted` above tracks
+                      // arrow-key position — two independent concepts.
                       aria-selected={selected}
                       data-highlighted={highlighted ? "" : undefined}
                       onMouseDown={(e) => e.preventDefault()}
