@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
@@ -236,8 +236,9 @@ export function CalendarWeek({
                 <div
                   key={i}
                   className={cn(
-                    "absolute inset-x-0 rounded-md",
+                    "group absolute inset-x-0 cursor-pointer rounded-md transition-colors",
                     tile.fullyClosed ? "bg-muted/15" : "bg-muted/40",
+                    "hover:bg-primary/5 hover:ring-1 hover:ring-inset hover:ring-primary",
                   )}
                   style={{
                     top: `calc(${pct(h * 60)}% + 2px)`,
@@ -260,6 +261,8 @@ export function CalendarWeek({
                         }}
                       />
                     ))}
+                  {/* hover affordance: click/drag here starts a booking */}
+                  <Plus className="pointer-events-none absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
                 </div>
               );
             })}
