@@ -59,7 +59,8 @@ export function ClientHeader({ id, name }: { id: string; name: string }) {
             <DialogTitle>Delete this client?</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm">
-            Portal links are deleted; units keep their history but lose the client grouping.
+            Bookings keep their history (name and email stay on each booking);
+            the client entry itself is deleted.
           </p>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmOpen(false)}>

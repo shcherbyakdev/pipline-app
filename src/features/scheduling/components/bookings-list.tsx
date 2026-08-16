@@ -2,19 +2,12 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { formatWhenLine } from "@/features/scheduling/templates";
+import { formatWhenLine, STATUS_LABEL } from "@/features/scheduling/templates";
 import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-const STATUS_LABEL: Record<string, string> = {
-  confirmed: "Confirmed",
-  cancelled_by_client: "Cancelled by client",
-  cancelled_by_provider: "Cancelled by you",
-  rescheduled: "Rescheduled",
-};
 
 function Row({
   booking,
