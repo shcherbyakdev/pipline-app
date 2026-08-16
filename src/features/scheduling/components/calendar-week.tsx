@@ -396,6 +396,7 @@ export function CalendarWeek({
           onOpenChange={(o) => { setCreateOpen(o); if (!o) setSelection(null); }}
           date={selection.date}
           startMin={selection.startMin}
+          dragEndMin={selection.endMin}
           timeZone={timeZone}
           services={services}
           windows={windowsByDay[days.indexOf(selection.date)] ?? []}

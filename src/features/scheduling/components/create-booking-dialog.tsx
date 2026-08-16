@@ -17,12 +17,13 @@ import {
 } from "@/components/ui/dialog";
 
 export function CreateBookingDialog({
-  open, onOpenChange, date, startMin, timeZone, services, windows,
+  open, onOpenChange, date, startMin, dragEndMin, timeZone, services, windows,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   date: string; // org-local "YYYY-MM-DD"
   startMin: number; // org-local minutes since midnight (snapped)
+  dragEndMin: number; // selection end — a real drag (>1 snap unit) sets the default length
   timeZone: string;
   services: ServiceRow[];
   windows: DayWindow[]; // effective windows for `date`, for the warning only
@@ -51,7 +52,17 @@ export function CreateBookingDialog({
   }, []);
 
   const service = services.find((s) => s.id === serviceId);
-  const endMin = startMin + (service?.durationMin ?? 0);
+  // End time is editable. Default: a real drag (more than one 15-min snap
+  // unit) sets the length; a plain click uses the service duration. Picking
+  // a different service resets the end only while the user hasn't touched it.
+  const dragged = dragEndMin - startMin > 15;
+  const defaultEndMin = dragged ? dragEndMin : startMin + (service?.durationMin ?? 60);
+  const [endTouched, setEndTouched] = React.useState(false);
+  const [endTime, setEndTime] = React.useState(minToTime(Math.min(defaultEndMin, 24 * 60 - 1)));
+  const effectiveEndTime = endTouched ? endTime : minToTime(Math.min(defaultEndMin, 24 * 60 - 1));
+  const endMin = timeToMin(effectiveEndTime);
+  const durationMin = endMin - startMin;
+  const invalidDuration = durationMin < 5 || durationMin > 480;
   const startTime = minToTime(startMin);
   const startsAt = wallTimeToUtc(date, startTime, timeZone);
 
@@ -71,6 +82,7 @@ export function CreateBookingDialog({
       const result = await createBookingAdmin({
         serviceId,
         startsAt: startsAt.toISOString(),
+        durationMin,
         name,
         email,
         note: note || undefined,
@@ -96,7 +108,7 @@ export function CreateBookingDialog({
         <DialogHeader>
           <DialogTitle>New booking</DialogTitle>
           <DialogDescription>
-            {date} · {startTime}–{service ? minToTime(endMin) : "?"} ({timeZone})
+            {date} · {startTime}–{effectiveEndTime} ({timeZone})
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-3">
@@ -112,6 +124,25 @@ export function CreateBookingDialog({
                 <option key={s.id} value={s.id}>{s.name} ({s.durationMin} min)</option>
               ))}
             </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="cb-end">
+              Ends at{" "}
+              <span className="text-muted-foreground font-normal">
+                ({durationMin > 0 ? `${durationMin} min` : "—"})
+              </span>
+            </Label>
+            <Input
+              id="cb-end"
+              type="time"
+              step={300}
+              value={effectiveEndTime}
+              onChange={(e) => {
+                setEndTouched(true);
+                setEndTime(e.target.value);
+                clearOverlap();
+              }}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cb-name">Client name</Label>
@@ -158,8 +189,13 @@ export function CreateBookingDialog({
               back. Pick a slot from the last day, or a future one.
             </p>
           ) : null}
+          {invalidDuration ? (
+            <p className="text-destructive text-sm">
+              End must be after the start — between 5 minutes and 8 hours long.
+            </p>
+          ) : null}
           {overlapError ? <p className="text-destructive text-sm">{overlapError}</p> : null}
-          <Button type="submit" disabled={pending || !serviceId || tooFarPast}>
+          <Button type="submit" disabled={pending || !serviceId || tooFarPast || invalidDuration}>
             {pending ? "Creating…" : "Create booking"}
           </Button>
         </form>
