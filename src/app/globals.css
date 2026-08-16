@@ -181,3 +181,25 @@
 .widget-theme :is(.border, [class*="border"]):not(.wt-primary):not(:focus-visible):not([aria-invalid="true"]) {
   border-color: var(--widget-line);
 }
+/* Same unlayered-always-wins mechanism as the border-color rule above, for
+   fills. The service list / date-nav / time-slot buttons (booking-widget.tsx)
+   use shadcn Button's `outline` variant (`bg-background hover:bg-muted
+   dark:bg-input/30 dark:hover:bg-input/50`) or a bare `hover:bg-accent/50`.
+   Those all read dashboard tokens (--background/--muted/--accent/--input),
+   which .widget-theme never redefines — so they keep whatever value the
+   PAGE ROOT set. The root layout hardcodes `dark` on <html> for every route
+   (dashboard, /book, /embed alike), and Tailwind's `dark:` custom variant
+   (`&:is(.dark *)`) matches ANY descendant of a `.dark` ancestor, so
+   `dark:bg-input/30` fires unconditionally — even for a widget whose OWN
+   theme is wt-light. The result: washed-out dashboard-dark-mode grey boxes
+   that match neither the light nor the dark widget theme (the bug reported
+   from the Settings live preview, but present identically on /book and
+   /embed since the same `dark` class is on <html> there too). Marked
+   surfaces get an explicit widget-derived fill instead: transparent at
+   rest, a subtle tint mixed from the widget's own bg/text at hover. */
+.widget-theme .wt-surface {
+  background-color: transparent;
+}
+.widget-theme .wt-surface:hover {
+  background-color: color-mix(in oklab, var(--widget-bg), var(--widget-text) 8%);
+}

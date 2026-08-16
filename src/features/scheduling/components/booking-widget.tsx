@@ -134,7 +134,7 @@ export function BookingWidget({
                   flushSync(() => setService(s));
                   slotsRegionRef.current?.focus();
                 }}
-                className="hover:bg-accent/50 flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
+                className="wt-surface flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
               >
                 <span>
                   <span className="font-medium">{s.name}</span>
@@ -171,12 +171,18 @@ export function BookingWidget({
               <Button
                 variant="outline"
                 size="sm"
+                className="wt-surface"
                 disabled={fromDate <= todayISO()}
                 onClick={() => setFromDate(shiftDays(fromDate, -7))}
               >
                 ←
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setFromDate(shiftDays(fromDate, 7))}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="wt-surface"
+                onClick={() => setFromDate(shiftDays(fromDate, 7))}
+              >
                 →
               </Button>
             </div>
@@ -198,6 +204,7 @@ export function BookingWidget({
                         key={s}
                         variant="outline"
                         size="sm"
+                        className="wt-surface"
                         onClick={() => setSlot(s)}
                         aria-label={`${dayFmt.format(new Date(s))}, ${timeFmt.format(new Date(s))}`}
                       >

@@ -19,7 +19,15 @@ export default async function EmbedPage({ params }: PageProps<"/embed/[handle]">
   if (services.length === 0) notFound();
   const theme = parseWidgetTheme(branding.themeRaw);
   return (
-    <WidgetTheme config={theme} accentColor={branding.accentColor} className="min-h-dvh p-4">
+    // No min-h-dvh here: `dvh` resolves against the IFRAME's own viewport,
+    // which is whatever height embed.js last set — so it floors
+    // body.offsetHeight at the current iframe height and neutralizes the
+    // shrink fix in EmbedResizeReporter (a booking growing then shrinking
+    // could never report a smaller height). Once embed.js sizes the iframe
+    // to exactly body.offsetHeight, this wrapper fills the iframe on its
+    // own; the moment before the first resize message is covered by the
+    // transparent html/body background in embed/layout.tsx instead.
+    <WidgetTheme config={theme} accentColor={branding.accentColor} className="p-4">
       <EmbedResizeReporter />
       {branding.logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
