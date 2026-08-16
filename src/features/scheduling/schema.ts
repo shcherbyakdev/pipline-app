@@ -127,3 +127,49 @@ export const adminCreateBookingInput = z.object({
   ),
   note: z.string().trim().max(2000).optional(),
 });
+
+export const OVERLAP_ERROR = "Times overlap with another set of times.";
+
+export const updateRuleInput = z
+  .object({ id: z.uuid(), startTime: timeField, endTime: timeField })
+  .refine((r) => r.startTime < r.endTime, { message: "start must precede end" });
+
+export const copyDayHoursInput = z
+  .object({
+    sourceWeekday: z.number().int().min(0).max(6),
+    targetWeekdays: z.array(z.number().int().min(0).max(6)).min(1).max(6),
+  })
+  .refine((i) => !i.targetWeekdays.includes(i.sourceWeekday), {
+    message: "cannot copy a day onto itself",
+  })
+  .refine((i) => new Set(i.targetWeekdays).size === i.targetWeekdays.length, {
+    message: "duplicate target days",
+  });
+
+const overrideWindow = z
+  .object({ startTime: timeField, endTime: timeField })
+  .refine((w) => w.startTime < w.endTime, { message: "start must precede end" });
+
+export const dateOverrideInput = z
+  .object({
+    date: z.string().regex(DATE_RE),
+    closed: z.boolean(),
+    windows: z.array(overrideWindow).max(10).default([]),
+  })
+  .refine((o) => (o.closed ? o.windows.length === 0 : o.windows.length > 0), {
+    message: "closed override has no windows; open override needs at least one",
+  })
+  .refine(
+    (o) => {
+      const sorted = [...o.windows].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      let maxEnd = "";
+      for (const w of sorted) {
+        if (maxEnd && w.startTime < maxEnd) return false;
+        if (w.endTime > maxEnd) maxEnd = w.endTime;
+      }
+      return true;
+    },
+    { message: OVERLAP_ERROR },
+  );
+
+export const deleteOverrideInput = z.object({ date: z.string().regex(DATE_RE) });

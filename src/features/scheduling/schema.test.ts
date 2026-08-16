@@ -9,6 +9,11 @@ import {
   manageTokenInput,
   rescheduleBookingInput,
   adminSlotsInput,
+  OVERLAP_ERROR,
+  updateRuleInput,
+  copyDayHoursInput,
+  dateOverrideInput,
+  deleteOverrideInput,
 } from "./schema";
 
 describe("serviceInput", () => {
@@ -153,5 +158,88 @@ describe("lifecycle inputs", () => {
     expect(
       adminSlotsInput.safeParse({ serviceId: crypto.randomUUID(), fromDate: "2027-04-05", days: 60 }).success,
     ).toBe(false);
+  });
+});
+
+describe("updateRuleInput", () => {
+  it("accepts an ordered window", () => {
+    expect(
+      updateRuleInput.safeParse({
+        id: "6f6f38d4-7d33-4f0f-9d7e-51f6bd3c8a01",
+        startTime: "09:00",
+        endTime: "13:00",
+      }).success,
+    ).toBe(true);
+  });
+  it("rejects start >= end", () => {
+    expect(
+      updateRuleInput.safeParse({
+        id: "6f6f38d4-7d33-4f0f-9d7e-51f6bd3c8a01",
+        startTime: "13:00",
+        endTime: "13:00",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("copyDayHoursInput", () => {
+  it("accepts distinct targets", () => {
+    expect(copyDayHoursInput.safeParse({ sourceWeekday: 1, targetWeekdays: [2, 3] }).success).toBe(true);
+  });
+  it("rejects copying onto itself", () => {
+    expect(copyDayHoursInput.safeParse({ sourceWeekday: 1, targetWeekdays: [1] }).success).toBe(false);
+  });
+  it("rejects duplicates and empty targets", () => {
+    expect(copyDayHoursInput.safeParse({ sourceWeekday: 1, targetWeekdays: [2, 2] }).success).toBe(false);
+    expect(copyDayHoursInput.safeParse({ sourceWeekday: 1, targetWeekdays: [] }).success).toBe(false);
+  });
+});
+
+describe("dateOverrideInput", () => {
+  it("accepts closed with no windows", () => {
+    expect(dateOverrideInput.safeParse({ date: "2026-09-01", closed: true, windows: [] }).success).toBe(true);
+  });
+  it("accepts open with sorted touching windows", () => {
+    expect(
+      dateOverrideInput.safeParse({
+        date: "2026-09-01",
+        closed: false,
+        windows: [
+          { startTime: "09:00", endTime: "13:00" },
+          { startTime: "13:00", endTime: "17:00" },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+  it("rejects open with no windows and closed with windows", () => {
+    expect(dateOverrideInput.safeParse({ date: "2026-09-01", closed: false, windows: [] }).success).toBe(false);
+    expect(
+      dateOverrideInput.safeParse({
+        date: "2026-09-01",
+        closed: true,
+        windows: [{ startTime: "09:00", endTime: "10:00" }],
+      }).success,
+    ).toBe(false);
+  });
+  it("rejects overlapping windows with the shared message", () => {
+    const result = dateOverrideInput.safeParse({
+      date: "2026-09-01",
+      closed: false,
+      windows: [
+        { startTime: "09:00", endTime: "13:00" },
+        { startTime: "12:00", endTime: "14:00" },
+      ],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((i) => i.message === OVERLAP_ERROR)).toBe(true);
+    }
+  });
+});
+
+describe("deleteOverrideInput", () => {
+  it("accepts a date and rejects garbage", () => {
+    expect(deleteOverrideInput.safeParse({ date: "2026-09-01" }).success).toBe(true);
+    expect(deleteOverrideInput.safeParse({ date: "not-a-date" }).success).toBe(false);
   });
 });
