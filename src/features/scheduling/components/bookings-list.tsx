@@ -32,6 +32,8 @@ function Row({
     startTransition(async () => {
       const result = await cancelBookingAdmin({ id: booking.id });
       if (!result.ok) toast.error(result.error);
+      else if (result.noEmail)
+        toast.success("Booking cancelled — no email on file for this client.");
       else if (result.emailed) toast.success("Booking cancelled — the client has been emailed");
       else
         toast.warning(
@@ -50,7 +52,8 @@ function Row({
       </div>
       <p>{formatWhenLine(new Date(booking.startsAt), timeZone)}</p>
       <p className="text-muted-foreground">
-        {booking.clientName} · {booking.clientEmail}
+        {booking.clientName}
+        {booking.clientEmail ? ` · ${booking.clientEmail}` : ""}
         {booking.note ? ` · “${booking.note}”` : null}
       </p>
       {actionable ? (

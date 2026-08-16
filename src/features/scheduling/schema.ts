@@ -48,6 +48,16 @@ export const availabilityExceptionInput = z
   );
 export const exceptionIdInput = z.object({ id: z.uuid() });
 
+export const blockTimeInput = z
+  .object({
+    date: z.string().regex(DATE_RE),
+    startTime: timeField,
+    endTime: timeField,
+  })
+  .refine((r) => r.startTime < r.endTime, { message: "start must precede end" });
+
+export const reopenDayInput = z.object({ date: z.string().regex(DATE_RE) });
+
 export const schedulingSettingsInput = z.object({
   // "" (cleared field) → null: the provider can unpublish the booking page
   // or set a timezone before ever choosing a handle (S1 deferral).
@@ -101,4 +111,16 @@ export const adminSlotsInput = z.object({
   serviceId: z.uuid(),
   fromDate: z.string().regex(DATE_RE),
   days: z.number().int().min(1).max(31),
+});
+
+export const adminCreateBookingInput = z.object({
+  serviceId: z.uuid(),
+  startsAt: z.iso.datetime(),
+  name: z.string().trim().min(1).max(200),
+  // "" (untouched optional field) → undefined, mirroring the handle preprocess.
+  email: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.email().max(320).optional(),
+  ),
+  note: z.string().trim().max(2000).optional(),
 });

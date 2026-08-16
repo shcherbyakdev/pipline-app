@@ -91,7 +91,7 @@ export type AdminBooking = {
   serviceId: string;
   serviceName: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail: string | null;
   startsAt: string;
   endsAt: string;
   status: string;
@@ -155,4 +155,37 @@ export async function listBookings(): Promise<{ upcoming: AdminBooking[]; past: 
     upcoming: ((upcomingRes.data ?? []) as unknown as BookingRow[]).map(toAdminBooking),
     past: ((pastRes.data ?? []) as unknown as BookingRow[]).map(toAdminBooking),
   };
+}
+
+export async function listConfirmedBookingsBetween(
+  fromIso: string,
+  toIso: string,
+): Promise<AdminBooking[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(BOOKING_COLUMNS)
+    .eq("status", "confirmed")
+    .gte("starts_at", fromIso)
+    .lt("starts_at", toIso)
+    .order("starts_at", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as unknown as BookingRow[]).map(toAdminBooking);
+}
+
+export async function listExceptionsBetween(
+  fromDate: string,
+  toDate: string,
+): Promise<ExceptionRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("availability_exceptions")
+    .select("id, date, closed, start_time, end_time")
+    .gte("date", fromDate)
+    .lte("date", toDate)
+    .order("date");
+  if (error) throw error;
+  return (data ?? []).map((e) => ({
+    id: e.id, date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time,
+  }));
 }

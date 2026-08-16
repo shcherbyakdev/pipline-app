@@ -1,17 +1,96 @@
-import { listBookings } from "@/features/scheduling/queries";
+import Link from "next/link";
+import {
+  listBookings,
+  listConfirmedBookingsBetween,
+  listExceptionsBetween,
+  listServices,
+  getAvailabilityAdmin,
+} from "@/features/scheduling/queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { BookingsList } from "@/features/scheduling/components/bookings-list";
+import { CalendarWeek } from "@/features/scheduling/components/calendar-week";
+import { mondayOf } from "@/features/scheduling/calendar-geometry";
+import { wallTimeToUtc, addDaysISO, dateInZone } from "@/features/scheduling/slots";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export default async function BookingsPage() {
-  const [{ upcoming, past }, settings] = await Promise.all([
-    listBookings(),
-    getSchedulingSettings(),
-  ]);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export default async function BookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; week?: string }>;
+}) {
+  const params = await searchParams;
+  const settings = await getSchedulingSettings();
   const timeZone = settings?.timezone ?? "UTC";
+
+  if (params.view === "list") {
+    const { upcoming, past } = await listBookings();
+    return (
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold">Bookings</h1>
+          <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+            Calendar view
+          </Link>
+        </div>
+        <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} />
+      </div>
+    );
+  }
+
+  // A well-shaped `?week=` (DATE_RE) can still be a calendrically invalid
+  // date (e.g. "2027-13-45") — `new Date(...)` on it yields NaN, which
+  // would blow up `mondayOf`'s `toISOString()` with a 500. Fall back to
+  // today (in the org's tz) for anything that doesn't parse.
+  const weekParam = params.week;
+  const weekStart = mondayOf(
+    weekParam !== undefined &&
+      DATE_RE.test(weekParam) &&
+      !Number.isNaN(new Date(`${weekParam}T12:00:00Z`).getTime())
+      ? weekParam
+      : dateInZone(new Date(), timeZone),
+  );
+  const weekEnd = addDaysISO(weekStart, 6);
+  const fromIso = wallTimeToUtc(weekStart, "00:00", timeZone).toISOString();
+  const toIso = wallTimeToUtc(addDaysISO(weekStart, 7), "00:00", timeZone).toISOString();
+
+  const [bookings, exceptions, services, { rules }] = await Promise.all([
+    listConfirmedBookingsBetween(fromIso, toIso),
+    listExceptionsBetween(weekStart, weekEnd),
+    listServices(),
+    getAvailabilityAdmin(),
+  ]);
+
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-      <h1 className="text-lg font-semibold">Bookings</h1>
-      <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} />
+    // flex-1 + min-h-0: the calendar fills main's leftover viewport height
+    // (week arrows live inside the grid header; see CalendarWeek).
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold">Bookings</h1>
+        <div className="flex items-center gap-2">
+          <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+            Today
+          </Link>
+          <Link
+            href="/bookings?view=list"
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+          >
+            List view
+          </Link>
+        </div>
+      </div>
+      <CalendarWeek
+        weekStart={weekStart}
+        timeZone={timeZone}
+        bookings={bookings}
+        rules={rules}
+        exceptions={exceptions}
+        services={services.filter((s) => s.active)}
+        prevHref={`/bookings?week=${addDaysISO(weekStart, -7)}`}
+        nextHref={`/bookings?week=${addDaysISO(weekStart, 7)}`}
+      />
     </div>
   );
 }
