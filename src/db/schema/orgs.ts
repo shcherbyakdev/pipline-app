@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 
 // Tenant root. Every domain row carries `org_id` and is guarded by an RLS
 // policy keyed on the caller's org membership (read from a JWT claim).
@@ -19,6 +19,9 @@ export const orgs = pgTable("orgs", {
   // IANA zone for availability wall-times. Validated against
   // pg_timezone_names inside update_org_scheduling.
   timezone: text("timezone").default("UTC").notNull(),
+  // Widget appearance (S3). Written ONLY via update_org_widget_theme
+  // (same select-only-orgs discipline as branding). Null = all defaults.
+  widgetTheme: jsonb("widget_theme"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
