@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
 import {
-  zonedParts, hourRange, serviceAccent, snap15, minToTime, hourTileState,
+  zonedParts, hourRange, serviceAccent, snap15, minToTime, timeToMin, hourTileState,
 } from "@/features/scheduling/calendar-geometry";
 import { addDaysISO } from "@/features/scheduling/slots";
 import { blockTimeRange, reopenDay } from "@/features/scheduling/actions";
@@ -76,6 +76,12 @@ export function CalendarWeek({
   const [dragging, setDragging] = React.useState(false);
   const [createOpen, setCreateOpen] = React.useState(false);
   const dayHasExceptions = (d: string) => exceptions.some((e) => e.date === d);
+  // "Block time" only makes sense when the selection touches open time —
+  // a fully blocked selection offers reopening instead.
+  const selectionTouchesOpen = (sel: { date: string; startMin: number; endMin: number }) =>
+    (windowsByDay[days.indexOf(sel.date)] ?? []).some(
+      (w) => timeToMin(w.startTime) < sel.endMin && sel.startMin < timeToMin(w.endTime),
+    );
 
   // Escape clears an in-progress or pending selection. Event-driven state
   // change (inside the keydown callback, not the effect body directly) —
@@ -282,7 +288,9 @@ export function CalendarWeek({
                       {minToTime(selection.startMin)}–{minToTime(selection.endMin)}
                     </span>
                     <Button size="sm" onClick={() => setCreateOpen(true)}>New booking</Button>
-                    <Button size="sm" variant="ghost" onClick={blockSelected} disabled={busy}>Block time</Button>
+                    {selectionTouchesOpen(selection) ? (
+                      <Button size="sm" variant="ghost" onClick={blockSelected} disabled={busy}>Block time</Button>
+                    ) : null}
                     {dayHasExceptions(d) ? (
                       <Button size="sm" variant="ghost" onClick={() => reopenSelected(d)} disabled={busy}>
                         Reopen day (restore weekly hours)
