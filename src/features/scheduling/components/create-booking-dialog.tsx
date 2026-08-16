@@ -59,6 +59,10 @@ export function CreateBookingDialog({
     !windows.some((w) => timeToMin(w.startTime) <= startMin && endMin <= timeToMin(w.endTime));
   const insideNotice =
     service && nowMs !== null ? startsAt.getTime() < nowMs + service.minNoticeMin * 60_000 : false;
+  // The create_booking_admin RPC rejects starts older than 24h (walk-in
+  // grace window) — surface that here instead of letting the submit fail
+  // with a generic error.
+  const tooFarPast = nowMs !== null && startsAt.getTime() < nowMs - 24 * 60 * 60 * 1000;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,13 +147,19 @@ export function CreateBookingDialog({
               Outside your open hours — allowed for bookings you create yourself.
             </p>
           ) : null}
-          {insideNotice ? (
+          {insideNotice && !tooFarPast ? (
             <p className="text-sm text-amber-600 dark:text-amber-500">
               Inside this service’s minimum-notice window — allowed for bookings you create yourself.
             </p>
           ) : null}
+          {tooFarPast ? (
+            <p className="text-destructive text-sm">
+              This time is more than 24 hours in the past — bookings can’t be recorded that far
+              back. Pick a slot from the last day, or a future one.
+            </p>
+          ) : null}
           {overlapError ? <p className="text-destructive text-sm">{overlapError}</p> : null}
-          <Button type="submit" disabled={pending || !serviceId}>
+          <Button type="submit" disabled={pending || !serviceId || tooFarPast}>
             {pending ? "Creating…" : "Create booking"}
           </Button>
         </form>
