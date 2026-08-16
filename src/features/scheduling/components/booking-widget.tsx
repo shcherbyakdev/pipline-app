@@ -16,10 +16,12 @@ export function BookingWidget({
   handle,
   orgTimeZone,
   services,
+  preview,
 }: {
   handle: string;
   orgTimeZone: string;
   services: PublicService[];
+  preview?: { slots: string[] };
 }) {
   const [service, setService] = React.useState<PublicService | null>(
     services.length === 1 ? services[0] : null,
@@ -37,6 +39,17 @@ export function BookingWidget({
 
   const loadSlots = React.useCallback(
     (svc: PublicService, from: string) => {
+      // Preview mode (settings live preview): no server action, no network —
+      // just echo the canned slots through the same async-transition shape
+      // the real path uses, so this stays a single code path for the effect
+      // below (and doesn't trip the set-state-in-effect lint rule, which the
+      // real branch already satisfies the same way).
+      if (preview) {
+        startTransition(async () => {
+          setSlots(preview.slots);
+        });
+        return;
+      }
       startTransition(async () => {
         setError(null);
         const result = await getSlots({ handle, serviceId: svc.id, fromDate: from, days: 7 });
@@ -44,7 +57,7 @@ export function BookingWidget({
         else setError(result.error);
       });
     },
-    [handle],
+    [handle, preview],
   );
 
   React.useEffect(() => {
@@ -52,6 +65,7 @@ export function BookingWidget({
   }, [service, fromDate, loadSlots]);
 
   function submit(formData: FormData) {
+    if (preview) return;
     if (!service || !slot) return;
     startTransition(async () => {
       setError(null);
@@ -208,8 +222,8 @@ export function BookingWidget({
             <Label htmlFor="note">Note (optional)</Label>
             <Textarea id="note" name="note" maxLength={2000} rows={3} />
           </div>
-          <Button type="submit" className="wt-primary" disabled={pending}>
-            {pending ? "Booking…" : "Confirm booking"}
+          <Button type="submit" className="wt-primary" disabled={pending || !!preview}>
+            {preview ? "Preview" : pending ? "Booking…" : "Confirm booking"}
           </Button>
         </form>
       )}

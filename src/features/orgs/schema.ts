@@ -15,4 +15,14 @@ export const accentColorInput = z
   .nullable();
 export const updateAccentInput = z.object({ accentColor: accentColorInput });
 
+const hexField = z.string().regex(/^#[0-9a-f]{6}$/);
+export const widgetThemeInput = z.object({
+  theme: z.enum(["light", "dark", "auto"]),
+  radius: z.enum(["none", "subtle", "round"]),
+  font: z.enum(["system", "inter", "dm-sans", "lora", "space-grotesk", "ibm-plex-mono"]),
+  background: hexField.optional(),
+  text: hexField.optional(),
+  hidePoweredBy: z.boolean(),
+});
+
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
