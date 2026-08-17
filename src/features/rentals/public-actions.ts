@@ -29,10 +29,9 @@ import {
 import {
   getRangeAvailabilityInput,
   createRentalBookingInput,
+  DATES_TAKEN,
   GENERIC_WRITE_ERROR,
 } from "./schema";
-
-export const DATES_TAKEN = "Those dates were just taken — please pick again.";
 
 async function limited(): Promise<boolean> {
   const key = clientKeyFrom(await headers());

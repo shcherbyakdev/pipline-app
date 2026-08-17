@@ -52,6 +52,11 @@ export const blackoutInput = z
   .refine((b) => b.endDate >= b.startDate, { message: "end must not precede start" });
 export const blackoutIdInput = z.object({ id: z.uuid(), offeringId: z.uuid() });
 
+// Lives here, not in public-actions.ts: a file-level "use server" module may
+// only export async functions, and the public booking UI needs this string to
+// recognise a lost-dates failure.
+export const DATES_TAKEN = "Those dates were just taken — please pick again.";
+
 export const getRangeAvailabilityInput = z.object({
   handle: z.string().regex(HANDLE_RE),
   offeringId: z.uuid(),
