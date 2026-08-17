@@ -1,0 +1,263 @@
+/* HeroCalendar — a month grid with real depth: the grid recedes slightly in
+   perspective and an activity panel floats above it on its own z-planes.
+   Pointer movement over the hero nudges the tilt (--px / --py, set from JS);
+   the panel sits further out on the z-axis, so it parallaxes more than the
+   grid does. The panel plays a scripted booking scenario (see the TSX for the
+   timeline); this file owns the 3D and the enter / leave / shimmer motion. */
+
+.scene {
+  --px: 0; /* -1 … 1, pointer x relative to scene centre */
+  --py: 0;
+  perspective: 1800px;
+  perspective-origin: 30% 40%;
+}
+
+.stage {
+  transform-style: preserve-3d;
+  /* Base recession toward the right edge, plus a small pointer-driven nudge. */
+  transform: rotateY(calc(-7deg + var(--px) * 2.5deg)) rotateX(calc(4deg - var(--py) * 2.5deg));
+  transition: transform 400ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+
+.grid {
+  transform-style: preserve-3d;
+  transform: translateZ(0);
+}
+
+/* Floating panel: lifted --z above the grid; parallaxes with the pointer. */
+.panel {
+  position: absolute;
+  transform-style: preserve-3d;
+  transform: translateZ(var(--z)) translate(calc(var(--px) * var(--z) * -0.08), calc(var(--py) * var(--z) * -0.08));
+  transition: transform 400ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+/* Shadow reads as distance from the grid: bigger and softer the further out. */
+.lifted {
+  box-shadow:
+    0 1px 2px oklch(0.3 0.045 190 / 0.08),
+    0 calc(var(--z) * 0.35) calc(var(--z) * 0.7) calc(var(--z) * -0.15) oklch(0.3 0.045 190 / 0.3);
+}
+/* The status strip sits a little closer to the grid than the message card. */
+.lower {
+  --z: 44px;
+  transform: translateZ(-26px);
+}
+
+/* Enter / leave: opacity + blur + a short rise, Rulebase-style. */
+.enter {
+  animation: hero-enter 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.leave {
+  animation: hero-leave 480ms cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+/* The status strip follows the message card in by a beat. */
+.lower .enter {
+  animation-delay: 160ms;
+}
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+@keyframes hero-leave {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(-8px);
+  }
+}
+
+/* Message lines grow into place (0fr → 1fr) while their content fades in, so
+   the card's height eases instead of jumping when a line lands. */
+.row {
+  display: grid;
+  animation: hero-row 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.row > * {
+  min-height: 0;
+  overflow: hidden;
+}
+@keyframes hero-row {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(6px);
+  }
+  40% {
+    grid-template-rows: 1fr;
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+/* Older lines recede once a newer one lands. */
+.line {
+  transition: opacity 600ms ease;
+}
+.dim {
+  opacity: 0.35;
+}
+
+/* Status strip: the outgoing text fades up and out while the incoming one
+   fades in beneath it; both are stacked so the strip never changes size. */
+.status {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+  height: 1.25rem;
+}
+.status > * {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.statusIn {
+  animation: hero-status-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.statusOut {
+  animation: hero-status-out 420ms cubic-bezier(0.4, 0, 0.6, 1) both;
+  pointer-events: none;
+}
+@keyframes hero-status-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+@keyframes hero-status-out {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(-6px);
+  }
+}
+
+/* Chip that pops in beside a message. */
+.pop {
+  animation: hero-pop 560ms cubic-bezier(0.34, 1.4, 0.64, 1) 120ms both;
+}
+@keyframes hero-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Shimmering status text while something is "in progress". */
+.shimmer {
+  color: transparent;
+  background: linear-gradient(90deg, oklch(0.2 0.01 190 / 0.9) 30%, oklch(0.2 0.01 190 / 0.3) 50%, oklch(0.2 0.01 190 / 0.9) 70%) 0 0 / 200% 100%
+    text;
+  -webkit-background-clip: text;
+  animation: hero-shimmer 2.2s linear infinite;
+}
+@keyframes hero-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+
+/* Calendar cell states driven by the scenario. Every cell eases its tint and
+   ring so a hold or a fill blends in rather than snapping. */
+.cell {
+  transition:
+    background-color 600ms ease,
+    box-shadow 600ms ease;
+}
+.hold {
+  box-shadow: inset 0 0 0 2px oklch(0.52 0.11 187 / 0.7);
+  animation: hero-hold 1.6s ease-in-out 600ms infinite;
+}
+@keyframes hero-hold {
+  50% {
+    box-shadow: inset 0 0 0 2px oklch(0.52 0.11 187 / 0.25);
+  }
+}
+.fill {
+  animation: hero-fill 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes hero-fill {
+  from {
+    box-shadow: inset 0 0 0 2px oklch(0.52 0.11 187 / 0.7);
+    background-color: oklch(0.52 0.11 187 / 0.32);
+  }
+  to {
+    box-shadow: inset 0 0 0 0 oklch(0.52 0.11 187 / 0);
+  }
+}
+.fill > * {
+  animation: hero-enter 640ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage,
+  .panel {
+    transition: none;
+    transform: rotateY(-7deg) rotateX(4deg);
+  }
+  .panel {
+    transform: translateZ(var(--z));
+  }
+  .enter,
+  .leave,
+  .row,
+  .statusIn,
+  .statusOut,
+  .pop,
+  .shimmer,
+  .hold,
+  .fill,
+  .fill > * {
+    animation: none;
+  }
+  .statusOut {
+    display: none;
+  }
+  .cell {
+    transition: none;
+  }
+  .shimmer {
+    color: inherit;
+    background: none;
+  }
+}
