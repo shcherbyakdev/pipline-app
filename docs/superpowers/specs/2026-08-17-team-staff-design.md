@@ -1,7 +1,7 @@
 # Team — multiple staff members on one org (appointments)
 
 **Date:** 2026-08-17
-**Status:** Approved (brainstorm with Andrii)
+**Status:** Implemented on worktree-rentals-r3 (2026-08-18) — PR pending
 **Parent:** `2026-08-13-scheduling-pivot-vision-and-roadmap-design.md` (actor model: "one bookable calendar per org" — this spec replaces that with "one calendar per staff member, ≥1 per org").
 **Base:** `worktree-rentals-r3` @ `23512ec` (rentals parked behind `RENTALS_ENABLED`; last migration `0039_rentals_r2_rpcs.sql`). The parked R3 spec references `0040_org_modes.sql`; this slice takes `0040`, R3 renumbers when un-parked.
 
@@ -144,3 +144,11 @@ Unchanged screens; `create_org` seeds the first staff row named after the org. (
 - Per-staff columns in the day view; per-staff stats; per-staff pricing/duration; staff photos; staff-specific buffers.
 - Org setting for staff-first ordering.
 - Client "preferred staff" memory.
+
+## Implementation notes
+
+- The migration landed as two files per repo convention: `0040_sad_the_fury.sql` (generated — `staff` + `service_staff` tables, nullable `staff_id` columns) and `0041_staff_security.sql` (custom — backfill, per-staff guards, RLS, triggers, `create_org` seed, `create_staff`).
+- `create_booking` returns a table `{booking_id, staff_id, staff_name}` rather than a bare `uuid`, so callers get the resolved/auto-assigned staff without a second round trip.
+- Staff "new booking" notices are skipped for solo orgs (single active staff) — only multi-staff orgs get the extra notification.
+- Calendar block/unblock/reopen require exactly one selected staff (the spec was silent here; exception rows are per-staff, so this is the only coherent rule and is enforced in the admin UI).
+- The parked R3 spec's `0040_org_modes.sql` must renumber to `0042` when R3 is un-parked, since this slice took `0040`/`0041`.
