@@ -5,7 +5,7 @@ export function Faq() {
   return (
     <section id={anchorId(SITE.anchors.faq)} aria-labelledby="faq-heading" className="scroll-mt-20 border-t">
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-6 py-20 md:py-28 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] lg:gap-16">
-        <h2 id="faq-heading" className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">{SECTIONS.faq.heading}</h2>
+        <h2 id="faq-heading" className="text-3xl font-medium tracking-[-0.03em] text-balance md:text-4xl">{SECTIONS.faq.heading}</h2>
         <div className="divide-y border-y">
           {FAQ.map((item) => (
             <details key={item.question} className="group py-4">

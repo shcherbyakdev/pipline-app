@@ -1,9 +1,32 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { ArrowRight, MoveRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CTA, SITE } from "@/features/marketing/site";
 import { HeroCalendar } from "./mocks/hero-calendar";
+import { marketingButton } from "./marketing-button";
+import reveal from "./hero-reveal.module.css";
+
+/* Headline split into words so each can reveal on its own (Linear-style). The
+   split copy is aria-hidden; the visually hidden span carries the real
+   heading text for the accessibility tree and for `id="hero-heading"`. */
+function WordReveal({ text }: { text: string }) {
+  const words = text.split(" ");
+  return (
+    <>
+      <span className="sr-only">{text}</span>
+      <span aria-hidden="true">
+        {words.map((w, i) => (
+          <span key={i}>
+            <span className={reveal.word} style={{ "--i": i } as React.CSSProperties}>
+              {w}
+            </span>
+            {i < words.length - 1 ? " " : null}
+          </span>
+        ))}
+      </span>
+    </>
+  );
+}
 
 export function Hero() {
   return (
@@ -11,23 +34,30 @@ export function Hero() {
     // large screens and must not create horizontal scroll, but the floating
     // cards' shadows and the copy column must stay unclipped vertically.
     <section aria-labelledby="hero-heading" className="relative overflow-x-clip">
-      <div className="mx-auto w-full max-w-6xl px-6 pt-20 pb-16 md:pt-28 lg:min-h-[44rem] lg:pb-24">
+      <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16 md:pt-24 lg:min-h-[44rem] lg:pb-24">
         <div className="max-w-xl lg:max-w-[46%] lg:pr-6 xl:max-w-xl">
-          <p className="text-primary text-sm font-medium">{SITE.eyebrow}</p>
-          <h1 id="hero-heading" className="mt-4 text-4xl font-semibold tracking-tight text-balance md:text-6xl">
-            {SITE.headline}
+          <p className={cn(reveal.fade, "text-primary font-mono text-sm")} style={{ "--delay": "0ms" } as React.CSSProperties}>
+            {SITE.eyebrow}
+          </p>
+          <h1 id="hero-heading" className="mt-4 text-4xl leading-[1.05] font-medium tracking-[-0.03em] text-balance md:text-6xl">
+            <WordReveal text={SITE.headline} />
           </h1>
-          <p className="text-muted-foreground mt-6 text-lg text-pretty">{SITE.subheadline}</p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link href={SITE.links.signup} className={cn(buttonVariants({ size: "lg" }), "h-11 px-5 text-base")}>
-              {CTA.getStartedFree}
+          <p className={cn(reveal.fade, "text-foreground/80 mt-6 text-lg text-pretty")} style={{ "--delay": "620ms" } as React.CSSProperties}>
+            {SITE.subheadline}
+          </p>
+          <div className={cn(reveal.fade, "mt-8 flex flex-wrap items-center gap-x-6 gap-y-3")} style={{ "--delay": "760ms" } as React.CSSProperties}>
+            <Link href={SITE.links.signup} className={marketingButton("primary", "lg")}>
+              <MoveRight className="size-6" strokeWidth={1.5} aria-hidden="true" />
+              <span className="flex-1 text-center">{CTA.getStartedFree}</span>
             </Link>
-            <a href={SITE.anchors.how} className={cn(buttonVariants({ variant: "ghost", size: "lg" }), "group/cta h-11 px-4 text-base")}>
+            <a href={SITE.anchors.how} className={marketingButton("quiet", "text", "group/cta")}>
               {CTA.seeHow}
-              <ArrowRight className="size-4 transition-transform group-hover/cta:translate-x-0.5 motion-reduce:transition-none" />
+              <ArrowRight className="size-4 transition-transform group-hover/cta:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
             </a>
           </div>
-          <p className="text-muted-foreground mt-4 text-sm">{SITE.heroNote}</p>
+          <p className={cn(reveal.fade, "text-muted-foreground mt-4 text-sm")} style={{ "--delay": "880ms" } as React.CSSProperties}>
+            {SITE.heroNote}
+          </p>
         </div>
 
         {/* Below lg the calendar sits under the copy and runs off the right edge

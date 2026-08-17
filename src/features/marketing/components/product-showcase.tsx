@@ -7,7 +7,7 @@ export function ProductShowcase() {
     <section aria-labelledby="product-heading" className="border-t">
       <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
         <div className="max-w-xl">
-          <h2 id="product-heading" className="text-3xl font-semibold tracking-tight md:text-4xl">{SECTIONS.product.heading}</h2>
+          <h2 id="product-heading" className="text-3xl font-medium tracking-[-0.03em] md:text-4xl">{SECTIONS.product.heading}</h2>
           <p className="text-muted-foreground mt-3">{SECTIONS.product.sub}</p>
         </div>
         <div className="mt-10">
