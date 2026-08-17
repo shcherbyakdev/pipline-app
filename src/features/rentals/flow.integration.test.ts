@@ -1,9 +1,13 @@
 /**
- * Rentals R1 e2e of the action layer: getRangeAvailability →
- * createRentalBooking (auto-assign) → cancelBooking (the shared
- * token-authenticated manage action) → the dates are bookable again.
+ * Rentals e2e of the action layer, both token-authenticated client flows:
+ *   R1 — getRangeAvailability → createRentalBooking (auto-assign) →
+ *        cancelBooking (the shared manage action) → the dates free up again.
+ *   R2 — createRentalBooking → getManageRangeAvailability →
+ *        rescheduleRentalBooking → the new token is confirmed on the new
+ *        dates, the old one reads 'rescheduled', and the vacated dates free
+ *        up while the new ones fill.
  * Emails are best-effort inside the actions; transport failures must not
- * fail the flow. Requires the local Supabase stack (npm run setup).
+ * fail either flow. Requires the local Supabase stack (npm run setup).
  */
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";

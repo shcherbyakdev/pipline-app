@@ -15,7 +15,7 @@ import {
 import { getProviderEmail } from "@/lib/booking/provider";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
-import { wallTimeToUtc } from "@/features/scheduling/slots";
+import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 import {
   bookingLifecycleKey,
   bookingRescheduledEmail,
@@ -85,6 +85,9 @@ export async function getManageRangeAvailability(input: unknown): Promise<
       units: PublicUnit[];
       offering: PublicOffering;
       currentUnitId: string;
+      // The stay's own check-in date, org-local: the panel opens on that
+      // month rather than on today's.
+      startDate: string;
     }
   | { ok: false; error: string }
 > {
@@ -121,6 +124,7 @@ export async function getManageRangeAvailability(input: unknown): Promise<
       units: ctx.units,
       offering: ctx.offering,
       currentUnitId: booking.rentalUnitId,
+      startDate: dateInZone(booking.startsAt, booking.orgTimezone),
     };
   } catch (error) {
     return fail("getManageRangeAvailability", error);
@@ -253,7 +257,9 @@ export async function rescheduleRentalBooking(
           idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "rescheduled"),
         });
       }
-      const providerEmail = await getProviderEmail(moved.org_id);
+      // The provider only hears about a real move: a no-op re-confirm (same
+      // dates, same unit) reissues the client's link and nothing else.
+      const providerEmail = moved.dates_changed ? await getProviderEmail(moved.org_id) : null;
       if (providerEmail) {
         const notice = providerRescheduledEmail({
           serviceName: moved.service_name,

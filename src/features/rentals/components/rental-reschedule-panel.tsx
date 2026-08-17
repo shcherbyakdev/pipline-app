@@ -46,6 +46,10 @@ export function RentalReschedulePanel({
   const [unitId, setUnitId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
+  // The stay's own month is the useful starting view, but only the server
+  // knows its check-in date; the first response jumps there unless the
+  // client has already navigated somewhere themselves.
+  const navigated = React.useRef(false);
 
   // Deliberately does NOT clear `error`: the datesTaken path reloads
   // availability and wants its message to survive the reload.
@@ -62,6 +66,11 @@ export function RentalReschedulePanel({
           setOffering(result.offering);
           setUnits(result.units);
           setCurrentUnitId(result.currentUnitId);
+          // Functional update so this does not have to depend on `month`;
+          // the effect below refetches when it actually changes.
+          setMonth((current) =>
+            navigated.current ? current : monthOf(result.startDate),
+          );
         } else {
           setAvailability(null);
           setError(result.error);
@@ -77,6 +86,7 @@ export function RentalReschedulePanel({
 
   function changeMonth(m: string) {
     setError(null);
+    navigated.current = true;
     setMonth(m);
   }
   function changeRange(next: RangeValue) {

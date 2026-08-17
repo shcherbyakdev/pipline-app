@@ -8,6 +8,8 @@ import {
   adminRangeAvailabilityInput,
   rescheduleRentalAdminInput,
   createRentalAdminInput,
+  manageRangeAvailabilityInput,
+  rescheduleRentalInput,
 } from "./schema";
 
 const base = { name: "Studio", rangeMode: "nights", startTime: "15:00", endTime: "11:00" };
@@ -48,6 +50,31 @@ describe("public inputs", () => {
     const b = { handle: "studio-berlin", offeringId: ok.offeringId, unitId: null, startDate: "2027-05-01", endDate: "2027-05-03", name: "Jamie", email: "j@example.com" };
     expect(createRentalBookingInput.safeParse(b).success).toBe(true);
     expect(createRentalBookingInput.safeParse({ ...b, email: "nope" }).success).toBe(false);
+  });
+});
+describe("manage (token) inputs", () => {
+  const U = "00000000-0000-4000-8000-000000000000";
+  const token = (n: number) => "t".repeat(n);
+  it("bounds the token at 20..200 chars and days at 1..93", () => {
+    const ok = { token: token(20), fromDate: "2027-05-01", days: 93 };
+    expect(manageRangeAvailabilityInput.safeParse(ok).success).toBe(true);
+    expect(manageRangeAvailabilityInput.safeParse({ ...ok, token: token(200) }).success).toBe(true);
+    expect(manageRangeAvailabilityInput.safeParse({ ...ok, token: token(19) }).success).toBe(false);
+    expect(manageRangeAvailabilityInput.safeParse({ ...ok, token: token(201) }).success).toBe(false);
+    expect(manageRangeAvailabilityInput.safeParse({ ...ok, days: 0 }).success).toBe(false);
+    expect(manageRangeAvailabilityInput.safeParse({ ...ok, days: 94 }).success).toBe(false);
+    expect(manageRangeAvailabilityInput.safeParse({ ...ok, fromDate: "01-05-2027" }).success).toBe(false);
+  });
+  it("reschedule takes the same token bounds and a null (auto) unit", () => {
+    const r = { token: token(43), unitId: null, startDate: "2027-05-01", endDate: "2027-05-03" };
+    expect(rescheduleRentalInput.safeParse(r).success).toBe(true);
+    expect(rescheduleRentalInput.safeParse({ ...r, unitId: U }).success).toBe(true);
+    // Auto must be said explicitly — a dropped field is a bug, not a default.
+    expect(rescheduleRentalInput.safeParse({ ...r, unitId: undefined }).success).toBe(false);
+    expect(rescheduleRentalInput.safeParse({ ...r, token: token(19) }).success).toBe(false);
+    expect(rescheduleRentalInput.safeParse({ ...r, token: token(201) }).success).toBe(false);
+    expect(rescheduleRentalInput.safeParse({ ...r, startDate: "01-05-2027" }).success).toBe(false);
+    expect(rescheduleRentalInput.safeParse({ ...r, endDate: "2027-5-3" }).success).toBe(false);
   });
 });
 describe("admin inputs", () => {

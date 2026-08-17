@@ -29,6 +29,7 @@ import {
 import {
   getRangeAvailabilityInput,
   createRentalBookingInput,
+  CHECK_IN_PASSED,
   DATES_TAKEN,
   GENERIC_WRITE_ERROR,
 } from "./schema";
@@ -113,11 +114,7 @@ export async function createRentalBooking(
     // reset and refetch, which is what the client needs to do anyway.
     const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime, org.timeZone);
     if (startsAt.getTime() <= Date.now()) {
-      return {
-        ok: false,
-        error: "That check-in time has already passed — please pick a later date.",
-        datesTaken: true,
-      };
+      return { ok: false, error: CHECK_IN_PASSED, datesTaken: true };
     }
 
     // Re-run the engine over the requested stay; the RPC re-checks the same
