@@ -12,6 +12,7 @@ import {
   resolveClientStaffName,
 } from "@/lib/booking/public";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
+import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { computeSlots, dateInZone, unionSlots } from "./slots";
@@ -148,10 +149,10 @@ export async function createBooking(
       // cannot take the slot; `taken`/23P01 is the classic race. Solo orgs
       // reach the first branch too (they send a named id), so the wording is
       // decided by the same count as the pre-flight check above.
-      if (error.message?.includes("staff_unavailable")) {
+      if (isRpcSentinel(error, "staff_unavailable")) {
         return { ok: false, error: await slotLostError(ctx.org.orgId, staffId), slotTaken: true };
       }
-      if (error.message?.includes("taken") || error.code === "23P01") {
+      if (isRpcSentinel(error, "taken") || error.code === "23P01") {
         return { ok: false, error: SLOT_TAKEN, slotTaken: true };
       }
       console.error("[scheduling] createBooking:", error.code || "rpc error");

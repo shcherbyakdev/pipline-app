@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
   staffInput,
   updateStaffInput,
@@ -141,11 +142,10 @@ export async function setStaffActive(input: unknown): Promise<ActionState> {
   if (error) {
     // staff_guard_update (0041) is the authority on whether someone can be
     // taken off the roster; it raises a bare sentinel that we translate here.
-    const message = error.message ?? "";
-    if (message.includes("last_active_staff")) {
+    if (isRpcSentinel(error, "last_active_staff")) {
       return { ok: false, error: LAST_ACTIVE_STAFF_ERROR };
     }
-    if (message.includes("has_future_bookings")) {
+    if (isRpcSentinel(error, "has_future_bookings")) {
       const { data: person } = await supabase
         .from("staff")
         .select("name")

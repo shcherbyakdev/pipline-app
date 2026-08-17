@@ -21,6 +21,7 @@ import {
   bookingIdempotencyKey,
   formatRangeWhenLine,
 } from "@/features/scheduling/templates";
+import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
   computeRangeAvailability,
   stayLength,
@@ -85,7 +86,7 @@ export async function getRangeAvailability(
 // check; the per-unit EXCLUDE guard (0037) raises 23P01 on a physical
 // overlap that slipped past it.
 function isTaken(error: { message?: string; code?: string }): boolean {
-  return (error.message ?? "").includes("taken") || error.code === "23P01";
+  return isRpcSentinel(error, "taken") || error.code === "23P01";
 }
 
 export async function createRentalBooking(

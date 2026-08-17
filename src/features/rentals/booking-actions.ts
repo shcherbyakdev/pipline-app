@@ -20,6 +20,7 @@ import {
   bookingRescheduledEmail,
   formatRangeWhenLine,
 } from "@/features/scheduling/templates";
+import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
   ADMIN_WINDOW_DAYS,
   computeRangeAvailability,
@@ -72,10 +73,10 @@ async function offeringIsInactive(orgId: string, offeringId: string): Promise<bo
 // 'taken' is the RPC's own "no unit survives turnover/blackouts"; 23P01 is
 // the per-unit EXCLUDE guard catching a physical overlap (public-actions).
 function isTaken(error: { message?: string; code?: string }): boolean {
-  return (error.message ?? "").includes("taken") || error.code === "23P01";
+  return isRpcSentinel(error, "taken") || error.code === "23P01";
 }
 function isStarted(error: { message?: string }): boolean {
-  return (error.message ?? "").includes("started");
+  return isRpcSentinel(error, "started");
 }
 
 export async function getAdminRangeAvailability(input: unknown): Promise<
