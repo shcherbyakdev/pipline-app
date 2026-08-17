@@ -1,0 +1,90 @@
+/* HeroCalendar — a month grid with real depth: the grid recedes slightly in
+   perspective and two cards float above it on their own z-planes. Pointer
+   movement over the hero nudges the tilt (--px / --py, set from JS); the cards
+   sit further out on the z-axis, so they parallax more than the grid does.
+   All layout is Tailwind in the TSX; this file owns only the 3D. */
+
+.scene {
+  --px: 0; /* -1 … 1, pointer x relative to scene centre */
+  --py: 0;
+  --lift: 1; /* 0 under reduced motion: cards drop to the grid plane */
+  perspective: 1800px;
+  perspective-origin: 30% 40%;
+}
+
+.stage {
+  transform-style: preserve-3d;
+  /* Base recession toward the right edge, plus a small pointer-driven nudge. */
+  transform: rotateY(calc(-7deg + var(--px) * 2.5deg)) rotateX(calc(4deg - var(--py) * 2.5deg));
+  transition: transform 400ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+
+.grid {
+  transform-style: preserve-3d;
+  transform: translateZ(0);
+}
+
+/* Floating cards: each has its own height above the grid and a slow drift. */
+.card {
+  position: absolute;
+  transform-style: preserve-3d;
+  transform: translateZ(calc(var(--z) * var(--lift))) translate(calc(var(--px) * var(--z) * -0.08), calc(var(--py) * var(--z) * -0.08));
+  transition: transform 400ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+.cardInner {
+  animation: hero-float var(--dur, 7s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  /* Shadow reads as distance from the grid: bigger, softer, further out. */
+  box-shadow:
+    0 1px 2px oklch(0.3 0.045 190 / 0.08),
+    0 calc(var(--z) * 0.35) calc(var(--z) * 0.7) calc(var(--z) * -0.15) oklch(0.3 0.045 190 / 0.32);
+}
+
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Booked cell that has just been "confirmed": a soft pulse ring, once. */
+.pulse::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 oklch(0.52 0.11 187 / 0.5);
+  animation: hero-pulse 2.4s ease-out 1.2s 3;
+  pointer-events: none;
+}
+@keyframes hero-pulse {
+  0% {
+    box-shadow: 0 0 0 0 oklch(0.52 0.11 187 / 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 14px oklch(0.52 0.11 187 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene {
+    --lift: 0.6;
+  }
+  .stage,
+  .card {
+    transition: none;
+    transform: rotateY(-7deg) rotateX(4deg);
+  }
+  .card {
+    transform: translateZ(calc(var(--z) * var(--lift)));
+  }
+  .cardInner,
+  .pulse::after {
+    animation: none;
+  }
+}
