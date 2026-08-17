@@ -44,11 +44,17 @@ export function EmbedPreviewFrame({
   // while the embed is transparent — with a background override the widget
   // paints its own, and that pair is guarded by the contrast check next to
   // the colour pickers.
+  const transparent = !config.background;
   const ratio = hostContrast(config, host, HOST_BG[host]);
-  const clash = !config.background && ratio < 3;
+  // Shown on the previewed host right now.
+  const clash = transparent && ratio < 3;
+  // A fixed theme with no background is a bet on the site's colour — say so
+  // up front, not only once the user happens to flip the host toggle.
+  const fixedRisk = transparent && (config.theme === "light" || config.theme === "dark");
+  const autoRisk = transparent && config.theme === "auto";
   const themeLabel = config.theme === "light" ? "Light" : "Dark";
   const otherTheme = config.theme === "light" ? "Dark" : "Light";
-  const autoRisk = config.theme === "auto" && !config.background;
+  const opposite: Host = config.theme === "light" ? "dark" : "light";
 
   return (
     <div className="flex flex-col gap-3">
@@ -141,6 +147,12 @@ export function EmbedPreviewFrame({
           On a {host} page the {themeLabel} theme&apos;s text is unreadable ({ratio.toFixed(1)}:1) — the
           embed paints no background of its own. If your site is {host}, choose {otherTheme} (or Auto),
           or set a background colour so the widget brings its own surface.
+        </Notice>
+      ) : fixedRisk ? (
+        <Notice tone="warn">
+          {themeLabel} theme with no background: the widget takes your site&apos;s surface, so on a{" "}
+          {opposite} site its text becomes unreadable. Fine if your site is {host} — otherwise choose{" "}
+          {otherTheme}, or set a background colour. Preview a {opposite} page above to see it.
         </Notice>
       ) : autoRisk ? (
         <Notice tone="warn">
