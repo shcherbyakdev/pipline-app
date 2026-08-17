@@ -42,6 +42,17 @@ const isWeekend = (date: string) => {
 // Column index → percentage across the 21-day track.
 const pct = (cols: number) => `${(cols / TIMELINE_DAYS) * 100}%`;
 
+// Empty-cell labels are read aloud, so they get a human date rather than
+// the ISO string. Formatted in UTC against the date's own midnight — the
+// string already IS the org-local day, so no zone may shift it.
+const CELL_DATE_FMT = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const cellDateLabel = (date: string) => CELL_DATE_FMT.format(new Date(`${date}T00:00:00Z`));
+
 export function Timeline({
   fromDate,
   timeZone,
@@ -211,7 +222,12 @@ export function Timeline({
                         <button
                           key={d}
                           type="button"
-                          aria-label={`New booking, ${unit.name}, ${d}`}
+                          // Until Task 6 hands over a handler there is
+                          // nothing to click: disabled keeps the cells out
+                          // of the tab order and off the a11y tree rather
+                          // than offering dozens of no-op buttons.
+                          disabled={onCellClick === undefined}
+                          aria-label={`New booking, ${unit.name}, ${cellDateLabel(d)}`}
                           onClick={() => onCellClick?.(unit.id, offering.id, d)}
                           className={cn(
                             "border-border/40 border-r last:border-r-0",
@@ -251,12 +267,20 @@ export function Timeline({
                         offering.turnoverDays,
                         TIMELINE_DAYS,
                       );
+                      // Hotel handover: a nightly stay owns the check-in
+                      // cell only from mid-afternoon and the checkout cell
+                      // only until morning, so the bar starts and ends
+                      // mid-cell — that free half is where the previous /
+                      // next guest's bar sits without overlapping. A bar
+                      // clipped by the window's left edge has no visible
+                      // check-in cell, so it starts flush at the edge.
+                      const halfStart =
+                        offering.rangeMode === "nights" && !bar.clippedLeft ? 0.5 : 0;
                       return (
                         <React.Fragment key={b.id}>
                           {tail === null ? null : (
                             <div
                               aria-hidden
-                              title="Turnover"
                               className="border-border/60 bg-muted/30 pointer-events-none absolute inset-y-1.5 z-[2] rounded-sm border"
                               style={{
                                 ...HATCH,
@@ -282,11 +306,8 @@ export function Timeline({
                               bar.clippedRight && "rounded-r-none",
                             )}
                             style={{
-                              left: pct(bar.colStart),
-                              // Nights: the checkout day is only half
-                              // occupied — stop the bar mid-cell so the
-                              // next guest's check-in can share it.
-                              width: pct(bar.colSpan - (bar.halfEnd ? 0.5 : 0)),
+                              left: pct(bar.colStart + halfStart),
+                              width: pct(bar.colSpan - halfStart - (bar.halfEnd ? 0.5 : 0)),
                               borderLeft: `3px solid ${serviceAccent(b.rentalOfferingId ?? "")}`,
                             }}
                           >

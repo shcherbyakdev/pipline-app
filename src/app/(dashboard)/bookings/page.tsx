@@ -54,13 +54,9 @@ export default async function BookingsPage({
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-lg font-semibold">Bookings</h1>
+          {/* view switchers only — date navigation (‹ Today ›) lives in the
+              timeline's own header row, next to the window it moves. */}
           <div className="flex items-center gap-2">
-            <Link
-              href="/bookings?view=timeline"
-              className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-            >
-              Today
-            </Link>
             <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
               Week
             </Link>
