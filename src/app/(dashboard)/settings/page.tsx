@@ -50,7 +50,6 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-      <h1 className="text-lg font-semibold">Settings</h1>
       <div className="flex flex-col gap-3">
         <h2 className="text-muted-foreground text-sm font-medium">Booking page</h2>
         <SchedulingSettingsForm settings={schedulingSettings} />

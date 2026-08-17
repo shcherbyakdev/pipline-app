@@ -29,8 +29,7 @@ export default async function BookingsPage({
     const { upcoming, past } = await listBookings();
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Bookings</h1>
+        <div className="flex items-center justify-end">
           <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
             Calendar view
           </Link>
@@ -67,8 +66,7 @@ export default async function BookingsPage({
     // flex-1 + min-h-0: the calendar fills main's leftover viewport height
     // (week arrows live inside the grid header; see CalendarWeek).
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold">Bookings</h1>
+      <div className="flex items-center justify-end gap-2">
         <div className="flex items-center gap-2">
           <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
             Today

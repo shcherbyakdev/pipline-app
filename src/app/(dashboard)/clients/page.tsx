@@ -5,7 +5,6 @@ export default async function ClientsPage() {
   const clients = await listClientsDirectory();
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-      <h1 className="text-lg font-semibold">Clients</h1>
       {clients.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           No clients yet — clients appear here after their first booking.

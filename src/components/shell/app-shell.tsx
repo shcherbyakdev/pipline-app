@@ -1,6 +1,10 @@
 import { AppSidebar } from "./app-sidebar";
 import { TopBar } from "./top-bar";
 
+/* Admin shell, Linear-style: a fixed-width sidebar with a hairline on its
+   right, a hairline top bar carrying the view title, and content sitting flat
+   on the page ground. Surfaces come from the `.dark` tokens (globals.css),
+   which share the landing's Linear-dark palette. */
 export function AppShell({
   org,
   userEmail,

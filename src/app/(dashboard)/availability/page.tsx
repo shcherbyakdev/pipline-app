@@ -13,7 +13,6 @@ export default async function AvailabilityPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
       <div>
-        <h1 className="text-lg font-semibold">Availability</h1>
         <p className="text-muted-foreground text-sm">
           Times are shown in {timezone} ·{" "}
           <Link href="/settings" className="underline underline-offset-3 hover:text-foreground">

@@ -14,6 +14,10 @@ import {
 } from "@/components/ui/command";
 import { NAV_ITEMS } from "@/components/shell/nav";
 
+/** Dispatched on `window` by the top bar's search button; the menu toggles on it
+    just like ⌘K. */
+export const OPEN_COMMAND_MENU_EVENT = "booklo:open-command-menu";
+
 export function CommandMenu() {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
@@ -26,8 +30,13 @@ export function CommandMenu() {
         setOpen((o) => !o);
       }
     };
+    const onOpen = () => setOpen((o) => !o);
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    window.addEventListener(OPEN_COMMAND_MENU_EVENT, onOpen);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener(OPEN_COMMAND_MENU_EVENT, onOpen);
+    };
   }, []);
 
   const go = (href: string) => {
