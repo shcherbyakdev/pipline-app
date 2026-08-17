@@ -241,61 +241,63 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
     const clientPicks = row.rental_offerings?.unit_selection === "client_picks";
     const notifyClient =
       moved.client_email !== null && (moved.dates_changed || (moved.unit_changed && clientPicks));
+    // The move already happened — never fail the action on a send, and keep
+    // the two sends independent: `emailed` reports what the CLIENT got, so a
+    // failed provider notice must not retract a delivered client email.
     let emailed = false;
-    if (notifyClient || moved.dates_changed) {
+    const tz = moved.org_timezone;
+    const oldWhenLine = formatRangeWhenLine(
+      new Date(moved.old_starts_at),
+      new Date(moved.old_ends_at),
+      tz,
+    );
+    const whenLine = formatRangeWhenLine(
+      new Date(moved.new_starts_at),
+      new Date(moved.new_ends_at),
+      tz,
+    );
+    if (notifyClient) {
       try {
-        const tz = moved.org_timezone;
-        const oldWhenLine = formatRangeWhenLine(
-          new Date(moved.old_starts_at),
-          new Date(moved.old_ends_at),
-          tz,
-        );
-        const whenLine = formatRangeWhenLine(
-          new Date(moved.new_starts_at),
-          new Date(moved.new_ends_at),
-          tz,
-        );
-        const transport = selectTransport();
-        if (notifyClient) {
-          const msg = bookingRescheduledEmail({
-            orgName: moved.org_name,
+        const msg = bookingRescheduledEmail({
+          orgName: moved.org_name,
+          serviceName: moved.service_name,
+          oldWhenLine,
+          whenLine,
+          manageUrl: buildBookingManageUrl(fresh.token),
+          icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+        });
+        await selectTransport().send({
+          to: moved.client_email!,
+          subject: msg.subject,
+          html: msg.html,
+          text: msg.text,
+          idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "rescheduled"),
+        });
+        emailed = true;
+      } catch (mailError) {
+        console.error("[rentals] move client email failed:", mailError);
+      }
+    }
+    if (moved.dates_changed) {
+      try {
+        const providerEmail = await getProviderEmail(moved.org_id);
+        if (providerEmail) {
+          const notice = providerRescheduledEmail({
             serviceName: moved.service_name,
             oldWhenLine,
             whenLine,
-            manageUrl: buildBookingManageUrl(fresh.token),
-            icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+            clientName: moved.client_name,
           });
-          await transport.send({
-            to: moved.client_email!,
-            subject: msg.subject,
-            html: msg.html,
-            text: msg.text,
-            idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "rescheduled"),
+          await selectTransport().send({
+            to: providerEmail,
+            subject: notice.subject,
+            html: notice.html,
+            text: notice.text,
+            idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "provider-rescheduled"),
           });
-          emailed = true;
-        }
-        if (moved.dates_changed) {
-          const providerEmail = await getProviderEmail(moved.org_id);
-          if (providerEmail) {
-            const notice = providerRescheduledEmail({
-              serviceName: moved.service_name,
-              oldWhenLine,
-              whenLine,
-              clientName: moved.client_name,
-            });
-            await transport.send({
-              to: providerEmail,
-              subject: notice.subject,
-              html: notice.html,
-              text: notice.text,
-              idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "provider-rescheduled"),
-            });
-          }
         }
       } catch (mailError) {
-        // The move already happened — never fail the action on a send.
-        console.error("[rentals] move emails failed:", mailError);
-        emailed = false;
+        console.error("[rentals] move provider notice failed:", mailError);
       }
     }
 

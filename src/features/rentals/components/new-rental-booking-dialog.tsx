@@ -83,6 +83,15 @@ export function NewRentalBookingDialog({
           setAvailability(result.availability);
           setOffering(result.offering);
           setUnits(result.units);
+          // Belt and braces on the timeline's disabled past cells: a seeded
+          // check-in the engine won't accept leaves the picker with no legal
+          // check-out and no way to clear it (the "change" reset only shows
+          // once both dates are set), so drop it and let the provider pick.
+          setRange((r) =>
+            r.start !== null && r.start < result.availability.notBefore
+              ? { start: null, end: null }
+              : r,
+          );
         } else {
           setAvailability(null);
           setError(result.error);

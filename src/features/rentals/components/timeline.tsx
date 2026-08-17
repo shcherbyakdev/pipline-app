@@ -232,21 +232,32 @@ export function Timeline({
                       className="absolute inset-0 grid"
                       style={{ gridTemplateColumns: `repeat(${TIMELINE_DAYS}, minmax(0, 1fr))` }}
                     >
-                      {days.map((d) => (
-                        <button
-                          key={d}
-                          type="button"
-                          aria-label={`New booking, ${unit.name}, ${cellDateLabel(d)}`}
-                          onClick={() =>
-                            setNewStay({ offeringId: offering.id, unitId: unit.id, date: d })
-                          }
-                          className={cn(
-                            "border-border/40 border-r last:border-r-0 hover:bg-primary/10",
-                            isWeekend(d) && "bg-muted/20",
-                            today === d && "bg-primary/5",
-                          )}
-                        />
-                      ))}
+                      {days.map((d) => {
+                        // The default window opens two days in the past, and
+                        // nothing can be booked into a check-in that has
+                        // already passed — a past cell would open a dialog
+                        // whose seeded start date no stay can validate
+                        // against. Disabled keeps those columns out of the
+                        // tab order and off the a11y tree entirely.
+                        const past = today !== null && d < today;
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            disabled={past}
+                            aria-label={`New booking, ${unit.name}, ${cellDateLabel(d)}`}
+                            onClick={() =>
+                              setNewStay({ offeringId: offering.id, unitId: unit.id, date: d })
+                            }
+                            className={cn(
+                              "border-border/40 border-r last:border-r-0",
+                              isWeekend(d) && "bg-muted/20",
+                              today === d && "bg-primary/5",
+                              past ? "cursor-default opacity-60" : "hover:bg-primary/10",
+                            )}
+                          />
+                        );
+                      })}
                     </div>
 
                     {(blackoutsByUnit.get(unit.id) ?? []).map((bo) => {
