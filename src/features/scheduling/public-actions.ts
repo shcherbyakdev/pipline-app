@@ -147,9 +147,15 @@ export async function createBooking(
     }
 
     // Solo orgs never name a staff member: the client copy has to stay
-    // exactly as it was before the team slice existed.
-    const solo = (await countActiveStaff(ctx.org.orgId)) <= 1;
-    const staffName = solo ? null : row.staff_name;
+    // exactly as it was before the team slice existed. Past this point the
+    // booking EXISTS — nothing here may turn into a failed action, so a
+    // count that blows up degrades to the solo (unnamed) copy.
+    const staffName = await countActiveStaff(ctx.org.orgId)
+      .then((n) => (n <= 1 ? null : row.staff_name))
+      .catch((countError) => {
+        console.error("[scheduling] countActiveStaff:", countError);
+        return null;
+      });
     const whenLine = formatWhenLine(starts, ctx.org.timeZone);
     const idempotencyKey = bookingIdempotencyKey(row.booking_id);
 
