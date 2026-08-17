@@ -63,13 +63,13 @@ const CELLS: Cell[] = [
 ];
 
 const KIND_CLASS: Record<Kind, string> = {
-  booked: "bg-primary/15",
-  intro: "bg-primary/[0.06]",
+  booked: "bg-linear-to-br from-(--hero-accent)/22 to-(--hero-accent-deep)/14",
+  intro: "bg-linear-to-br from-(--hero-accent)/10 to-(--hero-accent-deep)/6",
   blocked: "text-muted-foreground bg-muted/60",
   walkin: "bg-muted",
 };
 const HATCH = {
-  backgroundImage: "repeating-linear-gradient(-45deg, oklch(0 0 0 / 0.05) 0 3px, transparent 3px 9px)",
+  backgroundImage: "repeating-linear-gradient(-45deg, oklch(1 0 0 / 0.06) 0 3px, transparent 3px 9px)",
 };
 
 type CellState = { ev?: Event; hold?: boolean; fresh?: boolean };
@@ -93,7 +93,7 @@ function DayCell({ cell, state }: { cell: Cell; state: CellState }) {
         className={cn(
           "font-mono text-[11px] leading-none tabular-nums sm:text-xs",
           !cell.inMonth && "text-muted-foreground",
-          isToday && "bg-primary text-primary-foreground -m-1 flex size-5 items-center justify-center rounded-full font-medium",
+          isToday && "bg-linear-to-br from-(--hero-accent) to-(--hero-accent-deep) text-(--hero-accent-foreground) -m-1 flex size-5 items-center justify-center rounded-full font-medium",
         )}
       >
         {cell.day}
@@ -165,7 +165,7 @@ function statusContent(step: Step, s: Scenario): { icon: React.ReactNode; text: 
     <span
       className={cn(
         "flex size-6 shrink-0 items-center justify-center rounded-full",
-        muted ? "bg-muted text-muted-foreground" : "bg-primary/15 text-primary",
+        muted ? "bg-muted text-muted-foreground" : "bg-(--hero-accent)/15 text-(--hero-accent)",
       )}
     >
       {inner}
@@ -175,7 +175,7 @@ function statusContent(step: Step, s: Scenario): { icon: React.ReactNode; text: 
     return { icon: bubble(<span className="text-[10px] font-semibold">{s.initials}</span>), text: `${first} is picking a time…`, tone: "shimmer" };
   if (step === STEP.slot)
     return {
-      icon: bubble(<span className="bg-primary size-2 animate-pulse rounded-full" />),
+      icon: bubble(<span className="bg-linear-to-br from-(--hero-accent) to-(--hero-accent-deep) size-2 animate-pulse rounded-full" />),
       text: `Checking availability · holding ${s.when.split(" · ")[1]}…`,
       tone: "shimmer",
     };
@@ -251,9 +251,9 @@ function ActivityPanel({ s, step }: { s: Scenario; step: Step }) {
 
   return (
     <div className={cn(step === STEP.leave && styles.leave, "w-56 sm:w-72")} style={{ transformStyle: "preserve-3d" }}>
-      <div className={cn(styles.lifted, styles.enter, "bg-card border-border rounded-xl border p-3 sm:p-3.5")}>
+      <div className={cn(styles.lifted, styles.enter, "bg-popover border-border rounded-xl border p-3 sm:p-3.5")}>
         <div className="flex items-center gap-2.5">
-          <span className="bg-primary/15 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold">
+          <span className="bg-(--hero-accent)/15 text-(--hero-accent) flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold">
             {s.initials}
           </span>
           <span className="min-w-0">
@@ -271,7 +271,7 @@ function ActivityPanel({ s, step }: { s: Scenario; step: Step }) {
               <span
                 className={cn(
                   styles.pop,
-                  "bg-primary text-primary-foreground ml-1.5 hidden items-center gap-1 rounded-full px-1.5 py-0.5 align-middle text-[10px] font-medium sm:inline-flex",
+                  "bg-linear-to-r from-(--hero-accent) to-(--hero-accent-deep) text-(--hero-accent-foreground) ml-1.5 hidden items-center gap-1 rounded-full px-1.5 py-0.5 align-middle text-[10px] font-medium sm:inline-flex",
                 )}
               >
                 <Check className="size-2.5" strokeWidth={3} /> No conflicts
@@ -284,7 +284,7 @@ function ActivityPanel({ s, step }: { s: Scenario; step: Step }) {
       {/* translateZ lives on the outer wrapper: the inner `.enter` animation
           animates `transform` and would otherwise overwrite the z-offset. */}
       <div className={cn(styles.lower, "mt-1.5")}>
-        <div className={cn(styles.lifted, styles.enter, "bg-card border-border flex items-center rounded-lg border px-2.5 py-2 text-xs")}>
+        <div className={cn(styles.lifted, styles.enter, "bg-popover border-border flex items-center rounded-lg border px-2.5 py-2 text-xs")}>
           <StatusStrip step={step} s={s} />
         </div>
       </div>
@@ -335,8 +335,10 @@ export function HeroCalendar({ className }: { className?: string }) {
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
     >
+      {/* Ambient light behind the glass so the blur has something to refract. */}
+      <div aria-hidden="true" className={styles.ambient} />
       <div className={styles.stage}>
-        <div className={cn(styles.grid, "bg-card border-border overflow-hidden rounded-l-lg border-t border-b border-l")}>
+        <div className={cn(styles.grid, styles.window, styles.glass, "overflow-hidden rounded-l-lg border-t border-b border-l border-white/10 bg-white/[0.035] backdrop-blur-2xl")}>
           <div className="grid grid-cols-7">
             {DOW.map((d) => (
               <div

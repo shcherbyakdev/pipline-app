@@ -15,7 +15,7 @@ export function FeatureGrid() {
   return (
     <section id={anchorId(SITE.anchors.features)} aria-labelledby="features-heading" className="bg-muted/40 scroll-mt-20 border-t">
       <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
-        <h2 id="features-heading" className="text-3xl font-semibold tracking-tight md:text-4xl">{SECTIONS.features.heading}</h2>
+        <h2 id="features-heading" className="text-3xl font-medium tracking-[-0.03em] md:text-4xl">{SECTIONS.features.heading}</h2>
         <p className="text-muted-foreground mt-3 max-w-xl">{SECTIONS.features.sub}</p>
         <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => {

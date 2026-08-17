@@ -133,11 +133,11 @@
   --status-blocked: oklch(0.63 0.22 25);
 }
 
-/* Light scope for surfaces rendered under the dark <html> (marketing landing).
-   Custom properties resolve from the nearest ancestor, so this wins over
-   `.dark` on <html> regardless of specificity. Intentionally covers only the
-   core tokens the marketing surface uses — no sidebar, chart or status tokens;
-   anything nested here that needs those must add them. */
+/* Light scope for surfaces rendered under the dark <html> (e.g. a future
+   light /book widget). Custom properties resolve from the nearest ancestor,
+   so this wins over `.dark` on <html> regardless of specificity. Intentionally
+   covers only the core tokens such surfaces use — no sidebar, chart or status
+   tokens; anything nested here that needs those must add them. */
 .light {
   color-scheme: light;
   --background: oklch(1 0 0);
@@ -160,16 +160,55 @@
   --ring: oklch(0.708 0 0);
 }
 
-/* Marketing landing: teal focus ring. Compound selector (0-2-0) so it beats
-   the unlayered `.light` token block (0-1-0); a Tailwind utility on the same
-   element could not, because `.light` is unlayered CSS. */
-.light.marketing {
-  /* Darker teal within the marketing scope so 16px button labels
-     (white on --primary: 3.28:1 → 4.96:1) and the hero eyebrow
-     (--primary on white: 3.37:1 → 5.08:1) reach AA ≥4.5:1.
-     App tokens are unchanged — this override never leaves the landing page. */
-  --primary: oklch(0.52 0.11 187);
+/* Marketing landing palette — Linear-style dark: page ground #08090a, raised
+   levels #0f1011 / #141516 / #191a1b, cool off-white type (#f7f8f8 / #8a8f98),
+   white-alpha hairlines. Accent stays our pale yellow (#FDFAC3) for CTAs; the
+   hero calendar gets Linear's indigo (see --hero-accent). Applied on the
+   (marketing) layout wrapper, so custom properties resolve from it and win
+   over the app's `.dark` tokens on <html> regardless of specificity. Landing
+   components use tokens only, so this block is the single place the
+   landing's colours live. Covers the core tokens the marketing surface uses —
+   no sidebar, chart or status tokens; anything nested here that needs those
+   must add them. */
+.marketing {
+  color-scheme: dark;
+  --background: oklch(0.139 0.003 246); /* #08090a */
+  --foreground: oklch(0.978 0.001 197); /* #f7f8f8 */
+  --card: oklch(0.172 0.003 248); /* #0f1011 */
+  --card-foreground: oklch(0.978 0.001 197);
+  --popover: oklch(0.195 0.003 248); /* #141516 */
+  --popover-foreground: oklch(0.978 0.001 197);
+  /* Accent: pale yellow #FDFAC3 with near-black text (~18:1). The only warm
+     colour on the page — reserved for primary CTAs, the eyebrow and step
+     numerals. */
+  --primary: oklch(0.974 0.07 105);
+  --primary-foreground: oklch(0.139 0.003 246);
+  --secondary: oklch(0.217 0.002 248); /* #191a1b */
+  --secondary-foreground: oklch(0.978 0.001 197);
+  --muted: oklch(0.195 0.003 248); /* #141516 */
+  /* Linear's tertiary text #8a8f98: 6.3:1 on the ground, 5.6:1 on cards. */
+  --muted-foreground: oklch(0.649 0.015 262);
+  --accent: oklch(1 0 0 / 5%);
+  --accent-foreground: oklch(0.978 0.001 197);
+  --destructive: oklch(0.704 0.191 22.216);
+  /* Hairlines are white at low alpha (Linear: #ffffff14 / #ffffff1f), so they
+     read the same over the ground and over cards. */
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
   --ring: var(--primary);
+  /* Hero calendar accent: a blue-leaning indigo (Linear's #828fff/#5e6ad2
+     nudged ~10° toward blue) as a two-stop gradient. Pairing rationale vs
+     the yellow CTA: hues sit ~160° apart (complementary contrast, warm vs
+     cool) while the two accents differ in weight — yellow is a pale
+     highlight (L .97, C .07), this is a mid saturated colour (L .69, C .16)
+     — which is what keeps a complementary scheme crisp rather than loud.
+     Nudging away from violet avoids the "purple & gold" cliché. Never lay
+     yellow directly on it (2.7:1). Read via bg-(--hero-accent) /
+     from-(--hero-accent) to-(--hero-accent-deep) in hero-calendar.tsx and
+     its CSS module — nothing else should use it. */
+  --hero-accent: oklch(0.69 0.16 266);
+  --hero-accent-deep: oklch(0.56 0.155 267);
+  --hero-accent-foreground: oklch(1 0 0);
 }
 
 @layer base {
