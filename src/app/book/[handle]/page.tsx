@@ -5,6 +5,7 @@ import {
   listPublicServices,
 } from "@/lib/booking/public";
 import { getOrgBranding } from "@/lib/org-branding";
+import { RENTALS_ENABLED } from "@/lib/flags";
 import { BrandedHeader } from "@/components/branded-header";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
@@ -20,7 +21,8 @@ export default async function BookPage({
   if (!org) notFound();
   const [services, offerings, branding] = await Promise.all([
     listPublicServices(org.orgId),
-    listPublicOfferings(org.orgId),
+    // Rentals parked for the MVP (lib/flags.ts): the widget lists services only.
+    RENTALS_ENABLED ? listPublicOfferings(org.orgId) : Promise.resolve([]),
     getOrgBranding(org.orgId),
   ]);
   if (services.length === 0 && offerings.length === 0) notFound();

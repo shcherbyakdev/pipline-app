@@ -14,6 +14,7 @@ import {
 } from "@/lib/booking/public";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
+import { RENTALS_ENABLED } from "@/lib/flags";
 import { wallTimeToUtc } from "@/features/scheduling/slots";
 import {
   bookingConfirmationEmail,
@@ -53,6 +54,9 @@ export async function getRangeAvailability(
 ): Promise<
   { ok: true; availability: RangeAvailability; units: PublicUnit[] } | { ok: false; error: string }
 > {
+  // Rentals parked for the MVP (lib/flags.ts) — no UI reaches these actions,
+  // this is the server-side defence.
+  if (!RENTALS_ENABLED) return { ok: false, error: GENERIC_WRITE_ERROR };
   if (await limited()) return { ok: false, error: "Too many requests — slow down." };
   const parsed = getRangeAvailabilityInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
@@ -87,6 +91,7 @@ function isTaken(error: { message?: string; code?: string }): boolean {
 export async function createRentalBooking(
   input: unknown,
 ): Promise<{ ok: true; token: string } | { ok: false; error: string; datesTaken?: boolean }> {
+  if (!RENTALS_ENABLED) return { ok: false, error: GENERIC_WRITE_ERROR };
   if (await limited()) return { ok: false, error: "Too many requests — slow down." };
   const parsed = createRentalBookingInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
