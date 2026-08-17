@@ -481,6 +481,21 @@ describe("rental reschedule + admin walk-in RPCs (0039)", () => {
     });
     expect(authClientResch.error?.code).toBe("42501");
 
+    // The shared move core is internal too: only the two wrappers above may
+    // call it, so neither client-facing role holds EXECUTE.
+    const applyArgs = {
+      p_old_id: crypto.randomUUID(),
+      p_unit_id: null,
+      p_start_date: d(10),
+      p_end_date: d(12),
+      p_new_token_hash: generateAccessToken().tokenHash,
+      p_enforce_limits: false,
+    };
+    const anonApply = await anon.rpc("reschedule_rental_apply", applyArgs);
+    expect(anonApply.error?.code).toBe("42501");
+    const authApply = await owner.rpc("reschedule_rental_apply", applyArgs);
+    expect(authApply.error?.code).toBe("42501");
+
     // The shared helper is internal: no role holds EXECUTE.
     const helper = await anon.rpc("rental_unit_is_free", {
       p_unit_id: u1,
@@ -491,6 +506,6 @@ describe("rental reschedule + admin walk-in RPCs (0039)", () => {
       p_turnover: 1,
       p_exclude_booking_id: null,
     });
-    expect(helper.error).not.toBeNull();
+    expect(helper.error?.code).toBe("42501");
   });
 });

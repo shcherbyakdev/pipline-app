@@ -159,6 +159,12 @@ export async function rescheduleRentalBooking(
     });
     if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
 
+    // Which unit serves the stay is the provider's business unless the
+    // offering lets the client pick, so drop any unit the payload names on an
+    // `auto` offering (rental-booking-flow.tsx does the same on the create
+    // path) — the RPC then auto-assigns as it would for a fresh booking.
+    const pickedUnitId = ctx.offering.unitSelection === "client_picks" ? unitId : null;
+
     // A move onto today past the check-in time can never be cancelled, so
     // the RPC refuses it; `datesTaken` makes the panel reset and refetch,
     // which is what the client has to do anyway.
@@ -188,7 +194,7 @@ export async function rescheduleRentalBooking(
         ? { ok: false, error: DATES_TAKEN, datesTaken: true }
         : { ok: false, error: GENERIC_WRITE_ERROR };
     }
-    if (unitId !== null && !stay.unitIds.includes(unitId)) {
+    if (pickedUnitId !== null && !stay.unitIds.includes(pickedUnitId)) {
       return { ok: false, error: DATES_TAKEN, datesTaken: true };
     }
 
@@ -196,7 +202,7 @@ export async function rescheduleRentalBooking(
     const anon = createAnonServerClient();
     const { data, error } = await anon.rpc("reschedule_rental_booking", {
       p_token: token,
-      p_unit_id: unitId,
+      p_unit_id: pickedUnitId,
       p_start_date: startDate,
       p_end_date: endDate,
       p_new_token_hash: fresh.tokenHash,

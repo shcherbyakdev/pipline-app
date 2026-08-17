@@ -10,7 +10,6 @@ import {
   type PublicOffering,
   type PublicUnit,
 } from "@/lib/booking/public";
-import { getProviderEmail } from "@/lib/booking/provider";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { wallTimeToUtc } from "@/features/scheduling/slots";
@@ -20,7 +19,6 @@ import {
   bookingLifecycleKey,
   bookingRescheduledEmail,
   formatRangeWhenLine,
-  providerRescheduledEmail,
 } from "@/features/scheduling/templates";
 import {
   ADMIN_WINDOW_DAYS,
@@ -122,7 +120,7 @@ export async function getAdminRangeAvailability(input: unknown): Promise<
 // a day of slack on either edge — validateStay reads the day map that far.
 // Bounded by the admin window: it rejects anything past it before reading the
 // map at all, so an absurd endDate must not size the engine's loop.
-function windowDays(startDate: string, endDate: string): number {
+function engineSpan(startDate: string, endDate: string): number {
   return Math.min(stayLength("days", startDate, endDate), ADMIN_WINDOW_DAYS) + 32;
 }
 
@@ -161,7 +159,7 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
       return { ok: false, error: STAY_STARTED };
     }
 
-    const span = windowDays(startDate, endDate);
+    const span = engineSpan(startDate, endDate);
     const ctx = await loadOrgRangeContext(org.id, row.rental_offering_id, startDate, span, {
       includeInactiveUnits: true,
       excludeBookingId: row.id,
@@ -233,15 +231,15 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
     }> | null)?.[0];
     if (!moved) return { ok: false, error: GENERIC_WRITE_ERROR };
 
-    // Notification rules (R2 spec): a date change is news for both sides; a
+    // Notification rules (R2 spec): the client hears about a date change; a
     // unit swap only matters to a client who chose the unit themselves; an
-    // auto-assigned swap is an internal detail and stays silent.
+    // auto-assigned swap is an internal detail and stays silent. No provider
+    // notice on this path — the provider IS the one who moved the stay
+    // (rescheduleBookingAdmin, the appointment precedent, does the same).
     const clientPicks = row.rental_offerings?.unit_selection === "client_picks";
     const notifyClient =
       moved.client_email !== null && (moved.dates_changed || (moved.unit_changed && clientPicks));
-    // The move already happened — never fail the action on a send, and keep
-    // the two sends independent: `emailed` reports what the CLIENT got, so a
-    // failed provider notice must not retract a delivered client email.
+    // The move already happened — never fail the action on a send.
     let emailed = false;
     const tz = moved.org_timezone;
     const oldWhenLine = formatRangeWhenLine(
@@ -276,28 +274,6 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
         console.error("[rentals] move client email failed:", mailError);
       }
     }
-    if (moved.dates_changed) {
-      try {
-        const providerEmail = await getProviderEmail(moved.org_id);
-        if (providerEmail) {
-          const notice = providerRescheduledEmail({
-            serviceName: moved.service_name,
-            oldWhenLine,
-            whenLine,
-            clientName: moved.client_name,
-          });
-          await selectTransport().send({
-            to: providerEmail,
-            subject: notice.subject,
-            html: notice.html,
-            text: notice.text,
-            idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "provider-rescheduled"),
-          });
-        }
-      } catch (mailError) {
-        console.error("[rentals] move provider notice failed:", mailError);
-      }
-    }
 
     revalidatePath("/bookings");
     return {
@@ -320,7 +296,7 @@ export async function createRentalBookingAdmin(
   try {
     const org = await currentOrg();
     if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
-    const span = windowDays(startDate, endDate);
+    const span = engineSpan(startDate, endDate);
     const ctx = await loadOrgRangeContext(org.id, offeringId, startDate, span, {
       includeInactiveUnits: true,
     });

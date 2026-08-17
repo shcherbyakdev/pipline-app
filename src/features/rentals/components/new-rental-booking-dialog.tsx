@@ -83,15 +83,20 @@ export function NewRentalBookingDialog({
           setAvailability(result.availability);
           setOffering(result.offering);
           setUnits(result.units);
-          // Belt and braces on the timeline's disabled past cells: a seeded
+          // Belt and braces on the timeline's disabled cells: a seeded
           // check-in the engine won't accept leaves the picker with no legal
           // check-out and no way to clear it (the "change" reset only shows
           // once both dates are set), so drop it and let the provider pick.
-          setRange((r) =>
-            r.start !== null && r.start < result.availability.notBefore
+          // Past the window is one way in; a day that is fully booked (or
+          // outside the fetched month) is the other, which is what a click
+          // landing on a turnover tail or a bar's half-cell would seed.
+          setRange((r) => {
+            if (r.start === null) return r;
+            const day = result.availability.dates[r.start];
+            return r.start < result.availability.notBefore || !day || day.free === 0
               ? { start: null, end: null }
-              : r,
-          );
+              : r;
+          });
         } else {
           setAvailability(null);
           setError(result.error);

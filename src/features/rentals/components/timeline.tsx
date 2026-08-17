@@ -300,9 +300,13 @@ export function Timeline({
                       return (
                         <React.Fragment key={b.id}>
                           {tail === null ? null : (
+                            // Not `pointer-events-none`: like the blackout
+                            // bar, the tail has to swallow its own clicks, or
+                            // they fall through to the empty-cell button and
+                            // open a walk-in seeded on an occupied day.
                             <div
-                              aria-hidden
-                              className="border-border/60 bg-muted/30 pointer-events-none absolute inset-y-1.5 z-[2] rounded-sm border"
+                              title="Turnover"
+                              className="border-border/60 bg-muted/30 absolute inset-y-1.5 z-[2] rounded-sm border"
                               style={{
                                 ...HATCH,
                                 left: pct(tail.colStart),
