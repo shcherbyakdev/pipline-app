@@ -1,4 +1,5 @@
 import { createClient as createSupabase } from "@/lib/supabase/server";
+import { bookingTitle } from "@/features/scheduling/booking-label";
 
 export type ClientListItem = {
   id: string;
@@ -169,6 +170,9 @@ export type ClientBookingRow = {
   serviceName: string;
   startsAt: string;
   endsAt: string;
+  // Rentals R1: non-null for a stay, which renders as a range rather than
+  // a single instant (see whenLineFor).
+  rentalUnitId: string | null;
   status: string;
   note: string | null;
 };
@@ -177,7 +181,9 @@ export async function listClientBookings(clientId: string): Promise<ClientBookin
   const supabase = await createSupabase();
   const { data, error } = await supabase
     .from("bookings")
-    .select("id, starts_at, ends_at, status, note, services(name)")
+    .select(
+      "id, starts_at, ends_at, rental_unit_id, status, note, services(name), rental_offerings(name), rental_units(name)",
+    )
     .eq("client_id", clientId)
     .order("starts_at", { ascending: false })
     .limit(100);
@@ -186,15 +192,19 @@ export async function listClientBookings(clientId: string): Promise<ClientBookin
     id: string;
     starts_at: string;
     ends_at: string;
+    rental_unit_id: string | null;
     status: string;
     note: string | null;
     services: { name: string } | null;
+    rental_offerings: { name: string } | null;
+    rental_units: { name: string } | null;
   };
   return ((data ?? []) as unknown as Row[]).map((b) => ({
     id: b.id,
-    serviceName: b.services?.name ?? "—",
+    serviceName: bookingTitle(b),
     startsAt: b.starts_at,
     endsAt: b.ends_at,
+    rentalUnitId: b.rental_unit_id,
     status: b.status,
     note: b.note,
   }));

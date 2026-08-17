@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getClient, listClientBookings } from "@/features/clients/queries";
 import { ClientHeader } from "@/features/clients/components/client-header";
 import { getSchedulingSettings } from "@/features/orgs/queries";
-import { formatWhenLine, STATUS_LABEL } from "@/features/scheduling/templates";
+import { whenLineFor, STATUS_LABEL } from "@/features/scheduling/templates";
 import { Badge } from "@/components/ui/badge";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -43,7 +43,16 @@ export default async function ClientDetailPage({ params }: PageProps<"/clients/[
                   <p className="font-medium">{b.serviceName}</p>
                   <Badge variant="secondary">{STATUS_LABEL[b.status] ?? b.status}</Badge>
                 </div>
-                <p>{formatWhenLine(new Date(b.startsAt), timeZone)}</p>
+                <p>
+                  {whenLineFor(
+                    {
+                      startsAt: new Date(b.startsAt),
+                      endsAt: new Date(b.endsAt),
+                      isRental: b.rentalUnitId !== null,
+                    },
+                    timeZone,
+                  )}
+                </p>
                 {b.note ? <p className="text-muted-foreground">“{b.note}”</p> : null}
               </li>
             ))}

@@ -49,10 +49,15 @@ export function CalendarWeek({
   // Confirmed bookings may legally sit outside open hours (admin-created)
   // or fall outside them after availability shrinks — widen the range so
   // they're never clipped off-grid (finding: invisible off-hours bookings).
-  const bookingSpans = timed.map((b) => {
+  // Only rows that actually draw a card widen the range: `byDay` keys off
+  // the org-zone START date, so a booking that began before the week is
+  // never rendered and must not stretch the grid either (the overlap fetch
+  // can now hand us one).
+  const bookingSpans = timed.flatMap((b) => {
     const s = zonedParts(new Date(b.startsAt), timeZone);
+    if (!days.includes(s.date)) return [];
     const e = zonedParts(new Date(b.endsAt), timeZone);
-    return { startMin: s.minutes, endMin: e.date === s.date ? e.minutes : 24 * 60 };
+    return [{ startMin: s.minutes, endMin: e.date === s.date ? e.minutes : 24 * 60 }];
   });
   const { startHour, endHour } = hourRange(windowsByDay, bookingSpans);
   const totalMin = (endHour - startHour) * 60;
