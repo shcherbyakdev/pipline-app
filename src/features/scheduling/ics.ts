@@ -20,7 +20,11 @@ export function bookingIcs(input: {
   summary: string;
   description: string;
   url: string;
+  // Team orgs name the staff member in the event title; solo orgs pass
+  // null/undefined and the SUMMARY is unchanged.
+  staffName?: string | null;
 }): string {
+  const summary = input.staffName ? `${input.summary} with ${input.staffName}` : input.summary;
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -32,7 +36,7 @@ export function bookingIcs(input: {
     `DTSTAMP:${icsStamp(input.starts)}`,
     `DTSTART:${icsStamp(input.starts)}`,
     `DTEND:${icsStamp(input.ends)}`,
-    `SUMMARY:${icsEscape(input.summary)}`,
+    `SUMMARY:${icsEscape(summary)}`,
     `DESCRIPTION:${icsEscape(input.description)}`,
     `URL:${input.url}`,
     "END:VEVENT",

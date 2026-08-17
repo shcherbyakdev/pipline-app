@@ -8,6 +8,14 @@ const esc = (s: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+// Team (multi-staff): client-facing mails name the staff member. Solo orgs
+// pass null and the output stays byte-identical to the pre-team copy — the
+// empty string keeps both the html newline and the text array element out.
+const staffHtmlLine = (staffName?: string | null) =>
+  staffName ? `\n  <p style="margin: 0 0 4px;">With ${esc(staffName)}</p>` : "";
+const staffTextLine = (staffName?: string | null) =>
+  staffName ? [`With ${staffName}`] : [];
+
 export function bookingIdempotencyKey(bookingId: string): string {
   return `booking/${bookingId}/confirmation`;
 }
@@ -67,13 +75,14 @@ export function bookingConfirmationEmail(input: {
   whenLine: string;
   manageUrl: string;
   icsUrl: string;
+  staffName?: string | null;
 }): { subject: string; html: string; text: string } {
   const subject = `Booking confirmed — ${input.serviceName}, ${input.whenLine}`;
   const html = `
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
   <p style="margin: 0 0 8px;">Your booking is confirmed.</p>
-  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
   <p style="margin: 0 0 8px;">
     <a href="${esc(input.icsUrl)}">Add to calendar (.ics)</a>
@@ -90,6 +99,7 @@ export function bookingConfirmationEmail(input: {
     "",
     "Your booking is confirmed.",
     input.serviceName,
+    ...staffTextLine(input.staffName),
     input.whenLine,
     "",
     `Add to calendar: ${input.icsUrl}`,
@@ -106,6 +116,7 @@ export function bookingManageLinkEmail(input: {
   whenLine: string;
   manageUrl: string;
   icsUrl: string;
+  staffName?: string | null;
   // Rentals have no self-service reschedule — don't promise one (default:
   // appointments, which do).
   canReschedule?: boolean;
@@ -117,7 +128,7 @@ export function bookingManageLinkEmail(input: {
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
   <p style="margin: 0 0 8px;">${esc(intro)}</p>
-  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
   <p style="margin: 0 0 8px;">
     <a href="${esc(input.icsUrl)}">Add to calendar (.ics)</a>
@@ -134,6 +145,7 @@ export function bookingManageLinkEmail(input: {
     "",
     intro,
     input.serviceName,
+    ...staffTextLine(input.staffName),
     input.whenLine,
     "",
     `Add to calendar: ${input.icsUrl}`,
@@ -163,6 +175,7 @@ export function bookingCancelledEmail(input: {
   serviceName: string;
   whenLine: string;
   cancelledBy: "client" | "provider";
+  staffName?: string | null;
 }): { subject: string; html: string; text: string } {
   const lead =
     input.cancelledBy === "client"
@@ -173,13 +186,20 @@ export function bookingCancelledEmail(input: {
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
   <p style="margin: 0 0 8px;">${esc(lead)}</p>
-  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     Need a new appointment? Book again any time on the booking page.
   </p>
 </div>`.trim();
-  const text = [input.orgName, "", lead, input.serviceName, input.whenLine].join("\n");
+  const text = [
+    input.orgName,
+    "",
+    lead,
+    input.serviceName,
+    ...staffTextLine(input.staffName),
+    input.whenLine,
+  ].join("\n");
   return { subject, html, text };
 }
 
@@ -190,13 +210,14 @@ export function bookingRescheduledEmail(input: {
   whenLine: string;
   manageUrl: string;
   icsUrl: string;
+  staffName?: string | null;
 }): { subject: string; html: string; text: string } {
   const subject = `Booking rescheduled — ${input.serviceName}, ${input.whenLine}`;
   const html = `
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
   <p style="margin: 0 0 8px;">Your booking has been moved.</p>
-  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
   <p style="margin: 0 0 4px; text-decoration: line-through; color: #666;">${esc(input.oldWhenLine)}</p>
   <p style="margin: 0 0 16px;"><strong>${esc(input.whenLine)}</strong></p>
   <p style="margin: 0 0 8px;">
@@ -214,6 +235,7 @@ export function bookingRescheduledEmail(input: {
     "",
     "Your booking has been moved.",
     input.serviceName,
+    ...staffTextLine(input.staffName),
     `Was: ${input.oldWhenLine}`,
     `Now: ${input.whenLine}`,
     "",
@@ -230,13 +252,14 @@ export function bookingReminderEmail(input: {
   orgName: string;
   serviceName: string;
   whenLine: string;
+  staffName?: string | null;
 }): { subject: string; html: string; text: string } {
   const subject = `Reminder — ${input.serviceName}, ${input.whenLine}`;
   const html = `
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
   <p style="margin: 0 0 8px;">A reminder about your upcoming appointment.</p>
-  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     Need to change or cancel? Use the link in your confirmation email.
@@ -247,9 +270,40 @@ export function bookingReminderEmail(input: {
     "",
     "A reminder about your upcoming appointment.",
     input.serviceName,
+    ...staffTextLine(input.staffName),
     input.whenLine,
     "",
     "Need to change or cancel? Use the link in your confirmation email.",
+  ].join("\n");
+  return { subject, html, text };
+}
+
+// Staff-side "you have a new booking" notice. Deliberately link-free: the
+// manage credential belongs to the client, and staff see the booking in the
+// admin calendar. Mirrors providerCancelledEmail's plain shape.
+export function staffNewBookingEmail(input: {
+  staffName: string;
+  orgName: string;
+  serviceName: string;
+  clientName: string;
+  whenLine: string;
+}): { subject: string; html: string; text: string } {
+  const subject = `New booking — ${input.serviceName}, ${input.whenLine}`;
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <p style="margin: 0 0 8px;">Hi ${esc(input.staffName)}, you have a new booking.</p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.clientName)}</strong></p>
+  <p style="margin: 0 0 4px;">${esc(input.serviceName)}</p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
+  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">${esc(input.orgName)}</p>
+</div>`.trim();
+  const text = [
+    `Hi ${input.staffName}, you have a new booking.`,
+    input.clientName,
+    input.serviceName,
+    input.whenLine,
+    "",
+    input.orgName,
   ].join("\n");
   return { subject, html, text };
 }

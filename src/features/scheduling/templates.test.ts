@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   formatWhenLine,
+  bookingConfirmationEmail,
+  staffNewBookingEmail,
   formatRangeWhenLine,
   whenLineFor,
   bookingLifecycleKey,
@@ -100,6 +102,77 @@ describe("booking lifecycle templates", () => {
     expect(msg.text).toContain("Was: OLD-TIME");
     expect(msg.text).toContain("Now: NEW-TIME");
     expect(msg.html).toContain("A &amp; B");
+  });
+
+  it("client templates carry a 'With {staff}' line only when staffName is given", () => {
+    const base = {
+      orgName: "Studio",
+      serviceName: "Cut",
+      whenLine: "Mon, 05 Apr",
+      manageUrl: "https://app/booking/tok",
+      icsUrl: "https://app/booking/tok/calendar.ics",
+    };
+    const solo = bookingConfirmationEmail(base);
+    expect(solo.text).not.toContain("With ");
+    expect(solo.html).not.toContain("With ");
+
+    const team = bookingConfirmationEmail({ ...base, staffName: "Anna" });
+    expect(team.text).toContain("With Anna");
+    expect(team.html).toContain("With Anna");
+    // solo stays byte-identical to the pre-team output
+    expect(bookingConfirmationEmail({ ...base, staffName: null })).toEqual(solo);
+  });
+
+  it("every client-facing template accepts staffName and escapes it", () => {
+    const staffName = "A & B";
+    expect(
+      bookingRescheduledEmail({
+        orgName: "Studio",
+        serviceName: "Cut",
+        oldWhenLine: "OLD",
+        whenLine: "NEW",
+        manageUrl: "https://app/booking/tok",
+        icsUrl: "https://app/booking/tok/calendar.ics",
+        staffName,
+      }).html,
+    ).toContain("With A &amp; B");
+    expect(
+      bookingCancelledEmail({
+        orgName: "Studio",
+        serviceName: "Cut",
+        whenLine: "Mon",
+        cancelledBy: "client",
+        staffName,
+      }).text,
+    ).toContain("With A & B");
+    expect(
+      bookingReminderEmail({ orgName: "Studio", serviceName: "Cut", whenLine: "Mon", staffName }).text,
+    ).toContain("With A & B");
+    expect(
+      bookingManageLinkEmail({
+        orgName: "Studio",
+        serviceName: "Cut",
+        whenLine: "Mon",
+        manageUrl: "https://app/booking/tok",
+        icsUrl: "https://app/booking/tok/calendar.ics",
+        staffName,
+      }).text,
+    ).toContain("With A & B");
+  });
+
+  it("staffNewBookingEmail names the client and the slot, link-free", () => {
+    const msg = staffNewBookingEmail({
+      staffName: "Anna",
+      orgName: "Studio",
+      serviceName: "Cut",
+      clientName: "A & B",
+      whenLine: "Mon, 05 Apr",
+    });
+    expect(msg.subject).toBe("New booking — Cut, Mon, 05 Apr");
+    expect(msg.text).toContain("A & B");
+    expect(msg.html).toContain("A &amp; B");
+    expect(msg.text).toContain("Mon, 05 Apr");
+    expect(msg.html).not.toContain("http");
   });
 
   it("formatRangeWhenLine renders both ends in the org zone with one tz suffix", () => {

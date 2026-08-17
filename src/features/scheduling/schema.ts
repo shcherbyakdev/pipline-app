@@ -53,11 +53,18 @@ export const schedulingSettingsInput = z.object({
   timezone: z.string().min(1).max(64),
 });
 
+// Team (multi-staff): the public surface either names a staff member or asks
+// for "any" (auto-assign). Defaulted rather than required so a solo org's
+// widget — and any caller predating the team slice — keeps working; the
+// parsed type is the same `"any" | uuid` either way.
+export const staffChoice = z.union([z.literal("any"), z.uuid()]);
+
 export const getSlotsInput = z.object({
   handle: z.string().regex(HANDLE_RE),
   serviceId: z.uuid(),
   fromDate: z.string().regex(DATE_RE),
   days: z.number().int().min(1).max(31),
+  staffId: staffChoice.default("any"),
 });
 
 export const createBookingInput = z.object({
@@ -67,6 +74,7 @@ export const createBookingInput = z.object({
   name: z.string().trim().min(1).max(200),
   email: z.email().max(320),
   note: z.string().trim().max(2000).optional(),
+  staffId: staffChoice.default("any"),
 });
 
 const tokenField = z.string().min(20).max(200);

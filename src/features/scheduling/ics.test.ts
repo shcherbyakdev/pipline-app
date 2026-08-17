@@ -21,6 +21,16 @@ describe("bookingIcs", () => {
     expect(ics.split("\r\n").every((l) => !l.includes("\n"))).toBe(true);
   });
 
+  it("appends the staff member to SUMMARY only when staffName is given", () => {
+    expect(bookingIcs({ ...BASE, staffName: "Anna" })).toContain(
+      `SUMMARY:${BASE.summary} with Anna`,
+    );
+    // solo orgs pass null/undefined and get the pre-team SUMMARY byte-for-byte
+    expect(bookingIcs({ ...BASE, staffName: null })).toBe(bookingIcs(BASE));
+    expect(bookingIcs(BASE)).toContain(`SUMMARY:${BASE.summary}`);
+    expect(bookingIcs(BASE)).not.toContain(" with ");
+  });
+
   it("escapes commas, semicolons and newlines in text fields", () => {
     const ics = bookingIcs({ ...BASE, summary: "A, B; C\nD" });
     expect(ics).toContain("SUMMARY:A\\, B\\; C\\nD");
