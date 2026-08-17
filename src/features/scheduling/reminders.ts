@@ -2,7 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { EmailTransport } from "@/lib/email/transport";
-import { bookingReminderEmail, bookingLifecycleKey, formatWhenLine } from "./templates";
+import { bookingReminderEmail, bookingLifecycleKey, whenLineFor } from "./templates";
+import { bookingTitle } from "./booking-label";
 
 // Booking reminder drain (chasing idiom): claim-before-send on
 // reminder_sent_at, rollback + attempt-count on transport failure,
@@ -32,9 +33,13 @@ type CandidateRow = {
   id: string;
   client_email: string | null;
   starts_at: string;
+  ends_at: string;
   created_at: string;
   reminder_attempts: number;
+  rental_unit_id: string | null;
   services: { name: string } | null;
+  rental_offerings: { name: string } | null;
+  rental_units: { name: string } | null;
   orgs: { name: string; timezone: string } | null;
 };
 
@@ -49,7 +54,7 @@ export async function runReminderDrain(deps: {
   const { data, error } = await deps.db
     .from("bookings")
     .select(
-      "id, client_email, starts_at, created_at, reminder_attempts, services(name), orgs(name, timezone)",
+      "id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, services(name), rental_offerings(name), rental_units(name), orgs(name, timezone)",
     )
     .eq("status", "confirmed")
     .is("reminder_sent_at", null)
@@ -90,8 +95,15 @@ export async function runReminderDrain(deps: {
       try {
         const msg = bookingReminderEmail({
           orgName: row.orgs?.name ?? "Your provider",
-          serviceName: row.services?.name ?? "Appointment",
-          whenLine: formatWhenLine(new Date(row.starts_at), row.orgs?.timezone ?? "UTC"),
+          serviceName: bookingTitle(row),
+          whenLine: whenLineFor(
+            {
+              startsAt: new Date(row.starts_at),
+              endsAt: new Date(row.ends_at),
+              isRental: row.rental_unit_id !== null,
+            },
+            row.orgs?.timezone ?? "UTC",
+          ),
         });
         await deps.transport.send({
           to: row.client_email,

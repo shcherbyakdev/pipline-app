@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { formatWhenLine } from "@/features/scheduling/templates";
+import { whenLineFor } from "@/features/scheduling/templates";
 import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
@@ -53,7 +53,16 @@ export function BookingDetailDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{booking.serviceName}</DialogTitle>
-          <DialogDescription>{formatWhenLine(new Date(booking.startsAt), timeZone)}</DialogDescription>
+          <DialogDescription>
+            {whenLineFor(
+              {
+                startsAt: new Date(booking.startsAt),
+                endsAt: new Date(booking.endsAt),
+                isRental: booking.rentalUnitId !== null,
+              },
+              timeZone,
+            )}
+          </DialogDescription>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
           {booking.clientName}
@@ -61,7 +70,13 @@ export function BookingDetailDialog({
           {booking.note ? ` · “${booking.note}”` : null}
         </p>
         <div className="flex items-center gap-2">
-          <BookingRescheduleDialog booking={booking} timeZone={timeZone} />
+          {/* Rentals have no slot grid to move to — cancel/rebook instead. */}
+          {booking.serviceId === null ? null : (
+            <BookingRescheduleDialog
+              booking={{ ...booking, serviceId: booking.serviceId }}
+              timeZone={timeZone}
+            />
+          )}
           <Button
             variant="ghost"
             size="sm"

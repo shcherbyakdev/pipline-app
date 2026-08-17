@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { formatWhenLine, STATUS_LABEL } from "@/features/scheduling/templates";
+import { whenLineFor, STATUS_LABEL } from "@/features/scheduling/templates";
 import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
@@ -54,7 +54,16 @@ function Row({
           <Badge variant="secondary">{STATUS_LABEL[booking.status] ?? booking.status}</Badge>
         )}
       </div>
-      <p>{formatWhenLine(new Date(booking.startsAt), timeZone)}</p>
+      <p>
+        {whenLineFor(
+          {
+            startsAt: new Date(booking.startsAt),
+            endsAt: new Date(booking.endsAt),
+            isRental: booking.rentalUnitId !== null,
+          },
+          timeZone,
+        )}
+      </p>
       <p className="text-muted-foreground">
         {booking.clientName}
         {booking.clientEmail ? ` · ${booking.clientEmail}` : ""}
@@ -62,7 +71,13 @@ function Row({
       </p>
       {actionable ? (
         <div className="flex items-center gap-2">
-          <BookingRescheduleDialog booking={booking} timeZone={timeZone} />
+          {/* Rentals have no slot grid to move to — cancel/rebook instead. */}
+          {booking.serviceId === null ? null : (
+            <BookingRescheduleDialog
+              booking={{ ...booking, serviceId: booking.serviceId }}
+              timeZone={timeZone}
+            />
+          )}
           <Button
             variant="ghost"
             size="sm"

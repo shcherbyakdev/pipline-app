@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { PublicService } from "@/lib/booking/public";
+import type { PublicOffering, PublicService } from "@/lib/booking/public";
 import { getSlots, createBooking } from "@/features/scheduling/public-actions";
+import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
+import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -17,15 +19,22 @@ export function BookingWidget({
   handle,
   orgTimeZone,
   services,
+  offerings = [],
   preview,
 }: {
   handle: string;
   orgTimeZone: string;
   services: PublicService[];
+  offerings?: PublicOffering[];
   preview?: { slots: string[] };
 }) {
+  // Auto-select only when there is genuinely nothing to choose between —
+  // one service AND no rentals (or vice versa below).
   const [service, setService] = React.useState<PublicService | null>(
-    services.length === 1 ? services[0] : null,
+    services.length === 1 && offerings.length === 0 ? services[0] : null,
+  );
+  const [offering, setOffering] = React.useState<PublicOffering | null>(
+    services.length === 0 && offerings.length === 1 ? offerings[0] : null,
   );
   const [slots, setSlots] = React.useState<string[]>([]);
   const [fromDate, setFromDate] = React.useState(todayISO());
@@ -91,23 +100,20 @@ export function BookingWidget({
     });
   }
 
-  if (doneToken) {
+  // Rentals are a separate flow end-to-end (date ranges, units, org-local
+  // times) — hand the whole widget over once an offering is picked.
+  if (offering) {
     return (
-      <div className="flex flex-col gap-3 rounded-md border p-4">
-        <h2 className="font-semibold">Booking confirmed</h2>
-        <p className="text-muted-foreground text-sm">
-          A confirmation email is on its way. Keep it — the links below are your access to this
-          booking.
-        </p>
-        <a className="text-sm underline" href={`/booking/${doneToken}`}>
-          View your booking
-        </a>
-        <a className="text-sm underline" href={`/booking/${doneToken}/calendar.ics`}>
-          Add to calendar (.ics)
-        </a>
-      </div>
+      <RentalBookingFlow
+        handle={handle}
+        orgTimeZone={orgTimeZone}
+        offering={offering}
+        onBack={services.length + offerings.length > 1 ? () => setOffering(null) : null}
+      />
     );
   }
+
+  if (doneToken) return <BookingConfirmed token={doneToken} />;
 
   // Group by the VIEWER's local date, not the UTC date — a late-evening
   // slot in the viewer's zone must appear under the day they'd call it.
@@ -125,36 +131,83 @@ export function BookingWidget({
   return (
     <div className="flex flex-col gap-6">
       {!service ? (
-        <ul className="flex flex-col gap-2">
-          {services.map((s) => (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  flushSync(() => setService(s));
-                  slotsRegionRef.current?.focus();
-                }}
-                className="wt-surface flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
-              >
-                <span>
-                  <span className="font-medium">{s.name}</span>
-                  {s.description ? (
-                    <span className="text-muted-foreground block text-xs">{s.description}</span>
-                  ) : null}
-                </span>
-                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                  {s.durationMin} min{s.priceLabel ? ` · ${s.priceLabel}` : ""}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-6">
+          {services.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {/* Headings only when there is something to tell apart. */}
+              {offerings.length > 0 ? (
+                <h2 className="text-muted-foreground text-sm font-medium">Appointments</h2>
+              ) : null}
+              <ul className="flex flex-col gap-2">
+                {services.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        flushSync(() => setService(s));
+                        slotsRegionRef.current?.focus();
+                      }}
+                      className="wt-surface flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
+                    >
+                      <span>
+                        <span className="font-medium">{s.name}</span>
+                        {s.description ? (
+                          <span className="text-muted-foreground block text-xs">
+                            {s.description}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                        {s.durationMin} min{s.priceLabel ? ` · ${s.priceLabel}` : ""}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {offerings.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {services.length > 0 ? (
+                <h2 className="text-muted-foreground text-sm font-medium">Stays &amp; rentals</h2>
+              ) : null}
+              <ul className="flex flex-col gap-2">
+                {offerings.map((o) => (
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      onClick={() => setOffering(o)}
+                      className="wt-surface flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
+                    >
+                      <span>
+                        <span className="font-medium">{o.name}</span>
+                        {o.description ? (
+                          <span className="text-muted-foreground block text-xs">
+                            {o.description}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                        {[
+                          o.priceLabel,
+                          o.minStay > 1 ? `min ${o.minStay} ${o.rangeMode}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
       ) : !slot ? (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">
               {service.name}{" "}
-              {services.length > 1 ? (
+              {services.length + offerings.length > 1 ? (
                 <button
                   type="button"
                   className="text-muted-foreground underline"
