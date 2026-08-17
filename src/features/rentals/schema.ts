@@ -83,12 +83,33 @@ export const createRentalBookingInput = z.object({
   note: z.string().trim().max(2000).optional(),
 });
 
+// ---------- Reschedule (R2), client + admin. Same reasons as DATES_TAKEN:
+// a "use server" module may only export async functions, so the shared copy
+// lives here where both the actions and their dialogs can reach it.
+
+// A stay that has begun is immovable (0039 raises 'started').
+export const STAY_STARTED = "This stay has already started.";
+// The RPCs also refuse a stay whose check-in has already passed (`v_starts
+// <= now()`), which comes back as the uniform 'not found' raise — the app
+// says what actually went wrong where it can tell.
+export const CHECK_IN_PASSED = "That check-in time has already passed — pick a later date.";
+
+// Token-scoped manage surface: the booking is identified by its cancel
+// token, so neither shape carries a handle or an offering id.
+export const manageRangeAvailabilityInput = z.object({
+  token: z.string().min(20).max(200),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(93),
+});
+export const rescheduleRentalInput = z.object({
+  token: z.string().min(20).max(200),
+  unitId: z.uuid().nullable(),
+  startDate: z.string().regex(DATE_RE),
+  endDate: z.string().regex(DATE_RE),
+});
+
 // ---------- Admin (R2). Same shapes minus the handle — the org comes from
 // the session — and with the client's email made optional (walk-ins).
-
-// A stay that has begun is immovable (0039 raises 'started'); like
-// DATES_TAKEN this string lives here so the client dialogs can recognise it.
-export const STAY_STARTED = "This stay has already started.";
 
 export const adminRangeAvailabilityInput = z.object({
   offeringId: z.uuid(),

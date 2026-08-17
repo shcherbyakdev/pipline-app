@@ -48,9 +48,11 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
             <ManageBooking
               token={token}
               timeZone={b.orgTimezone}
-              // Rentals R1: a stay has no slot grid — cancel is the only
-              // self-serve change (reschedule_booking refuses them too).
-              canReschedule={b.rentalUnitId === null}
+              // Rentals R2: a stay reschedules through its own range picker
+              // (reschedule_rental_booking), an appointment through the slot
+              // grid — both are self-serve.
+              canReschedule={true}
+              kind={b.rentalUnitId === null ? "appointment" : "rental"}
             />
           ) : (
             <p className="text-muted-foreground text-xs">

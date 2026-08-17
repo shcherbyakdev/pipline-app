@@ -33,16 +33,14 @@ import {
   adminRangeAvailabilityInput,
   createRentalAdminInput,
   rescheduleRentalAdminInput,
+  CHECK_IN_PASSED,
   DATES_TAKEN,
   STAY_STARTED,
   GENERIC_WRITE_ERROR,
 } from "./schema";
 
-// The RPCs refuse a stay whose check-in has already passed (`v_starts <=
-// now()`) and an offering that is no longer active; both come back as the
-// uniform 'not found' raise, so the app says what actually went wrong where
-// it can tell.
-const CHECK_IN_PASSED = "That check-in time has already passed — pick a later date.";
+// An offering that is no longer active comes back as the same uniform 'not
+// found' raise as everything else; say what actually went wrong.
 const OFFERING_INACTIVE = "This offering is inactive — reactivate it to move its stays.";
 
 function fail(context: string, error: unknown): { ok: false; error: string } {

@@ -9,6 +9,7 @@ import {
   getManageSlots,
   rescheduleBooking,
 } from "@/features/scheduling/manage-actions";
+import { RentalReschedulePanel } from "@/features/rentals/components/rental-reschedule-panel";
 import { Button } from "@/components/ui/button";
 
 // UTC "today" — matches booking-widget's documented caveat (far-west
@@ -28,11 +29,15 @@ export function ManageBooking({
   token,
   timeZone,
   canReschedule,
+  kind,
 }: {
   token: string;
   timeZone: string;
-  // Rentals R1: false for a rental stay — no slot grid to pick from.
+  // Whether self-serve rescheduling is offered at all (cancel is always).
   canReschedule: boolean;
+  // Rentals R2: a stay picks a date RANGE, not a slot — the same
+  // Reschedule button opens a range picker instead of the slot grid.
+  kind: "appointment" | "rental";
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
@@ -51,7 +56,8 @@ export function ManageBooking({
 
   const openPicker = () => {
     setPicking(true);
-    loadSlots(fromDate);
+    // A stay's panel loads its own range availability by token.
+    if (kind === "appointment") loadSlots(fromDate);
   };
 
   const nav = (days: number) => {
@@ -85,7 +91,17 @@ export function ManageBooking({
 
   return (
     <div className="flex flex-col gap-4">
-      {!canReschedule ? null : picking ? (
+      {!canReschedule ? null : !picking ? (
+        <Button variant="outline" onClick={openPicker} disabled={pending}>
+          Reschedule
+        </Button>
+      ) : kind === "rental" ? (
+        <RentalReschedulePanel
+          token={token}
+          timeZone={timeZone}
+          onCancel={() => setPicking(false)}
+        />
+      ) : (
         <div className="flex flex-col gap-3 rounded-md border p-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">Pick a new time</p>
@@ -133,10 +149,6 @@ export function ManageBooking({
             Times shown in your local timezone; the provider is in {timeZone}.
           </p>
         </div>
-      ) : (
-        <Button variant="outline" onClick={openPicker} disabled={pending}>
-          Reschedule
-        </Button>
       )}
       {confirmingCancel ? (
         <div className="flex items-center gap-2">
@@ -152,13 +164,13 @@ export function ManageBooking({
           Cancel booking
         </Button>
       )}
-      {canReschedule ? null : (
-        // Rentals: no picker panel to carry the timezone footnote, but the
-        // range line above is still in the provider's zone — say so.
+      {!canReschedule || (kind === "rental" && !picking) ? (
+        // Rentals: the range line above is in the provider's zone, and
+        // outside the open panel (which says so itself) nothing else does.
         <p className="text-muted-foreground text-xs">
           Times shown in the provider&rsquo;s timezone ({timeZone}).
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

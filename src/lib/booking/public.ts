@@ -367,6 +367,19 @@ export async function loadOrgRangeContext(
   return { offering, units, rangeUnits, blackouts, bookings };
 }
 
+// The tokenized manage page knows a stay by its token; the resolver hands
+// back the unit but not the offering, which is what the range engine needs.
+export async function getBookingOfferingId(bookingId: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("bookings")
+    .select("rental_offering_id")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.rental_offering_id;
+}
+
 // The confirmation email names the unit the RPC picked; only the booking id
 // comes back from it.
 export async function getBookingUnitName(bookingId: string): Promise<string | null> {
