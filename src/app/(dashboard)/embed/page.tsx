@@ -50,7 +50,7 @@ export default async function EmbedPage() {
   const previewServices = activeServices.length > 0 ? activeServices : [CANNED_PREVIEW_SERVICE];
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
       <PageIntro>
         Add booking to your own site. Style the widget against the live preview, then paste the snippet
         into your page. Logo and accent colour come from Booking page › Branding.

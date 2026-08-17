@@ -5,7 +5,7 @@ import * as React from "react";
 import { toast } from "sonner";
 import { updateWidgetTheme } from "@/features/orgs/actions";
 import { effectiveContrast, type WidgetThemeConfig } from "@/lib/widget-theme";
-import { WidgetTheme } from "@/components/widget-theme";
+import { EmbedPreviewFrame } from "./embed-preview-frame";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import type { PublicService } from "@/lib/booking/public";
 import { Button } from "@/components/ui/button";
@@ -88,7 +88,9 @@ export function WidgetAppearance({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Controls stay a narrow column; the preview gets the room, since
+          judging the widget in context is the point of this page. */}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="wt-theme">Theme</Label>
@@ -232,18 +234,15 @@ export function WidgetAppearance({
             </Button>
           </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm font-medium">Live preview</p>
-          <div className="rounded-lg border p-4">
-            <WidgetTheme config={config} accentColor={accentColor}>
-              <BookingWidget
-                handle="preview"
-                orgTimeZone="UTC"
-                services={previewServices}
-                preview={{ slots: CANNED_SLOTS }}
-              />
-            </WidgetTheme>
-          </div>
+        <div className="lg:sticky lg:top-6 lg:self-start">
+          <EmbedPreviewFrame config={config} accentColor={accentColor}>
+            <BookingWidget
+              handle="preview"
+              orgTimeZone="UTC"
+              services={previewServices}
+              preview={{ slots: CANNED_SLOTS }}
+            />
+          </EmbedPreviewFrame>
         </div>
       </div>
       {handle ? (
