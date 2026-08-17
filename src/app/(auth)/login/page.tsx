@@ -12,7 +12,7 @@ export default async function LoginPage({
     <main className="flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <h1 className="mb-1 text-2xl font-semibold tracking-tight">
-          Sign in to RolloutOS
+          Sign in to Booklo
         </h1>
         <p className="text-muted-foreground mb-6 text-sm">
           Use your email and password, or get a magic link.

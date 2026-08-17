@@ -1,4 +1,4 @@
-# RolloutOS
+# Booklo
 
 B2B SaaS for businesses that run one repeatable process across many similar
 subjects — client sites, stores, vehicles, cases. One **program** holds many

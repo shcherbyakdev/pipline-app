@@ -52,7 +52,7 @@ export default async function EmbedPage({ params }: PageProps<"/embed/[handle]">
       {theme.hidePoweredBy ? null : (
         <p className="mt-4 text-center text-xs opacity-60">
           <a href={env.NEXT_PUBLIC_APP_URL} target="_blank" rel="noopener noreferrer">
-            Powered by RolloutOS
+            Powered by Booklo
           </a>
         </p>
       )}

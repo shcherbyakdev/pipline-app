@@ -1,6 +1,6 @@
 # Features — domain slices
 
-Each folder is one aggregate of the RolloutOS domain. The `app/` router stays
+Each folder is one aggregate of the Booklo domain. The `app/` router stays
 thin (routing + composition); the real logic lives here.
 
 **Per-feature convention** (add files as the feature needs them):
