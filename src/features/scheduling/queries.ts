@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { type StatsBookingRow } from "./stats";
+import { bookingTitle } from "./booking-label";
 
 export type ServiceRow = {
   id: string;
@@ -89,7 +90,11 @@ export async function getAvailabilityAdmin(): Promise<{
 
 export type AdminBooking = {
   id: string;
-  serviceId: string;
+  // Rentals R1 (0037): a booking is EITHER an appointment (serviceId) or a
+  // rental stay (rentalOfferingId + rentalUnitId) — never both.
+  serviceId: string | null;
+  rentalOfferingId: string | null;
+  rentalUnitId: string | null;
   serviceName: string;
   clientName: string;
   clientEmail: string | null;
@@ -101,11 +106,13 @@ export type AdminBooking = {
 };
 
 const BOOKING_COLUMNS =
-  "id, service_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, services(name)";
+  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, services(name), rental_offerings(name), rental_units(name)";
 
 type BookingRow = {
   id: string;
-  service_id: string;
+  service_id: string | null;
+  rental_offering_id: string | null;
+  rental_unit_id: string | null;
   client_name: string;
   client_email: string | null;
   starts_at: string;
@@ -114,13 +121,17 @@ type BookingRow = {
   note: string | null;
   rescheduled_from_id: string | null;
   services: { name: string } | null;
+  rental_offerings: { name: string } | null;
+  rental_units: { name: string } | null;
 };
 
 function toAdminBooking(b: BookingRow): AdminBooking {
   return {
     id: b.id,
     serviceId: b.service_id,
-    serviceName: b.services?.name ?? "—",
+    rentalOfferingId: b.rental_offering_id,
+    rentalUnitId: b.rental_unit_id,
+    serviceName: bookingTitle(b),
     clientName: b.client_name,
     clientEmail: b.client_email,
     startsAt: b.starts_at,
@@ -167,8 +178,10 @@ export async function listConfirmedBookingsBetween(
     .from("bookings")
     .select(BOOKING_COLUMNS)
     .eq("status", "confirmed")
-    .gte("starts_at", fromIso)
+    // Overlap, not containment (Rentals R1): a multi-night stay that began
+    // before the visible week still belongs on it.
     .lt("starts_at", toIso)
+    .gt("ends_at", fromIso)
     .order("starts_at", { ascending: true });
   if (error) throw error;
   return ((data ?? []) as unknown as BookingRow[]).map(toAdminBooking);

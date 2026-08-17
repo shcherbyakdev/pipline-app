@@ -41,10 +41,15 @@ export function CalendarWeek({
 }) {
   const days = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
   const windowsByDay = days.map((d) => effectiveWindows(d, rules, exceptions));
+  // Rentals R1: a multi-day stay has no place on an hour grid — it would
+  // stretch a card over the whole column (or several). Split it out into an
+  // all-day chip row under the day headers; only appointments stay timed.
+  const timed = bookings.filter((b) => b.rentalUnitId === null);
+  const rentals = bookings.filter((b) => b.rentalUnitId !== null);
   // Confirmed bookings may legally sit outside open hours (admin-created)
   // or fall outside them after availability shrinks — widen the range so
   // they're never clipped off-grid (finding: invisible off-hours bookings).
-  const bookingSpans = bookings.map((b) => {
+  const bookingSpans = timed.map((b) => {
     const s = zonedParts(new Date(b.startsAt), timeZone);
     const e = zonedParts(new Date(b.endsAt), timeZone);
     return { startMin: s.minutes, endMin: e.date === s.date ? e.minutes : 24 * 60 };
@@ -157,7 +162,15 @@ export function CalendarWeek({
   };
 
   const byDay = (date: string) =>
-    bookings.filter((b) => zonedParts(new Date(b.startsAt), timeZone).date === date);
+    timed.filter((b) => zonedParts(new Date(b.startsAt), timeZone).date === date);
+
+  // A stay shows a chip on every day it covers, first to last (org zone).
+  const rentalsOn = (date: string) =>
+    rentals.filter(
+      (b) =>
+        zonedParts(new Date(b.startsAt), timeZone).date <= date &&
+        date <= zonedParts(new Date(b.endsAt), timeZone).date,
+    );
 
   return (
     // The grid fills whatever height `main` gives the page (the page root
@@ -208,6 +221,30 @@ export function CalendarWeek({
             <ChevronRight className="size-4" />
           </Link>
         </div>
+        {/* all-day row: rental stays, one chip per covered day. Hidden
+            entirely when the week has none, so appointment-only orgs keep
+            the grid they had. */}
+        {rentals.length === 0 ? null : (
+          <div className={cn("grid shrink-0 gap-x-1.5 pb-2", GRID_COLS)}>
+            <div />
+            {days.map((d) => (
+              <div key={d} className="flex flex-col gap-0.5">
+                {rentalsOn(d).map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setSelected(b)}
+                    className="w-full truncate rounded border bg-card px-1.5 py-0.5 text-left text-[11px]"
+                    style={{ borderLeft: `3px solid ${serviceAccent(b.rentalOfferingId ?? "")}` }}
+                  >
+                    {b.serviceName}
+                  </button>
+                ))}
+              </div>
+            ))}
+            <div />
+          </div>
+        )}
         {/* body row: left rail, 7 day columns, right time axis. The grid
             reads as discrete rounded hour tiles with gutters (reference
             style) — the tiles are visual only; cards, selection, and
@@ -313,7 +350,7 @@ export function CalendarWeek({
                   style={{
                     top: `${pct(s.minutes)}%`,
                     height: `${Math.max(pct(endMin) - pct(s.minutes), 1.5)}%`,
-                    borderLeft: `3px solid ${serviceAccent(b.serviceId)}`,
+                    borderLeft: `3px solid ${serviceAccent(b.serviceId ?? b.rentalOfferingId ?? "")}`,
                   }}
                 >
                   <span className="font-medium">{b.serviceName}</span>

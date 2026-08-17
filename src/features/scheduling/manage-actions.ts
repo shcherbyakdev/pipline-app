@@ -17,6 +17,7 @@ import {
   providerRescheduledEmail,
   bookingLifecycleKey,
   formatWhenLine,
+  whenLineFor,
 } from "./templates";
 import {
   manageSlotsInput,
@@ -102,13 +103,24 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
       client_name: string;
       client_email: string;
       starts_at: string;
+      // 0037: cancel_booking also returns the stay's far end + unit, so the
+      // cancellation email can render a range for rentals.
+      ends_at: string;
+      rental_unit_id: string | null;
     }> | null)?.[0];
     if (!row) return { ok: false, error: NOT_CHANGEABLE };
 
     // Best-effort notifications — the cancellation is already committed.
     try {
       const transport = selectTransport();
-      const whenLine = formatWhenLine(new Date(row.starts_at), row.org_timezone);
+      const whenLine = whenLineFor(
+        {
+          startsAt: new Date(row.starts_at),
+          endsAt: new Date(row.ends_at),
+          isRental: row.rental_unit_id !== null,
+        },
+        row.org_timezone,
+      );
       const msg = bookingCancelledEmail({
         orgName: row.org_name,
         serviceName: row.service_name,

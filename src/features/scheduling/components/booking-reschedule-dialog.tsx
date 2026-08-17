@@ -29,7 +29,9 @@ export function BookingRescheduleDialog({
   booking,
   timeZone,
 }: {
-  booking: AdminBooking;
+  // Appointments only: the slot picker needs a service. Call sites narrow
+  // `serviceId` (rentals are filtered out before this renders).
+  booking: AdminBooking & { serviceId: string };
   timeZone: string;
 }) {
   const [open, setOpen] = React.useState(false);

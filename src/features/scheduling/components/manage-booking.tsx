@@ -24,7 +24,16 @@ const slotLabel = (iso: string) =>
     minute: "2-digit",
   }).format(new Date(iso));
 
-export function ManageBooking({ token, timeZone }: { token: string; timeZone: string }) {
+export function ManageBooking({
+  token,
+  timeZone,
+  canReschedule,
+}: {
+  token: string;
+  timeZone: string;
+  // Rentals R1: false for a rental stay — no slot grid to pick from.
+  canReschedule: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [confirmingCancel, setConfirmingCancel] = React.useState(false);
@@ -76,7 +85,7 @@ export function ManageBooking({ token, timeZone }: { token: string; timeZone: st
 
   return (
     <div className="flex flex-col gap-4">
-      {picking ? (
+      {!canReschedule ? null : picking ? (
         <div className="flex flex-col gap-3 rounded-md border p-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">Pick a new time</p>
@@ -142,6 +151,13 @@ export function ManageBooking({ token, timeZone }: { token: string; timeZone: st
         <Button variant="ghost" onClick={() => setConfirmingCancel(true)} disabled={pending}>
           Cancel booking
         </Button>
+      )}
+      {canReschedule ? null : (
+        // Rentals: no picker panel to carry the timezone footnote, but the
+        // range line above is still in the provider's zone — say so.
+        <p className="text-muted-foreground text-xs">
+          Times shown in the provider&rsquo;s timezone ({timeZone}).
+        </p>
       )}
     </div>
   );

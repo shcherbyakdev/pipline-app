@@ -16,7 +16,9 @@ import {
   bookingManageLinkEmail,
   bookingIdempotencyKey,
   formatWhenLine,
+  whenLineFor,
 } from "./templates";
+import { bookingTitle } from "./booking-label";
 import {
   bookingIdInput,
   adminRescheduleInput,
@@ -58,13 +60,19 @@ export async function cancelBookingAdmin(
       .eq("id", parsed.data.id)
       .eq("org_id", org.id)
       .eq("status", "confirmed")
-      .select("id, client_email, starts_at, services(name)");
+      .select(
+        "id, client_email, starts_at, ends_at, rental_unit_id, services(name), rental_offerings(name), rental_units(name)",
+      );
     if (error) return fail("cancelBookingAdmin", error);
     const row = (data as unknown as Array<{
       id: string;
       client_email: string | null;
       starts_at: string;
+      ends_at: string;
+      rental_unit_id: string | null;
       services: { name: string } | null;
+      rental_offerings: { name: string } | null;
+      rental_units: { name: string } | null;
     }>)?.[0];
     if (!row) return { ok: false, error: "Only a confirmed booking can be cancelled." };
 
@@ -77,8 +85,15 @@ export async function cancelBookingAdmin(
       try {
         const msg = bookingCancelledEmail({
           orgName: org.name,
-          serviceName: row.services?.name ?? "Appointment",
-          whenLine: formatWhenLine(new Date(row.starts_at), org.timezone),
+          serviceName: bookingTitle(row),
+          whenLine: whenLineFor(
+            {
+              startsAt: new Date(row.starts_at),
+              endsAt: new Date(row.ends_at),
+              isRental: row.rental_unit_id !== null,
+            },
+            org.timezone,
+          ),
           cancelledBy: "provider",
         });
         await selectTransport().send({
@@ -153,6 +168,11 @@ export async function rescheduleBookingAdmin(
       .maybeSingle();
     if (readError) return fail("rescheduleBookingAdmin", readError);
     if (!booking) return { ok: false, error: "Only a confirmed booking can be rescheduled." };
+    // Rentals R1: a stay has no service and no slot grid — the appointment
+    // engine below cannot speak for it. (The UI hides the button too.)
+    if (booking.service_id === null) {
+      return { ok: false, error: "Rental stays can't be moved here — cancel and rebook." };
+    }
 
     const starts = new Date(parsed.data.startsAt);
     const localDate = dateInZone(starts, org.timezone);
@@ -233,7 +253,9 @@ export async function resendManageLink(
     const supabase = await createClient();
     const { data: booking, error: readError } = await supabase
       .from("bookings")
-      .select("id, client_email, starts_at, services(name)")
+      .select(
+        "id, client_email, starts_at, ends_at, rental_unit_id, services(name), rental_offerings(name), rental_units(name)",
+      )
       .eq("id", parsed.data.id)
       .eq("org_id", org.id)
       .eq("status", "confirmed")
@@ -253,14 +275,27 @@ export async function resendManageLink(
     });
     if (error) return fail("resendManageLink", error);
 
+    const row = booking as unknown as {
+      starts_at: string;
+      ends_at: string;
+      rental_unit_id: string | null;
+      services: { name: string } | null;
+      rental_offerings: { name: string } | null;
+      rental_units: { name: string } | null;
+    };
     let emailed = true;
     try {
       const msg = bookingManageLinkEmail({
         orgName: org.name,
-        serviceName:
-          (booking as unknown as { services: { name: string } | null }).services?.name ??
-          "Appointment",
-        whenLine: formatWhenLine(new Date(booking.starts_at), org.timezone),
+        serviceName: bookingTitle(row),
+        whenLine: whenLineFor(
+          {
+            startsAt: new Date(row.starts_at),
+            endsAt: new Date(row.ends_at),
+            isRental: row.rental_unit_id !== null,
+          },
+          org.timezone,
+        ),
         manageUrl: buildBookingManageUrl(fresh.token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
       });
