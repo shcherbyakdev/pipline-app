@@ -16,6 +16,7 @@ export function LivePreview({
   controls,
   pageClassName,
   desktopMaxWidth = "max-w-[640px]",
+  minHeight = "min-h-[560px]",
   notices,
   children,
 }: {
@@ -29,6 +30,9 @@ export function LivePreview({
   pageClassName: string;
   /** Tailwind max-width class for the page column at desktop. */
   desktopMaxWidth?: string;
+  /** Tailwind min-height class for the page ground — kept tall even when
+      the content is short, so the frame reads as a page, not a card. */
+  minHeight?: string;
   notices?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -43,7 +47,7 @@ export function LivePreview({
         </div>
       </div>
       <BrowserFrame url={url} dark={dark}>
-        <div className={cn("flex justify-center px-6 py-8 transition-[background-color] sm:px-10", pageClassName)}>
+        <div className={cn("flex justify-center px-6 py-8 transition-[background-color] sm:px-10", minHeight, pageClassName)}>
           <div
             className={cn(
               "flex w-full flex-col gap-6 transition-[max-width] duration-300",
