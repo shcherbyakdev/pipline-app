@@ -3,7 +3,16 @@
 @import "shadcn/tailwind.css";
 
 /* Nested `.light` surfaces opt out of `dark:` variants; nothing under (dashboard) sits inside `.light`. */
-@custom-variant dark (&:is(.dark *):not(.light *));
+/* `.book-auto` (hosted booking page, theme "auto") opts out too, but only
+   while the visitor's system is light — see the media block below. */
+@custom-variant dark {
+  @media not (prefers-color-scheme: light) {
+    &:is(.dark *):not(.light *) { @slot; }
+  }
+  @media (prefers-color-scheme: light) {
+    &:is(.dark *):not(.light *):not(.book-auto *) { @slot; }
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -94,38 +103,43 @@
   --status-blocked: oklch(0.63 0.22 25);
 }
 
+/* App dark theme — shares the landing's Linear-dark palette (see `.marketing`
+   below for the rationale per token): page ground #08090a, raised surfaces
+   #0f1011 / #141516 / #191a1b, cool off-white type, white-alpha hairlines,
+   pale-yellow accent for primary actions. The shell frame + sidebar sit on
+   --card; the content well is --background so cards lift off it. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.70 0.13 185);
-  --primary-foreground: oklch(0.18 0.03 190);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.139 0.003 246); /* #08090a */
+  --foreground: oklch(0.978 0.001 197); /* #f7f8f8 */
+  --card: oklch(0.172 0.003 248); /* #0f1011 */
+  --card-foreground: oklch(0.978 0.001 197);
+  --popover: oklch(0.195 0.003 248); /* #141516 */
+  --popover-foreground: oklch(0.978 0.001 197);
+  --primary: oklch(0.974 0.07 105); /* #FDFAC3 */
+  --primary-foreground: oklch(0.139 0.003 246);
+  --secondary: oklch(0.217 0.002 248); /* #191a1b */
+  --secondary-foreground: oklch(0.978 0.001 197);
+  --muted: oklch(0.195 0.003 248); /* #141516 */
+  --muted-foreground: oklch(0.649 0.015 262); /* #8a8f98 */
+  --accent: oklch(1 0 0 / 5%);
+  --accent-foreground: oklch(0.978 0.001 197);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.649 0.015 262);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: oklch(0.172 0.003 248); /* #0f1011 */
+  --sidebar-foreground: oklch(0.978 0.001 197);
+  --sidebar-primary: oklch(0.974 0.07 105);
+  --sidebar-primary-foreground: oklch(0.139 0.003 246);
+  --sidebar-accent: oklch(1 0 0 / 5%);
+  --sidebar-accent-foreground: oklch(0.978 0.001 197);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.649 0.015 262);
   --status-not-started: oklch(0.65 0 0);
   --status-in-progress: oklch(0.62 0.17 250);
   --status-complete: oklch(0.68 0.17 150);
@@ -158,6 +172,34 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+}
+
+/* Hosted booking page (/book/[handle]) in the org's widget theme "auto":
+   light when the visitor's system is light, else it inherits the app's dark
+   tokens from <html>. Same values as `.light` above — keep the two in sync
+   (a media query can't share a selector list with a plain class). */
+@media (prefers-color-scheme: light) {
+  .book-auto {
+    color-scheme: light;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.62 0.12 187);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+  }
 }
 
 /* Marketing landing palette — Linear-style dark: page ground #08090a, raised
@@ -290,6 +332,15 @@
    lines, and accent still come from the theme. */
 .widget-theme.wt-transparent {
   background: transparent;
+}
+/* Secondary text inside the widget (day labels, timezone notes, "change").
+   `text-muted-foreground` is an admin token — the dark palette's #8a8f98 —
+   which on a light host page is ~3.2:1 (fails AA). Derive it from the
+   widget's own text colour at partial alpha instead, so it tracks the theme
+   AND stays legible over whatever host surface shows through the
+   transparent embed (black@72% on white ≈ 9:1; white@72% on near-black ≈ 8:1). */
+.widget-theme .text-muted-foreground {
+  color: color-mix(in oklab, var(--widget-text) 72%, transparent);
 }
 /* Form fields inside the widget: same dashboard-token bleed as the buttons
    had (dark:bg-input/30 etc.) — keep them transparent so they inherit the

@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { flushSync } from "react-dom";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicService } from "@/lib/booking/public";
 import { getSlots, createBooking } from "@/features/scheduling/public-actions";
@@ -34,7 +36,10 @@ export function BookingWidget({
   const [offering, setOffering] = React.useState<PublicOffering | null>(
     services.length === 0 && offerings.length === 1 ? offerings[0] : null,
   );
-  const [slots, setSlots] = React.useState<string[]>([]);
+  // Preview mode (settings live preview) has its slots up front — seed them
+  // so date navigation never passes through a loading state (which flashed
+  // the list away for a frame).
+  const [slots, setSlots] = React.useState<string[]>(preview?.slots ?? []);
   const [fromDate, setFromDate] = React.useState(todayISO());
   const [slot, setSlot] = React.useState<string | null>(null);
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
@@ -48,17 +53,9 @@ export function BookingWidget({
 
   const loadSlots = React.useCallback(
     (svc: PublicService, from: string) => {
-      // Preview mode (settings live preview): no server action, no network —
-      // just echo the canned slots through the same async-transition shape
-      // the real path uses, so this stays a single code path for the effect
-      // below (and doesn't trip the set-state-in-effect lint rule, which the
-      // real branch already satisfies the same way).
-      if (preview) {
-        startTransition(async () => {
-          setSlots(preview.slots);
-        });
-        return;
-      }
+      // Preview mode: no server action, no network, and the canned slots are
+      // already in state (seeded above) — nothing to load.
+      if (preview) return;
       startTransition(async () => {
         setError(null);
         const result = await getSlots({ handle, serviceId: svc.id, fromDate: from, days: 7 });
@@ -211,7 +208,7 @@ export function BookingWidget({
                   className="text-muted-foreground underline"
                   onClick={() => {
                     setService(null);
-                    setSlots([]);
+                    setSlots(preview?.slots ?? []);
                   }}
                 >
                   change
@@ -221,25 +218,37 @@ export function BookingWidget({
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                size="sm"
+                size="icon-sm"
                 className="wt-surface"
+                aria-label="Previous week"
+                title="Previous week"
                 disabled={fromDate <= todayISO()}
                 onClick={() => setFromDate(shiftDays(fromDate, -7))}
               >
-                ←
+                <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
               </Button>
               <Button
                 variant="outline"
-                size="sm"
+                size="icon-sm"
                 className="wt-surface"
+                aria-label="Next week"
+                title="Next week"
                 onClick={() => setFromDate(shiftDays(fromDate, 7))}
               >
-                →
+                <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
               </Button>
             </div>
           </div>
-          <div ref={slotsRegionRef} tabIndex={-1} aria-live="polite" className="flex flex-col gap-4">
-            {pending ? (
+          {/* While a new week loads, the previous list stays put (dimmed) so
+              the region doesn't collapse and re-expand — no flash. */}
+          <div
+            ref={slotsRegionRef}
+            tabIndex={-1}
+            aria-live="polite"
+            aria-busy={pending || undefined}
+            className={pending ? "flex flex-col gap-4 opacity-60 transition-opacity" : "flex flex-col gap-4"}
+          >
+            {pending && byDay.size === 0 ? (
               <p className="text-muted-foreground text-sm">Loading times…</p>
             ) : byDay.size === 0 ? (
               <p className="text-muted-foreground text-sm">No free times this week — try the next.</p>

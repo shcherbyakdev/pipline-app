@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Menu } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Menu01Icon } from "@hugeicons/core-free-icons";
 import { SidebarBody } from "./sidebar-body";
 import {
   Sheet,
@@ -18,11 +19,11 @@ export function MobileNav({ org, userEmail }: { org: string; userEmail: string }
         aria-label="Open navigation"
         className="text-muted-foreground hover:text-foreground -ml-1 flex size-8 items-center justify-center rounded-md md:hidden"
       >
-        <Menu className="size-5" />
+        <HugeiconsIcon icon={Menu01Icon} size={20} />
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="bg-sidebar text-sidebar-foreground flex w-56 flex-col p-0"
+        className="bg-sidebar text-sidebar-foreground flex w-[260px] flex-col p-0"
       >
         <SheetTitle className="sr-only">Navigation</SheetTitle>
         <SidebarBody org={org} userEmail={userEmail} onNavigate={() => setOpen(false)} />

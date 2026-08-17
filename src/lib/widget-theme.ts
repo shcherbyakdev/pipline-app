@@ -21,6 +21,13 @@ export const WIDGET_THEME_DEFAULTS: WidgetThemeConfig = {
 // globals.css. Used by effectiveContrast() to fill in whichever side of the
 // pair the org didn't override, so a lone override can't slip an unreadable
 // combination past the guard.
+/** Theme choices as shown in the admin (Website embed and Booking page). */
+export const WIDGET_THEME_OPTIONS: ReadonlyArray<{ value: WidgetThemeConfig["theme"]; label: string }> = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "auto", label: "Auto (match visitor's system)" },
+];
+
 export const WIDGET_THEME_DEFAULT_COLORS = {
   light: { background: "#ffffff", text: "#18181b" },
   dark: { background: "#18181b", text: "#fafafa" },
@@ -166,6 +173,26 @@ export function effectiveContrast(config: WidgetThemeConfig): number {
 
   const defaults = WIDGET_THEME_DEFAULT_COLORS[config.theme];
   return contrastRatio(config.background ?? defaults.background, config.text ?? defaults.text);
+}
+
+/**
+ * Contrast the widget will render against the surface it ACTUALLY sits on
+ * when embedded. The embed paints no background unless one is overridden
+ * (see /embed/[handle]), so without an override the text meets the host
+ * page, not the theme's default background — a Light widget on a dark site
+ * is unreadable even though its own light/dark pair is fine. `host` is the
+ * page the widget is dropped into (the preview's toggle; in production the
+ * real site), which is also what theme "auto" resolves to here.
+ */
+export function hostContrast(
+  config: WidgetThemeConfig,
+  host: "light" | "dark",
+  hostBackground: string,
+): number {
+  const resolved = config.theme === "auto" ? host : config.theme;
+  const text = config.text ?? WIDGET_THEME_DEFAULT_COLORS[resolved].text;
+  const surface = config.background ?? hostBackground;
+  return contrastRatio(surface, text);
 }
 
 function getLuminance(hex: string): number {
