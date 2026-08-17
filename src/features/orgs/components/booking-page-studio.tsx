@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { ComputerIcon, SmartPhone01Icon } from "@hugeicons/core-free-icons";
+import Link from "next/link";
+import { ComputerIcon, Moon02Icon, SmartPhone01Icon, Sun01Icon } from "@hugeicons/core-free-icons";
 import type { BrandingSettings } from "@/features/orgs/queries";
 import type { getSchedulingSettings } from "@/features/orgs/queries";
 import type { PublicService } from "@/lib/booking/public";
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 
 type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSettings>>>;
 type Device = "desktop" | "mobile";
+type Scheme = "light" | "dark";
 
 /* Booking page studio: the two forms on the left, and on the right the hosted
    page as a visitor will see it — same composition as /book/[handle]
@@ -37,7 +39,11 @@ export function BookingPageStudio({
   const [accent, setAccent] = React.useState<string | null>(branding.accentColor);
   const [handle, setHandle] = React.useState(scheduling.handle ?? "");
   const [device, setDevice] = React.useState<Device>("desktop");
+  // Only consulted when the widget theme is Auto: the hosted page then follows
+  // the visitor's system, which the preview lets you flip.
+  const [scheme, setScheme] = React.useState<Scheme>("light");
   const theme = React.useMemo(() => parseWidgetTheme(branding.widgetTheme), [branding.widgetTheme]);
+  const resolved: Scheme = theme.theme === "auto" ? scheme : theme.theme;
 
   const host = appUrl.replace(/^https?:\/\//, "");
   const url = `${host}/book/${handle.trim() || "your-handle"}`;
@@ -58,21 +64,34 @@ export function BookingPageStudio({
       <div className="flex flex-col gap-3 lg:sticky lg:top-6 lg:self-start">
         <div className="flex items-center justify-between gap-3">
           <p className="text-muted-foreground text-sm font-medium">Live preview</p>
-          <Segmented
-            label="Device"
+          <div className="flex items-center gap-2">
+            {theme.theme === "auto" ? (
+              <Segmented
+                label="Visitor's system theme"
+                value={scheme}
+                onChange={setScheme}
+                options={[
+                  { value: "light", label: "Light system", icon: Sun01Icon },
+                  { value: "dark", label: "Dark system", icon: Moon02Icon },
+                ]}
+              />
+            ) : null}
+            <Segmented
+              label="Device"
             value={device}
             onChange={setDevice}
             options={[
               { value: "desktop", label: "Desktop", icon: ComputerIcon },
-              { value: "mobile", label: "Mobile", icon: SmartPhone01Icon },
-            ]}
-          />
+                { value: "mobile", label: "Mobile", icon: SmartPhone01Icon },
+              ]}
+            />
+          </div>
         </div>
-        <BrowserFrame url={url} dark>
-          {/* The hosted page renders under the app's dark theme (root layout);
-              scope it here so the preview stays faithful even when the admin
-              is in light mode. */}
-          <div className="dark bg-background text-foreground flex justify-center px-6 py-6">
+        <BrowserFrame url={url} dark={resolved === "dark"}>
+          {/* Same shell as /book/[handle], resolved for the preview: the page
+              takes the widget theme, so scoping `.light`/`.dark` here keeps it
+              faithful whatever the admin's own theme is. */}
+          <div className={cn(resolved, "bg-background text-foreground flex justify-center px-6 py-6")}>
             <div
               className={cn(
                 "flex w-full flex-col gap-6 transition-[max-width] duration-300",
@@ -92,7 +111,15 @@ export function BookingPageStudio({
           </div>
         </BrowserFrame>
         <p className="text-muted-foreground text-xs">
-          Widget colours, corner radius and font are set on Website embed and apply here too.
+          Page theme:{" "}
+          <span className="text-foreground">
+            {theme.theme === "auto" ? "Auto (follows the visitor's system)" : theme.theme === "light" ? "Light" : "Dark"}
+          </span>
+          . Theme, corner radius, font and colour overrides are set on{" "}
+          <Link href="/embed" className="hover:text-foreground underline underline-offset-3">
+            Website embed
+          </Link>{" "}
+          and apply to this page too.
         </p>
       </div>
     </div>

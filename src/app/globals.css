@@ -3,7 +3,16 @@
 @import "shadcn/tailwind.css";
 
 /* Nested `.light` surfaces opt out of `dark:` variants; nothing under (dashboard) sits inside `.light`. */
-@custom-variant dark (&:is(.dark *):not(.light *));
+/* `.book-auto` (hosted booking page, theme "auto") opts out too, but only
+   while the visitor's system is light — see the media block below. */
+@custom-variant dark {
+  @media not (prefers-color-scheme: light) {
+    &:is(.dark *):not(.light *) { @slot; }
+  }
+  @media (prefers-color-scheme: light) {
+    &:is(.dark *):not(.light *):not(.book-auto *) { @slot; }
+  }
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -163,6 +172,34 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+}
+
+/* Hosted booking page (/book/[handle]) in the org's widget theme "auto":
+   light when the visitor's system is light, else it inherits the app's dark
+   tokens from <html>. Same values as `.light` above — keep the two in sync
+   (a media query can't share a selector list with a plain class). */
+@media (prefers-color-scheme: light) {
+  .book-auto {
+    color-scheme: light;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.62 0.12 187);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+  }
 }
 
 /* Marketing landing palette — Linear-style dark: page ground #08090a, raised

@@ -1,7 +1,5 @@
 export default function BookLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-full">
-      <main className="mx-auto w-full max-w-lg p-6">{children}</main>
-    </div>
-  );
+  // The page itself paints the ground (in the org's widget theme); this only
+  // makes it fill the viewport.
+  return <div className="flex min-h-full flex-1 flex-col">{children}</div>;
 }
