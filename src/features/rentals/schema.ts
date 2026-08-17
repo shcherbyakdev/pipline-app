@@ -82,3 +82,34 @@ export const createRentalBookingInput = z.object({
   email: z.email().max(320),
   note: z.string().trim().max(2000).optional(),
 });
+
+// ---------- Admin (R2). Same shapes minus the handle — the org comes from
+// the session — and with the client's email made optional (walk-ins).
+
+// A stay that has begun is immovable (0039 raises 'started'); like
+// DATES_TAKEN this string lives here so the client dialogs can recognise it.
+export const STAY_STARTED = "This stay has already started.";
+
+export const adminRangeAvailabilityInput = z.object({
+  offeringId: z.uuid(),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(93),
+  // The booking being moved: its own occupancy is ignored so the dates it
+  // currently holds read as free.
+  excludeBookingId: z.uuid().nullable().default(null),
+});
+export const rescheduleRentalAdminInput = z.object({
+  id: z.uuid(),
+  unitId: z.uuid().nullable(),
+  startDate: z.string().regex(DATE_RE),
+  endDate: z.string().regex(DATE_RE),
+});
+export const createRentalAdminInput = z.object({
+  offeringId: z.uuid(),
+  unitId: z.uuid().nullable(),
+  startDate: z.string().regex(DATE_RE),
+  endDate: z.string().regex(DATE_RE),
+  name: z.string().trim().min(1).max(200),
+  email: z.email().max(320).optional(),
+  note: z.string().trim().max(2000).optional(),
+});

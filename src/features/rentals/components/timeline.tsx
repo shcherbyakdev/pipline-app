@@ -16,8 +16,9 @@ import { serviceAccent } from "@/features/scheduling/calendar-geometry";
 import { dateInZone } from "@/features/scheduling/slots";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { BookingDetailDialog } from "@/features/scheduling/components/booking-detail-dialog";
+import { NewRentalBookingDialog } from "./new-rental-booking-dialog";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -62,7 +63,6 @@ export function Timeline({
   prevHref,
   nextHref,
   todayHref,
-  onCellClick,
 }: {
   fromDate: string;
   timeZone: string;
@@ -72,8 +72,6 @@ export function Timeline({
   prevHref: string;
   nextHref: string;
   todayHref: string;
-  /* Wired in Task 6 (click an empty cell → new stay). */
-  onCellClick?: (unitId: string, offeringId: string, date: string) => void;
 }) {
   const days = windowDays(fromDate, TIMELINE_DAYS);
 
@@ -92,6 +90,17 @@ export function Timeline({
   const today = now === null ? null : dateInZone(now, timeZone);
 
   const [selected, setSelected] = React.useState<AdminBooking | null>(null);
+  // null = closed. Opening always mounts a fresh dialog, which is how the
+  // prefill (an empty cell's offering/unit/date) reaches its initial state.
+  const [newStay, setNewStay] = React.useState<{
+    offeringId?: string;
+    unitId?: string;
+    date?: string;
+  } | null>(null);
+  const offeringOptions = React.useMemo(
+    () => offerings.map((o) => ({ id: o.id, name: o.name })),
+    [offerings],
+  );
 
   const blackoutsByUnit = React.useMemo(() => {
     const map = new Map<string, TimelineBlackout[]>();
@@ -128,6 +137,11 @@ export function Timeline({
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-end">
+        <Button variant="outline" size="sm" onClick={() => setNewStay({})}>
+          New rental booking
+        </Button>
+      </div>
       <div className="overflow-x-auto">
         <div className={cn("grid min-w-[960px]", GRID_COLS)}>
           {/* header: window arrows in the rail, then one cell per day */}
@@ -211,9 +225,9 @@ export function Timeline({
                     className="border-border/60 relative isolate min-h-9 border-b"
                     style={{ gridColumn: `span ${TIMELINE_DAYS} / span ${TIMELINE_DAYS}` }}
                   >
-                    {/* empty cells: the click target for "new stay here"
-                        (Task 6). Sits under every bar, so only genuinely
-                        free days are clickable. */}
+                    {/* empty cells: the click target for "new stay here".
+                        Sits under every bar, so only genuinely free days
+                        are clickable. */}
                     <div
                       className="absolute inset-0 grid"
                       style={{ gridTemplateColumns: `repeat(${TIMELINE_DAYS}, minmax(0, 1fr))` }}
@@ -222,18 +236,14 @@ export function Timeline({
                         <button
                           key={d}
                           type="button"
-                          // Until Task 6 hands over a handler there is
-                          // nothing to click: disabled keeps the cells out
-                          // of the tab order and off the a11y tree rather
-                          // than offering dozens of no-op buttons.
-                          disabled={onCellClick === undefined}
                           aria-label={`New booking, ${unit.name}, ${cellDateLabel(d)}`}
-                          onClick={() => onCellClick?.(unit.id, offering.id, d)}
+                          onClick={() =>
+                            setNewStay({ offeringId: offering.id, unitId: unit.id, date: d })
+                          }
                           className={cn(
-                            "border-border/40 border-r last:border-r-0",
+                            "border-border/40 border-r last:border-r-0 hover:bg-primary/10",
                             isWeekend(d) && "bg-muted/20",
                             today === d && "bg-primary/5",
-                            onCellClick === undefined ? "cursor-default" : "hover:bg-primary/10",
                           )}
                         />
                       ))}
@@ -331,6 +341,19 @@ export function Timeline({
           if (!o) setSelected(null);
         }}
       />
+      {newStay === null ? null : (
+        <NewRentalBookingDialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setNewStay(null);
+          }}
+          offerings={offeringOptions}
+          initialOfferingId={newStay.offeringId}
+          initialUnitId={newStay.unitId ?? null}
+          initialStartDate={newStay.date}
+          timeZone={timeZone}
+        />
+      )}
     </div>
   );
 }

@@ -54,6 +54,7 @@ export function RangePicker({
   onChange,
   canGoBack,
   timeZone,
+  variant = "widget",
 }: {
   offering: PublicOffering;
   availability: RangeAvailability | null;
@@ -64,9 +65,14 @@ export function RangePicker({
   onChange: (value: RangeValue) => void;
   canGoBack: boolean;
   timeZone: string;
+  // The admin dialogs render the same picker outside the widget's themed
+  // shell, where `wt-surface`/`wt-primary` and `--widget-accent` resolve to
+  // nothing — they take the app's own palette instead.
+  variant?: "widget" | "admin";
 }) {
   const { start, end } = value;
   const picking = start !== null && end === null;
+  const widget = variant === "widget";
 
   function isDisabled(date: string): boolean {
     if (!availability) return true;
@@ -110,7 +116,7 @@ export function RangePicker({
         <Button
           variant="outline"
           size="sm"
-          className="wt-surface"
+          className={widget ? "wt-surface" : undefined}
           disabled={!canGoBack}
           aria-label="Previous month"
           onClick={() => onMonthChange(addMonths(month, -1))}
@@ -120,7 +126,7 @@ export function RangePicker({
         <Button
           variant="outline"
           size="sm"
-          className="wt-surface"
+          className={widget ? "wt-surface" : undefined}
           aria-label="Next month"
           onClick={() => onMonthChange(addMonths(month, 1))}
         >
@@ -164,14 +170,21 @@ export function RangePicker({
                       onClick={() => click(date)}
                       className={cn(
                         "rounded-md border py-1.5 text-center text-sm tabular-nums",
-                        selected ? "wt-primary font-semibold" : "wt-surface",
+                        widget
+                          ? selected
+                            ? "wt-primary font-semibold"
+                            : "wt-surface"
+                          : selected
+                            ? "bg-primary text-primary-foreground border-primary font-semibold"
+                            : "bg-background hover:bg-muted",
                         disabled && "cursor-not-allowed border-transparent opacity-35",
                       )}
                       style={
                         between
                           ? {
-                              backgroundColor:
-                                "color-mix(in oklab, transparent, var(--widget-accent) 18%)",
+                              backgroundColor: `color-mix(in oklab, transparent, ${
+                                widget ? "var(--widget-accent)" : "var(--primary)"
+                              } 18%)`,
                             }
                           : undefined
                       }
