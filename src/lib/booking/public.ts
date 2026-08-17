@@ -199,6 +199,24 @@ export async function listServiceStaffMap(orgId: string): Promise<Record<string,
   return map;
 }
 
+// The one place the "solo orgs never name a staff member" rule lives.
+// Client-facing copy (emails, the manage page, the .ics) must read exactly as
+// it did before the team slice existed unless the org actually has a team, so
+// this collapses to null for a solo org — and, because every caller sits
+// after a committed booking, for a count that blows up too.
+export async function resolveClientStaffName(
+  orgId: string,
+  staffName: string | null | undefined,
+): Promise<string | null> {
+  if (!staffName) return null;
+  try {
+    return (await countActiveStaff(orgId)) > 1 ? staffName : null;
+  } catch (error) {
+    console.error("[scheduling] countActiveStaff:", error);
+    return null;
+  }
+}
+
 export async function countActiveStaff(orgId: string): Promise<number> {
   const admin = createAdminClient();
   const { count, error } = await admin

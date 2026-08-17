@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { countActiveStaff } from "@/lib/booking/public";
 import { selectTransport } from "@/lib/email/transport";
 import {
   staffNewBookingEmail,
@@ -28,8 +29,14 @@ export type StaffNoticeInput = {
 // client confirmation), and staff email is optional — a staff row without one
 // is a silent no-op. The `:staff` suffix keeps this send distinct from the
 // client's under the transport's dedupe key.
+//
+// Solo orgs (<= 1 active staff) get NOTHING from here: the provider notice
+// already covers the same event, and on a solo org the staff email is usually
+// the provider's own address — two copies of one booking. The check lives here
+// rather than at each call site so no caller can forget it.
 export async function sendStaffNotice(input: StaffNoticeInput): Promise<void> {
   try {
+    if ((await countActiveStaff(input.orgId)) <= 1) return;
     const admin = createAdminClient();
     const { data: staff } = await admin
       .from("staff")

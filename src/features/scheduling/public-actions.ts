@@ -5,7 +5,12 @@ import { createAnonServerClient } from "@/lib/supabase/anon-server";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
-import { getBookingOrg, loadOrgSlotContext, countActiveStaff } from "@/lib/booking/public";
+import {
+  getBookingOrg,
+  loadOrgSlotContext,
+  countActiveStaff,
+  resolveClientStaffName,
+} from "@/lib/booking/public";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
@@ -161,16 +166,10 @@ export async function createBooking(
       return { ok: false, error: GENERIC_WRITE_ERROR };
     }
 
-    // Solo orgs never name a staff member: the client copy has to stay
-    // exactly as it was before the team slice existed. Past this point the
-    // booking EXISTS — nothing here may turn into a failed action, so a
-    // count that blows up degrades to the solo (unnamed) copy.
-    const staffName = await countActiveStaff(ctx.org.orgId)
-      .then((n) => (n <= 1 ? null : row.staff_name))
-      .catch((countError) => {
-        console.error("[scheduling] countActiveStaff:", countError);
-        return null;
-      });
+    // Solo orgs never name a staff member (resolveClientStaffName holds that
+    // rule, and degrades to the unnamed copy if the count blows up — past this
+    // point the booking EXISTS and nothing may fail the action).
+    const staffName = await resolveClientStaffName(ctx.org.orgId, row.staff_name);
     const whenLine = formatWhenLine(starts, ctx.org.timeZone);
     const idempotencyKey = bookingIdempotencyKey(row.booking_id);
 
@@ -198,8 +197,8 @@ export async function createBooking(
     }
 
     // Staff-side heads-up (never throws, swallows its own errors). Solo orgs
-    // are unaffected: the backfilled/default staff row carries no email, so
-    // this is a no-op until someone sets one via the staff editor.
+    // are unaffected: sendStaffNotice itself skips orgs with <= 1 active staff,
+    // where the provider notice already says the same thing.
     await sendStaffNotice({
       orgId: ctx.org.orgId,
       staffId: row.staff_id,

@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { clientKeyFrom } from "@/lib/tokens";
 import { resolveBookingToken, buildBookingManageUrl } from "@/lib/tokens/booking";
 import { bookingIcs } from "@/features/scheduling/ics";
+import { resolveClientStaffName } from "@/lib/booking/public";
 
 export async function GET(
   _req: Request,
@@ -22,6 +23,8 @@ export async function GET(
     summary: `${b.serviceName} — ${b.orgName}`,
     description: `Manage: ${manageUrl}`,
     url: manageUrl,
+    // Team: "… with Anna" in the event title; null (unchanged title) on solo.
+    staffName: await resolveClientStaffName(b.orgId, b.staffName),
   });
   return new NextResponse(ics, {
     headers: {

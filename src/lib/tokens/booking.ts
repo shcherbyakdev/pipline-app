@@ -23,6 +23,11 @@ export type ResolveBookingResult =
         serviceId: string | null;
         rentalUnitId: string | null;
         rangeMode: "nights" | "days" | null;
+        // Team: the assigned staff member (null for rental stays, which have
+        // no calendar owner). `staffName` is raw — the solo rule that hides it
+        // lives in resolveClientStaffName, applied per surface.
+        staffId: string | null;
+        staffName: string | null;
       };
     };
 
@@ -52,6 +57,8 @@ export async function resolveBookingToken(
     service_id: string | null;
     rental_unit_id: string | null;
     range_mode: "nights" | "days" | null;
+    staff_id: string | null;
+    staff_name: string | null;
   }> | null)?.[0];
   if (!row) return { status: "not_found" };
   return {
@@ -68,6 +75,8 @@ export async function resolveBookingToken(
       serviceId: row.service_id,
       rentalUnitId: row.rental_unit_id,
       rangeMode: row.range_mode,
+      staffId: row.staff_id ?? null,
+      staffName: row.staff_name ?? null,
     },
   };
 }

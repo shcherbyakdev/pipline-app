@@ -177,4 +177,75 @@ describe("booking flow e2e (action layer)", () => {
     const again = await manageActions.cancelBooking({ token: moved.token });
     expect(again.ok).toBe(false);
   });
+
+  // Team: a client reschedule is staff-LOCKED. The picker must show the
+  // assigned staff member's calendar, not "whoever in the org is free" —
+  // a second staff member with a disjoint schedule makes the difference
+  // visible (an org-wide grid would offer their evening hours).
+  it("manage picker follows the booking's own staff member", async () => {
+    const { data: mine } = await admin.from("staff").select("id").eq("org_id", orgId).single();
+    const dayStaffId = mine!.id;
+    const { data: evening, error: eStaff } = await admin
+      .from("staff")
+      .insert({
+        org_id: orgId,
+        name: "Evening Eve",
+        slug: `eve-${Date.now()}`,
+        color: "#0ea5e9",
+        sort_order: -1,
+      })
+      .select("id")
+      .single();
+    if (eStaff) throw eStaff;
+    const eveningId = evening!.id;
+    const { error: eLink } = await admin
+      .from("service_staff")
+      .insert({ org_id: orgId, service_id: serviceId, staff_id: eveningId });
+    if (eLink) throw eLink;
+    const { error: eRules } = await admin.from("availability_rules").insert(
+      [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+        org_id: orgId,
+        staff_id: eveningId,
+        weekday,
+        start_time: "19:00",
+        end_time: "22:00",
+      })),
+    );
+    if (eRules) throw eRules;
+
+    const slotsRes = await publicActions.getSlots({
+      handle: HANDLE,
+      serviceId,
+      fromDate,
+      days: 7,
+      staffId: dayStaffId,
+    });
+    expect(slotsRes.ok).toBe(true);
+    if (!slotsRes.ok) return;
+    const created = await publicActions.createBooking({
+      handle: HANDLE,
+      serviceId,
+      startsAt: slotsRes.slots[0],
+      name: "Locked Client",
+      email: `locked-${Date.now()}@example.com`,
+      staffId: dayStaffId,
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const manageSlots = await manageActions.getManageSlots({
+      token: created.token,
+      fromDate,
+      days: 7,
+    });
+    expect(manageSlots.ok).toBe(true);
+    if (!manageSlots.ok) return;
+    expect(manageSlots.slots.length).toBeGreaterThan(0);
+    // Org timezone is UTC here, so the hour reads straight off the instant:
+    // every offered time sits inside the day staff's 09:00–17:00 window and
+    // none inside the evening staff's 19:00–22:00 one.
+    const hours = manageSlots.slots.map((s) => new Date(s).getUTCHours());
+    expect(Math.min(...hours)).toBeGreaterThanOrEqual(9);
+    expect(Math.max(...hours)).toBeLessThan(17);
+  });
 });

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { clientKeyFrom } from "@/lib/tokens";
 import { resolveBookingToken } from "@/lib/tokens/booking";
+import { resolveClientStaffName } from "@/lib/booking/public";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { ManageBooking } from "@/features/scheduling/components/manage-booking";
 
@@ -24,6 +25,9 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
   }
   if (result.status !== "ok") notFound();
   const b = result.booking;
+  // Team: name the staff member the booking belongs to. Solo orgs collapse to
+  // null, so the card reads exactly as it did before the team slice.
+  const staffName = await resolveClientStaffName(b.orgId, b.staffName);
   // eslint-disable-next-line react-hooks/purity
   const isInFuture = b.startsAt.getTime() > Date.now();
   return (
@@ -31,6 +35,7 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
       <h1 className="text-lg font-semibold">{b.orgName}</h1>
       <div className="flex flex-col gap-1 rounded-md border p-4 text-sm">
         <p className="font-medium">{b.serviceName}</p>
+        {staffName ? <p className="text-muted-foreground">with {staffName}</p> : null}
         <p>
           {whenLineFor(
             { startsAt: b.startsAt, endsAt: b.endsAt, isRental: b.rentalUnitId !== null },
