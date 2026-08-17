@@ -180,6 +180,25 @@ export async function getPublicStaffBySlug(orgId: string, slug: string): Promise
   return { id: data.id, name: data.name, slug: data.slug, color: data.color };
 }
 
+// serviceId → eligible staff ids, in one query. The booking pages need the
+// whole map up front (the widget filters the staff step per service without a
+// round trip); listPublicStaff(orgId, serviceId) stays the one-service path.
+// Ids are returned unfiltered by staff.active — the widget intersects them
+// with the active `staff` list it also receives.
+export async function listServiceStaffMap(orgId: string): Promise<Record<string, string[]>> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("service_staff")
+    .select("service_id, staff_id")
+    .eq("org_id", orgId);
+  if (error) throw error;
+  const map: Record<string, string[]> = {};
+  for (const row of data ?? []) {
+    (map[row.service_id] ??= []).push(row.staff_id);
+  }
+  return map;
+}
+
 export async function countActiveStaff(orgId: string): Promise<number> {
   const admin = createAdminClient();
   const { count, error } = await admin

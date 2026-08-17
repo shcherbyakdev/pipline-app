@@ -29,6 +29,20 @@ export function slugifyStaffName(name: string): string {
   return s;
 }
 
+// Avatar monogram for the booking widget's staff step: first letters of the
+// first two words, uppercased ("Anna Müller" → "AM"). Array.from, not [0], so
+// an astral first character isn't split into half a surrogate pair.
+export function initials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => Array.from(w)[0] ?? "")
+    .join("")
+    .toUpperCase();
+}
+
 // First unused colour, else cycles by how many are already taken.
 export function nextStaffColor(used: string[]): string {
   return STAFF_COLORS.find((c) => !used.includes(c)) ?? STAFF_COLORS[used.length % STAFF_COLORS.length];

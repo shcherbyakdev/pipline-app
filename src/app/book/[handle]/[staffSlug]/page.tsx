@@ -1,63 +1,65 @@
 import { notFound } from "next/navigation";
 import {
   getBookingOrg,
-  listPublicOfferings,
+  getPublicStaffBySlug,
   listPublicServices,
-  listPublicStaff,
   listServiceStaffMap,
 } from "@/lib/booking/public";
+import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
-import { RENTALS_ENABLED } from "@/lib/flags";
 import { BrandedHeader } from "@/components/branded-header";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { bookShellClass } from "@/lib/book-shell";
 
-export default async function BookPage({
+// One team member's own booking link. Same shell as /book/[handle]; the
+// differences are all narrowing: only this person's services, no staff step,
+// no "Anyone available". Rentals are org-level (no staff at all), so this
+// page never lists offerings.
+export default async function StaffBookPage({
   params,
-}: PageProps<"/book/[handle]">) {
-  const { handle } = await params;
+}: PageProps<"/book/[handle]/[staffSlug]">) {
+  const { handle, staffSlug } = await params;
   if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(handle)) notFound();
+  // Shape-checked before any DB call, exactly like the handle above.
+  if (!STAFF_SLUG_RE.test(staffSlug)) notFound();
   const org = await getBookingOrg(handle);
   if (!org) notFound();
-  const [services, offerings, branding, staff, serviceStaffIds] = await Promise.all([
+  // Inactive staff resolve to null here — a deactivated person's link 404s
+  // rather than silently redirecting to the whole-team page.
+  const person = await getPublicStaffBySlug(org.orgId, staffSlug);
+  if (!person) notFound();
+  const [allServices, serviceStaffIds, branding] = await Promise.all([
     listPublicServices(org.orgId),
-    // Rentals parked for the MVP (lib/flags.ts): the widget lists services only.
-    RENTALS_ENABLED ? listPublicOfferings(org.orgId) : Promise.resolve([]),
-    getOrgBranding(org.orgId),
-    listPublicStaff(org.orgId),
     listServiceStaffMap(org.orgId),
+    getOrgBranding(org.orgId),
   ]);
-  if (services.length === 0 && offerings.length === 0) notFound();
+  const services = allServices.filter((s) => serviceStaffIds[s.id]?.includes(person.id));
+  // Nothing they can be booked for is not a page worth rendering.
+  if (services.length === 0) notFound();
   const theme = parseWidgetTheme(branding.themeRaw);
   return (
-    // The whole page takes the org's widget theme (light / dark / auto), so
-    // the transparent widget always sits on a matching surface — the same
-    // guarantee the embed can't give on a third-party site.
     <div className={bookShellClass(theme.theme)}>
       <main className="mx-auto flex w-full max-w-lg flex-col gap-6 p-6">
         <BrandedHeader
           orgName={org.orgName}
           accentColor={branding.accentColor}
           logoUrl={branding.logoUrl}
+          subtitle={`Booking with ${person.name}`}
         />
         <WidgetTheme
           config={theme}
           accentColor={branding.accentColor}
-          // Same rule as /embed: the widget paints no background of its own
-          // unless the org explicitly set one — the page shell already
-          // provides the surface (a near-match theme bg here reads as a
-          // visible seam around the widget).
           transparent={!theme.background}
         >
           <BookingWidget
             handle={handle}
             orgTimeZone={org.timeZone}
             services={services}
-            offerings={offerings}
-            staff={staff}
+            staff={[person]}
             serviceStaffIds={serviceStaffIds}
+            lockedStaff={person}
           />
         </WidgetTheme>
       </main>
