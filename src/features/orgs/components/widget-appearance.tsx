@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
 import { updateWidgetTheme } from "@/features/orgs/actions";
@@ -259,7 +260,11 @@ export function WidgetAppearance({
         </div>
       ) : (
         <p className="text-muted-foreground text-sm">
-          Publish a booking handle in Scheduling settings to get your embed code.
+          Set a booking page address on{" "}
+          <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
+            Booking page
+          </Link>{" "}
+          to get your embed code.
         </p>
       )}
     </div>

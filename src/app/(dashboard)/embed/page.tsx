@@ -5,6 +5,7 @@ import { listServices } from "@/features/scheduling/queries";
 import type { PublicService } from "@/lib/booking/public";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { env } from "@/env";
+import { PageIntro } from "@/components/shell/page-header";
 
 // Only used when the org has zero active services — keeps the preview
 // widget functional so appearance can still be judged before any service
@@ -22,9 +23,9 @@ const CANNED_PREVIEW_SERVICE: PublicService = {
   bookingWindowDays: 30,
 };
 
-/* Settings › Widget & embed: how the embeddable widget looks on the org's own
-   site, with a live preview and the snippet to paste. */
-export default async function WidgetSettingsPage() {
+/* Website embed: the second booking channel — the widget on the org's own
+   site. Style it against a live preview, then copy the snippet. */
+export default async function EmbedPage() {
   const [settings, schedulingSettings, services] = await Promise.all([
     getBrandingSettings(),
     getSchedulingSettings(),
@@ -49,14 +50,11 @@ export default async function WidgetSettingsPage() {
   const previewServices = activeServices.length > 0 ? activeServices : [CANNED_PREVIEW_SERVICE];
 
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <h2 className="text-muted-foreground text-sm font-medium">Widget appearance</h2>
-        <p className="text-muted-foreground text-sm">
-          Styles the widget you embed on your own site. The hosted booking page uses the branding on the
-          General tab.
-        </p>
-      </div>
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
+      <PageIntro>
+        Add booking to your own site. Style the widget against the live preview, then paste the snippet
+        into your page. Logo and accent colour come from Booking page › Branding.
+      </PageIntro>
       <WidgetAppearance
         initial={parseWidgetTheme(settings.widgetTheme)}
         accentColor={settings.accentColor}

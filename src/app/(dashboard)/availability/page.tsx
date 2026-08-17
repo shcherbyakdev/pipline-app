@@ -15,8 +15,8 @@ export default async function AvailabilityPage() {
       <div>
         <p className="text-muted-foreground text-sm">
           Times are shown in {timezone} ·{" "}
-          <Link href="/settings" className="underline underline-offset-3 hover:text-foreground">
-            Change in Settings
+          <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
+            Change on Booking page
           </Link>
         </p>
       </div>

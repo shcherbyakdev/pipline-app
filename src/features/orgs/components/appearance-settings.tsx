@@ -13,7 +13,7 @@ const OPTIONS = [
   { value: "dark", label: "Dark", icon: Moon02Icon },
 ] as const;
 
-/* Interface theme picker (Settings → Appearance). Lives here rather than in
+/* Interface theme picker (Settings). Lives here rather than in
    the shell so the sidebar stays Linear-quiet. The server renders with no
    theme known, and React does not repair attribute/className mismatches on
    hydration — so the selected state is applied only after mount (via a state
