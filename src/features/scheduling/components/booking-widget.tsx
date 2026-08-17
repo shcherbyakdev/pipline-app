@@ -74,6 +74,7 @@ export function BookingWidget({
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
   const slotsRegionRef = React.useRef<HTMLDivElement>(null);
+  const staffRegionRef = React.useRef<HTMLDivElement>(null);
 
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
@@ -189,9 +190,10 @@ export function BookingWidget({
                           setService(s);
                           setStaffChoice(next);
                         });
-                        // Only jump to the times region when it is what comes
-                        // next; the staff step owns the focus otherwise.
-                        if (next) slotsRegionRef.current?.focus();
+                        // Focus whichever region actually came next, so the
+                        // service list's disappearance never drops focus to
+                        // <body>.
+                        (next ? slotsRegionRef : staffRegionRef).current?.focus();
                       }}
                       className="wt-surface flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
                     >
@@ -249,7 +251,15 @@ export function BookingWidget({
           ) : null}
         </div>
       ) : staffChoice === null ? (
-        <div className="flex flex-col gap-3">
+        // tabIndex=-1 so the handlers that reveal this step can move focus
+        // here; aria-live announces it for the same reason the slots region
+        // does — the step replaces the list the user just acted on.
+        <div
+          ref={staffRegionRef}
+          tabIndex={-1}
+          aria-live="polite"
+          className="flex flex-col gap-3"
+        >
           <p className="text-sm font-medium">
             {service.name}{" "}
             {services.length + offerings.length > 1 ? (
@@ -272,7 +282,10 @@ export function BookingWidget({
               <button
                 type="button"
                 className="wt-surface flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-sm"
-                onClick={() => setStaffChoice("any")}
+                onClick={() => {
+                  flushSync(() => setStaffChoice("any"));
+                  slotsRegionRef.current?.focus();
+                }}
               >
                 <span className="font-medium">Anyone available</span>
                 <span className="text-muted-foreground ml-auto text-xs">most times</span>
@@ -283,7 +296,10 @@ export function BookingWidget({
                 <button
                   type="button"
                   className="wt-surface flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-sm"
-                  onClick={() => setStaffChoice(s.id)}
+                  onClick={() => {
+                    flushSync(() => setStaffChoice(s.id));
+                    slotsRegionRef.current?.focus();
+                  }}
                 >
                   <span
                     aria-hidden
@@ -317,8 +333,11 @@ export function BookingWidget({
                   type="button"
                   className="text-muted-foreground underline"
                   onClick={() => {
-                    setStaffChoice(null);
-                    setSlots(preview?.slots ?? []);
+                    flushSync(() => {
+                      setStaffChoice(null);
+                      setSlots(preview?.slots ?? []);
+                    });
+                    staffRegionRef.current?.focus();
                   }}
                 >
                   change
@@ -409,7 +428,10 @@ export function BookingWidget({
         <form action={submit} className="flex flex-col gap-4">
           <p className="text-sm">
             <span className="font-medium">{service.name}</span>
-            {withLabel ? ` with ${withLabel}` : ""} — {dayFmt.format(new Date(slot))},{" "}
+            {/* Same split as the header: "with Anna" only when the person is
+                fixed by the link — "with Anyone" would be nonsense. */}
+            {withLabel ? `${lockedStaff ? " with " : " · "}${withLabel}` : ""} —{" "}
+            {dayFmt.format(new Date(slot))},{" "}
             {timeFmt.format(new Date(slot))}{" "}
             <button type="button" className="text-muted-foreground underline" onClick={() => setSlot(null)}>
               change

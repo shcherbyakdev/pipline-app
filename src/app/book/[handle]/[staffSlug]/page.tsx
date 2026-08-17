@@ -58,7 +58,10 @@ export default async function StaffBookPage({
             orgTimeZone={org.timeZone}
             services={services}
             staff={[person]}
-            serviceStaffIds={serviceStaffIds}
+            // No serviceStaffIds: the map is only needed to filter a staff
+            // step this page never shows, and shipping the org's whole
+            // service→staff graph to the browser for nothing is worse than
+            // letting eligibleFor fall back to `staff` (= [person]).
             lockedStaff={person}
           />
         </WidgetTheme>

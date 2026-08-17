@@ -16,13 +16,26 @@ import {
   formatWhenLine,
 } from "./templates";
 import { getSlotsInput, createBookingInput, GENERIC_WRITE_ERROR } from "./schema";
+import { SLOT_TAKEN, slotLostMessage } from "./booking-errors";
 
-const SLOT_TAKEN = "That time was just taken — please pick another.";
-const STAFF_UNAVAILABLE = "That team member can't take this time — pick another.";
 
 async function limited(): Promise<boolean> {
   const key = clientKeyFrom(await headers());
   return !publicBookingLimiter.allow(key);
+}
+
+// slotLostMessage (booking-errors.ts) holds the rule; this only feeds it the
+// count. "any" short-circuits so the common case costs no query, and a count
+// that blows up degrades to the solo wording — never to copy about a team the
+// org may not have.
+async function slotLostError(orgId: string, staffId: string): Promise<string> {
+  if (staffId === "any") return SLOT_TAKEN;
+  try {
+    return slotLostMessage(staffId, await countActiveStaff(orgId));
+  } catch (error) {
+    console.error("[scheduling] countActiveStaff:", error);
+    return SLOT_TAKEN;
+  }
 }
 
 // Shared by both actions: everything the engine needs for one org+service,
@@ -108,7 +121,7 @@ export async function createBooking(
     if (!slots.some((s) => s.startsAt.getTime() === starts.getTime())) {
       return {
         ok: false,
-        error: staffId === "any" ? SLOT_TAKEN : STAFF_UNAVAILABLE,
+        error: await slotLostError(ctx.org.orgId, staffId),
         slotTaken: true,
       };
     }
@@ -127,9 +140,11 @@ export async function createBooking(
     });
     if (error) {
       // The RPC raises a bare `staff_unavailable` when a NAMED staff member
-      // cannot take the slot; `taken`/23P01 is the classic race.
+      // cannot take the slot; `taken`/23P01 is the classic race. Solo orgs
+      // reach the first branch too (they send a named id), so the wording is
+      // decided by the same count as the pre-flight check above.
       if (error.message?.includes("staff_unavailable")) {
-        return { ok: false, error: STAFF_UNAVAILABLE, slotTaken: true };
+        return { ok: false, error: await slotLostError(ctx.org.orgId, staffId), slotTaken: true };
       }
       if (error.message?.includes("taken") || error.code === "23P01") {
         return { ok: false, error: SLOT_TAKEN, slotTaken: true };
