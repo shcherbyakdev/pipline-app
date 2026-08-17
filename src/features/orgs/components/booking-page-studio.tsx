@@ -112,14 +112,17 @@ export function BookingPageStudio({
           pageClassName={cn(resolved, "bg-background text-foreground")}
           desktopMaxWidth="max-w-lg"
           controls={
-            theme.theme === "auto" ? (
-              <SchemeToggle
-                label="Visitor's system theme"
-                value={scheme}
-                onChange={setScheme}
-                optionLabels={{ light: "Light system", dark: "Dark system" }}
-              />
-            ) : null
+            // Always visible so the page's scheme is legible at a glance;
+            // only switchable when the theme is Auto (a fixed theme cannot
+            // change with the visitor's system).
+            <SchemeToggle
+              label="Visitor's system theme"
+              value={resolved}
+              onChange={setScheme}
+              optionLabels={{ light: "Light system", dark: "Dark system" }}
+              disabled={theme.theme !== "auto"}
+              disabledReason={`Theme is fixed to ${theme.theme === "light" ? "Light" : "Dark"} — every visitor sees this. Set Theme to Auto to preview both.`}
+            />
           }
           notices={
             overrideRatio !== null && overrideRatio < 4.5 ? (
