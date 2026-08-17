@@ -137,3 +137,30 @@ describe("validateStay", () => {
     expect(validateStay(off, a, "2027-05-30", "2027-06-02")).toEqual({ ok: false, reason: "unavailable" });
   });
 });
+
+describe("R2 engine additions", () => {
+  it("startTime: today rolls to tomorrow once check-in time has passed (org-local)", () => {
+    // NOW = 2027-05-01T08:00Z = 10:00 Berlin. startTime 09:00 → passed → notBefore 05-02; 11:00 → not passed → 05-01
+    const a = computeRangeAvailability(input({ offering: { ...input().offering, startTime: "09:00" } }));
+    expect(a.notBefore).toBe("2027-05-02");
+    expect(a.dates["2027-05-01"]).toEqual({ free: 0, unitIds: [] });
+    const b = computeRangeAvailability(input({ offering: { ...input().offering, startTime: "11:00" } }));
+    expect(b.notBefore).toBe("2027-05-01");
+    // minNoticeDays already later wins
+    const c = computeRangeAvailability(input({ offering: { ...input().offering, startTime: "09:00", minNoticeDays: 3 } }));
+    expect(c.notBefore).toBe("2027-05-04");
+  });
+  it("ignoreLimits: notBefore=today, notAfter=today+730, startTime ignored", () => {
+    const a = computeRangeAvailability(input({ ignoreLimits: true, offering: { ...input().offering, startTime: "09:00", minNoticeDays: 5, bookingWindowDays: 10 } }));
+    expect(a.notBefore).toBe("2027-05-01");
+    expect(a.notAfter).toBe("2029-04-30");
+    expect(a.dates["2027-05-01"].free).toBe(2);
+  });
+  it("excludeBookingId: the moved booking does not occupy its unit", () => {
+    const bk = { id: "b1", unitId: "u1", startsAt: new Date("2027-05-10T13:00:00Z"), endsAt: new Date("2027-05-13T09:00:00Z") };
+    const with_ = computeRangeAvailability(input({ bookings: [bk] }));
+    expect(with_.dates["2027-05-11"].unitIds).toEqual(["u2"]);
+    const without = computeRangeAvailability(input({ bookings: [bk], excludeBookingId: "b1" }));
+    expect(without.dates["2027-05-11"].unitIds).toEqual(["u1", "u2"]);
+  });
+});

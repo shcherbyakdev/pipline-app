@@ -3,11 +3,12 @@
 import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
 
 export type RangeMode = "nights" | "days";
-export type RangeOffering = { rangeMode: RangeMode; minStay: number; maxStay: number | null; turnoverDays: number; minNoticeDays: number; bookingWindowDays: number };
+export type RangeOffering = { rangeMode: RangeMode; minStay: number; maxStay: number | null; turnoverDays: number; minNoticeDays: number; bookingWindowDays: number; startTime?: string /* "HH:MM" org-local; when today's org-local time ≥ startTime, notBefore rolls to tomorrow */ };
 export type RangeUnit = { id: string; sortOrder: number };
 export type RangeBlackout = { unitId: string; startDate: string; endDate: string };
-export type RangeBooking = { unitId: string; startsAt: Date; endsAt: Date };
-export type RangeInput = { offering: RangeOffering; units: RangeUnit[]; blackouts: RangeBlackout[]; bookings: RangeBooking[]; timeZone: string; now: Date; fromDate: string; days: number };
+export type RangeBooking = { id?: string; unitId: string; startsAt: Date; endsAt: Date };
+export type RangeInput = { offering: RangeOffering; units: RangeUnit[]; blackouts: RangeBlackout[]; bookings: RangeBooking[]; timeZone: string; now: Date; fromDate: string; days: number; ignoreLimits?: boolean /* admin: notBefore=today, notAfter=today+730 */; excludeBookingId?: string /* skip this booking's occupancy (the one being moved) */ };
+export const ADMIN_WINDOW_DAYS = 730;
 export type DayAvailability = { free: number; unitIds: string[] };
 export type RangeAvailability = { dates: Record<string, DayAvailability>; notBefore: string; notAfter: string };
 export type StayValidation = { ok: true; unitIds: string[] } | { ok: false; reason: "order" | "min_stay" | "max_stay" | "window" | "unavailable" };
@@ -28,11 +29,30 @@ function* eachDate(start: string, end: string): Generator<string> {
   for (let d = start; d <= end; d = addDaysISO(d, 1)) yield d;
 }
 
+function wallClockHHMM(instant: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(instant);
+  const get = (t: string) => parts.find((p) => p.type === t)!.value;
+  return `${get("hour")}:${get("minute")}`;
+}
+
 export function computeRangeAvailability(input: RangeInput): RangeAvailability {
   const { offering, units, blackouts, bookings, timeZone, now, fromDate, days } = input;
   const today = dateInZone(now, timeZone);
-  const notBefore = addDaysISO(today, offering.minNoticeDays);
-  const notAfter = addDaysISO(today, offering.bookingWindowDays);
+  let notBefore: string;
+  let notAfter: string;
+  if (input.ignoreLimits) {
+    notBefore = today;
+    notAfter = addDaysISO(today, ADMIN_WINDOW_DAYS);
+  } else {
+    notBefore = addDaysISO(today, offering.minNoticeDays);
+    // Once today's check-in time has passed the RPC will refuse a same-day
+    // stay (v_starts <= now()); stop offering it.
+    if (offering.startTime && wallClockHHMM(now, timeZone) >= offering.startTime) {
+      const tomorrow = addDaysISO(today, 1);
+      if (tomorrow > notBefore) notBefore = tomorrow;
+    }
+    notAfter = addDaysISO(today, offering.bookingWindowDays);
+  }
   const occupied = new Map<string, Set<string>>(units.map((u) => [u.id, new Set()]));
   // Only dates inside [fromDate, windowEnd] are ever read below, so every
   // marked range is clamped to it first. Without the clamp an open-ended
@@ -49,6 +69,7 @@ export function computeRangeAvailability(input: RangeInput): RangeAvailability {
   };
   for (const b of blackouts) mark(b.unitId, b.startDate, b.endDate);
   for (const b of bookings) {
+    if (input.excludeBookingId && b.id === input.excludeBookingId) continue;
     const occ = occupiedDates(offering.rangeMode, dateInZone(b.startsAt, timeZone), dateInZone(b.endsAt, timeZone));
     mark(b.unitId, occ.start, addDaysISO(occ.end, offering.turnoverDays));
   }

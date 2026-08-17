@@ -178,7 +178,7 @@ export type PublicOffering = {
   bookingWindowDays: number;
   unitSelection: "auto" | "client_picks";
 };
-export type PublicUnit = { id: string; name: string; description: string | null };
+export type PublicUnit = { id: string; name: string; description: string | null; active: boolean };
 
 const PUBLIC_OFFERING_COLUMNS =
   "id, name, description, price_label, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection";
@@ -273,7 +273,7 @@ export async function listPublicUnits(offeringId: string): Promise<PublicUnit[]>
     .order("sort_order")
     .order("created_at");
   if (error) throw error;
-  return (data ?? []).map((u) => ({ id: u.id, name: u.name, description: u.description }));
+  return (data ?? []).map((u) => ({ id: u.id, name: u.name, description: u.description, active: true }));
 }
 
 // Everything the range engine needs for one org+offering. The window is
@@ -284,6 +284,15 @@ export async function loadOrgRangeContext(
   offeringId: string,
   fromDate: string,
   days: number,
+  opts?: {
+    // Not applied here — the engine (computeRangeAvailability) skips this
+    // booking's own occupancy; the loader still returns the row (with id).
+    excludeBookingId?: string;
+    // Admin timeline/move: a booking may sit on a unit that's since gone
+    // inactive and still needs to resolve. The engine only auto-assigns
+    // from `rangeUnits`, which stays active-only even here.
+    includeInactiveUnits?: boolean;
+  },
 ): Promise<{
   offering: PublicOffering;
   units: PublicUnit[];
@@ -294,12 +303,13 @@ export async function loadOrgRangeContext(
   const offering = await getPublicOfferingById(orgId, offeringId);
   if (!offering) return null;
   const admin = createAdminClient();
-  const { data: unitRows, error: unitsError } = await admin
+  let unitsQuery = admin
     .from("rental_units")
-    .select("id, name, description, sort_order")
+    .select("id, name, description, sort_order, active")
     .eq("offering_id", offeringId)
-    .eq("org_id", orgId)
-    .eq("active", true)
+    .eq("org_id", orgId);
+  if (!opts?.includeInactiveUnits) unitsQuery = unitsQuery.eq("active", true);
+  const { data: unitRows, error: unitsError } = await unitsQuery
     .order("sort_order")
     .order("created_at");
   if (unitsError) throw unitsError;
@@ -307,13 +317,16 @@ export async function loadOrgRangeContext(
     id: u.id,
     name: u.name,
     description: u.description,
+    active: u.active,
   }));
-  const rangeUnits: RangeUnit[] = (unitRows ?? []).map((u, i) => ({
-    id: u.id,
-    // sort_order ties are broken by created_at above; the engine sorts on a
-    // single number, so hand it the resolved position.
-    sortOrder: i,
-  }));
+  const rangeUnits: RangeUnit[] = (unitRows ?? [])
+    .filter((u) => u.active)
+    .map((u, i) => ({
+      id: u.id,
+      // sort_order ties are broken by created_at above; the engine sorts on a
+      // single number, so hand it the resolved position.
+      sortOrder: i,
+    }));
   if (units.length === 0) {
     return { offering, units, rangeUnits, blackouts: [], bookings: [] };
   }
@@ -331,7 +344,7 @@ export async function loadOrgRangeContext(
       .lte("start_date", windowEnd),
     admin
       .from("bookings")
-      .select("rental_unit_id, starts_at, ends_at")
+      .select("id, rental_unit_id, starts_at, ends_at")
       .in("rental_unit_id", unitIds)
       .eq("status", "confirmed")
       .gte("ends_at", `${windowStart}T00:00:00Z`)
@@ -346,6 +359,7 @@ export async function loadOrgRangeContext(
     endDate: b.end_date,
   }));
   const bookings: RangeBooking[] = (bookingRes.data ?? []).map((b) => ({
+    id: b.id,
     unitId: b.rental_unit_id,
     startsAt: new Date(b.starts_at),
     endsAt: new Date(b.ends_at),
