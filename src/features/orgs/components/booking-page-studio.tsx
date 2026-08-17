@@ -111,7 +111,7 @@ export function BookingPageStudio({
         </SettingsCard>
       </div>
 
-      <div className="lg:sticky lg:top-6 lg:self-start">
+      <div className="lg:sticky lg:top-[calc(52px+1.5rem)] lg:self-start">
         <LivePreview
           url={url}
           dark={resolved === "dark"}

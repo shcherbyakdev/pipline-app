@@ -10,7 +10,7 @@ export function TopBar({ org, userEmail }: { org: string; userEmail: string }) {
   const pathname = usePathname();
   const title = titleForPath(pathname);
   return (
-    <header className="flex h-[52px] shrink-0 items-center gap-2 border-b px-4 md:px-6">
+    <header className="bg-background/85 sticky top-0 z-30 flex h-[52px] shrink-0 items-center gap-2 border-b px-4 backdrop-blur md:px-6">
       <MobileNav org={org} userEmail={userEmail} />
       <h1 className="text-[13px] font-medium">{title}</h1>
     </header>

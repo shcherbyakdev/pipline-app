@@ -236,7 +236,7 @@ export function WidgetAppearance({
             </Label>
           </div>
         </SettingsCard>
-        <div className="lg:sticky lg:top-6 lg:self-start">
+        <div className="lg:sticky lg:top-[calc(52px+1.5rem)] lg:self-start">
           <EmbedPreviewFrame config={config} accentColor={accentColor}>
             <BookingWidget
               handle="preview"
