@@ -6,6 +6,7 @@ import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createOffering, updateOffering } from "@/features/rentals/actions";
 import type { OfferingRow } from "@/features/rentals/queries";
+import { hhmm } from "@/features/rentals/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,13 +18,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-
-// Postgres `time` comes back as "HH:MM:SS"; <input type="time" step={900}>
-// rejects a seconds-bearing value, and TIME_RE only accepts "HH:MM" on the
-// way back in — so normalise on both read paths.
-export function hhmm(time: string): string {
-  return time.slice(0, 5);
-}
 
 // create-booking-dialog.tsx's native-<select> idiom.
 const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";

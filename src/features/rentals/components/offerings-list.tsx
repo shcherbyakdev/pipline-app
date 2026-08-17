@@ -8,7 +8,8 @@ import type { OfferingRow } from "@/features/rentals/queries";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { OfferingDialog, hhmm } from "./offering-dialog";
+import { hhmm } from "@/features/rentals/format";
+import { OfferingDialog } from "./offering-dialog";
 
 function Row({ offering }: { offering: OfferingRow }) {
   const [pending, startTransition] = React.useTransition();
