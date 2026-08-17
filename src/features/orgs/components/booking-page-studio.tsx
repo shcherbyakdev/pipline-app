@@ -2,16 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ComputerIcon, Moon02Icon, SmartPhone01Icon, Sun01Icon } from "@hugeicons/core-free-icons";
+import { toast } from "sonner";
 import type { BrandingSettings } from "@/features/orgs/queries";
 import type { getSchedulingSettings } from "@/features/orgs/queries";
 import type { PublicService } from "@/lib/booking/public";
-import { toast } from "sonner";
-import { parseWidgetTheme, WIDGET_THEME_OPTIONS, type WidgetThemeConfig } from "@/lib/widget-theme";
+import { parseWidgetTheme, WIDGET_THEME_OPTIONS, effectiveContrast, type WidgetThemeConfig } from "@/lib/widget-theme";
 import { updateWidgetTheme } from "@/features/orgs/actions";
-import { Label } from "@/components/ui/label";
 import { BrandedHeader } from "@/components/branded-header";
-import { BrowserFrame, Segmented } from "@/components/browser-frame";
+import { LivePreview, PreviewNotice, SchemeToggle, type Scheme } from "@/components/live-preview";
+import { SettingsCard, SettingsRow } from "@/components/settings-row";
 import { WidgetTheme } from "@/components/widget-theme";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
@@ -20,14 +19,12 @@ import { BrandingForm } from "./branding-form";
 import { cn } from "@/lib/utils";
 
 type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSettings>>>;
-type Device = "desktop" | "mobile";
-type Scheme = "light" | "dark";
 
-/* Booking page studio: the two forms on the left, and on the right the hosted
-   page as a visitor will see it — same composition as /book/[handle]
-   (dark ground, max-w-lg column, BrandedHeader, then the widget, transparent
-   unless the org set a background). Accent and handle track the forms live,
-   before saving; the widget's own theme comes from Website embed. */
+/* Booking page studio: compact settings cards on the left, and on the right
+   the hosted page as a visitor will see it — same composition as
+   /book/[handle] (page in the widget theme, max-w-lg column, BrandedHeader,
+   then the widget, transparent unless the org set a background). Accent and
+   handle track the forms live, before saving. */
 export function BookingPageStudio({
   branding,
   scheduling,
@@ -41,7 +38,6 @@ export function BookingPageStudio({
 }) {
   const [accent, setAccent] = React.useState<string | null>(branding.accentColor);
   const [handle, setHandle] = React.useState(scheduling.handle ?? "");
-  const [device, setDevice] = React.useState<Device>("desktop");
   // Only consulted when the widget theme is Auto: the hosted page then follows
   // the visitor's system, which the preview lets you flip.
   const [scheme, setScheme] = React.useState<Scheme>("light");
@@ -67,25 +63,32 @@ export function BookingPageStudio({
 
   const host = appUrl.replace(/^https?:\/\//, "");
   const url = `${host}/book/${handle.trim() || "your-handle"}`;
+  // Colour overrides (set on Website embed) apply here too — surface a weak
+  // pair the same way the embed page does, so it isn't missed on this page.
+  const overrideRatio = theme.background || theme.text ? effectiveContrast(theme) : null;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
-      <div className="flex flex-col gap-8">
-        <section className="flex flex-col gap-3">
-          <h2 className="text-muted-foreground text-sm font-medium">Address &amp; timezone</h2>
-          <SchedulingSettingsForm settings={scheduling} onHandleInput={setHandle} />
-        </section>
-        <section className="flex flex-col gap-3">
-          <h2 className="text-muted-foreground text-sm font-medium">Branding</h2>
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+      <div className="flex flex-col gap-4">
+        <SchedulingSettingsForm settings={scheduling} appUrl={appUrl} onHandleInput={setHandle} />
+        <SettingsCard title="Look" description="Saved as you go.">
           <BrandingForm settings={branding} onPreviewAccent={setAccent} />
-        </section>
-        <section className="flex flex-col gap-3">
-          <h2 className="text-muted-foreground text-sm font-medium">Appearance</h2>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="bp-theme">Theme</Label>
+          <SettingsRow
+            label="Theme"
+            htmlFor="bp-theme"
+            hint={
+              <>
+                Shared with the website embed; corner radius, font and colour overrides are on{" "}
+                <Link href="/embed" className="hover:text-foreground underline underline-offset-3">
+                  Website embed
+                </Link>
+                .
+              </>
+            }
+          >
             <select
               id="bp-theme"
-              className="border-input h-9 max-w-72 rounded-md border bg-transparent px-3 text-sm"
+              className="border-input h-8 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
               value={theme.theme}
               disabled={savingTheme}
               onChange={(e) => changeTheme(e.target.value as WidgetThemeConfig["theme"])}
@@ -96,71 +99,56 @@ export function BookingPageStudio({
                 </option>
               ))}
             </select>
-            <p className="text-muted-foreground text-xs">
-              Saved on change. Shared with the website embed — corner radius, font and colour overrides are on{" "}
-              <Link href="/embed" className="hover:text-foreground underline underline-offset-3">
-                Website embed
-              </Link>
-              .
-            </p>
-          </div>
-        </section>
+          </SettingsRow>
+        </SettingsCard>
       </div>
 
-      <div className="flex flex-col gap-3 lg:sticky lg:top-6 lg:self-start">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-muted-foreground text-sm font-medium">Live preview</p>
-          <div className="flex items-center gap-2">
-            {theme.theme === "auto" ? (
-              <Segmented
+      <div className="lg:sticky lg:top-6 lg:self-start">
+        <LivePreview
+          url={url}
+          dark={resolved === "dark"}
+          // Same shell as /book/[handle], resolved for the preview: scoping
+          // .light/.dark here keeps it faithful whatever the admin's theme is.
+          pageClassName={cn(resolved, "bg-background text-foreground")}
+          desktopMaxWidth="max-w-lg"
+          controls={
+            theme.theme === "auto" ? (
+              <SchemeToggle
                 label="Visitor's system theme"
                 value={scheme}
                 onChange={setScheme}
-                options={[
-                  { value: "light", label: "Light system", icon: Sun01Icon },
-                  { value: "dark", label: "Dark system", icon: Moon02Icon },
-                ]}
+                optionLabels={{ light: "Light system", dark: "Dark system" }}
               />
-            ) : null}
-            <Segmented
-              label="Device"
-            value={device}
-            onChange={setDevice}
-            options={[
-              { value: "desktop", label: "Desktop", icon: ComputerIcon },
-                { value: "mobile", label: "Mobile", icon: SmartPhone01Icon },
-              ]}
+            ) : null
+          }
+          notices={
+            overrideRatio !== null && overrideRatio < 4.5 ? (
+              <PreviewNotice tone={overrideRatio < 3 ? "error" : "warn"}>
+                The widget&apos;s colour overrides give {overrideRatio.toFixed(1)}:1 contrast
+                {overrideRatio < 3 ? " — unreadable" : " — below 4.5:1 (AA body text)"}. Adjust them on{" "}
+                <Link href="/embed" className="underline underline-offset-3">
+                  Website embed
+                </Link>
+                .
+              </PreviewNotice>
+            ) : theme.theme === "auto" ? (
+              <PreviewNotice tone="info">
+                Auto follows each visitor&apos;s system setting; the page always matches, so both variants
+                are readable — use the toggle above to see each.
+              </PreviewNotice>
+            ) : null
+          }
+        >
+          <BrandedHeader orgName={branding.orgName} accentColor={accent} logoUrl={branding.logoUrl} />
+          <WidgetTheme config={theme} accentColor={accent} transparent={!theme.background}>
+            <BookingWidget
+              handle="preview"
+              orgTimeZone={scheduling.timezone}
+              services={previewServices}
+              preview={{ slots: PREVIEW_SLOTS }}
             />
-          </div>
-        </div>
-        <BrowserFrame url={url} dark={resolved === "dark"}>
-          {/* Same shell as /book/[handle], resolved for the preview: the page
-              takes the widget theme, so scoping `.light`/`.dark` here keeps it
-              faithful whatever the admin's own theme is. */}
-          <div className={cn(resolved, "bg-background text-foreground flex justify-center px-6 py-6")}>
-            <div
-              className={cn(
-                "flex w-full flex-col gap-6 transition-[max-width] duration-300",
-                device === "mobile" ? "max-w-[360px]" : "max-w-lg",
-              )}
-            >
-              <BrandedHeader orgName={branding.orgName} accentColor={accent} logoUrl={branding.logoUrl} />
-              <WidgetTheme config={theme} accentColor={accent} transparent={!theme.background}>
-                <BookingWidget
-                  handle="preview"
-                  orgTimeZone={scheduling.timezone}
-                  services={previewServices}
-                  preview={{ slots: PREVIEW_SLOTS }}
-                />
-              </WidgetTheme>
-            </div>
-          </div>
-        </BrowserFrame>
-        {theme.theme === "auto" ? (
-          <p className="text-muted-foreground text-xs">
-            Auto follows each visitor&apos;s system setting — use the toggle above to check both.
-          </p>
-        ) : null}
+          </WidgetTheme>
+        </LivePreview>
       </div>
     </div>
   );

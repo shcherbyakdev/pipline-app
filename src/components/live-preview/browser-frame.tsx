@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
 /* Mock browser window for in-context previews (Booking page, Website embed).
@@ -49,44 +48,6 @@ export function BrowserFrame({
         <span className="w-12" aria-hidden="true" />
       </div>
       {children}
-    </div>
-  );
-}
-
-/* Small icon-only radiogroup used for the preview switches. */
-export function Segmented<T extends string>({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: T;
-  onChange: (v: T) => void;
-  options: ReadonlyArray<{ value: T; label: string; icon: React.ComponentProps<typeof HugeiconsIcon>["icon"] }>;
-}) {
-  return (
-    <div role="radiogroup" aria-label={label} className="bg-secondary flex h-7 items-center gap-0.5 rounded-md border p-0.5">
-      {options.map((o) => {
-        const selected = o.value === value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            aria-label={o.label}
-            title={o.label}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              "flex h-6 items-center justify-center rounded-[4px] px-1.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-              selected ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <HugeiconsIcon icon={o.icon} size={14} />
-          </button>
-        );
-      })}
     </div>
   );
 }
