@@ -165,6 +165,10 @@ export function bookingLifecycleKey(
     | "reminder"
     | "provider-cancelled"
     | "provider-rescheduled"
+    // Team (multi-staff): an admin move that hands a booking to someone else
+    // frees the OLD member's calendar — their notice needs a key of its own
+    // so a later real cancellation isn't deduped against it.
+    | "staff-handed-over"
     | `manage-${string}`,
 ): string {
   return `booking/${bookingId}/${kind}`;

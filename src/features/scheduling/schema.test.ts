@@ -11,6 +11,8 @@ import {
   manageTokenInput,
   rescheduleBookingInput,
   adminSlotsInput,
+  adminCreateBookingInput,
+  adminRescheduleInput,
   OVERLAP_ERROR,
   updateRuleInput,
   copyDayHoursInput,
@@ -183,8 +185,45 @@ describe("lifecycle inputs", () => {
   });
   it("adminSlotsInput caps the scan window", () => {
     expect(
-      adminSlotsInput.safeParse({ serviceId: crypto.randomUUID(), fromDate: "2027-04-05", days: 60 }).success,
+      adminSlotsInput.safeParse({
+        serviceId: crypto.randomUUID(),
+        staffId: crypto.randomUUID(),
+        fromDate: "2027-04-05",
+        days: 60,
+      }).success,
     ).toBe(false);
+  });
+  // Team (multi-staff): the admin slot grid is one person's grid — there is no
+  // "any" here (the walk-in dialog always names someone), so the id is
+  // required rather than defaulted like the public `staffChoice`.
+  it("adminSlotsInput requires a staff id", () => {
+    const base = { serviceId: crypto.randomUUID(), fromDate: "2027-04-05", days: 7 };
+    expect(adminSlotsInput.safeParse(base).success).toBe(false);
+    expect(adminSlotsInput.safeParse({ ...base, staffId: "nobody" }).success).toBe(false);
+    expect(adminSlotsInput.safeParse({ ...base, staffId: crypto.randomUUID() }).success).toBe(true);
+  });
+  it("adminCreateBookingInput requires a staff id", () => {
+    const base = {
+      serviceId: crypto.randomUUID(),
+      startsAt: "2027-04-05T10:00:00Z",
+      name: "Walk-in",
+    };
+    expect(adminCreateBookingInput.safeParse(base).success).toBe(false);
+    expect(
+      adminCreateBookingInput.safeParse({ ...base, staffId: crypto.randomUUID() }).success,
+    ).toBe(true);
+  });
+  // …and on a move it is OPTIONAL: omitted means "same person, new time",
+  // which is the only thing this dialog could do before the team slice.
+  it("adminRescheduleInput takes an optional staff id", () => {
+    const base = { id: crypto.randomUUID(), startsAt: "2027-04-05T10:00:00Z" };
+    const kept = adminRescheduleInput.safeParse(base);
+    expect(kept.success).toBe(true);
+    if (kept.success) expect(kept.data.staffId).toBeUndefined();
+    expect(adminRescheduleInput.safeParse({ ...base, staffId: crypto.randomUUID() }).success).toBe(
+      true,
+    );
+    expect(adminRescheduleInput.safeParse({ ...base, staffId: "someone" }).success).toBe(false);
   });
 });
 

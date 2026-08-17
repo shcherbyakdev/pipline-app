@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { generateAccessToken } from "@/lib/tokens";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
-import { loadOrgSlotContext } from "@/lib/booking/public";
+import { loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
+import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { computeSlots, dateInZone } from "./slots";
@@ -29,6 +30,10 @@ import {
 
 const SLOT_TAKEN = "That time was just taken — please pick another.";
 const OVERLAP = "That time overlaps an existing booking.";
+// Team (multi-staff): the RPCs raise a bare `staff_unavailable` when the named
+// person is inactive or isn't linked to the service. The dialogs only offer
+// eligible people, so this is the "someone changed it in another tab" case.
+const STAFF_UNAVAILABLE = "That team member doesn't offer this service.";
 
 function fail(context: string, error: unknown): { ok: false; error: string } {
   console.error(`[scheduling] ${context}:`, error);
@@ -124,14 +129,16 @@ export async function getAdminSlots(
   try {
     const org = await currentOrg();
     if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    // One person's grid: the walk-in and move dialogs both name whose slots
+    // they are showing, so `perStaff` holds exactly that one member.
     const ctx = await loadOrgSlotContext(
       org.id,
       parsed.data.serviceId,
       parsed.data.fromDate,
       parsed.data.days,
-      { staffId: "any" },
+      { staffId: parsed.data.staffId },
     );
-    if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!ctx) return { ok: false, error: STAFF_UNAVAILABLE };
     const slots = computeSlots({
       service: ctx.service,
       rules: ctx.perStaff[0].rules,
@@ -151,7 +158,7 @@ export async function getAdminSlots(
 export async function rescheduleBookingAdmin(
   input: unknown,
 ): Promise<
-  | { ok: true; emailed: boolean; noEmail?: boolean }
+  | { ok: true; emailed: boolean; noEmail?: boolean; movedToStaffName?: string | null }
   | { ok: false; error: string; slotTaken?: boolean }
 > {
   const parsed = adminRescheduleInput.safeParse(input);
@@ -162,7 +169,7 @@ export async function rescheduleBookingAdmin(
     const supabase = await createClient();
     const { data: booking, error: readError } = await supabase
       .from("bookings")
-      .select("id, service_id, client_email, starts_at")
+      .select("id, service_id, staff_id, client_name, client_email, starts_at")
       .eq("id", parsed.data.id)
       .eq("org_id", org.id)
       .eq("status", "confirmed")
@@ -174,14 +181,22 @@ export async function rescheduleBookingAdmin(
     if (booking.service_id === null) {
       return { ok: false, error: "Rental stays can't be moved here — cancel and rebook." };
     }
+    // Team (multi-staff): a move may also hand the booking to someone else.
+    // Everything below — the engine re-check included — is about the TARGET
+    // person; `staffId` omitted keeps the current one (the RPC's own rule).
+    const targetStaffId = parsed.data.staffId ?? booking.staff_id;
+    if (!targetStaffId) return fail("rescheduleBookingAdmin", "booking has no staff");
 
     const starts = new Date(parsed.data.startsAt);
     const localDate = dateInZone(starts, org.timezone);
     const ctx = await loadOrgSlotContext(org.id, booking.service_id, localDate, 1, {
-      staffId: "any",
+      staffId: targetStaffId,
       excludeBookingId: booking.id,
     });
-    if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
+    // Null here means the target is not an active member offering this
+    // service (deactivated, or the service unlinked, since the dialog
+    // rendered) — the same condition the RPC would raise on.
+    if (!ctx) return { ok: false, error: STAFF_UNAVAILABLE };
     const slots = computeSlots({
       service: ctx.service,
       rules: ctx.perStaff[0].rules,
@@ -197,48 +212,102 @@ export async function rescheduleBookingAdmin(
     }
 
     const fresh = generateAccessToken();
-    const { error } = await supabase.rpc("reschedule_booking_admin", {
+    const { data, error } = await supabase.rpc("reschedule_booking_admin", {
       p_booking_id: booking.id,
       p_starts_at: starts.toISOString(),
       p_token_hash: fresh.tokenHash,
+      // null = "keep the current person" (0041's own default).
+      p_staff_id: parsed.data.staffId ?? null,
     });
     if (error) {
       if (error.code === "23P01") return { ok: false, error: SLOT_TAKEN, slotTaken: true };
+      if (error.message?.includes("staff_unavailable")) {
+        return { ok: false, error: STAFF_UNAVAILABLE };
+      }
       return fail("rescheduleBookingAdmin", error);
     }
-
+    // Past this line the move is COMMITTED — nothing below may turn into a
+    // failed action, so the whole tail sits in its own catch rather than
+    // falling through to the outer one (which returns `ok: false`).
     let emailed = false;
     let noEmail = false;
-    if (!booking.client_email) {
-      noEmail = true;
-    } else {
-      emailed = true;
-      try {
-        const msg = bookingRescheduledEmail({
-          orgName: org.name,
-          serviceName: ctx.service.name,
-          oldWhenLine: formatWhenLine(new Date(booking.starts_at), org.timezone),
-          whenLine: formatWhenLine(starts, org.timezone),
-          manageUrl: buildBookingManageUrl(fresh.token),
-          icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
-        });
-        await selectTransport().send({
-          to: booking.client_email,
-          subject: msg.subject,
-          html: msg.html,
-          text: msg.text,
-          // Keyed on the OLD id: the new id isn't returned with the email
-          // fields, and old-id + kind is just as collision-free.
-          idempotencyKey: bookingLifecycleKey(booking.id, "rescheduled"),
-        });
-      } catch (mailError) {
-        console.error("[scheduling] admin reschedule email failed:", mailError);
-        emailed = false;
+    let movedToStaffName: string | null = null;
+    try {
+      // reschedule_booking_admin RETURNS TABLE: one row of
+      // (new_booking_id, staff_changed, staff_name).
+      const row = (data as unknown as
+        | { new_booking_id: string; staff_changed: boolean; staff_name: string }[]
+        | null)?.[0];
+      if (!row) console.error("[scheduling] rescheduleBookingAdmin: rpc returned no row");
+      movedToStaffName = row?.staff_changed ? row.staff_name : null;
+      const oldWhenLine = formatWhenLine(new Date(booking.starts_at), org.timezone);
+      const whenLine = formatWhenLine(starts, org.timezone);
+      // Keyed on the OLD id: the new id is not always in hand here, and
+      // old-id + kind is just as collision-free.
+      const idempotencyKey = bookingLifecycleKey(booking.id, "rescheduled");
+
+      if (!booking.client_email) {
+        noEmail = true;
+      } else {
+        emailed = true;
+        try {
+          const msg = bookingRescheduledEmail({
+            orgName: org.name,
+            serviceName: ctx.service.name,
+            oldWhenLine,
+            whenLine,
+            manageUrl: buildBookingManageUrl(fresh.token),
+            icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+            // Solo orgs never name a staff member — resolveClientStaffName is
+            // the one place that rule lives (and swallows its own errors).
+            staffName: await resolveClientStaffName(org.id, row?.staff_name ?? null),
+          });
+          await selectTransport().send({
+            to: booking.client_email,
+            subject: msg.subject,
+            html: msg.html,
+            text: msg.text,
+            idempotencyKey,
+          });
+        } catch (mailError) {
+          console.error("[scheduling] admin reschedule email failed:", mailError);
+          emailed = false;
+        }
       }
+
+      // Team: the calendar that changed belongs to the target member. Outside
+      // the try above so a failed client mail cannot skip it; the notice
+      // swallows its own errors and no-ops on a solo org.
+      await sendStaffNotice({
+        orgId: org.id,
+        staffId: targetStaffId,
+        kind: "rescheduled",
+        serviceName: ctx.service.name,
+        clientName: booking.client_name,
+        whenLine,
+        oldWhenLine,
+        idempotencyKey,
+      });
+      // A hand-off frees the old member's calendar — for them it reads as a
+      // cancellation. Its own key: a later real cancellation of this booking
+      // must not be deduped against this one.
+      if (row?.staff_changed && booking.staff_id) {
+        await sendStaffNotice({
+          orgId: org.id,
+          staffId: booking.staff_id,
+          kind: "cancelled",
+          serviceName: ctx.service.name,
+          clientName: booking.client_name,
+          whenLine: oldWhenLine,
+          idempotencyKey: bookingLifecycleKey(booking.id, "staff-handed-over"),
+        });
+      }
+    } catch (postError) {
+      console.error("[scheduling] admin reschedule follow-up failed:", postError);
     }
 
     revalidatePath("/bookings");
-    return { ok: true, emailed, noEmail };
+    return { ok: true, emailed, noEmail, movedToStaffName };
   } catch (error) {
     return fail("rescheduleBookingAdmin", error);
   }
@@ -339,36 +408,68 @@ export async function createBookingAdmin(
       p_note: parsed.data.note ?? null,
       p_token_hash: tokenHash,
       p_duration_min: parsed.data.durationMin ?? null,
+      // Team (multi-staff): required by the RPC — a walk-in belongs to
+      // someone. Solo orgs send their one member's id.
+      p_staff_id: parsed.data.staffId,
     });
     if (error) {
       if (error.code === "23P01") return { ok: false, error: OVERLAP, overlap: true };
+      if (error.message?.includes("staff_unavailable")) {
+        return { ok: false, error: STAFF_UNAVAILABLE };
+      }
       return fail("createBookingAdmin", error);
     }
-
+    // Past this line the booking EXISTS — nothing below may fail the action,
+    // so the whole tail sits in its own catch rather than falling through to
+    // the outer one (which returns `ok: false`).
     let emailed: "sent" | "failed" | "none" = "none";
-    if (parsed.data.email) {
+    try {
+      const whenLine = formatWhenLine(new Date(parsed.data.startsAt), org.timezone);
+      const idempotencyKey = bookingIdempotencyKey(bookingId as string);
       const { data: svc } = await supabase
         .from("services").select("name").eq("id", parsed.data.serviceId).maybeSingle();
-      try {
-        const msg = bookingConfirmationEmail({
-          orgName: org.name,
-          serviceName: svc?.name ?? "Appointment",
-          whenLine: formatWhenLine(new Date(parsed.data.startsAt), org.timezone),
-          manageUrl: buildBookingManageUrl(token),
-          icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
-        });
-        await selectTransport().send({
-          to: parsed.data.email,
-          subject: msg.subject,
-          html: msg.html,
-          text: msg.text,
-          idempotencyKey: bookingIdempotencyKey(bookingId as string),
-        });
-        emailed = "sent";
-      } catch (mailError) {
-        console.error("[scheduling] admin create email failed:", mailError);
-        emailed = "failed";
+      const serviceName = svc?.name ?? "Appointment";
+
+      if (parsed.data.email) {
+        const { data: person } = await supabase
+          .from("staff").select("name").eq("id", parsed.data.staffId).maybeSingle();
+        try {
+          const msg = bookingConfirmationEmail({
+            orgName: org.name,
+            serviceName,
+            whenLine,
+            manageUrl: buildBookingManageUrl(token),
+            icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+            // Solo orgs never name a staff member (resolveClientStaffName).
+            staffName: await resolveClientStaffName(org.id, person?.name ?? null),
+          });
+          await selectTransport().send({
+            to: parsed.data.email,
+            subject: msg.subject,
+            html: msg.html,
+            text: msg.text,
+            idempotencyKey,
+          });
+          emailed = "sent";
+        } catch (mailError) {
+          console.error("[scheduling] admin create email failed:", mailError);
+          emailed = "failed";
+        }
       }
+
+      // Staff-side heads-up: a walk-in the provider booked still lands on
+      // someone else's calendar. Swallows its own errors; no-ops on a solo org.
+      await sendStaffNotice({
+        orgId: org.id,
+        staffId: parsed.data.staffId,
+        kind: "new",
+        serviceName,
+        clientName: parsed.data.name,
+        whenLine,
+        idempotencyKey,
+      });
+    } catch (postError) {
+      console.error("[scheduling] admin create follow-up failed:", postError);
     }
 
     revalidatePath("/bookings");

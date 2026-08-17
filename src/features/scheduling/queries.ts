@@ -114,10 +114,16 @@ export type AdminBooking = {
   status: string;
   note: string | null;
   rescheduledFromId: string | null;
+  // Team (multi-staff): who the appointment belongs to. Null for rental
+  // stays, which carry no staff (0041) — and the name/colour ride along so
+  // the calendar can paint a card without a second query.
+  staffId: string | null;
+  staffName: string | null;
+  staffColor: string | null;
 };
 
 export const BOOKING_COLUMNS =
-  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, services(name), rental_offerings(name), rental_units(name)";
+  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, services(name), rental_offerings(name), rental_units(name), staff(name, color)";
 
 export type BookingRow = {
   id: string;
@@ -131,6 +137,8 @@ export type BookingRow = {
   status: string;
   note: string | null;
   rescheduled_from_id: string | null;
+  staff_id: string | null;
+  staff: { name: string; color: string } | null;
   services: { name: string } | null;
   rental_offerings: { name: string } | null;
   rental_units: { name: string } | null;
@@ -150,6 +158,9 @@ export function toAdminBooking(b: BookingRow): AdminBooking {
     status: b.status,
     note: b.note,
     rescheduledFromId: b.rescheduled_from_id,
+    staffId: b.staff_id,
+    staffName: b.staff?.name ?? null,
+    staffColor: b.staff?.color ?? null,
   };
 }
 
@@ -182,20 +193,28 @@ export async function listBookings(): Promise<{ upcoming: AdminBooking[]; past: 
   };
 }
 
+/** `staffIds` narrows the week to those people's appointments. Rental stays
+    have no staff (staff_id is null), so they drop out whenever the filter is
+    on — the calendar's staff filter is an appointment lens, and callers that
+    want the whole week (the default "All" view) simply omit the argument. */
 export async function listConfirmedBookingsBetween(
   fromIso: string,
   toIso: string,
+  staffIds?: string[],
 ): Promise<AdminBooking[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const base = supabase
     .from("bookings")
     .select(BOOKING_COLUMNS)
     .eq("status", "confirmed")
     // Overlap, not containment (Rentals R1): a multi-night stay that began
     // before the visible week still belongs on it.
     .lt("starts_at", toIso)
-    .gt("ends_at", fromIso)
-    .order("starts_at", { ascending: true });
+    .gt("ends_at", fromIso);
+  const { data, error } = await (staffIds ? base.in("staff_id", staffIds) : base).order(
+    "starts_at",
+    { ascending: true },
+  );
   if (error) throw error;
   return ((data ?? []) as unknown as BookingRow[]).map(toAdminBooking);
 }

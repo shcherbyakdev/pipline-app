@@ -140,16 +140,24 @@ export const bookingIdInput = z.object({ id: z.uuid() });
 export const adminRescheduleInput = z.object({
   id: z.uuid(),
   startsAt: z.iso.datetime(),
+  // Team (multi-staff): a move may also hand the booking to someone else.
+  // Optional — omitted means "same person, new time", which is all this
+  // dialog could do before the team slice (the RPC's own default).
+  staffId: z.uuid().optional(),
 });
 
+// Admin-side slots and walk-ins always name a person: unlike the public
+// surface there is no "any" here — the dialogs pick a default and send it.
 export const adminSlotsInput = z.object({
   serviceId: z.uuid(),
+  staffId: z.uuid(),
   fromDate: z.string().regex(DATE_RE),
   days: z.number().int().min(1).max(31),
 });
 
 export const adminCreateBookingInput = z.object({
   serviceId: z.uuid(),
+  staffId: z.uuid(),
   startsAt: z.iso.datetime(),
   // Per-booking span (calendar dialog's editable end time); omitted =
   // service duration, matching the RPC default.

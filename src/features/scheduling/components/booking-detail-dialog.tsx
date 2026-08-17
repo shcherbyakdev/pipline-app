@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
+import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { MoveRentalDialog } from "@/features/rentals/components/move-rental-dialog";
 import { Button } from "@/components/ui/button";
@@ -13,10 +14,13 @@ import {
 } from "@/components/ui/dialog";
 
 export function BookingDetailDialog({
-  booking, timeZone, open, onOpenChange,
+  booking, timeZone, staff, open, onOpenChange,
 }: {
   booking: AdminBooking | null;
   timeZone: string;
+  // Team (multi-staff): the org's ACTIVE members, with their service links.
+  // One of them (the solo case) ⇒ nothing here names anybody.
+  staff: StaffRow[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -69,6 +73,16 @@ export function BookingDetailDialog({
             )}
           </DialogDescription>
         </DialogHeader>
+        {staff.length > 1 && booking.staffName ? (
+          <p className="flex items-center gap-1.5 text-sm">
+            <span
+              aria-hidden
+              style={{ background: booking.staffColor ?? "var(--muted-foreground)" }}
+              className="size-2 shrink-0 rounded-full"
+            />
+            {booking.staffName}
+          </p>
+        ) : null}
         <p className="text-sm text-muted-foreground">
           {booking.clientName}
           {booking.clientEmail ? ` · ${booking.clientEmail}` : " · no email on file"}
@@ -81,6 +95,7 @@ export function BookingDetailDialog({
             <BookingRescheduleDialog
               booking={{ ...booking, serviceId: booking.serviceId }}
               timeZone={timeZone}
+              eligibleStaff={staff.filter((s) => s.serviceIds.includes(booking.serviceId!))}
             />
           )}
           {booking.rentalUnitId === null ? null : (
