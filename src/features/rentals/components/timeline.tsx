@@ -120,7 +120,7 @@ export function Timeline({
       <div className="overflow-x-auto">
         <div className={cn("grid min-w-[960px]", GRID_COLS)}>
           {/* header: window arrows in the rail, then one cell per day */}
-          <div className="bg-background sticky left-0 z-20 flex items-center gap-1 pr-3 pb-2">
+          <div className="bg-background sticky left-0 z-30 flex items-center gap-1 pr-3 pb-2">
             <Link
               href={prevHref}
               aria-label="Previous 7 days"
@@ -186,7 +186,9 @@ export function Timeline({
               </div>
               {offering.units.map((unit) => (
                 <React.Fragment key={unit.id}>
-                  <div className="bg-background border-border/60 sticky left-0 z-10 flex min-h-9 items-center gap-2 border-b pr-3">
+                  {/* z-20 + the track's `isolate`: the name rail must paint
+                      over any bar that scrolls under it horizontally. */}
+                  <div className="bg-background border-border/60 sticky left-0 z-20 flex min-h-9 items-center gap-2 border-b pr-3">
                     <span className="truncate text-sm">{unit.name}</span>
                     {unit.active ? null : (
                       <Badge variant="outline" className="shrink-0">
@@ -195,7 +197,7 @@ export function Timeline({
                     )}
                   </div>
                   <div
-                    className="border-border/60 relative min-h-9 border-b"
+                    className="border-border/60 relative isolate min-h-9 border-b"
                     style={{ gridColumn: `span ${TIMELINE_DAYS} / span ${TIMELINE_DAYS}` }}
                   >
                     {/* empty cells: the click target for "new stay here"
