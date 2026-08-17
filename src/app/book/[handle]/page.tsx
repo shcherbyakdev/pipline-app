@@ -6,6 +6,7 @@ import {
   listPublicStaff,
   listServiceStaffMap,
 } from "@/lib/booking/public";
+import { filterBookableServices } from "@/lib/booking/bookable";
 import { getOrgBranding } from "@/lib/org-branding";
 import { RENTALS_ENABLED } from "@/lib/flags";
 import { BrandedHeader } from "@/components/branded-header";
@@ -21,7 +22,7 @@ export default async function BookPage({
   if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(handle)) notFound();
   const org = await getBookingOrg(handle);
   if (!org) notFound();
-  const [services, offerings, branding, staff, serviceStaffIds] = await Promise.all([
+  const [allServices, offerings, branding, staff, serviceStaffIds] = await Promise.all([
     listPublicServices(org.orgId),
     // Rentals parked for the MVP (lib/flags.ts): the widget lists services only.
     RENTALS_ENABLED ? listPublicOfferings(org.orgId) : Promise.resolve([]),
@@ -29,6 +30,10 @@ export default async function BookPage({
     listPublicStaff(org.orgId),
     listServiceStaffMap(org.orgId),
   ]);
+  // Only what someone active can actually be booked for — a service linked to
+  // nobody (or only to deactivated people) renders a card whose confirm step
+  // can never succeed. Same rule as /book/[handle]/[staffSlug], org-wide.
+  const services = filterBookableServices(allServices, serviceStaffIds, staff);
   if (services.length === 0 && offerings.length === 0) notFound();
   const theme = parseWidgetTheme(branding.themeRaw);
   return (

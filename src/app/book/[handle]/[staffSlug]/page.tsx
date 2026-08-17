@@ -5,6 +5,7 @@ import {
   listPublicServices,
   listServiceStaffMap,
 } from "@/lib/booking/public";
+import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
 import { BrandedHeader } from "@/components/branded-header";
@@ -35,7 +36,7 @@ export default async function StaffBookPage({
     listServiceStaffMap(org.orgId),
     getOrgBranding(org.orgId),
   ]);
-  const services = allServices.filter((s) => serviceStaffIds[s.id]?.includes(person.id));
+  const services = filterBookableServices(allServices, serviceStaffIds, [person], person.id);
   // Nothing they can be booked for is not a page worth rendering.
   if (services.length === 0) notFound();
   const theme = parseWidgetTheme(branding.themeRaw);

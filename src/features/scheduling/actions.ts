@@ -153,6 +153,35 @@ export async function updateService(input: unknown): Promise<ActionState> {
         .insert(toAdd.map((staffId) => ({ org_id: orgId, service_id: id, staff_id: staffId })));
       if (insError) return fail("updateService.addStaff", insError);
     }
+  } else {
+    // Solo path, self-heal. A service with ZERO links is bookable by nobody and
+    // the public pages now hide it (filterBookableServices) — but a solo org's
+    // dialog never renders the checklist, so nothing above would ever repair
+    // one left behind by a failed create-time link insert. Re-link the active
+    // roster, which is exactly what createService would have written. A service
+    // that already has links is untouched: solo behaviour is otherwise
+    // unchanged, this costs one count query.
+    const linkedRes = await supabase
+      .from("service_staff")
+      .select("staff_id", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .eq("service_id", id);
+    if (linkedRes.error) return fail("updateService.countStaff", linkedRes.error);
+    if ((linkedRes.count ?? 0) === 0) {
+      const rosterRes = await supabase
+        .from("staff")
+        .select("id")
+        .eq("org_id", orgId)
+        .eq("active", true);
+      if (rosterRes.error) return fail("updateService.readStaff", rosterRes.error);
+      const roster = (rosterRes.data ?? []).map((s) => s.id);
+      if (roster.length > 0) {
+        const { error: healError } = await supabase
+          .from("service_staff")
+          .insert(roster.map((staffId) => ({ org_id: orgId, service_id: id, staff_id: staffId })));
+        if (healError) return fail("updateService.relinkStaff", healError);
+      }
+    }
   }
 
   revalidateServices();
