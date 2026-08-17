@@ -16,6 +16,8 @@
 --    grant per the 0008 idiom + policy) for in-place interval editing;
 --    0026 deliberately granted only select/insert/delete.
 
+-- Do not change this function's semantics: both EXCLUDE indexes below are
+-- built on it and Postgres will not re-validate them on CREATE OR REPLACE.
 create or replace function public.hm_to_min(t text) returns integer
 language sql immutable strict
 set search_path = ''
@@ -50,6 +52,8 @@ begin
     loop
       if not started then
         cs := r.s; ce := r.e; started := true;
+      -- <= deliberately also coalesces touching rows within a repaired group;
+      -- the slot engines union them anyway
       elsif r.s <= ce then
         ce := greatest(ce, r.e);
       else
@@ -96,6 +100,8 @@ begin
     loop
       if not started then
         cs := r.s; ce := r.e; started := true;
+      -- <= deliberately also coalesces touching rows within a repaired group;
+      -- the slot engines union them anyway
       elsif r.s <= ce then
         ce := greatest(ce, r.e);
       else

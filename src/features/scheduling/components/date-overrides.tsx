@@ -294,6 +294,9 @@ function OverrideDialog({
               min={today}
               value={draftDate}
               onChange={(e) => onDateChange(e.target.value)}
+              // date is fixed while editing — changing it would orphan the
+              // original date's rows; delete and re-add instead
+              disabled={isEditing}
               className="w-auto"
             />
           </div>
