@@ -43,6 +43,9 @@ describe("RLS scheduling", () => {
   let aliceOrgId: string;
   let bobOrgId: string;
   let aliceServiceId: string;
+  // 0041: availability + appointment bookings hang off a staff row, which
+  // create_org seeds for every new org.
+  let aliceStaffId: string;
 
   beforeAll(async () => {
     alice = await signedInUser("sched_alice");
@@ -53,6 +56,13 @@ describe("RLS scheduling", () => {
     const { data: orgB, error: e2 } = await bob.rpc("create_org", { p_name: "SchedBeta" });
     if (e2) throw e2;
     bobOrgId = (orgB as { id: string }).id;
+    const { data: st, error: e3 } = await admin
+      .from("staff")
+      .select("id")
+      .eq("org_id", aliceOrgId)
+      .single();
+    if (e3) throw e3;
+    aliceStaffId = st!.id;
   });
 
   it("member can create a service in their org", async () => {
@@ -87,33 +97,33 @@ describe("RLS scheduling", () => {
   it("member manages availability rules; foreign org blocked", async () => {
     const { error } = await alice
       .from("availability_rules")
-      .insert({ org_id: aliceOrgId, weekday: 1, start_time: "09:00", end_time: "17:00" });
+      .insert({ org_id: aliceOrgId, staff_id: aliceStaffId, weekday: 1, start_time: "09:00", end_time: "17:00" });
     expect(error).toBeNull();
     const { error: crossErr } = await bob
       .from("availability_rules")
-      .insert({ org_id: aliceOrgId, weekday: 1, start_time: "09:00", end_time: "17:00" });
+      .insert({ org_id: aliceOrgId, staff_id: aliceStaffId, weekday: 1, start_time: "09:00", end_time: "17:00" });
     expect(crossErr).not.toBeNull();
   });
 
   it("CHECK rejects a malformed time and an inverted window", async () => {
     const { error: badFormat } = await alice
       .from("availability_rules")
-      .insert({ org_id: aliceOrgId, weekday: 2, start_time: "9am", end_time: "17:00" });
+      .insert({ org_id: aliceOrgId, staff_id: aliceStaffId, weekday: 2, start_time: "9am", end_time: "17:00" });
     expect(badFormat).not.toBeNull();
     const { error: inverted } = await alice
       .from("availability_rules")
-      .insert({ org_id: aliceOrgId, weekday: 2, start_time: "17:00", end_time: "09:00" });
+      .insert({ org_id: aliceOrgId, staff_id: aliceStaffId, weekday: 2, start_time: "17:00", end_time: "09:00" });
     expect(inverted).not.toBeNull();
   });
 
   it("exception shape CHECK: open exception needs a valid window", async () => {
     const { error } = await alice
       .from("availability_exceptions")
-      .insert({ org_id: aliceOrgId, date: "2027-01-04", closed: false });
+      .insert({ org_id: aliceOrgId, staff_id: aliceStaffId, date: "2027-01-04", closed: false });
     expect(error).not.toBeNull();
     const { error: ok } = await alice
       .from("availability_exceptions")
-      .insert({ org_id: aliceOrgId, date: "2027-01-04", closed: true });
+      .insert({ org_id: aliceOrgId, staff_id: aliceStaffId, date: "2027-01-04", closed: true });
     expect(ok).toBeNull();
   });
 
@@ -130,6 +140,7 @@ describe("RLS scheduling", () => {
     const { error } = await alice.from("bookings").insert({
       org_id: aliceOrgId,
       service_id: aliceServiceId,
+      staff_id: aliceStaffId,
       client_name: "X",
       client_email: "x@example.com",
       starts_at: "2027-01-05T10:00:00Z",
@@ -143,6 +154,7 @@ describe("RLS scheduling", () => {
     const { error } = await admin.from("bookings").insert({
       org_id: aliceOrgId,
       service_id: aliceServiceId,
+      staff_id: aliceStaffId,
       client_name: "Seeded",
       client_email: "seeded@example.com",
       starts_at: "2027-01-06T10:00:00Z",
@@ -166,6 +178,7 @@ describe("RLS scheduling", () => {
     const { error } = await admin.from("bookings").insert({
       org_id: aliceOrgId,
       service_id: bobService!.id,
+      staff_id: aliceStaffId,
       client_name: "X",
       client_email: "x2@example.com",
       starts_at: "2027-01-07T10:00:00Z",

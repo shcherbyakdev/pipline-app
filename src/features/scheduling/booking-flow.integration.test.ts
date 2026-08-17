@@ -72,9 +72,24 @@ describe("booking flow e2e (action layer)", () => {
       .single();
     if (e3) throw e3;
     serviceId = svc!.id;
+    // 0041: availability belongs to a staff row (create_org seeds one), and a
+    // raw services insert does not fan out — mirror createService's link so
+    // create_booking's "anyone available" pick has a candidate.
+    const { data: st, error: e3b } = await admin
+      .from("staff")
+      .select("id")
+      .eq("org_id", orgId)
+      .single();
+    if (e3b) throw e3b;
+    const staffId = st!.id;
+    const { error: e3c } = await owner
+      .from("service_staff")
+      .insert({ org_id: orgId, service_id: serviceId, staff_id: staffId });
+    if (e3c) throw e3c;
     const { error: e4 } = await owner.from("availability_rules").insert(
       [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
         org_id: orgId,
+        staff_id: staffId,
         weekday,
         start_time: "09:00",
         end_time: "17:00",

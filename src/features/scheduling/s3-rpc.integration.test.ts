@@ -45,6 +45,7 @@ let owner: SupabaseClient;
 let stranger: SupabaseClient;
 let orgId: string;
 let serviceId: string;
+let staffId: string;
 
 beforeAll(async () => {
   owner = await signedInUser("s3_owner");
@@ -69,9 +70,23 @@ beforeAll(async () => {
     .single();
   if (e3) throw e3;
   serviceId = svc!.id;
+  // 0041: availability + bookings are keyed to a staff row; a raw services
+  // insert does not fan out, so mirror createService's service_staff link.
+  const { data: st, error: e3b } = await admin
+    .from("staff")
+    .select("id")
+    .eq("org_id", orgId)
+    .single();
+  if (e3b) throw e3b;
+  staffId = st!.id;
+  const { error: e3c } = await owner
+    .from("service_staff")
+    .insert({ org_id: orgId, service_id: serviceId, staff_id: staffId });
+  if (e3c) throw e3c;
   const { error: e4 } = await owner.from("availability_rules").insert(
     [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
       org_id: orgId,
+      staff_id: staffId,
       weekday,
       start_time: "09:00",
       end_time: "17:00",
@@ -117,11 +132,13 @@ describe("update_org_widget_theme", () => {
 describe("rotate_booking_token", () => {
   it("rotates the hash so the old manage link dies", async () => {
     const first = generateAccessToken();
-    const { data: bookingId } = await anon.rpc("create_booking", {
+    const { data: created } = await anon.rpc("create_booking", {
       p_handle: HANDLE, p_service_id: serviceId,
       p_starts_at: "2027-06-01T10:00:00Z", p_name: "Rotate Me",
       p_email: "rotate@example.com", p_note: null, p_token_hash: first.tokenHash,
+      p_staff_id: null,
     });
+    const bookingId = (created as Array<{ booking_id: string }>)[0].booking_id;
     const fresh = generateAccessToken();
     const { data: rotated, error } = await owner.rpc("rotate_booking_token", {
       p_booking_id: bookingId, p_token_hash: fresh.tokenHash,
@@ -142,11 +159,13 @@ describe("rotate_booking_token", () => {
     expect(foreignErr).not.toBeNull();
     // cancelled: create then admin-cancel via status update, then rotate must fail
     const t = generateAccessToken();
-    const { data: cancelId } = await anon.rpc("create_booking", {
+    const { data: cancelRows } = await anon.rpc("create_booking", {
       p_handle: HANDLE, p_service_id: serviceId,
       p_starts_at: "2027-06-01T12:00:00Z", p_name: "Cancelled",
       p_email: "cancelled@example.com", p_note: null, p_token_hash: t.tokenHash,
+      p_staff_id: null,
     });
+    const cancelId = (cancelRows as Array<{ booking_id: string }>)[0].booking_id;
     await owner.from("bookings").update({ status: "cancelled_by_provider" }).eq("id", cancelId);
     const { error: cancelledErr } = await owner.rpc("rotate_booking_token", {
       p_booking_id: cancelId, p_token_hash: generateAccessToken().tokenHash,
@@ -155,11 +174,13 @@ describe("rotate_booking_token", () => {
     // past: create in the future (create_booking rejects past starts_at
     // outright), then admin-backdate starts_at/ends_at, then rotate must fail.
     const p = generateAccessToken();
-    const { data: pastId } = await anon.rpc("create_booking", {
+    const { data: pastRows } = await anon.rpc("create_booking", {
       p_handle: HANDLE, p_service_id: serviceId,
       p_starts_at: "2027-06-01T14:00:00Z", p_name: "Past",
       p_email: "past@example.com", p_note: null, p_token_hash: p.tokenHash,
+      p_staff_id: null,
     });
+    const pastId = (pastRows as Array<{ booking_id: string }>)[0].booking_id;
     const { error: backdateErr } = await admin
       .from("bookings")
       .update({ starts_at: "2020-01-01T10:00:00Z", ends_at: "2020-01-01T11:00:00Z" })

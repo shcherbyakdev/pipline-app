@@ -244,4 +244,67 @@ describe("create_booking per staff", () => {
     });
     expect(e2?.message).toMatch(/staff_unavailable/);
   });
+
+  it("reschedule_booking keeps the staff and reports staff_name", async () => {
+    const { token, tokenHash } = generateAccessToken();
+    await anon.rpc("create_booking", {
+      p_handle: HANDLE,
+      p_service_id: serviceId,
+      p_starts_at: at(6, "09:00"),
+      p_name: "R",
+      p_email: "r@example.com",
+      p_note: null,
+      p_token_hash: tokenHash,
+      p_staff_id: annaId,
+    });
+    const fresh = generateAccessToken();
+    const { data, error } = await anon.rpc("reschedule_booking", {
+      p_token: token,
+      p_starts_at: at(6, "10:00"),
+      p_new_token_hash: fresh.tokenHash,
+    });
+    expect(error).toBeNull();
+    const row = (data as Array<{ new_booking_id: string; staff_id: string; staff_name: string }>)[0];
+    expect(row.staff_id).toBe(annaId);
+    expect(row.staff_name).toBe("Anna");
+    const { data: r } = await anon.rpc("resolve_booking_token", { p_token: fresh.token });
+    const rr = (r as Array<{ staff_id: string; staff_name: string }>)[0];
+    expect(rr.staff_id).toBe(annaId);
+    expect(rr.staff_name).toBe("Anna");
+  });
+
+  it("reschedule_booking_admin moves to another staff (staff_changed=true) and refuses ineligible staff", async () => {
+    const { data: b } = await admin
+      .from("bookings")
+      .select("id")
+      .eq("staff_id", annaId)
+      .eq("status", "confirmed")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+    const t1 = generateAccessToken();
+    const { data, error } = await owner.rpc("reschedule_booking_admin", {
+      p_booking_id: b!.id,
+      p_starts_at: at(6, "11:00"),
+      p_token_hash: t1.tokenHash,
+      p_staff_id: defaultStaffId,
+    });
+    expect(error).toBeNull();
+    const row = (data as Array<{ new_booking_id: string; staff_changed: boolean; staff_name: string }>)[0];
+    expect(row.staff_changed).toBe(true);
+    const { data: foreign } = await admin
+      .from("staff")
+      .select("id")
+      .neq("org_id", orgId)
+      .limit(1)
+      .single();
+    const t2 = generateAccessToken();
+    const { error: e2 } = await owner.rpc("reschedule_booking_admin", {
+      p_booking_id: row.new_booking_id,
+      p_starts_at: at(6, "11:30"),
+      p_token_hash: t2.tokenHash,
+      p_staff_id: foreign!.id,
+    });
+    expect(e2?.message).toMatch(/staff_unavailable/);
+  });
 });

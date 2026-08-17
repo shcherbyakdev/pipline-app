@@ -62,6 +62,7 @@ const hours = (n: number) => new Date(now.getTime() + n * 60 * 60 * 1000).toISOS
 
 let orgId: string;
 let serviceId: string;
+let staffId: string;
 let dueId: string;
 let lateId: string;
 
@@ -78,6 +79,14 @@ describe("reminder drain", () => {
       .single();
     if (e2) throw e2;
     serviceId = svc!.id;
+    // 0041: appointment bookings must name the staff who owns the slot.
+    const { data: st, error: e3 } = await admin
+      .from("staff")
+      .select("id")
+      .eq("org_id", orgId)
+      .single();
+    if (e3) throw e3;
+    staffId = st!.id;
 
     const insert = (over: Record<string, unknown>) =>
       admin
@@ -85,6 +94,7 @@ describe("reminder drain", () => {
         .insert({
           org_id: orgId,
           service_id: serviceId,
+          staff_id: staffId,
           client_name: "R Client",
           client_email: "reminded@example.com",
           cancel_token_hash: generateAccessToken().tokenHash,
@@ -178,6 +188,7 @@ describe("reminder drain", () => {
       .insert({
         org_id: orgId,
         service_id: serviceId,
+        staff_id: staffId,
         client_name: "Walk-in",
         client_email: null,
         starts_at: hours(12),

@@ -408,6 +408,20 @@ async function ensureDemoScheduling(client: SupabaseClient, orgId: string): Prom
     if (error) throw error;
     console.log(`seed: set booking handle "${DEMO_HANDLE}" (${DEMO_TIMEZONE})`);
   }
+  // 0041: the org's calendar belongs to a staff row. create_org seeds one for
+  // new orgs and the 0041 backfill added one to every pre-existing org, so
+  // this always resolves.
+  const { data: staff, error: staffError } = await client
+    .from("staff")
+    .select("id")
+    .eq("org_id", orgId)
+    .order("sort_order", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (staffError) throw staffError;
+  if (!staff) throw new Error("seed: org has no staff row — run the migrations first");
+  const staffId = staff.id as string;
+
   for (const svc of DEMO_SERVICES) {
     const { data: existing } = await client
       .from("services")
@@ -415,10 +429,30 @@ async function ensureDemoScheduling(client: SupabaseClient, orgId: string): Prom
       .eq("org_id", orgId)
       .eq("name", svc.name)
       .maybeSingle();
-    if (!existing) {
-      const { error } = await client.from("services").insert({ org_id: orgId, ...svc });
+    let serviceId = existing?.id as string | undefined;
+    if (!serviceId) {
+      const { data: created, error } = await client
+        .from("services")
+        .insert({ org_id: orgId, ...svc })
+        .select("id")
+        .single();
       if (error) throw error;
+      serviceId = created!.id as string;
       console.log(`seed: created service "${svc.name}"`);
+    }
+    // Who can deliver it. supabase-js has no "on conflict do nothing", so
+    // check first — this runs on every seed, including re-runs.
+    const { data: link } = await client
+      .from("service_staff")
+      .select("service_id")
+      .eq("service_id", serviceId)
+      .eq("staff_id", staffId)
+      .maybeSingle();
+    if (!link) {
+      const { error } = await client
+        .from("service_staff")
+        .insert({ org_id: orgId, service_id: serviceId, staff_id: staffId });
+      if (error) throw error;
     }
   }
   const { data: anyRule } = await client
@@ -430,6 +464,7 @@ async function ensureDemoScheduling(client: SupabaseClient, orgId: string): Prom
   if (!anyRule) {
     const rows = [1, 2, 3, 4, 5].map((weekday) => ({
       org_id: orgId,
+      staff_id: staffId,
       weekday,
       start_time: "09:00",
       end_time: "17:00",
@@ -472,6 +507,7 @@ async function ensureDemoScheduling(client: SupabaseClient, orgId: string): Prom
       const { error } = await admin.from("bookings").insert({
         org_id: orgId,
         service_id: demoService.id,
+        staff_id: staffId,
         client_name: "Demo Client",
         client_email: "demo-client@example.com",
         starts_at: startsAt.toISOString(),

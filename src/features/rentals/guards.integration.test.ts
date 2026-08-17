@@ -47,6 +47,8 @@ describe("booking guards (0037)", () => {
   let u2: string;
   let otherOfferingUnitId: string;
   let serviceId: string;
+  // 0041: appointment rows carry a staff_id (rental rows never do).
+  let staffId: string;
 
   const hash = () => generateAccessToken().tokenHash;
   const base = () => ({
@@ -87,6 +89,13 @@ describe("booking guards (0037)", () => {
     const { data: org, error } = await alice.rpc("create_org", { p_name: "RentGuard" });
     if (error) throw error;
     orgId = (org as { id: string }).id;
+    const { data: st, error: stErr } = await admin
+      .from("staff")
+      .select("id")
+      .eq("org_id", orgId)
+      .single();
+    if (stErr) throw stErr;
+    staffId = st!.id;
 
     offeringId = await newOffering("Studio");
     u1 = await newUnit(offeringId, "U1");
@@ -157,6 +166,7 @@ describe("booking guards (0037)", () => {
     const appt = await admin.from("bookings").insert({
       ...base(),
       service_id: serviceId,
+      staff_id: staffId,
       starts_at: "2027-06-11T10:00:00Z",
       ends_at: "2027-06-11T11:00:00Z",
     });
@@ -164,6 +174,7 @@ describe("booking guards (0037)", () => {
     const appt2 = await admin.from("bookings").insert({
       ...base(),
       service_id: serviceId,
+      staff_id: staffId,
       starts_at: "2027-06-11T10:30:00Z",
       ends_at: "2027-06-11T11:30:00Z",
     });

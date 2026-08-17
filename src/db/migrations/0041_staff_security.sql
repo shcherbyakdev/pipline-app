@@ -469,3 +469,156 @@ grant execute on function public.create_booking_admin(uuid, timestamptz, text, t
 
 -- Both RPC signatures changed; PostgREST must re-read its schema cache.
 notify pgrst, 'reload schema';
+
+-- ============================================================================
+-- Task 4: the reschedule path becomes staff-keyed; resolver/cancel report staff.
+-- ============================================================================
+
+-- ---------- reschedule_booking v2: staff kept; + staff cols in the return.
+-- The 0028 body still passed the ORG id into slot_within_availability, which
+-- Task 3 re-keyed to staff — every reschedule silently raised 'not found'.
+-- Rental rows are refused here (service_id is not null in the row select);
+-- rentals have their own R2 move RPC.
+drop function if exists public.reschedule_booking(text, timestamptz, text);
+create function public.reschedule_booking(p_token text, p_starts_at timestamptz, p_new_token_hash text)
+returns table (
+  new_booking_id uuid, org_id uuid, org_name text, org_timezone text, service_name text,
+  client_name text, client_email text, old_starts_at timestamptz, new_starts_at timestamptz,
+  staff_id uuid, staff_name text
+) language plpgsql security definer set search_path = '' as $$
+declare
+  v_hash text; v_old record; v_service record; v_tz text; v_ends_at timestamptz; v_new_id uuid;
+begin
+  if p_token is null or length(p_token) < 20 or length(p_token) > 200 then return; end if;
+  if p_new_token_hash is null or p_new_token_hash !~ '^[0-9a-f]{64}$' then raise exception 'not found'; end if;
+  v_hash := encode(extensions.digest(convert_to(p_token, 'utf8'), 'sha256'), 'hex');
+  select b.id, b.org_id, b.service_id, b.staff_id, b.client_id, b.client_name, b.client_email, b.note, b.starts_at
+    into v_old from public.bookings b
+    where b.cancel_token_hash = v_hash and b.status = 'confirmed' and b.starts_at > now()
+    for update;
+  if v_old.id is null then return; end if;
+  -- Rentals are refused here (they have their own R2 move RPC). The check is
+  -- explicit rather than a `service_id is not null` predicate on the select
+  -- above so a rental token still RAISES 'not found' — the 0028/0037 contract
+  -- the rentals suite pins — instead of degrading to the uniform empty result.
+  if v_old.service_id is null then raise exception 'not found'; end if;
+  select s.id, s.duration_min, s.booking_window_days into v_service from public.services s where s.id = v_old.service_id and s.active;
+  if v_service.id is null then raise exception 'not found'; end if;
+  select o.timezone into v_tz from public.orgs o where o.id = v_old.org_id;
+  if p_starts_at is null or p_starts_at <= now() then raise exception 'not found'; end if;
+  if p_starts_at > now() + make_interval(days => v_service.booking_window_days + 1) then raise exception 'not found'; end if;
+  v_ends_at := p_starts_at + make_interval(mins => v_service.duration_min);
+  if not public.slot_within_availability(v_old.staff_id, v_tz, p_starts_at, v_ends_at) then raise exception 'not found'; end if;
+  update public.bookings b set status = 'rescheduled' where b.id = v_old.id;
+  insert into public.bookings
+    (org_id, service_id, staff_id, client_id, client_name, client_email, starts_at, ends_at, status, cancel_token_hash, note, rescheduled_from_id)
+  values
+    (v_old.org_id, v_old.service_id, v_old.staff_id, v_old.client_id, v_old.client_name, v_old.client_email, p_starts_at, v_ends_at, 'confirmed', p_new_token_hash, v_old.note, v_old.id)
+  returning id into v_new_id;
+  return query
+    select v_new_id, v_old.org_id, o.name, o.timezone, s.name, v_old.client_name, v_old.client_email,
+           v_old.starts_at, p_starts_at, v_old.staff_id, st.name
+    from public.orgs o, public.services s, public.staff st
+    where o.id = v_old.org_id and s.id = v_old.service_id and st.id = v_old.staff_id;
+end; $$;
+revoke all on function public.reschedule_booking(text, timestamptz, text) from public, anon, authenticated, service_role;
+grant execute on function public.reschedule_booking(text, timestamptz, text) to anon;
+
+-- ---------- reschedule_booking_admin v2: optional move to another staff.
+-- The 3-arg 0028 form is dropped; the new 4-arg form uses `or replace` so the
+-- file stays hand-re-appliable (the drop above is a no-op on the second run).
+drop function if exists public.reschedule_booking_admin(uuid, timestamptz, text);
+create or replace function public.reschedule_booking_admin(
+  p_booking_id uuid, p_starts_at timestamptz, p_token_hash text, p_staff_id uuid default null
+) returns table (new_booking_id uuid, staff_changed boolean, staff_name text)
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_old record; v_service record; v_tz text; v_ends_at timestamptz; v_new_id uuid; v_staff uuid;
+begin
+  if p_booking_id is null then raise exception 'not found'; end if;
+  if p_token_hash is null or p_token_hash !~ '^[0-9a-f]{64}$' then raise exception 'not found'; end if;
+  select b.id, b.org_id, b.service_id, b.staff_id, b.client_id, b.client_name, b.client_email, b.note
+    into v_old from public.bookings b
+    where b.id = p_booking_id and b.org_id in (select public.user_orgs()) and b.status = 'confirmed' and b.service_id is not null
+    for update;
+  if v_old.id is null then raise exception 'not found'; end if;
+  select s.id, s.duration_min, s.booking_window_days into v_service from public.services s where s.id = v_old.service_id and s.active;
+  if v_service.id is null then raise exception 'not found'; end if;
+  v_staff := coalesce(p_staff_id, v_old.staff_id);
+  if not exists (
+    select 1 from public.staff st join public.service_staff ss on ss.staff_id = st.id
+    where st.id = v_staff and st.org_id = v_old.org_id and st.active and ss.service_id = v_old.service_id
+  ) then raise exception 'staff_unavailable'; end if;
+  select o.timezone into v_tz from public.orgs o where o.id = v_old.org_id;
+  if p_starts_at is null or p_starts_at <= now() then raise exception 'not found'; end if;
+  if p_starts_at > now() + make_interval(days => v_service.booking_window_days + 1) then raise exception 'not found'; end if;
+  v_ends_at := p_starts_at + make_interval(mins => v_service.duration_min);
+  if not public.slot_within_availability(v_staff, v_tz, p_starts_at, v_ends_at) then raise exception 'not found'; end if;
+  update public.bookings b set status = 'rescheduled' where b.id = v_old.id;
+  insert into public.bookings
+    (org_id, service_id, staff_id, client_id, client_name, client_email, starts_at, ends_at, status, cancel_token_hash, note, rescheduled_from_id)
+  values
+    (v_old.org_id, v_old.service_id, v_staff, v_old.client_id, v_old.client_name, v_old.client_email, p_starts_at, v_ends_at, 'confirmed', p_token_hash, v_old.note, v_old.id)
+  returning id into v_new_id;
+  return query select v_new_id, v_staff <> v_old.staff_id, st.name from public.staff st where st.id = v_staff;
+end; $$;
+revoke all on function public.reschedule_booking_admin(uuid, timestamptz, text, uuid) from public, anon, authenticated, service_role;
+grant execute on function public.reschedule_booking_admin(uuid, timestamptz, text, uuid) to authenticated;
+
+-- ---------- resolver v4 / cancel v3: + trailing staff_id, staff_name (0037
+-- bodies + one left join; null for rentals, which carry no staff).
+drop function if exists public.resolve_booking_token(text);
+create function public.resolve_booking_token(p_token text)
+returns table (
+  booking_id uuid, booking_status text, starts_at timestamptz, ends_at timestamptz, service_name text,
+  org_name text, org_timezone text, org_id uuid, service_id uuid, rental_unit_id uuid, range_mode text,
+  staff_id uuid, staff_name text
+) language plpgsql security definer set search_path = '' as $$
+declare v_hash text;
+begin
+  if p_token is null or length(p_token) < 20 or length(p_token) > 200 then return; end if;
+  v_hash := encode(extensions.digest(convert_to(p_token, 'utf8'), 'sha256'), 'hex');
+  return query
+    select b.id, b.status, b.starts_at, b.ends_at, coalesce(s.name, ro.name || ' · ' || u.name),
+           o.name, o.timezone, b.org_id, b.service_id, b.rental_unit_id, ro.range_mode, b.staff_id, st.name
+    from public.bookings b
+    join public.orgs o on o.id = b.org_id
+    left join public.services s on s.id = b.service_id
+    left join public.staff st on st.id = b.staff_id
+    left join public.rental_offerings ro on ro.id = b.rental_offering_id
+    left join public.rental_units u on u.id = b.rental_unit_id
+    where b.cancel_token_hash = v_hash;
+end; $$;
+revoke all on function public.resolve_booking_token(text) from public, anon, authenticated, service_role;
+grant execute on function public.resolve_booking_token(text) to anon;
+
+drop function if exists public.cancel_booking(text);
+create function public.cancel_booking(p_token text)
+returns table (
+  booking_id uuid, org_id uuid, org_name text, org_timezone text, service_name text, client_name text,
+  client_email text, starts_at timestamptz, ends_at timestamptz, rental_unit_id uuid, staff_id uuid, staff_name text
+) language plpgsql security definer set search_path = '' as $$
+declare v_hash text; v_id uuid;
+begin
+  if p_token is null or length(p_token) < 20 or length(p_token) > 200 then return; end if;
+  v_hash := encode(extensions.digest(convert_to(p_token, 'utf8'), 'sha256'), 'hex');
+  update public.bookings b set status = 'cancelled_by_client'
+    where b.cancel_token_hash = v_hash and b.status = 'confirmed' and b.starts_at > now()
+    returning b.id into v_id;
+  if v_id is null then return; end if;
+  return query
+    select b.id, b.org_id, o.name, o.timezone, coalesce(s.name, ro.name || ' · ' || u.name),
+           b.client_name, b.client_email, b.starts_at, b.ends_at, b.rental_unit_id, b.staff_id, st.name
+    from public.bookings b
+    join public.orgs o on o.id = b.org_id
+    left join public.services s on s.id = b.service_id
+    left join public.staff st on st.id = b.staff_id
+    left join public.rental_offerings ro on ro.id = b.rental_offering_id
+    left join public.rental_units u on u.id = b.rental_unit_id
+    where b.id = v_id;
+end; $$;
+revoke all on function public.cancel_booking(text) from public, anon, authenticated, service_role;
+grant execute on function public.cancel_booking(text) to anon;
+
+-- Four RPC signatures/return types changed; PostgREST must re-read its cache.
+notify pgrst, 'reload schema';
