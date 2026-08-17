@@ -261,3 +261,211 @@ grant execute on function public.create_staff(uuid, text, text, text, text, uuid
 
 -- PostgREST caches the schema; the new tables/RPC must be visible immediately.
 notify pgrst, 'reload schema';
+
+-- ============================================================================
+-- Task 3: the booking write path becomes staff-keyed.
+-- ============================================================================
+
+-- ---------- slot_within_availability: staff-keyed (0028 body, org -> staff).
+-- Same argument types as the 0028 version but a different first parameter
+-- NAME, so `create or replace` is rejected — drop first. plpgsql bodies carry
+-- no dependencies, so the 0028 callers (reschedule_booking{,_admin}) keep
+-- resolving the name; Task 4 re-points them at the staff.
+drop function if exists public.slot_within_availability(uuid, text, timestamptz, timestamptz);
+create function public.slot_within_availability(
+  p_staff_id uuid, p_timezone text, p_starts_at timestamptz, p_ends_at timestamptz
+) returns boolean language plpgsql stable set search_path = '' as $$
+declare
+  v_start_local timestamp := p_starts_at at time zone p_timezone;
+  v_end_local   timestamp := p_ends_at   at time zone p_timezone;
+  v_date date := v_start_local::date;
+  v_start_hm text := to_char(v_start_local, 'HH24:MI');
+  v_end_hm   text := to_char(v_end_local,   'HH24:MI');
+  v_weekday int := extract(dow from v_start_local)::int;
+begin
+  if v_end_local::date <> v_date then return false; end if;
+  if exists (select 1 from public.availability_exceptions ae where ae.staff_id = p_staff_id and ae.date = v_date) then
+    return exists (
+      select 1 from public.availability_exceptions ae
+      where ae.staff_id = p_staff_id and ae.date = v_date and not ae.closed
+        and ae.start_time <= v_start_hm and ae.end_time >= v_end_hm);
+  end if;
+  return exists (
+    select 1 from public.availability_rules ar
+    where ar.staff_id = p_staff_id and ar.weekday = v_weekday
+      and ar.start_time <= v_start_hm and ar.end_time >= v_end_hm);
+end; $$;
+revoke all on function public.slot_within_availability(uuid, text, timestamptz, timestamptz)
+  from public, anon, authenticated, service_role;
+
+-- ---------- staff_is_free: no confirmed overlap on the staff (excluding one row)
+create or replace function public.staff_is_free(
+  p_staff_id uuid, p_starts_at timestamptz, p_ends_at timestamptz, p_exclude_booking_id uuid
+) returns boolean language sql stable set search_path = '' as $$
+  select not exists (
+    select 1 from public.bookings b
+    where b.staff_id = p_staff_id and b.status = 'confirmed'
+      and (p_exclude_booking_id is null or b.id <> p_exclude_booking_id)
+      and tstzrange(b.starts_at, b.ends_at) && tstzrange(p_starts_at, p_ends_at));
+$$;
+revoke all on function public.staff_is_free(uuid, timestamptz, timestamptz, uuid)
+  from public, anon, authenticated, service_role;
+
+-- ---------- pick_staff_for_slot: "Anyone available" assignment (spec: least
+-- confirmed bookings that org-local day, tie -> sort_order, created_at).
+create or replace function public.pick_staff_for_slot(
+  p_service_id uuid, p_timezone text, p_starts_at timestamptz, p_ends_at timestamptz, p_exclude uuid[]
+) returns uuid language sql stable set search_path = '' as $$
+  select st.id
+  from public.service_staff ss
+  join public.staff st on st.id = ss.staff_id
+  where ss.service_id = p_service_id and st.active
+    and st.id <> all(coalesce(p_exclude, '{}'::uuid[]))
+    and public.slot_within_availability(st.id, p_timezone, p_starts_at, p_ends_at)
+    and public.staff_is_free(st.id, p_starts_at, p_ends_at, null)
+  order by (
+      select count(*) from public.bookings b
+      where b.staff_id = st.id and b.status = 'confirmed'
+        and (b.starts_at at time zone p_timezone)::date = (p_starts_at at time zone p_timezone)::date
+    ) asc, st.sort_order asc, st.created_at asc
+  limit 1;
+$$;
+revoke all on function public.pick_staff_for_slot(uuid, text, timestamptz, timestamptz, uuid[])
+  from public, anon, authenticated, service_role;
+
+-- ---------- create_booking v3: + p_staff_id (null = auto-assign), returns staff.
+-- The return type changes, so the 0026/0034 seven-arg form is dropped (its
+-- grants do not survive) and the anon grant is re-issued below. `or replace`
+-- on the new eight-arg form keeps this file re-appliable.
+drop function if exists public.create_booking(text, uuid, timestamptz, text, text, text, text);
+create or replace function public.create_booking(
+  p_handle text, p_service_id uuid, p_starts_at timestamptz, p_name text, p_email text,
+  p_note text, p_token_hash text, p_staff_id uuid default null
+) returns table (booking_id uuid, staff_id uuid, staff_name text)
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_org record;
+  v_service record;
+  v_recent int;
+  v_ends_at timestamptz;
+  v_client_id uuid;
+  v_booking_id uuid;
+  v_staff uuid;
+  v_tried uuid[] := '{}';
+  v_attempts int := 0;
+begin
+  select o.id, o.timezone into v_org from public.orgs o where o.handle = p_handle;
+  if v_org.id is null then raise exception 'not found'; end if;
+  select s.id, s.duration_min, s.booking_window_days into v_service
+    from public.services s where s.id = p_service_id and s.org_id = v_org.id and s.active;
+  if v_service.id is null then raise exception 'not found'; end if;
+  if p_starts_at is null or p_starts_at <= now() then raise exception 'not found'; end if;
+  if p_starts_at > now() + make_interval(days => v_service.booking_window_days + 1) then raise exception 'not found'; end if;
+  if p_name is null or length(btrim(p_name)) not between 1 and 200 then raise exception 'not found'; end if;
+  if p_email is null or length(p_email) > 320 or p_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' then raise exception 'not found'; end if;
+  if p_note is not null and length(p_note) > 2000 then raise exception 'not found'; end if;
+  if p_token_hash is null or p_token_hash !~ '^[0-9a-f]{64}$' then raise exception 'not found'; end if;
+  select count(*) into v_recent from public.bookings b where b.org_id = v_org.id and b.created_at > now() - interval '1 minute';
+  if v_recent >= 30 then raise exception 'not found'; end if;
+  v_ends_at := p_starts_at + make_interval(mins => v_service.duration_min);
+
+  if p_staff_id is not null then
+    -- Named staff: must be active, in the org, offering the service, inside hours.
+    if not exists (
+      select 1 from public.staff st join public.service_staff ss on ss.staff_id = st.id
+      where st.id = p_staff_id and st.org_id = v_org.id and st.active and ss.service_id = p_service_id
+    ) then raise exception 'staff_unavailable'; end if;
+    if not public.slot_within_availability(p_staff_id, v_org.timezone, p_starts_at, v_ends_at) then
+      raise exception 'not found';
+    end if;
+    v_staff := p_staff_id;
+  else
+    -- Auto-assign. If no eligible staff is even open at this time -> not found
+    -- (uniform); if all open ones are busy -> taken.
+    if not exists (
+      select 1 from public.service_staff ss join public.staff st on st.id = ss.staff_id
+      where ss.service_id = p_service_id and st.active
+        and public.slot_within_availability(st.id, v_org.timezone, p_starts_at, v_ends_at)
+    ) then raise exception 'not found'; end if;
+  end if;
+
+  insert into public.clients (org_id, name, email)
+  values (v_org.id, btrim(p_name), lower(p_email))
+  on conflict (org_id, lower(email)) where email is not null
+  do update set name = clients.name
+  returning id into v_client_id;
+
+  loop
+    if p_staff_id is null then
+      v_staff := public.pick_staff_for_slot(p_service_id, v_org.timezone, p_starts_at, v_ends_at, v_tried);
+      if v_staff is null then raise exception 'taken'; end if;
+    end if;
+    begin
+      insert into public.bookings
+        (org_id, service_id, staff_id, client_id, client_name, client_email,
+         starts_at, ends_at, status, cancel_token_hash, note)
+      values
+        (v_org.id, p_service_id, v_staff, v_client_id, btrim(p_name), lower(p_email),
+         p_starts_at, v_ends_at, 'confirmed', p_token_hash, p_note)
+      returning id into v_booking_id;
+      exit;
+    exception when exclusion_violation then
+      -- Named staff: surface as the classic 23P01 so callers keep their
+      -- "slot taken" mapping. Auto: try the next eligible staff (race lost).
+      if p_staff_id is not null then raise; end if;
+      v_tried := v_tried || v_staff;
+      v_attempts := v_attempts + 1;
+      if v_attempts > 20 then raise exception 'taken'; end if;
+    end;
+  end loop;
+
+  return query select v_booking_id, v_staff, st.name from public.staff st where st.id = v_staff;
+end; $$;
+revoke all on function public.create_booking(text, uuid, timestamptz, text, text, text, text, uuid)
+  from public, anon, authenticated, service_role;
+grant execute on function public.create_booking(text, uuid, timestamptz, text, text, text, text, uuid) to anon;
+
+-- ---------- create_booking_admin v3: + required p_staff_id (0031 body)
+drop function if exists public.create_booking_admin(uuid, timestamptz, text, text, text, text, integer);
+create or replace function public.create_booking_admin(
+  p_service_id uuid, p_starts_at timestamptz, p_name text, p_email text, p_note text,
+  p_token_hash text, p_duration_min integer, p_staff_id uuid
+) returns uuid language plpgsql security definer set search_path = '' as $$
+declare
+  v_service record;
+  v_ends_at timestamptz;
+  v_client_id uuid;
+  v_booking_id uuid;
+begin
+  select s.id, s.org_id, s.duration_min into v_service
+    from public.services s where s.id = p_service_id and s.org_id in (select public.user_orgs()) and s.active;
+  if v_service.id is null then raise exception 'not found'; end if;
+  if p_staff_id is null or not exists (
+    select 1 from public.staff st join public.service_staff ss on ss.staff_id = st.id
+    where st.id = p_staff_id and st.org_id = v_service.org_id and st.active and ss.service_id = p_service_id
+  ) then raise exception 'staff_unavailable'; end if;
+  if p_starts_at is null or p_starts_at < now() - interval '24 hours' or p_starts_at > now() + interval '365 days' then raise exception 'not found'; end if;
+  if p_name is null or length(btrim(p_name)) not between 1 and 200 then raise exception 'not found'; end if;
+  if p_email is not null and (length(p_email) > 320 or p_email !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$') then raise exception 'not found'; end if;
+  if p_note is not null and length(p_note) > 2000 then raise exception 'not found'; end if;
+  if p_token_hash is null or p_token_hash !~ '^[0-9a-f]{64}$' then raise exception 'not found'; end if;
+  if p_duration_min is not null and p_duration_min not between 5 and 480 then raise exception 'not found'; end if;
+  v_ends_at := p_starts_at + make_interval(mins => coalesce(p_duration_min, v_service.duration_min));
+  if p_email is not null then
+    insert into public.clients (org_id, name, email) values (v_service.org_id, btrim(p_name), lower(p_email))
+    on conflict (org_id, lower(email)) where email is not null do update set name = excluded.name
+    returning id into v_client_id;
+  end if;
+  insert into public.bookings
+    (org_id, service_id, staff_id, client_id, client_name, client_email, starts_at, ends_at, status, cancel_token_hash, note)
+  values
+    (v_service.org_id, p_service_id, p_staff_id, v_client_id, btrim(p_name), lower(p_email), p_starts_at, v_ends_at, 'confirmed', p_token_hash, p_note)
+  returning id into v_booking_id;
+  return v_booking_id;
+end; $$;
+revoke all on function public.create_booking_admin(uuid, timestamptz, text, text, text, text, integer, uuid)
+  from public, anon, authenticated, service_role;
+grant execute on function public.create_booking_admin(uuid, timestamptz, text, text, text, text, integer, uuid) to authenticated;
+
+-- Both RPC signatures changed; PostgREST must re-read its schema cache.
+notify pgrst, 'reload schema';

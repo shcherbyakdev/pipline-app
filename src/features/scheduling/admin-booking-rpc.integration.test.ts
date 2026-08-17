@@ -56,6 +56,11 @@ async function adminBook(
     p_email: email,
     p_note: null,
     p_token_hash: tokenHash,
+    p_duration_min: null,
+    // 0041: the appointment's staff is now required (and must offer the
+    // service). Nothing here exercises multi-staff, so it is always the
+    // org's seeded staff row.
+    p_staff_id: defaultStaffId,
   });
 }
 
@@ -63,6 +68,7 @@ let owner: SupabaseClient;
 let stranger: SupabaseClient;
 let orgId: string;
 let serviceId: string;
+let defaultStaffId: string;
 
 describe("create_booking_admin", () => {
   beforeAll(async () => {
@@ -81,6 +87,14 @@ describe("create_booking_admin", () => {
       p_timezone: "UTC",
     });
     if (e2) throw e2;
+    // 0041: create_org seeds one staff row — the calendar owner.
+    const { data: st, error: e2c } = await admin
+      .from("staff")
+      .select("id")
+      .eq("org_id", orgId)
+      .single();
+    if (e2c) throw e2c;
+    defaultStaffId = st!.id;
     const { data: svc, error: e3 } = await owner
       .from("services")
       .insert({ org_id: orgId, name: "Session", duration_min: 60, booking_window_days: 365 })
@@ -88,9 +102,16 @@ describe("create_booking_admin", () => {
       .single();
     if (e3) throw e3;
     serviceId = svc!.id;
+    // A raw services insert does not fan out to staff — that is
+    // createService's job. Mirror it here.
+    const { error: e3b } = await admin
+      .from("service_staff")
+      .insert({ org_id: orgId, service_id: serviceId, staff_id: defaultStaffId });
+    if (e3b) throw e3b;
     const { error: e4 } = await owner.from("availability_rules").insert(
       [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
         org_id: orgId,
+        staff_id: defaultStaffId,
         weekday,
         start_time: "09:00",
         end_time: "17:00",
@@ -159,6 +180,7 @@ describe("create_booking_admin custom duration", () => {
       p_note: null,
       p_token_hash: tokenHash,
       p_duration_min: durationMin,
+      p_staff_id: defaultStaffId,
     });
   }
 
