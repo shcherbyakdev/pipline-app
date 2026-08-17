@@ -370,6 +370,9 @@ create or replace function public.check_staff_owner_org()
 returns trigger language plpgsql set search_path = '' as $$
 declare v_org uuid;
 begin
+  -- Null falls through to the NOT NULL constraint (23502) — keeps the
+  -- error code meaningful instead of a trigger raise.
+  if new.staff_id is null then return new; end if;
   select org_id into v_org from public.staff where id = new.staff_id;
   if v_org is null then raise exception 'staff not found'; end if;
   if v_org <> new.org_id then raise exception 'org mismatch'; end if;
@@ -555,7 +558,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 // Setup (beforeAll): create org → defaultStaffId; create service "Cut" 30min
 // (service_staff for the default staff is NOT automatic on raw insert — insert
 // it via admin); create_staff Anna (services [serviceId]); rules for BOTH staff:
-// weekday of d(3) 09:00–12:00 (insert via admin with staff_id).
+// ALL weekdays 0–6, 09:00–12:00 (insert via admin with staff_id) — later
+// tests book on d(3), d(4) and d(6).
 const d = (n: number) => addDaysISO(dateInZone(new Date(), "UTC"), n);
 const at = (n: number, hm: string) => `${d(n)}T${hm}:00Z`;
 function book(staffId: string | null, hm = "09:00", email = "c@example.com") {
