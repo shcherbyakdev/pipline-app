@@ -2,13 +2,17 @@
 
 import * as React from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ComputerIcon, Moon02Icon, SmartPhone01Icon, Sun01Icon } from "@hugeicons/core-free-icons";
-import type { WidgetThemeConfig } from "@/lib/widget-theme";
+import { Alert02Icon, ComputerIcon, Moon02Icon, SmartPhone01Icon, Sun01Icon } from "@hugeicons/core-free-icons";
+import { hostContrast, type WidgetThemeConfig } from "@/lib/widget-theme";
 import { WidgetTheme } from "@/components/widget-theme";
 import { cn } from "@/lib/utils";
 
 type Host = "light" | "dark";
 type Device = "desktop" | "mobile";
+
+/* Mock host page surfaces — must match the bg classes used in the frame
+   below, since hostContrast() reads these to judge legibility. */
+const HOST_BG: Record<Host, string> = { light: "#ffffff", dark: "#111214" };
 
 /* Live preview for the website embed, shown the way embed configurators do
    it (Cal.com, Tally): the widget dropped into a mock host page inside a
@@ -35,6 +39,16 @@ export function EmbedPreviewFrame({
   const previewConfig: WidgetThemeConfig =
     config.theme === "auto" ? { ...config, theme: host } : config;
   const dark = host === "dark";
+
+  // Legibility against the surface the widget really sits on. Only meaningful
+  // while the embed is transparent — with a background override the widget
+  // paints its own, and that pair is guarded by the contrast check next to
+  // the colour pickers.
+  const ratio = hostContrast(config, host, HOST_BG[host]);
+  const clash = !config.background && ratio < 3;
+  const themeLabel = config.theme === "light" ? "Light" : "Dark";
+  const otherTheme = config.theme === "light" ? "Dark" : "Light";
+  const autoRisk = config.theme === "auto" && !config.background;
 
   return (
     <div className="flex flex-col gap-3">
@@ -122,13 +136,37 @@ export function EmbedPreviewFrame({
           </div>
         </div>
       </div>
-      {config.theme === "auto" ? (
-        <p className="text-muted-foreground text-xs">
-          Theme is set to Auto: on a visitor&apos;s site the widget follows their system setting. Switch the
-          host page above to check both.
-        </p>
+      {clash ? (
+        <Notice tone="error">
+          On a {host} page the {themeLabel} theme&apos;s text is unreadable ({ratio.toFixed(1)}:1) — the
+          embed paints no background of its own. If your site is {host}, choose {otherTheme} (or Auto),
+          or set a background colour so the widget brings its own surface.
+        </Notice>
+      ) : autoRisk ? (
+        <Notice tone="warn">
+          Auto follows each visitor&apos;s system setting, not your site&apos;s colours. On a site that is
+          always light or always dark, some visitors will get the mismatched variant. Pick the theme that
+          matches your site, or set a background colour. Switch the host page above to see both.
+        </Notice>
       ) : null}
     </div>
+  );
+}
+
+function Notice({ tone, children }: { tone: "error" | "warn"; children: React.ReactNode }) {
+  return (
+    <p
+      role={tone === "error" ? "alert" : "status"}
+      className={cn(
+        "flex items-start gap-2 rounded-md border px-3 py-2 text-xs",
+        tone === "error"
+          ? "border-destructive/40 bg-destructive/10 text-destructive"
+          : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+      )}
+    >
+      <HugeiconsIcon icon={Alert02Icon} size={14} className="mt-px shrink-0" />
+      <span>{children}</span>
+    </p>
   );
 }
 

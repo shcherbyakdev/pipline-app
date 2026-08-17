@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   WIDGET_THEME_DEFAULTS, parseWidgetTheme, themeCssVars, contrastRatio, effectiveContrast,
+  hostContrast,
 } from "./widget-theme";
 
 describe("parseWidgetTheme", () => {
@@ -82,5 +83,28 @@ describe("effectiveContrast", () => {
 
   it("auto with no overrides stays safe", () => {
     expect(effectiveContrast({ ...WIDGET_THEME_DEFAULTS, theme: "auto" })).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("hostContrast", () => {
+  const base = { ...WIDGET_THEME_DEFAULTS };
+  it("light widget on a dark host: no painted background, so text meets the host (fails)", () => {
+    const r = hostContrast({ ...base, theme: "light" }, "dark", "#111214");
+    expect(r).toBeLessThan(3);
+  });
+  it("light widget on a light host is fine", () => {
+    expect(hostContrast({ ...base, theme: "light" }, "light", "#ffffff")).toBeGreaterThan(10);
+  });
+  it("auto resolves to the host, so it always reads well without overrides", () => {
+    expect(hostContrast({ ...base, theme: "auto" }, "dark", "#111214")).toBeGreaterThan(10);
+    expect(hostContrast({ ...base, theme: "auto" }, "light", "#ffffff")).toBeGreaterThan(10);
+  });
+  it("a background override paints its own surface, so the host no longer matters", () => {
+    const r = hostContrast({ ...base, theme: "light", background: "#ffffff" }, "dark", "#111214");
+    expect(r).toBeGreaterThan(10);
+  });
+  it("a text override is what meets the host", () => {
+    const r = hostContrast({ ...base, theme: "dark", text: "#111111" }, "dark", "#111214");
+    expect(r).toBeLessThan(1.5);
   });
 });

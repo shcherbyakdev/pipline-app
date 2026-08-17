@@ -168,6 +168,26 @@ export function effectiveContrast(config: WidgetThemeConfig): number {
   return contrastRatio(config.background ?? defaults.background, config.text ?? defaults.text);
 }
 
+/**
+ * Contrast the widget will render against the surface it ACTUALLY sits on
+ * when embedded. The embed paints no background unless one is overridden
+ * (see /embed/[handle]), so without an override the text meets the host
+ * page, not the theme's default background — a Light widget on a dark site
+ * is unreadable even though its own light/dark pair is fine. `host` is the
+ * page the widget is dropped into (the preview's toggle; in production the
+ * real site), which is also what theme "auto" resolves to here.
+ */
+export function hostContrast(
+  config: WidgetThemeConfig,
+  host: "light" | "dark",
+  hostBackground: string,
+): number {
+  const resolved = config.theme === "auto" ? host : config.theme;
+  const text = config.text ?? WIDGET_THEME_DEFAULT_COLORS[resolved].text;
+  const surface = config.background ?? hostBackground;
+  return contrastRatio(surface, text);
+}
+
 function getLuminance(hex: string): number {
   // Parse hex to RGB
   const r = parseInt(hex.slice(1, 3), 16) / 255;
