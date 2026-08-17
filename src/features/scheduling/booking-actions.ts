@@ -6,6 +6,7 @@ import { generateAccessToken } from "@/lib/tokens";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import { loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
+import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { computeSlots, dateInZone } from "./slots";
@@ -66,52 +67,84 @@ export async function cancelBookingAdmin(
       .eq("org_id", org.id)
       .eq("status", "confirmed")
       .select(
-        "id, client_email, starts_at, ends_at, rental_unit_id, services(name), rental_offerings(name), rental_units(name)",
+        "id, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, staff(name), services(name), rental_offerings(name), rental_units(name)",
       );
     if (error) return fail("cancelBookingAdmin", error);
     const row = (data as unknown as Array<{
       id: string;
+      client_name: string;
       client_email: string | null;
+      staff_id: string | null;
       starts_at: string;
       ends_at: string;
       rental_unit_id: string | null;
+      staff: { name: string } | null;
       services: { name: string } | null;
       rental_offerings: { name: string } | null;
       rental_units: { name: string } | null;
     }>)?.[0];
     if (!row) return { ok: false, error: "Only a confirmed booking can be cancelled." };
 
+    // Past this line the cancel is APPLIED — nothing below may turn into a
+    // failed action, so the whole tail sits in its own catch rather than
+    // falling through to the outer one (rescheduleBookingAdmin's precedent).
     let emailed = false;
     let noEmail = false;
-    if (!row.client_email) {
-      noEmail = true;
-    } else {
-      emailed = true;
-      try {
-        const msg = bookingCancelledEmail({
-          orgName: org.name,
-          serviceName: bookingTitle(row),
-          whenLine: whenLineFor(
-            {
-              startsAt: new Date(row.starts_at),
-              endsAt: new Date(row.ends_at),
-              isRental: row.rental_unit_id !== null,
-            },
-            org.timezone,
-          ),
-          cancelledBy: "provider",
-        });
-        await selectTransport().send({
-          to: row.client_email,
-          subject: msg.subject,
-          html: msg.html,
-          text: msg.text,
-          idempotencyKey: bookingLifecycleKey(row.id, "cancelled"),
-        });
-      } catch (mailError) {
-        console.error("[scheduling] admin cancel email failed:", mailError);
-        emailed = false;
+    try {
+      const serviceName = bookingTitle(row);
+      const whenLine = whenLineFor(
+        {
+          startsAt: new Date(row.starts_at),
+          endsAt: new Date(row.ends_at),
+          isRental: row.rental_unit_id !== null,
+        },
+        org.timezone,
+      );
+      const idempotencyKey = bookingLifecycleKey(row.id, "cancelled");
+
+      if (!row.client_email) {
+        noEmail = true;
+      } else {
+        emailed = true;
+        try {
+          const msg = bookingCancelledEmail({
+            orgName: org.name,
+            serviceName,
+            whenLine,
+            cancelledBy: "provider",
+            // Solo orgs never name a staff member — resolveClientStaffName is
+            // the one place that rule lives (and swallows its own errors).
+            staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
+          });
+          await selectTransport().send({
+            to: row.client_email,
+            subject: msg.subject,
+            html: msg.html,
+            text: msg.text,
+            idempotencyKey,
+          });
+        } catch (mailError) {
+          console.error("[scheduling] admin cancel email failed:", mailError);
+          emailed = false;
+        }
       }
+
+      // Team: the freed slot is the assigned member's. Outside the try above so
+      // a failed client mail cannot skip it; the notice swallows its own errors
+      // and no-ops on a solo org. Rentals carry no staff_id at all.
+      if (row.staff_id) {
+        await sendStaffNotice({
+          orgId: org.id,
+          staffId: row.staff_id,
+          kind: "cancelled",
+          serviceName,
+          clientName: row.client_name,
+          whenLine,
+          idempotencyKey,
+        });
+      }
+    } catch (postError) {
+      console.error("[scheduling] admin cancel follow-up failed:", postError);
     }
 
     revalidatePath("/bookings");
@@ -221,7 +254,7 @@ export async function rescheduleBookingAdmin(
     });
     if (error) {
       if (error.code === "23P01") return { ok: false, error: SLOT_TAKEN, slotTaken: true };
-      if (error.message?.includes("staff_unavailable")) {
+      if (isRpcSentinel(error, "staff_unavailable")) {
         return { ok: false, error: STAFF_UNAVAILABLE };
       }
       return fail("rescheduleBookingAdmin", error);
@@ -278,10 +311,16 @@ export async function rescheduleBookingAdmin(
       // Team: the calendar that changed belongs to the target member. Outside
       // the try above so a failed client mail cannot skip it; the notice
       // swallows its own errors and no-ops on a solo org.
+      //
+      // On a HAND-OFF the target had nothing on their calendar before, so
+      // "moved from X to Y" is copy about a slot they never held — for them it
+      // is a new booking. Only a same-person move reads as a reschedule.
+      // (`oldWhenLine` is ignored by the "new" template.)
+      const handedOff = row?.staff_changed === true;
       await sendStaffNotice({
         orgId: org.id,
         staffId: targetStaffId,
-        kind: "rescheduled",
+        kind: handedOff ? "new" : "rescheduled",
         serviceName: ctx.service.name,
         clientName: booking.client_name,
         whenLine,
@@ -291,7 +330,7 @@ export async function rescheduleBookingAdmin(
       // A hand-off frees the old member's calendar — for them it reads as a
       // cancellation. Its own key: a later real cancellation of this booking
       // must not be deduped against this one.
-      if (row?.staff_changed && booking.staff_id) {
+      if (handedOff && booking.staff_id) {
         await sendStaffNotice({
           orgId: org.id,
           staffId: booking.staff_id,
@@ -325,7 +364,7 @@ export async function resendManageLink(
     const { data: booking, error: readError } = await supabase
       .from("bookings")
       .select(
-        "id, client_email, starts_at, ends_at, rental_unit_id, services(name), rental_offerings(name), rental_units(name)",
+        "id, client_email, starts_at, ends_at, rental_unit_id, staff(name), services(name), rental_offerings(name), rental_units(name)",
       )
       .eq("id", parsed.data.id)
       .eq("org_id", org.id)
@@ -350,6 +389,7 @@ export async function resendManageLink(
       starts_at: string;
       ends_at: string;
       rental_unit_id: string | null;
+      staff: { name: string } | null;
       services: { name: string } | null;
       rental_offerings: { name: string } | null;
       rental_units: { name: string } | null;
@@ -370,6 +410,10 @@ export async function resendManageLink(
         manageUrl: buildBookingManageUrl(fresh.token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
         canReschedule: row.rental_unit_id === null,
+        // Same copy the client already has from the confirmation: a resent link
+        // must not silently drop who the appointment is with. Solo orgs → null
+        // (resolveClientStaffName), rentals have no staff at all.
+        staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
       });
       await selectTransport().send({
         to: booking.client_email,
@@ -414,7 +458,7 @@ export async function createBookingAdmin(
     });
     if (error) {
       if (error.code === "23P01") return { ok: false, error: OVERLAP, overlap: true };
-      if (error.message?.includes("staff_unavailable")) {
+      if (isRpcSentinel(error, "staff_unavailable")) {
         return { ok: false, error: STAFF_UNAVAILABLE };
       }
       return fail("createBookingAdmin", error);
