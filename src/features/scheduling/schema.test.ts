@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   serviceInput,
   availabilityRuleInput,
-  availabilityExceptionInput,
   schedulingSettingsInput,
   getSlotsInput,
   createBookingInput,
@@ -44,33 +43,6 @@ describe("availabilityRuleInput", () => {
     expect(availabilityRuleInput.safeParse({ weekday: 7, startTime: "09:00", endTime: "17:00" }).success).toBe(false);
     expect(availabilityRuleInput.safeParse({ weekday: 1, startTime: "9am", endTime: "17:00" }).success).toBe(false);
     expect(availabilityRuleInput.safeParse({ weekday: 1, startTime: "17:00", endTime: "09:00" }).success).toBe(false);
-  });
-});
-
-describe("availabilityExceptionInput", () => {
-  it("accepts closed day and open window", () => {
-    expect(availabilityExceptionInput.safeParse({ date: "2027-01-04", closed: true }).success).toBe(true);
-    expect(
-      availabilityExceptionInput.safeParse({
-        date: "2027-01-04",
-        closed: false,
-        startTime: "10:00",
-        endTime: "12:00",
-      }).success,
-    ).toBe(true);
-  });
-  it("rejects open exception without a window", () => {
-    expect(availabilityExceptionInput.safeParse({ date: "2027-01-04", closed: false }).success).toBe(false);
-  });
-  it("rejects a closed exception that carries a window", () => {
-    expect(
-      availabilityExceptionInput.safeParse({
-        date: "2027-01-04",
-        closed: true,
-        startTime: "10:00",
-        endTime: "12:00",
-      }).success,
-    ).toBe(false);
   });
 });
 

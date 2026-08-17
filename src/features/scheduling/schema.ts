@@ -32,22 +32,6 @@ export const availabilityRuleInput = z
   .refine((r) => r.startTime < r.endTime, { message: "start must precede end" });
 export const ruleIdInput = z.object({ id: z.uuid() });
 
-export const availabilityExceptionInput = z
-  .object({
-    date: z.string().regex(DATE_RE),
-    closed: z.boolean(),
-    startTime: timeField.optional(),
-    endTime: timeField.optional(),
-  })
-  .refine(
-    (e) =>
-      e.closed
-        ? e.startTime === undefined && e.endTime === undefined
-        : e.startTime !== undefined && e.endTime !== undefined && e.startTime < e.endTime,
-    { message: "closed day has no window; open exception needs an ordered window" },
-  );
-export const exceptionIdInput = z.object({ id: z.uuid() });
-
 export const blockTimeInput = z
   .object({
     date: z.string().regex(DATE_RE),
