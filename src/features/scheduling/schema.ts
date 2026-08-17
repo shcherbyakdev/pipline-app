@@ -1,6 +1,12 @@
 import { z } from "zod";
+import { STAFF_SLUG_RE } from "./staff-slug";
 
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
+
+// An optional text input that was rendered but never filled arrives as "" —
+// treat that as "not provided" rather than as an invalid value.
+const emptyToUndefined = (v: unknown) =>
+  typeof v === "string" && v.trim() === "" ? undefined : v;
 
 export const TIME_RE = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
 export const HANDLE_RE = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/;
@@ -52,6 +58,29 @@ export const schedulingSettingsInput = z.object({
   ),
   timezone: z.string().min(1).max(64),
 });
+
+// Team (multi-staff), admin side. `slug` is the person's booking-link name —
+// same regex as the DB CHECK on staff.slug (0041). `email` is optional and
+// normalised to lowercase here because that CHECK requires it (create_staff
+// lowers it server-side; the plain UPDATE in updateStaff does not).
+export const staffInput = z.object({
+  name: z.string().trim().min(1).max(80),
+  slug: z.string().regex(STAFF_SLUG_RE),
+  email: z.preprocess(
+    (v) => (typeof v === "string" ? emptyToUndefined(v.toLowerCase()) : v),
+    z.email().max(320).optional(),
+  ),
+  color: z.string().regex(/^#[0-9a-f]{6}$/),
+  serviceIds: z.array(z.uuid()),
+});
+export const updateStaffInput = staffInput.extend({ id: z.uuid() });
+export const staffActiveInput = z.object({ id: z.uuid(), active: z.boolean() });
+
+export const LAST_ACTIVE_STAFF_ERROR = "You need at least one active team member.";
+export const STAFF_SLUG_TAKEN_ERROR = "That link name is already used.";
+export function staffFutureBookingsError(name: string): string {
+  return `${name} has upcoming bookings — move or cancel them first.`;
+}
 
 // Team (multi-staff): the public surface either names a staff member or asks
 // for "any" (auto-assign). Defaulted rather than required so a solo org's
@@ -113,10 +142,7 @@ export const adminCreateBookingInput = z.object({
   durationMin: z.number().int().min(5).max(480).optional(),
   name: z.string().trim().min(1).max(200),
   // "" (untouched optional field) → undefined, mirroring the handle preprocess.
-  email: z.preprocess(
-    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-    z.email().max(320).optional(),
-  ),
+  email: z.preprocess(emptyToUndefined, z.email().max(320).optional()),
   note: z.string().trim().max(2000).optional(),
 });
 

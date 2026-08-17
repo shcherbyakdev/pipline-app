@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
 import { WidgetAppearance } from "@/features/orgs/components/widget-appearance";
 import { listServices } from "@/features/scheduling/queries";
+import { listStaff } from "@/features/scheduling/staff-queries";
 import { toPreviewServices } from "@/features/scheduling/preview-services";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { env } from "@/env";
@@ -9,15 +10,26 @@ import { PageIntro } from "@/components/shell/page-header";
 
 /* Website embed: the second booking channel — the widget on the org's own
    site. Style it against a live preview, then copy the snippet. */
-export default async function EmbedPage() {
-  const [settings, schedulingSettings, services] = await Promise.all([
+export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
+  const [settings, schedulingSettings, services, staff] = await Promise.all([
     getBrandingSettings(),
     getSchedulingSettings(),
     listServices(),
+    listStaff(),
   ]);
   if (!settings || !schedulingSettings) notFound();
 
   const previewServices = toPreviewServices(services);
+  // Solo orgs get no "Book with" choice at all (there is only one answer);
+  // the Team page's "Embed…" link lands here with ?staff=<slug> preselected.
+  const activeStaff = staff.filter((s) => s.active);
+  const staffOptions =
+    activeStaff.length > 1 ? activeStaff.map((s) => ({ slug: s.slug, name: s.name })) : [];
+  const staffParam = (await searchParams).staff;
+  const initialStaffSlug =
+    typeof staffParam === "string" && staffOptions.some((s) => s.slug === staffParam)
+      ? staffParam
+      : null;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
@@ -31,6 +43,8 @@ export default async function EmbedPage() {
         handle={schedulingSettings.handle}
         appUrl={env.NEXT_PUBLIC_APP_URL}
         previewServices={previewServices}
+        staffOptions={staffOptions}
+        initialStaffSlug={initialStaffSlug}
       />
     </div>
   );

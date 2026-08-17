@@ -36,15 +36,24 @@ export function WidgetAppearance({
   handle,
   appUrl,
   previewServices,
+  staffOptions = [],
+  initialStaffSlug = null,
 }: {
   initial: WidgetThemeConfig;
   accentColor: string | null;
   handle: string | null;
   appUrl: string;
   previewServices: PublicService[];
+  // Only passed when the org has more than one active team member — a solo
+  // provider never sees a "Book with" choice they can't make.
+  staffOptions?: Array<{ slug: string; name: string }>;
+  initialStaffSlug?: string | null;
 }) {
   const [config, setConfig] = React.useState<WidgetThemeConfig>(initial);
   const [pending, startTransition] = React.useTransition();
+  // "" = the whole team (the org-wide flow, byte-identical to the old snippet).
+  const [staffSlug, setStaffSlug] = React.useState<string>(initialStaffSlug ?? "");
+  const snippet = handle ? snippetFor(appUrl, handle, staffSlug || null) : "";
 
   // Show/guard the ratio as soon as EITHER side is overridden — a lone
   // override still gets checked against the theme's default for the other
@@ -64,7 +73,7 @@ export function WidgetAppearance({
 
   const copySnippet = () => {
     if (!handle) return;
-    navigator.clipboard.writeText(snippetFor(appUrl, handle));
+    navigator.clipboard.writeText(snippet);
     toast.success("Copied");
   };
 
@@ -250,8 +259,33 @@ export function WidgetAppearance({
       {handle ? (
         <div className="flex flex-col gap-2">
           <p className="text-muted-foreground text-sm font-medium">Embed snippet</p>
+          {staffOptions.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="wt-staff" className="text-xs font-medium">
+                Book with
+              </Label>
+              <select
+                id="wt-staff"
+                className={cn(selectClass, "w-auto")}
+                value={staffSlug}
+                onChange={(e) => setStaffSlug(e.target.value)}
+              >
+                <option value="">Whole team</option>
+                {staffOptions.map((s) => (
+                  <option key={s.slug} value={s.slug}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-muted-foreground text-xs">
+                {staffSlug
+                  ? "This snippet books that person only."
+                  : "Clients pick who they book."}
+              </span>
+            </div>
+          ) : null}
           <pre className="bg-muted overflow-x-auto rounded-md border p-3 font-mono text-xs">
-            {snippetFor(appUrl, handle)}
+            {snippet}
           </pre>
           <div>
             <Button variant="outline" size="sm" onClick={copySnippet}>

@@ -6,6 +6,7 @@ import {
   Globe02Icon,
   Settings01Icon,
   SourceCodeIcon,
+  UserGroupIcon,
   UserMultipleIcon,
 } from "@hugeicons/core-free-icons";
 
@@ -21,6 +22,8 @@ export const NAV_ITEMS = [
   { href: "/bookings", label: "Bookings", icon: Calendar03Icon, section: "main" },
   { href: "/clients", label: "Clients", icon: UserMultipleIcon, section: "main" },
   { href: "/services", label: "Services", icon: Briefcase01Icon, section: "configure" },
+  // Always present, solo or not: a solo provider sees one row (themselves).
+  { href: "/team", label: "Team", icon: UserGroupIcon, section: "configure" },
   { href: "/availability", label: "Availability", icon: Clock01Icon, section: "configure" },
   { href: "/booking-page", label: "Booking page", icon: Globe02Icon, section: "configure" },
   { href: "/embed", label: "Website embed", icon: SourceCodeIcon, section: "configure" },

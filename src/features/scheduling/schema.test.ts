@@ -13,6 +13,9 @@ import {
   copyDayHoursInput,
   dateOverrideInput,
   deleteOverrideInput,
+  staffInput,
+  updateStaffInput,
+  staffActiveInput,
 } from "./schema";
 
 describe("serviceInput", () => {
@@ -213,5 +216,47 @@ describe("deleteOverrideInput", () => {
   it("accepts a date and rejects garbage", () => {
     expect(deleteOverrideInput.safeParse({ date: "2026-09-01" }).success).toBe(true);
     expect(deleteOverrideInput.safeParse({ date: "not-a-date" }).success).toBe(false);
+  });
+});
+
+describe("staffInput", () => {
+  const base = { name: "Anna", slug: "anna", color: "#4f46e5", serviceIds: [] };
+
+  it("accepts a slug-shaped link name and rejects one with a space", () => {
+    expect(staffInput.safeParse(base).success).toBe(true);
+    expect(staffInput.safeParse({ ...base, slug: "A b" }).success).toBe(false);
+    // One character is under the DB CHECK's floor of two.
+    expect(staffInput.safeParse({ ...base, slug: "a" }).success).toBe(false);
+  });
+
+  it("treats an untouched email field as absent, but still validates a typed one", () => {
+    const empty = staffInput.safeParse({ ...base, email: "  " });
+    expect(empty.success).toBe(true);
+    if (empty.success) expect(empty.data.email).toBeUndefined();
+    expect(staffInput.safeParse({ ...base, email: "anna@example.com" }).success).toBe(true);
+    expect(staffInput.safeParse({ ...base, email: "nope" }).success).toBe(false);
+  });
+
+  it("requires a lowercase six-digit hex colour and uuid service ids", () => {
+    expect(staffInput.safeParse({ ...base, color: "#fff" }).success).toBe(false);
+    expect(staffInput.safeParse({ ...base, color: "#4F46E5" }).success).toBe(false);
+    expect(staffInput.safeParse({ ...base, serviceIds: ["nope"] }).success).toBe(false);
+  });
+
+  it("rejects a blank name", () => {
+    expect(staffInput.safeParse({ ...base, name: "   " }).success).toBe(false);
+  });
+});
+
+describe("updateStaffInput / staffActiveInput", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  const base = { name: "Anna", slug: "anna", color: "#4f46e5", serviceIds: [] };
+  it("requires an id on update", () => {
+    expect(updateStaffInput.safeParse(base).success).toBe(false);
+    expect(updateStaffInput.safeParse({ ...base, id }).success).toBe(true);
+  });
+  it("takes an id plus a boolean", () => {
+    expect(staffActiveInput.safeParse({ id, active: false }).success).toBe(true);
+    expect(staffActiveInput.safeParse({ id, active: "no" }).success).toBe(false);
   });
 });
