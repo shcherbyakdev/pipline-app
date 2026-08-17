@@ -6,7 +6,6 @@ import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createOffering, updateOffering } from "@/features/rentals/actions";
 import type { OfferingRow } from "@/features/rentals/queries";
-import { hhmm } from "@/features/rentals/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -159,7 +158,7 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
                 type="time"
                 step={900}
                 required
-                defaultValue={offering ? hhmm(offering.startTime) : "15:00"}
+                defaultValue={offering?.startTime ?? "15:00"}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -170,7 +169,7 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
                 type="time"
                 step={900}
                 required
-                defaultValue={offering ? hhmm(offering.endTime) : "11:00"}
+                defaultValue={offering?.endTime ?? "11:00"}
               />
             </div>
           </div>

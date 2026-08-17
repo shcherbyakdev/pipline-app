@@ -7,6 +7,8 @@ export type OfferingRow = {
   description: string | null;
   priceLabel: string | null;
   rangeMode: RangeMode;
+  // `text`, not `time` — 0037's `rental_offerings_start_time_fmt` CHECK pins
+  // both to "HH:MM", so they need no normalising for <input type="time">.
   startTime: string;
   endTime: string;
   minStay: number;

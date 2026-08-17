@@ -8,7 +8,6 @@ import type { OfferingRow } from "@/features/rentals/queries";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { hhmm } from "@/features/rentals/format";
 import { OfferingDialog } from "./offering-dialog";
 
 function Row({ offering }: { offering: OfferingRow }) {
@@ -45,8 +44,8 @@ function Row({ offering }: { offering: OfferingRow }) {
         </p>
         <p className="text-muted-foreground text-xs">
           {nightly
-            ? `check-in ${hhmm(offering.startTime)} · check-out ${hhmm(offering.endTime)}`
-            : `pickup ${hhmm(offering.startTime)} · return ${hhmm(offering.endTime)}`}
+            ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
+            : `pickup ${offering.startTime} · return ${offering.endTime}`}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">

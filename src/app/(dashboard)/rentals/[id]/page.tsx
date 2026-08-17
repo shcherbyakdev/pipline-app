@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { getOffering, listUnitsWithBlackouts } from "@/features/rentals/queries";
 import { OfferingDialog } from "@/features/rentals/components/offering-dialog";
-import { hhmm } from "@/features/rentals/format";
 import { UnitsEditor } from "@/features/rentals/components/units-editor";
 import { Badge } from "@/components/ui/badge";
 
@@ -36,8 +35,8 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
             </div>
             <p className="text-muted-foreground text-xs">
               {nightly
-                ? `check-in ${hhmm(offering.startTime)} · check-out ${hhmm(offering.endTime)}`
-                : `pickup ${hhmm(offering.startTime)} · return ${hhmm(offering.endTime)}`}
+                ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
+                : `pickup ${offering.startTime} · return ${offering.endTime}`}
               {offering.priceLabel ? ` · ${offering.priceLabel}` : ""}
             </p>
           </div>
