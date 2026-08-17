@@ -1,0 +1,35 @@
+// 2–40 chars, matches the DB CHECK on staff.slug.
+export const STAFF_SLUG_RE = /^(?:[a-z0-9]{2}|[a-z0-9][a-z0-9-]{0,38}[a-z0-9])$/;
+
+export const STAFF_COLORS = [
+  "#4f46e5",
+  "#0891b2",
+  "#059669",
+  "#d97706",
+  "#dc2626",
+  "#7c3aed",
+  "#db2777",
+  "#475569",
+] as const;
+
+// "Anna Müller" → "anna-muller"; "" → "team-member"; always 2–40 chars and
+// matching STAFF_SLUG_RE (the DB CHECK re-enforces this — this is display
+// convenience, not the sole guard).
+export function slugifyStaffName(name: string): string {
+  let s = name
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/g, "");
+  if (s === "") return "team-member";
+  if (s.length < 2) s = `${s}-1`;
+  return s;
+}
+
+// First unused colour, else cycles by how many are already taken.
+export function nextStaffColor(used: string[]): string {
+  return STAFF_COLORS.find((c) => !used.includes(c)) ?? STAFF_COLORS[used.length % STAFF_COLORS.length];
+}

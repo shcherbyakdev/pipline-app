@@ -27,9 +27,9 @@ async function limited(): Promise<boolean> {
 async function loadSlotContext(handle: string, serviceId: string, fromDate: string, days: number) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
-  const ctx = await loadOrgSlotContext(org.orgId, serviceId, fromDate, days);
+  const ctx = await loadOrgSlotContext(org.orgId, serviceId, fromDate, days, { staffId: "any" });
   if (!ctx) return null;
-  return { org, ...ctx };
+  return { org, service: ctx.service, ...ctx.perStaff[0] };
 }
 
 export async function getSlots(

@@ -1,7 +1,12 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { addDaysISO, type SlotRule, type SlotException } from "@/features/scheduling/slots";
+import {
+  addDaysISO,
+  type SlotRule,
+  type SlotException,
+  type BusyInterval,
+} from "@/features/scheduling/slots";
 import type {
   RangeMode,
   RangeUnit,
@@ -66,18 +71,18 @@ export async function listPublicServices(orgId: string): Promise<PublicService[]
 }
 
 export async function getAvailability(
-  orgId: string,
+  staffId: string,
 ): Promise<{ rules: SlotRule[]; exceptions: SlotException[] }> {
   const admin = createAdminClient();
   const [rulesRes, exceptionsRes] = await Promise.all([
     admin
       .from("availability_rules")
       .select("weekday, start_time, end_time")
-      .eq("org_id", orgId),
+      .eq("staff_id", staffId),
     admin
       .from("availability_exceptions")
       .select("date, closed, start_time, end_time")
-      .eq("org_id", orgId),
+      .eq("staff_id", staffId),
   ]);
   if (rulesRes.error) throw rulesRes.error;
   if (exceptionsRes.error) throw exceptionsRes.error;
@@ -97,16 +102,16 @@ export async function getAvailability(
 }
 
 export async function getBusyIntervals(
-  orgId: string,
+  staffId: string,
   fromIso: string,
   toIso: string,
   excludeBookingId?: string,
-): Promise<Array<{ startsAt: Date; endsAt: Date }>> {
+): Promise<BusyInterval[]> {
   const admin = createAdminClient();
   let query = admin
     .from("bookings")
     .select("starts_at, ends_at")
-    .eq("org_id", orgId)
+    .eq("staff_id", staffId)
     .eq("status", "confirmed")
     // Rentals never block the provider's calendar (unit-level guard, R1).
     .is("rental_unit_id", null)
@@ -131,33 +136,97 @@ export async function getPublicServiceById(
   return services.find((s) => s.id === serviceId) ?? null;
 }
 
-// Everything the slot engine needs for one org+service. Shared by the
-// public booking page, the tokenized manage page, and the admin
-// reschedule dialog (public-actions' former loadSlotContext, org-keyed).
+// Staff directory for the public booking widget. Never selects email —
+// that column stays off the anon-reachable surface.
+export type PublicStaff = { id: string; name: string; slug: string; color: string };
+const STAFF_COLS = "id, name, slug, color, sort_order";
+
+export async function listPublicStaff(orgId: string, serviceId?: string): Promise<PublicStaff[]> {
+  const admin = createAdminClient();
+  let ids: string[] | null = null;
+  if (serviceId) {
+    const { data, error } = await admin
+      .from("service_staff")
+      .select("staff_id")
+      .eq("org_id", orgId)
+      .eq("service_id", serviceId);
+    if (error) throw error;
+    ids = (data ?? []).map((r) => r.staff_id);
+    if (ids.length === 0) return [];
+  }
+  let q = admin
+    .from("staff")
+    .select(STAFF_COLS)
+    .eq("org_id", orgId)
+    .eq("active", true)
+    .order("sort_order")
+    .order("name");
+  if (ids) q = q.in("id", ids);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data ?? []).map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
+}
+
+export async function getPublicStaffBySlug(orgId: string, slug: string): Promise<PublicStaff | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("staff")
+    .select(STAFF_COLS)
+    .eq("org_id", orgId)
+    .eq("slug", slug)
+    .eq("active", true)
+    .maybeSingle();
+  if (error || !data) return null;
+  return { id: data.id, name: data.name, slug: data.slug, color: data.color };
+}
+
+export async function countActiveStaff(orgId: string): Promise<number> {
+  const admin = createAdminClient();
+  const { count, error } = await admin
+    .from("staff")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("active", true);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+// Everything the slot engine needs for one org+service, per eligible staff
+// member. Shared by the public booking page, the tokenized manage page, and
+// the admin reschedule dialog (public-actions' former loadSlotContext).
+export type StaffSlotContext = {
+  staffId: string;
+  rules: SlotRule[];
+  exceptions: SlotException[];
+  busy: BusyInterval[];
+};
+
 export async function loadOrgSlotContext(
   orgId: string,
   serviceId: string,
   fromDate: string,
   days: number,
-  opts?: { excludeBookingId?: string },
-): Promise<{
-  service: PublicService;
-  rules: SlotRule[];
-  exceptions: SlotException[];
-  busy: Array<{ startsAt: Date; endsAt: Date }>;
-} | null> {
+  opts: { staffId: string | "any"; excludeBookingId?: string },
+): Promise<{ service: PublicService; perStaff: StaffSlotContext[] } | null> {
   const service = await getPublicServiceById(orgId, serviceId);
   if (!service) return null;
-  const { rules, exceptions } = await getAvailability(orgId);
+  const eligible = await listPublicStaff(orgId, serviceId);
+  const targets = opts.staffId === "any" ? eligible : eligible.filter((s) => s.id === opts.staffId);
+  if (targets.length === 0) return null;
   // Fetch busy one day beyond both edges — buffers can reach across
   // org-local midnight in UTC terms.
-  const busy = await getBusyIntervals(
-    orgId,
-    `${addDaysISO(fromDate, -1)}T00:00:00Z`,
-    `${addDaysISO(fromDate, days + 1)}T23:59:59Z`,
-    opts?.excludeBookingId,
+  const fromIso = `${addDaysISO(fromDate, -1)}T00:00:00Z`;
+  const toIso = `${addDaysISO(fromDate, days + 1)}T23:59:59Z`;
+  const perStaff = await Promise.all(
+    targets.map(async (st) => {
+      const [{ rules, exceptions }, busy] = await Promise.all([
+        getAvailability(st.id),
+        getBusyIntervals(st.id, fromIso, toIso, opts.excludeBookingId),
+      ]);
+      return { staffId: st.id, rules, exceptions, busy };
+    }),
   );
-  return { service, rules, exceptions, busy };
+  return { service, perStaff };
 }
 
 // ---------- Rentals (R1). Same doctrine as the service loaders above:

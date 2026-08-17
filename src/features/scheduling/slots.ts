@@ -130,3 +130,22 @@ export function computeSlots(input: SlotInput): Date[] {
   }
   return slots;
 }
+
+export type StaffSlots = { staffId: string; slots: Date[] };
+// "Anyone available": one merged list for the picker. Which staff actually
+// takes the booking is decided in the DB (pick_staff_for_slot) — staffIds
+// here is display-only (and lets the widget say "3 people free").
+export function unionSlots(perStaff: StaffSlots[]): Array<{ startsAt: Date; staffIds: string[] }> {
+  const byMs = new Map<number, string[]>();
+  for (const { staffId, slots } of perStaff) {
+    for (const s of slots) {
+      const ms = s.getTime();
+      const ids = byMs.get(ms);
+      if (ids) { if (!ids.includes(staffId)) ids.push(staffId); }
+      else byMs.set(ms, [staffId]);
+    }
+  }
+  return [...byMs.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([ms, staffIds]) => ({ startsAt: new Date(ms), staffIds }));
+}

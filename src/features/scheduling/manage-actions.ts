@@ -63,14 +63,14 @@ export async function getManageSlots(
       booking.serviceId,
       parsed.data.fromDate,
       parsed.data.days,
-      { excludeBookingId: booking.id },
+      { staffId: "any", excludeBookingId: booking.id },
     );
     if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
     const slots = computeSlots({
       service: ctx.service,
-      rules: ctx.rules,
-      exceptions: ctx.exceptions,
-      busy: ctx.busy,
+      rules: ctx.perStaff[0].rules,
+      exceptions: ctx.perStaff[0].exceptions,
+      busy: ctx.perStaff[0].busy,
       timeZone: booking.orgTimezone,
       now: new Date(),
       fromDate: parsed.data.fromDate,
@@ -178,14 +178,15 @@ export async function rescheduleBooking(
     const starts = new Date(parsed.data.startsAt);
     const localDate = dateInZone(starts, booking.orgTimezone);
     const ctx = await loadOrgSlotContext(booking.orgId, booking.serviceId, localDate, 1, {
+      staffId: "any",
       excludeBookingId: booking.id,
     });
     if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
     const slots = computeSlots({
       service: ctx.service,
-      rules: ctx.rules,
-      exceptions: ctx.exceptions,
-      busy: ctx.busy,
+      rules: ctx.perStaff[0].rules,
+      exceptions: ctx.perStaff[0].exceptions,
+      busy: ctx.perStaff[0].busy,
       timeZone: booking.orgTimezone,
       now: new Date(),
       fromDate: localDate,

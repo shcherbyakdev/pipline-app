@@ -129,13 +129,14 @@ export async function getAdminSlots(
       parsed.data.serviceId,
       parsed.data.fromDate,
       parsed.data.days,
+      { staffId: "any" },
     );
     if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
     const slots = computeSlots({
       service: ctx.service,
-      rules: ctx.rules,
-      exceptions: ctx.exceptions,
-      busy: ctx.busy,
+      rules: ctx.perStaff[0].rules,
+      exceptions: ctx.perStaff[0].exceptions,
+      busy: ctx.perStaff[0].busy,
       timeZone: org.timezone,
       now: new Date(),
       fromDate: parsed.data.fromDate,
@@ -177,14 +178,15 @@ export async function rescheduleBookingAdmin(
     const starts = new Date(parsed.data.startsAt);
     const localDate = dateInZone(starts, org.timezone);
     const ctx = await loadOrgSlotContext(org.id, booking.service_id, localDate, 1, {
+      staffId: "any",
       excludeBookingId: booking.id,
     });
     if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
     const slots = computeSlots({
       service: ctx.service,
-      rules: ctx.rules,
-      exceptions: ctx.exceptions,
-      busy: ctx.busy,
+      rules: ctx.perStaff[0].rules,
+      exceptions: ctx.perStaff[0].exceptions,
+      busy: ctx.perStaff[0].busy,
       timeZone: org.timezone,
       now: new Date(),
       fromDate: localDate,
