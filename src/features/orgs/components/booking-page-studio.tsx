@@ -47,6 +47,11 @@ export function BookingPageStudio({
   const [theme, setTheme] = React.useState<WidgetThemeConfig>(() => parseWidgetTheme(branding.widgetTheme));
   const [savingTheme, startSaveTheme] = React.useTransition();
   const resolved: Scheme = theme.theme === "auto" ? scheme : theme.theme;
+  // What the widget renders in the preview. Auto is resolved to the same
+  // scheme as the page shell above: `wt-auto` follows the admin's real
+  // system (a media query), which the preview toggle can't flip — leaving
+  // it unresolved shows dark widget text on a light preview page.
+  const previewTheme: WidgetThemeConfig = theme.theme === "auto" ? { ...theme, theme: resolved } : theme;
 
   const changeTheme = (value: WidgetThemeConfig["theme"]) => {
     const previous = theme;
@@ -162,7 +167,7 @@ export function BookingPageStudio({
           }
         >
           <BrandedHeader orgName={branding.orgName} accentColor={accent} logoUrl={branding.logoUrl} />
-          <WidgetTheme config={theme} accentColor={accent} transparent={!theme.background}>
+          <WidgetTheme config={previewTheme} accentColor={accent} transparent={!theme.background}>
             <BookingWidget
               handle="preview"
               orgTimeZone={scheduling.timezone}
