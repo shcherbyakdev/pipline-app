@@ -47,16 +47,20 @@
 
 /* Enter / leave: opacity + blur + a short rise, Rulebase-style. */
 .enter {
-  animation: hero-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: hero-enter 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .leave {
-  animation: hero-leave 380ms cubic-bezier(0.4, 0, 1, 1) both;
+  animation: hero-leave 480ms cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+/* The status strip follows the message card in by a beat. */
+.lower .enter {
+  animation-delay: 160ms;
 }
 @keyframes hero-enter {
   from {
     opacity: 0;
-    filter: blur(6px);
-    transform: translateY(8px);
+    filter: blur(8px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -72,27 +76,103 @@
   }
   to {
     opacity: 0;
+    filter: blur(8px);
+    transform: translateY(-8px);
+  }
+}
+
+/* Message lines grow into place (0fr → 1fr) while their content fades in, so
+   the card's height eases instead of jumping when a line lands. */
+.row {
+  display: grid;
+  animation: hero-row 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.row > * {
+  min-height: 0;
+  overflow: hidden;
+}
+@keyframes hero-row {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
     filter: blur(6px);
-    transform: translateY(-6px);
+    transform: translateY(6px);
+  }
+  40% {
+    grid-template-rows: 1fr;
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
   }
 }
 
 /* Older lines recede once a newer one lands. */
 .line {
-  transition: opacity 400ms ease;
+  transition: opacity 600ms ease;
 }
 .dim {
   opacity: 0.35;
 }
 
+/* Status strip: the outgoing text fades up and out while the incoming one
+   fades in beneath it; both are stacked so the strip never changes size. */
+.status {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+  height: 1.25rem;
+}
+.status > * {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.statusIn {
+  animation: hero-status-in 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.statusOut {
+  animation: hero-status-out 420ms cubic-bezier(0.4, 0, 0.6, 1) both;
+  pointer-events: none;
+}
+@keyframes hero-status-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+@keyframes hero-status-out {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(-6px);
+  }
+}
+
 /* Chip that pops in beside a message. */
 .pop {
-  animation: hero-pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: hero-pop 560ms cubic-bezier(0.34, 1.4, 0.64, 1) 120ms both;
 }
 @keyframes hero-pop {
   from {
     opacity: 0;
-    transform: scale(0.85);
+    transform: scale(0.7);
   }
   to {
     opacity: 1;
@@ -117,10 +197,16 @@
   }
 }
 
-/* Calendar cell states driven by the scenario. */
+/* Calendar cell states driven by the scenario. Every cell eases its tint and
+   ring so a hold or a fill blends in rather than snapping. */
+.cell {
+  transition:
+    background-color 600ms ease,
+    box-shadow 600ms ease;
+}
 .hold {
   box-shadow: inset 0 0 0 2px oklch(0.52 0.11 187 / 0.7);
-  animation: hero-hold 1.2s ease-in-out infinite;
+  animation: hero-hold 1.6s ease-in-out 600ms infinite;
 }
 @keyframes hero-hold {
   50% {
@@ -128,19 +214,19 @@
   }
 }
 .fill {
-  animation: hero-fill 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: hero-fill 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes hero-fill {
   from {
     box-shadow: inset 0 0 0 2px oklch(0.52 0.11 187 / 0.7);
-    background-color: oklch(0.52 0.11 187 / 0.35);
+    background-color: oklch(0.52 0.11 187 / 0.32);
   }
   to {
     box-shadow: inset 0 0 0 0 oklch(0.52 0.11 187 / 0);
   }
 }
 .fill > * {
-  animation: hero-enter 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: hero-enter 640ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -154,12 +240,21 @@
   }
   .enter,
   .leave,
+  .row,
+  .statusIn,
+  .statusOut,
   .pop,
   .shimmer,
   .hold,
   .fill,
   .fill > * {
     animation: none;
+  }
+  .statusOut {
+    display: none;
+  }
+  .cell {
+    transition: none;
   }
   .shimmer {
     color: inherit;

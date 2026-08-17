@@ -43,15 +43,15 @@ const STEP = { intro: 0, service: 1, slot: 2, confirmed: 3, email: 4, reminder: 
 type Step = (typeof STEP)[keyof typeof STEP];
 const TIMELINE: Array<{ at: number; step: Step }> = [
   { at: 0, step: STEP.intro },
-  { at: 1500, step: STEP.service },
-  { at: 2900, step: STEP.slot },
-  { at: 4600, step: STEP.confirmed },
-  { at: 6100, step: STEP.email },
-  { at: 7600, step: STEP.reminder },
-  { at: 9400, step: STEP.idle },
-  { at: 10800, step: STEP.leave },
+  { at: 1800, step: STEP.service },
+  { at: 3400, step: STEP.slot },
+  { at: 5400, step: STEP.confirmed },
+  { at: 7200, step: STEP.email },
+  { at: 8800, step: STEP.reminder },
+  { at: 10800, step: STEP.idle },
+  { at: 12600, step: STEP.leave },
 ];
-const NEXT_AT = 11300;
+const NEXT_AT = 13300;
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -80,6 +80,7 @@ function DayCell({ cell, state }: { cell: Cell; state: CellState }) {
   return (
     <div
       className={cn(
+        styles.cell,
         "border-border relative flex flex-col justify-between border-r border-b p-2 xl:p-2.5",
         !cell.inMonth && "bg-muted/40",
         ev && KIND_CLASS[ev.kind],
@@ -157,62 +158,78 @@ function useScenario() {
   return reduced ? { i: 0, step: STEP.reminder, done: [] } : state;
 }
 
-function StatusLine({ step, s }: { step: Step; s: Scenario }) {
-  // What the little status strip says at each step. Shimmer while in progress.
+/** Icon + text for the status strip at a given step. Shimmer while in progress. */
+function statusContent(step: Step, s: Scenario): { icon: React.ReactNode; text: React.ReactNode; tone: "shimmer" | "plain" | "muted" } {
   const first = s.name.split(" ")[0];
+  const bubble = (inner: React.ReactNode, muted = false) => (
+    <span
+      className={cn(
+        "flex size-6 shrink-0 items-center justify-center rounded-full",
+        muted ? "bg-muted text-muted-foreground" : "bg-primary/15 text-primary",
+      )}
+    >
+      {inner}
+    </span>
+  );
   if (step <= STEP.service)
-    return (
-      <>
-        <span className="bg-primary/15 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
-          {s.initials}
-        </span>
-        <span key="pick" className={cn(styles.shimmer, styles.enter, "truncate")}>
-          {first} is picking a time…
-        </span>
-      </>
-    );
+    return { icon: bubble(<span className="text-[10px] font-semibold">{s.initials}</span>), text: `${first} is picking a time…`, tone: "shimmer" };
   if (step === STEP.slot)
-    return (
-      <>
-        <span className="bg-primary/15 text-primary flex size-6 shrink-0 items-center justify-center rounded-full">
-          <span className="bg-primary size-2 animate-pulse rounded-full" />
-        </span>
-        <span key="check" className={cn(styles.shimmer, styles.enter, "truncate")}>
-          Checking availability · holding {s.when.split(" · ")[1]}…
-        </span>
-      </>
-    );
-  if (step === STEP.confirmed || step === STEP.email)
-    return (
-      <>
-        <span className="bg-primary/15 text-primary flex size-6 shrink-0 items-center justify-center rounded-full">
-          <Mail className="size-3.5" />
-        </span>
-        <span key={step === STEP.confirmed ? "mail" : "sent"} className={cn(step === STEP.confirmed ? styles.shimmer : "text-foreground", styles.enter, "truncate")}>
-          {step === STEP.confirmed ? "Sending confirmation email…" : `Confirmation sent to ${first}`}
-        </span>
-      </>
-    );
-  if (step === STEP.reminder)
-    return (
-      <>
-        <span className="bg-primary/15 text-primary flex size-6 shrink-0 items-center justify-center rounded-full">
-          <BellRing className="size-3.5" />
-        </span>
-        <span key="rem" className={cn(styles.enter, "text-foreground truncate")}>
-          Reminder scheduled · 24 h before
-        </span>
-      </>
-    );
+    return {
+      icon: bubble(<span className="bg-primary size-2 animate-pulse rounded-full" />),
+      text: `Checking availability · holding ${s.when.split(" · ")[1]}…`,
+      tone: "shimmer",
+    };
+  if (step === STEP.confirmed) return { icon: bubble(<Mail className="size-3.5" />), text: "Sending confirmation email…", tone: "shimmer" };
+  if (step === STEP.email) return { icon: bubble(<Mail className="size-3.5" />), text: `Confirmation sent to ${first}`, tone: "plain" };
+  if (step === STEP.reminder) return { icon: bubble(<BellRing className="size-3.5" />), text: "Reminder scheduled · 24 h before", tone: "plain" };
+  return { icon: bubble(<Check className="size-3.5" />, true), text: "Done. Waiting for the next booking…", tone: "muted" };
+}
+
+/** Remembers the previous value for `ms` after it changes, so the outgoing
+ *  status can animate out while the new one animates in. */
+function useOutgoing<T>(value: T, ms: number): T | null {
+  const [seen, setSeen] = useState(value);
+  const [outgoing, setOutgoing] = useState<T | null>(null);
+  if (seen !== value) {
+    // Derived-state adjustment during render (React's sanctioned pattern).
+    setSeen(value);
+    setOutgoing(seen);
+  }
+  useEffect(() => {
+    if (outgoing === null) return;
+    const t = window.setTimeout(() => setOutgoing(null), ms);
+    return () => window.clearTimeout(t);
+  }, [outgoing, ms]);
+  return outgoing;
+}
+
+function StatusStrip({ step, s }: { step: Step; s: Scenario }) {
+  // The strip's text is keyed on what it says, not the raw step, so steps that
+  // share a message (intro → service) don't re-animate.
+  const cur = statusContent(step, s);
+  const curKey = String(cur.text);
+  const prevKey = useOutgoing(curKey, 450);
+  const prev = prevKey !== null ? statusContent(step === STEP.intro ? STEP.intro : ((step - 1) as Step), s) : null;
+  const render = (c: ReturnType<typeof statusContent>, cls: string, key: string) => (
+    <span key={key} className={cls}>
+      {c.icon}
+      <span
+        className={cn(
+          "truncate",
+          c.tone === "shimmer" && styles.shimmer,
+          c.tone === "plain" && "text-foreground",
+          c.tone === "muted" && "text-muted-foreground",
+        )}
+      >
+        {c.text}
+      </span>
+    </span>
+  );
   return (
-    <>
-      <span className="bg-muted text-muted-foreground flex size-6 shrink-0 items-center justify-center rounded-full">
-        <Check className="size-3.5" />
-      </span>
-      <span key="idle" className={cn(styles.enter, "text-muted-foreground truncate")}>
-        Done. Waiting for the next booking…
-      </span>
-    </>
+    <div className={styles.status}>
+      {prev && prevKey !== curKey ? render(prev, styles.statusOut, "out-" + prevKey) : null}
+      {render(cur, styles.statusIn, "in-" + curKey)}
+    </div>
   );
 }
 
@@ -220,12 +237,14 @@ function ActivityPanel({ s, step }: { s: Scenario; step: Step }) {
   const latest = Math.min(step, STEP.confirmed); // the newest message line; older ones dim
   const line = (n: Step, body: React.ReactNode, time: string) =>
     step >= n ? (
-      // `.enter` fills forwards (opacity: 1), so the dimming lives on an inner
-      // wrapper where the animation's fill can't override it.
-      <div key={n} className={styles.enter}>
-        <div className={cn(styles.line, "flex items-start justify-between gap-3", n < latest && styles.dim)}>
-          <span className="min-w-0 text-xs leading-5 sm:text-[13px]">{body}</span>
-          <span className="text-muted-foreground shrink-0 font-mono text-[11px] leading-5">{time}</span>
+      // `.row` grows the line into place and fills forwards (opacity: 1), so the
+      // dimming lives on an inner wrapper where the animation's fill can't override it.
+      <div key={n} className={styles.row}>
+        <div>
+          <div className={cn(styles.line, "flex items-start justify-between gap-3 pb-1.5", n < latest && styles.dim)}>
+            <span className="min-w-0 text-xs leading-5 sm:text-[13px]">{body}</span>
+            <span className="text-muted-foreground shrink-0 font-mono text-[11px] leading-5">{time}</span>
+          </div>
         </div>
       </div>
     ) : null;
@@ -242,7 +261,7 @@ function ActivityPanel({ s, step }: { s: Scenario; step: Step }) {
             <span className="text-muted-foreground block truncate text-xs">via your booking page</span>
           </span>
         </div>
-        <div className="mt-3 space-y-1.5">
+        <div className="mt-3 -mb-1.5">
           {line(STEP.service, `Picked ${s.service} · ${s.length}`, "0:02")}
           {line(STEP.slot, `Chose ${s.when}`, "0:05")}
           {line(
@@ -262,8 +281,12 @@ function ActivityPanel({ s, step }: { s: Scenario; step: Step }) {
           )}
         </div>
       </div>
-      <div className={cn(styles.lower, styles.lifted, "bg-card border-border mt-1.5 flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs")}>
-        <StatusLine step={step} s={s} />
+      {/* translateZ lives on the outer wrapper: the inner `.enter` animation
+          animates `transform` and would otherwise overwrite the z-offset. */}
+      <div className={cn(styles.lower, "mt-1.5")}>
+        <div className={cn(styles.lifted, styles.enter, "bg-card border-border flex items-center rounded-lg border px-2.5 py-2 text-xs")}>
+          <StatusStrip step={step} s={s} />
+        </div>
       </div>
     </div>
   );
