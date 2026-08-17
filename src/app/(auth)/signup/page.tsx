@@ -6,7 +6,7 @@ export default function SignupPage() {
     <main className="flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <h1 className="mb-1 text-2xl font-semibold tracking-tight">
-          Create your RolloutOS account
+          Create your Booklo account
         </h1>
         <p className="text-muted-foreground mb-6 text-sm">
           You&apos;ll confirm your email before signing in.

@@ -224,19 +224,19 @@ otp_expiry = 3600
 
 # Magic-link email → points at the app's /auth/confirm token_hash route (SSR flow).
 [auth.email.template.magic_link]
-subject = "Sign in to RolloutOS"
+subject = "Sign in to Booklo"
 content_path = "./supabase/templates/magic_link.html"
 
 # Signup confirmation → same /auth/confirm token_hash route; type=email
 # matches the magic-link convention and current Supabase docs.
 [auth.email.template.confirmation]
-subject = "Confirm your RolloutOS account"
+subject = "Confirm your Booklo account"
 content_path = "./supabase/templates/confirmation.html"
 
 # Password recovery → /auth/confirm verifies, then next= lands on the
 # authenticated reset page.
 [auth.email.template.recovery]
-subject = "Reset your RolloutOS password"
+subject = "Reset your Booklo password"
 content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize email template
