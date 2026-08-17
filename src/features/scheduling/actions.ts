@@ -50,17 +50,56 @@ function toServiceRow(d: import("zod").infer<typeof serviceInput>) {
   };
 }
 
+// Team (multi-staff): who a service is offered by shows up wherever staff and
+// services meet — the Team page's per-person service count, the eligibility
+// checklists, and the booking surfaces that only offer a person for what they
+// do. Mirrors `revalidateStaff()` in staff-actions.ts, from the other side.
+function revalidateServices() {
+  revalidatePath("/services");
+  revalidatePath("/team");
+  revalidatePath("/bookings");
+}
+
 export async function createService(input: unknown): Promise<ActionState> {
   const parsed = serviceInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase
+
+  // Solo path: the dialog only asks who can be booked once a second person is
+  // active, so an omitted `staffIds` means "everyone" — read the roster here
+  // rather than trusting a client-sent list, and read it *before* inserting so
+  // a failure leaves no service that nobody can be booked for.
+  let staffIds = parsed.data.staffIds;
+  if (!staffIds) {
+    const rosterRes = await supabase
+      .from("staff")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("active", true);
+    if (rosterRes.error) return fail("createService.readStaff", rosterRes.error);
+    staffIds = (rosterRes.data ?? []).map((s) => s.id);
+  }
+
+  const { data, error } = await supabase
     .from("services")
-    .insert({ org_id: orgId, ...toServiceRow(parsed.data) });
+    .insert({ org_id: orgId, ...toServiceRow(parsed.data) })
+    .select("id")
+    .single();
   if (error) return fail("createService", error);
-  revalidatePath("/services");
+
+  if (staffIds.length > 0) {
+    const { error: linkError } = await supabase
+      .from("service_staff")
+      .insert(
+        staffIds.map((staffId) => ({ org_id: orgId, service_id: data.id, staff_id: staffId })),
+      );
+    // The service exists either way; the assignment is what failed, and the
+    // Edit dialog is the retry — so say so rather than claiming success.
+    if (linkError) return fail("createService.assignStaff", linkError);
+  }
+  revalidateServices();
   return { ok: true };
 }
 
@@ -69,7 +108,7 @@ export async function updateService(input: unknown): Promise<ActionState> {
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
-  const { id, ...rest } = parsed.data;
+  const { id, staffIds, ...rest } = parsed.data;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
@@ -82,7 +121,41 @@ export async function updateService(input: unknown): Promise<ActionState> {
     .maybeSingle();
   if (error) return fail("updateService", error);
   if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
-  revalidatePath("/services");
+
+  // Reconcile the team checklist only when the dialog rendered it: a solo
+  // org's edit sends no `staffIds` and must leave the existing links alone.
+  // Diffed rather than replaced, like `updateStaff` from the staff side —
+  // service_staff has insert + delete policies and no update path.
+  if (staffIds) {
+    const currentRes = await supabase
+      .from("service_staff")
+      .select("staff_id")
+      .eq("org_id", orgId)
+      .eq("service_id", id);
+    if (currentRes.error) return fail("updateService.readStaff", currentRes.error);
+    const current = new Set((currentRes.data ?? []).map((r) => r.staff_id));
+    const wanted = new Set(staffIds);
+    const toRemove = [...current].filter((sid) => !wanted.has(sid));
+    const toAdd = [...wanted].filter((sid) => !current.has(sid));
+
+    if (toRemove.length > 0) {
+      const { error: delError } = await supabase
+        .from("service_staff")
+        .delete()
+        .eq("org_id", orgId)
+        .eq("service_id", id)
+        .in("staff_id", toRemove);
+      if (delError) return fail("updateService.removeStaff", delError);
+    }
+    if (toAdd.length > 0) {
+      const { error: insError } = await supabase
+        .from("service_staff")
+        .insert(toAdd.map((staffId) => ({ org_id: orgId, service_id: id, staff_id: staffId })));
+      if (insError) return fail("updateService.addStaff", insError);
+    }
+  }
+
+  revalidateServices();
   return { ok: true };
 }
 
@@ -103,7 +176,7 @@ export async function deleteService(input: unknown): Promise<ActionState> {
     }
     return fail("deleteService", error);
   }
-  revalidatePath("/services");
+  revalidateServices();
   return { ok: true };
 }
 

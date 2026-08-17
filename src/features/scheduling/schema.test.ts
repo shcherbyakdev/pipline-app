@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   serviceInput,
+  updateServiceInput,
   availabilityRuleInput,
   blockTimeInput,
   reopenDayInput,
@@ -35,6 +36,42 @@ describe("serviceInput", () => {
     expect(serviceInput.safeParse({ name: "", durationMin: 30 }).success).toBe(false);
     expect(serviceInput.safeParse({ name: "X", durationMin: 3 }).success).toBe(false);
     expect(serviceInput.safeParse({ name: "X", durationMin: 999 }).success).toBe(false);
+  });
+  // Team (multi-staff): the eligibility checklist is optional on the wire —
+  // omitted means "the dialog didn't ask" (solo org), and createService then
+  // assigns every active member server-side rather than nobody.
+  it("leaves staffIds undefined when the dialog omits it", () => {
+    const r = serviceInput.safeParse({ name: "Intro Call", durationMin: 30 });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.staffIds).toBeUndefined();
+  });
+  it("accepts a staffIds list of uuids, including an empty one", () => {
+    const ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];
+    const r = serviceInput.safeParse({ name: "X", durationMin: 30, staffIds: ids });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.staffIds).toEqual(ids);
+    expect(serviceInput.safeParse({ name: "X", durationMin: 30, staffIds: [] }).success).toBe(true);
+  });
+  it("rejects staffIds that are not uuids", () => {
+    expect(
+      serviceInput.safeParse({ name: "X", durationMin: 30, staffIds: ["nope"] }).success,
+    ).toBe(false);
+    expect(
+      serviceInput.safeParse({ name: "X", durationMin: 30, staffIds: "not-an-array" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("updateServiceInput", () => {
+  it("carries staffIds through the id extension", () => {
+    const r = updateServiceInput.safeParse({
+      id: "33333333-3333-4333-8333-333333333333",
+      name: "X",
+      durationMin: 30,
+      staffIds: ["11111111-1111-4111-8111-111111111111"],
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.staffIds).toHaveLength(1);
   });
 });
 

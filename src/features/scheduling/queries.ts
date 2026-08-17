@@ -15,6 +15,10 @@ export type ServiceRow = {
   bookingWindowDays: number;
   active: boolean;
   sortOrder: number;
+  /** Team (multi-staff): who can be booked for this service (0040
+      `service_staff`). Includes deactivated people — their link survives a
+      deactivation so it is still there when they come back. */
+  staffIds: string[];
 };
 
 export async function listServices(): Promise<ServiceRow[]> {
@@ -22,7 +26,7 @@ export async function listServices(): Promise<ServiceRow[]> {
   const { data, error } = await supabase
     .from("services")
     .select(
-      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days, active, sort_order",
+      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days, active, sort_order, service_staff(staff_id)",
     )
     .order("sort_order")
     .order("name");
@@ -40,6 +44,7 @@ export async function listServices(): Promise<ServiceRow[]> {
     bookingWindowDays: s.booking_window_days,
     active: s.active,
     sortOrder: s.sort_order,
+    staffIds: ((s.service_staff ?? []) as { staff_id: string }[]).map((l) => l.staff_id),
   }));
 }
 

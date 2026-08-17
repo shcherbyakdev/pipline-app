@@ -25,6 +25,11 @@ export const serviceInput = z.object({
   maxPerDay: z.number().int().min(1).max(100).nullable().default(null),
   bookingWindowDays: z.number().int().min(1).max(365).default(60),
   active: z.boolean().default(true),
+  // Team (multi-staff): who can be booked for this service. Optional, and the
+  // absence is meaningful — a solo org's dialog never renders the checklist,
+  // so `createService` assigns every active member and `updateService` leaves
+  // the existing links alone. An empty array is a deliberate "nobody".
+  staffIds: z.array(z.uuid()).optional(),
 });
 export const updateServiceInput = serviceInput.extend({ id: z.uuid() });
 export const serviceIdInput = z.object({ id: z.uuid() });

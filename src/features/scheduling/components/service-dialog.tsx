@@ -6,7 +6,9 @@ import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createService, updateService } from "@/features/scheduling/actions";
 import type { ServiceRow } from "@/features/scheduling/queries";
+import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function ServiceDialog({ service }: { service?: ServiceRow }) {
+export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff: StaffRow[] }) {
   const isEdit = Boolean(service);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -31,10 +33,32 @@ export function ServiceDialog({ service }: { service?: ServiceRow }) {
   const open = urlOpen || manuallyOpened;
   const [pending, startTransition] = React.useTransition();
 
+  // Solo rule: with one person on the roster there is nothing to choose, so
+  // the checklist never appears and `createService` assigns them server-side.
+  const activeStaff = staff.filter((s) => s.active);
+  const showStaff = activeStaff.length > 1;
+  // A new service is offered by everyone; narrowing is the deliberate act
+  // (mirrors the staff dialog's service checklist). On edit the seed is the
+  // stored set, deactivated people included — only active rows are rendered,
+  // so someone off the roster keeps their assignment through a save.
+  const defaultStaffIds = () => new Set(service ? service.staffIds : activeStaff.map((s) => s.id));
+  const [staffIds, setStaffIds] = React.useState<Set<string>>(defaultStaffIds);
+
   const onOpenChange = (next: boolean) => {
+    // The popup unmounts when closed, so the uncontrolled fields reset on
+    // reopen — the checklist is state, and has to be put back by hand to match.
+    if (next) setStaffIds(defaultStaffIds());
     setManuallyOpened(next);
     if (!next && urlOpen) router.replace("/services");
   };
+
+  const toggleStaff = (id: string, checked: boolean) =>
+    setStaffIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -55,6 +79,9 @@ export function ServiceDialog({ service }: { service?: ServiceRow }) {
       maxPerDay: maxPerDayRaw === "" ? null : Number(maxPerDayRaw),
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
       active: fd.get("active") === "on",
+      // Omitted when the checklist wasn't rendered: the server then keeps the
+      // existing links (edit) or assigns every active member (create).
+      ...(showStaff ? { staffIds: [...staffIds] } : {}),
     };
     startTransition(async () => {
       const result = isEdit
@@ -193,6 +220,36 @@ export function ServiceDialog({ service }: { service?: ServiceRow }) {
               defaultValue={service?.bookingWindowDays ?? 60}
             />
           </div>
+          {showStaff ? (
+            <div className="flex flex-col gap-2">
+              <Label>Team members</Label>
+              <ul className="flex flex-col gap-1.5">
+                {activeStaff.map((person) => (
+                  <li key={person.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`service-staff-${person.id}`}
+                      checked={staffIds.has(person.id)}
+                      onCheckedChange={(checked) => toggleStaff(person.id, checked === true)}
+                    />
+                    <Label
+                      htmlFor={`service-staff-${person.id}`}
+                      className="flex items-center gap-2 text-sm font-normal"
+                    >
+                      <span
+                        aria-hidden
+                        style={{ background: person.color }}
+                        className="size-2.5 shrink-0 rounded-full"
+                      />
+                      {person.name}
+                    </Label>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-muted-foreground text-xs">
+                Only these people are offered for this service.
+              </p>
+            </div>
+          ) : null}
           <div className="flex items-center gap-2">
             <input
               id="service-active"
