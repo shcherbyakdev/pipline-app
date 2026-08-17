@@ -1,5 +1,16 @@
 # Rentals — Slice R3 (org modes: onboarding choice, mode-aware admin, public gating)
 
+> ## ⚠️ RENUMBER: `0040`/`0041` ARE TAKEN BY THE TEAM SLICE
+>
+> This spec's `0040_org_modes.sql` was numbered when the last migration was
+> `0039`. The Team / multi-staff slice has since landed `0040_sad_the_fury`
+> (generated) and `0041_staff_security` (custom): use **`0042`** (generated
+> columns) and **`0043`** (custom SQL) instead.
+>
+> **`create_org` must start from `0041_staff_security.sql`'s body, not `0001`'s** —
+> 0041 rewrote it to seed the org's first `staff` row, which every booking RPC
+> now requires.
+
 **Date:** 2026-08-17
 **Status:** Approved (brainstorm with Andrii)
 **Parent:** `2026-08-17-rentals-r1-design.md` (decision 5 — "hard mode by default + enable both toggle", deferred from R1 → R2 → here) and `2026-08-17-rentals-r2-design.md`.
