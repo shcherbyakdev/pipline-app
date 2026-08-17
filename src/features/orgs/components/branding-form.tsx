@@ -5,14 +5,22 @@ import { toast } from "sonner";
 import { updateAccent, uploadLogo, removeLogo } from "@/features/orgs/actions";
 import type { BrandingSettings } from "@/features/orgs/queries";
 import { LOGO_MAX_BYTES, isAllowedLogoType } from "@/lib/storage/logo";
-import { BrandedHeader } from "@/components/branded-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
-export function BrandingForm({ settings }: { settings: BrandingSettings }) {
+export function BrandingForm({
+  settings,
+  onPreviewAccent,
+}: {
+  settings: BrandingSettings;
+  // Fires with the accent the preview should show while typing: the typed
+  // value once it is a valid hex, else the saved one. Lets the page-level
+  // preview (Booking page studio) track the unsaved colour live.
+  onPreviewAccent?: (hex: string | null) => void;
+}) {
   const [accent, setAccent] = React.useState(settings.accentColor ?? "");
   const [pending, startTransition] = React.useTransition();
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -63,6 +71,10 @@ export function BrandingForm({ settings }: { settings: BrandingSettings }) {
     });
 
   const previewAccent = HEX_RE.test(accent.trim()) ? accent.trim().toLowerCase() : settings.accentColor;
+  const onAccentInput = (value: string) => {
+    setAccent(value);
+    onPreviewAccent?.(HEX_RE.test(value.trim()) ? value.trim().toLowerCase() : settings.accentColor);
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -97,24 +109,13 @@ export function BrandingForm({ settings }: { settings: BrandingSettings }) {
           <Input
             id="branding-accent"
             value={accent}
-            onChange={(e) => setAccent(e.target.value)}
+            onChange={(e) => onAccentInput(e.target.value)}
             onBlur={saveAccent}
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             placeholder="#0f766e"
             maxLength={7}
             disabled={pending}
             className="max-w-32 font-mono"
-          />
-        </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <p className="text-muted-foreground text-sm font-medium">Preview</p>
-        <div className="rounded-lg border p-4">
-          <BrandedHeader
-            orgName={settings.orgName}
-            accentColor={previewAccent}
-            logoUrl={settings.logoUrl}
-            subtitle="How the participant flow and client portal header will look"
           />
         </div>
       </div>

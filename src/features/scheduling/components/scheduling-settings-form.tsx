@@ -12,7 +12,14 @@ type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSet
 
 const TIMEZONES = Intl.supportedValuesOf("timeZone");
 
-export function SchedulingSettingsForm({ settings }: { settings: SchedulingSettings }) {
+export function SchedulingSettingsForm({
+  settings,
+  onHandleInput,
+}: {
+  settings: SchedulingSettings;
+  // Typed (unsaved) handle, so a page-level preview can show the URL live.
+  onHandleInput?: (handle: string) => void;
+}) {
   const [handle, setHandle] = React.useState(settings.handle ?? "");
   const [timezone, setTimezone] = React.useState(
     settings.handle === null
@@ -55,7 +62,10 @@ export function SchedulingSettingsForm({ settings }: { settings: SchedulingSetti
         <Input
           id="scheduling-handle"
           value={handle}
-          onChange={(e) => setHandle(e.target.value)}
+          onChange={(e) => {
+            setHandle(e.target.value);
+            onHandleInput?.(e.target.value);
+          }}
           disabled={pending}
           className="max-w-72"
         />

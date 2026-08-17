@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Alert02Icon, ComputerIcon, Moon02Icon, SmartPhone01Icon, Sun01Icon } from "@hugeicons/core-free-icons";
 import { hostContrast, type WidgetThemeConfig } from "@/lib/widget-theme";
 import { WidgetTheme } from "@/components/widget-theme";
+import { BrowserFrame, Segmented } from "@/components/browser-frame";
 import { cn } from "@/lib/utils";
 
 type Host = "light" | "dark";
@@ -82,36 +83,7 @@ export function EmbedPreviewFrame({
         </div>
       </div>
 
-      {/* Browser chrome — neutral greys, deliberately not our tokens, so the
-          frame reads as "someone else's website" in either admin theme. */}
-      <div
-        className={cn(
-          "overflow-hidden rounded-xl border shadow-[0_24px_60px_-28px_oklch(0_0_0/60%)]",
-          dark ? "border-white/10 bg-[#111214]" : "border-black/10 bg-white",
-        )}
-      >
-        <div
-          className={cn(
-            "flex h-10 items-center gap-3 border-b px-3",
-            dark ? "border-white/10 bg-[#18191c]" : "border-black/8 bg-[#f4f4f5]",
-          )}
-        >
-          <div className="flex gap-1.5" aria-hidden="true">
-            <span className="size-2.5 rounded-full bg-[#ff5f57]" />
-            <span className="size-2.5 rounded-full bg-[#febc2e]" />
-            <span className="size-2.5 rounded-full bg-[#28c840]" />
-          </div>
-          <div
-            className={cn(
-              "mx-auto flex h-6 w-full max-w-xs items-center justify-center rounded-md font-mono text-[11px]",
-              dark ? "bg-white/8 text-white/50" : "bg-black/6 text-black/45",
-            )}
-          >
-            yourwebsite.com/book
-          </div>
-          <span className="w-12" aria-hidden="true" />
-        </div>
-
+      <BrowserFrame url="yourwebsite.com/book" dark={dark}>
         {/* Host page: skeleton content around the widget so scale and
             contrast are judged in context, not on a bare card. */}
         <div
@@ -141,7 +113,7 @@ export function EmbedPreviewFrame({
             <Skeleton dark={dark} short />
           </div>
         </div>
-      </div>
+      </BrowserFrame>
       {clash ? (
         <Notice tone="error">
           On a {host} page the {themeLabel} theme&apos;s text is unreadable ({ratio.toFixed(1)}:1) — the
@@ -199,43 +171,6 @@ function Skeleton({ dark, short = false }: { dark: boolean; short?: boolean }) {
           <div className={cn("h-2.5 w-3/4 rounded-full", bar)} />
         </>
       )}
-    </div>
-  );
-}
-
-function Segmented<T extends string>({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: T;
-  onChange: (v: T) => void;
-  options: ReadonlyArray<{ value: T; label: string; icon: React.ComponentProps<typeof HugeiconsIcon>["icon"] }>;
-}) {
-  return (
-    <div role="radiogroup" aria-label={label} className="bg-secondary flex h-7 items-center gap-0.5 rounded-md border p-0.5">
-      {options.map((o) => {
-        const selected = o.value === value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            aria-label={o.label}
-            title={o.label}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              "flex h-6 items-center justify-center rounded-[4px] px-1.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-              selected ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <HugeiconsIcon icon={o.icon} size={14} />
-          </button>
-        );
-      })}
     </div>
   );
 }

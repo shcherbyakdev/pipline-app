@@ -1,29 +1,31 @@
 import { notFound } from "next/navigation";
 import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
-import { BrandingForm } from "@/features/orgs/components/branding-form";
-import { SchedulingSettingsForm } from "@/features/scheduling/components/scheduling-settings-form";
+import { BookingPageStudio } from "@/features/orgs/components/booking-page-studio";
+import { listServices } from "@/features/scheduling/queries";
+import { toPreviewServices } from "@/features/scheduling/preview-services";
 import { PageIntro } from "@/components/shell/page-header";
+import { env } from "@/env";
 
-/* Booking page: the hosted channel — its address, timezone and branding.
-   (Branding's accent colour is shared with the website embed.) */
+/* Booking page: the hosted channel — its address, timezone and branding,
+   edited against a live preview of the page itself. (Branding's accent is
+   shared with the website embed.) */
 export default async function BookingPagePage() {
-  const [settings, schedulingSettings] = await Promise.all([
+  const [branding, scheduling, services] = await Promise.all([
     getBrandingSettings(),
     getSchedulingSettings(),
+    listServices(),
   ]);
-  if (!settings || !schedulingSettings) notFound();
+  if (!branding || !scheduling) notFound();
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
       <PageIntro>The page clients book you on. Set its address and timezone, then brand it.</PageIntro>
-      <div className="flex flex-col gap-3">
-        <h2 className="text-muted-foreground text-sm font-medium">Address & timezone</h2>
-        <SchedulingSettingsForm settings={schedulingSettings} />
-      </div>
-      <div className="flex flex-col gap-3">
-        <h2 className="text-muted-foreground text-sm font-medium">Branding</h2>
-        <BrandingForm settings={settings} />
-      </div>
+      <BookingPageStudio
+        branding={branding}
+        scheduling={scheduling}
+        appUrl={env.NEXT_PUBLIC_APP_URL}
+        previewServices={toPreviewServices(services)}
+      />
     </div>
   );
 }

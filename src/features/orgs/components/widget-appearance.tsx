@@ -12,17 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { snippetFor } from "./widget-embed-snippet";
-
-// Six slots across two future days, far in the future so this never needs
-// to be refreshed to stay "future" for the preview widget.
-const CANNED_SLOTS = [
-  "2030-01-07T09:00:00.000Z",
-  "2030-01-07T10:00:00.000Z",
-  "2030-01-07T11:00:00.000Z",
-  "2030-01-08T09:00:00.000Z",
-  "2030-01-08T10:00:00.000Z",
-  "2030-01-08T11:00:00.000Z",
-];
+import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 
 const THEME_OPTIONS: Array<{ value: WidgetThemeConfig["theme"]; label: string }> = [
   { value: "light", label: "Light" },
@@ -240,7 +230,7 @@ export function WidgetAppearance({
               handle="preview"
               orgTimeZone="UTC"
               services={previewServices}
-              preview={{ slots: CANNED_SLOTS }}
+              preview={{ slots: PREVIEW_SLOTS }}
             />
           </EmbedPreviewFrame>
         </div>
