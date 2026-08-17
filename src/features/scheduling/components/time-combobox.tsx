@@ -135,8 +135,34 @@ export function TimeCombobox({
   const activeOption =
     open && activeIndex >= 0 && activeIndex < filtered.length ? filtered[activeIndex] : undefined
 
+  // The input is the Positioner's `anchor`, not a `Popover.Trigger` (see
+  // the file-top comment for why there's no Trigger). Base UI's
+  // outside-press dismissal only exempts registered triggers from counting
+  // as "outside", so it doesn't recognize our anchor and closes the popup
+  // the instant the opening click reaches it — the very click that just
+  // opened it via `onFocus`. Refuse only that specific close request
+  // (reason "outside-press" whose native event target is inside the
+  // input); every other close reason (Escape, genuine outside clicks,
+  // focus-out) passes through untouched.
+  function handleOpenChange(
+    nextOpen: boolean,
+    eventDetails: PopoverPrimitive.Root.ChangeEventDetails
+  ) {
+    if (
+      !nextOpen &&
+      eventDetails.reason === "outside-press" &&
+      inputRef.current &&
+      eventDetails.event.target instanceof Node &&
+      inputRef.current.contains(eventDetails.event.target)
+    ) {
+      eventDetails.cancel()
+      return
+    }
+    setOpen(nextOpen)
+  }
+
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+    <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       <Input
         ref={inputRef}
         type="text"
