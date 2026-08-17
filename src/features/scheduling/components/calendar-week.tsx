@@ -28,10 +28,14 @@ const HATCH: React.CSSProperties = {
 const GRID_COLS = "grid-cols-[2.5rem_repeat(7,minmax(0,1fr))_3.5rem]";
 
 export function CalendarWeek({
-  weekStart, timeZone, bookings, rules, exceptions, services, prevHref, nextHref,
+  weekStart, timeZone, staffId, bookings, rules, exceptions, services, prevHref, nextHref,
 }: {
   weekStart: string;
   timeZone: string;
+  // Whose availability the grid draws and edits (Team slice). Null only when
+  // the org has no active member — then the block/unblock actions no-op.
+  // Task 12 gives this view its own staff switcher.
+  staffId: string | null;
   bookings: AdminBooking[];
   rules: RuleRow[];
   exceptions: ExceptionRow[];
@@ -127,9 +131,10 @@ export function CalendarWeek({
   }, [createOpen]);
 
   const blockSelected = () => {
-    if (!selection) return;
+    if (!selection || !staffId) return;
     startBusy(async () => {
       const result = await blockTimeRange({
+        staffId,
         date: selection.date,
         startTime: minToTime(selection.startMin),
         endTime: minToTime(selection.endMin),
@@ -142,9 +147,10 @@ export function CalendarWeek({
   };
 
   const unblockSelected = () => {
-    if (!selection) return;
+    if (!selection || !staffId) return;
     startBusy(async () => {
       const result = await unblockTimeRange({
+        staffId,
         date: selection.date,
         startTime: minToTime(selection.startMin),
         endTime: minToTime(selection.endMin),
@@ -157,8 +163,9 @@ export function CalendarWeek({
   };
 
   const reopenSelected = (date: string) => {
+    if (!staffId) return;
     startBusy(async () => {
-      const result = await reopenDay({ date });
+      const result = await reopenDay({ staffId, date });
       if (!result.ok) toast.error(result.error);
       else toast.success("Day reopened — weekly hours restored.");
       setSelection(null);

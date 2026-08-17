@@ -29,8 +29,13 @@ export const serviceInput = z.object({
 export const updateServiceInput = serviceInput.extend({ id: z.uuid() });
 export const serviceIdInput = z.object({ id: z.uuid() });
 
+// Team (multi-staff): hours and overrides hang off a person, not the org, so
+// every input that creates such a row — or that is keyed by (staff, weekday)
+// or (staff, date) — carries the staff id. Row-id-keyed inputs (`ruleIdInput`,
+// `updateRuleInput`) don't: the row already knows whose it is.
 export const availabilityRuleInput = z
   .object({
+    staffId: z.uuid(),
     weekday: z.number().int().min(0).max(6),
     startTime: timeField,
     endTime: timeField,
@@ -40,13 +45,17 @@ export const ruleIdInput = z.object({ id: z.uuid() });
 
 export const blockTimeInput = z
   .object({
+    staffId: z.uuid(),
     date: z.string().regex(DATE_RE),
     startTime: timeField,
     endTime: timeField,
   })
   .refine((r) => r.startTime < r.endTime, { message: "start must precede end" });
 
-export const reopenDayInput = z.object({ date: z.string().regex(DATE_RE) });
+export const reopenDayInput = z.object({
+  staffId: z.uuid(),
+  date: z.string().regex(DATE_RE),
+});
 
 export const schedulingSettingsInput = z.object({
   // "" (cleared field) → null: the provider can unpublish the booking page
@@ -154,6 +163,7 @@ export const updateRuleInput = z
 
 export const copyDayHoursInput = z
   .object({
+    staffId: z.uuid(),
     sourceWeekday: z.number().int().min(0).max(6),
     targetWeekdays: z.array(z.number().int().min(0).max(6)).min(1).max(6),
   })
@@ -170,6 +180,7 @@ const overrideWindow = z
 
 export const dateOverrideInput = z
   .object({
+    staffId: z.uuid(),
     date: z.string().regex(DATE_RE),
     closed: z.boolean(),
     windows: z.array(overrideWindow).max(10).default([]),
@@ -190,4 +201,7 @@ export const dateOverrideInput = z
     { message: OVERLAP_ERROR },
   );
 
-export const deleteOverrideInput = z.object({ date: z.string().regex(DATE_RE) });
+export const deleteOverrideInput = z.object({
+  staffId: z.uuid(),
+  date: z.string().regex(DATE_RE),
+});

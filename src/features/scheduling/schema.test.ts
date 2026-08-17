@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   serviceInput,
   availabilityRuleInput,
+  blockTimeInput,
+  reopenDayInput,
   schedulingSettingsInput,
   getSlotsInput,
   createBookingInput,
@@ -37,15 +39,28 @@ describe("serviceInput", () => {
 });
 
 describe("availabilityRuleInput", () => {
+  const staffId = "22222222-2222-4222-8222-222222222222";
   it("accepts weekday 0-6 with ordered HH:MM times", () => {
     expect(
-      availabilityRuleInput.safeParse({ weekday: 1, startTime: "09:00", endTime: "17:00" }).success,
+      availabilityRuleInput.safeParse({ staffId, weekday: 1, startTime: "09:00", endTime: "17:00" })
+        .success,
     ).toBe(true);
   });
   it("rejects weekday 7, bad format, inverted order", () => {
-    expect(availabilityRuleInput.safeParse({ weekday: 7, startTime: "09:00", endTime: "17:00" }).success).toBe(false);
-    expect(availabilityRuleInput.safeParse({ weekday: 1, startTime: "9am", endTime: "17:00" }).success).toBe(false);
-    expect(availabilityRuleInput.safeParse({ weekday: 1, startTime: "17:00", endTime: "09:00" }).success).toBe(false);
+    expect(availabilityRuleInput.safeParse({ staffId, weekday: 7, startTime: "09:00", endTime: "17:00" }).success).toBe(false);
+    expect(availabilityRuleInput.safeParse({ staffId, weekday: 1, startTime: "9am", endTime: "17:00" }).success).toBe(false);
+    expect(availabilityRuleInput.safeParse({ staffId, weekday: 1, startTime: "17:00", endTime: "09:00" }).success).toBe(false);
+  });
+  // Team (multi-staff): a rule belongs to one person, so the id is not
+  // optional — an omitted or malformed one must never fall back to "the org".
+  it("requires a uuid staffId", () => {
+    expect(
+      availabilityRuleInput.safeParse({ weekday: 1, startTime: "09:00", endTime: "17:00" }).success,
+    ).toBe(false);
+    expect(
+      availabilityRuleInput.safeParse({ staffId: "nope", weekday: 1, startTime: "09:00", endTime: "17:00" })
+        .success,
+    ).toBe(false);
   });
 });
 
@@ -158,25 +173,31 @@ describe("updateRuleInput", () => {
 });
 
 describe("copyDayHoursInput", () => {
+  const staffId = "22222222-2222-4222-8222-222222222222";
   it("accepts distinct targets", () => {
-    expect(copyDayHoursInput.safeParse({ sourceWeekday: 1, targetWeekdays: [2, 3] }).success).toBe(true);
+    expect(copyDayHoursInput.safeParse({ staffId, sourceWeekday: 1, targetWeekdays: [2, 3] }).success).toBe(true);
   });
   it("rejects copying onto itself", () => {
-    expect(copyDayHoursInput.safeParse({ sourceWeekday: 1, targetWeekdays: [1] }).success).toBe(false);
+    expect(copyDayHoursInput.safeParse({ staffId, sourceWeekday: 1, targetWeekdays: [1] }).success).toBe(false);
   });
   it("rejects duplicates and empty targets", () => {
-    expect(copyDayHoursInput.safeParse({ sourceWeekday: 1, targetWeekdays: [2, 2] }).success).toBe(false);
-    expect(copyDayHoursInput.safeParse({ sourceWeekday: 1, targetWeekdays: [] }).success).toBe(false);
+    expect(copyDayHoursInput.safeParse({ staffId, sourceWeekday: 1, targetWeekdays: [2, 2] }).success).toBe(false);
+    expect(copyDayHoursInput.safeParse({ staffId, sourceWeekday: 1, targetWeekdays: [] }).success).toBe(false);
+  });
+  it("requires a staffId — a copy is within one person's week", () => {
+    expect(copyDayHoursInput.safeParse({ sourceWeekday: 1, targetWeekdays: [2] }).success).toBe(false);
   });
 });
 
 describe("dateOverrideInput", () => {
+  const staffId = "22222222-2222-4222-8222-222222222222";
   it("accepts closed with no windows", () => {
-    expect(dateOverrideInput.safeParse({ date: "2026-09-01", closed: true, windows: [] }).success).toBe(true);
+    expect(dateOverrideInput.safeParse({ staffId, date: "2026-09-01", closed: true, windows: [] }).success).toBe(true);
   });
   it("accepts open with sorted touching windows", () => {
     expect(
       dateOverrideInput.safeParse({
+        staffId,
         date: "2026-09-01",
         closed: false,
         windows: [
@@ -186,10 +207,14 @@ describe("dateOverrideInput", () => {
       }).success,
     ).toBe(true);
   });
+  it("requires a staffId — an override belongs to one person's calendar", () => {
+    expect(dateOverrideInput.safeParse({ date: "2026-09-01", closed: true, windows: [] }).success).toBe(false);
+  });
   it("rejects open with no windows and closed with windows", () => {
-    expect(dateOverrideInput.safeParse({ date: "2026-09-01", closed: false, windows: [] }).success).toBe(false);
+    expect(dateOverrideInput.safeParse({ staffId, date: "2026-09-01", closed: false, windows: [] }).success).toBe(false);
     expect(
       dateOverrideInput.safeParse({
+        staffId,
         date: "2026-09-01",
         closed: true,
         windows: [{ startTime: "09:00", endTime: "10:00" }],
@@ -198,6 +223,7 @@ describe("dateOverrideInput", () => {
   });
   it("rejects overlapping windows with the shared message", () => {
     const result = dateOverrideInput.safeParse({
+      staffId,
       date: "2026-09-01",
       closed: false,
       windows: [
@@ -213,9 +239,25 @@ describe("dateOverrideInput", () => {
 });
 
 describe("deleteOverrideInput", () => {
-  it("accepts a date and rejects garbage", () => {
-    expect(deleteOverrideInput.safeParse({ date: "2026-09-01" }).success).toBe(true);
-    expect(deleteOverrideInput.safeParse({ date: "not-a-date" }).success).toBe(false);
+  const staffId = "22222222-2222-4222-8222-222222222222";
+  it("accepts a staff id + date and rejects garbage", () => {
+    expect(deleteOverrideInput.safeParse({ staffId, date: "2026-09-01" }).success).toBe(true);
+    expect(deleteOverrideInput.safeParse({ staffId, date: "not-a-date" }).success).toBe(false);
+    expect(deleteOverrideInput.safeParse({ date: "2026-09-01" }).success).toBe(false);
+  });
+});
+
+describe("blockTimeInput / reopenDayInput", () => {
+  const staffId = "22222222-2222-4222-8222-222222222222";
+  it("carry the staff whose day is being edited", () => {
+    expect(
+      blockTimeInput.safeParse({ staffId, date: "2026-09-01", startTime: "09:00", endTime: "10:00" }).success,
+    ).toBe(true);
+    expect(
+      blockTimeInput.safeParse({ date: "2026-09-01", startTime: "09:00", endTime: "10:00" }).success,
+    ).toBe(false);
+    expect(reopenDayInput.safeParse({ staffId, date: "2026-09-01" }).success).toBe(true);
+    expect(reopenDayInput.safeParse({ date: "2026-09-01" }).success).toBe(false);
   });
 });
 

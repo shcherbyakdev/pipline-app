@@ -6,6 +6,7 @@ import {
   listServices,
   getAvailabilityAdmin,
 } from "@/features/scheduling/queries";
+import { firstActiveStaffId } from "@/features/scheduling/staff-queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listOfferings, listTimelineData } from "@/features/rentals/queries";
 import { RENTALS_ENABLED } from "@/lib/flags";
@@ -116,11 +117,15 @@ export default async function BookingsPage({
   const fromIso = wallTimeToUtc(weekStart, "00:00", timeZone).toISOString();
   const toIso = wallTimeToUtc(addDaysISO(weekStart, 7), "00:00", timeZone).toISOString();
 
+  // Availability is per staff now (Team slice). The week calendar still shows
+  // one person's open hours — the first active member — until Task 12 gives it
+  // its own staff switcher. No active member ⇒ no rules to draw.
+  const staffId = await firstActiveStaffId();
   const [bookings, exceptions, services, { rules }] = await Promise.all([
     listConfirmedBookingsBetween(fromIso, toIso),
-    listExceptionsBetween(weekStart, weekEnd),
+    staffId ? listExceptionsBetween(weekStart, weekEnd, [staffId]) : [],
     listServices(),
-    getAvailabilityAdmin(),
+    staffId ? getAvailabilityAdmin(staffId) : { rules: [], exceptions: [] },
   ]);
 
   return (
@@ -144,6 +149,7 @@ export default async function BookingsPage({
       <CalendarWeek
         weekStart={weekStart}
         timeZone={timeZone}
+        staffId={staffId}
         bookings={bookings}
         rules={rules}
         exceptions={exceptions}

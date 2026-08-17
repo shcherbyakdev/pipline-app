@@ -69,10 +69,13 @@ function groupExceptions(exceptions: ExceptionRow[]): Group[] {
     });
 }
 
+// `staffId`: whose overrides these are — see WeeklyHours for the same note.
 export function DateOverrides({
+  staffId,
   rules,
   exceptions,
 }: {
+  staffId: string;
   rules: RuleRow[];
   exceptions: ExceptionRow[];
 }) {
@@ -108,7 +111,12 @@ export function DateOverrides({
       {groups.length > 0 ? (
         <ul className="flex flex-col gap-2">
           {groups.map((group) => (
-            <OverrideRow key={group.date} group={group} onEdit={() => openEdit(group.date)} />
+            <OverrideRow
+              key={group.date}
+              staffId={staffId}
+              group={group}
+              onEdit={() => openEdit(group.date)}
+            />
           ))}
         </ul>
       ) : null}
@@ -125,6 +133,7 @@ export function DateOverrides({
         key={dialogKey}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        staffId={staffId}
         date={editingDate}
         rules={rules}
         exceptions={exceptions}
@@ -133,14 +142,22 @@ export function DateOverrides({
   );
 }
 
-function OverrideRow({ group, onEdit }: { group: Group; onEdit: () => void }) {
+function OverrideRow({
+  staffId,
+  group,
+  onEdit,
+}: {
+  staffId: string;
+  group: Group;
+  onEdit: () => void;
+}) {
   const [pending, startTransition] = React.useTransition();
   const label = formatDateLabel(group.date);
 
   function onDelete(e: React.MouseEvent) {
     e.stopPropagation();
     startTransition(async () => {
-      const result = await deleteDateOverride({ date: group.date });
+      const result = await deleteDateOverride({ staffId, date: group.date });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -183,12 +200,14 @@ function OverrideRow({ group, onEdit }: { group: Group; onEdit: () => void }) {
 function OverrideDialog({
   open,
   onOpenChange,
+  staffId,
   date,
   rules,
   exceptions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  staffId: string;
   date: string | null;
   rules: RuleRow[];
   exceptions: ExceptionRow[];
@@ -264,6 +283,7 @@ function OverrideDialog({
     }
     startTransition(async () => {
       const result = await setDateOverride({
+        staffId,
         date: draftDate,
         closed,
         windows: closed ? [] : windows,

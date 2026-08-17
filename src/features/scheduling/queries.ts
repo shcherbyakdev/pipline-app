@@ -52,7 +52,11 @@ export type ExceptionRow = {
   endTime: string | null;
 };
 
-export async function getAvailabilityAdmin(): Promise<{
+/** One person's hours and upcoming overrides. Team (multi-staff): availability
+    is per staff (0040/0041), so the caller must say whose — the availability
+    editor from its `?staff=` tab, other admin surfaces from
+    `firstActiveStaffId()`. */
+export async function getAvailabilityAdmin(staffId: string): Promise<{
   rules: RuleRow[];
   exceptions: ExceptionRow[];
 }> {
@@ -61,11 +65,13 @@ export async function getAvailabilityAdmin(): Promise<{
     supabase
       .from("availability_rules")
       .select("id, weekday, start_time, end_time")
+      .eq("staff_id", staffId)
       .order("weekday")
       .order("start_time"),
     supabase
       .from("availability_exceptions")
       .select("id, date, closed, start_time, end_time")
+      .eq("staff_id", staffId)
       .gte("date", new Date().toISOString().slice(0, 10))
       .order("date"),
   ]);
@@ -189,17 +195,20 @@ export async function listConfirmedBookingsBetween(
   return ((data ?? []) as unknown as BookingRow[]).map(toAdminBooking);
 }
 
+/** Overrides in a date window. `staffIds` narrows to those people's rows —
+    omit it only where every staff member's overrides are wanted at once. */
 export async function listExceptionsBetween(
   fromDate: string,
   toDate: string,
+  staffIds?: string[],
 ): Promise<ExceptionRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const base = supabase
     .from("availability_exceptions")
     .select("id, date, closed, start_time, end_time")
     .gte("date", fromDate)
-    .lte("date", toDate)
-    .order("date");
+    .lte("date", toDate);
+  const { data, error } = await (staffIds ? base.in("staff_id", staffIds) : base).order("date");
   if (error) throw error;
   return (data ?? []).map((e) => ({
     id: e.id, date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time,

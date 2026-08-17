@@ -111,6 +111,22 @@ export async function deleteService(input: unknown): Promise<ActionState> {
 // map to the same message the client shows.
 const OVERLAP_DB_CODE = "23P01";
 
+// Shape of an availability_exceptions row as the actions below write it.
+type ExceptionInsert = {
+  org_id: string;
+  staff_id: string;
+  date: string;
+  closed: boolean;
+  start_time: string | null;
+  end_time: string | null;
+};
+
+// Team (multi-staff): availability rows are per person (0040/0041 — `staff_id
+// NOT NULL`, EXCLUDE overlap guards keyed by staff). Each availability action
+// below takes the staff id from its own input and both writes it and filters
+// on it. RLS plus the `check_staff_owner_org` trigger already reject another
+// org's staff id, so the explicit `.eq("staff_id", …)` is defence-in-depth in
+// the same spirit as the org scope beside it.
 export async function addAvailabilityRule(input: unknown): Promise<ActionState> {
   const parsed = availabilityRuleInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
@@ -119,6 +135,7 @@ export async function addAvailabilityRule(input: unknown): Promise<ActionState> 
   const supabase = await createClient();
   const { error } = await supabase.from("availability_rules").insert({
     org_id: orgId,
+    staff_id: parsed.data.staffId,
     weekday: parsed.data.weekday,
     start_time: parsed.data.startTime,
     end_time: parsed.data.endTime,
@@ -162,12 +179,13 @@ export async function blockTimeRange(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { date, startTime, endTime } = parsed.data;
+  const { staffId, date, startTime, endTime } = parsed.data;
 
   const [rulesRes, exceptionsRes] = await Promise.all([
-    supabase.from("availability_rules").select("weekday, start_time, end_time").eq("org_id", orgId),
+    supabase.from("availability_rules").select("weekday, start_time, end_time")
+      .eq("org_id", orgId).eq("staff_id", staffId),
     supabase.from("availability_exceptions").select("date, closed, start_time, end_time")
-      .eq("org_id", orgId).eq("date", date),
+      .eq("org_id", orgId).eq("staff_id", staffId).eq("date", date),
   ]);
   if (rulesRes.error) return fail("blockTimeRange", rulesRes.error);
   if (exceptionsRes.error) return fail("blockTimeRange", exceptionsRes.error);
@@ -184,14 +202,16 @@ export async function blockTimeRange(input: unknown): Promise<ActionState> {
   const remaining = subtractRange(windows, startTime, endTime);
 
   const { error: delError } = await supabase
-    .from("availability_exceptions").delete().eq("org_id", orgId).eq("date", date);
+    .from("availability_exceptions").delete()
+    .eq("org_id", orgId).eq("staff_id", staffId).eq("date", date);
   if (delError) return fail("blockTimeRange", delError);
 
-  const rows: Array<{ org_id: string; date: string; closed: boolean; start_time: string | null; end_time: string | null }> =
+  const rows: ExceptionInsert[] =
     remaining.length === 0
-      ? [{ org_id: orgId, date, closed: true, start_time: null, end_time: null }]
+      ? [{ org_id: orgId, staff_id: staffId, date, closed: true, start_time: null, end_time: null }]
       : remaining.map((w) => ({
-          org_id: orgId, date, closed: false, start_time: w.startTime, end_time: w.endTime,
+          org_id: orgId, staff_id: staffId, date, closed: false,
+          start_time: w.startTime, end_time: w.endTime,
         }));
   const { error: insError } = await supabase.from("availability_exceptions").insert(rows);
   if (insError) return fail("blockTimeRange", insError);
@@ -211,12 +231,13 @@ export async function unblockTimeRange(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { date, startTime, endTime } = parsed.data;
+  const { staffId, date, startTime, endTime } = parsed.data;
 
   const [rulesRes, exceptionsRes] = await Promise.all([
-    supabase.from("availability_rules").select("weekday, start_time, end_time").eq("org_id", orgId),
+    supabase.from("availability_rules").select("weekday, start_time, end_time")
+      .eq("org_id", orgId).eq("staff_id", staffId),
     supabase.from("availability_exceptions").select("date, closed, start_time, end_time")
-      .eq("org_id", orgId).eq("date", date),
+      .eq("org_id", orgId).eq("staff_id", staffId).eq("date", date),
   ]);
   if (rulesRes.error) return fail("unblockTimeRange", rulesRes.error);
   if (exceptionsRes.error) return fail("unblockTimeRange", exceptionsRes.error);
@@ -230,7 +251,8 @@ export async function unblockTimeRange(input: unknown): Promise<ActionState> {
   const merged = addRange(effectiveWindows(date, rules, dayExceptions), startTime, endTime);
 
   const { error: delError } = await supabase
-    .from("availability_exceptions").delete().eq("org_id", orgId).eq("date", date);
+    .from("availability_exceptions").delete()
+    .eq("org_id", orgId).eq("staff_id", staffId).eq("date", date);
   if (delError) return fail("unblockTimeRange", delError);
 
   // Rules-only effective windows for this date — if the merged result
@@ -239,7 +261,8 @@ export async function unblockTimeRange(input: unknown): Promise<ActionState> {
   if (JSON.stringify(merged) !== JSON.stringify(ruleWindows)) {
     const { error: insError } = await supabase.from("availability_exceptions").insert(
       merged.map((w) => ({
-        org_id: orgId, date, closed: false, start_time: w.startTime, end_time: w.endTime,
+        org_id: orgId, staff_id: staffId, date, closed: false,
+        start_time: w.startTime, end_time: w.endTime,
       })),
     );
     if (insError) return fail("unblockTimeRange", insError);
@@ -258,7 +281,8 @@ export async function reopenDay(input: unknown): Promise<ActionState> {
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
   const { error } = await supabase
-    .from("availability_exceptions").delete().eq("org_id", orgId).eq("date", parsed.data.date);
+    .from("availability_exceptions").delete()
+    .eq("org_id", orgId).eq("staff_id", parsed.data.staffId).eq("date", parsed.data.date);
   if (error) return fail("reopenDay", error);
   revalidatePath("/bookings");
   revalidatePath("/availability");
@@ -324,18 +348,21 @@ export async function copyDayHours(input: unknown): Promise<ActionState> {
     .from("availability_rules")
     .select("start_time, end_time")
     .eq("org_id", orgId)
+    .eq("staff_id", parsed.data.staffId)
     .eq("weekday", parsed.data.sourceWeekday);
   if (readError) return fail("copyDayHours", readError);
   const { error: deleteError } = await supabase
     .from("availability_rules")
     .delete()
     .eq("org_id", orgId)
+    .eq("staff_id", parsed.data.staffId)
     .in("weekday", parsed.data.targetWeekdays);
   if (deleteError) return fail("copyDayHours", deleteError);
   if ((source ?? []).length > 0) {
     const rows = parsed.data.targetWeekdays.flatMap((weekday) =>
       (source ?? []).map((w) => ({
         org_id: orgId,
+        staff_id: parsed.data.staffId,
         weekday,
         start_time: w.start_time,
         end_time: w.end_time,
@@ -361,18 +388,28 @@ export async function setDateOverride(input: unknown): Promise<ActionState> {
     .from("availability_exceptions")
     .delete()
     .eq("org_id", orgId)
+    .eq("staff_id", parsed.data.staffId)
     .eq("date", parsed.data.date);
   if (deleteError) return fail("setDateOverride", deleteError);
-  const rows: Array<{ org_id: string; date: string; closed: boolean; start_time: string | null; end_time: string | null }> =
-    parsed.data.closed
-      ? [{ org_id: orgId, date: parsed.data.date, closed: true, start_time: null, end_time: null }]
-      : parsed.data.windows.map((w) => ({
+  const rows: ExceptionInsert[] = parsed.data.closed
+    ? [
+        {
           org_id: orgId,
+          staff_id: parsed.data.staffId,
           date: parsed.data.date,
-          closed: false,
-          start_time: w.startTime,
-          end_time: w.endTime,
-        }));
+          closed: true,
+          start_time: null,
+          end_time: null,
+        },
+      ]
+    : parsed.data.windows.map((w) => ({
+        org_id: orgId,
+        staff_id: parsed.data.staffId,
+        date: parsed.data.date,
+        closed: false,
+        start_time: w.startTime,
+        end_time: w.endTime,
+      }));
   const { error: insertError } = await supabase.from("availability_exceptions").insert(rows);
   if (insertError) {
     if (insertError.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
@@ -393,6 +430,7 @@ export async function deleteDateOverride(input: unknown): Promise<ActionState> {
     .from("availability_exceptions")
     .delete()
     .eq("org_id", orgId)
+    .eq("staff_id", parsed.data.staffId)
     .eq("date", parsed.data.date);
   if (error) return fail("deleteDateOverride", error);
   revalidatePath("/availability");
