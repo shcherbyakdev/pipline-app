@@ -69,8 +69,25 @@ describe("booking lifecycle templates", () => {
     expect(msg.subject).toContain("Cut");
     expect(msg.subject).toContain("Studio");
     expect(msg.text).toContain("no longer works");
+    expect(msg.text).toContain("view, reschedule, or cancel");
     expect(msg.html).toContain("https://app/booking/fresh-tok");
     expect(msg.text).toContain("https://app/booking/fresh-tok");
+  });
+
+  it("manage link email drops 'reschedule' when the booking cannot be rescheduled (rentals)", () => {
+    const base = {
+      orgName: "Studio",
+      serviceName: "Loft · 2B",
+      whenLine: "Mon, 05 Apr → Thu, 08 Apr",
+      manageUrl: "https://app/booking/fresh-tok",
+      icsUrl: "https://app/booking/fresh-tok/calendar.ics",
+    };
+    const msg = bookingManageLinkEmail({ ...base, canReschedule: false });
+    expect(msg.text).toContain("view or cancel");
+    expect(msg.text).not.toContain("reschedule");
+    expect(msg.html).not.toContain("reschedule");
+    // default (omitted) keeps the appointment wording
+    expect(bookingManageLinkEmail(base).text).toContain("view, reschedule, or cancel");
   });
 
   it("provider rescheduled email shows both times and escapes clientName", () => {

@@ -21,6 +21,15 @@ describe("unitInput / blackoutInput", () => {
     expect(blackoutInput.safeParse({ offeringId: U, rentalUnitId: U, startDate: "2027-05-03", endDate: "2027-05-01" }).success).toBe(false);
     expect(blackoutInput.safeParse({ offeringId: U, rentalUnitId: U, startDate: "2027-05-01", endDate: "2027-05-01", reason: "" }).success).toBe(true);
   });
+  it("caps the blackout span at 2 years", () => {
+    const U = "00000000-0000-4000-8000-000000000000";
+    const b = { offeringId: U, rentalUnitId: U, startDate: "2027-05-01" };
+    expect(blackoutInput.safeParse({ ...b, endDate: "2029-04-30" }).success).toBe(true); // 730 days
+    const tooLong = blackoutInput.safeParse({ ...b, endDate: "2029-05-01" }); // 731 days
+    expect(tooLong.success).toBe(false);
+    expect(tooLong.error!.issues[0].message).toBe("Blackout can span at most 2 years");
+    expect(blackoutInput.safeParse({ ...b, endDate: "9999-12-31" }).success).toBe(false);
+  });
 });
 describe("public inputs", () => {
   it("caps days at 93 and validates the booking payload", () => {

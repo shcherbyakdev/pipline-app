@@ -106,9 +106,13 @@ export function bookingManageLinkEmail(input: {
   whenLine: string;
   manageUrl: string;
   icsUrl: string;
+  // Rentals have no self-service reschedule — don't promise one (default:
+  // appointments, which do).
+  canReschedule?: boolean;
 }): { subject: string; html: string; text: string } {
   const subject = `Your booking link — ${input.serviceName} with ${input.orgName}`;
-  const intro = `Here is a fresh link to view, reschedule, or cancel your booking (${input.whenLine}). Any previous link no longer works.`;
+  const verbs = input.canReschedule === false ? "view or cancel" : "view, reschedule, or cancel";
+  const intro = `Here is a fresh link to ${verbs} your booking (${input.whenLine}). Any previous link no longer works.`;
   const html = `
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>

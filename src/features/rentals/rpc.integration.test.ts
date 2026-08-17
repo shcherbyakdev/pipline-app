@@ -195,6 +195,43 @@ describe("create_rental_booking RPC (0038)", () => {
     );
   });
 
+  it("rejects a stay whose check-in has already passed (it could never be cancelled)", async () => {
+    // cancel_booking requires starts_at > now(), so the RPC must refuse a
+    // check-in in the past — even though the stay still ends in the future.
+    const [hh, mm] = new Intl.DateTimeFormat("en-GB", {
+      timeZone: TZ,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+      .format(new Date())
+      .split(":")
+      .map(Number);
+    const sinceMidnight = hh * 60 + mm;
+    // A minute ago in Berlin; just after midnight there is no such time, so
+    // open the day at 00:00 instead.
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const past = sinceMidnight < 2 ? "00:00" : `${pad(Math.floor((sinceMidnight - 1) / 60))}:${pad((sinceMidnight - 1) % 60)}`;
+    const lateOffering = await newOffering("Late", {
+      start_time: past,
+      end_time: sinceMidnight < 2 ? "23:59" : "11:00",
+      min_stay: 1,
+      max_stay: null,
+      turnover_days: 0,
+      min_notice_days: 0,
+    });
+    await newUnit(lateOffering, "L1", 0);
+    const on = (over: Record<string, unknown>) => book({ p_offering_id: lateOffering, ...over });
+
+    // Today's check-in is already behind us — 'not found', not 'taken'.
+    const late = await on({ p_start_date: d(0), p_end_date: d(1) });
+    expect(late.error).not.toBeNull();
+    expect(late.error!.message).toContain("not found");
+    // The same stay one day later is fine.
+    const ok = await on({ p_start_date: d(1), p_end_date: d(2) });
+    expect(ok.error).toBeNull();
+  });
+
   it("days mode: same-day pickup/return allowed when end_time > start_time; return day is occupied", async () => {
     const daysOffering = await newOffering("Kayak", {
       range_mode: "days",

@@ -67,7 +67,11 @@ begin
 
   v_starts := (p_start_date::text || ' ' || v_off.start_time)::timestamp at time zone v_org.timezone;
   v_ends := (p_end_date::text || ' ' || v_off.end_time)::timestamp at time zone v_org.timezone;
-  if v_ends <= v_starts or v_ends <= now() then raise exception 'not found'; end if;
+  -- Reject a stay whose check-in has already passed (not just one that has
+  -- already ended): cancel_booking requires starts_at > now(), so a booking
+  -- made after today's check-in time would be uncancellable. Mirrors
+  -- create_booking (0034).
+  if v_ends <= v_starts or v_starts <= now() then raise exception 'not found'; end if;
 
   select count(*) into v_recent from public.bookings b
     where b.org_id = v_org.id and b.created_at > now() - interval '1 minute';

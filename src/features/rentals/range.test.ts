@@ -77,6 +77,21 @@ describe("computeRangeAvailability", () => {
     expect(a.dates["2027-05-22"].unitIds).toEqual(["u1", "u2"]);
   });
 
+  it("clamps a marked range to the requested window (an open-ended blackout terminates fast)", () => {
+    // Without the clamp this expands ~2.9M dates day by day.
+    const started = Date.now();
+    const open = computeRangeAvailability(input({
+      blackouts: [{ unitId: "u1", startDate: "2027-01-01", endDate: "9999-12-31" }],
+    }));
+    const elapsed = Date.now() - started;
+    const equivalent = computeRangeAvailability(input({
+      blackouts: [{ unitId: "u1", startDate: "2027-05-01", endDate: "2027-05-31" }],
+    }));
+    expect(open.dates).toEqual(equivalent.dates);
+    expect(open.dates["2027-05-15"]).toEqual({ free: 1, unitIds: ["u2"] });
+    expect(elapsed).toBeLessThan(200);
+  });
+
   it("derives dates in the org zone across DST (a stay ending 02:00Z after fall-back is still that local date)", () => {
     // 2027-10-31 is EU fall-back. Check-out 11:00 local on 11-01 = 10:00Z (CET).
     const a = computeRangeAvailability(input({

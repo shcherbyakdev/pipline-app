@@ -34,10 +34,18 @@ export function computeRangeAvailability(input: RangeInput): RangeAvailability {
   const notBefore = addDaysISO(today, offering.minNoticeDays);
   const notAfter = addDaysISO(today, offering.bookingWindowDays);
   const occupied = new Map<string, Set<string>>(units.map((u) => [u.id, new Set()]));
+  // Only dates inside [fromDate, windowEnd] are ever read below, so every
+  // marked range is clamped to it first. Without the clamp an open-ended
+  // blackout (e.g. …→9999-12-31) would be expanded day by day — millions of
+  // iterations on an anonymous request path.
+  const windowEnd = addDaysISO(fromDate, days - 1);
   const mark = (unitId: string, start: string, end: string) => {
     const set = occupied.get(unitId);
     if (!set) return;
-    for (const d of eachDate(start, end)) set.add(d);
+    const from = start < fromDate ? fromDate : start;
+    const to = end > windowEnd ? windowEnd : end;
+    if (from > to) return;
+    for (const d of eachDate(from, to)) set.add(d);
   };
   for (const b of blackouts) mark(b.unitId, b.startDate, b.endDate);
   for (const b of bookings) {

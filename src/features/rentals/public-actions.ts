@@ -107,6 +107,19 @@ export async function createRentalBooking(
     const ctx = await loadOrgRangeContext(org.orgId, offeringId, startDate, span);
     if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
 
+    // The RPC rejects a stay whose check-in has already passed (a booking that
+    // starts in the past can never be cancelled). Say so here rather than let
+    // the picker fail with the generic error; `datesTaken` makes the flow
+    // reset and refetch, which is what the client needs to do anyway.
+    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime, org.timeZone);
+    if (startsAt.getTime() <= Date.now()) {
+      return {
+        ok: false,
+        error: "That check-in time has already passed — please pick a later date.",
+        datesTaken: true,
+      };
+    }
+
     // Re-run the engine over the requested stay; the RPC re-checks the same
     // rules under an advisory lock, this is the friendly-error pass.
     const availability = computeRangeAvailability({

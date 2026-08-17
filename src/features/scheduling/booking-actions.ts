@@ -298,6 +298,7 @@ export async function resendManageLink(
         ),
         manageUrl: buildBookingManageUrl(fresh.token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+        canReschedule: row.rental_unit_id === null,
       });
       await selectTransport().send({
         to: booking.client_email,

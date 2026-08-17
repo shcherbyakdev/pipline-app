@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TIME_RE, HANDLE_RE } from "@/features/scheduling/schema";
+import { daysBetween } from "./range";
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -49,7 +50,12 @@ export const blackoutInput = z
     endDate: z.string().regex(DATE_RE),
     reason: z.string().trim().max(500).optional(),
   })
-  .refine((b) => b.endDate >= b.startDate, { message: "end must not precede start" });
+  .refine((b) => b.endDate >= b.startDate, { message: "end must not precede start" })
+  // Bound the span server-side: the availability engine reasons in days, and
+  // an open-ended blackout is never a legitimate input.
+  .refine((b) => b.endDate < b.startDate || daysBetween(b.startDate, b.endDate) <= 730, {
+    message: "Blackout can span at most 2 years",
+  });
 export const blackoutIdInput = z.object({ id: z.uuid(), offeringId: z.uuid() });
 
 // Lives here, not in public-actions.ts: a file-level "use server" module may

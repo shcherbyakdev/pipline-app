@@ -150,14 +150,16 @@ export async function listBookings(): Promise<{ upcoming: AdminBooking[]; past: 
       .from("bookings")
       .select(BOOKING_COLUMNS)
       .eq("status", "confirmed")
-      .gte("starts_at", nowIso)
+      // ends_at, not starts_at (Rentals R1): a multi-night stay in progress is
+      // still upcoming — it only leaves the list once it has ended.
+      .gte("ends_at", nowIso)
       .order("starts_at", { ascending: true }),
-    // History: anything cancelled/rescheduled, plus confirmed-but-started.
+    // History: anything cancelled/rescheduled, plus confirmed-and-ended.
     // Capped — S5's calendar view is the archaeology surface.
     supabase
       .from("bookings")
       .select(BOOKING_COLUMNS)
-      .or(`status.neq.confirmed,starts_at.lt.${nowIso}`)
+      .or(`status.neq.confirmed,ends_at.lt.${nowIso}`)
       .order("starts_at", { ascending: false })
       .limit(50),
   ]);
