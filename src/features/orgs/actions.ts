@@ -74,7 +74,7 @@ export async function updateAccent(input: unknown): Promise<ActionState> {
     p_logo_path: org.logo_path,
   });
   if (error) return brandingFail("updateAccent", error);
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
   return { ok: true };
 }
 
@@ -98,7 +98,7 @@ export async function updateWidgetTheme(input: unknown): Promise<ActionState> {
     p_theme: cfg,
   });
   if (error) return brandingFail("updateWidgetTheme", error);
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
   revalidatePath("/bookings");
   return { ok: true };
 }
@@ -150,7 +150,7 @@ export async function uploadLogo(formData: FormData): Promise<ActionState> {
   // DB update landed: the old object (different content hash) is now
   // unreferenced — delete it best-effort.
   if (org.logo_path && org.logo_path !== path) await deleteBrandingObject(org.logo_path);
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
   return { ok: true };
 }
 
@@ -165,6 +165,6 @@ export async function removeLogo(): Promise<ActionState> {
   });
   if (error) return brandingFail("removeLogo", error);
   if (org.logo_path) await deleteBrandingObject(org.logo_path);
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
   return { ok: true };
 }
