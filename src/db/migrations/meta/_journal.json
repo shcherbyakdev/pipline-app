@@ -246,6 +246,13 @@
       "when": 1786903647211,
       "tag": "0034_s5_client_name",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1786918914187,
+      "tag": "0035_availability_overlap_guard",
+      "breakpoints": true
     }
   ]
 }
