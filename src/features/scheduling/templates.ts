@@ -25,6 +25,35 @@ export function formatWhenLine(starts: Date, timeZone: string): string {
   }).format(starts);
 }
 
+// Rentals (R1): a stay spans two instants, so the when-line carries both
+// ends in the org zone with a single trailing tz suffix (repeating "CEST"
+// on both halves reads as noise).
+export function formatRangeWhenLine(starts: Date, ends: Date, timeZone: string): string {
+  const f = new Intl.DateTimeFormat("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  });
+  const tz =
+    new Intl.DateTimeFormat("en-GB", { timeZone, timeZoneName: "short" })
+      .formatToParts(starts)
+      .find((p) => p.type === "timeZoneName")?.value ?? timeZone;
+  return `${f.format(starts)} → ${f.format(ends)} (${tz})`;
+}
+
+// One call site for every email/page that renders a booking's time without
+// caring which kind it is.
+export function whenLineFor(
+  b: { startsAt: Date; endsAt: Date; isRental: boolean },
+  timeZone: string,
+): string {
+  return b.isRental ? formatRangeWhenLine(b.startsAt, b.endsAt, timeZone) : formatWhenLine(b.startsAt, timeZone);
+}
+
 export const STATUS_LABEL: Record<string, string> = {
   confirmed: "Confirmed",
   cancelled_by_client: "Cancelled by client",

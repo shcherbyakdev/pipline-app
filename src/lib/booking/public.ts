@@ -2,6 +2,12 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addDaysISO, type SlotRule, type SlotException } from "@/features/scheduling/slots";
+import type {
+  RangeMode,
+  RangeUnit,
+  RangeBlackout,
+  RangeBooking,
+} from "@/features/rentals/range";
 
 // Admin-client reads for the anonymous booking page (getOrgBranding
 // precedent: the public surface stays off the anon SQL grant surface;
@@ -102,6 +108,8 @@ export async function getBusyIntervals(
     .select("starts_at, ends_at")
     .eq("org_id", orgId)
     .eq("status", "confirmed")
+    // Rentals never block the provider's calendar (unit-level guard, R1).
+    .is("rental_unit_id", null)
     .gte("ends_at", fromIso)
     .lte("starts_at", toIso);
   // Reschedule pickers drop the booking's own interval: the RPC frees the
@@ -150,4 +158,211 @@ export async function loadOrgSlotContext(
     opts?.excludeBookingId,
   );
   return { service, rules, exceptions, busy };
+}
+
+// ---------- Rentals (R1). Same doctrine as the service loaders above:
+// admin client, every query scoped by an already-resolved orgId.
+
+export type PublicOffering = {
+  id: string;
+  name: string;
+  description: string | null;
+  priceLabel: string | null;
+  rangeMode: RangeMode;
+  startTime: string;
+  endTime: string;
+  minStay: number;
+  maxStay: number | null;
+  turnoverDays: number;
+  minNoticeDays: number;
+  bookingWindowDays: number;
+  unitSelection: "auto" | "client_picks";
+};
+export type PublicUnit = { id: string; name: string; description: string | null };
+
+const PUBLIC_OFFERING_COLUMNS =
+  "id, name, description, price_label, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection";
+
+type PublicOfferingDb = {
+  id: string;
+  name: string;
+  description: string | null;
+  price_label: string | null;
+  range_mode: RangeMode;
+  start_time: string;
+  end_time: string;
+  min_stay: number;
+  max_stay: number | null;
+  turnover_days: number;
+  min_notice_days: number;
+  booking_window_days: number;
+  unit_selection: "auto" | "client_picks";
+};
+
+function toPublicOffering(o: PublicOfferingDb): PublicOffering {
+  return {
+    id: o.id,
+    name: o.name,
+    description: o.description,
+    priceLabel: o.price_label,
+    rangeMode: o.range_mode,
+    startTime: o.start_time,
+    endTime: o.end_time,
+    minStay: o.min_stay,
+    maxStay: o.max_stay,
+    turnoverDays: o.turnover_days,
+    minNoticeDays: o.min_notice_days,
+    bookingWindowDays: o.booking_window_days,
+    unitSelection: o.unit_selection,
+  };
+}
+
+// Active offerings that have at least one active unit — an offering with no
+// bookable unit would render a calendar that is free nowhere. Two plain
+// queries rather than an `!inner` embed: the join semantics of a filtered
+// embed are easy to get subtly wrong, and this list is tiny.
+export async function listPublicOfferings(orgId: string): Promise<PublicOffering[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("rental_offerings")
+    .select(PUBLIC_OFFERING_COLUMNS)
+    .eq("org_id", orgId)
+    .eq("active", true)
+    .order("sort_order")
+    .order("name");
+  if (error) throw error;
+  const offerings = ((data ?? []) as unknown as PublicOfferingDb[]).map(toPublicOffering);
+  if (offerings.length === 0) return [];
+  const { data: units, error: unitsError } = await admin
+    .from("rental_units")
+    .select("offering_id")
+    .eq("org_id", orgId)
+    .eq("active", true)
+    .in(
+      "offering_id",
+      offerings.map((o) => o.id),
+    );
+  if (unitsError) throw unitsError;
+  const bookable = new Set((units ?? []).map((u) => u.offering_id as string));
+  return offerings.filter((o) => bookable.has(o.id));
+}
+
+export async function getPublicOfferingById(
+  orgId: string,
+  offeringId: string,
+): Promise<PublicOffering | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("rental_offerings")
+    .select(PUBLIC_OFFERING_COLUMNS)
+    .eq("id", offeringId)
+    .eq("org_id", orgId)
+    .eq("active", true)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? toPublicOffering(data as unknown as PublicOfferingDb) : null;
+}
+
+export async function listPublicUnits(offeringId: string): Promise<PublicUnit[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("rental_units")
+    .select("id, name, description")
+    .eq("offering_id", offeringId)
+    .eq("active", true)
+    .order("sort_order")
+    .order("created_at");
+  if (error) throw error;
+  return (data ?? []).map((u) => ({ id: u.id, name: u.name, description: u.description }));
+}
+
+// Everything the range engine needs for one org+offering. The window is
+// padded by turnover (+1 day) on both edges: a stay just outside the
+// requested span still occupies days inside it once turnover is added.
+export async function loadOrgRangeContext(
+  orgId: string,
+  offeringId: string,
+  fromDate: string,
+  days: number,
+): Promise<{
+  offering: PublicOffering;
+  units: PublicUnit[];
+  rangeUnits: RangeUnit[];
+  blackouts: RangeBlackout[];
+  bookings: RangeBooking[];
+} | null> {
+  const offering = await getPublicOfferingById(orgId, offeringId);
+  if (!offering) return null;
+  const admin = createAdminClient();
+  const { data: unitRows, error: unitsError } = await admin
+    .from("rental_units")
+    .select("id, name, description, sort_order")
+    .eq("offering_id", offeringId)
+    .eq("org_id", orgId)
+    .eq("active", true)
+    .order("sort_order")
+    .order("created_at");
+  if (unitsError) throw unitsError;
+  const units: PublicUnit[] = (unitRows ?? []).map((u) => ({
+    id: u.id,
+    name: u.name,
+    description: u.description,
+  }));
+  const rangeUnits: RangeUnit[] = (unitRows ?? []).map((u, i) => ({
+    id: u.id,
+    // sort_order ties are broken by created_at above; the engine sorts on a
+    // single number, so hand it the resolved position.
+    sortOrder: i,
+  }));
+  if (units.length === 0) {
+    return { offering, units, rangeUnits, blackouts: [], bookings: [] };
+  }
+
+  const pad = offering.turnoverDays + 1;
+  const windowStart = addDaysISO(fromDate, -pad);
+  const windowEnd = addDaysISO(fromDate, days + pad);
+  const unitIds = units.map((u) => u.id);
+  const [blackoutRes, bookingRes] = await Promise.all([
+    admin
+      .from("rental_unit_blackouts")
+      .select("rental_unit_id, start_date, end_date")
+      .in("rental_unit_id", unitIds)
+      .gte("end_date", windowStart)
+      .lte("start_date", windowEnd),
+    admin
+      .from("bookings")
+      .select("rental_unit_id, starts_at, ends_at")
+      .in("rental_unit_id", unitIds)
+      .eq("status", "confirmed")
+      .gte("ends_at", `${windowStart}T00:00:00Z`)
+      .lte("starts_at", `${windowEnd}T23:59:59Z`),
+  ]);
+  if (blackoutRes.error) throw blackoutRes.error;
+  if (bookingRes.error) throw bookingRes.error;
+
+  const blackouts: RangeBlackout[] = (blackoutRes.data ?? []).map((b) => ({
+    unitId: b.rental_unit_id,
+    startDate: b.start_date,
+    endDate: b.end_date,
+  }));
+  const bookings: RangeBooking[] = (bookingRes.data ?? []).map((b) => ({
+    unitId: b.rental_unit_id,
+    startsAt: new Date(b.starts_at),
+    endsAt: new Date(b.ends_at),
+  }));
+  return { offering, units, rangeUnits, blackouts, bookings };
+}
+
+// The confirmation email names the unit the RPC picked; only the booking id
+// comes back from it.
+export async function getBookingUnitName(bookingId: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("bookings")
+    .select("rental_units(name)")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const unit = (data as unknown as { rental_units: { name: string } | null }).rental_units;
+  return unit?.name ?? null;
 }

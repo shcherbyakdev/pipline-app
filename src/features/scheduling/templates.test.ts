@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  formatWhenLine,
+  formatRangeWhenLine,
+  whenLineFor,
   bookingLifecycleKey,
   bookingCancelledEmail,
   bookingRescheduledEmail,
@@ -80,5 +83,22 @@ describe("booking lifecycle templates", () => {
     expect(msg.text).toContain("Was: OLD-TIME");
     expect(msg.text).toContain("Now: NEW-TIME");
     expect(msg.html).toContain("A &amp; B");
+  });
+
+  it("formatRangeWhenLine renders both ends in the org zone with one tz suffix", () => {
+    const s = formatRangeWhenLine(
+      new Date("2027-09-10T13:00:00Z"),
+      new Date("2027-09-13T09:00:00Z"),
+      "Europe/Berlin",
+    );
+    expect(s).toBe("Fri, 10 Sept 2027, 15:00 → Mon, 13 Sept 2027, 11:00 (CEST)");
+  });
+
+  it("whenLineFor dispatches on isRental", () => {
+    const b = { startsAt: new Date("2027-09-10T13:00:00Z"), endsAt: new Date("2027-09-13T09:00:00Z") };
+    expect(whenLineFor({ ...b, isRental: false }, "Europe/Berlin")).toBe(
+      formatWhenLine(b.startsAt, "Europe/Berlin"),
+    );
+    expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin")).toContain("→");
   });
 });
