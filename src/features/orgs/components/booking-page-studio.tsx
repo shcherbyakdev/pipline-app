@@ -66,6 +66,9 @@ export function BookingPageStudio({
   // Colour overrides (set on Website embed) apply here too — surface a weak
   // pair the same way the embed page does, so it isn't missed on this page.
   const overrideRatio = theme.background || theme.text ? effectiveContrast(theme) : null;
+  const embedRisk = !theme.background && theme.theme !== "auto";
+  const oppositeScheme: Scheme = theme.theme === "light" ? "dark" : "light";
+  const oppositeLabel = theme.theme === "light" ? "Dark" : "Light";
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
@@ -134,10 +137,26 @@ export function BookingPageStudio({
                 </Link>
                 .
               </PreviewNotice>
+            ) : embedRisk ? (
+              // This page always matches its theme, so it is readable in every
+              // case; the shared theme also drives the transparent embed,
+              // where the host site's colour decides — same caution as on
+              // Website embed, phrased from here.
+              <PreviewNotice tone="warn">
+                This page is always readable — it paints its own {theme.theme} ground. But Theme is shared
+                with the website embed, which takes your site&apos;s surface: on a {oppositeScheme} site its
+                text becomes unreadable. If your site is {oppositeScheme}, choose {oppositeLabel} (or Auto), or
+                set a background colour on{" "}
+                <Link href="/embed" className="underline underline-offset-3">
+                  Website embed
+                </Link>
+                .
+              </PreviewNotice>
             ) : theme.theme === "auto" ? (
               <PreviewNotice tone="info">
-                Auto follows each visitor&apos;s system setting; the page always matches, so both variants
-                are readable — use the toggle above to see each.
+                Auto follows each visitor&apos;s system setting. This page always matches, so both variants
+                are readable (use the toggle above). The website embed only matches if your site does too —
+                check it there.
               </PreviewNotice>
             ) : null
           }
