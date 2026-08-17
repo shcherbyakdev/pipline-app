@@ -13,7 +13,7 @@ import {
   getAdminRangeAvailability,
   rescheduleRentalBookingAdmin,
 } from "@/features/rentals/booking-actions";
-import { RangePicker, staySummary, type RangeValue } from "./range-picker";
+import { RangePicker, type RangeValue } from "./range-picker";
 import { UnitSelect } from "./unit-select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -149,11 +149,6 @@ export function MoveRentalDialog({
     });
   }
 
-  const summary =
-    offering && range.start && range.end
-      ? staySummary(offering, range.start, range.end, timeZone)
-      : null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
@@ -203,7 +198,6 @@ export function MoveRentalDialog({
                     keepUnitName={keepUnitName}
                   />
                 </div>
-                {summary ? <p className="text-muted-foreground text-sm">{summary}</p> : null}
                 <Button onClick={confirm} disabled={pending || !stay?.ok}>
                   {pending ? "Moving…" : "Move stay"}
                 </Button>

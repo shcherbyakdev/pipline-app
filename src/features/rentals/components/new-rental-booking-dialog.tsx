@@ -12,7 +12,7 @@ import {
   createRentalBookingAdmin,
 } from "@/features/rentals/booking-actions";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
-import { RangePicker, staySummary, type RangeValue } from "./range-picker";
+import { RangePicker, type RangeValue } from "./range-picker";
 import { UnitSelect } from "./unit-select";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -109,9 +109,12 @@ export function NewRentalBookingDialog({
     setError(null);
     setMonth(m);
   }
+  // Unlike the other pickers this keeps `unitId` across a date change: it
+  // usually came from the timeline cell the provider clicked, and that unit
+  // is the point of the walk-in. `effectiveUnitId` below drops it if the new
+  // dates aren't free on it.
   function changeRange(next: RangeValue) {
     setError(null);
-    setUnitId(null);
     setRange(next);
   }
 
@@ -160,11 +163,6 @@ export function NewRentalBookingDialog({
       router.refresh();
     });
   }
-
-  const summary =
-    offering && range.start && range.end
-      ? staySummary(offering, range.start, range.end, timeZone)
-      : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -218,7 +216,6 @@ export function NewRentalBookingDialog({
                     onChange={setUnitId}
                   />
                 </div>
-                {summary ? <p className="text-muted-foreground text-sm">{summary}</p> : null}
                 <ClientDetailsFields emailOptional idPrefix="new-rental-" />
                 <Button type="submit" disabled={pending || !stay?.ok}>
                   {pending ? "Creating…" : "Create booking"}
