@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
+import { AppearanceSettings } from "@/features/orgs/components/appearance-settings";
 import { BrandingForm } from "@/features/orgs/components/branding-form";
 import { WidgetAppearance } from "@/features/orgs/components/widget-appearance";
 import { SchedulingSettingsForm } from "@/features/scheduling/components/scheduling-settings-form";
@@ -67,6 +68,10 @@ export default async function SettingsPage() {
           appUrl={env.NEXT_PUBLIC_APP_URL}
           previewServices={previewServices}
         />
+      </div>
+      <div className="flex flex-col gap-3">
+        <h2 className="text-muted-foreground text-sm font-medium">Appearance</h2>
+        <AppearanceSettings />
       </div>
     </div>
   );

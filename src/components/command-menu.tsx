@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Moon, Plus, Sun } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -57,7 +58,7 @@ export function CommandMenu() {
               Settings, so there's no drift risk to guard against there. */}
           {NAV_ITEMS.map((item) => (
             <CommandItem key={item.href} onSelect={() => go(item.href)}>
-              <item.icon className="size-4" /> {item.label}
+              <HugeiconsIcon icon={item.icon} size={16} /> {item.label}
             </CommandItem>
           ))}
         </CommandGroup>

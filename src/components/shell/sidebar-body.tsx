@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Search } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Logout03Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { NAV_ITEMS, NAV_SECTION_LABELS } from "./nav";
 import { signOut } from "@/features/auth/actions";
 import { OPEN_COMMAND_MENU_EVENT } from "@/components/command-menu";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 /* Linear sidebar metrics: 13px/500 items, 16px icons, 4px radius, ~27px rows,
@@ -33,7 +33,7 @@ export function SidebarBody({
   return (
     <div className="flex h-full flex-col px-4 py-3">
       {/* Workspace row: initial tile in the accent (Linear's mustard tile) + org name. */}
-      <div className="flex h-8 items-center justify-between gap-2 pr-8 md:pr-0">
+      <div className="flex h-8 items-center pr-8 md:pr-0">
         <div className="flex min-w-0 items-center gap-2 px-1.5">
           <span
             aria-hidden="true"
@@ -43,7 +43,6 @@ export function SidebarBody({
           </span>
           <span className="truncate text-[13px] font-medium">{org}</span>
         </div>
-        <ThemeToggle />
       </div>
 
       <button
@@ -51,7 +50,7 @@ export function SidebarBody({
         onClick={() => window.dispatchEvent(new Event(OPEN_COMMAND_MENU_EVENT))}
         className="bg-secondary text-foreground/80 hover:text-foreground focus-visible:ring-ring/50 mt-3 flex h-7 w-full items-center gap-2.5 rounded-[4px] border px-1.5 text-[13px] shadow-[0_1px_0.5px_oklch(0_0_0/15%)] outline-none focus-visible:ring-2"
       >
-        <Search className="size-4 shrink-0" />
+        <HugeiconsIcon icon={Search01Icon} size={16} className="shrink-0" />
         <span className="flex-1 text-left">Search</span>
         <kbd className="text-muted-foreground font-mono text-[10px]">⌘K</kbd>
       </button>
@@ -65,7 +64,7 @@ export function SidebarBody({
               {label && (
                 <div className="text-muted-foreground flex h-7 items-center px-2 text-xs font-medium">{label}</div>
               )}
-              {items.map(({ href, label: text, icon: Icon }) => {
+              {items.map(({ href, label: text, icon }) => {
                 const active = isActive(href);
                 return (
                   <Link
@@ -75,7 +74,7 @@ export function SidebarBody({
                     aria-current={active ? "page" : undefined}
                     className={cn(itemClass, active ? activeClass : idleClass)}
                   >
-                    <Icon className="size-4 shrink-0" />
+                    <HugeiconsIcon icon={icon} size={16} className="shrink-0" />
                     {text}
                   </Link>
                 );
@@ -94,7 +93,7 @@ export function SidebarBody({
             type="submit"
             className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-ring/50 flex h-7 w-full items-center gap-2 rounded-[4px] px-2 text-xs outline-none focus-visible:ring-2"
           >
-            <LogOut className="size-3.5" />
+            <HugeiconsIcon icon={Logout03Icon} size={14} />
             Sign out
           </button>
         </form>
