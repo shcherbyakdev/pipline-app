@@ -1,9 +1,13 @@
 /**
- * Rentals R1 e2e of the action layer: getRangeAvailability →
- * createRentalBooking (auto-assign) → cancelBooking (the shared
- * token-authenticated manage action) → the dates are bookable again.
+ * Rentals e2e of the action layer, both token-authenticated client flows:
+ *   R1 — getRangeAvailability → createRentalBooking (auto-assign) →
+ *        cancelBooking (the shared manage action) → the dates free up again.
+ *   R2 — createRentalBooking → getManageRangeAvailability →
+ *        rescheduleRentalBooking → the new token is confirmed on the new
+ *        dates, the old one reads 'rescheduled', and the vacated dates free
+ *        up while the new ones fill.
  * Emails are best-effort inside the actions; transport failures must not
- * fail the flow. Requires the local Supabase stack (npm run setup).
+ * fail either flow. Requires the local Supabase stack (npm run setup).
  */
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
@@ -21,7 +25,9 @@ try {
 
 // Dynamic imports so env is loaded before src/env.ts parses it.
 const publicActions = await import("./public-actions");
+const rentalManage = await import("./manage-actions");
 const manageActions = await import("@/features/scheduling/manage-actions");
+const { resolveBookingToken } = await import("@/lib/tokens/booking");
 const { addDaysISO, dateInZone } = await import("@/features/scheduling/slots");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -35,6 +41,7 @@ const admin = createClient(url, serviceKey, {
 const TZ = "Europe/Berlin";
 const HANDLE = `rentflow-${Date.now()}`;
 const CLIENT_EMAIL = `rentflow-${Date.now()}@example.com`;
+const MOVE_EMAIL = `rentmove-${Date.now()}@example.com`;
 // Notice/window checks are relative to *today* in the org zone.
 const d = (n: number) => addDaysISO(dateInZone(new Date(), TZ), n);
 
@@ -57,6 +64,12 @@ let orgId: string;
 let offeringId: string;
 const startDate = d(30);
 const endDate = d(32);
+// Far enough from the first test's window that neither stay (nor its
+// turnover tail) can reach the other.
+const moveFrom = d(40);
+const moveFromEnd = d(42);
+const moveTo = d(45);
+const moveToEnd = d(47);
 
 describe("rental flow e2e (action layer)", () => {
   beforeAll(async () => {
@@ -152,5 +165,72 @@ describe("rental flow e2e (action layer)", () => {
     if (!after.ok) return;
     expect(after.availability.dates[startDate].free).toBe(2);
     expect(after.availability.dates[addDaysISO(startDate, 1)].free).toBe(2);
+  });
+
+  it("reschedules a stay by token: new link, dead old token, freed dates", async () => {
+    const created = await publicActions.createRentalBooking({
+      handle: HANDLE,
+      offeringId,
+      unitId: null,
+      startDate: moveFrom,
+      endDate: moveFromEnd,
+      name: "Move Client",
+      email: MOVE_EMAIL,
+      note: "e2e move",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    // The picker's own loader speaks for the same booking: its dates read as
+    // free (the stay does not block itself).
+    const picker = await rentalManage.getManageRangeAvailability({
+      token: created.token,
+      fromDate: moveFrom,
+      days: 20,
+    });
+    expect(picker.ok).toBe(true);
+    if (!picker.ok) return;
+    expect(picker.availability.dates[moveFrom].free).toBe(2);
+    expect(picker.units).toHaveLength(2);
+    expect(picker.currentUnitId).not.toBeNull();
+
+    const moved = await rentalManage.rescheduleRentalBooking({
+      token: created.token,
+      unitId: null, // auto — keep the current unit if it is still free
+      startDate: moveTo,
+      endDate: moveToEnd,
+    });
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    expect(moved.token).not.toBe(created.token);
+
+    // The new token resolves to a confirmed stay on the new dates…
+    const fresh = await resolveBookingToken(moved.token, "flow-test");
+    expect(fresh.status).toBe("ok");
+    if (fresh.status !== "ok") return;
+    expect(fresh.booking.status).toBe("confirmed");
+    expect(dateInZone(fresh.booking.startsAt, TZ)).toBe(moveTo);
+    expect(dateInZone(fresh.booking.endsAt, TZ)).toBe(moveToEnd);
+
+    // …and the old one is dead: it still resolves (the manage page says so)
+    // but only as a rescheduled row.
+    const stale = await resolveBookingToken(created.token, "flow-test");
+    expect(stale.status).toBe("ok");
+    if (stale.status !== "ok") return;
+    expect(stale.booking.status).toBe("rescheduled");
+
+    const moveAvailability = await publicActions.getRangeAvailability({
+      handle: HANDLE,
+      offeringId,
+      fromDate: moveFrom,
+      days: 20,
+    });
+    expect(moveAvailability.ok).toBe(true);
+    if (!moveAvailability.ok) return;
+    // The vacated dates are fully free again; the new ones hold one unit.
+    expect(moveAvailability.availability.dates[moveFrom].free).toBe(2);
+    expect(moveAvailability.availability.dates[addDaysISO(moveFrom, 1)].free).toBe(2);
+    expect(moveAvailability.availability.dates[moveTo].free).toBe(1);
+    expect(moveAvailability.availability.dates[addDaysISO(moveTo, 1)].free).toBe(1);
   });
 });

@@ -6,6 +6,7 @@ import { whenLineFor } from "@/features/scheduling/templates";
 import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
+import { MoveRentalDialog } from "@/features/rentals/components/move-rental-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -21,8 +22,12 @@ export function BookingDetailDialog({
 }) {
   const [pending, startTransition] = React.useTransition();
   const [confirming, setConfirming] = React.useState(false);
+  const [moveOpen, setMoveOpen] = React.useState(false);
   const handleOpenChange = (next: boolean) => {
-    if (!next) setConfirming(false);
+    if (!next) {
+      setConfirming(false);
+      setMoveOpen(false);
+    }
     onOpenChange(next);
   };
   if (!booking) return null;
@@ -70,12 +75,18 @@ export function BookingDetailDialog({
           {booking.note ? ` · “${booking.note}”` : null}
         </p>
         <div className="flex items-center gap-2">
-          {/* Rentals have no slot grid to move to — cancel/rebook instead. */}
+          {/* An appointment moves on the slot grid; a stay moves on the
+              range calendar (R2) — the two pickers share nothing. */}
           {booking.serviceId === null ? null : (
             <BookingRescheduleDialog
               booking={{ ...booking, serviceId: booking.serviceId }}
               timeZone={timeZone}
             />
+          )}
+          {booking.rentalUnitId === null ? null : (
+            <Button variant="outline" size="sm" onClick={() => setMoveOpen(true)}>
+              Move…
+            </Button>
           )}
           <Button
             variant="ghost"
@@ -96,6 +107,19 @@ export function BookingDetailDialog({
             <Button variant="ghost" size="sm" onClick={() => setConfirming(true)} disabled={pending}>Cancel booking</Button>
           )}
         </div>
+        {/* Nested inside the popup: Base UI's own nested-dialog shape, so
+            focus and dismissal stack instead of fighting each other. */}
+        {booking.rentalUnitId === null ? null : (
+          <MoveRentalDialog
+            booking={booking}
+            timeZone={timeZone}
+            open={moveOpen}
+            onOpenChange={setMoveOpen}
+            // The move writes a new booking row; this one is stale the
+            // moment it succeeds, so the detail dialog goes with it.
+            onMoved={() => handleOpenChange(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

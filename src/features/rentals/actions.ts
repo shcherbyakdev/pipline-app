@@ -11,6 +11,8 @@ import {
   unitIdInput,
   blackoutInput,
   blackoutIdInput,
+  BLACKOUT_ORDER_MSG,
+  BLACKOUT_SPAN_MSG,
   GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
@@ -167,7 +169,12 @@ export async function deleteUnit(input: unknown): Promise<ActionState> {
 
 export async function addBlackout(input: unknown): Promise<ActionState> {
   const parsed = blackoutInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) {
+    const messages = parsed.error.issues.map((i) => i.message);
+    if (messages.includes(BLACKOUT_SPAN_MSG)) return { ok: false, error: BLACKOUT_SPAN_MSG };
+    if (messages.includes(BLACKOUT_ORDER_MSG)) return { ok: false, error: BLACKOUT_ORDER_MSG };
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();

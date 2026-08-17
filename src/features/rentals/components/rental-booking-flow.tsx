@@ -2,15 +2,13 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { validateStay, type RangeAvailability } from "@/features/rentals/range";
 import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
 import { getRangeAvailability, createRentalBooking } from "@/features/rentals/public-actions";
 import { RangePicker, staySummary, type RangeValue } from "./range-picker";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
+import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -118,11 +116,19 @@ export function RentalBookingFlow({
     });
   }
 
-  if (doneToken) return <BookingConfirmed token={doneToken} />;
-
-  const needsUnitStep = offering.unitSelection === "client_picks" && !unitId;
   const summary =
     range.start && range.end ? staySummary(offering, range.start, range.end, orgTimeZone) : null;
+
+  if (doneToken) {
+    return (
+      <BookingConfirmed
+        token={doneToken}
+        summary={summary ? { title: offering.name, whenLine: summary } : undefined}
+      />
+    );
+  }
+
+  const needsUnitStep = offering.unitSelection === "client_picks" && !unitId;
 
   return (
     <div className="flex flex-col gap-6">
@@ -213,18 +219,7 @@ export function RentalBookingFlow({
               </button>
             </p>
           ) : null}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" required maxLength={200} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required maxLength={320} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="note">Note (optional)</Label>
-            <Textarea id="note" name="note" maxLength={2000} rows={3} />
-          </div>
+          <ClientDetailsFields idPrefix="rental-" />
           <Button type="submit" className="wt-primary" disabled={pending}>
             {pending ? "Booking…" : "Confirm booking"}
           </Button>

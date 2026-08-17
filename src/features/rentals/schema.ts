@@ -42,6 +42,9 @@ export const updateUnitInput = z.object({
 });
 export const unitIdInput = z.object({ id: z.uuid(), offeringId: z.uuid() });
 
+export const BLACKOUT_ORDER_MSG = "end must not precede start";
+export const BLACKOUT_SPAN_MSG = "Blackout can span at most 2 years";
+
 export const blackoutInput = z
   .object({
     offeringId: z.uuid(), // revalidatePath only
@@ -50,11 +53,11 @@ export const blackoutInput = z
     endDate: z.string().regex(DATE_RE),
     reason: z.string().trim().max(500).optional(),
   })
-  .refine((b) => b.endDate >= b.startDate, { message: "end must not precede start" })
+  .refine((b) => b.endDate >= b.startDate, { message: BLACKOUT_ORDER_MSG })
   // Bound the span server-side: the availability engine reasons in days, and
   // an open-ended blackout is never a legitimate input.
   .refine((b) => b.endDate < b.startDate || daysBetween(b.startDate, b.endDate) <= 730, {
-    message: "Blackout can span at most 2 years",
+    message: BLACKOUT_SPAN_MSG,
   });
 export const blackoutIdInput = z.object({ id: z.uuid(), offeringId: z.uuid() });
 
@@ -77,5 +80,57 @@ export const createRentalBookingInput = z.object({
   endDate: z.string().regex(DATE_RE),
   name: z.string().trim().min(1).max(200),
   email: z.email().max(320),
+  note: z.string().trim().max(2000).optional(),
+});
+
+// ---------- Reschedule (R2), client + admin. Same reasons as DATES_TAKEN:
+// a "use server" module may only export async functions, so the shared copy
+// lives here where both the actions and their dialogs can reach it.
+
+// A stay that has begun is immovable (0039 raises 'started').
+export const STAY_STARTED = "This stay has already started.";
+// The RPCs also refuse a stay whose check-in has already passed (`v_starts
+// <= now()`), which comes back as the uniform 'not found' raise — the app
+// says what actually went wrong where it can tell.
+export const CHECK_IN_PASSED = "That check-in time has already passed — pick a later date.";
+
+// Token-scoped manage surface: the booking is identified by its cancel
+// token, so neither shape carries a handle or an offering id.
+export const manageRangeAvailabilityInput = z.object({
+  token: z.string().min(20).max(200),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(93),
+});
+export const rescheduleRentalInput = z.object({
+  token: z.string().min(20).max(200),
+  unitId: z.uuid().nullable(),
+  startDate: z.string().regex(DATE_RE),
+  endDate: z.string().regex(DATE_RE),
+});
+
+// ---------- Admin (R2). Same shapes minus the handle — the org comes from
+// the session — and with the client's email made optional (walk-ins).
+
+export const adminRangeAvailabilityInput = z.object({
+  offeringId: z.uuid(),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(93),
+  // The booking being moved: its own occupancy is ignored so the dates it
+  // currently holds read as free.
+  excludeBookingId: z.uuid().nullable().default(null),
+});
+export const rescheduleRentalAdminInput = z.object({
+  id: z.uuid(),
+  unitId: z.uuid().nullable(),
+  startDate: z.string().regex(DATE_RE),
+  endDate: z.string().regex(DATE_RE),
+});
+export const createRentalAdminInput = z.object({
+  offeringId: z.uuid(),
+  unitId: z.uuid().nullable(),
+  startDate: z.string().regex(DATE_RE),
+  endDate: z.string().regex(DATE_RE),
+  name: z.string().trim().min(1).max(200),
+  email: z.email().max(320).optional(),
   note: z.string().trim().max(2000).optional(),
 });
