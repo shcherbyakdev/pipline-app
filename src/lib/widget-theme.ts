@@ -21,6 +21,13 @@ export const WIDGET_THEME_DEFAULTS: WidgetThemeConfig = {
 // globals.css. Used by effectiveContrast() to fill in whichever side of the
 // pair the org didn't override, so a lone override can't slip an unreadable
 // combination past the guard.
+/** Theme choices as shown in the admin (Website embed and Booking page). */
+export const WIDGET_THEME_OPTIONS: ReadonlyArray<{ value: WidgetThemeConfig["theme"]; label: string }> = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "auto", label: "Auto (match visitor's system)" },
+];
+
 export const WIDGET_THEME_DEFAULT_COLORS = {
   light: { background: "#ffffff", text: "#18181b" },
   dark: { background: "#18181b", text: "#fafafa" },

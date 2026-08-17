@@ -4,7 +4,7 @@ import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
 import { updateWidgetTheme } from "@/features/orgs/actions";
-import { effectiveContrast, type WidgetThemeConfig } from "@/lib/widget-theme";
+import { effectiveContrast, WIDGET_THEME_OPTIONS, type WidgetThemeConfig } from "@/lib/widget-theme";
 import { EmbedPreviewFrame } from "./embed-preview-frame";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import type { PublicService } from "@/lib/booking/public";
@@ -13,12 +13,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { snippetFor } from "./widget-embed-snippet";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
-
-const THEME_OPTIONS: Array<{ value: WidgetThemeConfig["theme"]; label: string }> = [
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-  { value: "auto", label: "Auto (match visitor's system)" },
-];
 
 const RADIUS_OPTIONS: Array<{ value: WidgetThemeConfig["radius"]; label: string }> = [
   { value: "none", label: "None" },
@@ -93,7 +87,7 @@ export function WidgetAppearance({
                 setConfig((c) => ({ ...c, theme: e.target.value as WidgetThemeConfig["theme"] }))
               }
             >
-              {THEME_OPTIONS.map((o) => (
+              {WIDGET_THEME_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>

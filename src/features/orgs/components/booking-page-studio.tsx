@@ -6,7 +6,10 @@ import { ComputerIcon, Moon02Icon, SmartPhone01Icon, Sun01Icon } from "@hugeicon
 import type { BrandingSettings } from "@/features/orgs/queries";
 import type { getSchedulingSettings } from "@/features/orgs/queries";
 import type { PublicService } from "@/lib/booking/public";
-import { parseWidgetTheme } from "@/lib/widget-theme";
+import { toast } from "sonner";
+import { parseWidgetTheme, WIDGET_THEME_OPTIONS, type WidgetThemeConfig } from "@/lib/widget-theme";
+import { updateWidgetTheme } from "@/features/orgs/actions";
+import { Label } from "@/components/ui/label";
 import { BrandedHeader } from "@/components/branded-header";
 import { BrowserFrame, Segmented } from "@/components/browser-frame";
 import { WidgetTheme } from "@/components/widget-theme";
@@ -42,8 +45,25 @@ export function BookingPageStudio({
   // Only consulted when the widget theme is Auto: the hosted page then follows
   // the visitor's system, which the preview lets you flip.
   const [scheme, setScheme] = React.useState<Scheme>("light");
-  const theme = React.useMemo(() => parseWidgetTheme(branding.widgetTheme), [branding.widgetTheme]);
+  // The widget theme config is shared with Website embed; this page edits
+  // only its `theme` and saves on change (the rest of the config is left as
+  // is). Preview follows the local value immediately.
+  const [theme, setTheme] = React.useState<WidgetThemeConfig>(() => parseWidgetTheme(branding.widgetTheme));
+  const [savingTheme, startSaveTheme] = React.useTransition();
   const resolved: Scheme = theme.theme === "auto" ? scheme : theme.theme;
+
+  const changeTheme = (value: WidgetThemeConfig["theme"]) => {
+    const previous = theme;
+    const next = { ...theme, theme: value };
+    setTheme(next);
+    startSaveTheme(async () => {
+      const result = await updateWidgetTheme(next);
+      if (!result.ok) {
+        setTheme(previous);
+        toast.error(result.error);
+      } else toast.success("Theme saved");
+    });
+  };
 
   const host = appUrl.replace(/^https?:\/\//, "");
   const url = `${host}/book/${handle.trim() || "your-handle"}`;
@@ -58,6 +78,32 @@ export function BookingPageStudio({
         <section className="flex flex-col gap-3">
           <h2 className="text-muted-foreground text-sm font-medium">Branding</h2>
           <BrandingForm settings={branding} onPreviewAccent={setAccent} />
+        </section>
+        <section className="flex flex-col gap-3">
+          <h2 className="text-muted-foreground text-sm font-medium">Appearance</h2>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="bp-theme">Theme</Label>
+            <select
+              id="bp-theme"
+              className="border-input h-9 max-w-72 rounded-md border bg-transparent px-3 text-sm"
+              value={theme.theme}
+              disabled={savingTheme}
+              onChange={(e) => changeTheme(e.target.value as WidgetThemeConfig["theme"])}
+            >
+              {WIDGET_THEME_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-muted-foreground text-xs">
+              Saved on change. Shared with the website embed — corner radius, font and colour overrides are on{" "}
+              <Link href="/embed" className="hover:text-foreground underline underline-offset-3">
+                Website embed
+              </Link>
+              .
+            </p>
+          </div>
         </section>
       </div>
 
@@ -110,17 +156,11 @@ export function BookingPageStudio({
             </div>
           </div>
         </BrowserFrame>
-        <p className="text-muted-foreground text-xs">
-          Page theme:{" "}
-          <span className="text-foreground">
-            {theme.theme === "auto" ? "Auto (follows the visitor's system)" : theme.theme === "light" ? "Light" : "Dark"}
-          </span>
-          . Theme, corner radius, font and colour overrides are set on{" "}
-          <Link href="/embed" className="hover:text-foreground underline underline-offset-3">
-            Website embed
-          </Link>{" "}
-          and apply to this page too.
-        </p>
+        {theme.theme === "auto" ? (
+          <p className="text-muted-foreground text-xs">
+            Auto follows each visitor&apos;s system setting — use the toggle above to check both.
+          </p>
+        ) : null}
       </div>
     </div>
   );
