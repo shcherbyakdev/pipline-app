@@ -105,10 +105,10 @@ export type AdminBooking = {
   rescheduledFromId: string | null;
 };
 
-const BOOKING_COLUMNS =
+export const BOOKING_COLUMNS =
   "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, services(name), rental_offerings(name), rental_units(name)";
 
-type BookingRow = {
+export type BookingRow = {
   id: string;
   service_id: string | null;
   rental_offering_id: string | null;
@@ -125,7 +125,7 @@ type BookingRow = {
   rental_units: { name: string } | null;
 };
 
-function toAdminBooking(b: BookingRow): AdminBooking {
+export function toAdminBooking(b: BookingRow): AdminBooking {
   return {
     id: b.id,
     serviceId: b.service_id,
