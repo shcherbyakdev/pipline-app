@@ -12,7 +12,7 @@ export const orgs = pgTable("orgs", {
   accentColor: text("accent_color"),
   logoPath: text("logo_path"),
   // Public booking URL segment (/book/[handle]). Nullable — the booking
-  // page 404s until the provider picks one in Settings. Written ONLY via
+  // page 404s until the provider picks one on the Booking page screen. Written ONLY via
   // the update_org_scheduling definer RPC (orgs stays select-only — 0004).
   // Format CHECK lives in 0026. Distinct from slug (legacy, non-editable).
   handle: text("handle").unique(),

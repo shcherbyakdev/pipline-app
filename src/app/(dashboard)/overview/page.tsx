@@ -23,7 +23,6 @@ export default async function OverviewPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-      <h1 className="text-lg font-semibold">Overview</h1>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="This week" value={String(stats.weekCount)} caption="confirmed bookings" />
         <StatTile label="This month" value={String(stats.monthCount)} caption="confirmed bookings" />

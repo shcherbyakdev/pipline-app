@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Moon, Plus, Sun } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   CommandDialog,
   CommandEmpty,
@@ -13,6 +14,10 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { NAV_ITEMS } from "@/components/shell/nav";
+
+/** Dispatched on `window` by the top bar's search button; the menu toggles on it
+    just like ⌘K. */
+export const OPEN_COMMAND_MENU_EVENT = "booklo:open-command-menu";
 
 export function CommandMenu() {
   const [open, setOpen] = React.useState(false);
@@ -26,8 +31,13 @@ export function CommandMenu() {
         setOpen((o) => !o);
       }
     };
+    const onOpen = () => setOpen((o) => !o);
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    window.addEventListener(OPEN_COMMAND_MENU_EVENT, onOpen);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener(OPEN_COMMAND_MENU_EVENT, onOpen);
+    };
   }, []);
 
   const go = (href: string) => {
@@ -48,7 +58,7 @@ export function CommandMenu() {
               Settings, so there's no drift risk to guard against there. */}
           {NAV_ITEMS.map((item) => (
             <CommandItem key={item.href} onSelect={() => go(item.href)}>
-              <item.icon className="size-4" /> {item.label}
+              <HugeiconsIcon icon={item.icon} size={16} /> {item.label}
             </CommandItem>
           ))}
         </CommandGroup>

@@ -6,8 +6,7 @@ export default async function RentalsPage() {
   const offerings = await listOfferings();
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Rentals</h1>
+      <div className="flex items-center justify-end">
         <OfferingDialog />
       </div>
       {offerings.length === 0 ? (

@@ -280,7 +280,8 @@ export async function updateSchedulingSettings(input: unknown): Promise<ActionSt
     if (error.code === "23505") return { ok: false, error: "That handle is already taken." };
     return fail("updateSchedulingSettings", error);
   }
-  revalidatePath("/settings");
+  revalidatePath("/booking-page");
+  revalidatePath("/embed");
   return { ok: true };
 }
 
