@@ -54,6 +54,9 @@ export async function getManageSlots(
   try {
     const booking = await resolveActionable(parsed.data.token);
     if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    // Rentals R1: a rental stay has no service and no slot grid — the
+    // appointment engine below cannot speak for it.
+    if (booking.serviceId === null) return { ok: false, error: NOT_CHANGEABLE };
     const ctx = await loadOrgSlotContext(
       booking.orgId,
       booking.serviceId,
@@ -153,6 +156,9 @@ export async function rescheduleBooking(
   try {
     const booking = await resolveActionable(parsed.data.token);
     if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    // Rentals R1: rental stays are not reschedulable online (reschedule_booking
+    // raises for them too — this is the app-side half of that rule).
+    if (booking.serviceId === null) return { ok: false, error: NOT_CHANGEABLE };
 
     // Engine re-check on the org-local day (createBooking idiom): the
     // requested instant must be one of the engine's own outputs. EXCLUDE +

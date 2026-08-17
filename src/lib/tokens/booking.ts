@@ -18,7 +18,11 @@ export type ResolveBookingResult =
         orgName: string;
         orgTimezone: string;
         orgId: string;
-        serviceId: string;
+        // Rentals R1: a booking is EITHER an appointment (serviceId set) or a
+        // rental stay (rentalUnitId + rangeMode set) — never both.
+        serviceId: string | null;
+        rentalUnitId: string | null;
+        rangeMode: "nights" | "days" | null;
       };
     };
 
@@ -45,7 +49,9 @@ export async function resolveBookingToken(
     org_name: string;
     org_timezone: string;
     org_id: string;
-    service_id: string;
+    service_id: string | null;
+    rental_unit_id: string | null;
+    range_mode: "nights" | "days" | null;
   }> | null)?.[0];
   if (!row) return { status: "not_found" };
   return {
@@ -60,6 +66,8 @@ export async function resolveBookingToken(
       orgTimezone: row.org_timezone,
       orgId: row.org_id,
       serviceId: row.service_id,
+      rentalUnitId: row.rental_unit_id,
+      rangeMode: row.range_mode,
     },
   };
 }
