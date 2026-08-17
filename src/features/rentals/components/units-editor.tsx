@@ -62,9 +62,12 @@ export function UnitsEditor({
             // Keyed remount: a successful save re-renders with fresh server
             // data and the new key re-derives the card's local field state —
             // the project's alternative to syncing state in an effect
-            // (see features/README.md).
+            // (see features/README.md). The key carries exactly the two
+            // columns those fields derive from; `active` is deliberately
+            // absent, so toggling the checkbox mid-edit leaves typed text
+            // standing instead of remounting it away.
             <UnitCard
-              key={`${unit.id}:${unit.name}:${unit.description ?? ""}:${unit.active}`}
+              key={`${unit.id}:${unit.name}:${unit.description ?? ""}`}
               offeringId={offeringId}
               unit={unit}
             />
@@ -133,20 +136,22 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
   const trimmedDescription = description.trim();
   const dirty = trimmedName !== unit.name || trimmedDescription !== (unit.description ?? "");
 
-  // updateUnit writes the whole row, so the Active checkbox commits whatever
-  // is currently in the fields too — the user saves exactly what they see.
-  const save = (active: boolean, message: string) => {
-    if (trimmedName === "") {
-      toast.error("A unit needs a name.");
-      return;
-    }
+  // updateUnit writes the whole row, so both paths have to name every column.
+  // What they must not share is whose text they send: `saveEdits` publishes the
+  // edited fields, while `setActive` re-sends the server's last-known name and
+  // description — flipping the checkbox must never commit half-typed text as a
+  // side effect.
+  const write = (
+    fields: { name: string; description: string | null; active: boolean },
+    message: string,
+  ) => {
     startTransition(async () => {
       const result = await updateUnit({
         id: unit.id,
         offeringId,
-        name: trimmedName,
-        description: trimmedDescription === "" ? undefined : trimmedDescription,
-        active,
+        name: fields.name,
+        description: fields.description ?? undefined,
+        active: fields.active,
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -155,6 +160,27 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
       toast.success(message);
     });
   };
+
+  const saveEdits = () => {
+    if (trimmedName === "") {
+      toast.error("A unit needs a name.");
+      return;
+    }
+    write(
+      {
+        name: trimmedName,
+        description: trimmedDescription === "" ? null : trimmedDescription,
+        active: unit.active,
+      },
+      "Saved",
+    );
+  };
+
+  const setActive = (active: boolean) =>
+    write(
+      { name: unit.name, description: unit.description, active },
+      active ? "Unit is active" : "Unit is inactive",
+    );
 
   const onDelete = () => {
     startTransition(async () => {
@@ -201,7 +227,7 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
           size="sm"
           variant="secondary"
           disabled={pending || !dirty}
-          onClick={() => save(unit.active, "Saved")}
+          onClick={saveEdits}
         >
           Save
         </Button>
@@ -212,9 +238,7 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
           <Checkbox
             checked={unit.active}
             disabled={pending}
-            onCheckedChange={(checked) =>
-              save(checked === true, checked === true ? "Unit is active" : "Unit is inactive")
-            }
+            onCheckedChange={(checked) => setActive(checked === true)}
           />
           Active
         </label>
