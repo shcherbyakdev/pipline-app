@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { RENTALS_ENABLED } from "@/lib/flags";
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -71,7 +72,9 @@ const moveFromEnd = d(42);
 const moveTo = d(45);
 const moveToEnd = d(47);
 
-describe("rental flow e2e (action layer)", () => {
+// The public actions refuse while rentals are parked for the MVP
+// (lib/flags.ts) — this file comes back the moment the flag flips.
+describe.skipIf(!RENTALS_ENABLED)("rental flow e2e (action layer)", () => {
   beforeAll(async () => {
     const owner = await signedInUser("rentflow_owner");
     const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowCo" });

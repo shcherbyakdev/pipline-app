@@ -8,6 +8,7 @@ import {
 } from "@/features/scheduling/queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listOfferings, listTimelineData } from "@/features/rentals/queries";
+import { RENTALS_ENABLED } from "@/lib/flags";
 import { TIMELINE_DAYS, timelineDefaultStart } from "@/features/rentals/timeline-geometry";
 import { Timeline } from "@/features/rentals/components/timeline";
 import { BookingsList } from "@/features/scheduling/components/bookings-list";
@@ -40,7 +41,9 @@ export default async function BookingsPage({
   const settings = await getSchedulingSettings();
   const timeZone = settings?.timezone ?? "UTC";
 
-  if (params.view === "timeline") {
+  // Rentals parked for the MVP (lib/flags.ts): the timeline view falls back to
+  // the week calendar and its link never renders.
+  if (RENTALS_ENABLED && params.view === "timeline") {
     const fromDate = validDate(
       params.from,
       timelineDefaultStart(dateInZone(new Date(), timeZone)),
@@ -83,7 +86,7 @@ export default async function BookingsPage({
 
   // The Timeline link only makes sense once the org actually rents
   // something out — appointment-only orgs never see it.
-  const hasRentals = (await listOfferings()).length > 0;
+  const hasRentals = RENTALS_ENABLED && (await listOfferings()).length > 0;
   const timelineLink = hasRentals ? (
     <Link
       href="/bookings?view=timeline"
