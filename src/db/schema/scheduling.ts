@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 import { clients } from "./clients";
+import { rentalOfferings, rentalUnits } from "./rentals";
 
 // Scheduling pivot (S1). CHECKs, RLS, grants, the EXCLUDE double-book guard,
 // triggers, and RPCs all live in 0026 (custom SQL keeps the security surface
@@ -86,9 +87,16 @@ export const bookings = pgTable(
     orgId: uuid("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
-    serviceId: uuid("service_id")
-      .notNull()
-      .references(() => services.id, { onDelete: "restrict" }),
+    // Nullable since R1: exactly one of service_id / rental_offering_id is
+    // set (CHECK bookings_kind in 0037).
+    serviceId: uuid("service_id").references(() => services.id, { onDelete: "restrict" }),
+    // Rentals R1: set together (CHECK bookings_unit_iff_rental in 0037).
+    rentalOfferingId: uuid("rental_offering_id").references(() => rentalOfferings.id, {
+      onDelete: "restrict",
+    }),
+    rentalUnitId: uuid("rental_unit_id").references(() => rentalUnits.id, {
+      onDelete: "restrict",
+    }),
     // set null: a booking is a historical record that survives client
     // deletion — the denormalized name/email below keep it self-contained.
     clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
@@ -122,6 +130,7 @@ export const bookings = pgTable(
     index("bookings_org_starts_at_idx").on(t.orgId, t.startsAt),
     index("bookings_service_id_idx").on(t.serviceId),
     index("bookings_client_id_idx").on(t.clientId),
+    index("bookings_rental_unit_starts_at_idx").on(t.rentalUnitId, t.startsAt),
     uniqueIndex("bookings_cancel_token_hash_uq").on(t.cancelTokenHash),
   ],
 );

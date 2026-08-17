@@ -9,3 +9,4 @@ export * from "./chases";
 export * from "./evidence";
 export * from "./clients";
 export * from "./scheduling";
+export * from "./rentals";
