@@ -296,6 +296,15 @@
 .widget-theme.wt-transparent {
   background: transparent;
 }
+/* Secondary text inside the widget (day labels, timezone notes, "change").
+   `text-muted-foreground` is an admin token — the dark palette's #8a8f98 —
+   which on a light host page is ~3.2:1 (fails AA). Derive it from the
+   widget's own text colour at partial alpha instead, so it tracks the theme
+   AND stays legible over whatever host surface shows through the
+   transparent embed (black@72% on white ≈ 9:1; white@72% on near-black ≈ 8:1). */
+.widget-theme .text-muted-foreground {
+  color: color-mix(in oklab, var(--widget-text) 72%, transparent);
+}
 /* Form fields inside the widget: same dashboard-token bleed as the buttons
    had (dark:bg-input/30 etc.) — keep them transparent so they inherit the
    widget (or host) surface. Background only; focus/invalid borders are
