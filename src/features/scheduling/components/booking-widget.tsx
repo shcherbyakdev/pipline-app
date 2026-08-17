@@ -3,12 +3,10 @@
 import * as React from "react";
 import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import type { PublicOffering, PublicService } from "@/lib/booking/public";
 import { getSlots, createBooking } from "@/features/scheduling/public-actions";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
+import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
 
 function todayISO(): string {
@@ -285,18 +283,7 @@ export function BookingWidget({
               change
             </button>
           </p>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" required maxLength={200} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required maxLength={320} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="note">Note (optional)</Label>
-            <Textarea id="note" name="note" maxLength={2000} rows={3} />
-          </div>
+          <ClientDetailsFields />
           <Button type="submit" className="wt-primary" disabled={pending || !!preview}>
             {preview ? "Preview" : pending ? "Booking…" : "Confirm booking"}
           </Button>

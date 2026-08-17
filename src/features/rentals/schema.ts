@@ -42,6 +42,9 @@ export const updateUnitInput = z.object({
 });
 export const unitIdInput = z.object({ id: z.uuid(), offeringId: z.uuid() });
 
+export const BLACKOUT_ORDER_MSG = "end must not precede start";
+export const BLACKOUT_SPAN_MSG = "Blackout can span at most 2 years";
+
 export const blackoutInput = z
   .object({
     offeringId: z.uuid(), // revalidatePath only
@@ -50,11 +53,11 @@ export const blackoutInput = z
     endDate: z.string().regex(DATE_RE),
     reason: z.string().trim().max(500).optional(),
   })
-  .refine((b) => b.endDate >= b.startDate, { message: "end must not precede start" })
+  .refine((b) => b.endDate >= b.startDate, { message: BLACKOUT_ORDER_MSG })
   // Bound the span server-side: the availability engine reasons in days, and
   // an open-ended blackout is never a legitimate input.
   .refine((b) => b.endDate < b.startDate || daysBetween(b.startDate, b.endDate) <= 730, {
-    message: "Blackout can span at most 2 years",
+    message: BLACKOUT_SPAN_MSG,
   });
 export const blackoutIdInput = z.object({ id: z.uuid(), offeringId: z.uuid() });
 
