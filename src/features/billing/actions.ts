@@ -6,7 +6,8 @@ import { env } from "@/env";
 import { requireOrg } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { selectBillingProvider } from "@/lib/billing/provider";
-import { getRawOrgSubscription } from "@/lib/billing/queries";
+import { getPlanOverride, getRawOrgSubscription } from "@/lib/billing/queries";
+import { isOverrideActive } from "@/lib/billing/overrides";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { isPaidPlan } from "@/lib/billing/plans";
 import { getDashboardFlags } from "@/lib/flags/resolve";
@@ -52,6 +53,18 @@ async function readSubscription(orgId: string, supabase: SupabaseClient) {
   }
 }
 
+/** The org's comp override for the "nothing to buy" guard — same
+    "couldn't read ⇒ refuse" shape as readSubscription above, and for the same
+    reason: a read we could not make must never pass for "no comp". */
+async function readOverride(orgId: string, supabase: SupabaseClient) {
+  try {
+    return { ok: true as const, override: await getPlanOverride(orgId, supabase) };
+  } catch (error) {
+    console.error("[billing] startCheckout override read:", error);
+    return { ok: false as const, override: null };
+  }
+}
+
 /** Form action: hidden `plan` + `interval` inputs → the provider's checkout. */
 export async function startCheckout(formData: FormData): Promise<void> {
   const { user, org } = await requireOrg();
@@ -64,6 +77,15 @@ export async function startCheckout(formData: FormData): Promise<void> {
   });
   if (!parsed.success) redirect("/billing?error=checkout");
   const supabase = await createClient();
+  // A comped org has nothing to buy. An unexpired override wins outright at
+  // the seam (lib/billing/queries.ts#getOrgSubscription), so letting checkout
+  // through would charge a card for a subscription the entitlements ignore,
+  // and the return page's activation poller would spin forever waiting for an
+  // effective plan that never moves. The page hides the picker for the same
+  // reason — this is its server-side twin.
+  const comp = await readOverride(org.id, supabase);
+  if (!comp.ok) redirect("/billing?error=checkout");
+  if (isOverrideActive(comp.override, new Date())) redirect("/billing?error=complimentary");
   const current = await readSubscription(org.id, supabase);
   // "Couldn't read" must never pass for "Free": that is precisely how a
   // paying org would end up buying a second subscription (§7.10 — refuse

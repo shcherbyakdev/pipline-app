@@ -28,6 +28,11 @@ function Row({ label, value }: { label: string; value: string }) {
 export function SubscriptionPanel({ view, now }: { view: OrgAdminView; now: Date }) {
   const { org, subscription: sub, override } = view;
   const active = isOverrideActive(override, now);
+  // The one state the owner cannot see from either side alone: the comp wins
+  // for entitlements while the provider keeps charging the card. Nothing in
+  // the code prevents it (granting a comp to a paying org is legitimate — a
+  // goodwill month, say), so it is surfaced rather than blocked.
+  const doubleBilled = active && (sub?.status === "active" || sub?.status === "past_due");
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2 rounded-lg border p-4">
@@ -36,6 +41,12 @@ export function SubscriptionPanel({ view, now }: { view: OrgAdminView; now: Date
           {PLANS[view.effectivePlan].name}
           {active ? <span className="text-muted-foreground ml-2 text-sm font-normal">(complimentary)</span> : null}
         </p>
+        {doubleBilled ? (
+          <p className="text-sm text-amber-600 dark:text-amber-500">
+            This org has an active comp AND a live provider subscription — the comp wins for entitlements
+            while the card is still billed. Revoke the comp or cancel the subscription in the provider.
+          </p>
+        ) : null}
       </section>
 
       <section className="flex flex-col gap-2 rounded-lg border p-4">
