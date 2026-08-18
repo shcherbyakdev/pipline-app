@@ -6,6 +6,8 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { applyBillingEvents } from "./apply-events";
+import type { BillingEvent } from "./provider";
 
 try { loadEnvFile(".env.local"); } catch { /* CI exports env directly */ }
 
@@ -40,7 +42,12 @@ const subRow = (o: Record<string, unknown> = {}) => ({
   org_id: orgId, plan: "pro", status: "active", billing_interval: "month", seats: 1,
   provider: "fake", provider_customer_id: `cus_${RUN}`, provider_subscription_id: `sub_${RUN}`,
   current_period_end: new Date(Date.now() + 30 * 864e5).toISOString(),
-  cancel_at_period_end: false, provider_updated_at: new Date().toISOString(), ...o,
+  // Fixed, far-past baseline (not `new Date()`): the applyBillingEvents
+  // suite below asserts ordering against fixture timestamps hardcoded to
+  // "today" (2026-08-18); a real "now" baseline would race those fixed
+  // clock-times and start failing the moment the suite runs past whatever
+  // wall-clock hour the fixtures assume.
+  cancel_at_period_end: false, provider_updated_at: "2000-01-01T00:00:00Z", ...o,
 });
 
 describe("billing: RLS + grants", () => {
@@ -115,5 +122,42 @@ describe("billing: monthlyBookingUsage", () => {
     await admin.from("bookings").insert(mk(4, { status: "cancelled_by_client" }));
     const n = await monthlyBookingUsage(orgId, "UTC", new Date(), admin);
     expect(n).toBe(3);
+  });
+});
+
+const ev = (id: string, at: string, o: Partial<BillingEvent> = {}, s: Partial<NonNullable<BillingEvent["subscription"]>> = {}): BillingEvent => ({
+  provider: "fake", providerEventId: `${RUN}-${id}`, occurredAt: at, orgId: orgId, type: "subscription_updated", raw: { id },
+  subscription: { providerCustomerId: `cus_${RUN}`, providerSubscriptionId: `sub_${RUN}`, plan: "team", interval: "year", seats: 5,
+    status: "active", currentPeriodEnd: "2027-01-01T00:00:00Z", cancelAtPeriodEnd: false, ...s },
+  ...o,
+});
+
+describe("billing: applyBillingEvents", () => {
+  it("applies, dedupes replays, ignores older events, records unresolvable orgs", async () => {
+    const r1 = await applyBillingEvents(admin, [ev("a", "2026-08-18T10:00:00Z")]);
+    expect(r1).toEqual({ processed: 1, skipped: 0 });
+    let row = (await admin.from("org_subscriptions").select("plan, seats").eq("org_id", orgId).single()).data!;
+    expect(row.plan).toBe("team");
+
+    const r2 = await applyBillingEvents(admin, [ev("a", "2026-08-18T10:00:00Z")]); // replay
+    expect(r2).toEqual({ processed: 0, skipped: 1 });
+
+    const r3 = await applyBillingEvents(admin, [ev("old", "2026-08-18T09:00:00Z", {}, { plan: "pro" })]); // older
+    expect(r3.skipped).toBe(1);
+    row = (await admin.from("org_subscriptions").select("plan, seats").eq("org_id", orgId).single()).data!;
+    expect(row.plan).toBe("team");
+
+    const r4 = await applyBillingEvents(admin, [ev("x", "2026-08-18T11:00:00Z", { orgId: null })]);
+    expect(r4.skipped).toBe(1);
+    const logged = await admin.from("billing_events").select("error").eq("provider_event_id", `${RUN}-x`).single();
+    expect(logged.data?.error).toBe("unresolvable org");
+
+    const r5 = await applyBillingEvents(admin, [ev("exp", "2026-08-18T12:00:00Z", { type: "subscription_expired" }, { status: "expired" })]);
+    expect(r5.processed).toBe(1);
+    // Separate variable, not a `row =` reassignment: `row`'s declared type
+    // was fixed by its `select("plan, seats")` initializer above, so it has
+    // no `status` field to narrow onto.
+    const statusRow = (await admin.from("org_subscriptions").select("status").eq("org_id", orgId).single()).data! as unknown as { plan: string; seats: number; status: string };
+    expect(statusRow.status).toBe("expired");
   });
 });
