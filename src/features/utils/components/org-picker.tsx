@@ -3,9 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { searchOrgs } from "../queries";
 
+// Fixed locale + UTC (current-plan.tsx idiom): hydration must not depend on
+// the server's locale.
+const formatDate = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })
+    .format(new Date(iso));
+
 /* Shared by /utils/subscriptions and /utils/flags: a GET form (so the search
    is a URL you can reload) and the matches, each linking to `?org=<id>` on
-   the page that rendered the picker. */
+   the page that rendered the picker. Each row shows name · slug · handle ·
+   signup date — the created date is what tells two similarly named orgs
+   apart, and it is already in the one query the picker makes. */
 export async function OrgPicker({ basePath, q }: { basePath: string; q: string }) {
   const orgs = await searchOrgs(q);
   return (
@@ -30,6 +38,7 @@ export async function OrgPicker({ basePath, q }: { basePath: string; q: string }
                 <span className="text-muted-foreground font-mono text-xs">
                   {org.slug}
                   {org.handle ? ` · /book/${org.handle}` : ""}
+                  {` · ${formatDate(org.createdAt)}`}
                 </span>
               </Link>
             </li>

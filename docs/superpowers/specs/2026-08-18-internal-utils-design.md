@@ -37,7 +37,7 @@ Success: signed in as the owner on prod, open `/utils`, pick the test org, grant
   - `notFound()` unless the signed-in user's email (lower-cased, trimmed) is in the allowlist. `notFound()` rather than 403, as `/dev/billing` does: an internal route does not confirm it exists.
   - **No** `NODE_ENV` or `BILLING_PROVIDER` checks — this gate is the one that works on prod.
 - Every server action re-runs `requireInternal()`. A server action is a POST endpoint of its own; the page's guard protects nothing there (`features/billing/dev/actions.ts` idiom).
-- Identity note: the check is on Supabase Auth's verified email of a signed-in user, against a list the owner controls. That is adequate for a solo-owner back office and is documented as such in the guard.
+- Identity note: the check is on the signed-in user's Supabase Auth email, against a list the owner controls. That address is verified because `supabase/config.toml` enables email confirmations and double-confirms email changes — the guard relies on that config rather than re-checking `email_confirmed_at`, and says so. Adequate for a solo-owner back office.
 
 ### 3.2 Routes and layout
 
@@ -182,3 +182,13 @@ The four `*_ENABLED` constants are **removed**. Every remaining reader is either
 - Tests turn a feature on for an org by inserting an `org_feature_flags` row with the admin client — there is no compile-time switch any more.
 - `searchOrgs` sanitises its input itself (`orgSearchInput`) rather than relying on callers.
 - `/utils/*` pages 404 a malformed `?org=` (non-UUID) and the actions never echo a non-UUID org back into a redirect.
+
+### Final-review fixes (2026-08-18)
+
+- `getDashboardFlags` **degrades to `FLAG_DEFAULTS`** instead of throwing (§3.5/§3.6 updated). The flag-off default is the pre-branch product, so degrading reproduces it; throwing would 500 every dashboard page during a PostgREST schema-cache window or before `0044`/`0045` are applied. Both degrade paths have unit tests (`vi.mock` on the two Supabase client factories). `/embed`'s flag read moved inside the `try` that already fails the badge toggle open.
+- **`0046_utils_overrides_grants.sql`**: `authenticated`'s table-wide SELECT on `org_plan_overrides` becomes a column-level grant on `(org_id, plan, expires_at)` — a member may see that the org is comped and until when, never the owner's `note` or `granted_by`. The type follows: `PlanOverride` = the member-readable shape the seam consumes (`isOverrideActive`, `activeOverrideRow`, `features/billing`), `PlanOverrideDetails` = the whole row, read by `getPlanOverrideDetails` with the ADMIN client for `/utils` only.
+- **A comped org cannot buy a second plan**: `startCheckout` reads the override (same "couldn't read ⇒ refuse" wrapper as the subscription read) and redirects `?error=complimentary`; `/billing` renders "Your plan is complimentary until …" in place of `PlanPicker`. `/utils` shows an amber warning when an active comp sits on top of an `active`/`past_due` provider row — the comp wins for entitlements while the card is still billed.
+- The org picker shows name/slug/handle/created date; the spec's per-row effective plan was dropped (N extra reads for a list whose job is to get you to one org).
+- The hub's `/dev/billing` link now also requires the owner org's `billing` flag — the same three conditions `requireDevBilling` checks — and says what to switch on when it is off.
+- `orgSearchInput.q` truncates past 80 characters rather than throwing: it comes from a hand-editable URL, and the honest answer is the first 80 characters' matches.
+- **`R3` (rentals org-modes) must now start at `0047`** — this branch consumed `0044`, `0045` and `0046`.

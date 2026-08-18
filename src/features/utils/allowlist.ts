@@ -1,8 +1,9 @@
 /* The whole access model of /utils, in two pure functions. The gate is an
    email allowlist from env (spec §3.1): the owner sets INTERNAL_EMAILS per
-   environment; unset means nobody. Compared against Supabase Auth's verified
-   email of the signed-in user — adequate for a solo-owner back office, and
-   deliberately nothing more (no roles, no DB flag). */
+   environment; unset means nobody. Compared against the signed-in user's
+   Supabase Auth email (guard.ts documents what makes that address verified)
+   — adequate for a solo-owner back office, and deliberately nothing more
+   (no roles, no DB flag). */
 
 export function parseInternalEmails(raw: string | undefined): Set<string> {
   return new Set(

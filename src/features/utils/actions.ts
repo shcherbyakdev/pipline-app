@@ -105,6 +105,11 @@ export async function setOrgFlag(formData: FormData): Promise<void> {
     if (error) throw error;
   }
   // The dashboard reads flags on every render; the whole layout is stale.
+  // This purges the WHOLE route cache — every org's dashboard, not just this
+  // org's — because a path-level purge can't be scoped to one tenant.
+  // Acceptable for an owner-only action that changes what the shell renders:
+  // it fires a handful of times a week at most, and the cost is re-rendering
+  // pages that were about to be re-rendered anyway.
   revalidatePath("/", "layout");
   redirect(flagsUrl(org, { done: "flag_set" }));
 }

@@ -7,12 +7,18 @@ import { FLAG_KEYS } from "@/lib/flags";
 /** Free-text org search. Letters, digits, space, dash, underscore, dot — the
     characters a name/slug/handle can contain. Anything else is dropped rather
     than rejected: it goes into a PostgREST `ilike` pattern, and `%`, `,` and
-    `(` would change the query's meaning. */
+    `(` would change the query's meaning.
+
+    Over-long input is TRUNCATED for the same reason it is stripped rather
+    than rejected: `q` arrives from a URL the owner can edit by hand, and the
+    honest answer to a 200-character paste is the first 80 characters' worth
+    of matches, not a thrown ZodError that renders as an error page. The
+    length cap runs BEFORE the strip so the bound is on what reaches Postgres. */
 export const orgSearchInput = z.object({
   q: z
     .string()
     .trim()
-    .max(80)
+    .transform((s) => s.slice(0, 80))
     .transform((s) => s.replace(/[^\p{L}\p{N} ._-]/gu, "")),
 });
 
