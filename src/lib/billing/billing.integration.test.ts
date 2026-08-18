@@ -9,6 +9,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 try { loadEnvFile(".env.local"); } catch { /* CI exports env directly */ }
 
+// Dynamic, not static: queries.ts pulls in @/lib/supabase/admin → @/env,
+// which parses process.env eagerly at module load. A static import would
+// resolve (and fail) before the loadEnvFile() call above ever runs.
+const { monthlyBookingUsage } = await import("./queries");
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -88,5 +93,24 @@ describe("billing: RLS + grants", () => {
     const { data, error } = await admin.from("billing_mrr").select("*").eq("plan", "pro").eq("billing_interval", "month");
     expect(error).toBeNull();
     expect((data ?? [])[0]?.subscriptions).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("billing: monthlyBookingUsage", () => {
+  it("counts original bookings created this month, ignores reschedule rows", async () => {
+    // Fixture: a staff + service exist for the org from create_org; insert bookings directly.
+    const { data: staff } = await admin.from("staff").select("id").eq("org_id", orgId).limit(1).single();
+    const { data: svc } = await admin.from("services").insert({ org_id: orgId, name: "U", duration_min: 30 }).select("id").single();
+    const base = Date.now() + 7 * 864e5;
+    const mk = (i: number, extra: Record<string, unknown> = {}) => ({
+      org_id: orgId, service_id: svc!.id, staff_id: staff!.id, client_name: "c", client_email: "c@example.com",
+      starts_at: new Date(base + i * 36e5).toISOString(), ends_at: new Date(base + i * 36e5 + 18e5).toISOString(),
+      status: "confirmed", cancel_token_hash: `${RUN}${i}`.padEnd(64, "0").slice(0, 64), ...extra,
+    });
+    const { data: first, error } = await admin.from("bookings").insert([mk(1), mk(2)]).select("id");
+    if (error) throw error;
+    await admin.from("bookings").insert(mk(3, { rescheduled_from_id: first![0].id }));
+    const n = await monthlyBookingUsage(orgId, "UTC", new Date(), admin);
+    expect(n).toBe(2);
   });
 });
