@@ -28,7 +28,7 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
-const { grantPlanOverride, revokePlanOverride } = await import("./actions");
+const { grantPlanOverride, revokePlanOverride, setOrgFlag } = await import("./actions");
 
 function form(entries: Record<string, string>): FormData {
   const fd = new FormData();
@@ -61,5 +61,27 @@ describe("revokePlanOverride: malformed org id on validation failure", () => {
     await expect(revokePlanOverride(form({ org: "abc" }))).rejects.toThrow(
       "REDIRECT:/utils/subscriptions?error=invalid",
     );
+  });
+});
+
+describe("setOrgFlag: malformed org id on validation failure", () => {
+  it("a non-UUID org falls back to the picker (no `org` param) rather than being echoed", async () => {
+    await expect(
+      setOrgFlag(form({ org: "not-a-uuid", flag: "billing", value: "on" })),
+    ).rejects.toThrow("REDIRECT:/utils/flags?error=invalid");
+  });
+
+  it("a well-formed UUID with an otherwise-invalid field still redirects back to that org's panel", async () => {
+    const org = "123e4567-e89b-12d3-a456-426614174000";
+    await expect(
+      setOrgFlag(form({ org, flag: "not-a-real-flag", value: "on" })),
+    ).rejects.toThrow(`REDIRECT:/utils/flags?error=invalid&org=${org}`);
+  });
+
+  it("a well-formed UUID with an invalid value still redirects back to that org's panel", async () => {
+    const org = "123e4567-e89b-12d3-a456-426614174000";
+    await expect(
+      setOrgFlag(form({ org, flag: "billing", value: "bogus-value" })),
+    ).rejects.toThrow(`REDIRECT:/utils/flags?error=invalid&org=${org}`);
   });
 });

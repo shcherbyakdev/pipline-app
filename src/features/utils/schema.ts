@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FLAG_KEYS } from "@/lib/flags";
 
 /* Inputs for the internal utilities. Everything is owner-typed, so the
    schemas are permissive about content and strict about shape. */
@@ -27,6 +28,13 @@ export const grantOverrideInput = z.object({
 });
 
 export const revokeOverrideInput = orgIdInput;
+
+/** "default" deletes the row; "on"/"off" upsert it. */
+export const setFlagInput = z.object({
+  org: z.uuid(),
+  flag: z.enum(FLAG_KEYS as [string, ...string[]]),
+  value: z.enum(["default", "on", "off"]),
+});
 
 export const UTILS_DONE = {
   granted: "Complimentary plan saved.",

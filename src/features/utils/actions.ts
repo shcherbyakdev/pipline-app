@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireInternal } from "./guard";
-import { grantOverrideInput, orgIdInput, revokeOverrideInput } from "./schema";
+import { grantOverrideInput, orgIdInput, revokeOverrideInput, setFlagInput } from "./schema";
 
 /* The owner's writes (spec §3.4). Every action re-runs requireInternal — a
    server action is a POST endpoint of its own. Admin client throughout: these
@@ -76,4 +76,35 @@ export async function revokePlanOverride(formData: FormData): Promise<void> {
   revalidatePath(SUBS_PATH);
   revalidatePath("/billing");
   redirect(subsUrl(parsed.data.org, { done: "revoked" }));
+}
+
+const FLAGS_PATH = "/utils/flags";
+
+/** `org: null` omits `?org=` entirely — see subsUrl's matching comment. */
+function flagsUrl(org: string | null, extra: Record<string, string>): string {
+  const params = new URLSearchParams(extra);
+  if (org) params.set("org", org);
+  return `${FLAGS_PATH}?${params}`;
+}
+
+export async function setOrgFlag(formData: FormData): Promise<void> {
+  const { user } = await requireInternal();
+  const orgRaw = String(formData.get("org") ?? "");
+  const parsed = setFlagInput.safeParse({ org: orgRaw, flag: formData.get("flag"), value: formData.get("value") });
+  if (!parsed.success) redirect(flagsUrl(safeOrgId(orgRaw), { error: "invalid" }));
+  const { org, flag, value } = parsed.data;
+  const admin = createAdminClient();
+  if (value === "default") {
+    const { error } = await admin.from("org_feature_flags").delete().eq("org_id", org).eq("flag", flag);
+    if (error) throw error;
+  } else {
+    const { error } = await admin.from("org_feature_flags").upsert(
+      { org_id: org, flag, enabled: value === "on", updated_by: user.email ?? user.id, updated_at: new Date().toISOString() },
+      { onConflict: "org_id,flag" },
+    );
+    if (error) throw error;
+  }
+  // The dashboard reads flags on every render; the whole layout is stale.
+  revalidatePath("/", "layout");
+  redirect(flagsUrl(org, { done: "flag_set" }));
 }

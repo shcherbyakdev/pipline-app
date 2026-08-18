@@ -71,18 +71,23 @@ export type OrgAdminView = {
 };
 
 /** Everything /utils shows about one org, in one read. Null when the org
-    does not exist. `flags` is populated from Task 7 on. */
+    does not exist. */
 export async function readOrgAdminView(orgId: string, now = new Date()): Promise<OrgAdminView | null> {
   const admin = createAdminClient();
   const org = await getOrgSummary(orgId);
   if (!org) return null;
-  const [subscription, override] = await Promise.all([readFakeRow(admin, orgId), getPlanOverride(orgId, admin)]);
+  const [subscription, override, flagRes] = await Promise.all([
+    readFakeRow(admin, orgId),
+    getPlanOverride(orgId, admin),
+    admin.from("org_feature_flags").select("flag, enabled, updated_by, updated_at").eq("org_id", orgId),
+  ]);
+  if (flagRes.error) throw flagRes.error;
   const effective = activeOverrideRow(override, now) ?? (subscription ? { ...subscription } : null);
   return {
     org,
     subscription,
     override,
     effectivePlan: entitlementsFor(effective, now).plan,
-    flags: [],
+    flags: (flagRes.data ?? []).map((r) => ({ flag: r.flag, enabled: r.enabled, updatedBy: r.updated_by, updatedAt: r.updated_at })),
   };
 }
