@@ -42,10 +42,3 @@ export const FLAG_META: Record<FlagKey, { label: string; description: string }> 
   overview: { label: "Overview", description: "The /overview stat tiles and their nav row." },
   command_menu: { label: "Command menu", description: "The ⌘K palette and the sidebar Search button." },
 };
-
-// ---- Transitional aliases: removed in the last task of the internal-utils
-// plan once every reader takes resolved Flags. Do not add new readers.
-export const BILLING_ENABLED = FLAG_DEFAULTS.billing;
-export const RENTALS_ENABLED = FLAG_DEFAULTS.rentals;
-export const OVERVIEW_ENABLED = FLAG_DEFAULTS.overview;
-export const COMMAND_MENU_ENABLED = FLAG_DEFAULTS.command_menu;

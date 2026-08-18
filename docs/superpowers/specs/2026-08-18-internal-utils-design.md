@@ -172,3 +172,12 @@ The four `*_ENABLED` constants are **removed**. Every remaining reader is either
 - Approach **A**: full mechanism and convert **all** org-scoped consumers in this slice; org-less surfaces read the default explicitly.
 - `/utils` is a standalone layout, no nav link, URL only.
 - Unexpired override wins outright over the real subscription row.
+
+## Implementation notes (2026-08-18)
+
+- Built per `docs/superpowers/plans/2026-08-18-internal-utils.md` on `feat/internal-utils`.
+- Deviations: `assertCanAddStaff/Service` resolve the org's flag themselves (one change point); `features/billing/dev/guard.ts` follows the org's `billing` flag rather than the default; the drain route's `quotaExceeded` hook is always installed and decides per org.
+- `getOrgSubscription` = effective (override wins); `getRawOrgSubscription` = provider row (used by the checkout duplicate guard and the /billing portal affordance).
+- Tests turn a feature on for an org by inserting an `org_feature_flags` row with the admin client — there is no compile-time switch any more.
+- `searchOrgs` sanitises its input itself (`orgSearchInput`) rather than relying on callers.
+- `/utils/*` pages 404 a malformed `?org=` (non-UUID) and the actions never echo a non-UUID org back into a redirect.
