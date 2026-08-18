@@ -86,7 +86,7 @@ org_feature_flags (
 ```
 
 - RLS enabled on both. One `SELECT` policy each for `authenticated`, scoped to the caller's org membership (same shape as `org_subscriptions`' policy) — the dashboard reads through the RLS client. **No** INSERT/UPDATE/DELETE policies: writes come only from the service role in `/utils` actions.
-- Explicit `GRANT SELECT ON … TO authenticated` (grants convention — newer images drop default ACLs). Nothing to `anon`.
+- Explicit `GRANT SELECT ON … TO authenticated` (grants convention — newer images drop default ACLs). Nothing to `anon`. On `org_plan_overrides` that grant is **column-level** (`0046`): `org_id, plan, expires_at` only, so a member learns that the org is comped and until when but never reads the owner's `note` or `granted_by`.
 - Index: `org_feature_flags` PK already leads with `org_id`; `org_plan_overrides` is keyed by `org_id`. Nothing more.
 - "Revoke" is `DELETE` from `org_plan_overrides`; there is no `plan = 'free'` row. "Default" for a flag is `DELETE` from `org_feature_flags`; only explicit On/Off rows exist.
 - The flag CHECK list is duplicated from `FLAG_DEFAULTS` in code; adding a flag means a new migration that widens the CHECK (stated in a comment on both sides).

@@ -3,8 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { orgSearchInput } from "./schema";
 import { readFakeRow } from "@/features/billing/dev/queries";
 import type { FakeRow } from "@/lib/billing/fake-emulator";
-import { getPlanOverride } from "@/lib/billing/queries";
-import { activeOverrideRow, type PlanOverride } from "@/lib/billing/overrides";
+import { getPlanOverrideDetails } from "@/lib/billing/queries";
+import { activeOverrideRow, type PlanOverrideDetails } from "@/lib/billing/overrides";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import type { PlanId } from "@/lib/billing/plans";
 
@@ -65,7 +65,9 @@ export type OrgAdminView = {
   /** The provider row incl. provider ids (readFakeRow's shape — the only
       other place that shows them is the dev portal). */
   subscription: FakeRow | null;
-  override: PlanOverride | null;
+  /** The WHOLE override row, note and grantor included — the admin client is
+      the only one privileged to read those columns (0046). */
+  override: PlanOverrideDetails | null;
   effectivePlan: PlanId;
   flags: FlagOverrideRow[];
 };
@@ -78,7 +80,7 @@ export async function readOrgAdminView(orgId: string, now = new Date()): Promise
   if (!org) return null;
   const [subscription, override, flagRes] = await Promise.all([
     readFakeRow(admin, orgId),
-    getPlanOverride(orgId, admin),
+    getPlanOverrideDetails(orgId, admin),
     admin.from("org_feature_flags").select("flag, enabled, updated_by, updated_at").eq("org_id", orgId),
   ]);
   if (flagRes.error) throw flagRes.error;

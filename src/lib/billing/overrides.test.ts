@@ -3,9 +3,9 @@ import { activeOverrideRow, type PlanOverride } from "./overrides";
 import { TEAM_INCLUDED_SEATS } from "./plans";
 
 const now = new Date("2026-08-18T12:00:00Z");
-const ovr = (o: Partial<PlanOverride> = {}): PlanOverride => ({
-  plan: "pro", expiresAt: null, note: null, grantedBy: "owner@example.com", grantedAt: "2026-08-18T00:00:00Z", ...o,
-});
+// The narrow shape: plan + expiry is all the seam reads, and all a member is
+// granted (0046). The note/grantor columns live on PlanOverrideDetails.
+const ovr = (o: Partial<PlanOverride> = {}): PlanOverride => ({ plan: "pro", expiresAt: null, ...o });
 
 describe("activeOverrideRow", () => {
   it("null → null", () => expect(activeOverrideRow(null, now)).toBeNull());

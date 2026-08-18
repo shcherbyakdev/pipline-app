@@ -4,9 +4,18 @@
 import type { OrgSubscriptionRow } from "./entitlements";
 import { TEAM_INCLUDED_SEATS, type PaidPlanId } from "./plans";
 
+/* Two shapes, one row. The split mirrors a column-level grant (0046): a
+   member may see THAT their org is comped and until when, never the owner's
+   internal note or which staffer granted it. Everything the entitlement seam
+   needs lives in the narrow shape, so the member-facing read never has to ask
+   for a column `authenticated` has no privilege on. */
 export type PlanOverride = {
   plan: PaidPlanId;
   expiresAt: string | null; // ISO; null = until revoked
+};
+
+/** The whole row, /utils only — read with the ADMIN client (getPlanOverrideDetails). */
+export type PlanOverrideDetails = PlanOverride & {
   note: string | null;
   grantedBy: string;
   grantedAt: string; // ISO (updated_at — the last grant/update)

@@ -4,13 +4,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { badgeShows, entitlementsFor, monthWindow, type Entitlements, type OrgSubscriptionRow } from "./entitlements";
-import { activeOverrideRow, type PlanOverride } from "./overrides";
+import { activeOverrideRow, type PlanOverride, type PlanOverrideDetails } from "./overrides";
 import { isPaidPlan } from "./plans";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { env } from "@/env";
 
 const SUB_COLS = "plan, status, billing_interval, seats, current_period_end, cancel_at_period_end";
-const OVERRIDE_COLS = "plan, expires_at, note, granted_by, updated_at";
+// What `authenticated` is granted on org_plan_overrides (0046), and all the
+// seam needs. The note and granted_by columns are owner-only — see
+// getPlanOverrideDetails.
+const OVERRIDE_COLS = "plan, expires_at";
+const OVERRIDE_DETAIL_COLS = "plan, expires_at, note, granted_by, updated_at";
 
 /** The PROVIDER's row only (webhook-written cache), or null. For the two
     callers that must see Stripe's truth rather than the effective plan: the
@@ -32,9 +36,23 @@ export async function getRawOrgSubscription(orgId: string, client: SupabaseClien
 
 /** The org's complimentary plan as granted in /utils (spec 2026-08-18-internal-utils
     §3.4), or null. NOT expiry-filtered — the /billing and /utils pages show an
-    expired comp as expired; activeOverrideRow decides whether it counts. */
+    expired comp as expired; activeOverrideRow decides whether it counts.
+
+    Plan + expiry ONLY: those are the columns `authenticated` is granted (0046),
+    so this works with the RLS client as well as the admin one. */
 export async function getPlanOverride(orgId: string, client: SupabaseClient): Promise<PlanOverride | null> {
   const { data, error } = await client.from("org_plan_overrides").select(OVERRIDE_COLS).eq("org_id", orgId).maybeSingle();
+  if (error) throw error;
+  if (!data || !isPaidPlan(data.plan)) return null;
+  return { plan: data.plan, expiresAt: data.expires_at };
+}
+
+/** The same row with the owner-only columns — the note and who granted it.
+    ADMIN client only: `authenticated` has no privilege on those columns
+    (0046), so the RLS client gets "permission denied", not a filtered row.
+    /utils is the only caller. */
+export async function getPlanOverrideDetails(orgId: string, admin: SupabaseClient): Promise<PlanOverrideDetails | null> {
+  const { data, error } = await admin.from("org_plan_overrides").select(OVERRIDE_DETAIL_COLS).eq("org_id", orgId).maybeSingle();
   if (error) throw error;
   if (!data || !isPaidPlan(data.plan)) return null;
   return {

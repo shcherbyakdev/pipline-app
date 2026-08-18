@@ -61,6 +61,17 @@ describe("utils tables: RLS + grants", () => {
     expect((await anon.from("org_feature_flags").select("flag")).error).not.toBeNull();
   });
 
+  it("member sees plan/expires_at of its own comp, never the note or who granted it", async () => {
+    // 0046 replaces 0045's table-wide grant with a column-level one: a member
+    // may know THAT the org is comped and until when — /billing says so — but
+    // the note is the owner's internal reason and granted_by names a staffer.
+    const visible = await owner.from("org_plan_overrides").select("plan, expires_at").eq("org_id", orgId);
+    expect(visible.error).toBeNull();
+    expect(visible.data).toHaveLength(1);
+    expect((await owner.from("org_plan_overrides").select("note").eq("org_id", orgId)).error).not.toBeNull();
+    expect((await owner.from("org_plan_overrides").select("granted_by").eq("org_id", orgId)).error).not.toBeNull();
+  });
+
   it("member cannot insert/update/delete either table", async () => {
     // A member handing itself Team, or switching billing on for itself, is
     // exactly the hole these tables must not have.
