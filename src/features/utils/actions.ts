@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireInternal } from "./guard";
-import { grantOverrideInput, revokeOverrideInput } from "./schema";
+import { grantOverrideInput, orgIdInput, revokeOverrideInput } from "./schema";
 
 /* The owner's writes (spec §3.4). Every action re-runs requireInternal — a
    server action is a POST endpoint of its own. Admin client throughout: these
@@ -14,8 +14,20 @@ import { grantOverrideInput, revokeOverrideInput } from "./schema";
 
 const SUBS_PATH = "/utils/subscriptions";
 
-function subsUrl(org: string, extra: Record<string, string>): string {
-  return `${SUBS_PATH}?${new URLSearchParams({ org, ...extra })}`;
+/** `org: null` omits `?org=` entirely — used on a validation failure where
+    the submitted value isn't even a UUID, so it must never be echoed into a
+    URL that readOrgAdminView's page will feed straight to Postgres. */
+function subsUrl(org: string | null, extra: Record<string, string>): string {
+  const params = new URLSearchParams(extra);
+  if (org) params.set("org", org);
+  return `${SUBS_PATH}?${params}`;
+}
+
+/** The submitted org id, but only if it's a well-formed UUID — otherwise
+    null. Used on a safeParse failure to decide whether the redirect can
+    still point at that org's panel or has to fall back to the picker. */
+function safeOrgId(orgRaw: string): string | null {
+  return orgIdInput.safeParse({ org: orgRaw }).success ? orgRaw : null;
 }
 
 /** YYYY-MM-DD → the last instant of that day, UTC. A comp "until the 31st"
@@ -33,7 +45,7 @@ export async function grantPlanOverride(formData: FormData): Promise<void> {
     expires: formData.get("expires") ?? "",
     note: formData.get("note") ?? "",
   });
-  if (!parsed.success) redirect(subsUrl(orgRaw, { error: "invalid" }));
+  if (!parsed.success) redirect(subsUrl(safeOrgId(orgRaw), { error: "invalid" }));
   const { org, plan, expires, note } = parsed.data;
   const admin = createAdminClient();
   const { error } = await admin.from("org_plan_overrides").upsert(
@@ -57,7 +69,7 @@ export async function revokePlanOverride(formData: FormData): Promise<void> {
   await requireInternal();
   const orgRaw = String(formData.get("org") ?? "");
   const parsed = revokeOverrideInput.safeParse({ org: orgRaw });
-  if (!parsed.success) redirect(subsUrl(orgRaw, { error: "invalid" }));
+  if (!parsed.success) redirect(subsUrl(safeOrgId(orgRaw), { error: "invalid" }));
   const admin = createAdminClient();
   const { error } = await admin.from("org_plan_overrides").delete().eq("org_id", parsed.data.org);
   if (error) throw error;

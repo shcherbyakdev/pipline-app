@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireInternal } from "@/features/utils/guard";
 import { readOrgAdminView } from "@/features/utils/queries";
-import { orgSearchInput, utilsDoneMessage, utilsErrorMessage } from "@/features/utils/schema";
+import { orgIdInput, orgSearchInput, utilsDoneMessage, utilsErrorMessage } from "@/features/utils/schema";
 import { OrgPicker, firstParam } from "@/features/utils/components/org-picker";
 import { SubscriptionPanel } from "@/features/utils/components/subscription-panel";
 
@@ -12,6 +12,10 @@ export default async function UtilsSubscriptionsPage({ searchParams }: PageProps
   const sp = await searchParams;
   const orgId = firstParam(sp.org);
   const q = orgSearchInput.parse({ q: firstParam(sp.q) }).q;
+  // A malformed id (not a UUID) is treated the same as an unknown org: it
+  // must never reach readOrgAdminView's `.eq("id", …)`, which Postgres
+  // rejects outright ("invalid input syntax for type uuid") and 500s.
+  if (orgId && !orgIdInput.safeParse({ org: orgId }).success) notFound();
 
   if (!orgId) {
     return (
