@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Logout03Icon, Search01Icon } from "@hugeicons/core-free-icons";
-import { NAV_ITEMS, NAV_SECTION_LABELS } from "./nav";
+import { navItemsFor, NAV_SECTION_LABELS } from "./nav";
+import type { Flags } from "@/lib/flags";
 import { signOut } from "@/features/auth/actions";
 import { OPEN_COMMAND_MENU_EVENT } from "@/components/command-menu";
-import { COMMAND_MENU_ENABLED } from "@/lib/flags";
 import { cn } from "@/lib/utils";
 
 /* Linear sidebar metrics: 13px/500 items, 16px icons, 4px radius, ~27px rows,
@@ -20,16 +20,19 @@ const activeClass = "bg-[oklch(1_0_0/9%)] text-sidebar-foreground";
 export function SidebarBody({
   org,
   userEmail,
+  flags,
   onNavigate,
 }: {
   org: string;
   userEmail: string;
+  flags: Flags;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const initial = (org.trim()[0] ?? userEmail[0] ?? "?").toUpperCase();
   const sections = ["main", "configure"] as const;
+  const navItems = navItemsFor(flags);
 
   return (
     <div className="flex h-full flex-col px-4 py-3">
@@ -46,9 +49,8 @@ export function SidebarBody({
         </div>
       </div>
 
-      {/* Parked (see lib/flags.ts): the palette only navigates, so a row
-          labelled "Search" over-promises. */}
-      {COMMAND_MENU_ENABLED && (
+      {/* Shown only when the org's `command_menu` flag resolves true (lib/flags). */}
+      {flags.command_menu && (
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event(OPEN_COMMAND_MENU_EVENT))}
@@ -62,7 +64,7 @@ export function SidebarBody({
 
       <nav aria-label="Workspace" className="mt-4 flex flex-col gap-4">
         {sections.map((section) => {
-          const items = NAV_ITEMS.filter((i) => i.section === section);
+          const items = navItems.filter((i) => i.section === section);
           const label = NAV_SECTION_LABELS[section];
           return (
             <div key={section} className="flex flex-col gap-px">

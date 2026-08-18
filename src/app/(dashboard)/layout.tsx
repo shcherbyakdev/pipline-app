@@ -1,25 +1,23 @@
 import { Suspense } from "react";
 import { requireOrg } from "@/lib/auth/session";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 import { Providers } from "@/components/providers";
 import { AppShell } from "@/components/shell/app-shell";
 import { PlanBannerSlot } from "@/features/billing/components/plan-banner";
-import { BILLING_ENABLED } from "@/lib/flags";
 
-export default async function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { org, user } = await requireOrg();
+  // Resolved once per request (React cache) and handed down as a prop: the
+  // shell is client-rendered and cannot read the DB itself.
+  const flags = await getDashboardFlags(org.id);
 
   return (
-    <Providers>
-      <AppShell org={org.name} userEmail={user.email ?? ""}>
-        {/* Flag checked here as well as inside the slot so the dormant world
-            runs exactly the queries it ran before this slice: none. Suspended
-            so the billing read never delays the shell — the nudge streams in
-            when it is ready, or never, and the page doesn't wait. */}
-        {BILLING_ENABLED ? (
+    <Providers flags={flags}>
+      <AppShell org={org.name} userEmail={user.email ?? ""} flags={flags}>
+        {/* Flag checked here as well as inside the slot so the flag-off org
+            runs exactly the queries it ran before billing: none. Suspended
+            so the billing read never delays the shell. */}
+        {flags.billing ? (
           <Suspense fallback={null}>
             <PlanBannerSlot />
           </Suspense>
