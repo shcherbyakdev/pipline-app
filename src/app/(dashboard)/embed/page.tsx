@@ -5,8 +5,21 @@ import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { toPreviewServices } from "@/features/scheduling/preview-services";
 import { parseWidgetTheme } from "@/lib/widget-theme";
+import { createClient } from "@/lib/supabase/server";
+import { getEntitlements } from "@/lib/billing/queries";
+import { BILLING_ENABLED } from "@/lib/flags";
 import { env } from "@/env";
 import { PageIntro } from "@/components/shell/page-header";
+
+async function badgeToggleEnabled(orgId: string): Promise<boolean> {
+  if (!BILLING_ENABLED) return true;
+  try {
+    return (await getEntitlements(orgId, await createClient())).hideBadge;
+  } catch (error) {
+    console.error("[billing] entitlements read failed — toggle stays enabled:", error);
+    return true;
+  }
+}
 
 /* Website embed: the second booking channel — the widget on the org's own
    site. Style it against a live preview, then copy the snippet. */
@@ -18,6 +31,13 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
     listStaff(),
   ]);
   if (!settings || !schedulingSettings) notFound();
+
+  // Hiding "Powered by Booklo" is a paid perk (spec §5). While billing is off
+  // nothing is read and every org keeps the toggle it has today. A failed read
+  // fails OPEN (toggle stays usable) rather than 500-ing this page: the same
+  // ruling loadPublicOffering follows, and the badge itself is enforced
+  // server-side regardless (badgeVisible / emailBadgeUrl).
+  const canHideBadge = await badgeToggleEnabled(settings.orgId);
 
   const previewServices = toPreviewServices(services);
   // Solo orgs get no "Book with" choice at all (there is only one answer);
@@ -45,6 +65,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         previewServices={previewServices}
         staffOptions={staffOptions}
         initialStaffSlug={initialStaffSlug}
+        canHideBadge={canHideBadge}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import { generateAccessToken } from "@/lib/tokens";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import { loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
+import { emailBadgeUrl } from "@/lib/billing/queries";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
@@ -115,6 +116,9 @@ export async function cancelBookingAdmin(
             // Solo orgs never name a staff member — resolveClientStaffName is
             // the one place that rule lives (and swallows its own errors).
             staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
+            // Badge unless the plan lets the org hide it and it did
+            // (emailBadgeUrl swallows its own errors, same as above).
+            badgeUrl: await emailBadgeUrl(org.id),
           });
           await selectTransport().send({
             to: row.client_email,
@@ -294,6 +298,7 @@ export async function rescheduleBookingAdmin(
             // Solo orgs never name a staff member — resolveClientStaffName is
             // the one place that rule lives (and swallows its own errors).
             staffName: await resolveClientStaffName(org.id, row?.staff_name ?? null),
+            badgeUrl: await emailBadgeUrl(org.id),
           });
           await selectTransport().send({
             to: booking.client_email,
@@ -414,6 +419,7 @@ export async function resendManageLink(
         // must not silently drop who the appointment is with. Solo orgs → null
         // (resolveClientStaffName), rentals have no staff at all.
         staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
+        badgeUrl: await emailBadgeUrl(org.id),
       });
       await selectTransport().send({
         to: booking.client_email,
@@ -486,6 +492,7 @@ export async function createBookingAdmin(
             icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
             // Solo orgs never name a staff member (resolveClientStaffName).
             staffName: await resolveClientStaffName(org.id, person?.name ?? null),
+            badgeUrl: await emailBadgeUrl(org.id),
           });
           await selectTransport().send({
             to: parsed.data.email,

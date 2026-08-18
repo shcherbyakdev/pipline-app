@@ -9,6 +9,22 @@
     and existing rows are untouched — flip to true to un-park. */
 export const RENTALS_ENABLED = false;
 
+/** Billing (spec docs/superpowers/specs/2026-08-18-pricing-and-billing-design.md).
+    While false: no plan gates on staff/service creation, no /billing nav item
+    or page, no /pricing route, and no entitlement reads at all — the public
+    offering, the badge and the embed studio all take the "everything allowed"
+    branch instead of asking the DB.
+
+    NOT gated by this flag: the "Powered by Booklo" badge, which ships on the
+    booking pages, the embed and every client-facing email regardless. What
+    the flag changes is only WHO may switch it off — until the flip, the embed
+    studio's "Hide" tick is honoured for everyone; after it, only paid plans
+    may hide (badgeShows / badgeVisible, lib/billing/entitlements.ts).
+
+    Tables, the provider seam and the webhook route exist regardless so the
+    Stripe account can be wired before the flip. */
+export const BILLING_ENABLED = false;
+
 /** The `/overview` stat tiles are hidden for now (ruling 2026-08-18): four
     org-wide numbers is not yet a dashboard worth the first nav slot. While
     false: /overview 404s and the sidebar starts at Bookings. The page,

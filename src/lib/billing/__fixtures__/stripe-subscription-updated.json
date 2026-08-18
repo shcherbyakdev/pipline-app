@@ -1,0 +1,39 @@
+{
+  "id": "evt_1NxSampleSubscriptionUpdated",
+  "object": "event",
+  "api_version": "2025-03-31.basil",
+  "created": 1787000000,
+  "livemode": false,
+  "pending_webhooks": 1,
+  "request": { "id": null, "idempotency_key": null },
+  "type": "customer.subscription.updated",
+  "data": {
+    "object": {
+      "id": "sub_1NxSample",
+      "object": "subscription",
+      "customer": "cus_1NxSample",
+      "status": "active",
+      "cancel_at_period_end": false,
+      "currency": "usd",
+      "metadata": { "org_id": "org-uuid" },
+      "items": {
+        "object": "list",
+        "data": [
+          {
+            "id": "si_1NxSample",
+            "object": "subscription_item",
+            "price": {
+              "id": "price_team_m",
+              "object": "price",
+              "currency": "usd",
+              "recurring": { "interval": "month" }
+            },
+            "quantity": 5,
+            "current_period_end": 1790000000
+          }
+        ]
+      }
+    },
+    "previous_attributes": { "status": "trialing" }
+  }
+}

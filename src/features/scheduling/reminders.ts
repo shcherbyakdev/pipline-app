@@ -19,7 +19,10 @@ export type ReminderSummary = { sent: number; skipped: number; failed: number };
 export function decideReminder(
   booking: { startsAt: Date; createdAt: Date },
   now: Date,
+  opts: { overQuota?: boolean } = {},
 ): "send" | "suppress" | "wait" {
+  // Stamped, never rescanned — same as every other suppress path below.
+  if (opts.overQuota) return "suppress";
   const lead = booking.startsAt.getTime() - REMINDER_LEAD_MS;
   if (now.getTime() >= booking.startsAt.getTime()) return "suppress";
   if (now.getTime() < lead) return "wait";
@@ -31,6 +34,7 @@ export function decideReminder(
 
 type CandidateRow = {
   id: string;
+  org_id: string;
   client_email: string | null;
   starts_at: string;
   ends_at: string;
@@ -47,14 +51,47 @@ export async function runReminderDrain(deps: {
   db: SupabaseClient;
   transport: EmailTransport;
   now?: Date;
+  // "Powered by Booklo" for this org's client mail, or null when its plan
+  // lets it hide the badge and it did (lib/billing/queries.ts#emailBadgeUrl,
+  // which the drain route injects). Optional: tests and any caller that does
+  // not care get badge-free reminders, exactly as before billing. Called at
+  // most once per org per tick (badgeUrlFor below); a rejected lookup
+  // degrades to no badge: the badge is decoration, it must never burn one of
+  // the row's five attempts.
+  badgeFor?: (orgId: string) => Promise<string | null>;
+  // Free-plan reminder quota (spec §7.10 / lib/billing/queries.ts +
+  // entitlements.ts, which the drain route injects). Optional: tests and any
+  // caller that does not care get unmetered reminders, exactly as before
+  // billing. A failed check degrades to "not over quota" (send) — a missed
+  // suppression beats a missed reminder.
+  //
+  // Asked PER BOOKING, with that booking's own created_at, because the quota
+  // is ordinal: "reminders for the first 30 bookings each month" (spec §3)
+  // asks whether THIS booking is the org's 31st or later, not whether the
+  // org happens to be over 30 right now.
+  quotaExceeded?: (orgId: string, timeZone: string, bookingCreatedAt: string) => Promise<boolean>;
 }): Promise<ReminderSummary> {
   const now = deps.now ?? new Date();
   const summary: ReminderSummary = { sent: 0, skipped: 0, failed: 0 };
+  // Memoised per tick: the badge answer is per ORG (plan + the org's toggle),
+  // so a batch of rows from one org shares a single lookup. Promises, not
+  // values, so two rows resolved in the same pass can't both start one.
+  const badgeCache = new Map<string, Promise<string | null>>();
+  const badgeUrlFor = (orgId: string): Promise<string | null> => {
+    const lookup = deps.badgeFor;
+    if (!lookup) return Promise.resolve(null);
+    let pending = badgeCache.get(orgId);
+    if (!pending) {
+      pending = lookup(orgId).catch(() => null);
+      badgeCache.set(orgId, pending);
+    }
+    return pending;
+  };
 
   const { data, error } = await deps.db
     .from("bookings")
     .select(
-      "id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, services(name), rental_offerings(name), rental_units(name), orgs(name, timezone)",
+      "id, org_id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, services(name), rental_offerings(name), rental_units(name), orgs(name, timezone)",
     )
     .eq("status", "confirmed")
     .is("reminder_sent_at", null)
@@ -67,9 +104,19 @@ export async function runReminderDrain(deps: {
 
   for (const row of (data ?? []) as unknown as CandidateRow[]) {
     try {
+      let overQuota = false;
+      if (deps.quotaExceeded) {
+        try {
+          overQuota = await deps.quotaExceeded(row.org_id, row.orgs?.timezone ?? "UTC", row.created_at);
+        } catch (e) {
+          // spec §7.10: a missed suppression beats a missed reminder.
+          console.error("[scheduling] quota check failed (sending):", e);
+        }
+      }
       const decision = decideReminder(
         { startsAt: new Date(row.starts_at), createdAt: new Date(row.created_at) },
         now,
+        { overQuota },
       );
       if (decision === "wait") continue; // defensive: query bounds already exclude
 
@@ -104,6 +151,7 @@ export async function runReminderDrain(deps: {
             },
             row.orgs?.timezone ?? "UTC",
           ),
+          badgeUrl: await badgeUrlFor(row.org_id),
         });
         await deps.transport.send({
           to: row.client_email,

@@ -1,14 +1,12 @@
 import { notFound } from "next/navigation";
-import {
-  getBookingOrg,
-  getPublicStaffBySlug,
-  listPublicServices,
-  listServiceStaffMap,
-} from "@/lib/booking/public";
+import { getBookingOrg } from "@/lib/booking/public";
+import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
+import { badgeVisible } from "@/lib/billing/entitlements";
 import { BrandedHeader } from "@/components/branded-header";
+import { PoweredBy } from "@/components/powered-by";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
 import { parseWidgetTheme } from "@/lib/widget-theme";
@@ -27,16 +25,16 @@ export default async function StaffBookPage({
   if (!STAFF_SLUG_RE.test(staffSlug)) notFound();
   const org = await getBookingOrg(handle);
   if (!org) notFound();
-  // Inactive staff resolve to null here — a deactivated person's link 404s
-  // rather than silently redirecting to the whole-team page.
-  const person = await getPublicStaffBySlug(org.orgId, staffSlug);
-  if (!person) notFound();
-  const [allServices, serviceStaffIds, branding] = await Promise.all([
-    listPublicServices(org.orgId),
-    listServiceStaffMap(org.orgId),
+  const [offering, branding] = await Promise.all([
+    loadPublicOffering(org.orgId),
     getOrgBranding(org.orgId),
   ]);
-  const services = filterBookableServices(allServices, serviceStaffIds, [person], person.id);
+  // The roster is active-only AND plan-limited, so both a deactivated person
+  // and one the plan no longer offers publicly 404 here — the link stays valid
+  // and starts working again the moment they return to the roster.
+  const person = offering.staff.find((s) => s.slug === staffSlug);
+  if (!person) notFound();
+  const services = filterBookableServices(offering.services, offering.serviceStaffIds, [person], person.id);
   // Nothing they can be booked for is not a page worth rendering.
   if (services.length === 0) notFound();
   const theme = parseWidgetTheme(branding.themeRaw);
@@ -66,6 +64,8 @@ export default async function StaffBookPage({
             lockedStaff={person}
           />
         </WidgetTheme>
+        {/* Same rule as /book/[handle] and the embed (spec §5). */}
+        {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}
       </main>
     </div>
   );

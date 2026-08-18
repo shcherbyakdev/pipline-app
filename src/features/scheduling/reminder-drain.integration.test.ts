@@ -165,11 +165,30 @@ describe("reminder drain", () => {
 
   it("second tick sends the due reminder with a stable idempotency key", async () => {
     const { transport, sent } = recordingTransport();
-    const summary = await runReminderDrain({ db: admin, transport });
+    // The badge is looked up per row, with that row's own org id (the drain
+    // spans every org, so a single shared answer would be wrong).
+    const badgeUrl = "https://x/?ref=badge";
+    const asked: string[] = [];
+    const summary = await runReminderDrain({
+      db: admin,
+      transport,
+      badgeFor: async (id) => {
+        asked.push(id);
+        return badgeUrl;
+      },
+    });
     expect(summary.sent).toBe(1);
     expect(sent[0].to).toBe("reminded@example.com");
     expect(sent[0].idempotencyKey).toBe(`booking/${dueId}/reminder`);
-    expect(sent[0].html).not.toContain("http"); // link-free by design
+    expect(asked).toContain(orgId);
+    // Memoised per org per tick: a batch of rows from one org must not
+    // re-run the badge lookup (plan read + orgs read) once per row.
+    expect(new Set(asked).size).toBe(asked.length);
+    expect(sent[0].html).toContain("Powered by Booklo");
+    expect(sent[0].html).toContain(badgeUrl);
+    // Still link-free apart from the badge: the manage credential cannot be
+    // reconstructed at drain time and must never appear in a reminder.
+    expect(sent[0].html.replaceAll(badgeUrl, "")).not.toContain("http");
   });
 
   it("third tick is a no-op", async () => {
@@ -220,6 +239,95 @@ describe("reminder drain", () => {
       .eq("id", inserted!.id)
       .single();
     expect(row!.reminder_sent_at).not.toBeNull(); // stamped = suppressed, never rescanned
+    expect(row!.reminder_attempts).toBe(0);
+  });
+
+  it("suppresses a due booking when the org is over its free reminder quota", async () => {
+    const { data: inserted, error } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        service_id: serviceId,
+        staff_id: staffId,
+        client_name: "Over Quota",
+        client_email: "overquota@example.com",
+        starts_at: hours(14),
+        ends_at: hours(15),
+        created_at: hours(-48),
+        status: "confirmed",
+        cancel_token_hash: generateAccessToken().tokenHash,
+      })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    const overQuotaId = inserted!.id;
+
+    const { transport, sent } = recordingTransport();
+    // The quota is ordinal, so the drain hands the check the BOOKING's own
+    // created_at (not just the org): "is this booking the org's 31st this
+    // month?", answered the same way on every future tick.
+    const asked: Array<[string, string, string]> = [];
+    const summary = await runReminderDrain({
+      db: admin,
+      transport,
+      quotaExceeded: async (org, tz, createdAt) => {
+        asked.push([org, tz, createdAt]);
+        return true;
+      },
+    });
+
+    expect(asked.some(([org, , createdAt]) => org === orgId && !Number.isNaN(Date.parse(createdAt)))).toBe(true);
+    expect(summary.skipped).toBeGreaterThanOrEqual(1);
+    expect(sent.some((m) => m.to === "overquota@example.com")).toBe(false);
+    const { data: row } = await admin
+      .from("bookings")
+      .select("reminder_sent_at, reminder_attempts")
+      .eq("id", overQuotaId)
+      .single();
+    expect(row!.reminder_sent_at).not.toBeNull(); // stamped = suppressed, never rescanned
+    expect(row!.reminder_attempts).toBe(0);
+  });
+
+  it("sends a due booking when the org is under its free reminder quota", async () => {
+    const { data: inserted, error } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        service_id: serviceId,
+        staff_id: staffId,
+        client_name: "Under Quota",
+        client_email: "underquota@example.com",
+        starts_at: hours(16),
+        ends_at: hours(17),
+        created_at: hours(-48),
+        status: "confirmed",
+        cancel_token_hash: generateAccessToken().tokenHash,
+      })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    const underQuotaId = inserted!.id;
+
+    const { transport, sent } = recordingTransport();
+    const summary = await runReminderDrain({
+      db: admin,
+      transport,
+      quotaExceeded: async (_org, _tz, createdAt) => {
+        // Per booking, not per tick: the check must see a real timestamp for
+        // each candidate row.
+        expect(typeof createdAt).toBe("string");
+        return false;
+      },
+    });
+
+    expect(summary.sent).toBeGreaterThanOrEqual(1);
+    expect(sent.some((m) => m.to === "underquota@example.com")).toBe(true);
+    const { data: row } = await admin
+      .from("bookings")
+      .select("reminder_sent_at, reminder_attempts")
+      .eq("id", underQuotaId)
+      .single();
+    expect(row!.reminder_sent_at).not.toBeNull();
     expect(row!.reminder_attempts).toBe(0);
   });
 });

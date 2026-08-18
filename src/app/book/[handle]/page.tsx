@@ -1,15 +1,11 @@
 import { notFound } from "next/navigation";
-import {
-  getBookingOrg,
-  listPublicOfferings,
-  listPublicServices,
-  listPublicStaff,
-  listServiceStaffMap,
-} from "@/lib/booking/public";
-import { filterBookableServices } from "@/lib/booking/bookable";
+import { getBookingOrg, listPublicOfferings } from "@/lib/booking/public";
+import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { getOrgBranding } from "@/lib/org-branding";
 import { RENTALS_ENABLED } from "@/lib/flags";
+import { badgeVisible } from "@/lib/billing/entitlements";
 import { BrandedHeader } from "@/components/branded-header";
+import { PoweredBy } from "@/components/powered-by";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
 import { parseWidgetTheme } from "@/lib/widget-theme";
@@ -22,18 +18,15 @@ export default async function BookPage({
   if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(handle)) notFound();
   const org = await getBookingOrg(handle);
   if (!org) notFound();
-  const [allServices, offerings, branding, staff, serviceStaffIds] = await Promise.all([
-    listPublicServices(org.orgId),
+  const [offering, offerings, branding] = await Promise.all([
+    // The org's roster and services, already narrowed to what someone active
+    // can be booked for AND to what the org's plan may offer publicly.
+    loadPublicOffering(org.orgId),
     // Rentals parked for the MVP (lib/flags.ts): the widget lists services only.
     RENTALS_ENABLED ? listPublicOfferings(org.orgId) : Promise.resolve([]),
     getOrgBranding(org.orgId),
-    listPublicStaff(org.orgId),
-    listServiceStaffMap(org.orgId),
   ]);
-  // Only what someone active can actually be booked for — a service linked to
-  // nobody (or only to deactivated people) renders a card whose confirm step
-  // can never succeed. Same rule as /book/[handle]/[staffSlug], org-wide.
-  const services = filterBookableServices(allServices, serviceStaffIds, staff);
+  const { services, staff, serviceStaffIds } = offering;
   if (services.length === 0 && offerings.length === 0) notFound();
   const theme = parseWidgetTheme(branding.themeRaw);
   return (
@@ -65,6 +58,9 @@ export default async function BookPage({
             serviceStaffIds={serviceStaffIds}
           />
         </WidgetTheme>
+        {/* Same rule as the embed: the badge shows unless the org both asked
+            to hide it and is on a plan that may (spec §5). */}
+        {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}
       </main>
     </div>
   );

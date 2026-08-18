@@ -11,7 +11,10 @@ import {
   countActiveStaff,
   resolveClientStaffName,
 } from "@/lib/booking/public";
+import { loadPublicOffering } from "@/lib/booking/public-offering";
+import { chooseStaffForBooking } from "@/lib/booking/bookable";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
+import { emailBadgeUrl } from "@/lib/billing/queries";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
@@ -56,9 +59,22 @@ async function loadSlotContext(
 ) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
-  const ctx = await loadOrgSlotContext(org.orgId, serviceId, fromDate, days, { staffId });
+  // The plan's public roster decides who the public may reach — a person the
+  // org can no longer offer publicly must not surface slots or take bookings.
+  const offering = await loadPublicOffering(org.orgId);
+  const bookableIds = offering.staff.map((s) => s.id);
+  const ctx = await loadOrgSlotContext(org.orgId, serviceId, fromDate, days, {
+    staffId,
+    allowedStaffIds: bookableIds,
+  });
   if (!ctx) return null;
-  return { org, service: ctx.service, perStaff: ctx.perStaff };
+  return {
+    org,
+    service: ctx.service,
+    perStaff: ctx.perStaff,
+    bookableIds,
+    eligibleStaffIds: ctx.eligibleStaffIds,
+  };
 }
 
 // The engine runs once per eligible staff member; the client sees the union
@@ -124,7 +140,8 @@ export async function createBooking(
     // The EXCLUDE constraint remains the race-proof last line.
     const localDate = dateInZone(starts, ctx.org.timeZone);
     const slots = unionSlots(slotsPerStaff(ctx, localDate, 1));
-    if (!slots.some((s) => s.startsAt.getTime() === starts.getTime())) {
+    const match = slots.find((s) => s.startsAt.getTime() === starts.getTime());
+    if (!match) {
       return {
         ok: false,
         error: await slotLostError(ctx.org.orgId, staffId),
@@ -142,7 +159,16 @@ export async function createBooking(
       p_email: email,
       p_note: note ?? null,
       p_token_hash: tokenHash,
-      p_staff_id: staffId === "any" ? null : staffId,
+      // The DB's auto-assign ranks over every active member linked to the
+      // service and knows nothing of plan limits, so "anyone" may only reach
+      // it while the bookable roster covers that whole set — see
+      // chooseStaffForBooking for the three cases.
+      p_staff_id: chooseStaffForBooking({
+        staffId,
+        bookableIds: ctx.bookableIds,
+        eligibleStaffIds: ctx.eligibleStaffIds,
+        freeStaffIdsAtSlot: match.staffIds,
+      }),
     });
     if (error) {
       // The RPC raises a bare `staff_unavailable` when a NAMED staff member
@@ -185,6 +211,10 @@ export async function createBooking(
         manageUrl,
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
         staffName,
+        // "Powered by Booklo" unless the org's plan lets it opt out and it
+        // did (emailBadgeUrl swallows its own errors — same discipline as
+        // resolveClientStaffName above: the booking is already committed).
+        badgeUrl: await emailBadgeUrl(ctx.org.orgId),
       });
       await selectTransport().send({
         to: email,

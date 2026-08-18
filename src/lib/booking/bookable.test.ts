@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { filterBookableServices } from "./bookable";
+import { chooseStaffForBooking, filterBookableServices, limitPublicOffering } from "./bookable";
+import { entitlementsFor } from "@/lib/billing/entitlements";
 
 const anna = { id: "a" };
 const ben = { id: "b" };
@@ -43,5 +44,105 @@ describe("filterBookableServices", () => {
     const out = filterBookableServices(services, { cut: ["a"], colour: ["a"] }, [anna]);
     expect(out).toEqual([colour, cut]);
     expect(out[0]).toBe(colour);
+  });
+});
+
+const now = new Date("2026-08-18T00:00:00Z");
+const staff = [{ id: "a" }, { id: "b" }, { id: "c" }]; // already ordered by sort_order
+const services = [{ id: "s1" }, { id: "s2" }, { id: "s3" }, { id: "s4" }];
+const map = { s1: ["a", "b"], s2: ["b"], s3: ["a"], s4: ["c"] };
+
+describe("limitPublicOffering", () => {
+  it("free: primary staff only, then services that person offers, capped at 3", () => {
+    const r = limitPublicOffering(services, staff, map, entitlementsFor(null, now));
+    expect(r.staff.map((s) => s.id)).toEqual(["a"]);
+    expect(r.services.map((s) => s.id)).toEqual(["s1", "s3"]); // s2 (b only), s4 (c only) drop; <= 3 anyway
+  });
+
+  it("free with 4 services all offered by the primary → first 3", () => {
+    const r = limitPublicOffering(
+      services,
+      staff,
+      { s1: ["a"], s2: ["a"], s3: ["a"], s4: ["a"] },
+      entitlementsFor(null, now),
+    );
+    expect(r.services.map((s) => s.id)).toEqual(["s1", "s2", "s3"]);
+  });
+
+  it("team: everyone, everything", () => {
+    const team = entitlementsFor(
+      { plan: "team", status: "active", interval: "month", seats: 5, currentPeriodEnd: null, cancelAtPeriodEnd: false },
+      now,
+    );
+    const r = limitPublicOffering(services, staff, map, team);
+    expect(r.staff).toHaveLength(3);
+    expect(r.services).toHaveLength(4);
+  });
+
+  it("team with 2 seats and 3 staff → first 2 by order", () => {
+    const team = entitlementsFor(
+      { plan: "team", status: "active", interval: "month", seats: 2, currentPeriodEnd: null, cancelAtPeriodEnd: false },
+      now,
+    );
+    expect(limitPublicOffering(services, staff, map, team).staff.map((s) => s.id)).toEqual(["a", "b"]);
+  });
+
+  // Order of operations, pinned: narrow to the bookable roster FIRST, cap
+  // SECOND. s1 belongs to b alone, so Free (roster [a]) drops it and the cap
+  // never bites — capping first would have spent a slot on s1 and returned
+  // ["s2", "s3"], hiding a service the org may legitimately offer.
+  it("narrows to the bookable roster before capping, not after", () => {
+    const r = limitPublicOffering(
+      services,
+      staff,
+      { s1: ["b"], s2: ["a"], s3: ["a"], s4: ["a"] },
+      entitlementsFor(null, now),
+    );
+    expect(r.services.map((s) => s.id)).toEqual(["s2", "s3", "s4"]);
+  });
+});
+
+describe("chooseStaffForBooking", () => {
+  const base = { bookableIds: ["a", "b", "c"], eligibleStaffIds: ["a", "b", "c"], freeStaffIdsAtSlot: ["b", "c"] };
+
+  it("a named staff member is passed straight through", () => {
+    expect(chooseStaffForBooking({ ...base, staffId: "b" })).toBe("b");
+    // Even when the plan would not offer them: the RPC's strict named check
+    // is the gate, and this function must not silently redirect a booking.
+    expect(chooseStaffForBooking({ ...base, staffId: "z" })).toBe("z");
+  });
+
+  it("one bookable person is named rather than auto-assigned", () => {
+    expect(
+      chooseStaffForBooking({ staffId: "any", bookableIds: ["a"], eligibleStaffIds: ["a", "b"], freeStaffIdsAtSlot: ["a"] }),
+    ).toBe("a");
+  });
+
+  it("hands the DB the choice when the bookable set is the whole eligible roster", () => {
+    expect(chooseStaffForBooking({ ...base, staffId: "any" })).toBeNull();
+  });
+
+  it("names the first free bookable person when the roster is a strict subset", () => {
+    // c is eligible but not bookable, so the DB picker (which ranks over all
+    // three) could assign them — name b, the first bookable person free.
+    expect(
+      chooseStaffForBooking({
+        staffId: "any",
+        bookableIds: ["a", "b"],
+        eligibleStaffIds: ["a", "b", "c"],
+        freeStaffIdsAtSlot: ["b"],
+      }),
+    ).toBe("b");
+  });
+
+  it("falls back to the first bookable person when nobody is listed as free", () => {
+    expect(
+      chooseStaffForBooking({
+        staffId: "any",
+        bookableIds: ["a", "b"],
+        eligibleStaffIds: ["a", "b", "c"],
+        freeStaffIdsAtSlot: [],
+      }),
+    ).toBe("a");
   });
 });

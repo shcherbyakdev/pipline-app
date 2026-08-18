@@ -167,19 +167,6 @@ export async function listPublicStaff(orgId: string, serviceId?: string): Promis
   return (data ?? []).map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
 }
 
-export async function getPublicStaffBySlug(orgId: string, slug: string): Promise<PublicStaff | null> {
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("staff")
-    .select(STAFF_COLS)
-    .eq("org_id", orgId)
-    .eq("slug", slug)
-    .eq("active", true)
-    .maybeSingle();
-  if (error || !data) return null;
-  return { id: data.id, name: data.name, slug: data.slug, color: data.color };
-}
-
 // serviceId → eligible staff ids, in one query. The booking pages need the
 // whole map up front (the widget filters the staff step per service without a
 // round trip); listPublicStaff(orgId, serviceId) stays the one-service path.
@@ -243,12 +230,23 @@ export async function loadOrgSlotContext(
   serviceId: string,
   fromDate: string,
   days: number,
-  opts: { staffId: string | "any"; excludeBookingId?: string },
-): Promise<{ service: PublicService; perStaff: StaffSlotContext[] } | null> {
+  opts: { staffId: string | "any"; excludeBookingId?: string; allowedStaffIds?: string[] },
+): Promise<{
+  service: PublicService;
+  perStaff: StaffSlotContext[];
+  // Every ACTIVE member linked to the service, BEFORE any allowedStaffIds
+  // narrowing — exactly the set the DB's pick_staff_for_slot ranks over, so a
+  // caller can tell whether "let the DB choose" is still safe.
+  eligibleStaffIds: string[];
+} | null> {
   const service = await getPublicServiceById(orgId, serviceId);
   if (!service) return null;
   const eligible = await listPublicStaff(orgId, serviceId);
-  const targets = opts.staffId === "any" ? eligible : eligible.filter((s) => s.id === opts.staffId);
+  // Public callers pass the plan-limited roster; the admin reschedule dialog
+  // and the tokenized manage page pass nothing (spec §7.4: admins may move a
+  // booking to anyone active; a client keeps the person they booked).
+  const allowed = opts.allowedStaffIds ? eligible.filter((s) => opts.allowedStaffIds!.includes(s.id)) : eligible;
+  const targets = opts.staffId === "any" ? allowed : allowed.filter((s) => s.id === opts.staffId);
   if (targets.length === 0) return null;
   // Fetch busy one day beyond both edges — buffers can reach across
   // org-local midnight in UTC terms.
@@ -263,7 +261,7 @@ export async function loadOrgSlotContext(
       return { staffId: st.id, rules, exceptions, busy };
     }),
   );
-  return { service, perStaff };
+  return { service, perStaff, eligibleStaffIds: eligible.map((s) => s.id) };
 }
 
 // ---------- Rentals (R1). Same doctrine as the service loaders above:

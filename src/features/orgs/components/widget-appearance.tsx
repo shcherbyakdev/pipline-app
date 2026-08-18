@@ -5,6 +5,8 @@ import * as React from "react";
 import { toast } from "sonner";
 import { updateWidgetTheme } from "@/features/orgs/actions";
 import { effectiveContrast, WIDGET_THEME_OPTIONS, type WidgetThemeConfig } from "@/lib/widget-theme";
+// Pure module (no server-only import, no DB) — safe in a client component.
+import { badgeShows } from "@/lib/billing/entitlements";
 import { EmbedPreviewFrame } from "./embed-preview-frame";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import type { PublicService } from "@/lib/booking/public";
@@ -38,6 +40,7 @@ export function WidgetAppearance({
   previewServices,
   staffOptions = [],
   initialStaffSlug = null,
+  canHideBadge = true,
 }: {
   initial: WidgetThemeConfig;
   accentColor: string | null;
@@ -48,6 +51,11 @@ export function WidgetAppearance({
   // provider never sees a "Book with" choice they can't make.
   staffOptions?: Array<{ slug: string; name: string }>;
   initialStaffSlug?: string | null;
+  // Hiding "Powered by Booklo" is a paid perk (spec §5). Defaults to true, so
+  // a caller that doesn't pass it — and the whole flag-off world — behaves
+  // exactly as before. The server enforces it regardless (badgeVisible): this
+  // only stops the toggle from looking like it works.
+  canHideBadge?: boolean;
 }) {
   const [config, setConfig] = React.useState<WidgetThemeConfig>(initial);
   const [pending, startTransition] = React.useTransition();
@@ -62,6 +70,13 @@ export function WidgetAppearance({
   const ratio = hasOverride ? effectiveContrast(config) : null;
   const contrastBlocked = ratio !== null && ratio < 3;
   const contrastWarn = ratio !== null && ratio < 4.5;
+
+  // What the PUBLIC page will actually render: badgeShows is the same rule
+  // the page and the emails apply, so a saved "hide" the plan no longer
+  // allows (an org that downgraded) is ignored here exactly as it is out
+  // there — the studio must not promise a badge-free widget the visitor never
+  // sees. The stored config is untouched: upgrade and the tick works again.
+  const previewConfig = { ...config, hidePoweredBy: !badgeShows(config.hidePoweredBy, canHideBadge) };
 
   const save = () => {
     startTransition(async () => {
@@ -237,16 +252,24 @@ export function WidgetAppearance({
               type="checkbox"
               className="size-4"
               checked={config.hidePoweredBy}
-              disabled={pending}
+              disabled={pending || !canHideBadge}
               onChange={(e) => setConfig((c) => ({ ...c, hidePoweredBy: e.target.checked }))}
             />
             <Label htmlFor="wt-hide-powered-by" className="text-xs font-medium">
               Hide &quot;Powered by Booklo&quot;
             </Label>
+            {canHideBadge ? null : (
+              <Link
+                href="/billing"
+                className="border-primary/40 text-primary rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
+              >
+                Pro
+              </Link>
+            )}
           </div>
         </SettingsCard>
         <div className="lg:sticky lg:top-[calc(52px+1.5rem)] lg:self-start">
-          <EmbedPreviewFrame config={config} accentColor={accentColor}>
+          <EmbedPreviewFrame config={previewConfig} accentColor={accentColor}>
             <BookingWidget
               handle="preview"
               orgTimeZone="UTC"

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { assertCanAddService } from "@/lib/billing/gates";
 import {
   serviceInput,
   updateServiceInput,
@@ -66,6 +67,8 @@ export async function createService(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
+  const refused = await assertCanAddService(orgId, supabase);
+  if (refused) return { ok: false, error: refused };
 
   // Solo path: the dialog only asks who can be booked once a second person is
   // active, so an omitted `staffIds` means "everyone" — read the roster here
