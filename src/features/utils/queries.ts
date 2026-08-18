@@ -1,6 +1,12 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { orgSearchInput } from "./schema";
+import { readFakeRow } from "@/features/billing/dev/queries";
+import type { FakeRow } from "@/lib/billing/fake-emulator";
+import { getPlanOverride } from "@/lib/billing/queries";
+import { activeOverrideRow, type PlanOverride } from "@/lib/billing/overrides";
+import { entitlementsFor } from "@/lib/billing/entitlements";
+import type { PlanId } from "@/lib/billing/plans";
 
 /* Owner-only reads. Every function here takes the ADMIN client on purpose:
    the point of /utils is to look at ANY org, which the RLS client cannot do.
@@ -50,4 +56,33 @@ export async function getOrgSummary(orgId: string): Promise<OrgSummary | null> {
   if (error) throw error;
   if (!data) return null;
   return { id: data.id, name: data.name, slug: data.slug, handle: data.handle, createdAt: data.created_at };
+}
+
+export type FlagOverrideRow = { flag: string; enabled: boolean; updatedBy: string; updatedAt: string };
+
+export type OrgAdminView = {
+  org: OrgSummary;
+  /** The provider row incl. provider ids (readFakeRow's shape — the only
+      other place that shows them is the dev portal). */
+  subscription: FakeRow | null;
+  override: PlanOverride | null;
+  effectivePlan: PlanId;
+  flags: FlagOverrideRow[];
+};
+
+/** Everything /utils shows about one org, in one read. Null when the org
+    does not exist. `flags` is populated from Task 7 on. */
+export async function readOrgAdminView(orgId: string, now = new Date()): Promise<OrgAdminView | null> {
+  const admin = createAdminClient();
+  const org = await getOrgSummary(orgId);
+  if (!org) return null;
+  const [subscription, override] = await Promise.all([readFakeRow(admin, orgId), getPlanOverride(orgId, admin)]);
+  const effective = activeOverrideRow(override, now) ?? (subscription ? { ...subscription } : null);
+  return {
+    org,
+    subscription,
+    override,
+    effectivePlan: entitlementsFor(effective, now).plan,
+    flags: [],
+  };
 }
