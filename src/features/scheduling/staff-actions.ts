@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
+import { assertCanAddStaff } from "@/lib/billing/gates";
 import {
   staffInput,
   updateStaffInput,
@@ -48,6 +49,8 @@ export async function createStaff(input: unknown): Promise<ActionState> {
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const { name, slug, email, color, serviceIds } = parsed.data;
   const supabase = await createClient();
+  const refused = await assertCanAddStaff(orgId, supabase);
+  if (refused) return { ok: false, error: refused };
   // The RPC does what a plain insert can't: copy the first active staff's
   // weekly hours + future overrides, and fan out service_staff in one txn.
   const { error } = await supabase.rpc("create_staff", {
@@ -132,6 +135,10 @@ export async function setStaffActive(input: unknown): Promise<ActionState> {
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const { id, active } = parsed.data;
   const supabase = await createClient();
+  if (active) {
+    const refused = await assertCanAddStaff(orgId, supabase);
+    if (refused) return { ok: false, error: refused };
+  }
   const { data, error } = await supabase
     .from("staff")
     .update({ active })

@@ -91,6 +91,8 @@ export const updateStaffInput = staffInput.extend({ id: z.uuid() });
 export const staffActiveInput = z.object({ id: z.uuid(), active: z.boolean() });
 
 export const LAST_ACTIVE_STAFF_ERROR = "You need at least one active team member.";
+export const PLAN_LIMIT_STAFF_ERROR = "Team members are on the Team plan. Upgrade in Billing to add people.";
+export const PLAN_LIMIT_SERVICES_ERROR = "Free includes 3 services. Upgrade in Billing for unlimited.";
 export const STAFF_SLUG_TAKEN_ERROR = "That link name is already used.";
 export function staffFutureBookingsError(name: string): string {
   return `${name} has upcoming bookings — move or cancel them first.`;
