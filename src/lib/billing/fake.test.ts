@@ -9,7 +9,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL ??= "http://127.0.0.1:54351";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "test-anon-key";
 
 import { describe, it, expect } from "vitest";
-const { signFakeWebhook, parseFakeWebhook } = await import("./fake");
+const { signFakeWebhook, parseFakeWebhook, fakeProvider } = await import("./fake");
 
 const secret = "0123456789abcdef0123456789abcdef";
 const body = JSON.stringify([{ providerEventId: "e1", occurredAt: "2026-08-18T00:00:00Z", orgId: "o", type: "subscription_created", subscription: null }]);
@@ -24,5 +24,35 @@ describe("fake webhook", () => {
   it("rejects a bad or missing signature", () => {
     expect(() => parseFakeWebhook(body, new Headers({ "x-signature": "deadbeef" }), secret)).toThrow();
     expect(() => parseFakeWebhook(body, new Headers(), secret)).toThrow();
+  });
+});
+
+describe("fakeProvider URLs", () => {
+  it("createCheckoutUrl points at the dev checkout page with org/plan/interval/return", async () => {
+    const url = await fakeProvider().createCheckoutUrl({
+      orgId: "org-1", plan: "pro", interval: "month", email: "a@b.com", returnUrl: "http://x/billing",
+    });
+    const parsed = new URL(url);
+    expect(parsed.pathname).toBe("/dev/billing/checkout");
+    expect(parsed.searchParams.get("org")).toBe("org-1");
+    expect(parsed.searchParams.get("plan")).toBe("pro");
+    expect(parsed.searchParams.get("interval")).toBe("month");
+    expect(parsed.searchParams.get("return")).toBe("http://x/billing");
+    expect(parsed.searchParams.has("customer")).toBe(false);
+  });
+
+  it("createCheckoutUrl carries the existing customer id when resubscribing", async () => {
+    const url = await fakeProvider().createCheckoutUrl({
+      orgId: "org-1", plan: "team", interval: "year", email: "a@b.com", returnUrl: "http://x/billing",
+      providerCustomerId: "cus_fake_org-1",
+    });
+    expect(new URL(url).searchParams.get("customer")).toBe("cus_fake_org-1");
+  });
+
+  it("createPortalUrl points at the dev portal page carrying only the return url", async () => {
+    const url = await fakeProvider().createPortalUrl("cus_fake_org-1", "http://x/billing");
+    const parsed = new URL(url);
+    expect(parsed.pathname).toBe("/dev/billing/portal");
+    expect(parsed.searchParams.get("return")).toBe("http://x/billing");
   });
 });
