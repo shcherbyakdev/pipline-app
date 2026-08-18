@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { BILLING_ENABLED } from "@/lib/flags";
 import type { Entitlements } from "@/lib/billing/entitlements";
 import { getBillingOverview, type BillingOverview } from "../queries";
 
@@ -14,7 +13,6 @@ type Usage = BillingOverview["usage"];
    so both render, staff first: that one is silent, because the people it
    names simply aren't bookable publicly. */
 export function PlanBanner({ ent, usage }: { ent: Entitlements; usage: Usage }) {
-  if (!BILLING_ENABLED) return null;
   const hidden = usage.activeStaff - ent.bookableStaff;
   const cap = ent.reminderBookingsPerMonth;
   const overStaff = hidden > 0;
@@ -56,9 +54,10 @@ function Notice({ children, cta }: { children: React.ReactNode; cta: string }) {
 
 /* What the dashboard layout renders. The read is wrapped because it runs on
    every dashboard page: a billing hiccup may cost the nudge, never the app
-   (spec §7.10). */
+   (spec §7.10). No flag check here — the layout already gates this slot on
+   `flags.billing` before mounting it, so a flag-off org never reaches this
+   read at all (the "run zero queries" guard this used to do lives there now). */
 export async function PlanBannerSlot() {
-  if (!BILLING_ENABLED) return null;
   const overview = await overviewOrNull();
   if (!overview) return null;
   return <PlanBanner ent={overview.entitlements} usage={overview.usage} />;

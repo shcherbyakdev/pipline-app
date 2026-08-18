@@ -6,7 +6,7 @@ import { parseWidgetTheme } from "@/lib/widget-theme";
 import { badgeShows, entitlementsFor, monthWindow, type Entitlements, type OrgSubscriptionRow } from "./entitlements";
 import { activeOverrideRow, type PlanOverride } from "./overrides";
 import { isPaidPlan } from "./plans";
-import { BILLING_ENABLED } from "@/lib/flags";
+import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { env } from "@/env";
 
 const SUB_COLS = "plan, status, billing_interval, seats, current_period_end, cancel_at_period_end";
@@ -125,8 +125,8 @@ export async function monthlyBookingUsage(
     templates stay pure (they take `badgeUrl: string | null`, never import
     env themselves).
 
-    While BILLING_ENABLED is false, hiding is allowed unconditionally — the
-    same answer the public pages get from loadPublicOffering's UNLIMITED
+    While the org's `billing` flag is off, hiding is allowed unconditionally —
+    the same answer the public pages get from loadPublicOffering's UNLIMITED
     entitlements. Without that check the flag-off world would read Free
     (hideBadge: false) and badge the emails of an org whose own booking page
     honours its "Hide" tick: one product, two answers. */
@@ -141,7 +141,7 @@ export async function emailBadgeUrl(orgId: string): Promise<string | null> {
     const admin = createAdminClient();
     const { data, error } = await admin.from("orgs").select("widget_theme, handle").eq("id", orgId).maybeSingle();
     if (error) throw error;
-    const hideAllowed = BILLING_ENABLED ? (await getEntitlementsAdmin(orgId)).hideBadge : true;
+    const hideAllowed = (await getOrgFlagsAdmin(orgId)).billing ? (await getEntitlementsAdmin(orgId)).hideBadge : true;
     return badgeShows(parseWidgetTheme(data?.widget_theme).hidePoweredBy, hideAllowed) ? url(data?.handle) : null;
   } catch (error) {
     console.error("[billing] emailBadgeUrl:", error);

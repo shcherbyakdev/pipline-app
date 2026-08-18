@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { BILLING_ENABLED } from "@/lib/flags";
+import { requireOrg } from "@/lib/auth/session";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 import { isPaidPlan } from "@/lib/billing/plans";
 import { getBillingOverview } from "@/features/billing/queries";
 import { billingErrorMessage } from "@/features/billing/schema";
@@ -10,9 +11,11 @@ import { UsageMeters } from "@/features/billing/components/usage-meters";
 import { PageIntro } from "@/components/shell/page-header";
 
 export default async function BillingPage({ searchParams }: PageProps<"/billing">) {
-  // Dormant until the flag flips (spec §7.9): the route file exists so the
-  // Stripe account can be wired first, but nothing links here and it 404s.
-  if (!BILLING_ENABLED) notFound();
+  // Dormant unless the org's `billing` flag resolves true (lib/flags): the
+  // route file exists so the Stripe account can be wired first, but nothing
+  // links here and it 404s.
+  const { org } = await requireOrg();
+  if (!(await getDashboardFlags(org.id)).billing) notFound();
   const { checkout, error, plan } = await searchParams;
   const overview = await getBillingOverview();
   // Back from checkout but the webhook hasn't landed yet — poll, don't lie.

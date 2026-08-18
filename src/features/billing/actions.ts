@@ -9,7 +9,7 @@ import { selectBillingProvider } from "@/lib/billing/provider";
 import { getRawOrgSubscription } from "@/lib/billing/queries";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { isPaidPlan } from "@/lib/billing/plans";
-import { BILLING_ENABLED } from "@/lib/flags";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 import { isFounderEligible } from "./founder";
 import { checkoutInput } from "./schema";
 
@@ -54,15 +54,15 @@ async function readSubscription(orgId: string, supabase: SupabaseClient) {
 
 /** Form action: hidden `plan` + `interval` inputs → the provider's checkout. */
 export async function startCheckout(formData: FormData): Promise<void> {
-  // The page 404s while the flag is off, so a POST that gets here is
+  const { user, org } = await requireOrg();
+  // The page 404s while the org's flag is off, so a POST that gets here is
   // hand-crafted; answer it the same way the route does.
-  if (!BILLING_ENABLED) notFound();
+  if (!(await getDashboardFlags(org.id)).billing) notFound();
   const parsed = checkoutInput.safeParse({
     plan: formData.get("plan"),
     interval: formData.get("interval"),
   });
   if (!parsed.success) redirect("/billing?error=checkout");
-  const { user, org } = await requireOrg();
   const supabase = await createClient();
   const current = await readSubscription(org.id, supabase);
   // "Couldn't read" must never pass for "Free": that is precisely how a
@@ -123,8 +123,8 @@ export async function startCheckout(formData: FormData): Promise<void> {
 /** Form action: the provider's portal, where cards, invoices, downgrades and
     cancellations live — we build none of those screens (spec §7.6). */
 export async function openPortal(): Promise<void> {
-  if (!BILLING_ENABLED) notFound();
   const { org } = await requireOrg();
+  if (!(await getDashboardFlags(org.id)).billing) notFound();
   const supabase = await createClient();
   // The row itself is the ticket: provider_customer_id is NOT NULL (0042),
   // and a cancelled or expired org still belongs in the portal (invoices,

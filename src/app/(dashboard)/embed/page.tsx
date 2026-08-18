@@ -7,12 +7,12 @@ import { toPreviewServices } from "@/features/scheduling/preview-services";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { createClient } from "@/lib/supabase/server";
 import { getEntitlements } from "@/lib/billing/queries";
-import { BILLING_ENABLED } from "@/lib/flags";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 import { env } from "@/env";
 import { PageIntro } from "@/components/shell/page-header";
 
 async function badgeToggleEnabled(orgId: string): Promise<boolean> {
-  if (!BILLING_ENABLED) return true;
+  if (!(await getDashboardFlags(orgId)).billing) return true;
   try {
     return (await getEntitlements(orgId, await createClient())).hideBadge;
   } catch (error) {

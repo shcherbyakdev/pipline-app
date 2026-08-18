@@ -1,8 +1,10 @@
 // Marketing copy and links for the Booklo landing page. Plain data — no React —
 // so it can be unit-tested and reused by every marketing component.
 
-import { BILLING_ENABLED } from "@/lib/flags";
+import { FLAG_DEFAULTS } from "@/lib/flags";
 import { FOUNDER_PRICE_FACTOR, formatUsd, PLANS, type PlanId } from "@/lib/billing/plans";
+
+const BILLING_ON = FLAG_DEFAULTS.billing; // no org on the marketing site: the environment default, by design
 
 export const SITE = {
   name: "Booklo",
@@ -16,7 +18,7 @@ export const SITE = {
   // Flag-conditional (lib/flags.ts): while billing is off there IS no paid
   // ladder to contrast a "Free plan" with, and /pricing 404s — so the note
   // says what is actually true today. Flipping the flag flips the copy.
-  heroNote: BILLING_ENABLED ? "Free plan · No credit card" : "Free during early access · No credit card",
+  heroNote: BILLING_ON ? "Free plan · No credit card" : "Free during early access · No credit card",
   links: { home: "/", login: "/login", signup: "/signup", pricing: "/pricing" },
   anchors: { how: "#how-it-works", features: "#features", faq: "#faq" },
 } as const;
@@ -71,7 +73,7 @@ export const NAV_LINKS: NavLink[] = [
   { label: "Features", href: SITE.anchors.features },
   // Only listed once billing is live (lib/flags.ts) — while off, /pricing 404s
   // and nothing should link to it from the nav.
-  ...(BILLING_ENABLED ? [{ label: "Pricing", href: SITE.links.pricing }] : []),
+  ...(BILLING_ON ? [{ label: "Pricing", href: SITE.links.pricing }] : []),
   { label: "FAQ", href: SITE.anchors.faq },
 ];
 
@@ -116,10 +118,10 @@ export const FAQ: FaqItem[] = [
   { question: "How do clients cancel or reschedule?", answer: "Their confirmation email contains a secure manage link. From there they can cancel or pick another slot; you get notified either way." },
   { question: "What data do you store about my clients?", answer: "Name, email and an optional note — nothing else. No documents, no card numbers, no accounts." },
   // Same flag rule as SITE.heroNote: the paid answer names plans that cannot
-  // be bought and points at a /pricing that 404s until BILLING_ENABLED flips.
+  // be bought and points at a /pricing that 404s until FLAG_DEFAULTS.billing flips.
   {
     question: "What does it cost?",
-    answer: BILLING_ENABLED
+    answer: BILLING_ON
       ? "Free for solo providers — one bookable person, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and a team; see Pricing."
       : "Booklo is free during early access. We'll announce pricing well before anything changes, and early users will hear first.",
   },
