@@ -165,11 +165,27 @@ describe("reminder drain", () => {
 
   it("second tick sends the due reminder with a stable idempotency key", async () => {
     const { transport, sent } = recordingTransport();
-    const summary = await runReminderDrain({ db: admin, transport });
+    // The badge is looked up per row, with that row's own org id (the drain
+    // spans every org, so a single shared answer would be wrong).
+    const badgeUrl = "https://x/?ref=badge";
+    const asked: string[] = [];
+    const summary = await runReminderDrain({
+      db: admin,
+      transport,
+      badgeFor: async (id) => {
+        asked.push(id);
+        return badgeUrl;
+      },
+    });
     expect(summary.sent).toBe(1);
     expect(sent[0].to).toBe("reminded@example.com");
     expect(sent[0].idempotencyKey).toBe(`booking/${dueId}/reminder`);
-    expect(sent[0].html).not.toContain("http"); // link-free by design
+    expect(asked).toContain(orgId);
+    expect(sent[0].html).toContain("Powered by Booklo");
+    expect(sent[0].html).toContain(badgeUrl);
+    // Still link-free apart from the badge: the manage credential cannot be
+    // reconstructed at drain time and must never appear in a reminder.
+    expect(sent[0].html.replaceAll(badgeUrl, "")).not.toContain("http");
   });
 
   it("third tick is a no-op", async () => {

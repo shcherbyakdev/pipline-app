@@ -5,6 +5,8 @@ import * as React from "react";
 import { toast } from "sonner";
 import { updateWidgetTheme } from "@/features/orgs/actions";
 import { effectiveContrast, WIDGET_THEME_OPTIONS, type WidgetThemeConfig } from "@/lib/widget-theme";
+// Pure module (no server-only import, no DB) — safe in a client component.
+import { badgeShows } from "@/lib/billing/entitlements";
 import { EmbedPreviewFrame } from "./embed-preview-frame";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import type { PublicService } from "@/lib/booking/public";
@@ -69,12 +71,12 @@ export function WidgetAppearance({
   const contrastBlocked = ratio !== null && ratio < 3;
   const contrastWarn = ratio !== null && ratio < 4.5;
 
-  // What the PUBLIC page will actually render: a saved "hide" the plan no
-  // longer allows (an org that downgraded) is ignored out there, so the
-  // preview must ignore it too — otherwise the studio shows a badge-free
-  // widget the visitor never sees. The stored config is untouched: upgrade
-  // and the tick takes effect again.
-  const previewConfig = canHideBadge ? config : { ...config, hidePoweredBy: false };
+  // What the PUBLIC page will actually render: badgeShows is the same rule
+  // the page and the emails apply, so a saved "hide" the plan no longer
+  // allows (an org that downgraded) is ignored here exactly as it is out
+  // there — the studio must not promise a badge-free widget the visitor never
+  // sees. The stored config is untouched: upgrade and the tick works again.
+  const previewConfig = { ...config, hidePoweredBy: !badgeShows(config.hidePoweredBy, canHideBadge) };
 
   const save = () => {
     startTransition(async () => {

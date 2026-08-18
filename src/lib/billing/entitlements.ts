@@ -55,9 +55,17 @@ export function canAddService(serviceCount: number, ent: Entitlements): boolean 
   return ent.publicServices === null || serviceCount < ent.publicServices;
 }
 
-/** The badge shows unless the org asked to hide it AND the plan allows hiding. */
+/** The badge shows unless the org asked to hide it AND hiding is allowed.
+    The whole rule, in one place: the pages pass an entitlement (badgeVisible
+    below), emailBadgeUrl passes the flag-off "always allowed", and the embed
+    studio passes what the current plan permits — three callers, one answer. */
+export function badgeShows(hidePoweredBy: boolean, hideAllowed: boolean): boolean {
+  return !(hidePoweredBy && hideAllowed);
+}
+
+/** badgeShows for a caller that already holds the org's entitlements. */
 export function badgeVisible(themeHidePoweredBy: boolean, ent: Entitlements): boolean {
-  return !(themeHidePoweredBy && ent.hideBadge);
+  return badgeShows(themeHidePoweredBy, ent.hideBadge);
 }
 
 export function reminderQuotaExceeded(usedThisMonth: number, ent: Entitlements): boolean {

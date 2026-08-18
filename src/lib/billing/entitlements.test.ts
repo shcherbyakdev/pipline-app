@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   effectivePlan, entitlementsFor, monthWindow, canAddStaff, canAddService,
-  badgeVisible, reminderQuotaExceeded, type OrgSubscriptionRow,
+  badgeShows, badgeVisible, reminderQuotaExceeded, type OrgSubscriptionRow,
 } from "./entitlements";
 
 const now = new Date("2026-08-18T12:00:00Z");
@@ -72,6 +72,10 @@ describe("gates", () => {
     expect(badgeVisible(true, free)).toBe(true);
     expect(badgeVisible(false, team)).toBe(true);
     expect(badgeVisible(true, team)).toBe(false);
+    // The same rule for callers holding no Entitlements: emailBadgeUrl's
+    // flag-off path and the studio preview.
+    expect(badgeShows(true, false)).toBe(true);
+    expect(badgeShows(true, true)).toBe(false);
   });
   it("reminderQuotaExceeded", () => {
     expect(reminderQuotaExceeded(29, free)).toBe(false);

@@ -3,7 +3,7 @@ import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseWidgetTheme } from "@/lib/widget-theme";
-import { entitlementsFor, monthWindow, type Entitlements, type OrgSubscriptionRow } from "./entitlements";
+import { badgeShows, entitlementsFor, monthWindow, type Entitlements, type OrgSubscriptionRow } from "./entitlements";
 import { isPaidPlan } from "./plans";
 import { BILLING_ENABLED } from "@/lib/flags";
 import { env } from "@/env";
@@ -87,7 +87,7 @@ export async function emailBadgeUrl(orgId: string): Promise<string | null> {
     const { data, error } = await admin.from("orgs").select("widget_theme").eq("id", orgId).maybeSingle();
     if (error) throw error;
     const hideAllowed = BILLING_ENABLED ? (await getEntitlementsAdmin(orgId)).hideBadge : true;
-    return parseWidgetTheme(data?.widget_theme).hidePoweredBy && hideAllowed ? null : url;
+    return badgeShows(parseWidgetTheme(data?.widget_theme).hidePoweredBy, hideAllowed) ? url : null;
   } catch (error) {
     console.error("[billing] emailBadgeUrl:", error);
     return url;

@@ -51,7 +51,9 @@ export async function runReminderDrain(deps: {
   // "Powered by Booklo" for this org's client mail, or null when its plan
   // lets it hide the badge and it did (lib/billing/queries.ts#emailBadgeUrl,
   // which the drain route injects). Optional: tests and any caller that does
-  // not care get badge-free reminders, exactly as before billing.
+  // not care get badge-free reminders, exactly as before billing. A rejected
+  // lookup degrades to no badge (`.catch` at the call site): the badge is
+  // decoration, it must never burn one of the row's five attempts.
   badgeFor?: (orgId: string) => Promise<string | null>;
 }): Promise<ReminderSummary> {
   const now = deps.now ?? new Date();
@@ -110,7 +112,7 @@ export async function runReminderDrain(deps: {
             },
             row.orgs?.timezone ?? "UTC",
           ),
-          badgeUrl: deps.badgeFor ? await deps.badgeFor(row.org_id) : null,
+          badgeUrl: deps.badgeFor ? await deps.badgeFor(row.org_id).catch(() => null) : null,
         });
         await deps.transport.send({
           to: row.client_email,
