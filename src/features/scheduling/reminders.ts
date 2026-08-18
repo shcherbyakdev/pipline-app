@@ -19,7 +19,10 @@ export type ReminderSummary = { sent: number; skipped: number; failed: number };
 export function decideReminder(
   booking: { startsAt: Date; createdAt: Date },
   now: Date,
+  opts: { overQuota?: boolean } = {},
 ): "send" | "suppress" | "wait" {
+  // Stamped, never rescanned — same as every other suppress path below.
+  if (opts.overQuota) return "suppress";
   const lead = booking.startsAt.getTime() - REMINDER_LEAD_MS;
   if (now.getTime() >= booking.startsAt.getTime()) return "suppress";
   if (now.getTime() < lead) return "wait";
@@ -55,9 +58,17 @@ export async function runReminderDrain(deps: {
   // lookup degrades to no badge (`.catch` at the call site): the badge is
   // decoration, it must never burn one of the row's five attempts.
   badgeFor?: (orgId: string) => Promise<string | null>;
+  // Free-plan reminder quota (spec §7.10 / lib/billing/queries.ts +
+  // entitlements.ts, which the drain route injects). Optional: tests and any
+  // caller that does not care get unmetered reminders, exactly as before
+  // billing. A failed check degrades to "not over quota" (send) — a missed
+  // suppression beats a missed reminder.
+  quotaExceeded?: (orgId: string, timeZone: string) => Promise<boolean>;
 }): Promise<ReminderSummary> {
   const now = deps.now ?? new Date();
   const summary: ReminderSummary = { sent: 0, skipped: 0, failed: 0 };
+  // Memoised per tick: every row for the same org shares one quota read.
+  const quotaCache = new Map<string, boolean>();
 
   const { data, error } = await deps.db
     .from("bookings")
@@ -75,9 +86,23 @@ export async function runReminderDrain(deps: {
 
   for (const row of (data ?? []) as unknown as CandidateRow[]) {
     try {
+      let overQuota = quotaCache.get(row.org_id);
+      if (overQuota === undefined) {
+        overQuota = false;
+        if (deps.quotaExceeded) {
+          try {
+            overQuota = await deps.quotaExceeded(row.org_id, row.orgs?.timezone ?? "UTC");
+          } catch (e) {
+            // spec §7.10: a missed suppression beats a missed reminder.
+            console.error("[scheduling] quota check failed (sending):", e);
+          }
+        }
+        quotaCache.set(row.org_id, overQuota);
+      }
       const decision = decideReminder(
         { startsAt: new Date(row.starts_at), createdAt: new Date(row.created_at) },
         now,
+        { overQuota },
       );
       if (decision === "wait") continue; // defensive: query bounds already exclude
 

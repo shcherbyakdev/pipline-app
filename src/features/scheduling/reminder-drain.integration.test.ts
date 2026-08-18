@@ -238,4 +238,80 @@ describe("reminder drain", () => {
     expect(row!.reminder_sent_at).not.toBeNull(); // stamped = suppressed, never rescanned
     expect(row!.reminder_attempts).toBe(0);
   });
+
+  it("suppresses a due booking when the org is over its free reminder quota", async () => {
+    const { data: inserted, error } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        service_id: serviceId,
+        staff_id: staffId,
+        client_name: "Over Quota",
+        client_email: "overquota@example.com",
+        starts_at: hours(14),
+        ends_at: hours(15),
+        created_at: hours(-48),
+        status: "confirmed",
+        cancel_token_hash: generateAccessToken().tokenHash,
+      })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    const overQuotaId = inserted!.id;
+
+    const { transport, sent } = recordingTransport();
+    const summary = await runReminderDrain({
+      db: admin,
+      transport,
+      quotaExceeded: async () => true,
+    });
+
+    expect(summary.skipped).toBeGreaterThanOrEqual(1);
+    expect(sent.some((m) => m.to === "overquota@example.com")).toBe(false);
+    const { data: row } = await admin
+      .from("bookings")
+      .select("reminder_sent_at, reminder_attempts")
+      .eq("id", overQuotaId)
+      .single();
+    expect(row!.reminder_sent_at).not.toBeNull(); // stamped = suppressed, never rescanned
+    expect(row!.reminder_attempts).toBe(0);
+  });
+
+  it("sends a due booking when the org is under its free reminder quota", async () => {
+    const { data: inserted, error } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        service_id: serviceId,
+        staff_id: staffId,
+        client_name: "Under Quota",
+        client_email: "underquota@example.com",
+        starts_at: hours(16),
+        ends_at: hours(17),
+        created_at: hours(-48),
+        status: "confirmed",
+        cancel_token_hash: generateAccessToken().tokenHash,
+      })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    const underQuotaId = inserted!.id;
+
+    const { transport, sent } = recordingTransport();
+    const summary = await runReminderDrain({
+      db: admin,
+      transport,
+      quotaExceeded: async () => false,
+    });
+
+    expect(summary.sent).toBeGreaterThanOrEqual(1);
+    expect(sent.some((m) => m.to === "underquota@example.com")).toBe(true);
+    const { data: row } = await admin
+      .from("bookings")
+      .select("reminder_sent_at, reminder_attempts")
+      .eq("id", underQuotaId)
+      .single();
+    expect(row!.reminder_sent_at).not.toBeNull();
+    expect(row!.reminder_attempts).toBe(0);
+  });
 });

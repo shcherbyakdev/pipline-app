@@ -41,4 +41,11 @@ describe("decideReminder", () => {
       ),
     ).toBe("suppress");
   });
+
+  it("suppresses when the org is over its free reminder quota", () => {
+    const now = new Date("2026-08-18T10:00:00Z");
+    const booking = { startsAt: new Date("2026-08-19T09:00:00Z"), createdAt: new Date("2026-08-10T00:00:00Z") };
+    expect(decideReminder(booking, now)).toBe("send");
+    expect(decideReminder(booking, now, { overQuota: true })).toBe("suppress");
+  });
 });
