@@ -4,9 +4,13 @@
 export function BookingConfirmed({
   token,
   summary,
+  staffName,
 }: {
   token: string;
   summary?: { title: string; whenLine: string };
+  /** Whom the booking landed with. Null for solo orgs — createBooking only
+      names a person when the org actually has a team to tell apart. */
+  staffName?: string | null;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-md border p-4">
@@ -17,6 +21,7 @@ export function BookingConfirmed({
           <p>{summary.whenLine}</p>
         </div>
       ) : null}
+      {staffName ? <p className="text-sm">with {staffName}</p> : null}
       <p className="text-muted-foreground text-sm">
         A confirmation email is on its way. Keep it — the links below are your access to this
         booking.

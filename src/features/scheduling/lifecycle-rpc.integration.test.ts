@@ -51,14 +51,19 @@ async function book(startsAt: string, email: string) {
     p_email: email,
     p_note: null,
     p_token_hash: tokenHash,
+    p_staff_id: null,
   });
-  return { token, bookingId: data as string | null, error };
+  // 0041: create_booking returns table(booking_id, staff_id, staff_name);
+  // null p_staff_id = "anyone available" (this org is solo).
+  const row = (data as Array<{ booking_id: string }> | null)?.[0];
+  return { token, bookingId: row?.booking_id ?? null, error };
 }
 
 let owner: SupabaseClient;
 let stranger: SupabaseClient;
 let orgId: string;
 let serviceId: string;
+let staffId: string;
 
 describe("S2 lifecycle RPCs", () => {
   beforeAll(async () => {
@@ -84,9 +89,23 @@ describe("S2 lifecycle RPCs", () => {
       .single();
     if (e3) throw e3;
     serviceId = svc!.id;
+    const { data: st, error: e3b } = await admin
+      .from("staff")
+      .select("id")
+      .eq("org_id", orgId)
+      .single();
+    if (e3b) throw e3b;
+    staffId = st!.id;
+    // A raw services insert does not fan out to staff (that is createService's
+    // job); create_booking needs the service_staff link to assign anyone.
+    const { error: e3c } = await owner
+      .from("service_staff")
+      .insert({ org_id: orgId, service_id: serviceId, staff_id: staffId });
+    if (e3c) throw e3c;
     const { error: e4 } = await owner.from("availability_rules").insert(
       [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
         org_id: orgId,
+        staff_id: staffId,
         weekday,
         start_time: "09:00",
         end_time: "17:00",
@@ -106,14 +125,21 @@ describe("S2 lifecycle RPCs", () => {
   it("hardening: closed exception blocks the day; open exception replaces rules", async () => {
     const { error: exErr } = await owner
       .from("availability_exceptions")
-      .insert({ org_id: orgId, date: "2027-04-06", closed: true });
+      .insert({ org_id: orgId, staff_id: staffId, date: "2027-04-06", closed: true });
     expect(exErr).toBeNull();
     const closed = await book("2027-04-06T10:00:00Z", "closed@example.com");
     expect(closed.error).not.toBeNull();
 
     const { error: ex2Err } = await owner
       .from("availability_exceptions")
-      .insert({ org_id: orgId, date: "2027-04-07", closed: false, start_time: "13:00", end_time: "15:00" });
+      .insert({
+        org_id: orgId,
+        staff_id: staffId,
+        date: "2027-04-07",
+        closed: false,
+        start_time: "13:00",
+        end_time: "15:00",
+      });
     expect(ex2Err).toBeNull();
     const outside = await book("2027-04-07T10:00:00Z", "outside@example.com");
     expect(outside.error).not.toBeNull();
@@ -160,6 +186,7 @@ describe("S2 lifecycle RPCs", () => {
     const { error } = await admin.from("bookings").insert({
       org_id: orgId,
       service_id: serviceId,
+      staff_id: staffId,
       client_name: "Past",
       client_email: "past@example.com",
       starts_at: "2026-01-05T10:00:00Z",
@@ -258,20 +285,25 @@ describe("S2 lifecycle RPCs", () => {
       p_booking_id: a.bookingId,
       p_starts_at: "2027-04-13T14:00:00Z",
       p_token_hash: generateAccessToken().tokenHash,
+      p_staff_id: null,
     });
     expect(foreign).not.toBeNull();
     expect(foreign!.message).toContain("not found");
 
-    const { data: newId, error } = await owner.rpc("reschedule_booking_admin", {
+    const { data: moved, error } = await owner.rpc("reschedule_booking_admin", {
       p_booking_id: a.bookingId,
       p_starts_at: "2027-04-13T14:00:00Z",
       p_token_hash: generateAccessToken().tokenHash,
+      p_staff_id: null,
     });
     expect(error).toBeNull();
+    // 0041: null p_staff_id keeps the booking's own staff.
+    const movedRow = (moved as Array<{ new_booking_id: string; staff_changed: boolean }>)[0];
+    expect(movedRow.staff_changed).toBe(false);
     const { data: newRow } = await admin
       .from("bookings")
       .select("rescheduled_from_id, status")
-      .eq("id", newId as string)
+      .eq("id", movedRow.new_booking_id)
       .single();
     expect(newRow!.rescheduled_from_id).toBe(a.bookingId);
     expect(newRow!.status).toBe("confirmed");
@@ -340,9 +372,18 @@ describe("S2 lifecycle RPCs", () => {
       .insert({ org_id: floodOrgId, name: "Flood", duration_min: 30, booking_window_days: 365 })
       .select("id")
       .single();
+    const { data: floodStaff } = await admin
+      .from("staff")
+      .select("id")
+      .eq("org_id", floodOrgId)
+      .single();
+    await flooder
+      .from("service_staff")
+      .insert({ org_id: floodOrgId, service_id: svc2!.id, staff_id: floodStaff!.id });
     await flooder.from("availability_rules").insert(
       [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
         org_id: floodOrgId,
+        staff_id: floodStaff!.id,
         weekday,
         start_time: "00:00",
         end_time: "23:59",
@@ -364,6 +405,7 @@ describe("S2 lifecycle RPCs", () => {
         p_email: `flood${i}@example.com`,
         p_note: null,
         p_token_hash: generateAccessToken().tokenHash,
+        p_staff_id: null,
       });
       if (error) {
         rejected = true;

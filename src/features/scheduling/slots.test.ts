@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { wallTimeToUtc, dateInZone, addDaysISO, computeSlots, type SlotInput } from "./slots";
+import { wallTimeToUtc, dateInZone, addDaysISO, computeSlots, unionSlots, type SlotInput } from "./slots";
 
 const TZ = "Europe/Berlin";
 // A Monday, well before any test slot.
@@ -171,4 +171,18 @@ describe("computeSlots", () => {
     expect(iso(friday[0])).toBe("2027-03-26T08:00:00.000Z"); // UTC+1
     expect(iso(monday[0])).toBe("2027-03-29T07:00:00.000Z"); // UTC+2
   });
+});
+
+describe("unionSlots", () => {
+  const t = (h: number) => new Date(Date.UTC(2026, 8, 1, h));
+  it("merges, dedupes by instant, sorts, and lists eligible staff per slot", () => {
+    const out = unionSlots([
+      { staffId: "a", slots: [t(10), t(9)] },
+      { staffId: "b", slots: [t(9), t(11)] },
+    ]);
+    expect(out.map((s) => s.startsAt.getTime())).toEqual([t(9), t(10), t(11)].map((d) => d.getTime()));
+    expect(out[0].staffIds).toEqual(["a", "b"]);
+    expect(out[1].staffIds).toEqual(["a"]);
+  });
+  it("empty input → empty", () => expect(unionSlots([])).toEqual([]));
 });

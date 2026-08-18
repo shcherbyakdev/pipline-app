@@ -20,3 +20,24 @@ describe("snippetFor", () => {
     expect(snippet).toMatch(/<script src="[^"]+" async><\/script>/);
   });
 });
+
+describe("snippetFor with a staff slug", () => {
+  it("appends ?staff=<slug> to the iframe src", () => {
+    expect(snippetFor("https://app.example.com", "acme-studio", "anna")).toContain(
+      'src="https://app.example.com/embed/acme-studio?staff=anna"',
+    );
+  });
+
+  it("leaves the script src alone", () => {
+    expect(snippetFor("https://app.example.com", "acme-studio", "anna")).toContain(
+      'src="https://app.example.com/embed.js"',
+    );
+  });
+
+  it("is unchanged when the slug is null/undefined (whole-team embed)", () => {
+    const plain = snippetFor("https://app.example.com", "acme-studio");
+    expect(snippetFor("https://app.example.com", "acme-studio", null)).toBe(plain);
+    expect(plain).toContain('src="https://app.example.com/embed/acme-studio"');
+    expect(plain).not.toContain("?staff=");
+  });
+});

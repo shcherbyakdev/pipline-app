@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createBookingAdmin } from "@/features/scheduling/booking-actions";
 import type { ServiceRow } from "@/features/scheduling/queries";
+import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { DayWindow } from "@/features/scheduling/day-windows";
 import { minToTime, timeToMin } from "@/features/scheduling/calendar-geometry";
 import { wallTimeToUtc } from "@/features/scheduling/slots";
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 
 export function CreateBookingDialog({
-  open, onOpenChange, date, startMin, dragEndMin, timeZone, services, windows,
+  open, onOpenChange, date, startMin, dragEndMin, timeZone, services, staff, defaultStaffId, windows,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -26,6 +27,11 @@ export function CreateBookingDialog({
   dragEndMin: number; // selection end — a real drag (>1 snap unit) sets the default length
   timeZone: string;
   services: ServiceRow[];
+  // Team (multi-staff): a walk-in belongs to someone. The picker only appears
+  // for a real team — a solo org sends its one member's id silently and the
+  // dialog looks exactly as it did before the team slice.
+  staff: StaffRow[];
+  defaultStaffId: string;
   windows: DayWindow[]; // effective windows for `date`, for the warning only
 }) {
   const router = useRouter();
@@ -52,6 +58,17 @@ export function CreateBookingDialog({
   }, []);
 
   const service = services.find((s) => s.id === serviceId);
+  // Who can take this service (0040 links), among active members. Changing
+  // the service re-derives it, so an ineligible pick can never survive.
+  const activeStaff = staff.filter((s) => s.active);
+  const eligible = activeStaff.filter((s) => service?.staffIds.includes(s.id));
+  // null = untouched; the effective value falls back to the calendar's
+  // default person, then to whoever is left.
+  const [pickedStaffId, setPickedStaffId] = React.useState<string | null>(null);
+  const staffId =
+    (pickedStaffId && eligible.some((s) => s.id === pickedStaffId) ? pickedStaffId : null) ??
+    (eligible.some((s) => s.id === defaultStaffId) ? defaultStaffId : eligible[0]?.id) ??
+    "";
   // End time is editable. Default: a real drag (more than one 15-min snap
   // unit) sets the length; a plain click uses the service duration. Picking
   // a different service resets the end only while the user hasn't touched it.
@@ -81,6 +98,7 @@ export function CreateBookingDialog({
     startTransition(async () => {
       const result = await createBookingAdmin({
         serviceId,
+        staffId,
         startsAt: startsAt.toISOString(),
         durationMin,
         name,
@@ -125,6 +143,22 @@ export function CreateBookingDialog({
               ))}
             </select>
           </div>
+          {activeStaff.length > 1 ? (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="cb-staff">Team member</Label>
+              <select
+                id="cb-staff"
+                className="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
+                value={staffId}
+                disabled={eligible.length === 0}
+                onChange={(e) => { setPickedStaffId(e.target.value); clearOverlap(); }}
+              >
+                {eligible.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="cb-end">
               Ends at{" "}
@@ -194,8 +228,16 @@ export function CreateBookingDialog({
               End must be after the start — between 5 minutes and 8 hours long.
             </p>
           ) : null}
+          {serviceId && !staffId ? (
+            <p className="text-destructive text-sm">
+              Nobody on the team offers this service yet — assign someone on the Services page.
+            </p>
+          ) : null}
           {overlapError ? <p className="text-destructive text-sm">{overlapError}</p> : null}
-          <Button type="submit" disabled={pending || !serviceId || tooFarPast || invalidDuration}>
+          <Button
+            type="submit"
+            disabled={pending || !serviceId || !staffId || tooFarPast || invalidDuration}
+          >
             {pending ? "Creating…" : "Create booking"}
           </Button>
         </form>

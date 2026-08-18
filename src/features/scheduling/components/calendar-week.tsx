@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
+import type { StaffRow } from "@/features/scheduling/staff-queries";
+import { initials } from "@/features/scheduling/staff-slug";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
 import {
   zonedParts, hourRange, serviceAccent, snap15, minToTime, timeToMin, hourTileState,
@@ -16,6 +18,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BookingDetailDialog } from "./booking-detail-dialog";
 import { CreateBookingDialog } from "./create-booking-dialog";
+import { StaffFilter } from "./staff-filter";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HATCH: React.CSSProperties = {
@@ -28,10 +31,21 @@ const HATCH: React.CSSProperties = {
 const GRID_COLS = "grid-cols-[2.5rem_repeat(7,minmax(0,1fr))_3.5rem]";
 
 export function CalendarWeek({
-  weekStart, timeZone, bookings, rules, exceptions, services, prevHref, nextHref,
+  weekStart, timeZone, staff, selectedStaffIds, defaultStaffId,
+  bookings, rules, exceptions, services, prevHref, nextHref,
 }: {
   weekStart: string;
   timeZone: string;
+  // Team (multi-staff): the org's ACTIVE members. One of them (the solo case)
+  // ⇒ no filter, no colours, no initials — this is the pre-team calendar.
+  staff: StaffRow[];
+  // Who the week is filtered to (page-parsed `?staff=`; all active members
+  // when the filter is off). `rules`/`exceptions` are already theirs — the
+  // union of them when more than one is selected, so an open tile means
+  // "someone is open".
+  selectedStaffIds: string[];
+  // Who a walk-in created from this grid belongs to by default.
+  defaultStaffId: string;
   bookings: AdminBooking[];
   rules: RuleRow[];
   exceptions: ExceptionRow[];
@@ -39,6 +53,14 @@ export function CalendarWeek({
   prevHref: string;
   nextHref: string;
 }) {
+  // Hours and overrides belong to ONE person, so blocking is only meaningful
+  // when the week shows exactly one. In solo that is always true and nothing
+  // about the grid changes.
+  const editStaffId = selectedStaffIds.length === 1 ? selectedStaffIds[0] : null;
+  const isTeam = staff.length > 1;
+  const requireOneStaff = () => {
+    toast.info("Pick one team member to block time.");
+  };
   const days = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
   const windowsByDay = days.map((d) => effectiveWindows(d, rules, exceptions));
   // Rentals R1: a multi-day stay has no place on an hour grid — it would
@@ -128,8 +150,10 @@ export function CalendarWeek({
 
   const blockSelected = () => {
     if (!selection) return;
+    if (!editStaffId) return requireOneStaff();
     startBusy(async () => {
       const result = await blockTimeRange({
+        staffId: editStaffId,
         date: selection.date,
         startTime: minToTime(selection.startMin),
         endTime: minToTime(selection.endMin),
@@ -143,8 +167,10 @@ export function CalendarWeek({
 
   const unblockSelected = () => {
     if (!selection) return;
+    if (!editStaffId) return requireOneStaff();
     startBusy(async () => {
       const result = await unblockTimeRange({
+        staffId: editStaffId,
         date: selection.date,
         startTime: minToTime(selection.startMin),
         endTime: minToTime(selection.endMin),
@@ -157,8 +183,9 @@ export function CalendarWeek({
   };
 
   const reopenSelected = (date: string) => {
+    if (!editStaffId) return requireOneStaff();
     startBusy(async () => {
-      const result = await reopenDay({ date });
+      const result = await reopenDay({ staffId: editStaffId, date });
       if (!result.ok) toast.error(result.error);
       else toast.success("Day reopened — weekly hours restored.");
       setSelection(null);
@@ -184,6 +211,13 @@ export function CalendarWeek({
     // the reference. min-h is the graceful floor: below it the page
     // scrolls rather than crushing the rows.
     <div className="flex min-h-[520px] flex-1 flex-col overflow-x-auto">
+      {/* Solo rule: StaffFilter renders nothing below two members, so the
+          grid keeps its exact pre-team spacing. */}
+      {isTeam ? (
+        <div className="shrink-0 pb-3">
+          <StaffFilter staff={staff} selected={selectedStaffIds} />
+        </div>
+      ) : null}
       <div className="flex min-h-0 min-w-[840px] flex-1 flex-col">
         {/* header row: week arrows live inside the grid, like the reference */}
         <div className={cn("grid shrink-0 pb-2", GRID_COLS)}>
@@ -355,10 +389,31 @@ export function CalendarWeek({
                   style={{
                     top: `${pct(s.minutes)}%`,
                     height: `${Math.max(pct(endMin) - pct(s.minutes), 1.5)}%`,
-                    borderLeft: `3px solid ${serviceAccent(b.serviceId ?? b.rentalOfferingId ?? "")}`,
+                    // A team reads its calendar by person first, so the accent
+                    // becomes theirs; a solo org keeps the per-service hue it
+                    // has always had.
+                    borderLeft: `3px solid ${
+                      (isTeam ? b.staffColor : null) ??
+                      serviceAccent(b.serviceId ?? b.rentalOfferingId ?? "")
+                    }`,
                   }}
                 >
-                  <span className="font-medium">{b.serviceName}</span>
+                  {/* Solo keeps the bare title it always had — the chip row
+                      is a team-only addition, markup included. */}
+                  {isTeam && b.staffName ? (
+                    <span className="flex items-center gap-1">
+                      <span
+                        title={b.staffName}
+                        style={{ background: b.staffColor ?? undefined }}
+                        className="shrink-0 rounded-sm px-1 py-0.5 text-[9px] leading-none font-semibold text-white/95"
+                      >
+                        {initials(b.staffName)}
+                      </span>
+                      <span className="truncate font-medium">{b.serviceName}</span>
+                    </span>
+                  ) : (
+                    <span className="font-medium">{b.serviceName}</span>
+                  )}
                   {compact ? null : (
                     <>
                       <span className="block truncate text-muted-foreground">{b.clientName}</span>
@@ -434,6 +489,7 @@ export function CalendarWeek({
       <BookingDetailDialog
         booking={selected}
         timeZone={timeZone}
+        staff={staff}
         open={selected !== null}
         onOpenChange={(o) => { if (!o) setSelected(null); }}
       />
@@ -446,6 +502,8 @@ export function CalendarWeek({
           dragEndMin={selection.endMin}
           timeZone={timeZone}
           services={services}
+          staff={staff}
+          defaultStaffId={defaultStaffId}
           windows={windowsByDay[days.indexOf(selection.date)] ?? []}
         />
       ) : null}

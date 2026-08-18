@@ -6,6 +6,7 @@ import {
   listServices,
   getAvailabilityAdmin,
 } from "@/features/scheduling/queries";
+import { listActiveStaff, type StaffRow } from "@/features/scheduling/staff-queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listOfferings, listTimelineData } from "@/features/rentals/queries";
 import { RENTALS_ENABLED } from "@/lib/flags";
@@ -19,6 +20,20 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Team (multi-staff): `?staff=a,b` narrows the week to those people. Only ids
+// that name an active member count — a stale link, another org's id or plain
+// junk quietly falls back to "everyone", the same forgiving rule the
+// availability page applies to its own `?staff=`.
+function parseStaffParam(param: string | undefined, active: StaffRow[]): string[] {
+  const wanted = (param ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => UUID_RE.test(id));
+  const picked = active.filter((s) => wanted.includes(s.id));
+  return picked.length > 0 ? picked.map((s) => s.id) : active.map((s) => s.id);
+}
 
 // A well-shaped date param (DATE_RE) can still be calendrically invalid
 // (e.g. "2027-13-45") — `new Date(...)` on it yields NaN, which would blow
@@ -35,7 +50,7 @@ function validDate(param: string | undefined, fallback: string): string {
 export default async function BookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; week?: string; from?: string }>;
+  searchParams: Promise<{ view?: string; week?: string; from?: string; staff?: string }>;
 }) {
   const params = await searchParams;
   const settings = await getSchedulingSettings();
@@ -97,7 +112,10 @@ export default async function BookingsPage({
   ) : null;
 
   if (params.view === "list") {
-    const { upcoming, past } = await listBookings();
+    const [{ upcoming, past }, activeStaff] = await Promise.all([
+      listBookings(),
+      listActiveStaff(),
+    ]);
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
         <div className="flex items-center justify-end gap-2">
@@ -106,7 +124,7 @@ export default async function BookingsPage({
             Calendar view
           </Link>
         </div>
-        <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} />
+        <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} staff={activeStaff} />
       </div>
     );
   }
@@ -116,12 +134,28 @@ export default async function BookingsPage({
   const fromIso = wallTimeToUtc(weekStart, "00:00", timeZone).toISOString();
   const toIso = wallTimeToUtc(addDaysISO(weekStart, 7), "00:00", timeZone).toISOString();
 
-  const [bookings, exceptions, services, { rules }] = await Promise.all([
-    listConfirmedBookingsBetween(fromIso, toIso),
-    listExceptionsBetween(weekStart, weekEnd),
+  // Availability is per staff now (Team slice), so the week is drawn for the
+  // selected people: one selected ⇒ exactly their hours (and the solo org is
+  // always this case, unchanged from before the slice); several ⇒ the union,
+  // where an open tile means "someone is open".
+  const activeStaff = await listActiveStaff();
+  const selectedStaffIds = parseStaffParam(params.staff, activeStaff);
+  // Only a real narrowing filters the bookings: rental stays have no staff, so
+  // handing `.in("staff_id", …)` every active id would drop them from a week
+  // nobody asked to narrow.
+  const staffFilter =
+    selectedStaffIds.length < activeStaff.length ? selectedStaffIds : undefined;
+  const [bookings, exceptions, services, availability] = await Promise.all([
+    listConfirmedBookingsBetween(fromIso, toIso, staffFilter),
+    selectedStaffIds.length > 0
+      ? listExceptionsBetween(weekStart, weekEnd, selectedStaffIds)
+      : [],
     listServices(),
-    getAvailabilityAdmin(),
+    Promise.all(selectedStaffIds.map((id) => getAvailabilityAdmin(id))),
   ]);
+  const rules = availability.flatMap((a) => a.rules);
+  // The week arrows are plain links — they have to carry the lens with them.
+  const staffQuery = staffFilter ? `&staff=${staffFilter.join(",")}` : "";
 
   return (
     // flex-1 + min-h-0: the calendar fills main's leftover viewport height
@@ -129,7 +163,10 @@ export default async function BookingsPage({
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-center justify-end gap-2">
         <div className="flex items-center gap-2">
-          <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+          <Link
+            href={staffQuery ? `/bookings?${staffQuery.slice(1)}` : "/bookings"}
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+          >
             Today
           </Link>
           {timelineLink}
@@ -144,12 +181,19 @@ export default async function BookingsPage({
       <CalendarWeek
         weekStart={weekStart}
         timeZone={timeZone}
+        staff={activeStaff}
+        selectedStaffIds={selectedStaffIds}
+        // A walk-in drawn on a one-person week belongs to that person;
+        // on the "everyone" week it defaults to the first active member.
+        defaultStaffId={
+          (selectedStaffIds.length === 1 ? selectedStaffIds[0] : activeStaff[0]?.id) ?? ""
+        }
         bookings={bookings}
         rules={rules}
         exceptions={exceptions}
         services={services.filter((s) => s.active)}
-        prevHref={`/bookings?week=${addDaysISO(weekStart, -7)}`}
-        nextHref={`/bookings?week=${addDaysISO(weekStart, 7)}`}
+        prevHref={`/bookings?week=${addDaysISO(weekStart, -7)}${staffQuery}`}
+        nextHref={`/bookings?week=${addDaysISO(weekStart, 7)}${staffQuery}`}
       />
     </div>
   );

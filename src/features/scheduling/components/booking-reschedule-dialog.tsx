@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import { addDaysISO } from "@/features/scheduling/slots";
 import { getAdminSlots, rescheduleBookingAdmin } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
+import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -28,20 +30,41 @@ const slotLabel = (iso: string) =>
 export function BookingRescheduleDialog({
   booking,
   timeZone,
+  eligibleStaff,
 }: {
   // Appointments only: the slot picker needs a service. Call sites narrow
   // `serviceId` (rentals are filtered out before this renders).
   booking: AdminBooking & { serviceId: string };
   timeZone: string;
+  // Team (multi-staff): the active members who offer this service, computed
+  // by the caller (which is the side that knows the service↔staff links).
+  // One entry (the solo case) ⇒ no picker, and this dialog is the pre-team
+  // one down to the pixel.
+  eligibleStaff: StaffRow[];
 }) {
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [fromDate, setFromDate] = React.useState(todayISO);
   const [slots, setSlots] = React.useState<string[] | null>(null);
+  // null = untouched ⇒ the person the booking already belongs to. A booking
+  // whose owner is no longer eligible (deactivated, service unlinked) falls
+  // through to the first person who is — moving it is the way out.
+  const [picked, setPicked] = React.useState<string | null>(null);
+  const eligible = (id: string | null) => id !== null && eligibleStaff.some((s) => s.id === id);
+  const staffId =
+    (eligible(picked) ? picked : null) ??
+    (eligible(booking.staffId) ? booking.staffId : eligibleStaff[0]?.id) ??
+    "";
 
-  const loadSlots = (date: string) => {
+  const loadSlots = (date: string, forStaffId: string) => {
+    if (!forStaffId) return setSlots([]);
     startTransition(async () => {
-      const res = await getAdminSlots({ serviceId: booking.serviceId, fromDate: date, days: 7 });
+      const res = await getAdminSlots({
+        serviceId: booking.serviceId,
+        staffId: forStaffId,
+        fromDate: date,
+        days: 7,
+      });
       if (!res.ok) toast.error(res.error);
       else setSlots(res.slots);
     });
@@ -49,25 +72,40 @@ export function BookingRescheduleDialog({
 
   const onOpenChange = (next: boolean) => {
     setOpen(next);
-    if (next) loadSlots(fromDate);
+    if (next) loadSlots(fromDate, staffId);
   };
 
   const nav = (days: number) => {
     const next = addDaysISO(fromDate, days);
     if (next < todayISO()) return;
     setFromDate(next);
-    loadSlots(next);
+    loadSlots(next, staffId);
+  };
+
+  // Another person's week is a different grid — reload rather than let the
+  // old member's free times stand in for theirs.
+  const changeStaff = (id: string) => {
+    setPicked(id);
+    setSlots(null);
+    loadSlots(fromDate, id);
   };
 
   const pick = (startsAt: string) =>
     startTransition(async () => {
-      const res = await rescheduleBookingAdmin({ id: booking.id, startsAt });
+      const res = await rescheduleBookingAdmin({
+        id: booking.id,
+        startsAt,
+        // Omitted when it is the same person: "keep the current staff" is
+        // the RPC's own default, and this stays a plain time move.
+        staffId: staffId === booking.staffId ? undefined : staffId,
+      });
       if (!res.ok) {
         toast.error(res.error);
-        if ("slotTaken" in res && res.slotTaken) loadSlots(fromDate);
+        if ("slotTaken" in res && res.slotTaken) loadSlots(fromDate, staffId);
       } else {
-        if (res.noEmail) toast.success("Booking moved — no email on file for this client.");
-        else if (res.emailed) toast.success("Booking moved — the client has been emailed");
+        const moved = res.movedToStaffName ? ` to ${res.movedToStaffName}` : "";
+        if (res.noEmail) toast.success(`Booking moved${moved} — no email on file for this client.`);
+        else if (res.emailed) toast.success(`Booking moved${moved} — the client has been emailed`);
         else
           toast.warning(
             "Booking moved — but the email with the new manage link failed. Contact the client directly.",
@@ -89,6 +127,22 @@ export function BookingRescheduleDialog({
         <DialogHeader>
           <DialogTitle>Move “{booking.serviceName}” for {booking.clientName}</DialogTitle>
         </DialogHeader>
+        {eligibleStaff.length > 1 ? (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="rs-staff">Move to</Label>
+            <select
+              id="rs-staff"
+              className="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
+              value={staffId}
+              disabled={pending}
+              onChange={(e) => changeStaff(e.target.value)}
+            >
+              {eligibleStaff.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between">
           <p className="text-muted-foreground text-sm">Week of {fromDate}</p>
           <div className="flex gap-1">

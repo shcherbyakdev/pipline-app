@@ -351,6 +351,9 @@ export function Timeline({
       <BookingDetailDialog
         booking={selected}
         timeZone={timeZone}
+        // Rental stays carry no staff (0041) — the timeline only ever selects
+        // one, so there is nobody to name and no slot grid to move them on.
+        staff={[]}
         open={selected !== null}
         onOpenChange={(o) => {
           if (!o) setSelected(null);

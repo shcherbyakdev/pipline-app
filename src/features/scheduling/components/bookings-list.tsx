@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { whenLineFor, STATUS_LABEL } from "@/features/scheduling/templates";
 import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
+import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,12 @@ import { Button } from "@/components/ui/button";
 function Row({
   booking,
   timeZone,
+  staff,
   actionable,
 }: {
   booking: AdminBooking;
   timeZone: string;
+  staff: StaffRow[];
   actionable: boolean;
 }) {
   const [pending, startTransition] = React.useTransition();
@@ -64,6 +67,18 @@ function Row({
           timeZone,
         )}
       </p>
+      {/* Team (multi-staff): whose appointment this is. Solo orgs never see
+          the line — there is only ever one answer. */}
+      {staff.length > 1 && booking.staffName ? (
+        <p className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            style={{ background: booking.staffColor ?? "var(--muted-foreground)" }}
+            className="size-2 shrink-0 rounded-full"
+          />
+          {booking.staffName}
+        </p>
+      ) : null}
       <p className="text-muted-foreground">
         {booking.clientName}
         {booking.clientEmail ? ` · ${booking.clientEmail}` : ""}
@@ -76,6 +91,7 @@ function Row({
             <BookingRescheduleDialog
               booking={{ ...booking, serviceId: booking.serviceId }}
               timeZone={timeZone}
+              eligibleStaff={staff.filter((s) => s.serviceIds.includes(booking.serviceId!))}
             />
           )}
           <Button
@@ -112,10 +128,12 @@ export function BookingsList({
   upcoming,
   past,
   timeZone,
+  staff,
 }: {
   upcoming: AdminBooking[];
   past: AdminBooking[];
   timeZone: string;
+  staff: StaffRow[]; // active members (Team slice); one ⇒ nothing changes
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -128,7 +146,7 @@ export function BookingsList({
         ) : (
           <ol className="flex flex-col gap-2">
             {upcoming.map((b) => (
-              <Row key={b.id} booking={b} timeZone={timeZone} actionable />
+              <Row key={b.id} booking={b} timeZone={timeZone} staff={staff} actionable />
             ))}
           </ol>
         )}
@@ -140,7 +158,7 @@ export function BookingsList({
         ) : (
           <ol className="flex flex-col gap-2">
             {past.map((b) => (
-              <Row key={b.id} booking={b} timeZone={timeZone} actionable={false} />
+              <Row key={b.id} booking={b} timeZone={timeZone} staff={staff} actionable={false} />
             ))}
           </ol>
         )}

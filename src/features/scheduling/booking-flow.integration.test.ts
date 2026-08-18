@@ -51,11 +51,12 @@ async function signedInUser(tag: string): Promise<SupabaseClient> {
 
 let serviceId: string;
 let orgId: string;
+let owner: SupabaseClient;
 const fromDate = addDaysISO(new Date().toISOString().slice(0, 10), 7);
 
 describe("booking flow e2e (action layer)", () => {
   beforeAll(async () => {
-    const owner = await signedInUser("flow_owner");
+    owner = await signedInUser("flow_owner");
     const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "FlowCo" });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
@@ -72,9 +73,24 @@ describe("booking flow e2e (action layer)", () => {
       .single();
     if (e3) throw e3;
     serviceId = svc!.id;
+    // 0041: availability belongs to a staff row (create_org seeds one), and a
+    // raw services insert does not fan out — mirror createService's link so
+    // create_booking's "anyone available" pick has a candidate.
+    const { data: st, error: e3b } = await admin
+      .from("staff")
+      .select("id")
+      .eq("org_id", orgId)
+      .single();
+    if (e3b) throw e3b;
+    const staffId = st!.id;
+    const { error: e3c } = await owner
+      .from("service_staff")
+      .insert({ org_id: orgId, service_id: serviceId, staff_id: staffId });
+    if (e3c) throw e3c;
     const { error: e4 } = await owner.from("availability_rules").insert(
       [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
         org_id: orgId,
+        staff_id: staffId,
         weekday,
         start_time: "09:00",
         end_time: "17:00",
@@ -161,5 +177,78 @@ describe("booking flow e2e (action layer)", () => {
     // Cancelling again via the same token: friendly refusal, not a 500.
     const again = await manageActions.cancelBooking({ token: moved.token });
     expect(again.ok).toBe(false);
+  });
+
+  // Team: a client reschedule is staff-LOCKED. The picker must show the
+  // assigned staff member's calendar, not "whoever in the org is free" —
+  // a second staff member with a disjoint schedule makes the difference
+  // visible (an org-wide grid would offer their evening hours).
+  it("manage picker follows the booking's own staff member", async () => {
+    const { data: mine } = await admin.from("staff").select("id").eq("org_id", orgId).single();
+    const dayStaffId = mine!.id;
+    const { data: evening, error: eStaff } = await admin
+      .from("staff")
+      .insert({
+        org_id: orgId,
+        name: "Evening Eve",
+        slug: `eve-${Date.now()}`,
+        color: "#0ea5e9",
+        sort_order: -1,
+      })
+      .select("id")
+      .single();
+    if (eStaff) throw eStaff;
+    const eveningId = evening!.id;
+    const { error: eLink } = await admin
+      .from("service_staff")
+      .insert({ org_id: orgId, service_id: serviceId, staff_id: eveningId });
+    if (eLink) throw eLink;
+    // service_role holds select-only on availability_rules (0026): seed hours
+    // as the org member, like every other suite.
+    const { error: eRules } = await owner.from("availability_rules").insert(
+      [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+        org_id: orgId,
+        staff_id: eveningId,
+        weekday,
+        start_time: "19:00",
+        end_time: "22:00",
+      })),
+    );
+    if (eRules) throw eRules;
+
+    const slotsRes = await publicActions.getSlots({
+      handle: HANDLE,
+      serviceId,
+      fromDate,
+      days: 7,
+      staffId: dayStaffId,
+    });
+    expect(slotsRes.ok).toBe(true);
+    if (!slotsRes.ok) return;
+    const created = await publicActions.createBooking({
+      handle: HANDLE,
+      serviceId,
+      startsAt: slotsRes.slots[0],
+      name: "Locked Client",
+      email: `locked-${Date.now()}@example.com`,
+      staffId: dayStaffId,
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const manageSlots = await manageActions.getManageSlots({
+      token: created.token,
+      fromDate,
+      days: 7,
+    });
+    expect(manageSlots.ok).toBe(true);
+    if (!manageSlots.ok) return;
+    expect(manageSlots.slots.length).toBeGreaterThan(0);
+    // Org timezone is UTC here, so the hour reads straight off the instant:
+    // every offered time sits inside the day staff's 09:00–17:00 window and
+    // none inside the evening staff's 19:00–22:00 one.
+    const hours = manageSlots.slots.map((s) => new Date(s).getUTCHours());
+    expect(Math.min(...hours)).toBeGreaterThanOrEqual(9);
+    expect(Math.max(...hours)).toBeLessThan(17);
   });
 });

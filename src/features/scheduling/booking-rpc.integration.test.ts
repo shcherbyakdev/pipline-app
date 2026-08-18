@@ -44,6 +44,7 @@ describe("create_booking RPC", () => {
   let owner: SupabaseClient;
   let orgId: string;
   let serviceId: string;
+  let defaultStaffId: string;
 
   beforeAll(async () => {
     owner = await signedInUser("bkg_owner");
@@ -56,6 +57,15 @@ describe("create_booking RPC", () => {
       p_timezone: "Europe/Berlin",
     });
     if (e2) throw e2;
+    // 0041: create_org seeds one staff row — the calendar owner every
+    // availability rule and appointment now hangs off.
+    const { data: st, error: e2b } = await admin
+      .from("staff")
+      .select("id")
+      .eq("org_id", orgId)
+      .single();
+    if (e2b) throw e2b;
+    defaultStaffId = st!.id;
     const { data: svc, error: e3 } = await owner
       .from("services")
       // window 365: the fixed 2027 test dates must stay inside the
@@ -66,12 +76,19 @@ describe("create_booking RPC", () => {
       .single();
     if (e3) throw e3;
     serviceId = svc!.id;
+    // A raw services insert does not fan out to staff — that is
+    // createService's job. Mirror it so the service has an eligible staff.
+    const { error: e3b } = await admin
+      .from("service_staff")
+      .insert({ org_id: orgId, service_id: serviceId, staff_id: defaultStaffId });
+    if (e3b) throw e3b;
 
     // S2 hardening: create_booking now enforces availability containment —
     // open the whole week so the fixed 2027 test instants stay bookable.
     const { error: e4 } = await owner.from("availability_rules").insert(
       [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
         org_id: orgId,
+        staff_id: defaultStaffId,
         weekday,
         start_time: "00:00",
         end_time: "23:59",
@@ -105,9 +122,14 @@ describe("create_booking RPC", () => {
       p_email: "Jamie@Example.com",
       p_note: "first visit",
       p_token_hash: tokenHash,
+      p_staff_id: null,
     });
     expect(error).toBeNull();
-    const bookingId = data as string;
+    // 0041: create_booking returns a row, not a bare id.
+    const created = (data as Array<{ booking_id: string; staff_id: string; staff_name: string }>)[0];
+    const bookingId = created.booking_id;
+    expect(created.staff_id).toBe(defaultStaffId);
+    expect(created.staff_name).toBe("BookingCo");
 
     const { data: booking } = await admin
       .from("bookings")
@@ -146,6 +168,7 @@ describe("create_booking RPC", () => {
       p_email: "jamie@example.com",
       p_note: null,
       p_token_hash: tokenHash,
+      p_staff_id: null,
     });
     expect(error).toBeNull();
     const { data: clients } = await admin
@@ -172,7 +195,10 @@ describe("create_booking RPC", () => {
     expect(jamie!.bookings[0].count).toBeGreaterThanOrEqual(2);
   });
 
-  it("overlapping confirmed booking is rejected with 23P01", async () => {
+  it("overlapping confirmed booking is rejected (auto → taken, named → 23P01)", async () => {
+    // 0041: with p_staff_id null the RPC auto-assigns, so a solo org whose
+    // only staff is busy comes back as 'taken' rather than the guard's
+    // 23P01. Both map to SLOT_TAKEN in the action.
     const { tokenHash } = generateAccessToken();
     const { error } = await anon.rpc("create_booking", {
       p_handle: HANDLE,
@@ -182,9 +208,22 @@ describe("create_booking RPC", () => {
       p_email: "race@example.com",
       p_note: null,
       p_token_hash: tokenHash,
+      p_staff_id: null,
     });
     expect(error).not.toBeNull();
-    expect(error!.code).toBe("23P01");
+    expect(error!.message).toMatch(/taken/);
+    // A named staff still surfaces the raw exclusion violation.
+    const { error: named } = await anon.rpc("create_booking", {
+      p_handle: HANDLE,
+      p_service_id: serviceId,
+      p_starts_at: "2027-03-01T10:30:00Z",
+      p_name: "Race Loser",
+      p_email: "race@example.com",
+      p_note: null,
+      p_token_hash: generateAccessToken().tokenHash,
+      p_staff_id: defaultStaffId,
+    });
+    expect(named!.code).toBe("23P01");
   });
 
   it("back-to-back booking (11:00 after 10:00–11:00) is allowed", async () => {
@@ -197,6 +236,7 @@ describe("create_booking RPC", () => {
       p_email: "adjacent@example.com",
       p_note: null,
       p_token_hash: tokenHash,
+      p_staff_id: null,
     });
     expect(error).toBeNull();
   });
@@ -211,6 +251,7 @@ describe("create_booking RPC", () => {
       p_email: "x@example.com",
       p_note: null,
       p_token_hash: tokenHash,
+      p_staff_id: null,
     });
     expect(badHandle).not.toBeNull();
     expect(badHandle!.message).toContain("not found");
@@ -228,6 +269,7 @@ describe("create_booking RPC", () => {
       p_email: "x@example.com",
       p_note: null,
       p_token_hash: generateAccessToken().tokenHash,
+      p_staff_id: null,
     });
     expect(inactive).not.toBeNull();
     const { error: reactivateErr } = await admin
@@ -244,6 +286,7 @@ describe("create_booking RPC", () => {
       p_email: "x@example.com",
       p_note: null,
       p_token_hash: generateAccessToken().tokenHash,
+      p_staff_id: null,
     });
     expect(past).not.toBeNull();
   });
@@ -269,6 +312,7 @@ describe("create_booking RPC", () => {
       p_email: "second@example.com",
       p_note: null,
       p_token_hash: generateAccessToken().tokenHash,
+      p_staff_id: null,
     });
     expect(error).toBeNull();
   });

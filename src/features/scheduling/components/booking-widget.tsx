@@ -5,7 +5,8 @@ import { flushSync } from "react-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
-import type { PublicOffering, PublicService } from "@/lib/booking/public";
+import type { PublicOffering, PublicService, PublicStaff } from "@/lib/booking/public";
+import { initials } from "@/features/scheduling/staff-slug";
 import { getSlots, createBooking } from "@/features/scheduling/public-actions";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
@@ -20,18 +21,42 @@ export function BookingWidget({
   orgTimeZone,
   services,
   offerings = [],
+  staff = [],
+  serviceStaffIds,
+  lockedStaff = null,
   preview,
 }: {
   handle: string;
   orgTimeZone: string;
   services: PublicService[];
   offerings?: PublicOffering[];
+  /** Active staff of the org, unfiltered. Empty only in preview mode. */
+  staff?: PublicStaff[];
+  /** serviceId → eligible staff ids; absent means "every staff member". */
+  serviceStaffIds?: Record<string, string[]>;
+  /** Per-staff page / `?staff=`: skips the staff step, offers no "Anyone". */
+  lockedStaff?: PublicStaff | null;
   preview?: { slots: string[] };
 }) {
+  // Who can take this service. Declared before the state below because the
+  // lazy initialiser for `staffChoice` has to answer the same question for an
+  // auto-selected service.
+  const eligibleFor = (svc: PublicService) =>
+    serviceStaffIds ? staff.filter((s) => (serviceStaffIds[svc.id] ?? []).includes(s.id)) : staff;
+  // The solo rule: one eligible person (or a locked one) means no step, no
+  // "with X" anywhere — the widget renders exactly as it did before teams.
+  const needsStaffStep = (svc: PublicService) => !lockedStaff && eligibleFor(svc).length > 1;
+  // With exactly one eligible person we pass that id, not "any", so the RPC
+  // does the strict named check rather than auto-assigning.
+  const resolveStaff = (svc: PublicService): string | null =>
+    needsStaffStep(svc) ? null : (lockedStaff?.id ?? eligibleFor(svc)[0]?.id ?? "any");
+
   // Auto-select only when there is genuinely nothing to choose between —
   // one service AND no rentals (or vice versa below).
-  const [service, setService] = React.useState<PublicService | null>(
-    services.length === 1 && offerings.length === 0 ? services[0] : null,
+  const autoService = services.length === 1 && offerings.length === 0 ? services[0] : null;
+  const [service, setService] = React.useState<PublicService | null>(autoService);
+  const [staffChoice, setStaffChoice] = React.useState<string | "any" | null>(() =>
+    lockedStaff ? lockedStaff.id : autoService ? resolveStaff(autoService) : null,
   );
   const [offering, setOffering] = React.useState<PublicOffering | null>(
     services.length === 0 && offerings.length === 1 ? offerings[0] : null,
@@ -43,22 +68,26 @@ export function BookingWidget({
   const [fromDate, setFromDate] = React.useState(todayISO());
   const [slot, setSlot] = React.useState<string | null>(null);
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
+  // Whom the RPC actually assigned — null for solo orgs, so the confirmation
+  // stays wordless there.
+  const [doneStaffName, setDoneStaffName] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
   const slotsRegionRef = React.useRef<HTMLDivElement>(null);
+  const staffRegionRef = React.useRef<HTMLDivElement>(null);
 
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
   const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 
   const loadSlots = React.useCallback(
-    (svc: PublicService, from: string) => {
+    (svc: PublicService, from: string, staffId: string) => {
       // Preview mode: no server action, no network, and the canned slots are
       // already in state (seeded above) — nothing to load.
       if (preview) return;
       startTransition(async () => {
         setError(null);
-        const result = await getSlots({ handle, serviceId: svc.id, fromDate: from, days: 7 });
+        const result = await getSlots({ handle, serviceId: svc.id, fromDate: from, days: 7, staffId });
         if (result.ok) setSlots(result.slots);
         else setError(result.error);
       });
@@ -67,17 +96,20 @@ export function BookingWidget({
   );
 
   React.useEffect(() => {
-    if (service) loadSlots(service, fromDate);
-  }, [service, fromDate, loadSlots]);
+    // No fetch until the staff question is settled — an unanswered staff step
+    // would otherwise load the union and then reload it narrowed.
+    if (service && staffChoice) loadSlots(service, fromDate, staffChoice);
+  }, [service, staffChoice, fromDate, loadSlots]);
 
   function submit(formData: FormData) {
     if (preview) return;
-    if (!service || !slot) return;
+    if (!service || !slot || !staffChoice) return;
     startTransition(async () => {
       setError(null);
       const result = await createBooking({
         handle,
         serviceId: service.id,
+        staffId: staffChoice,
         startsAt: slot,
         name: String(formData.get("name") ?? ""),
         email: String(formData.get("email") ?? ""),
@@ -85,11 +117,12 @@ export function BookingWidget({
       });
       if (result.ok) {
         setDoneToken(result.token);
+        setDoneStaffName(result.staffName);
       } else {
         setError(result.error);
         if ("slotTaken" in result && result.slotTaken) {
           setSlot(null);
-          loadSlots(service, fromDate);
+          loadSlots(service, fromDate, staffChoice);
         }
       }
     });
@@ -108,7 +141,7 @@ export function BookingWidget({
     );
   }
 
-  if (doneToken) return <BookingConfirmed token={doneToken} />;
+  if (doneToken) return <BookingConfirmed token={doneToken} staffName={doneStaffName} />;
 
   // Group by the VIEWER's local date, not the UTC date — a late-evening
   // slot in the viewer's zone must appear under the day they'd call it.
@@ -122,6 +155,19 @@ export function BookingWidget({
     const day = viewerDayKey.format(new Date(s));
     byDay.set(day, [...(byDay.get(day) ?? []), s]);
   }
+
+  // Whom this booking is with, or null when there is nothing worth saying —
+  // a solo org (or one eligible person) must read exactly as it did before
+  // teams existed, so no "with X" line appears at all.
+  const chosenStaff = staffChoice && staffChoice !== "any" ? staff.find((s) => s.id === staffChoice) : undefined;
+  const withLabel = lockedStaff
+    ? lockedStaff.name
+    : service && needsStaffStep(service)
+      ? (staffChoice === "any" ? "Anyone" : (chosenStaff?.name ?? null))
+      : null;
+  // Only a choice the visitor made is re-openable; a locked staff member is
+  // the whole point of the link they followed.
+  const canChangeStaff = !lockedStaff && !!service && needsStaffStep(service);
 
   return (
     <div className="flex flex-col gap-6">
@@ -139,8 +185,15 @@ export function BookingWidget({
                     <button
                       type="button"
                       onClick={() => {
-                        flushSync(() => setService(s));
-                        slotsRegionRef.current?.focus();
+                        const next = resolveStaff(s);
+                        flushSync(() => {
+                          setService(s);
+                          setStaffChoice(next);
+                        });
+                        // Focus whichever region actually came next, so the
+                        // service list's disappearance never drops focus to
+                        // <body>.
+                        (next ? slotsRegionRef : staffRegionRef).current?.focus();
                       }}
                       className="wt-surface flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
                     >
@@ -197,17 +250,105 @@ export function BookingWidget({
             </div>
           ) : null}
         </div>
+      ) : staffChoice === null ? (
+        // tabIndex=-1 so the handlers that reveal this step can move focus
+        // here; aria-live announces it for the same reason the slots region
+        // does — the step replaces the list the user just acted on.
+        <div
+          ref={staffRegionRef}
+          tabIndex={-1}
+          aria-live="polite"
+          className="flex flex-col gap-3"
+        >
+          <p className="text-sm font-medium">
+            {service.name}{" "}
+            {services.length + offerings.length > 1 ? (
+              <button
+                type="button"
+                className="text-muted-foreground underline"
+                onClick={() => {
+                  setService(null);
+                  setStaffChoice(null);
+                  setSlots(preview?.slots ?? []);
+                }}
+              >
+                change
+              </button>
+            ) : null}
+          </p>
+          <p className="text-muted-foreground text-sm">Who would you like to book with?</p>
+          <ul className="flex flex-col gap-2">
+            <li>
+              <button
+                type="button"
+                className="wt-surface flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-sm"
+                onClick={() => {
+                  flushSync(() => setStaffChoice("any"));
+                  slotsRegionRef.current?.focus();
+                }}
+              >
+                <span className="font-medium">Anyone available</span>
+                <span className="text-muted-foreground ml-auto text-xs">most times</span>
+              </button>
+            </li>
+            {eligibleFor(service).map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className="wt-surface flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left text-sm"
+                  onClick={() => {
+                    flushSync(() => setStaffChoice(s.id));
+                    slotsRegionRef.current?.focus();
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    className="inline-flex size-6 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+                    style={{ background: s.color }}
+                  >
+                    {initials(s.name)}
+                  </span>
+                  <span className="font-medium">{s.name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : !slot ? (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium">
-              {service.name}{" "}
-              {services.length + offerings.length > 1 ? (
+              {service.name}
+              {withLabel ? (
+                // "with X" when the person is fixed by the link, "· X" when
+                // it's the visitor's own pick and the dot separates two
+                // choices they can each re-open.
+                <span className="text-muted-foreground">
+                  {lockedStaff ? " with " : " · "}
+                  {withLabel}
+                </span>
+              ) : null}{" "}
+              {canChangeStaff ? (
+                <button
+                  type="button"
+                  className="text-muted-foreground underline"
+                  onClick={() => {
+                    flushSync(() => {
+                      setStaffChoice(null);
+                      setSlots(preview?.slots ?? []);
+                    });
+                    staffRegionRef.current?.focus();
+                  }}
+                >
+                  change
+                </button>
+              ) : services.length + offerings.length > 1 ? (
                 <button
                   type="button"
                   className="text-muted-foreground underline"
                   onClick={() => {
                     setService(null);
+                    setStaffChoice(lockedStaff?.id ?? null);
                     setSlots(preview?.slots ?? []);
                   }}
                 >
@@ -286,8 +427,12 @@ export function BookingWidget({
       ) : (
         <form action={submit} className="flex flex-col gap-4">
           <p className="text-sm">
-            <span className="font-medium">{service.name}</span> —{" "}
-            {dayFmt.format(new Date(slot))}, {timeFmt.format(new Date(slot))}{" "}
+            <span className="font-medium">{service.name}</span>
+            {/* Same split as the header: "with Anna" only when the person is
+                fixed by the link — "with Anyone" would be nonsense. */}
+            {withLabel ? `${lockedStaff ? " with " : " · "}${withLabel}` : ""} —{" "}
+            {dayFmt.format(new Date(slot))},{" "}
+            {timeFmt.format(new Date(slot))}{" "}
             <button type="button" className="text-muted-foreground underline" onClick={() => setSlot(null)}>
               change
             </button>

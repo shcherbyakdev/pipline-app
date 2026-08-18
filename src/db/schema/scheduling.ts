@@ -8,6 +8,7 @@ import {
   date,
   index,
   uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 import { clients } from "./clients";
@@ -16,6 +17,38 @@ import { rentalOfferings, rentalUnits } from "./rentals";
 // Scheduling pivot (S1). CHECKs, RLS, grants, the EXCLUDE double-book guard,
 // triggers, and RPCs all live in 0026 (custom SQL keeps the security surface
 // in one reviewable place — the 0013 idiom).
+
+// Team slice (2026-08-17 spec): a bookable person. Every org has ≥1 row (the
+// creator's, seeded by create_org / backfilled by 0041). Solo = exactly one
+// active row — every UI hides the staff layer at that count. CHECKs, RLS,
+// grants, triggers, guard rebuilds and RPCs live in 0041 (0037 idiom).
+export const staff = pgTable(
+  "staff",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // Public URL segment: /book/[handle]/[slug]. Format CHECK in 0041.
+    slug: text("slug").notNull(),
+    // Optional; only for staff notices. Never exposed to anon.
+    email: text("email"),
+    // Hex "#rrggbb" — CHECK in 0041. Calendar/event accent.
+    color: text("color").notNull(),
+    active: boolean("active").default(true).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    // Reserved for the staff-login slice; unused here. References auth.users.
+    userId: uuid("user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("staff_org_id_idx").on(t.orgId),
+    index("staff_org_active_sort_idx").on(t.orgId, t.active, t.sortOrder),
+    uniqueIndex("staff_org_slug_uq").on(t.orgId, t.slug),
+    uniqueIndex("staff_user_id_uq").on(t.userId),
+  ],
+);
 
 export const services = pgTable(
   "services",
@@ -42,6 +75,28 @@ export const services = pgTable(
   (t) => [index("services_org_id_idx").on(t.orgId)],
 );
 
+// Which staff offer which service. All-assigned by default (actions fan out
+// on create in both directions). Org-consistency trigger in 0041.
+export const serviceStaff = pgTable(
+  "service_staff",
+  {
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    serviceId: uuid("service_id")
+      .notNull()
+      .references(() => services.id, { onDelete: "cascade" }),
+    staffId: uuid("staff_id")
+      .notNull()
+      .references(() => staff.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.serviceId, t.staffId] }),
+    index("service_staff_staff_id_idx").on(t.staffId),
+    index("service_staff_org_id_idx").on(t.orgId),
+  ],
+);
+
 export const availabilityRules = pgTable(
   "availability_rules",
   {
@@ -49,6 +104,8 @@ export const availabilityRules = pgTable(
     orgId: uuid("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
+    // Team slice: nullable in 0040, backfilled + NOT NULL in 0041.
+    staffId: uuid("staff_id").references(() => staff.id, { onDelete: "cascade" }),
     // 0 = Sunday … 6 = Saturday (JS getUTCDay convention). CHECK in 0026.
     weekday: integer("weekday").notNull(),
     // Org-local wall-clock "HH:MM". Format CHECK in 0026. The slot engine
@@ -58,7 +115,10 @@ export const availabilityRules = pgTable(
     endTime: text("end_time").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("availability_rules_org_id_idx").on(t.orgId)],
+  (t) => [
+    index("availability_rules_org_id_idx").on(t.orgId),
+    index("availability_rules_staff_weekday_idx").on(t.staffId, t.weekday),
+  ],
 );
 
 export const availabilityExceptions = pgTable(
@@ -68,6 +128,8 @@ export const availabilityExceptions = pgTable(
     orgId: uuid("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
+    // Team slice: nullable in 0040, backfilled + NOT NULL in 0041.
+    staffId: uuid("staff_id").references(() => staff.id, { onDelete: "cascade" }),
     // Org-local calendar date the exception applies to.
     date: date("date").notNull(),
     // closed=true ⇒ whole day off (start/end null). closed=false ⇒ this
@@ -77,7 +139,10 @@ export const availabilityExceptions = pgTable(
     endTime: text("end_time"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("availability_exceptions_org_date_idx").on(t.orgId, t.date)],
+  (t) => [
+    index("availability_exceptions_org_date_idx").on(t.orgId, t.date),
+    index("availability_exceptions_staff_date_idx").on(t.staffId, t.date),
+  ],
 );
 
 export const bookings = pgTable(
@@ -97,6 +162,9 @@ export const bookings = pgTable(
     rentalUnitId: uuid("rental_unit_id").references(() => rentalUnits.id, {
       onDelete: "restrict",
     }),
+    // Team slice: set iff service_id is set (CHECK bookings_staff_iff_service,
+    // 0041). Restrict: a staff row with history can only be deactivated.
+    staffId: uuid("staff_id").references(() => staff.id, { onDelete: "restrict" }),
     // set null: a booking is a historical record that survives client
     // deletion — the denormalized name/email below keep it self-contained.
     clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
@@ -131,6 +199,7 @@ export const bookings = pgTable(
     index("bookings_service_id_idx").on(t.serviceId),
     index("bookings_client_id_idx").on(t.clientId),
     index("bookings_rental_unit_starts_at_idx").on(t.rentalUnitId, t.startsAt),
+    index("bookings_staff_starts_at_idx").on(t.staffId, t.startsAt),
     uniqueIndex("bookings_cancel_token_hash_uq").on(t.cancelTokenHash),
   ],
 );

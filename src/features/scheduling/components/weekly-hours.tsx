@@ -41,12 +41,16 @@ const WEEKDAY_LABELS_SHORT = ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "S
 
 type Conflict = { ruleId: string; message: string } | null;
 
-export function WeeklyHours({ rules }: { rules: RuleRow[] }) {
+// `staffId` is whose week this is (the page's `?staff=` tab, or the sole
+// active member for a solo org). Rules are already scoped to that person by
+// the query; the id travels with every write that creates or re-keys a row.
+export function WeeklyHours({ staffId, rules }: { staffId: string; rules: RuleRow[] }) {
   return (
     <div className="rounded-lg border border-border">
       {WEEKDAY_ORDER.map((weekday, i) => (
         <DayRow
           key={weekday}
+          staffId={staffId}
           weekday={weekday}
           rules={rules.filter((r) => r.weekday === weekday)}
           isLast={i === WEEKDAY_ORDER.length - 1}
@@ -57,10 +61,12 @@ export function WeeklyHours({ rules }: { rules: RuleRow[] }) {
 }
 
 function DayRow({
+  staffId,
   weekday,
   rules,
   isLast,
 }: {
+  staffId: string;
   weekday: number;
   rules: RuleRow[];
   isLast: boolean;
@@ -109,7 +115,7 @@ function DayRow({
   function onAdd() {
     if (!next) return;
     startTransition(async () => {
-      const result = await addAvailabilityRule({ weekday, ...next });
+      const result = await addAvailabilityRule({ staffId, weekday, ...next });
       if (!result.ok) toast.error(result.error);
     });
   }
@@ -142,6 +148,7 @@ function DayRow({
   function onApplyCopy() {
     startTransition(async () => {
       const result = await copyDayHours({
+        staffId,
         sourceWeekday: weekday,
         targetWeekdays: Array.from(targets),
       });

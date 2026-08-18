@@ -5,8 +5,9 @@ import { createAnonServerClient } from "@/lib/supabase/anon-server";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter } from "@/lib/tokens/rate-limit";
 import { resolveBookingToken, buildBookingManageUrl } from "@/lib/tokens/booking";
-import { loadOrgSlotContext } from "@/lib/booking/public";
+import { loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
 import { getProviderEmail } from "@/lib/booking/provider";
+import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { computeSlots, dateInZone } from "./slots";
@@ -56,21 +57,27 @@ export async function getManageSlots(
     const booking = await resolveActionable(parsed.data.token);
     if (!booking) return { ok: false, error: NOT_CHANGEABLE };
     // Rentals R1: a rental stay has no service and no slot grid — the
-    // appointment engine below cannot speak for it.
-    if (booking.serviceId === null) return { ok: false, error: NOT_CHANGEABLE };
+    // appointment engine below cannot speak for it. A null staffId is the same
+    // story from the team side: no calendar owner, nothing to offer.
+    if (booking.serviceId === null || booking.staffId === null) {
+      return { ok: false, error: NOT_CHANGEABLE };
+    }
+    // Team: a client reschedule stays with the SAME staff member (the RPC
+    // enforces it), so the grid is that one person's — never a fan-out.
     const ctx = await loadOrgSlotContext(
       booking.orgId,
       booking.serviceId,
       parsed.data.fromDate,
       parsed.data.days,
-      { excludeBookingId: booking.id },
+      { staffId: booking.staffId, excludeBookingId: booking.id },
     );
     if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
+    const [own] = ctx.perStaff;
     const slots = computeSlots({
       service: ctx.service,
-      rules: ctx.rules,
-      exceptions: ctx.exceptions,
-      busy: ctx.busy,
+      rules: own.rules,
+      exceptions: own.exceptions,
+      busy: own.busy,
       timeZone: booking.orgTimezone,
       now: new Date(),
       fromDate: parsed.data.fromDate,
@@ -107,25 +114,34 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
       // cancellation email can render a range for rentals.
       ends_at: string;
       rental_unit_id: string | null;
+      // 0041: + the assigned staff member (null for rental stays).
+      staff_id: string | null;
+      staff_name: string | null;
     }> | null)?.[0];
     if (!row) return { ok: false, error: NOT_CHANGEABLE };
+
+    // Everything below is post-RPC: the cancellation is already committed, so
+    // nothing here may turn into a failed action. Both of these are safe by
+    // construction — whenLineFor is pure, resolveClientStaffName swallows.
+    const whenLine = whenLineFor(
+      {
+        startsAt: new Date(row.starts_at),
+        endsAt: new Date(row.ends_at),
+        isRental: row.rental_unit_id !== null,
+      },
+      row.org_timezone,
+    );
+    const staffName = await resolveClientStaffName(row.org_id, row.staff_name);
 
     // Best-effort notifications — the cancellation is already committed.
     try {
       const transport = selectTransport();
-      const whenLine = whenLineFor(
-        {
-          startsAt: new Date(row.starts_at),
-          endsAt: new Date(row.ends_at),
-          isRental: row.rental_unit_id !== null,
-        },
-        row.org_timezone,
-      );
       const msg = bookingCancelledEmail({
         orgName: row.org_name,
         serviceName: row.service_name,
         whenLine,
         cancelledBy: "client",
+        staffName,
       });
       await transport.send({
         to: row.client_email,
@@ -152,6 +168,20 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     } catch (mailError) {
       console.error("[scheduling] cancel emails failed:", mailError);
     }
+    // Team: the freed calendar belongs to the staff member — tell them too.
+    // Outside the try above so a failed provider mail can't skip it; the
+    // notice swallows its own errors and no-ops on a solo org.
+    if (row.staff_id) {
+      await sendStaffNotice({
+        orgId: row.org_id,
+        staffId: row.staff_id,
+        kind: "cancelled",
+        serviceName: row.service_name,
+        clientName: row.client_name,
+        whenLine,
+        idempotencyKey: bookingLifecycleKey(row.booking_id, "cancelled"),
+      });
+    }
     return { ok: true };
   } catch (error) {
     console.error("[scheduling] cancelBooking:", error);
@@ -169,23 +199,30 @@ export async function rescheduleBooking(
     const booking = await resolveActionable(parsed.data.token);
     if (!booking) return { ok: false, error: NOT_CHANGEABLE };
     // Rentals R1: rental stays are not reschedulable online (reschedule_booking
-    // raises for them too — this is the app-side half of that rule).
-    if (booking.serviceId === null) return { ok: false, error: NOT_CHANGEABLE };
+    // raises for them too — this is the app-side half of that rule). Same for
+    // a booking with no staff owner.
+    if (booking.serviceId === null || booking.staffId === null) {
+      return { ok: false, error: NOT_CHANGEABLE };
+    }
 
     // Engine re-check on the org-local day (createBooking idiom): the
     // requested instant must be one of the engine's own outputs. EXCLUDE +
     // the RPC's containment stay the race-proof last lines.
     const starts = new Date(parsed.data.startsAt);
     const localDate = dateInZone(starts, booking.orgTimezone);
+    // Same staff member as before — the RPC re-checks their availability, so
+    // a grid computed for anyone else would only produce false hope.
     const ctx = await loadOrgSlotContext(booking.orgId, booking.serviceId, localDate, 1, {
+      staffId: booking.staffId,
       excludeBookingId: booking.id,
     });
     if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
+    const [own] = ctx.perStaff;
     const slots = computeSlots({
       service: ctx.service,
-      rules: ctx.rules,
-      exceptions: ctx.exceptions,
-      busy: ctx.busy,
+      rules: own.rules,
+      exceptions: own.exceptions,
+      busy: own.busy,
       timeZone: booking.orgTimezone,
       now: new Date(),
       fromDate: localDate,
@@ -217,13 +254,21 @@ export async function rescheduleBooking(
       client_email: string;
       old_starts_at: string;
       new_starts_at: string;
+      // 0041: the move keeps the original staff member; both come back so the
+      // emails can name them.
+      staff_id: string | null;
+      staff_name: string | null;
     }> | null)?.[0];
     if (!row) return { ok: false, error: NOT_CHANGEABLE };
 
+    // Post-RPC: the move is committed. See cancelBooking — neither of these
+    // can throw.
+    const oldWhenLine = formatWhenLine(new Date(row.old_starts_at), row.org_timezone);
+    const whenLine = formatWhenLine(new Date(row.new_starts_at), row.org_timezone);
+    const staffName = await resolveClientStaffName(row.org_id, row.staff_name);
+
     try {
       const transport = selectTransport();
-      const oldWhenLine = formatWhenLine(new Date(row.old_starts_at), row.org_timezone);
-      const whenLine = formatWhenLine(new Date(row.new_starts_at), row.org_timezone);
       const msg = bookingRescheduledEmail({
         orgName: row.org_name,
         serviceName: row.service_name,
@@ -231,6 +276,7 @@ export async function rescheduleBooking(
         whenLine,
         manageUrl: buildBookingManageUrl(fresh.token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+        staffName,
       });
       await transport.send({
         to: row.client_email,
@@ -257,6 +303,20 @@ export async function rescheduleBooking(
       }
     } catch (mailError) {
       console.error("[scheduling] reschedule emails failed:", mailError);
+    }
+    // Team: the staff member whose calendar moved (same person as before —
+    // the RPC keeps the assignment). Solo orgs no-op inside the notice.
+    if (row.staff_id) {
+      await sendStaffNotice({
+        orgId: row.org_id,
+        staffId: row.staff_id,
+        kind: "rescheduled",
+        serviceName: row.service_name,
+        clientName: row.client_name,
+        whenLine,
+        oldWhenLine,
+        idempotencyKey: bookingLifecycleKey(row.new_booking_id, "rescheduled"),
+      });
     }
 
     return { ok: true, token: fresh.token };
