@@ -38,6 +38,7 @@ export function WidgetAppearance({
   previewServices,
   staffOptions = [],
   initialStaffSlug = null,
+  canHideBadge = true,
 }: {
   initial: WidgetThemeConfig;
   accentColor: string | null;
@@ -48,6 +49,11 @@ export function WidgetAppearance({
   // provider never sees a "Book with" choice they can't make.
   staffOptions?: Array<{ slug: string; name: string }>;
   initialStaffSlug?: string | null;
+  // Hiding "Powered by Booklo" is a paid perk (spec §5). Defaults to true, so
+  // a caller that doesn't pass it — and the whole flag-off world — behaves
+  // exactly as before. The server enforces it regardless (badgeVisible): this
+  // only stops the toggle from looking like it works.
+  canHideBadge?: boolean;
 }) {
   const [config, setConfig] = React.useState<WidgetThemeConfig>(initial);
   const [pending, startTransition] = React.useTransition();
@@ -237,12 +243,20 @@ export function WidgetAppearance({
               type="checkbox"
               className="size-4"
               checked={config.hidePoweredBy}
-              disabled={pending}
+              disabled={pending || !canHideBadge}
               onChange={(e) => setConfig((c) => ({ ...c, hidePoweredBy: e.target.checked }))}
             />
             <Label htmlFor="wt-hide-powered-by" className="text-xs font-medium">
               Hide &quot;Powered by Booklo&quot;
             </Label>
+            {canHideBadge ? null : (
+              <Link
+                href="/billing"
+                className="border-primary/40 text-primary rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
+              >
+                Pro
+              </Link>
+            )}
           </div>
         </SettingsCard>
         <div className="lg:sticky lg:top-[calc(52px+1.5rem)] lg:self-start">

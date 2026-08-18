@@ -4,7 +4,9 @@ import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
+import { badgeVisible } from "@/lib/billing/entitlements";
 import { BrandedHeader } from "@/components/branded-header";
+import { PoweredBy } from "@/components/powered-by";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
 import { parseWidgetTheme } from "@/lib/widget-theme";
@@ -62,6 +64,8 @@ export default async function StaffBookPage({
             lockedStaff={person}
           />
         </WidgetTheme>
+        {/* Same rule as /book/[handle] and the embed (spec §5). */}
+        {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}
       </main>
     </div>
   );

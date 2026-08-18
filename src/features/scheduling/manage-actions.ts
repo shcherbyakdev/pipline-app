@@ -8,6 +8,7 @@ import { resolveBookingToken, buildBookingManageUrl } from "@/lib/tokens/booking
 import { loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
 import { getProviderEmail } from "@/lib/booking/provider";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
+import { emailBadgeUrl } from "@/lib/billing/queries";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { computeSlots, dateInZone } from "./slots";
@@ -142,6 +143,9 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
         whenLine,
         cancelledBy: "client",
         staffName,
+        // Client-facing mail carries the badge unless the org's plan lets it
+        // opt out and it did (emailBadgeUrl swallows its own errors).
+        badgeUrl: await emailBadgeUrl(row.org_id),
       });
       await transport.send({
         to: row.client_email,
@@ -277,6 +281,7 @@ export async function rescheduleBooking(
         manageUrl: buildBookingManageUrl(fresh.token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
         staffName,
+        badgeUrl: await emailBadgeUrl(row.org_id),
       });
       await transport.send({
         to: row.client_email,

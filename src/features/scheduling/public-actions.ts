@@ -14,6 +14,7 @@ import {
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { chooseStaffForBooking } from "@/lib/booking/bookable";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
+import { emailBadgeUrl } from "@/lib/billing/queries";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
@@ -210,6 +211,10 @@ export async function createBooking(
         manageUrl,
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
         staffName,
+        // "Powered by Booklo" unless the org's plan lets it opt out and it
+        // did (emailBadgeUrl swallows its own errors — same discipline as
+        // resolveClientStaffName above: the booking is already committed).
+        badgeUrl: await emailBadgeUrl(ctx.org.orgId),
       });
       await selectTransport().send({
         to: email,

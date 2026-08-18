@@ -5,11 +5,12 @@ import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
 import { RENTALS_ENABLED } from "@/lib/flags";
+import { badgeVisible } from "@/lib/billing/entitlements";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { EmbedResizeReporter } from "@/features/scheduling/components/embed-resize-reporter";
-import { env } from "@/env";
+import { PoweredBy } from "@/components/powered-by";
 
 export default async function EmbedPage({ params, searchParams }: PageProps<"/embed/[handle]">) {
   const { handle } = await params;
@@ -75,13 +76,9 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
         serviceStaffIds={serviceStaffIds}
         lockedStaff={lockedStaff}
       />
-      {theme.hidePoweredBy ? null : (
-        <p className="mt-4 text-center text-xs opacity-60">
-          <a href={env.NEXT_PUBLIC_APP_URL} target="_blank" rel="noopener noreferrer">
-            Powered by Booklo
-          </a>
-        </p>
-      )}
+      {/* Hiding the badge is a paid perk now: the org's toggle only takes
+          effect on a plan that allows it (spec §5). */}
+      {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}
     </WidgetTheme>
   );
 }

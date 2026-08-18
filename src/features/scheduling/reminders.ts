@@ -31,6 +31,7 @@ export function decideReminder(
 
 type CandidateRow = {
   id: string;
+  org_id: string;
   client_email: string | null;
   starts_at: string;
   ends_at: string;
@@ -47,6 +48,11 @@ export async function runReminderDrain(deps: {
   db: SupabaseClient;
   transport: EmailTransport;
   now?: Date;
+  // "Powered by Booklo" for this org's client mail, or null when its plan
+  // lets it hide the badge and it did (lib/billing/queries.ts#emailBadgeUrl,
+  // which the drain route injects). Optional: tests and any caller that does
+  // not care get badge-free reminders, exactly as before billing.
+  badgeFor?: (orgId: string) => Promise<string | null>;
 }): Promise<ReminderSummary> {
   const now = deps.now ?? new Date();
   const summary: ReminderSummary = { sent: 0, skipped: 0, failed: 0 };
@@ -54,7 +60,7 @@ export async function runReminderDrain(deps: {
   const { data, error } = await deps.db
     .from("bookings")
     .select(
-      "id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, services(name), rental_offerings(name), rental_units(name), orgs(name, timezone)",
+      "id, org_id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, services(name), rental_offerings(name), rental_units(name), orgs(name, timezone)",
     )
     .eq("status", "confirmed")
     .is("reminder_sent_at", null)
@@ -104,6 +110,7 @@ export async function runReminderDrain(deps: {
             },
             row.orgs?.timezone ?? "UTC",
           ),
+          badgeUrl: deps.badgeFor ? await deps.badgeFor(row.org_id) : null,
         });
         await deps.transport.send({
           to: row.client_email,

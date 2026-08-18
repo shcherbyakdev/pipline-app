@@ -192,3 +192,91 @@ describe("booking lifecycle templates", () => {
     expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin")).toContain("→");
   });
 });
+
+// "Powered by Booklo" (spec §5): the growth loop rides along on every
+// client-facing email. The templates stay pure — the server decides whether
+// the badge shows (plan + the org's toggle) and passes a URL, or null.
+describe("email badge", () => {
+  const BADGE_URL = "https://booklo.example/?ref=badge";
+  const clientFacing = (badgeUrl?: string | null) => ({
+    confirmation: bookingConfirmationEmail({
+      orgName: "Studio",
+      serviceName: "Cut",
+      whenLine: "Mon",
+      manageUrl: "https://x/m",
+      icsUrl: "https://x/i",
+      badgeUrl,
+    }),
+    manageLink: bookingManageLinkEmail({
+      orgName: "Studio",
+      serviceName: "Cut",
+      whenLine: "Mon",
+      manageUrl: "https://x/m",
+      icsUrl: "https://x/i",
+      badgeUrl,
+    }),
+    cancelled: bookingCancelledEmail({
+      orgName: "Studio",
+      serviceName: "Cut",
+      whenLine: "Mon",
+      cancelledBy: "client",
+      badgeUrl,
+    }),
+    rescheduled: bookingRescheduledEmail({
+      orgName: "Studio",
+      serviceName: "Cut",
+      oldWhenLine: "Sun",
+      whenLine: "Mon",
+      manageUrl: "https://x/m",
+      icsUrl: "https://x/i",
+      badgeUrl,
+    }),
+    reminder: bookingReminderEmail({ orgName: "Studio", serviceName: "Cut", whenLine: "Mon", badgeUrl }),
+  });
+
+  it("renders on every client-facing email when a URL is given", () => {
+    for (const [name, msg] of Object.entries(clientFacing(BADGE_URL))) {
+      expect(msg.html, name).toContain(`<a href="${BADGE_URL}"`);
+      expect(msg.html, name).toContain("Powered by Booklo");
+      expect(msg.text, name).toContain(`Powered by Booklo — ${BADGE_URL}`);
+      // Last line inside the wrapper, not appended after it.
+      expect(msg.html.trimEnd().endsWith("</div>"), name).toBe(true);
+    }
+  });
+
+  it("renders nothing when omitted or null", () => {
+    for (const [name, msg] of Object.entries(clientFacing())) {
+      expect(msg.html, name).not.toContain("Powered by Booklo");
+      expect(msg.text, name).not.toContain("Powered by Booklo");
+    }
+    for (const [name, msg] of Object.entries(clientFacing(null))) {
+      expect(msg.html, name).not.toContain("Powered by Booklo");
+      expect(msg.text, name).not.toContain("Powered by Booklo");
+    }
+  });
+
+  it("escapes the URL it is handed", () => {
+    const msg = bookingReminderEmail({
+      orgName: "Studio",
+      serviceName: "Cut",
+      whenLine: "Mon",
+      badgeUrl: "https://booklo.example/?ref=badge&org=studio",
+    });
+    expect(msg.html).toContain("?ref=badge&amp;org=studio");
+  });
+
+  it("leaves staff-facing emails alone", () => {
+    expect(
+      providerCancelledEmail({ serviceName: "Cut", whenLine: "Mon", clientName: "A" }).html,
+    ).not.toContain("Powered by Booklo");
+    expect(
+      staffNewBookingEmail({
+        staffName: "Anna",
+        orgName: "Studio",
+        serviceName: "Cut",
+        clientName: "A",
+        whenLine: "Mon",
+      }).html,
+    ).not.toContain("Powered by Booklo");
+  });
+});

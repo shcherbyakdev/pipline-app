@@ -16,6 +16,19 @@ const staffHtmlLine = (staffName?: string | null) =>
 const staffTextLine = (staffName?: string | null) =>
   staffName ? [`With ${staffName}`] : [];
 
+// "Powered by Booklo" (spec §5): the growth loop on every client-facing mail.
+// Whether it shows is a server decision (the org's plan and its embed toggle
+// — lib/billing/queries.ts#emailBadgeUrl), so these take a ready URL, or null
+// for "no badge". Same shape as the staff lines above: null keeps both the
+// html newline and the text entries out, so a badge-less mail stays
+// byte-identical to the pre-billing copy.
+const badgeHtmlLine = (badgeUrl?: string | null) =>
+  badgeUrl
+    ? `\n  <p style="color: #999; font-size: 11px; margin: 12px 0 0;"><a href="${esc(badgeUrl)}" style="color: #999;">Powered by Booklo</a></p>`
+    : "";
+const badgeTextLines = (badgeUrl?: string | null) =>
+  badgeUrl ? ["", `Powered by Booklo — ${badgeUrl}`] : [];
+
 export function bookingIdempotencyKey(bookingId: string): string {
   return `booking/${bookingId}/confirmation`;
 }
@@ -76,6 +89,7 @@ export function bookingConfirmationEmail(input: {
   manageUrl: string;
   icsUrl: string;
   staffName?: string | null;
+  badgeUrl?: string | null;
 }): { subject: string; html: string; text: string } {
   const subject = `Booking confirmed — ${input.serviceName}, ${input.whenLine}`;
   const html = `
@@ -92,7 +106,7 @@ export function bookingConfirmationEmail(input: {
   </p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     Keep this email — the link above is your access to the booking.
-  </p>
+  </p>${badgeHtmlLine(input.badgeUrl)}
 </div>`.trim();
   const text = [
     input.orgName,
@@ -104,6 +118,7 @@ export function bookingConfirmationEmail(input: {
     "",
     `Add to calendar: ${input.icsUrl}`,
     `View or manage: ${input.manageUrl}`,
+    ...badgeTextLines(input.badgeUrl),
   ].join("\n");
   return { subject, html, text };
 }
@@ -117,6 +132,7 @@ export function bookingManageLinkEmail(input: {
   manageUrl: string;
   icsUrl: string;
   staffName?: string | null;
+  badgeUrl?: string | null;
   // Rentals have no self-service reschedule — don't promise one (default:
   // appointments, which do).
   canReschedule?: boolean;
@@ -138,7 +154,7 @@ export function bookingManageLinkEmail(input: {
   </p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     Keep this email — the link above replaces any previous manage link.
-  </p>
+  </p>${badgeHtmlLine(input.badgeUrl)}
 </div>`.trim();
   const text = [
     input.orgName,
@@ -150,6 +166,7 @@ export function bookingManageLinkEmail(input: {
     "",
     `Add to calendar: ${input.icsUrl}`,
     `View or manage: ${input.manageUrl}`,
+    ...badgeTextLines(input.badgeUrl),
   ].join("\n");
   return { subject, html, text };
 }
@@ -180,6 +197,7 @@ export function bookingCancelledEmail(input: {
   whenLine: string;
   cancelledBy: "client" | "provider";
   staffName?: string | null;
+  badgeUrl?: string | null;
 }): { subject: string; html: string; text: string } {
   const lead =
     input.cancelledBy === "client"
@@ -194,7 +212,7 @@ export function bookingCancelledEmail(input: {
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     Need a new appointment? Book again any time on the booking page.
-  </p>
+  </p>${badgeHtmlLine(input.badgeUrl)}
 </div>`.trim();
   const text = [
     input.orgName,
@@ -203,6 +221,7 @@ export function bookingCancelledEmail(input: {
     input.serviceName,
     ...staffTextLine(input.staffName),
     input.whenLine,
+    ...badgeTextLines(input.badgeUrl),
   ].join("\n");
   return { subject, html, text };
 }
@@ -215,6 +234,7 @@ export function bookingRescheduledEmail(input: {
   manageUrl: string;
   icsUrl: string;
   staffName?: string | null;
+  badgeUrl?: string | null;
 }): { subject: string; html: string; text: string } {
   const subject = `Booking rescheduled — ${input.serviceName}, ${input.whenLine}`;
   const html = `
@@ -232,7 +252,7 @@ export function bookingRescheduledEmail(input: {
   </p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     Keep this email — the link above replaces your previous manage link.
-  </p>
+  </p>${badgeHtmlLine(input.badgeUrl)}
 </div>`.trim();
   const text = [
     input.orgName,
@@ -245,6 +265,7 @@ export function bookingRescheduledEmail(input: {
     "",
     `Add to calendar: ${input.icsUrl}`,
     `View or manage: ${input.manageUrl}`,
+    ...badgeTextLines(input.badgeUrl),
   ].join("\n");
   return { subject, html, text };
 }
@@ -257,6 +278,7 @@ export function bookingReminderEmail(input: {
   serviceName: string;
   whenLine: string;
   staffName?: string | null;
+  badgeUrl?: string | null;
 }): { subject: string; html: string; text: string } {
   const subject = `Reminder — ${input.serviceName}, ${input.whenLine}`;
   const html = `
@@ -267,7 +289,7 @@ export function bookingReminderEmail(input: {
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     Need to change or cancel? Use the link in your confirmation email.
-  </p>
+  </p>${badgeHtmlLine(input.badgeUrl)}
 </div>`.trim();
   const text = [
     input.orgName,
@@ -278,6 +300,7 @@ export function bookingReminderEmail(input: {
     input.whenLine,
     "",
     "Need to change or cancel? Use the link in your confirmation email.",
+    ...badgeTextLines(input.badgeUrl),
   ].join("\n");
   return { subject, html, text };
 }

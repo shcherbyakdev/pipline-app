@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { selectTransport } from "@/lib/email/transport";
 import { isAuthorizedDrainRequest } from "@/features/chasing/drain-auth";
 import { runReminderDrain } from "@/features/scheduling/reminders";
+import { emailBadgeUrl } from "@/lib/billing/queries";
 
 // Booking-reminder drain tick. Same operational model as /api/chase/drain:
 // POST + Bearer secret now (scripts/scheduling-drain.ts), a cron
@@ -18,6 +19,9 @@ export async function POST(request: Request) {
     const summary = await runReminderDrain({
       db: createAdminClient(),
       transport: selectTransport(),
+      // Reminders carry the badge under the same rule as every other
+      // client-facing mail (plan + the org's toggle).
+      badgeFor: emailBadgeUrl,
     });
     return Response.json(summary);
   } catch (error) {

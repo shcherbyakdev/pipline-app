@@ -5,6 +5,9 @@ import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { toPreviewServices } from "@/features/scheduling/preview-services";
 import { parseWidgetTheme } from "@/lib/widget-theme";
+import { createClient } from "@/lib/supabase/server";
+import { getEntitlements } from "@/lib/billing/queries";
+import { BILLING_ENABLED } from "@/lib/flags";
 import { env } from "@/env";
 import { PageIntro } from "@/components/shell/page-header";
 
@@ -18,6 +21,10 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
     listStaff(),
   ]);
   if (!settings || !schedulingSettings) notFound();
+
+  // Hiding "Powered by Booklo" is a paid perk (spec §5). While billing is off
+  // nothing is read and every org keeps the toggle it has today.
+  const ent = BILLING_ENABLED ? await getEntitlements(settings.orgId, await createClient()) : null;
 
   const previewServices = toPreviewServices(services);
   // Solo orgs get no "Book with" choice at all (there is only one answer);
@@ -45,6 +52,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         previewServices={previewServices}
         staffOptions={staffOptions}
         initialStaffSlug={initialStaffSlug}
+        canHideBadge={ent ? ent.hideBadge : true}
       />
     </div>
   );

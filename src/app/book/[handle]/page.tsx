@@ -3,7 +3,9 @@ import { getBookingOrg, listPublicOfferings } from "@/lib/booking/public";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { getOrgBranding } from "@/lib/org-branding";
 import { RENTALS_ENABLED } from "@/lib/flags";
+import { badgeVisible } from "@/lib/billing/entitlements";
 import { BrandedHeader } from "@/components/branded-header";
+import { PoweredBy } from "@/components/powered-by";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
 import { parseWidgetTheme } from "@/lib/widget-theme";
@@ -56,6 +58,9 @@ export default async function BookPage({
             serviceStaffIds={serviceStaffIds}
           />
         </WidgetTheme>
+        {/* Same rule as the embed: the badge shows unless the org both asked
+            to hide it and is on a plan that may (spec §5). */}
+        {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}
       </main>
     </div>
   );
