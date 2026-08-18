@@ -7,6 +7,7 @@ import { Logout03Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { NAV_ITEMS, NAV_SECTION_LABELS } from "./nav";
 import { signOut } from "@/features/auth/actions";
 import { OPEN_COMMAND_MENU_EVENT } from "@/components/command-menu";
+import { COMMAND_MENU_ENABLED } from "@/lib/flags";
 import { cn } from "@/lib/utils";
 
 /* Linear sidebar metrics: 13px/500 items, 16px icons, 4px radius, ~27px rows,
@@ -45,15 +46,19 @@ export function SidebarBody({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => window.dispatchEvent(new Event(OPEN_COMMAND_MENU_EVENT))}
-        className="bg-secondary text-foreground/80 hover:text-foreground focus-visible:ring-ring/50 mt-3 flex h-7 w-full items-center gap-2.5 rounded-[4px] border px-1.5 text-[13px] shadow-[0_1px_0.5px_oklch(0_0_0/15%)] outline-none focus-visible:ring-2"
-      >
-        <HugeiconsIcon icon={Search01Icon} size={16} className="shrink-0" />
-        <span className="flex-1 text-left">Search</span>
-        <kbd className="text-muted-foreground font-mono text-[10px]">⌘K</kbd>
-      </button>
+      {/* Parked (see lib/flags.ts): the palette only navigates, so a row
+          labelled "Search" over-promises. */}
+      {COMMAND_MENU_ENABLED && (
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event(OPEN_COMMAND_MENU_EVENT))}
+          className="bg-secondary text-foreground/80 hover:text-foreground focus-visible:ring-ring/50 mt-3 flex h-7 w-full items-center gap-2.5 rounded-[4px] border px-1.5 text-[13px] shadow-[0_1px_0.5px_oklch(0_0_0/15%)] outline-none focus-visible:ring-2"
+        >
+          <HugeiconsIcon icon={Search01Icon} size={16} className="shrink-0" />
+          <span className="flex-1 text-left">Search</span>
+          <kbd className="text-muted-foreground font-mono text-[10px]">⌘K</kbd>
+        </button>
+      )}
 
       <nav aria-label="Workspace" className="mt-4 flex flex-col gap-4">
         {sections.map((section) => {

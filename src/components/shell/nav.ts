@@ -3,7 +3,6 @@ import {
   Calendar03Icon,
   Clock01Icon,
   CreditCardIcon,
-  DashboardSquare01Icon,
   Globe02Icon,
   Settings01Icon,
   SourceCodeIcon,
@@ -12,15 +11,16 @@ import {
 } from "@hugeicons/core-free-icons";
 import { BILLING_ENABLED } from "@/lib/flags";
 
-// Post-pivot nav (S5): Overview leads; Bookings stays the post-login surface
-// (S2 user ruling). The command menu derives from this list. `section` splits
+// Post-pivot nav (S5): Bookings leads and stays the post-login surface (S2
+// user ruling). The command menu derives from this list. `section` splits
 // the sidebar Linear-style: day-to-day views on top, then a labelled
 // "Configure" group for the things you set up once. The two booking channels
 // (hosted Booking page, Website embed) are first-class here, Calendly-style;
 // Settings holds only admin-panel preferences (user ruling 2026-08-17). Icons are Hugeicons
 // stroke-rounded (free set) — render with <HugeiconsIcon icon={…} />.
 const ALL_NAV_ITEMS = [
-  { href: "/overview", label: "Overview", icon: DashboardSquare01Icon, section: "main" },
+  // Overview is parked (OVERVIEW_ENABLED, lib/flags.ts) — restore its row here
+  // as the first "main" item when un-parking.
   { href: "/bookings", label: "Bookings", icon: Calendar03Icon, section: "main" },
   { href: "/clients", label: "Clients", icon: UserMultipleIcon, section: "main" },
   { href: "/services", label: "Services", icon: Briefcase01Icon, section: "configure" },

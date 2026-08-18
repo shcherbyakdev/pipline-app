@@ -24,3 +24,19 @@ export const RENTALS_ENABLED = false;
     Tables, the provider seam and the webhook route exist regardless so the
     Stripe account can be wired before the flip. */
 export const BILLING_ENABLED = false;
+
+/** The `/overview` stat tiles are hidden for now (ruling 2026-08-18): four
+    org-wide numbers is not yet a dashboard worth the first nav slot. While
+    false: /overview 404s and the sidebar starts at Bookings. The page,
+    `computeOverviewStats` and its tests are untouched — un-parking means
+    flipping this *and* restoring the `/overview` entry at the top of
+    NAV_ITEMS (components/shell/nav.ts). */
+export const OVERVIEW_ENABLED = false;
+
+/** The ⌘K command palette is hidden for now (ruling 2026-08-18): it is
+    presented as "Search" but only navigates — it searches no bookings,
+    clients or services. While false: the sidebar Search button is gone and
+    ⌘K is inert (the listener never mounts). Nothing else goes with it — the
+    theme toggle lives in Settings → Interface theme, "New service" on
+    /services. Flip to true to restore both. */
+export const COMMAND_MENU_ENABLED = false;
