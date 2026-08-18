@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getBookingOrg, listPublicOfferings } from "@/lib/booking/public";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { getOrgBranding } from "@/lib/org-branding";
-import { RENTALS_ENABLED } from "@/lib/flags";
+import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { badgeVisible } from "@/lib/billing/entitlements";
 import { BrandedHeader } from "@/components/branded-header";
 import { PoweredBy } from "@/components/powered-by";
@@ -22,8 +22,8 @@ export default async function BookPage({
     // The org's roster and services, already narrowed to what someone active
     // can be booked for AND to what the org's plan may offer publicly.
     loadPublicOffering(org.orgId),
-    // Rentals parked for the MVP (lib/flags.ts): the widget lists services only.
-    RENTALS_ENABLED ? listPublicOfferings(org.orgId) : Promise.resolve([]),
+    // Rentals parked unless the org's `rentals` flag is on (lib/flags): the widget lists services only.
+    getOrgFlagsAdmin(org.orgId).then((f) => (f.rentals ? listPublicOfferings(org.orgId) : [])),
     getOrgBranding(org.orgId),
   ]);
   const { services, staff, serviceStaffIds } = offering;

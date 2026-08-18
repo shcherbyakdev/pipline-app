@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
-import { RENTALS_ENABLED } from "@/lib/flags";
+import { requireOrg } from "@/lib/auth/session";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 
-/* Rentals are parked for the appointments-only MVP (see lib/flags.ts). The
-   pages below stay intact; this layout just takes them off the map. */
-export default function RentalsLayout({ children }: { children: React.ReactNode }) {
-  if (!RENTALS_ENABLED) notFound();
+/* Rentals are parked unless the org's `rentals` flag resolves true (lib/flags). */
+export default async function RentalsLayout({ children }: { children: React.ReactNode }) {
+  const { org } = await requireOrg();
+  if (!(await getDashboardFlags(org.id)).rentals) notFound();
   return children;
 }

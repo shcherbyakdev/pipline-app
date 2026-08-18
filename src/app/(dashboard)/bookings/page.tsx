@@ -9,7 +9,8 @@ import {
 import { listActiveStaff, type StaffRow } from "@/features/scheduling/staff-queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listOfferings, listTimelineData } from "@/features/rentals/queries";
-import { RENTALS_ENABLED } from "@/lib/flags";
+import { requireOrg } from "@/lib/auth/session";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 import { TIMELINE_DAYS, timelineDefaultStart } from "@/features/rentals/timeline-geometry";
 import { Timeline } from "@/features/rentals/components/timeline";
 import { BookingsList } from "@/features/scheduling/components/bookings-list";
@@ -55,10 +56,12 @@ export default async function BookingsPage({
   const params = await searchParams;
   const settings = await getSchedulingSettings();
   const timeZone = settings?.timezone ?? "UTC";
+  const { org } = await requireOrg();
+  const { rentals: rentalsOn } = await getDashboardFlags(org.id);
 
-  // Rentals parked for the MVP (lib/flags.ts): the timeline view falls back to
-  // the week calendar and its link never renders.
-  if (RENTALS_ENABLED && params.view === "timeline") {
+  // Rentals parked unless the org's flag is on (lib/flags): the timeline view
+  // falls back to the week calendar and its link never renders.
+  if (rentalsOn && params.view === "timeline") {
     const fromDate = validDate(
       params.from,
       timelineDefaultStart(dateInZone(new Date(), timeZone)),
@@ -101,7 +104,7 @@ export default async function BookingsPage({
 
   // The Timeline link only makes sense once the org actually rents
   // something out — appointment-only orgs never see it.
-  const hasRentals = RENTALS_ENABLED && (await listOfferings()).length > 0;
+  const hasRentals = rentalsOn && (await listOfferings()).length > 0;
   const timelineLink = hasRentals ? (
     <Link
       href="/bookings?view=timeline"
