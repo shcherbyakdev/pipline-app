@@ -28,7 +28,7 @@ export function bookingIcs(input: {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//RolloutOS//Booking//EN",
+    "PRODID:-//Booklo//Booking//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",

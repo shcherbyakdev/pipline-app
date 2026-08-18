@@ -81,7 +81,7 @@ export function EmbedPreviewFrame({
       <Skeleton dark={dark} />
       <WidgetTheme config={previewConfig} accentColor={accentColor} transparent={transparent} className="rounded-lg p-4">
         {children}
-        {config.hidePoweredBy ? null : <p className="mt-4 text-center text-xs opacity-60">Powered by RolloutOS</p>}
+        {config.hidePoweredBy ? null : <p className="mt-4 text-center text-xs opacity-60">Powered by Booklo</p>}
       </WidgetTheme>
       <Skeleton dark={dark} short />
     </LivePreview>

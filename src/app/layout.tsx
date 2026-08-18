@@ -13,7 +13,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RolloutOS",
+  title: "Booklo",
   description: "Turn your program spreadsheet into a live operations portal.",
 };
 

@@ -25,7 +25,7 @@ export function selectTransport(): EmailTransport {
     return resendTransport(env.RESEND_API_KEY, env.EMAIL_FROM);
   }
   if (env.SMTP_HOST && env.SMTP_PORT) {
-    return smtpTransport(env.SMTP_HOST, env.SMTP_PORT, env.EMAIL_FROM ?? "RolloutOS <chase@localhost>");
+    return smtpTransport(env.SMTP_HOST, env.SMTP_PORT, env.EMAIL_FROM ?? "Booklo <chase@localhost>");
   }
   throw new Error("No email transport configured (RESEND_API_KEY or SMTP_HOST+SMTP_PORT)");
 }

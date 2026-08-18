@@ -241,7 +241,7 @@ export function WidgetAppearance({
               onChange={(e) => setConfig((c) => ({ ...c, hidePoweredBy: e.target.checked }))}
             />
             <Label htmlFor="wt-hide-powered-by" className="text-xs font-medium">
-              Hide &quot;Powered by RolloutOS&quot;
+              Hide &quot;Powered by Booklo&quot;
             </Label>
           </div>
         </SettingsCard>
