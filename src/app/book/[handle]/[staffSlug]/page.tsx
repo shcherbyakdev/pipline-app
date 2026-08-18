@@ -1,10 +1,6 @@
 import { notFound } from "next/navigation";
-import {
-  getBookingOrg,
-  getPublicStaffBySlug,
-  listPublicServices,
-  listServiceStaffMap,
-} from "@/lib/booking/public";
+import { getBookingOrg, getPublicStaffBySlug } from "@/lib/booking/public";
+import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
@@ -31,12 +27,14 @@ export default async function StaffBookPage({
   // rather than silently redirecting to the whole-team page.
   const person = await getPublicStaffBySlug(org.orgId, staffSlug);
   if (!person) notFound();
-  const [allServices, serviceStaffIds, branding] = await Promise.all([
-    listPublicServices(org.orgId),
-    listServiceStaffMap(org.orgId),
+  const [offering, branding] = await Promise.all([
+    loadPublicOffering(org.orgId),
     getOrgBranding(org.orgId),
   ]);
-  const services = filterBookableServices(allServices, serviceStaffIds, [person], person.id);
+  // Someone the plan doesn't offer publicly 404s exactly like a deactivated
+  // person: the link stays valid the moment the org upgrades again.
+  if (!offering.staff.some((s) => s.id === person.id)) notFound();
+  const services = filterBookableServices(offering.services, offering.serviceStaffIds, [person], person.id);
   // Nothing they can be booked for is not a page worth rendering.
   if (services.length === 0) notFound();
   const theme = parseWidgetTheme(branding.themeRaw);

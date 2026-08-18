@@ -1,12 +1,6 @@
 import { notFound } from "next/navigation";
-import {
-  getBookingOrg,
-  getPublicStaffBySlug,
-  listPublicOfferings,
-  listPublicServices,
-  listPublicStaff,
-  listServiceStaffMap,
-} from "@/lib/booking/public";
+import { getBookingOrg, listPublicOfferings } from "@/lib/booking/public";
+import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
@@ -22,24 +16,24 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
   if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(handle)) notFound();
   const org = await getBookingOrg(handle);
   if (!org) notFound();
-  const [allServices, offerings, branding, staff, serviceStaffIds] = await Promise.all([
-    listPublicServices(org.orgId),
+  const [offering, offerings, branding] = await Promise.all([
+    // Active-and-linked, then plan-limited — see /book/[handle].
+    loadPublicOffering(org.orgId),
     // Rentals parked for the MVP (lib/flags.ts): the widget lists services only.
     RENTALS_ENABLED ? listPublicOfferings(org.orgId) : Promise.resolve([]),
     getOrgBranding(org.orgId),
-    listPublicStaff(org.orgId),
-    listServiceStaffMap(org.orgId),
   ]);
-  // Only what someone active can actually be booked for (see /book/[handle]).
-  const orgServices = filterBookableServices(allServices, serviceStaffIds, staff);
+  const { services: orgServices, staff, serviceStaffIds } = offering;
   if (orgServices.length === 0 && offerings.length === 0) notFound();
   // `?staff=` pins the embed to one team member. Unlike /book/[handle]/[slug]
   // this never 404s: the snippet lives on someone else's site, so a staff
   // member who left (or a mistyped slug) must degrade to the org-wide flow
-  // rather than break the host page. Shape-checked before the DB call.
+  // rather than break the host page. Resolved from the plan's roster, so a
+  // person the plan no longer offers degrades the same way. Shape-checked
+  // before it is used at all.
   const staffParam = (await searchParams).staff;
   const staffSlug = typeof staffParam === "string" && STAFF_SLUG_RE.test(staffParam) ? staffParam : null;
-  const pinnedStaff = staffSlug ? await getPublicStaffBySlug(org.orgId, staffSlug) : null;
+  const pinnedStaff = staffSlug ? staff.find((s) => s.slug === staffSlug) ?? null : null;
   // Same reasoning one level down: a pinned person who offers nothing (every
   // service unlinked from them since the snippet was copied) would leave the
   // widget with an empty service step. Drop the lock and show the org flow —

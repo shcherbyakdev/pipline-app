@@ -11,6 +11,7 @@ import {
   countActiveStaff,
   resolveClientStaffName,
 } from "@/lib/booking/public";
+import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
@@ -56,9 +57,16 @@ async function loadSlotContext(
 ) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
-  const ctx = await loadOrgSlotContext(org.orgId, serviceId, fromDate, days, { staffId });
+  // The plan's public roster decides who the public may reach — a person the
+  // org can no longer offer publicly must not surface slots or take bookings.
+  const offering = await loadPublicOffering(org.orgId);
+  const bookableIds = offering.staff.map((s) => s.id);
+  const ctx = await loadOrgSlotContext(org.orgId, serviceId, fromDate, days, {
+    staffId,
+    allowedStaffIds: bookableIds,
+  });
   if (!ctx) return null;
-  return { org, service: ctx.service, perStaff: ctx.perStaff };
+  return { org, service: ctx.service, perStaff: ctx.perStaff, bookableIds };
 }
 
 // The engine runs once per eligible staff member; the client sees the union
@@ -142,7 +150,10 @@ export async function createBooking(
       p_email: email,
       p_note: note ?? null,
       p_token_hash: tokenHash,
-      p_staff_id: staffId === "any" ? null : staffId,
+      // "Anyone" may only reach the DB's auto-assign when more than one
+      // person is publicly bookable; otherwise name the single bookable person
+      // so a downgraded org's hidden staff never receive public bookings.
+      p_staff_id: staffId === "any" ? (ctx.bookableIds.length > 1 ? null : ctx.bookableIds[0]) : staffId,
     });
     if (error) {
       // The RPC raises a bare `staff_unavailable` when a NAMED staff member

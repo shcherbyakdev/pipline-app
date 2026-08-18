@@ -11,6 +11,8 @@
 // public.ts is `server-only`, so a decision living in either could not be
 // unit-tested — same reasoning as booking-errors.ts.
 
+import type { Entitlements } from "@/lib/billing/entitlements";
+
 export function filterBookableServices<T extends { id: string }>(
   services: T[],
   // serviceId → linked staff ids, UNFILTERED by staff.active
@@ -28,4 +30,20 @@ export function filterBookableServices<T extends { id: string }>(
     if (onlyStaffId) return active.has(onlyStaffId) && eligible.includes(onlyStaffId);
     return eligible.some((id) => active.has(id));
   });
+}
+
+// Plan limits shape the PUBLIC offering, never the data (spec §4.2): the
+// first `bookableStaff` active people by sort order stay bookable, services
+// narrow to what those people offer, then cap at `publicServices`. Order in
+// = order out — callers pass lists already sorted by sort_order.
+export function limitPublicOffering<S extends { id: string }, T extends { id: string }>(
+  services: S[],
+  staff: T[],
+  serviceStaffIds: Record<string, string[]>,
+  ent: Entitlements,
+): { services: S[]; staff: T[] } {
+  const bookableStaff = staff.slice(0, ent.bookableStaff);
+  const offered = filterBookableServices(services, serviceStaffIds, bookableStaff);
+  const capped = ent.publicServices === null ? offered : offered.slice(0, ent.publicServices);
+  return { services: capped, staff: bookableStaff };
 }

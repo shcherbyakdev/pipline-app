@@ -243,12 +243,16 @@ export async function loadOrgSlotContext(
   serviceId: string,
   fromDate: string,
   days: number,
-  opts: { staffId: string | "any"; excludeBookingId?: string },
+  opts: { staffId: string | "any"; excludeBookingId?: string; allowedStaffIds?: string[] },
 ): Promise<{ service: PublicService; perStaff: StaffSlotContext[] } | null> {
   const service = await getPublicServiceById(orgId, serviceId);
   if (!service) return null;
   const eligible = await listPublicStaff(orgId, serviceId);
-  const targets = opts.staffId === "any" ? eligible : eligible.filter((s) => s.id === opts.staffId);
+  // Public callers pass the plan-limited roster; the admin reschedule dialog
+  // and the tokenized manage page pass nothing (spec §7.4: admins may move a
+  // booking to anyone active; a client keeps the person they booked).
+  const allowed = opts.allowedStaffIds ? eligible.filter((s) => opts.allowedStaffIds!.includes(s.id)) : eligible;
+  const targets = opts.staffId === "any" ? allowed : allowed.filter((s) => s.id === opts.staffId);
   if (targets.length === 0) return null;
   // Fetch busy one day beyond both edges — buffers can reach across
   // org-local midnight in UTC terms.
