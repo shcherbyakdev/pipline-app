@@ -1,6 +1,8 @@
 // Marketing copy and links for the Booklo landing page. Plain data — no React —
 // so it can be unit-tested and reused by every marketing component.
 
+import { BILLING_ENABLED } from "@/lib/flags";
+
 export const SITE = {
   name: "Booklo",
   tagline: "Booking page & widget for solo providers",
@@ -10,8 +12,8 @@ export const SITE = {
   headline: "Let clients book you in seconds.",
   subheadline:
     "A booking page and embeddable widget for solo providers. No client accounts, no double bookings — confirmations, reminders and rescheduling handled for you.",
-  heroNote: "Free during early access · No credit card",
-  links: { home: "/", login: "/login", signup: "/signup" },
+  heroNote: "Free plan · No credit card",
+  links: { home: "/", login: "/login", signup: "/signup", pricing: "/pricing" },
   anchors: { how: "#how-it-works", features: "#features", faq: "#faq" },
 } as const;
 
@@ -63,6 +65,9 @@ export type NavLink = { label: string; href: string };
 export const NAV_LINKS: NavLink[] = [
   { label: "How it works", href: SITE.anchors.how },
   { label: "Features", href: SITE.anchors.features },
+  // Only listed once billing is live (lib/flags.ts) — while off, /pricing 404s
+  // and nothing should link to it from the nav.
+  ...(BILLING_ENABLED ? [{ label: "Pricing", href: SITE.links.pricing }] : []),
   { label: "FAQ", href: SITE.anchors.faq },
 ];
 
@@ -106,7 +111,7 @@ export const FAQ: FaqItem[] = [
   { question: "What happens if two people pick the same slot?", answer: "Only one booking can win. The other person sees that the slot was just taken and is offered fresh times — never a silent double booking." },
   { question: "How do clients cancel or reschedule?", answer: "Their confirmation email contains a secure manage link. From there they can cancel or pick another slot; you get notified either way." },
   { question: "What data do you store about my clients?", answer: "Name, email and an optional note — nothing else. No documents, no card numbers, no accounts." },
-  { question: "What does it cost?", answer: "Booklo is free during early access. We'll announce pricing well before anything changes, and early users will hear first." },
+  { question: "What does it cost?", answer: "Free for solo providers — one bookable person, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and a team; see Pricing." },
 ];
 
 export type FooterColumn = { heading: string; links: NavLink[] };
@@ -123,11 +128,31 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Legal",
     links: [
-      { label: "Privacy", href: "#" },
-      { label: "Terms", href: "#" },
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms", href: "/terms" },
     ],
   },
 ];
+
+/** Pricing page copy (spec docs/superpowers/specs/2026-08-18-pricing-and-billing-design.md).
+    Rows are prose, not limits — the pricing table reads prices from PLANS
+    (lib/billing/plans.ts) directly so a number never lives in two places. */
+export const PRICING = {
+  heading: "Simple pricing",
+  sub: "Free for solo providers. Pay when you need your brand, unlimited services or a team.",
+  note: "Prices in USD. Taxes are handled at checkout.",
+  rows: [
+    { label: "Publicly bookable team members", free: "1", pro: "1", team: "5" },
+    { label: "Services on your booking page", free: "3", pro: "Unlimited", team: "Unlimited" },
+    { label: "Reminder emails", free: "First 30 bookings a month", pro: "Every booking", team: "Every booking" },
+    { label: "Hosted page + website embed", free: "✓", pro: "✓", team: "✓" },
+    { label: "Self-serve cancel & reschedule", free: "✓", pro: "✓", team: "✓" },
+    { label: "Your logo, colours, welcome text", free: "✓", pro: "✓", team: "✓" },
+    { label: "Remove “Powered by Booklo”", free: "—", pro: "✓", team: "✓" },
+    { label: "Team layer: per-person links, “Anyone available”, colours", free: "—", pro: "—", team: "✓" },
+  ],
+  founder: "Early-access accounts get Pro for $8/month, locked for life — look for the Founder ribbon in Billing.",
+} as const;
 
 /** Words that must not appear in marketing copy: features not shipped yet. */
 export const FORBIDDEN_COPY = ["google", "calendar sync", "stripe", "payment"] as const;

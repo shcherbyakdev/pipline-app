@@ -10,6 +10,7 @@ import {
   SECTIONS,
   CTA,
   FORBIDDEN_COPY,
+  PRICING,
   anchorId,
   allInternalHrefs,
 } from "./site";
@@ -19,6 +20,9 @@ const ROUTE_DIRS: Record<string, string> = {
   "/": "src/app/(marketing)",
   "/login": "src/app/(auth)/login",
   "/signup": "src/app/(auth)/signup",
+  "/pricing": "src/app/(marketing)/pricing",
+  "/privacy": "src/app/(marketing)/privacy",
+  "/terms": "src/app/(marketing)/terms",
 };
 
 describe("site config", () => {
@@ -35,10 +39,12 @@ describe("site config", () => {
     }
   });
 
-  it("every anchor yields a usable id and every nav href is one of them", () => {
+  it("every anchor yields a usable id and every nav href is an anchor or an internal route", () => {
     const anchors: string[] = Object.values(SITE.anchors);
     for (const a of anchors) expect(anchorId(a), `bad anchor ${a}`).not.toBe("");
-    for (const l of NAV_LINKS) expect(anchors).toContain(l.href);
+    for (const l of NAV_LINKS) {
+      expect(anchors.includes(l.href) || l.href in ROUTE_DIRS, `nav href ${l.href} is neither anchor nor route`).toBe(true);
+    }
   });
 
   it("rejects an anchor without a leading #", () => {
@@ -80,6 +86,8 @@ describe("site config", () => {
         ...("paragraphs" in s ? s.paragraphs : []),
       ]),
       ...Object.values(CTA),
+      PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder,
+      ...PRICING.rows.flatMap((r) => [r.label, r.free, r.pro, r.team]),
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);
   });
