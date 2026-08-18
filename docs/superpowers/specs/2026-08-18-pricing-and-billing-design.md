@@ -22,7 +22,7 @@ Booklo's differentiators today: no client accounts, DB-guaranteed no double-book
 
 ## 3. Plan ladder
 
-USD list prices; the Merchant of Record shows local currency. All numbers are proposals Andrii can change without touching the design — they live in one constants module (§7.3).
+USD list prices; Stripe (as Merchant of Record) can present local currency via Adaptive Pricing. All numbers are proposals Andrii can change without touching the design — they live in one constants module (§7.3).
 
 | | **Free** | **Pro** — $12/mo · $9/mo annual ($108/yr) | **Team** — $29/mo · $24/mo annual (5 staff incl.) |
 |---|---|---|---|
@@ -43,7 +43,7 @@ USD list prices; the Merchant of Record shows local currency. All numbers are pr
 
 🔨 = not shipped; not gated by this slice (the entitlement flags exist so the follow-up slices only read them).
 
-**Founder price:** Pro at **$8/mo, locked for life**, for the first 100 orgs — offered to every org created before the public launch date, honouring the landing's "early users will hear first". Implemented as a provider discount code with a redemption cap, prefilled at checkout (§7.6); no schema.
+**Founder price:** Pro at **$8/mo, locked for life**, for the first 100 orgs — offered to every org created before the public launch date, honouring the landing's "early users will hear first". Implemented as a Stripe `forever` coupon + promotion code with `max_redemptions: 100`, applied server-side at checkout (§7.6); no schema.
 
 **Rejected models** (kept for the record):
 - *Per-seat only* — zero uplift on the core solo persona.
@@ -65,7 +65,7 @@ USD list prices; the Merchant of Record shows local currency. All numbers are pr
 
 **Customer side (the pricing-page argument).** A solo doing 60 bookings/mo at $60 avg books $3,600/mo. Industry no-show rates run ~10–20 %; reminders cut them by roughly a third; deposits far more. At 12 % → ~7 no-shows → ~$430/mo lost; one extra reminder recovering a third → ~$140/mo. Pro at $12 pays for itself ~12×. Line: *"Pro costs less than one no-show."* Team: one extra chair filled via "Anyone available" pays the month.
 
-**Business side.** Fixed: Vercel Pro $20 + Supabase Pro $25 + Resend $0–20 + domain ≈ **$50–70/mo**. Merchant of Record ≈ 5 % + $0.50 → we keep ≈ $10.90 of $12 (Stripe direct ≈ $0.70 but we would own VAT/OSS filing — not worth it solo). Variable per Pro org: ~3.5 emails/booking × 100 bookings ≈ 350 emails ≈ $0.15/mo. **Gross margin ≈ 88 %. Break-even ≈ 6 Pro subscribers.**
+**Business side.** Fixed: Vercel Pro $20 + Supabase Pro $25 + Resend $0–20 + domain ≈ **$50–70/mo**. Stripe Managed Payments ≈ 3.5 % MoR add-on + processing + Billing ≈ 7–9 % all-in → we keep ≈ $11.00 of $12 (Paddle 5 % + $0.50 ≈ $10.90; Stripe direct ≈ $0.70 in fees but we would own VAT/OSS filing — not worth it solo). Variable per Pro org: ~3.5 emails/booking × 100 bookings ≈ 350 emails ≈ $0.15/mo. **Gross margin ≈ 90 %. Break-even ≈ 6 Pro subscribers.**
 
 Assumptions: free→paid 3 % (freemium norm 2–5 %), blended ARPU ≈ $15 (¾ Pro incl. annual mix, ¼ Team), logo churn 5 %/mo monthly, ~2.5 % annual.
 
@@ -75,13 +75,17 @@ Assumptions: free→paid 3 % (freemium norm 2–5 %), blended ARPU ≈ $15 (¾ P
 | $3k MRR | ~200 | ~6,700 | ~10 |
 | $10k MRR | ~670 | ~22,000 | ~33 |
 
-LTV ≈ 15 × 0.88 / 0.05 ≈ **$264** on monthly; annual roughly doubles it → the checkout defaults to annual. With no ad budget CAC is time; paid acquisition only makes sense under ~$80/customer.
+LTV ≈ 15 × 0.90 / 0.05 ≈ **$270** on monthly; annual roughly doubles it → the checkout defaults to annual. With no ad budget CAC is time; paid acquisition only makes sense under ~$80/customer.
 
 Badge loop (measure, don't trust): a free org's page gets ~40–80 views/mo; if 0.3–1 % of viewers are providers who click through, that is 0.1–0.8 new orgs per free org per month — k < 1, so not viral alone, but it multiplies every other channel over ~6 months. The badge link carries `?ref=badge&org=<handle>` so this is measurable from day one.
 
-## 6. Provider choice
+## 6. Provider choice — **Stripe Managed Payments** (decided 2026-08-18)
 
-**Merchant of Record** (handles VAT/sales tax, invoices, dunning, customer portal): first adapter **Lemon Squeezy** — hosted checkout with `custom` data, HMAC-signed webhooks, prefillable discount codes, subscription customer portal. **Paddle** is the swap-in if Lemon Squeezy cannot pay out to the founder's country of incorporation (**verify before building the adapter** — open decision §9). Stripe direct only if a Stripe-supported entity exists; the seam makes any of the three a one-file change.
+Andrii sells as a Polish JDG. Being the seller of record ourselves would mean EU VAT-OSS above €10k/yr cross-border B2C, UK VAT registration from the first UK consumer sale, consumer invoicing, disputes and dunning — more accountant time than the fee difference at $1–3k MRR. So: **Merchant of Record**, and the MoR is **Stripe Managed Payments** — Stripe is the seller of record (tax, fraud, disputes, transaction-level support), we keep Stripe Checkout + Billing + Customer Portal + webhooks. Verified: `PL` is a supported business location; SaaS is an eligible category (product tax code `txcd_10103001`, "SaaS – business use"); fee = 3.5 % add-on + standard processing + Billing pay-as-you-go ≈ 7–9 % all-in; access is by eligibility review (apply early — §7.12). Constraint to remember: Managed Payments does not support Stripe Connect, which the deposits slice will need (§8).
+
+**Fallback: Paddle** (5 % + $0.50, mature, pays out to Poland) if the review stalls or rejects. Rejected: Lemon Squeezy (being migrated into Stripe Managed Payments), Polar (same price as Paddle at our scale, younger), Stripe direct + Stripe Tax (cheapest fees, but we would file OSS/UK VAT ourselves).
+
+The seam (§7.1) makes the provider a one-file change either way. Accountant questions to settle in parallel (not design decisions): VAT‑UE registration to invoice Stripe's Irish entity while VAT-exempt; the ryczałt rate for SaaS revenue.
 
 ## 7. Billing slice design
 
@@ -118,9 +122,14 @@ type BillingEvent = {
 };
 ```
 
-`selectBillingProvider()` (same file): `env.BILLING_PROVIDER === "lemonsqueezy"` → `lemonsqueezy.ts` (bare `fetch`, no SDK — the Resend idiom); anything else → `fake.ts`. The fake's `createCheckoutUrl` returns `/api/billing/dev-checkout?org=…&plan=…&interval=…`, a **non-production-only** route that writes the subscription directly (guarded by `process.env.NODE_ENV !== "production"` **and** `env.BILLING_PROVIDER !== "lemonsqueezy"`; 404 otherwise). Its `parseWebhook` accepts our own normalised JSON signed with `BILLING_WEBHOOK_SECRET` (HMAC-SHA256 hex in `x-signature`) — that is what integration tests post.
+`selectBillingProvider()` (same file): `env.BILLING_PROVIDER === "stripe"` → `stripe.ts`; anything else → `fake.ts`. The fake's `createCheckoutUrl` returns `/api/billing/dev-checkout?org=…&plan=…&interval=…`, a **non-production-only** route that writes the subscription directly (guarded by `process.env.NODE_ENV !== "production"` **and** `env.BILLING_PROVIDER !== "stripe"`; 404 otherwise). Its `parseWebhook` accepts our own normalised JSON signed with `BILLING_FAKE_SECRET` (HMAC-SHA256 hex in `x-signature`) — that is what integration tests post.
 
-Plan ↔ provider variant ids are env (`BILLING_VARIANT_PRO_MONTH`, `…_PRO_YEAR`, `…_TEAM_MONTH`, `…_TEAM_YEAR`); the adapter maps both directions.
+**`stripe.ts` (Stripe Managed Payments adapter)** — the only file that imports the official `stripe` npm SDK (server-only; chosen over bare `fetch` for signed-webhook parsing, API versioning and types — a deliberate exception to the Resend bare-fetch idiom, contained behind the seam):
+- `createCheckoutUrl` → `checkout.sessions.create` in `subscription` mode with Managed Payments enabled per Stripe's set-up guide, `line_items: [{ price: <STRIPE_PRICE_*>, quantity: 1 }]`, `client_reference_id: orgId`, `metadata.org_id` **and** `subscription_data.metadata.org_id` (so every later `customer.subscription.*` event carries the org without a lookup), `customer_email`, `discounts: [{ promotion_code }]` when a Founder code applies, `success_url = returnUrl`, `allow_promotion_codes: false`. Products carry tax code `txcd_10103001`.
+- `createPortalUrl` → `billingPortal.sessions.create({ customer, return_url })` (portal configuration allows cancel, interval switch, payment-method update; plan switching between Pro/Team is done in the portal too — the webhook reflects it).
+- `parseWebhook` → `stripe.webhooks.constructEvent(rawBody, headers["stripe-signature"], STRIPE_WEBHOOK_SECRET)`; maps `customer.subscription.created|updated|deleted` → `subscription_created|updated|expired`, `invoice.payment_failed` → `payment_failed`, `invoice.paid` (billing_reason ≠ `subscription_create`) → `payment_recovered`; ignores everything else (incl. `checkout.session.completed` — the subscription events are the source). `providerEventId = event.id`, `occurredAt = event.created`. Status mapping: `active|trialing` → `active`; `past_due` → `past_due`; `canceled|unpaid|incomplete|incomplete_expired|paused` → `expired`; `cancel_at_period_end` copied as-is (Stripe keeps `active` until the period ends, so our `cancelled` status is only produced by providers that model it explicitly — Paddle). `plan`/`interval` from the price id (reverse map of the env table); `seats` = line-item quantity for Team.
+
+Plan ↔ price ids are env (`STRIPE_PRICE_PRO_MONTH`, `…_PRO_YEAR`, `…_TEAM_MONTH`, `…_TEAM_YEAR`); the adapter maps both directions.
 
 ### 7.2 Data model — migrations `0042_<generated>.sql` + `0043_billing_security.sql`
 
@@ -135,7 +144,7 @@ Drizzle: new `src/db/schema/billing.ts` (added to the barrel). Custom SQL follow
 | status | text not null | CHECK in (`'active'`,`'past_due'`,`'cancelled'`,`'expired'`) |
 | interval | text not null | CHECK in (`'month'`,`'year'`) |
 | seats | int not null default 1 | bookable-staff allowance for Team; 1 for Pro |
-| provider | text not null | `'lemonsqueezy'` / `'fake'` |
+| provider | text not null | `'stripe'` / `'fake'` |
 | provider_customer_id | text not null | |
 | provider_subscription_id | text not null | unique |
 | current_period_end | timestamptz null | |
@@ -208,7 +217,7 @@ Idempotent and safe to replay; no email is sent from the webhook (the provider m
 
 ### 7.6 Checkout + portal — `src/features/billing/actions.ts`
 
-- `startCheckout({ plan, interval })` — `requireOrg()`, member email from session, `discountCode = env.BILLING_FOUNDER_CODE` when `org.created_at < env.BILLING_FOUNDER_CUTOFF` (ISO date) — else undefined; `returnUrl = /billing?checkout=success`; redirect to the provider URL. Never trusts client-provided prices.
+- `startCheckout({ plan, interval })` — `requireOrg()`, member email from session, `discountCode = env.BILLING_FOUNDER_PROMO_CODE` (a Stripe Promotion Code on a `forever` coupon, `max_redemptions: 100`) when `org.created_at < env.BILLING_FOUNDER_CUTOFF` (ISO date) — else undefined; `returnUrl = /billing?checkout=success`; redirect to the provider URL. Never trusts client-provided prices.
 - `openPortal()` — requires an `org_subscriptions` row; redirect to `createPortalUrl(provider_customer_id)`.
 - Downgrades, card changes, cancellations, interval switches all happen in the provider portal — we do not build those screens.
 - Anyone who is an org member may buy for the org (roles are not enforced anywhere else yet; when they are, `owner`/`admin` gates this).
@@ -228,7 +237,7 @@ Idempotent and safe to replay; no email is sent from the webhook (the provider m
 
 ### 7.9 Env + flags
 
-`src/env.ts` additions (all optional, server-only): `BILLING_PROVIDER` (`"fake" | "lemonsqueezy"`, default `"fake"`), `BILLING_WEBHOOK_SECRET` (min 16), `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `BILLING_VARIANT_PRO_MONTH|PRO_YEAR|TEAM_MONTH|TEAM_YEAR`, `BILLING_FOUNDER_CODE`, `BILLING_FOUNDER_CUTOFF`. `.env.example` documents each. `src/lib/flags.ts`: `export const BILLING_ENABLED = false;` with the un-flip doctrine comment. Everything in §7.4/§7.7/§7.8 checks the flag; the webhook route and tables exist regardless (so the store can be wired before the flip).
+`src/env.ts` additions (all optional, server-only): `BILLING_PROVIDER` (`"fake" | "stripe"`, default `"fake"`), `BILLING_FAKE_SECRET` (min 16; dev/tests), `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO_MONTH|PRO_YEAR|TEAM_MONTH|TEAM_YEAR`, `BILLING_FOUNDER_PROMO_CODE`, `BILLING_FOUNDER_CUTOFF`. `.env.example` documents each. `src/lib/flags.ts`: `export const BILLING_ENABLED = false;` with the un-flip doctrine comment. Everything in §7.4/§7.7/§7.8 checks the flag; the webhook route and tables exist regardless (so the Stripe account can be wired before the flip).
 
 ### 7.10 Error handling
 
@@ -239,7 +248,7 @@ Idempotent and safe to replay; no email is sent from the webhook (the provider m
 
 ### 7.11 Testing
 
-- **Unit (Vitest):** `entitlementsFor` (every status × period-end combination; seats → bookableStaff), `PLANS` shape (prices > 0 for paid, yearly < 12×monthly), `monthlyBookingUsage` window maths across a DST month in a non-UTC org tz, `decideReminder` with the quota input, fake `parseWebhook` signature accept/reject, event normaliser mapping for the Lemon Squeezy fixture payloads (checked-in JSON), badge visibility rule, marketing `site.test.ts` extended for `/pricing` + `FORBIDDEN_COPY` on the pricing copy.
+- **Unit (Vitest):** `entitlementsFor` (every status × period-end combination; seats → bookableStaff), `PLANS` shape (prices > 0 for paid, yearly < 12×monthly), `monthlyBookingUsage` window maths across a DST month in a non-UTC org tz, `decideReminder` with the quota input, fake `parseWebhook` signature accept/reject, the Stripe adapter's event/status/price mapping against checked-in fixture events (`stripe.webhooks.generateTestHeaderString` for signatures), badge visibility rule, marketing `site.test.ts` extended for `/pricing` + `FORBIDDEN_COPY` on the pricing copy.
 - **Integration (existing `*.integration.test.ts` idiom, serial):**
   - webhook route: created → row; replayed event → skipped; older `occurredAt` after newer → ignored; `expired` → entitlements Free; unknown org → 200 + event with `error`; bad signature → 401; no secret → 503;
   - RLS: member selects own row, cannot insert/update; member of org B cannot see org A; anon nothing on both tables;
@@ -247,12 +256,12 @@ Idempotent and safe to replay; no email is sent from the webhook (the provider m
   - public booking on Free with 2 active staff: `createBooking` passes the primary id explicitly (spy on the rpc args) and a `staffId` of the second staff is rejected;
   - reminder drain: Free org with 31 bookings this month → 31st reminder `suppress`ed, Pro org identical setup → sent;
   - `billing_mrr` view sums correctly for a fixture set.
-- **Manual (no Playwright in the repo):** Lemon Squeezy test-mode end-to-end once the store exists — checkout → webhook → `/billing` shows Pro → badge gone on `/book/[handle]`; portal cancel → `cancelled` with period end → still Pro → simulate `expired` → Free.
+- **Manual (no Playwright in the repo):** Stripe test mode end-to-end with `stripe listen --forward-to localhost:3000/api/billing/webhook` — checkout → webhook → `/billing` shows Pro → badge gone on `/book/[handle]`; portal cancel-at-period-end → still Pro with "ends on"; `stripe trigger customer.subscription.deleted` → Free; `invoice.payment_failed` → past_due banner.
 
 ### 7.12 Rollout / launch checklist
 
 1. Build the slice with `BILLING_ENABLED = false` (merge safe).
-2. Merchant-of-Record account: confirm payout country, create store, products (Pro/Team × month/year), Founder discount (100 redemptions, forever), webhook URL + secret; fill env on the deploy.
+2. Stripe: **apply for Managed Payments eligibility now** (review takes time; fallback = Paddle via a second adapter). Then: products + prices (Pro/Team × month/year) with tax code `txcd_10103001`, Founder coupon (forever, 33.3 % off Pro monthly → $8) + promotion code (`max_redemptions: 100`), Customer Portal configuration, webhook endpoint + secret; fill env on the deploy. Ask Stripe whether Connect can later coexist with Managed Payments in the same account (deposits slice) or needs a second account.
 3. Legal pages live; support email in footer.
 4. Email early-access orgs: pricing, Founder code, date (≥ 14 days out).
 5. Flip `BILLING_ENABLED = true`, deploy, watch `billing_events` and `billing_mrr`.
@@ -264,19 +273,19 @@ Idempotent and safe to replay; no email is sent from the webhook (the provider m
 2. **Intake questions per service** + **custom reminder schedule** (e.g. 24h + 2h) — small, high perceived value; both already have entitlement flags.
 3. **Team extra seats** (`seats` > 5 via provider quantity → webhook writes `seats`).
 4. **SMS reminders** — metered add-on (Twilio pass-through + margin; EU SMS ≈ 10× US, so never "unlimited"). `src/lib/sms/` is an empty seam today.
-5. **Deposits via Stripe Checkout** — the biggest no-show killer and a second revenue line (Free ~1 % platform fee, Pro/Team 0 %). Card data never touches us; we store payment-intent ids only.
+5. **Deposits via Stripe Checkout + Connect** — the biggest no-show killer and a second revenue line (Free ~1 % platform fee, Pro/Team 0 %). Card data never touches us; we store payment-intent ids only. **Managed Payments does not support Connect** — expect a separate Stripe account (or a non-MoR path) for provider payouts; confirm with Stripe before that spec.
 6. Growth: SEO niche pages templated from `site.ts` ("booking page for tutors / therapists / barbers"), directory listings, measure the badge loop via `?ref=badge`.
 
 ## 9. Open decisions (need Andrii)
 
-1. **Payout country / provider** — Lemon Squeezy vs Paddle vs Stripe direct; decided by where the money can legally land. The seam absorbs the answer; the adapter is the only file that changes.
+1. ~~Provider~~ — **decided: Stripe Managed Payments, Paddle fallback** (§6). Remaining: outcome of Stripe's eligibility review; Connect coexistence for deposits.
 2. **Price points and limits** — $12/$9, $29/$24, 3 services, 30 reminder-bookings, 5 seats: proposals. Regional (PPP) pricing is off for MVP; the MoR shows local currency.
 3. **Founder cap and price** — 100 orgs at $8: proposal.
 4. **Team trial** — none at launch; revisit with data.
 
 ## 10. Out of scope
 
-Payments/deposits, SMS, Google Calendar, intake questions, reminder schedules (all §8); role-based purchase rights; invoices/receipts UI (provider portal); tax handling (MoR); PPP pricing; usage analytics beyond the SQL view; DB-level enforcement of the creation gates (§7.4 trade-off).
+Payments/deposits, SMS, Google Calendar, intake questions, reminder schedules (all §8); role-based purchase rights; invoices/receipts UI (Stripe portal/receipts); tax handling (Stripe as MoR); PPP pricing; usage analytics beyond the SQL view; DB-level enforcement of the creation gates (§7.4 trade-off); the Paddle adapter (only if the Stripe review fails).
 
 ## Implementation notes
 
