@@ -2,6 +2,7 @@ import {
   Briefcase01Icon,
   Calendar03Icon,
   Clock01Icon,
+  CreditCardIcon,
   DashboardSquare01Icon,
   Globe02Icon,
   Settings01Icon,
@@ -9,6 +10,7 @@ import {
   UserGroupIcon,
   UserMultipleIcon,
 } from "@hugeicons/core-free-icons";
+import { BILLING_ENABLED } from "@/lib/flags";
 
 // Post-pivot nav (S5): Overview leads; Bookings stays the post-login surface
 // (S2 user ruling). The command menu derives from this list. `section` splits
@@ -17,7 +19,7 @@ import {
 // (hosted Booking page, Website embed) are first-class here, Calendly-style;
 // Settings holds only admin-panel preferences (user ruling 2026-08-17). Icons are Hugeicons
 // stroke-rounded (free set) — render with <HugeiconsIcon icon={…} />.
-export const NAV_ITEMS = [
+const ALL_NAV_ITEMS = [
   { href: "/overview", label: "Overview", icon: DashboardSquare01Icon, section: "main" },
   { href: "/bookings", label: "Bookings", icon: Calendar03Icon, section: "main" },
   { href: "/clients", label: "Clients", icon: UserMultipleIcon, section: "main" },
@@ -27,8 +29,16 @@ export const NAV_ITEMS = [
   { href: "/availability", label: "Availability", icon: Clock01Icon, section: "configure" },
   { href: "/booking-page", label: "Booking page", icon: Globe02Icon, section: "configure" },
   { href: "/embed", label: "Website embed", icon: SourceCodeIcon, section: "configure" },
+  // Org-level, so it sits in Configure next to the other org nouns — Settings
+  // stays per-user (IA ruling 2026-08-17). Filtered out below until the
+  // billing flag flips; the route 404s in the same world.
+  { href: "/billing", label: "Billing", icon: CreditCardIcon, section: "configure" },
   { href: "/settings", label: "Settings", icon: Settings01Icon, section: "configure" },
 ] as const;
+
+/** What the sidebar and the command menu render. One list, one filter: a
+    dormant feature must not leave a dead link in either. */
+export const NAV_ITEMS = ALL_NAV_ITEMS.filter((i) => i.href !== "/billing" || BILLING_ENABLED);
 
 export const NAV_SECTION_LABELS = { main: null, configure: "Configure" } as const;
 
