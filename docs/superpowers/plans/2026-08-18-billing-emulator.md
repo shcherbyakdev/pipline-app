@@ -63,9 +63,9 @@ Semantics of `actionEvents` (each returns ONE event unless stated; `type` per sp
 
 `fake.ts`: `createCheckoutUrl` → `${APP_URL}/dev/billing/checkout?org&plan&interval&return[&customer]`; `createPortalUrl(customerId, returnUrl)` → `${APP_URL}/dev/billing/portal?return=<returnUrl>`.
 
-- [ ] Write `fake-emulator.test.ts` FIRST: card classification (5 cases + Luhn + expired card + bad cvc), `addInterval` (Jan 31 + 1 month → Feb 28/29 clamp; year), each action's event shape/status/flag/period, `advance_period` three branches, `occurredAt` never before `now`.
-- [ ] Implement; `npx vitest run src/lib/billing/fake-emulator.test.ts src/lib/billing/fake.test.ts`; `npm run verify`.
-- [ ] Commit: `feat(billing): fake provider emulator core — test cards, event builders, dev URLs`.
+- [x] Write `fake-emulator.test.ts` FIRST: card classification (5 cases + Luhn + expired card + bad cvc), `addInterval` (Jan 31 + 1 month → Feb 28/29 clamp; year), each action's event shape/status/flag/period, `advance_period` three branches, `occurredAt` never before `now`.
+- [x] Implement; `npx vitest run src/lib/billing/fake-emulator.test.ts src/lib/billing/fake.test.ts`; `npm run verify`.
+- [x] Commit: `feat(billing): fake provider emulator core — test cards, event builders, dev URLs`.
 
 ---
 
@@ -83,10 +83,10 @@ Semantics of `actionEvents` (each returns ONE event unless stated; `type` per sp
 
 **Layout** `src/app/dev/billing/layout.tsx`: light, plain (`className="light bg-background text-foreground min-h-full"` wrapper like the marketing layout precedent) with the `DevBanner`; `export const metadata = { title: "Booklo dev billing" }`.
 
-- [ ] Delete `dev-checkout/route.ts`; update the webhook route test (remove dev-checkout describe + the session mock if only it used it).
-- [ ] Implement guard/actions/components/pages per above; `npm run verify`.
-- [ ] Manual smoke in THIS worktree only (never touch the user's :3000): temporarily `BILLING_ENABLED = true` (do not commit), `BILLING_PROVIDER=fake`, `NEXT_PUBLIC_APP_URL=http://localhost:3100 PORT=3100 npm run dev`; log in as the seeded demo user; walk: Upgrade to Pro → decline with …0002 → pay with 4242 → `/billing` shows Pro → Manage subscription → portal → cancel at period end → `/billing` "Ends on" → resume → switch to Team → fail renewal → `/billing` past_due copy → recover → advance period (renews) → cancel now → `/billing` Free → reset. Restore the flag; stop the server.
-- [ ] Commit: `feat(billing): dev checkout + portal pages for the fake provider (all scenarios), drop dev-checkout route`.
+- [x] Delete `dev-checkout/route.ts`; update the webhook route test (remove dev-checkout describe + the session mock if only it used it).
+- [x] Implement guard/actions/components/pages per above; `npm run verify`.
+- [x] Manual smoke in THIS worktree only (never touch the user's :3000): temporarily `BILLING_ENABLED = true` (do not commit), `BILLING_PROVIDER=fake`, `NEXT_PUBLIC_APP_URL=http://localhost:3100 PORT=3100 npm run dev`; log in as the seeded demo user; walk: Upgrade to Pro → decline with …0002 → pay with 4242 → `/billing` shows Pro → Manage subscription → portal → cancel at period end → `/billing` "Ends on" → resume → switch to Team → fail renewal → `/billing` past_due copy → recover → advance period (renews) → cancel now → `/billing` Free → reset. Restore the flag; stop the server.
+- [x] Commit: `feat(billing): dev checkout + portal pages for the fake provider (all scenarios), drop dev-checkout route`.
 
 ---
 
@@ -94,7 +94,7 @@ Semantics of `actionEvents` (each returns ONE event unless stated; `type` per sp
 
 **Files:** modify `src/features/billing/components/current-plan.tsx`; create `src/lib/billing/fake-emulator.integration.test.ts`; modify `.env.example`, spec Implementation notes; add `docs/superpowers/specs/2026-08-18-pricing-and-billing-design.md` §7.12 bullet "local walkthrough".
 
-- [ ] `current-plan.tsx`: when `sub.cancelAtPeriodEnd || sub.status === "cancelled"` render under the date: "You keep {plan.name} until then. Changed your mind? Resume in the billing portal."; when `past_due`: keep the amber line but end with "Retry the charge or update your card in the billing portal — after the retries run out the plan ends."; when `expired` and `ent.plan === "free"`: "Your {sub.plan} plan ended — pick a plan below to resubscribe." (needs `sub.plan` name via `PLANS`). No forbidden words (`payment` etc.).
-- [ ] Integration test (serial, local stack; own org via `signedInUser` + `create_org`; admin client): chain through `applyBillingEvents`: checkout(pro,month) → `entitlementsFor` pro; cancel_at_period_end → still pro + flag; advance_period → expired → Free; checkout again (existingCustomerId reused → same `provider_customer_id`); switch_team → team seats 5; fail_renewal → past_due (still team); recover → active; advance_period → renewed period end = old + 1 month; cancel_now → Free. Also `firstChargeFails` → row past_due. Assert `provider_updated_at` monotonic and `billing_events` count == events applied.
-- [ ] `.env.example`: comment under `BILLING_PROVIDER` describing the dev pages + test cards. Spec Implementation notes bullet + §7.12 "Local walkthrough: flip the flag locally, BILLING_PROVIDER=fake, walk /dev/billing checkout+portal scenarios".
-- [ ] `npm run verify`; `npm run test:integration` (re-run once on the known reminder-drain flake); commit: `feat(billing): cancellation/past-due copy, emulator scenario test, docs`.
+- [x] `current-plan.tsx`: when `sub.cancelAtPeriodEnd || sub.status === "cancelled"` render under the date: "You keep {plan.name} until then. Changed your mind? Resume in the billing portal."; when `past_due`: keep the amber line but end with "Retry the charge or update your card in the billing portal — after the retries run out the plan ends."; when `expired` and `ent.plan === "free"`: "Your {sub.plan} plan ended — pick a plan below to resubscribe." (needs `sub.plan` name via `PLANS`). No forbidden words (`payment` etc.).
+- [x] Integration test (serial, local stack; own org via `signedInUser` + `create_org`; admin client): chain through `applyBillingEvents`: checkout(pro,month) → `entitlementsFor` pro; cancel_at_period_end → still pro + flag; advance_period → expired → Free; checkout again (existingCustomerId reused → same `provider_customer_id`); switch_team → team seats 5; fail_renewal → past_due (still team); recover → active; advance_period → renewed period end = old + 1 month; cancel_now → Free. Also `firstChargeFails` → row past_due. Assert `provider_updated_at` monotonic and `billing_events` count == events applied.
+- [x] `.env.example`: comment under `BILLING_PROVIDER` describing the dev pages + test cards. Spec Implementation notes bullet + §7.12 "Local walkthrough: flip the flag locally, BILLING_PROVIDER=fake, walk /dev/billing checkout+portal scenarios".
+- [x] `npm run verify`; `npm run test:integration` (re-run once on the known reminder-drain flake); commit: `feat(billing): cancellation/past-due copy, emulator scenario test, docs`.

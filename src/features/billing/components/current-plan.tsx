@@ -27,6 +27,15 @@ export function CurrentPlan({ overview }: { overview: BillingOverview }) {
     sub && ent.plan !== "free"
       ? `${formatUsd(pricePerMonth(sub.plan, sub.interval))} / month${sub.interval === "year" ? " · billed yearly" : ""}`
       : "No card needed";
+  // Running out, but not out yet: the date above says when, this says what
+  // happens then and that it is reversible. Needs the date to have rendered
+  // — "until then" with no "then" above it says nothing.
+  const cancelling = sub?.currentPeriodEnd && (sub.cancelAtPeriodEnd || sub.status === "cancelled") ? sub : null;
+  // Already out. `ent.plan === "free"` and not just the status: a cancelled
+  // subscription whose period is still running also reads "expired-ish" in
+  // places, and this line must only appear once the plan really is gone.
+  // `sub.plan` (what ENDED), not `ent.plan` (which is Free by now).
+  const ended = sub && sub.status === "expired" && ent.plan === "free" ? sub : null;
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border p-4">
@@ -40,12 +49,23 @@ export function CurrentPlan({ overview }: { overview: BillingOverview }) {
           says by when. */}
       {sub?.status === "past_due" ? (
         <p className="text-sm text-amber-600 dark:text-amber-500">
-          We couldn&rsquo;t charge your card — update it in the billing portal to keep your plan.
+          We couldn&rsquo;t charge your card. Retry the charge or update your card in the billing
+          portal — after the retries run out the plan ends.
         </p>
       ) : null}
       {sub?.currentPeriodEnd ? (
         <p className="text-muted-foreground text-sm">
           {periodLabel(sub)} {formatDate(sub.currentPeriodEnd)}
+        </p>
+      ) : null}
+      {cancelling ? (
+        <p className="text-muted-foreground text-sm">
+          You keep {plan.name} until then. Changed your mind? Resume in the billing portal.
+        </p>
+      ) : null}
+      {ended ? (
+        <p className="text-muted-foreground text-sm">
+          Your {PLANS[ended.plan].name} plan ended — pick a plan below to resubscribe.
         </p>
       ) : null}
 
