@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { orgSearchInput } from "./schema";
 
 /* Owner-only reads. Every function here takes the ADMIN client on purpose:
    the point of /utils is to look at ANY org, which the RLS client cannot do.
@@ -17,8 +18,14 @@ const ORG_COLS = "id, name, slug, handle, created_at";
 
 /** Up to 20 orgs whose name, slug or handle contains `q` (case-insensitive),
     newest first. Empty `q` lists the 20 newest — a fresh environment has few
-    orgs and "show me what's here" is the common first click. */
-export async function searchOrgs(q: string): Promise<OrgSummary[]> {
+    orgs and "show me what's here" is the common first click. `q` is run
+    through `orgSearchInput` HERE, at the query boundary, so it is stripped
+    of `%`, `,` and `(` before it reaches a PostgREST `ilike`/`.or()`
+    pattern no matter what the caller passed in — `.or()` splits on
+    top-level commas and groups on parentheses, so an unsanitized org name
+    like "Joe's Salon (Downtown)" would otherwise corrupt the filter. */
+export async function searchOrgs(raw: string): Promise<OrgSummary[]> {
+  const { q } = orgSearchInput.parse({ q: raw });
   const admin = createAdminClient();
   let query = admin.from("orgs").select(ORG_COLS).order("created_at", { ascending: false }).limit(20);
   if (q) {
