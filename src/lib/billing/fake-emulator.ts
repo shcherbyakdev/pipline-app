@@ -110,14 +110,19 @@ function eventId(action: string, orgId: string, now: Date): string {
   return `fake-${action}-${orgId}-${now.getTime()}`;
 }
 
+/* Every event is stamped with `now`, the instant of the click that produced
+   it — never with a simulated time. `occurredAt` lands in
+   `provider_updated_at`, which apply_billing_event (0043) uses to order
+   deliveries, so it has to stay monotonic against the real clock even when
+   the event describes a jump forward in billing time (see advance_period). */
 function buildEvent(
   action: string, orgId: string, now: Date, type: BillingEventType,
-  subscription: BillingSubscription, occurredAt: Date = now,
+  subscription: BillingSubscription,
 ): BillingEvent {
   return {
     provider: "fake",
     providerEventId: eventId(action, orgId, now),
-    occurredAt: occurredAt.toISOString(),
+    occurredAt: now.toISOString(),
     orgId,
     type,
     subscription,
@@ -188,21 +193,30 @@ export function actionEvents(action: FakeAction, row: FakeRow, orgId: string, no
       })];
 
     case "advance_period": {
-      // The anchor is the OLD period end, not `now` — Stripe's renewal (or
-      // dunning-exhausted expiry) happens exactly at the period boundary,
-      // which may already be behind `now` if nobody clicked "advance" until
-      // later. `occurredAt` must still never precede `now` (the injected
-      // instant of this click) or the ordering guard in apply_billing_event
-      // (0043, `provider_updated_at <= incoming`) could read it as stale
-      // against a row already touched by something more recent.
+      // Time travel, and the two clocks it involves must not be confused.
+      //
+      // The PERIOD math anchors on the old period end: Stripe renews from the
+      // boundary, not from whenever someone pressed a button, so a monthly
+      // plan ending on the 18th renews to the 18th of the next month however
+      // late the click lands.
+      //
+      // The EVENT is stamped `now` — the instant of the click — even though
+      // the real webhook would fire at the boundary. The boundary is normally
+      // in the FUTURE (a month or a year out), and `occurredAt` becomes
+      // `provider_updated_at`, the ordering guard in apply_billing_event
+      // (0043: `provider_updated_at <= incoming`). Writing next month's
+      // timestamp today makes every later event — cancel, switch, fail — read
+      // as stale and get dropped, silently, until the wall clock catches up.
+      // Walking the dev portal is exactly how that surfaced: "advance period"
+      // then "cancel now" left the row untouched. Stamping the click keeps
+      // the cache monotonic in real time, which is what the guard is for.
       const anchor = row.currentPeriodEnd ? new Date(row.currentPeriodEnd) : now;
-      const occurredAt = new Date(Math.max(anchor.getTime(), now.getTime()));
       if (row.cancelAtPeriodEnd || row.status === "past_due") {
-        return [buildEvent(action, orgId, now, "subscription_expired", { ...row, status: "expired" }, occurredAt)];
+        return [buildEvent(action, orgId, now, "subscription_expired", { ...row, status: "expired" })];
       }
       return [buildEvent(action, orgId, now, "subscription_updated", {
         ...row, currentPeriodEnd: addInterval(anchor, row.interval).toISOString(),
-      }, occurredAt)];
+      })];
     }
   }
 }

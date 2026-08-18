@@ -216,11 +216,11 @@ describe("actionEvents", () => {
   });
 
   describe("advance_period", () => {
-    // The realistic case: the dev clicks "advance" right after checkout,
-    // well before the real clock reaches the (month/year-out) period end —
-    // so the anchor is in the FUTURE relative to `now`, and occurredAt
-    // simulates the jump to it.
-    it("expires a subscription flagged to cancel at period end, at the old period end", () => {
+    // The realistic case: the dev clicks "advance" right after checkout, well
+    // before the real clock reaches the (month/year-out) period end — so the
+    // anchor is in the FUTURE relative to `now`. The PERIOD moves to the
+    // anchor; the EVENT still happens now (see the occurredAt test below).
+    it("expires a subscription flagged to cancel at period end", () => {
       const periodEnd = new Date(NOW.getTime() + 1000 * 60 * 60); // ahead of now
       const [ev] = actionEvents(
         "advance_period",
@@ -230,7 +230,6 @@ describe("actionEvents", () => {
       );
       expect(ev.type).toBe("subscription_expired");
       expect(ev.subscription?.status).toBe("expired");
-      expect(ev.occurredAt).toBe(periodEnd.toISOString());
     });
 
     it("expires a past_due subscription (dunning exhausted)", () => {
@@ -243,7 +242,6 @@ describe("actionEvents", () => {
       );
       expect(ev.type).toBe("subscription_expired");
       expect(ev.subscription?.status).toBe("expired");
-      expect(ev.occurredAt).toBe(periodEnd.toISOString());
     });
 
     it("renews an active subscription, rolling the period forward from the old end", () => {
@@ -257,20 +255,34 @@ describe("actionEvents", () => {
       expect(ev.type).toBe("subscription_updated");
       expect(ev.subscription?.status).toBe("active");
       expect(ev.subscription?.currentPeriodEnd).toBe(addInterval(periodEnd, "month").toISOString());
-      expect(ev.occurredAt).toBe(periodEnd.toISOString());
     });
 
-    it("occurredAt is never before `now`, even when the anchor is further in the past", () => {
-      const periodEnd = new Date(NOW.getTime() - 1000 * 60 * 60 * 24 * 40); // 40 days ago
-      const [ev] = actionEvents(
-        "advance_period",
-        row({ status: "active", currentPeriodEnd: periodEnd.toISOString() }),
-        ORG_ID,
-        NOW,
-      );
-      expect(Date.parse(ev.occurredAt)).toBeGreaterThanOrEqual(NOW.getTime());
-      expect(ev.occurredAt).toBe(NOW.toISOString());
+    // The guard that makes the portal usable: `occurredAt` becomes
+    // provider_updated_at, and apply_billing_event (0043) drops any later
+    // event stamped before it. A period end is normally MONTHS out, so
+    // stamping the jump's destination would freeze the row until the wall
+    // clock caught up — every subsequent cancel/switch/fail silently stale.
+    it("stamps occurredAt with `now`, never the period end it jumps to", () => {
+      const future = new Date(NOW.getTime() + 1000 * 60 * 60 * 24 * 30);
+      const past = new Date(NOW.getTime() - 1000 * 60 * 60 * 24 * 40);
+      for (const periodEnd of [future, past]) {
+        const [ev] = actionEvents(
+          "advance_period",
+          row({ status: "active", currentPeriodEnd: periodEnd.toISOString() }),
+          ORG_ID,
+          NOW,
+        );
+        expect(ev.occurredAt).toBe(NOW.toISOString());
+      }
     });
+  });
+
+  // Same rule for every other action: one clock, the real one.
+  it("stamps every action's occurredAt with `now`", () => {
+    for (const entry of FAKE_ACTIONS) {
+      const [ev] = actionEvents(entry.id, row({ status: "past_due", cancelAtPeriodEnd: true }), ORG_ID, NOW);
+      expect(ev.occurredAt, entry.id).toBe(NOW.toISOString());
+    }
   });
 });
 
