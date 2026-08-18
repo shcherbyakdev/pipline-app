@@ -45,6 +45,9 @@ async function limited(): Promise<boolean> {
 async function loadRangeContext(handle: string, offeringId: string, fromDate: string, days: number) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
+  // Rentals parked unless the org's flag is on (lib/flags) — no UI reaches
+  // these actions, this is the server-side defence.
+  if (!(await getOrgFlagsAdmin(org.orgId)).rentals) return null;
   const ctx = await loadOrgRangeContext(org.orgId, offeringId, fromDate, days);
   if (!ctx) return null;
   return { org, ...ctx };
@@ -62,9 +65,6 @@ export async function getRangeAvailability(
   try {
     const ctx = await loadRangeContext(handle, offeringId, fromDate, days);
     if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
-    // Rentals parked unless the org's flag is on (lib/flags) — no UI reaches
-    // these actions, this is the server-side defence.
-    if (!(await getOrgFlagsAdmin(ctx.org.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
     const availability = computeRangeAvailability({
       offering: ctx.offering,
       units: ctx.rangeUnits,
