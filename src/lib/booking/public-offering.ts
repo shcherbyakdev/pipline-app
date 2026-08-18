@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import {
   listPublicServices,
   listPublicStaff,
@@ -6,9 +7,10 @@ import {
   type PublicService,
   type PublicStaff,
 } from "./public";
-import { filterBookableServices, limitPublicOffering } from "./bookable";
-import { getEntitlementsAdmin } from "@/lib/billing/queries";
-import { entitlementsFor, type Entitlements } from "@/lib/billing/entitlements";
+import { limitPublicOffering } from "./bookable";
+import { getEntitlementsAdminStrict } from "@/lib/billing/queries";
+import { type Entitlements } from "@/lib/billing/entitlements";
+import { PLANS } from "@/lib/billing/plans";
 import { BILLING_ENABLED } from "@/lib/flags";
 
 // The one loader every public entry point uses (/book/[handle], its staff
@@ -22,31 +24,43 @@ export type PublicOffering = {
   entitlements: Entitlements;
 };
 
-// Every limit lifted, so the flag-off path can share one code path with the
-// flag-on one and still behave byte-for-byte as it does today: `hideBadge`
-// keeps the org's existing embed toggle authoritative, and the null reminder
-// quota keeps every booking's reminder flowing.
+// Team's own limits with the seat cap lifted: every paid feature on, no
+// service cap, no reminder quota. Used while billing is off, and as the
+// fail-open answer below — so both paths agree on every field, including the
+// flags no one reads yet.
 const UNLIMITED: Entitlements = {
-  ...entitlementsFor(null, new Date()),
+  ...PLANS.team.limits,
   plan: "team",
   bookableStaff: Number.MAX_SAFE_INTEGER,
-  publicServices: null,
-  reminderBookingsPerMonth: null,
-  hideBadge: true,
 };
 
-export async function loadPublicOffering(orgId: string): Promise<PublicOffering> {
+async function loadEntitlements(orgId: string): Promise<Entitlements> {
+  if (!BILLING_ENABLED) return UNLIMITED;
+  try {
+    return await getEntitlementsAdminStrict(orgId);
+  } catch (error) {
+    // Spec §7.10, amended: a failed billing read degrades to Free everywhere
+    // EXCEPT here. Free limits would hide a paying org's staff and services
+    // from its own booking page — an outage must never shrink what a customer
+    // sells, so the offering fails open and the badge/quota paths (which
+    // degrade to Free) carry the cost instead.
+    console.error("[billing] entitlements read failed — offering fails open:", error);
+    return UNLIMITED;
+  }
+}
+
+// Per-request memoised: the pages render it once, but getSlots/createBooking
+// each reach it through loadSlotContext, and a single request must not repeat
+// these three reads.
+export const loadPublicOffering = cache(async (orgId: string): Promise<PublicOffering> => {
   const [allServices, allStaff, serviceStaffIds, entitlements] = await Promise.all([
     listPublicServices(orgId),
     listPublicStaff(orgId),
     listServiceStaffMap(orgId),
-    BILLING_ENABLED ? getEntitlementsAdmin(orgId) : Promise.resolve(UNLIMITED),
+    loadEntitlements(orgId),
   ]);
+  // limitPublicOffering already drops services nobody bookable offers — the
+  // roster narrowing and the active-staff filter are the same pass.
   const limited = limitPublicOffering(allServices, allStaff, serviceStaffIds, entitlements);
-  return {
-    services: filterBookableServices(limited.services, serviceStaffIds, limited.staff),
-    staff: limited.staff,
-    serviceStaffIds,
-    entitlements,
-  };
-}
+  return { services: limited.services, staff: limited.staff, serviceStaffIds, entitlements };
+});

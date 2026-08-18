@@ -12,6 +12,7 @@ import {
   resolveClientStaffName,
 } from "@/lib/booking/public";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
+import { chooseStaffForBooking } from "@/lib/booking/bookable";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
@@ -66,7 +67,13 @@ async function loadSlotContext(
     allowedStaffIds: bookableIds,
   });
   if (!ctx) return null;
-  return { org, service: ctx.service, perStaff: ctx.perStaff, bookableIds };
+  return {
+    org,
+    service: ctx.service,
+    perStaff: ctx.perStaff,
+    bookableIds,
+    eligibleStaffIds: ctx.eligibleStaffIds,
+  };
 }
 
 // The engine runs once per eligible staff member; the client sees the union
@@ -132,7 +139,8 @@ export async function createBooking(
     // The EXCLUDE constraint remains the race-proof last line.
     const localDate = dateInZone(starts, ctx.org.timeZone);
     const slots = unionSlots(slotsPerStaff(ctx, localDate, 1));
-    if (!slots.some((s) => s.startsAt.getTime() === starts.getTime())) {
+    const match = slots.find((s) => s.startsAt.getTime() === starts.getTime());
+    if (!match) {
       return {
         ok: false,
         error: await slotLostError(ctx.org.orgId, staffId),
@@ -150,10 +158,16 @@ export async function createBooking(
       p_email: email,
       p_note: note ?? null,
       p_token_hash: tokenHash,
-      // "Anyone" may only reach the DB's auto-assign when more than one
-      // person is publicly bookable; otherwise name the single bookable person
-      // so a downgraded org's hidden staff never receive public bookings.
-      p_staff_id: staffId === "any" ? (ctx.bookableIds.length > 1 ? null : ctx.bookableIds[0]) : staffId,
+      // The DB's auto-assign ranks over every active member linked to the
+      // service and knows nothing of plan limits, so "anyone" may only reach
+      // it while the bookable roster covers that whole set — see
+      // chooseStaffForBooking for the three cases.
+      p_staff_id: chooseStaffForBooking({
+        staffId,
+        bookableIds: ctx.bookableIds,
+        eligibleStaffIds: ctx.eligibleStaffIds,
+        freeStaffIdsAtSlot: match.staffIds,
+      }),
     });
     if (error) {
       // The RPC raises a bare `staff_unavailable` when a NAMED staff member

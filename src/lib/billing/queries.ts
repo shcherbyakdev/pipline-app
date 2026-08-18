@@ -40,6 +40,16 @@ export const getEntitlementsAdmin = cache(async (orgId: string, now = new Date()
   }
 });
 
+/** Same read, but it THROWS instead of degrading. For callers whose safe
+    default is not Free: the public offering fails OPEN (a billing outage must
+    not shrink a paying org's booking page), so it needs to know the read
+    failed rather than be handed Free limits. Badge and reminder paths keep
+    using getEntitlementsAdmin above, where Free IS the safe default. */
+export const getEntitlementsAdminStrict = cache(
+  async (orgId: string, now = new Date()): Promise<Entitlements> =>
+    getEntitlements(orgId, createAdminClient(), now),
+);
+
 /** "Bookings made this month": original bookings (rescheduled_from_id null),
     any status, created inside the org-local calendar month. */
 export async function monthlyBookingUsage(

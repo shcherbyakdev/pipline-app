@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getBookingOrg, getPublicStaffBySlug } from "@/lib/booking/public";
+import { getBookingOrg } from "@/lib/booking/public";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
@@ -23,17 +23,15 @@ export default async function StaffBookPage({
   if (!STAFF_SLUG_RE.test(staffSlug)) notFound();
   const org = await getBookingOrg(handle);
   if (!org) notFound();
-  // Inactive staff resolve to null here — a deactivated person's link 404s
-  // rather than silently redirecting to the whole-team page.
-  const person = await getPublicStaffBySlug(org.orgId, staffSlug);
-  if (!person) notFound();
   const [offering, branding] = await Promise.all([
     loadPublicOffering(org.orgId),
     getOrgBranding(org.orgId),
   ]);
-  // Someone the plan doesn't offer publicly 404s exactly like a deactivated
-  // person: the link stays valid the moment the org upgrades again.
-  if (!offering.staff.some((s) => s.id === person.id)) notFound();
+  // The roster is active-only AND plan-limited, so both a deactivated person
+  // and one the plan no longer offers publicly 404 here — the link stays valid
+  // and starts working again the moment they return to the roster.
+  const person = offering.staff.find((s) => s.slug === staffSlug);
+  if (!person) notFound();
   const services = filterBookableServices(offering.services, offering.serviceStaffIds, [person], person.id);
   // Nothing they can be booked for is not a page worth rendering.
   if (services.length === 0) notFound();

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterBookableServices, limitPublicOffering } from "./bookable";
+import { chooseStaffForBooking, filterBookableServices, limitPublicOffering } from "./bookable";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 
 const anna = { id: "a" };
@@ -85,5 +85,64 @@ describe("limitPublicOffering", () => {
       now,
     );
     expect(limitPublicOffering(services, staff, map, team).staff.map((s) => s.id)).toEqual(["a", "b"]);
+  });
+
+  // Order of operations, pinned: narrow to the bookable roster FIRST, cap
+  // SECOND. s1 belongs to b alone, so Free (roster [a]) drops it and the cap
+  // never bites — capping first would have spent a slot on s1 and returned
+  // ["s2", "s3"], hiding a service the org may legitimately offer.
+  it("narrows to the bookable roster before capping, not after", () => {
+    const r = limitPublicOffering(
+      services,
+      staff,
+      { s1: ["b"], s2: ["a"], s3: ["a"], s4: ["a"] },
+      entitlementsFor(null, now),
+    );
+    expect(r.services.map((s) => s.id)).toEqual(["s2", "s3", "s4"]);
+  });
+});
+
+describe("chooseStaffForBooking", () => {
+  const base = { bookableIds: ["a", "b", "c"], eligibleStaffIds: ["a", "b", "c"], freeStaffIdsAtSlot: ["b", "c"] };
+
+  it("a named staff member is passed straight through", () => {
+    expect(chooseStaffForBooking({ ...base, staffId: "b" })).toBe("b");
+    // Even when the plan would not offer them: the RPC's strict named check
+    // is the gate, and this function must not silently redirect a booking.
+    expect(chooseStaffForBooking({ ...base, staffId: "z" })).toBe("z");
+  });
+
+  it("one bookable person is named rather than auto-assigned", () => {
+    expect(
+      chooseStaffForBooking({ staffId: "any", bookableIds: ["a"], eligibleStaffIds: ["a", "b"], freeStaffIdsAtSlot: ["a"] }),
+    ).toBe("a");
+  });
+
+  it("hands the DB the choice when the bookable set is the whole eligible roster", () => {
+    expect(chooseStaffForBooking({ ...base, staffId: "any" })).toBeNull();
+  });
+
+  it("names the first free bookable person when the roster is a strict subset", () => {
+    // c is eligible but not bookable, so the DB picker (which ranks over all
+    // three) could assign them — name b, the first bookable person free.
+    expect(
+      chooseStaffForBooking({
+        staffId: "any",
+        bookableIds: ["a", "b"],
+        eligibleStaffIds: ["a", "b", "c"],
+        freeStaffIdsAtSlot: ["b"],
+      }),
+    ).toBe("b");
+  });
+
+  it("falls back to the first bookable person when nobody is listed as free", () => {
+    expect(
+      chooseStaffForBooking({
+        staffId: "any",
+        bookableIds: ["a", "b"],
+        eligibleStaffIds: ["a", "b", "c"],
+        freeStaffIdsAtSlot: [],
+      }),
+    ).toBe("a");
   });
 });

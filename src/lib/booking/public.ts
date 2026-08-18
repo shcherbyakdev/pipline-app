@@ -244,7 +244,14 @@ export async function loadOrgSlotContext(
   fromDate: string,
   days: number,
   opts: { staffId: string | "any"; excludeBookingId?: string; allowedStaffIds?: string[] },
-): Promise<{ service: PublicService; perStaff: StaffSlotContext[] } | null> {
+): Promise<{
+  service: PublicService;
+  perStaff: StaffSlotContext[];
+  // Every ACTIVE member linked to the service, BEFORE any allowedStaffIds
+  // narrowing — exactly the set the DB's pick_staff_for_slot ranks over, so a
+  // caller can tell whether "let the DB choose" is still safe.
+  eligibleStaffIds: string[];
+} | null> {
   const service = await getPublicServiceById(orgId, serviceId);
   if (!service) return null;
   const eligible = await listPublicStaff(orgId, serviceId);
@@ -267,7 +274,7 @@ export async function loadOrgSlotContext(
       return { staffId: st.id, rules, exceptions, busy };
     }),
   );
-  return { service, perStaff };
+  return { service, perStaff, eligibleStaffIds: eligible.map((s) => s.id) };
 }
 
 // ---------- Rentals (R1). Same doctrine as the service loaders above:
