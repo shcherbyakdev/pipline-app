@@ -110,7 +110,10 @@ describe("billing: monthlyBookingUsage", () => {
     const { data: first, error } = await admin.from("bookings").insert([mk(1), mk(2)]).select("id");
     if (error) throw error;
     await admin.from("bookings").insert(mk(3, { rescheduled_from_id: first![0].id }));
+    // Original row, non-"confirmed" status — proves the count is "any
+    // status", not `.eq("status", "confirmed")` in disguise.
+    await admin.from("bookings").insert(mk(4, { status: "cancelled_by_client" }));
     const n = await monthlyBookingUsage(orgId, "UTC", new Date(), admin);
-    expect(n).toBe(2);
+    expect(n).toBe(3);
   });
 });

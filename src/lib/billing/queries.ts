@@ -67,10 +67,11 @@ export async function emailBadgeUrl(orgId: string): Promise<string | null> {
   const url = `${env.NEXT_PUBLIC_APP_URL}/?ref=badge`;
   try {
     const admin = createAdminClient();
-    const [{ data }, ent] = await Promise.all([
+    const [{ data, error }, ent] = await Promise.all([
       admin.from("orgs").select("widget_theme").eq("id", orgId).maybeSingle(),
       getEntitlementsAdmin(orgId),
     ]);
+    if (error) throw error;
     return badgeVisible(parseWidgetTheme(data?.widget_theme).hidePoweredBy, ent) ? url : null;
   } catch (error) {
     console.error("[billing] emailBadgeUrl:", error);
