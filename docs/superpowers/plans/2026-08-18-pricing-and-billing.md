@@ -63,7 +63,7 @@
 **Interfaces:**
 - Produces: `PLANS`, `PlanId = "free" | "pro" | "team"`, `PaidPlanId`, `Interval = "month" | "year"`, `PlanLimits`, `PlanDef`, `TEAM_INCLUDED_SEATS`, `PAID_PLANS`, `pricePerMonth(plan, interval)`, `env.BILLING_PROVIDER` etc., `BILLING_ENABLED`.
 
-- [ ] **Step 1: Branch + dependency**
+- [x] **Step 1: Branch + dependency**
 
 ```bash
 git checkout main && git pull && git checkout -b feat/billing
@@ -71,7 +71,7 @@ npm install stripe
 ```
 Expected: `stripe` appears in `package.json` dependencies (any current major; the adapter pins nothing else).
 
-- [ ] **Step 2: Flag**
+- [x] **Step 2: Flag**
 
 Append to `src/lib/flags.ts`:
 ```ts
@@ -83,7 +83,7 @@ Append to `src/lib/flags.ts`:
 export const BILLING_ENABLED = false;
 ```
 
-- [ ] **Step 3: Env**
+- [x] **Step 3: Env**
 
 In `src/env.ts` add to `envSchema` (all optional, server-only) and to the parse object:
 ```ts
@@ -117,7 +117,7 @@ BILLING_FOUNDER_PROMO_CODE=
 BILLING_FOUNDER_CUTOFF=
 ```
 
-- [ ] **Step 4: Failing test for `plans.ts`**
+- [x] **Step 4: Failing test for `plans.ts`**
 
 `src/lib/billing/plans.test.ts`:
 ```ts
@@ -151,7 +151,7 @@ describe("PLANS", () => {
 ```
 Run: `npx vitest run src/lib/billing/plans.test.ts` → FAIL (module missing).
 
-- [ ] **Step 5: Implement `plans.ts`**
+- [x] **Step 5: Implement `plans.ts`**
 
 ```ts
 // Single source of truth for what the pricing page shows and what the code
@@ -221,7 +221,7 @@ export function pricePerMonth(plan: PaidPlanId, interval: Interval): number {
 ```
 Run the test → PASS. Run `npm run verify` → PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A && git commit -m "feat(billing): flag, env, stripe dep, plans.ts source of truth"
@@ -250,7 +250,7 @@ git add -A && git commit -m "feat(billing): flag, env, stripe dep, plans.ts sour
   reminderQuotaExceeded(usedThisMonth, ent): boolean
   ```
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `src/lib/billing/entitlements.test.ts`:
 ```ts
@@ -338,7 +338,7 @@ describe("gates", () => {
 ```
 Run: `npx vitest run src/lib/billing/entitlements.test.ts` → FAIL.
 
-- [ ] **Step 2: Implement**
+- [x] **Step 2: Implement**
 
 `src/lib/billing/entitlements.ts`:
 ```ts
@@ -410,7 +410,7 @@ export function reminderQuotaExceeded(usedThisMonth: number, ent: Entitlements):
 ```
 Run the test → PASS. If `Europe/Warsaw` expectations disagree by an hour, check `wallTimeToUtc`'s contract in `slots.ts` (it is DST-safe; the numbers above are correct for CEST/CET) before touching the test.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/lib/billing && git commit -m "feat(billing): pure entitlements (effective plan, month window, gates)"
@@ -427,7 +427,7 @@ git add src/lib/billing && git commit -m "feat(billing): pure entitlements (effe
 **Interfaces:**
 - Produces: tables `public.org_subscriptions` (columns below), `public.billing_events`, index `bookings_org_created_at_idx`, view `public.billing_mrr`.
 
-- [ ] **Step 1: Drizzle schema**
+- [x] **Step 1: Drizzle schema**
 
 `src/db/schema/billing.ts`:
 ```ts
@@ -479,11 +479,11 @@ export const billingEvents = pgTable(
 ```
 Add `export * from "./billing";` to `src/db/schema/index.ts` (and mention `orgSubscriptions, billingEvents` in its comment).
 
-- [ ] **Step 2: Generate 0042**
+- [x] **Step 2: Generate 0042**
 
 Run: `npx drizzle-kit generate` → `src/db/migrations/0042_<random>.sql` creating the two tables, FKs, indexes. Inspect: no drops, no unrelated diffs. Then `npm run db:migrate`.
 
-- [ ] **Step 3: Write 0043**
+- [x] **Step 3: Write 0043**
 
 Run `npx drizzle-kit generate --custom --name=billing_security`, then fill `src/db/migrations/0043_billing_security.sql`:
 ```sql
@@ -547,7 +547,7 @@ grant select on public.billing_mrr to service_role;
 ```
 Run `npm run db:migrate`.
 
-- [ ] **Step 4: Failing integration test (RLS + view)**
+- [x] **Step 4: Failing integration test (RLS + view)**
 
 `src/lib/billing/billing.integration.test.ts` (later tasks append to this file):
 ```ts
@@ -646,7 +646,7 @@ describe("billing: RLS + grants", () => {
 ```
 Run: `npx vitest run --config vitest.integration.config.ts src/lib/billing/billing.integration.test.ts` → PASS (the migrations from Steps 2–3 are already applied; if any assertion fails, fix the SQL, re-apply 0043 by hand via the `postgres` package script idiom, re-run).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/db src/lib/billing && git commit -m "feat(billing): org_subscriptions + billing_events (0042/0043), RLS, mrr view"
@@ -671,7 +671,7 @@ git add src/db src/lib/billing && git commit -m "feat(billing): org_subscription
   emailBadgeVisible(orgId): Promise<boolean>                 // swallows errors → true
   ```
 
-- [ ] **Step 1: Implement**
+- [x] **Step 1: Implement**
 
 `src/lib/billing/queries.ts`:
 ```ts
@@ -751,7 +751,7 @@ export async function emailBadgeVisible(orgId: string): Promise<boolean> {
 }
 ```
 
-- [ ] **Step 2: Append usage test to the integration file**
+- [x] **Step 2: Append usage test to the integration file**
 
 ```ts
 import { monthlyBookingUsage } from "./queries";
@@ -778,7 +778,7 @@ describe("billing: monthlyBookingUsage", () => {
 (If the `bookings` insert needs other NOT NULL columns, copy the fixture shape from `reminder-drain.integration.test.ts` — the client columns are `client_name`/`client_email`/`client_note` and `cancel_token_hash` is unique per row.)
 Run the integration file → PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/lib/billing && git commit -m "feat(billing): server-only entitlement + usage reads"
@@ -804,7 +804,7 @@ git add src/lib/billing && git commit -m "feat(billing): server-only entitlement
   applyBillingEvents(admin: SupabaseClient, events: BillingEvent[]): Promise<{ processed: number; skipped: number }>
   ```
 
-- [ ] **Step 1: `provider.ts`**
+- [x] **Step 1: `provider.ts`**
 
 ```ts
 import "server-only";
@@ -869,7 +869,7 @@ export function selectBillingProvider(): BillingProvider {
 ```
 (If the repo's ESLint config forbids `require`, switch to top-level `import { stripeProvider } from "./stripe"` / `"./fake"` — the Stripe module must then guard `env.STRIPE_SECRET_KEY` lazily inside `stripeProvider()`, not at import time.)
 
-- [ ] **Step 2: Failing test for the fake signature**
+- [x] **Step 2: Failing test for the fake signature**
 
 `src/lib/billing/fake.test.ts`:
 ```ts
@@ -894,7 +894,7 @@ describe("fake webhook", () => {
 ```
 Run → FAIL.
 
-- [ ] **Step 3: `fake.ts`**
+- [x] **Step 3: `fake.ts`**
 
 ```ts
 import { createHmac, timingSafeEqual } from "node:crypto";
@@ -935,7 +935,7 @@ export function fakeProvider(): BillingProvider {
 ```
 Run the test → PASS.
 
-- [ ] **Step 4: `apply-events.ts`**
+- [x] **Step 4: `apply-events.ts`**
 
 ```ts
 import "server-only";
@@ -981,7 +981,7 @@ export async function applyBillingEvents(
 }
 ```
 
-- [ ] **Step 5: Append integration tests**
+- [x] **Step 5: Append integration tests**
 
 ```ts
 import { applyBillingEvents } from "./apply-events";
@@ -1023,7 +1023,7 @@ describe("billing: applyBillingEvents", () => {
 ```
 Run the integration file → PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/billing && git commit -m "feat(billing): provider seam, fake adapter, idempotent apply-events"
@@ -1039,7 +1039,7 @@ git add src/lib/billing && git commit -m "feat(billing): provider seam, fake ada
 - Consumes: `BillingProvider`, `BillingEvent`, `CheckoutInput` (Task 5); `env.STRIPE_*`; `PLANS`.
 - Produces: `stripeProvider(): BillingProvider`; pure, exported for tests: `mapStripeStatus(status): SubscriptionStatus`, `planFromPriceId(priceId, priceMap): { plan; interval } | null`, `normalizeStripeEvent(event, priceMap): BillingEvent | null`, `type PriceMap = Record<string, { plan: PaidPlanId; interval: Interval }>`, `priceMapFromEnv(): PriceMap`, `priceIdFor(plan, interval): string`.
 
-- [ ] **Step 1: Failing unit tests**
+- [x] **Step 1: Failing unit tests**
 
 `src/lib/billing/stripe.test.ts`:
 ```ts
@@ -1105,7 +1105,7 @@ describe("normalizeStripeEvent", () => {
 ```
 Run → FAIL.
 
-- [ ] **Step 2: Implement `stripe.ts`**
+- [x] **Step 2: Implement `stripe.ts`**
 
 ```ts
 import "server-only";
@@ -1250,7 +1250,7 @@ Note on `invoice.*`: this slice derives `past_due`/`active` from `customer.subsc
 
 Run the unit test → PASS. Run `npm run verify` → PASS (fix any SDK type nits with the cast shown; never widen the import beyond this file).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/lib/billing && git commit -m "feat(billing): Stripe Managed Payments adapter with pure event/status/price mappers"
@@ -1267,7 +1267,7 @@ git add src/lib/billing && git commit -m "feat(billing): Stripe Managed Payments
 - Consumes: `selectBillingProvider`, `applyBillingEvents`, `signFakeWebhook`, `createAdminClient`, `env`, `PLANS`.
 - Produces: `POST /api/billing/webhook` (200 `{processed, skipped}`, 401 bad signature, 503 provider secret unset, 400 malformed); `GET /api/billing/dev-checkout?org&plan&interval&return` (non-production, fake provider only; writes an active subscription and redirects to `return`).
 
-- [ ] **Step 1: Webhook route**
+- [x] **Step 1: Webhook route**
 
 ```ts
 import { revalidatePath } from "next/cache";
@@ -1302,7 +1302,7 @@ export async function POST(request: Request) {
 }
 ```
 
-- [ ] **Step 2: Dev checkout route**
+- [x] **Step 2: Dev checkout route**
 
 `src/app/api/billing/dev-checkout/route.ts`:
 ```ts
@@ -1337,7 +1337,7 @@ export async function GET(request: Request) {
 }
 ```
 
-- [ ] **Step 3: Route integration test**
+- [x] **Step 3: Route integration test**
 
 `src/app/api/billing/webhook/route.integration.test.ts` — set env BEFORE importing the route:
 ```ts
@@ -1385,7 +1385,7 @@ describe("POST /api/billing/webhook (fake provider)", () => {
 ```
 If `create_org` refuses the service role (it is granted to `authenticated` only), reuse the `signedInUser` helper from `billing.integration.test.ts` (copy the 12 lines) to create the org. Run the file with the integration config → PASS. (`revalidatePath` outside a request logs a warning in tests — acceptable; if it throws, wrap it in `try {} catch {}` in the route.)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/app/api/billing && git commit -m "feat(billing): webhook route (idempotent, signed) + fake dev checkout"
@@ -1411,7 +1411,7 @@ git add src/app/api/billing && git commit -m "feat(billing): webhook route (idem
   loadOrgSlotContext(orgId, serviceId, fromDate, days, { staffId, excludeBookingId?, allowedStaffIds? })
   ```
 
-- [ ] **Step 1: Failing unit test for `limitPublicOffering`**
+- [x] **Step 1: Failing unit test for `limitPublicOffering`**
 
 Append to (or create) `src/lib/booking/bookable.test.ts`:
 ```ts
@@ -1448,7 +1448,7 @@ describe("limitPublicOffering", () => {
 ```
 Run → FAIL.
 
-- [ ] **Step 2: Implement in `bookable.ts`**
+- [x] **Step 2: Implement in `bookable.ts`**
 
 ```ts
 import type { Entitlements } from "@/lib/billing/entitlements";
@@ -1471,7 +1471,7 @@ export function limitPublicOffering<S extends { id: string }, T extends { id: st
 ```
 Run → PASS.
 
-- [ ] **Step 3: `public-offering.ts`**
+- [x] **Step 3: `public-offering.ts`**
 
 ```ts
 import "server-only";
@@ -1507,7 +1507,7 @@ export async function loadPublicOffering(orgId: string): Promise<PublicOffering>
 ```
 (`UNLIMITED` keeps `hideBadge: true` so the flag-off world respects the org's existing embed toggle exactly as today.)
 
-- [ ] **Step 4: `loadOrgSlotContext` accepts `allowedStaffIds`**
+- [x] **Step 4: `loadOrgSlotContext` accepts `allowedStaffIds`**
 
 In `src/lib/booking/public.ts` change the `opts` type to `{ staffId: string | "any"; excludeBookingId?: string; allowedStaffIds?: string[] }` and after `const eligible = await listPublicStaff(orgId, serviceId);` add:
 ```ts
@@ -1519,7 +1519,7 @@ In `src/lib/booking/public.ts` change the `opts` type to `{ staffId: string | "a
 ```
 (replace the existing `const targets = …` line).
 
-- [ ] **Step 5: Wire the pages**
+- [x] **Step 5: Wire the pages**
 
 `src/app/book/[handle]/page.tsx` — replace the `Promise.all` + `filterBookableServices` block with:
 ```ts
@@ -1537,7 +1537,7 @@ imports: drop `listPublicServices, listPublicStaff, listServiceStaffMap, filterB
 
 `src/app/embed/[handle]/page.tsx` — same swap as `/book`; the pinned-staff branch becomes: `const pinnedStaff = staffSlug ? staff.find((s) => s.slug === staffSlug) ?? null : null;` (a pinned person outside the plan's roster degrades to the org flow — the embed never breaks). Remove the `getPublicStaffBySlug` import if unused.
 
-- [ ] **Step 6: Wire `public-actions.ts`**
+- [x] **Step 6: Wire `public-actions.ts`**
 
 In `loadSlotContext`:
 ```ts
@@ -1558,7 +1558,7 @@ In `createBooking`, the RPC call's staff arg becomes:
 ```
 Add `import { loadPublicOffering } from "@/lib/booking/public-offering";`.
 
-- [ ] **Step 7: Verify + commit**
+- [x] **Step 7: Verify + commit**
 
 `npm run verify` → PASS; run the existing public/booking integration files (`booking-flow`, `staff-booking-rpc`, `s3-rpc`) → PASS (flag is off, so behaviour is unchanged).
 ```bash
@@ -1577,7 +1577,7 @@ git add -A && git commit -m "feat(billing): plan limits shape the public offerin
 - Consumes: `getEntitlements(orgId, client)`, `canAddStaff`, `canAddService`, `BILLING_ENABLED`.
 - Produces: `PLAN_LIMIT_STAFF_ERROR`, `PLAN_LIMIT_SERVICES_ERROR` (schema.ts); `assertCanAddStaff(orgId, client): Promise<string | null>`, `assertCanAddService(orgId, client): Promise<string | null>` (null = allowed, string = user-facing refusal).
 
-- [ ] **Step 1: Copy + gate helpers**
+- [x] **Step 1: Copy + gate helpers**
 
 Add to `src/features/scheduling/schema.ts` (next to `LAST_ACTIVE_STAFF_ERROR`):
 ```ts
@@ -1625,7 +1625,7 @@ export async function assertCanAddService(orgId: string, client: SupabaseClient)
 ```
 Unit test `src/lib/billing/gates.test.ts` for the two pure `*GateMessage` functions (Free at 1 staff → message; Team at 4 → null; Free at 3 services → message; Pro at 50 → null). Note: importing `gates.ts` pulls `server-only` — the unit config aliases it, fine.
 
-- [ ] **Step 2: Wire the actions**
+- [x] **Step 2: Wire the actions**
 
 `createStaff` (after `const orgId = …` and `const supabase = await createClient();`):
 ```ts
@@ -1634,7 +1634,7 @@ Unit test `src/lib/billing/gates.test.ts` for the two pure `*GateMessage` functi
 ```
 `setStaffActive`: only when `active === true`, same two lines before the update. `createService`: same with `assertCanAddService` before the insert. Imports from `@/lib/billing/gates`.
 
-- [ ] **Step 3: Verify + commit**
+- [x] **Step 3: Verify + commit**
 
 `npm run verify` → PASS.
 ```bash
@@ -1653,7 +1653,7 @@ git add -A && git commit -m "feat(billing): staff/service creation gates with up
 - Consumes: `badgeVisible`, `emailBadgeVisible`, `getEntitlements`, `parseWidgetTheme`, `env.NEXT_PUBLIC_APP_URL`.
 - Produces: `<PoweredBy handle />` component; every client-facing template gains `showBadge?: boolean` (default `false`); `runReminderDrain` deps gain `badgeFor?: (orgId) => Promise<boolean>`; `WidgetAppearance` gains prop `canHideBadge: boolean`.
 
-- [ ] **Step 1: Component**
+- [x] **Step 1: Component**
 
 `src/components/powered-by.tsx`:
 ```tsx
@@ -1673,7 +1673,7 @@ export function PoweredBy({ handle }: { handle: string }) {
 ```
 Pages: in `/book/[handle]` and `/book/[handle]/[staffSlug]` add after `</WidgetTheme>` inside `<main>`: `{badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}` (import `badgeVisible` from `@/lib/billing/entitlements`). In `/embed/[handle]` replace the existing `theme.hidePoweredBy ? null : (<p …>)` block with the same expression (the `env` import may become unused — remove it).
 
-- [ ] **Step 2: Templates — failing test**
+- [x] **Step 2: Templates — failing test**
 
 Append to `src/features/scheduling/templates.test.ts`:
 ```ts
@@ -1691,7 +1691,7 @@ describe("email badge", () => {
 ```
 Run → FAIL.
 
-- [ ] **Step 3: Templates — implement**
+- [x] **Step 3: Templates — implement**
 
 In `templates.ts` add near the top:
 ```ts
@@ -1704,7 +1704,7 @@ function badge(show: boolean | undefined): { html: string; text: string[] } {
 ```
 For each of `bookingConfirmationEmail`, `bookingManageLinkEmail`, `bookingCancelledEmail`, `bookingRescheduledEmail`, `bookingReminderEmail`: add `showBadge?: boolean` to the input type; `const b = badge(input.showBadge);` at the top; insert `${b.html}` immediately after the existing footer `<p style="color: #666; …">…</p>` (still inside the wrapping `<div>`); spread `...b.text` as the last entries of the `text` array. Run the test → PASS; run the whole `templates.test.ts` → PASS (existing snapshots/expectations unchanged because default is off).
 
-- [ ] **Step 4: Call sites**
+- [x] **Step 4: Call sites**
 
 Add `showBadge: await emailBadgeVisible(<orgId>)` to the message inputs at (import from `@/lib/billing/queries`):
 - `public-actions.ts` confirmation (`ctx.org.orgId`);
@@ -1713,11 +1713,11 @@ Add `showBadge: await emailBadgeVisible(<orgId>)` to the message inputs at (impo
 - `reminders.ts`: extend deps with `badgeFor?: (orgId: string) => Promise<boolean>`; the candidate select adds `org_id`; per row `showBadge: deps.badgeFor ? await deps.badgeFor(row.org_id) : false`; the drain route passes `badgeFor: emailBadgeVisible`. (`CandidateRow` gains `org_id: string`.)
 Rentals call sites (parked) are left untouched.
 
-- [ ] **Step 5: Lock the toggle on Free**
+- [x] **Step 5: Lock the toggle on Free**
 
 `widget-appearance.tsx`: new prop `canHideBadge: boolean` (default `true` for callers that don't pass it, so the flag-off world is unchanged); the checkbox gets `disabled={pending || !canHideBadge}` and, when `!canHideBadge`, a sibling `<Link href="/billing" className="text-primary text-xs">Pro</Link>` after the label. `src/app/(dashboard)/embed/page.tsx` (the studio page that renders `WidgetAppearance`): compute `const ent = BILLING_ENABLED ? await getEntitlements(org.id, await createClient()) : null;` and pass `canHideBadge={ent ? ent.hideBadge : true}`. (Find the exact render site with `grep -n "WidgetAppearance" src/app`.)
 
-- [ ] **Step 6: Verify + commit**
+- [x] **Step 6: Verify + commit**
 
 `npm run verify` → PASS; `reminder-drain` integration file → PASS.
 ```bash
@@ -1734,7 +1734,7 @@ git add -A && git commit -m "feat(billing): Powered by Booklo badge on page/embe
 - Consumes: `getEntitlementsAdmin`, `monthlyBookingUsage`, `reminderQuotaExceeded`, `BILLING_ENABLED`.
 - Produces: `decideReminder(booking, now, opts?: { overQuota?: boolean })` → `"suppress"` when `overQuota`; `runReminderDrain` deps gain `quotaExceeded?: (orgId: string, timeZone: string) => Promise<boolean>`; the drain route passes a real implementation.
 
-- [ ] **Step 1: Failing unit test**
+- [x] **Step 1: Failing unit test**
 
 Append to `src/features/scheduling/reminders.test.ts`:
 ```ts
@@ -1747,7 +1747,7 @@ it("suppresses when the org is over its free reminder quota", () => {
 ```
 Run → FAIL.
 
-- [ ] **Step 2: Implement**
+- [x] **Step 2: Implement**
 
 `decideReminder` signature: `(booking, now, opts: { overQuota?: boolean } = {})`; first line inside: `if (opts.overQuota) return "suppress";` (after the "already started" check is fine too — keep it as the very first line so the stamp semantics match "suppressed, never rescanned").
 
@@ -1780,11 +1780,11 @@ import { reminderQuotaExceeded } from "@/lib/billing/entitlements";
 ```
 Same wiring in `scripts/scheduling-drain.ts` only if it calls `runReminderDrain` directly (check; the script POSTs to the route in the current code, so probably nothing to do).
 
-- [ ] **Step 3: Integration test**
+- [x] **Step 3: Integration test**
 
 Append to `reminder-drain.integration.test.ts` a case that injects `quotaExceeded: async () => true` for a due booking and asserts `summary.skipped` increments, `reminder_sent_at` is stamped and nothing was sent; and a control run with `quotaExceeded: async () => false` on a fresh due booking that sends. Run → PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A && git commit -m "feat(billing): free reminder quota — drain suppresses past 30 bookings/month"
@@ -1802,7 +1802,7 @@ git add -A && git commit -m "feat(billing): free reminder quota — drain suppre
 - Consumes: `PLANS`, `PAID_PLANS`, `pricePerMonth`, `getOrgSubscription`, `getEntitlements`, `monthlyBookingUsage`, `selectBillingProvider`, `requireOrg`, `getSchedulingSettings` (`@/features/orgs/queries`, returns `{ timezone }`), `BILLING_ENABLED`, `env.BILLING_FOUNDER_*`.
 - Produces: server actions `startCheckout(formData)` and `openPortal()`; `getBillingOverview(): Promise<BillingOverview>`; components; nav item `{ href: "/billing", label: "Billing", icon: CreditCardIcon, section: "configure" }`.
 
-- [ ] **Step 1: Schema + actions**
+- [x] **Step 1: Schema + actions**
 
 `src/features/billing/schema.ts`:
 ```ts
@@ -1869,7 +1869,7 @@ export async function openPortal(): Promise<{ ok: false; error: string } | never
 ```
 (`redirect()` throws a Next control-flow error — never wrap it in the try/catch.)
 
-- [ ] **Step 2: Overview query**
+- [x] **Step 2: Overview query**
 
 `src/features/billing/queries.ts`:
 ```ts
@@ -1912,7 +1912,7 @@ export async function getBillingOverview(now = new Date()): Promise<BillingOverv
 ```
 (`monthlyBookingUsage` with the RLS client works: members select their org's bookings.)
 
-- [ ] **Step 3: Components**
+- [x] **Step 3: Components**
 
 `current-plan.tsx` (server component): card with `PLANS[ent.plan].name`, price line (`pricePerMonth` when paid, "Free" otherwise), status line — `past_due` → amber "Payment failed — update your card" ; `cancelAtPeriodEnd`/`cancelled` → "Ends on {date}" ; else "Renews on {date}" when `currentPeriodEnd`; a `<form action={openPortal}><Button variant="secondary">Manage subscription</Button></form>` when a subscription exists.
 
@@ -1922,7 +1922,7 @@ export async function getBillingOverview(now = new Date()): Promise<BillingOverv
 
 `plan-banner.tsx` (server): props `{ ent, usage }`; renders nothing unless `BILLING_ENABLED` and (a) Free with `bookingsThisMonth >= 24` → "You've used {n} of 30 free reminder bookings this month. <Link href="/billing">Upgrade</Link>" or (b) `usage.activeStaff > ent.bookableStaff` → "Your plan allows {ent.bookableStaff} bookable team member(s); {activeStaff - bookableStaff} aren't bookable publicly. <Link href="/billing">Manage plan</Link>". Muted bordered strip, `role="status"`.
 
-- [ ] **Step 4: Page, nav, layout**
+- [x] **Step 4: Page, nav, layout**
 
 `src/app/(dashboard)/billing/page.tsx`:
 ```tsx
@@ -1957,11 +1957,11 @@ Add a tiny client component `<ActivationPoller active={checkout === "success" &&
 
 `(dashboard)/layout.tsx`: when `BILLING_ENABLED`, load `getBillingOverview()` and render `<PlanBanner ent={o.entitlements} usage={o.usage} />` as the first child inside `<AppShell>` (before `{children}`).
 
-- [ ] **Step 5: Verify + manual smoke**
+- [x] **Step 5: Verify + manual smoke**
 
 `npm run verify` → PASS. Temporarily flip `BILLING_ENABLED = true` locally (do NOT commit), `BILLING_PROVIDER=fake`, run `npm run dev`: `/billing` shows Free + meters; "Upgrade to Team" → dev-checkout → back on `/billing` as Team; Team page can add a 2nd staff; flip back to `false`, confirm `/billing` 404s and nav hides it. Restore the flag.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A && git commit -m "feat(billing): /billing page (plan, usage, picker), checkout/portal actions, nav item, plan banner"
@@ -1979,7 +1979,7 @@ git add -A && git commit -m "feat(billing): /billing page (plan, usage, picker),
 - Consumes: `PLANS`, `PAID_PLANS`, `pricePerMonth`, `BILLING_ENABLED`, `FORBIDDEN_COPY`.
 - Produces: `PRICING` copy block in `site.ts`; routes `/pricing`, `/privacy`, `/terms`.
 
-- [ ] **Step 1: Copy in `site.ts`**
+- [x] **Step 1: Copy in `site.ts`**
 
 Add:
 ```ts
@@ -2004,7 +2004,7 @@ Change `SITE.heroNote` to `"Free plan · No credit card"`, `SITE.links` gains `p
 
 `site.test.ts`: `ROUTE_DIRS` gains `"/pricing": "src/app/(marketing)/pricing"`, `"/privacy": "src/app/(marketing)/privacy"`, `"/terms": "src/app/(marketing)/terms"`; the forbidden-copy corpus adds `PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder, ...PRICING.rows.flatMap((r) => [r.label, r.free, r.pro, r.team])`; the "every nav href is one of the anchors" assertion becomes "is an anchor or an internal route" (`anchors.includes(l.href) || l.href in ROUTE_DIRS`). Note the nav renders anchors with `<a>`; a route href works the same way, no component change needed. Run `npx vitest run src/features/marketing` → PASS after the pages exist (Step 2).
 
-- [ ] **Step 2: Pages**
+- [x] **Step 2: Pages**
 
 `pricing-table.tsx` (server): three columns from `PLANS` (name, blurb, `$X /mo` with "billed yearly" small print using `pricePerMonth(id, "year")` and "or $Y monthly"), then a rows table from `PRICING.rows`, then `PRICING.founder` and `PRICING.note`; CTAs `Link` to `/signup` (`marketingButton("primary","md")` for Pro, secondary for others). Uses tokens only, no `dark:` (marketing layout rule).
 
@@ -2012,7 +2012,7 @@ Change `SITE.heroNote` to `"Free plan · No credit card"`, `SITE.links` gains `p
 
 `privacy/page.tsx`, `terms/page.tsx`: static, same nav/footer, prose sections. Privacy: what we store (name, email, optional note; provider account email; subscription status — no card data, payments processed by Stripe as merchant of record), retention, contact. Terms: service description, plans/billing (subscription, cancel anytime in Billing, refunds per Stripe's Managed Payments consumer terms), acceptable use, liability, governing law placeholder **replaced by Andrii before flip** — write "Governing law: Poland" now. Wording is a launch-checklist item; the pages must exist and be reachable.
 
-- [ ] **Step 3: Verify + commit**
+- [x] **Step 3: Verify + commit**
 
 `npm run verify` → PASS.
 ```bash
@@ -2027,7 +2027,7 @@ git add -A && git commit -m "feat(marketing): pricing page, privacy + terms, pri
 - Create: `supabase/snippets/mrr.sql`
 - Modify: `docs/superpowers/specs/2026-08-18-pricing-and-billing-design.md` (Implementation notes), this plan (tick boxes / deviations appendix)
 
-- [ ] **Step 1: Snippet**
+- [x] **Step 1: Snippet**
 
 `supabase/snippets/mrr.sql`:
 ```sql
@@ -2036,11 +2036,11 @@ select plan, billing_interval, subscriptions, seats, mrr_usd from public.billing
 select sum(mrr_usd) as total_mrr_usd, sum(subscriptions) as paying_orgs from public.billing_mrr;
 ```
 
-- [ ] **Step 2: Spec implementation notes**
+- [x] **Step 2: Spec implementation notes**
 
 Append to the spec's "Implementation notes": invoice.* events ignored (subscription.updated carries the status); Team seats fixed at 5; the sidebar pill was folded into the `PlanBanner` (no pill); rentals email call sites untouched; any other deviation the executor made.
 
-- [ ] **Step 3: Full verification**
+- [x] **Step 3: Full verification**
 
 ```bash
 npm run verify
@@ -2048,7 +2048,7 @@ npm run test:integration
 npm run build
 graphify update .
 ```
-All PASS. Then open the PR (`gh pr create --base main --head feat/billing`) with the spec link, the flag-off statement, and the launch checklist (§7.12) as the body.
+All PASS. Then open the PR (`gh pr create --base main --head feat/billing`) with the spec link, the flag-off statement, and the launch checklist (§7.12) as the body. (controller — PR opening left to the controller after the final whole-branch review; not done by this task.)
 
 - [ ] **Step 4: Commit**
 
