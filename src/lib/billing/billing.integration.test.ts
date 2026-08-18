@@ -14,7 +14,7 @@ try { loadEnvFile(".env.local"); } catch { /* CI exports env directly */ }
 // Dynamic, not static: queries.ts pulls in @/lib/supabase/admin → @/env,
 // which parses process.env eagerly at module load. A static import would
 // resolve (and fail) before the loadEnvFile() call above ever runs.
-const { monthlyBookingUsage } = await import("./queries");
+const { monthlyBookingUsage, emailBadgeUrl } = await import("./queries");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -122,6 +122,32 @@ describe("billing: monthlyBookingUsage", () => {
     await admin.from("bookings").insert(mk(4, { status: "cancelled_by_client" }));
     const n = await monthlyBookingUsage(orgId, "UTC", new Date(), admin);
     expect(n).toBe(3);
+  });
+});
+
+describe("billing: emailBadgeUrl", () => {
+  // While BILLING_ENABLED is false hiding is allowed unconditionally, so the
+  // org's own tick decides — the same answer its booking page gives. (Flag
+  // on, the org's plan has to allow it too; that path is unit-covered by
+  // badgeVisible + entitlementsFor.)
+  //
+  // Its OWN org, with no org_subscriptions row: the shared `orgId` above is
+  // on a paid plan by this point, which would hide the badge under either
+  // rule and prove nothing. A Free org is exactly the case the old code got
+  // wrong (Free.hideBadge = false → badge despite the tick).
+  it("honours the org's Hide tick while billing is off, even with no subscription", async () => {
+    const free = await signedInUser("badge");
+    const { data, error: orgError } = await free.rpc("create_org", { p_name: "BadgeCo" });
+    if (orgError) throw orgError;
+    const freeOrgId = (data as { id: string }).id;
+    const setTheme = async (hidePoweredBy: boolean) => {
+      const { error } = await admin.from("orgs").update({ widget_theme: { hidePoweredBy } }).eq("id", freeOrgId);
+      if (error) throw error;
+    };
+    await setTheme(true);
+    expect(await emailBadgeUrl(freeOrgId)).toBeNull();
+    await setTheme(false);
+    expect(await emailBadgeUrl(freeOrgId)).toContain("?ref=badge");
   });
 });
 

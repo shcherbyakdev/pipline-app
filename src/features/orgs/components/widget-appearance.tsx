@@ -69,6 +69,13 @@ export function WidgetAppearance({
   const contrastBlocked = ratio !== null && ratio < 3;
   const contrastWarn = ratio !== null && ratio < 4.5;
 
+  // What the PUBLIC page will actually render: a saved "hide" the plan no
+  // longer allows (an org that downgraded) is ignored out there, so the
+  // preview must ignore it too — otherwise the studio shows a badge-free
+  // widget the visitor never sees. The stored config is untouched: upgrade
+  // and the tick takes effect again.
+  const previewConfig = canHideBadge ? config : { ...config, hidePoweredBy: false };
+
   const save = () => {
     startTransition(async () => {
       const result = await updateWidgetTheme(config);
@@ -260,7 +267,7 @@ export function WidgetAppearance({
           </div>
         </SettingsCard>
         <div className="lg:sticky lg:top-[calc(52px+1.5rem)] lg:self-start">
-          <EmbedPreviewFrame config={config} accentColor={accentColor}>
+          <EmbedPreviewFrame config={previewConfig} accentColor={accentColor}>
             <BookingWidget
               handle="preview"
               orgTimeZone="UTC"

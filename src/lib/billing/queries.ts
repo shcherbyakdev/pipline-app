@@ -3,8 +3,9 @@ import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseWidgetTheme } from "@/lib/widget-theme";
-import { badgeVisible, entitlementsFor, monthWindow, type Entitlements, type OrgSubscriptionRow } from "./entitlements";
+import { entitlementsFor, monthWindow, type Entitlements, type OrgSubscriptionRow } from "./entitlements";
 import { isPaidPlan } from "./plans";
+import { BILLING_ENABLED } from "@/lib/flags";
 import { env } from "@/env";
 
 const SUB_COLS = "plan, status, billing_interval, seats, current_period_end, cancel_at_period_end";
@@ -72,17 +73,21 @@ export async function monthlyBookingUsage(
     — after a committed booking nothing may fail the action; showing the
     badge is the safe default. Returns a URL, not a boolean, so email
     templates stay pure (they take `badgeUrl: string | null`, never import
-    env themselves). */
+    env themselves).
+
+    While BILLING_ENABLED is false, hiding is allowed unconditionally — the
+    same answer the public pages get from loadPublicOffering's UNLIMITED
+    entitlements. Without that check the flag-off world would read Free
+    (hideBadge: false) and badge the emails of an org whose own booking page
+    honours its "Hide" tick: one product, two answers. */
 export async function emailBadgeUrl(orgId: string): Promise<string | null> {
   const url = `${env.NEXT_PUBLIC_APP_URL}/?ref=badge`;
   try {
     const admin = createAdminClient();
-    const [{ data, error }, ent] = await Promise.all([
-      admin.from("orgs").select("widget_theme").eq("id", orgId).maybeSingle(),
-      getEntitlementsAdmin(orgId),
-    ]);
+    const { data, error } = await admin.from("orgs").select("widget_theme").eq("id", orgId).maybeSingle();
     if (error) throw error;
-    return badgeVisible(parseWidgetTheme(data?.widget_theme).hidePoweredBy, ent) ? url : null;
+    const hideAllowed = BILLING_ENABLED ? (await getEntitlementsAdmin(orgId)).hideBadge : true;
+    return parseWidgetTheme(data?.widget_theme).hidePoweredBy && hideAllowed ? null : url;
   } catch (error) {
     console.error("[billing] emailBadgeUrl:", error);
     return url;
