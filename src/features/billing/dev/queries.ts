@@ -5,13 +5,14 @@ import type { Interval } from "@/lib/billing/plans";
 import { isPaidPlan } from "@/lib/billing/plans";
 import type { SubscriptionStatus } from "@/lib/billing/entitlements";
 
-/* getOrgSubscription's read plus the provider ids. The emulator needs them:
-   every action event echoes the row back to the provider seam, and
-   `providerCustomerId`/`providerSubscriptionId` are what tie the new event to
-   the subscription already cached (an event that invented fresh ids would
-   trip the provider_subscription_id unique index, 0042). Kept out of
-   queries.ts because nothing in the app proper should be handed provider ids
-   it has no business quoting — only the dev portal displays them.
+/* `getOrgSubscription`'s read (src/lib/billing/queries.ts) plus the provider
+   ids. The emulator needs them: every action event echoes the row back to the
+   provider seam, and `providerCustomerId`/`providerSubscriptionId` are what
+   tie the new event to the subscription already cached (an event that
+   invented fresh ids would trip the provider_subscription_id unique index,
+   0042). Kept out of src/lib/billing/queries.ts because nothing in the app
+   proper should be handed provider ids it has no business quoting — only the
+   dev portal displays them.
 
    Both the portal page and the portal actions read through here, so "what a
    FakeRow is" is stated once. */

@@ -28,8 +28,12 @@ const DONE_MESSAGES: Record<string, string> = {
 
 const ERROR_MESSAGES: Record<string, string> = {
   card_declined: "That card was rejected — nothing changed.",
+  invalid: "Those card details don't look right.",
   no_subscription: "There is no subscription to change any more.",
-  bad_action: "Unknown action — nothing changed.",
+  // Both the unknown-action and the not-allowed-right-now cases: from the
+  // portal's side they are the same answer — the action did not run and the
+  // subscription is untouched.
+  bad_action: "That action isn't available for the current subscription state.",
 };
 
 /** The confirmation line for `?done=`; null for a missing or unknown code.

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PortalPanel, portalDoneMessage } from "@/features/billing/dev/components/portal-panel";
 import { requireDevBilling } from "@/features/billing/dev/guard";
 import { readFakeRow } from "@/features/billing/dev/queries";
+import { safeReturnUrl } from "@/features/billing/dev/return-url";
 
 /* The fake provider's customer portal (plan §7.6). No `org` param, unlike
    checkout: the portal is always about the caller's own subscription, so the
@@ -17,7 +18,10 @@ function one(value: string | string[] | undefined): string | null {
 export default async function DevPortalPage({ searchParams }: PageProps<"/dev/billing/portal">) {
   const sp = await searchParams;
   const { org } = await requireDevBilling();
-  const returnTo = one(sp.return) || "/billing";
+  // Vetted once, here: it becomes the "Back to Booklo" href on BOTH
+  // branches below (this page's and the panel's), and an href is exactly
+  // where an unvetted `return` would be an open redirect.
+  const returnTo = safeReturnUrl(one(sp.return));
   const row = await readFakeRow(createAdminClient(), org.id);
 
   if (!row) {

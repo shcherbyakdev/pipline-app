@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { env } from "@/env";
 import { applyBillingEvents } from "@/lib/billing/apply-events";
 import { actionEvents, checkoutEvents, classifyTestCard, FAKE_ACTIONS, type FakeAction } from "@/lib/billing/fake-emulator";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireDevBilling } from "./guard";
 import { readFakeRow } from "./queries";
+import { returnUrlWith } from "./return-url";
 
 /* The fake provider's back office. Every one of these is what a Stripe
    webhook would have POSTed: the emulator builds the same `BillingEvent[]`
@@ -41,29 +41,6 @@ function checkoutUrlWith(p: CheckoutParams, error: string): string {
 
 function portalUrl(returnTo: string, extra: Record<string, string> = {}): string {
   return `${PORTAL_PATH}?${new URLSearchParams({ return: returnTo, ...extra })}`;
-}
-
-/** The app URL to bounce back to after a successful checkout.
-
-    `new URL(returnTo, APP_URL)`: `returnTo` may be relative (`/billing`) and
-    the URL constructor throws on those without a base. `.set`, not string
-    concatenation, so a `return` that already carries `checkout=success`
-    (startCheckout's does) doesn't end up with the param twice.
-
-    The origin check is the open-redirect guard: `return` rides in the query
-    string of a page anyone signed in can open, and "dev-only" is not a reason
-    to hand out a redirect to an arbitrary host. */
-function returnUrlWith(returnTo: string, params: Record<string, string>): string {
-  const appUrl = new URL(env.NEXT_PUBLIC_APP_URL);
-  let target: URL;
-  try {
-    target = new URL(returnTo, appUrl);
-  } catch {
-    target = new URL("/billing", appUrl);
-  }
-  if (target.origin !== appUrl.origin) target = new URL("/billing", appUrl);
-  for (const [key, value] of Object.entries(params)) target.searchParams.set(key, value);
-  return target.toString();
 }
 
 // ---------- Input ----------
@@ -164,6 +141,19 @@ export async function fakePortalAction(formData: FormData): Promise<void> {
   // getting here means a stale tab).
   if (!row) redirect(portalUrl(returnTo, { error: "no_subscription" }));
 
+  // The same rule the panel renders as a disabled button, re-checked here:
+  // a server action is its own POST endpoint, so "the button was greyed out"
+  // stops nobody with a stale tab or a curl. `enabledWhen` guards the
+  // transition (resume only when cancelling, recover only when past_due, …)
+  // and `expired` is the blanket one on top — several predicates only look
+  // at the plan or the interval, so without it a dead subscription could be
+  // switched or renewed back to life. Neither case emits an event: a
+  // disallowed action never happened, and billing_events is the audit log.
+  const entry = FAKE_ACTIONS.find((a) => a.id === parsed.data.action);
+  if (!entry || row.status === "expired" || !entry.enabledWhen(row)) {
+    redirect(portalUrl(returnTo, { error: "bad_action" }));
+  }
+
   await applyBillingEvents(admin, actionEvents(parsed.data.action, row, org.id, new Date()));
   revalidatePath("/billing");
   redirect(portalUrl(returnTo, { done: parsed.data.action }));
@@ -175,14 +165,18 @@ export async function fakePortalAction(formData: FormData): Promise<void> {
 export async function fakeUpdateCard(formData: FormData): Promise<void> {
   await requireDevBilling();
   const returnTo = returnParamOf(formData);
+  // A missing field is a malformed FORM, not a rejected card: saying "that
+  // card was rejected" would blame the card for something the card never
+  // got as far as. Same code the unparseable-card verdict below uses.
   const parsed = updateCardForm.safeParse(fields(formData));
-  if (!parsed.success) redirect(portalUrl(returnTo, { error: "card_declined" }));
+  if (!parsed.success) redirect(portalUrl(returnTo, { error: "invalid" }));
 
   // `past_due_first_charge` is not a decline HERE: that card attaches fine,
   // it only fails the charge — and this form runs no charge.
   const verdict = classifyTestCard(parsed.data, new Date());
-  const rejected = verdict === "declined" || verdict === "insufficient_funds" || verdict === "invalid";
-  redirect(portalUrl(returnTo, rejected ? { error: "card_declined" } : { done: "card_updated" }));
+  if (verdict === "invalid") redirect(portalUrl(returnTo, { error: "invalid" }));
+  const declined = verdict === "declined" || verdict === "insufficient_funds";
+  redirect(portalUrl(returnTo, declined ? { error: "card_declined" } : { done: "card_updated" }));
 }
 
 /** Back to a clean slate: drop the org's cached subscription so /billing

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isFounderEligible } from "@/features/billing/founder";
 import { CheckoutForm } from "@/features/billing/dev/components/checkout-form";
 import { requireDevBilling } from "@/features/billing/dev/guard";
+import { safeReturnUrl } from "@/features/billing/dev/return-url";
 
 /* The fake provider's hosted checkout (plan §7.6). `fake.ts` sends people
    here with the offer in the query string, exactly as a Stripe Checkout
@@ -19,20 +20,16 @@ function one(value: string | string[] | undefined): string | null {
   return value ?? null;
 }
 
-/** Where "Cancel" goes: the return URL with the post-purchase markers taken
-    off. `startCheckout` bakes `checkout=success&plan=…` into `return` so the
-    ACTION can land on it, but abandoning checkout must not — /billing would
-    read those and sit on "Activating your plan…" for a purchase that never
-    happened. Anything unparseable falls back to /billing. */
+/** Where "Cancel" goes: the vetted return URL with the post-purchase markers
+    taken off. `startCheckout` bakes `checkout=success&plan=…` into `return`
+    so the ACTION can land on it, but abandoning checkout must not — /billing
+    would read those and sit on "Activating your plan…" for a purchase that
+    never happened. */
 function cancelUrl(returnTo: string): string {
-  try {
-    const target = new URL(returnTo, env.NEXT_PUBLIC_APP_URL);
-    target.searchParams.delete("checkout");
-    target.searchParams.delete("plan");
-    return target.toString();
-  } catch {
-    return "/billing";
-  }
+  const target = new URL(returnTo);
+  target.searchParams.delete("checkout");
+  target.searchParams.delete("plan");
+  return target.toString();
 }
 
 export default async function DevCheckoutPage({ searchParams }: PageProps<"/dev/billing/checkout">) {
@@ -44,16 +41,23 @@ export default async function DevCheckoutPage({ searchParams }: PageProps<"/dev/
   // A checkout without a valid offer is not a checkout — and these come from
   // our own adapter, so anything else is hand-crafted.
   if (!plan || !isPaidPlan(plan) || (interval !== "month" && interval !== "year")) notFound();
-  const returnTo = one(sp.return) || "/billing";
+  // Vetted here, once: the value goes into the form's hidden `return` field
+  // AND into the Cancel anchor, and neither should be handed the raw param.
+  const returnTo = safeReturnUrl(one(sp.return));
   const customer = one(sp.customer) ?? undefined;
 
   // The Founder coupon is 33.3 % off Pro MONTHLY, forever (spec §3) — same
   // rule as startCheckout's, restated here because the emulator has no Stripe
-  // to apply a promotion code for it. Both env vars unset (every environment
-  // until the promo is configured) → never eligible, so this stays quiet.
-  const supabase = await createClient();
-  const { data: orgRow } = await supabase.from("orgs").select("created_at").eq("id", org.id).maybeSingle();
-  const founder = plan === "pro" && interval === "month" && isFounderEligible(orgRow?.created_at);
+  // to apply a promotion code for it. The promo-code check comes FIRST so an
+  // environment without the promo configured (every one, so far) skips the
+  // org read entirely — `founderCodeFor` (features/billing/actions.ts) orders
+  // it the same way and for the same reason.
+  let founder = false;
+  if (env.BILLING_FOUNDER_PROMO_CODE && plan === "pro" && interval === "month") {
+    const supabase = await createClient();
+    const { data: orgRow } = await supabase.from("orgs").select("created_at").eq("id", org.id).maybeSingle();
+    founder = isFounderEligible(orgRow?.created_at);
+  }
 
   const monthly = pricePerMonth(plan, interval) * (founder ? FOUNDER_PRICE_FACTOR : 1);
   // What the card is charged TODAY: a year's plan bills the year up front.
