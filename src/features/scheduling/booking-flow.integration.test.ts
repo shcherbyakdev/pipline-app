@@ -51,11 +51,12 @@ async function signedInUser(tag: string): Promise<SupabaseClient> {
 
 let serviceId: string;
 let orgId: string;
+let owner: SupabaseClient;
 const fromDate = addDaysISO(new Date().toISOString().slice(0, 10), 7);
 
 describe("booking flow e2e (action layer)", () => {
   beforeAll(async () => {
-    const owner = await signedInUser("flow_owner");
+    owner = await signedInUser("flow_owner");
     const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "FlowCo" });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
@@ -202,7 +203,9 @@ describe("booking flow e2e (action layer)", () => {
       .from("service_staff")
       .insert({ org_id: orgId, service_id: serviceId, staff_id: eveningId });
     if (eLink) throw eLink;
-    const { error: eRules } = await admin.from("availability_rules").insert(
+    // service_role holds select-only on availability_rules (0026): seed hours
+    // as the org member, like every other suite.
+    const { error: eRules } = await owner.from("availability_rules").insert(
       [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
         org_id: orgId,
         staff_id: eveningId,

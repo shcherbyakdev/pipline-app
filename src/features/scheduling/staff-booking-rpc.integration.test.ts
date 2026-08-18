@@ -123,7 +123,9 @@ describe("create_booking per staff", () => {
     if (e6) throw e6;
     annaId = anna as string;
 
-    const { error: e7 } = await admin.from("availability_rules").insert(
+    // service_role holds select-only on availability_rules (0026): seed hours
+    // as the org member, like every other suite.
+    const { error: e7 } = await owner.from("availability_rules").insert(
       [defaultStaffId, annaId].flatMap((staffId) =>
         [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
           org_id: orgId,
