@@ -3,7 +3,8 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { requireOrg } from "@/lib/auth/session";
 import { getSchedulingSettings } from "@/features/orgs/queries";
-import { getOrgSubscription, monthlyBookingUsage } from "@/lib/billing/queries";
+import { getRawOrgSubscription, getPlanOverride, monthlyBookingUsage } from "@/lib/billing/queries";
+import { activeOverrideRow, type PlanOverride } from "@/lib/billing/overrides";
 import {
   entitlementsFor,
   type Entitlements,
@@ -14,6 +15,7 @@ import { isFounderEligible } from "./founder";
 export type BillingOverview = {
   orgId: string;
   subscription: OrgSubscriptionRow | null;
+  override: PlanOverride | null;
   entitlements: Entitlements;
   usage: { bookingsThisMonth: number; activeStaff: number; services: number };
   founderEligible: boolean;
@@ -22,8 +24,9 @@ export type BillingOverview = {
 /* Everything /billing renders, in one read. RLS client throughout: a member
    selects their own org's subscription, bookings, staff and services.
 
-   The subscription row is fetched once and the entitlements derived from it
-   (entitlementsFor is pure) — getEntitlements would re-read the same row.
+   The provider row and the comp override are fetched once and the
+   entitlements derived from them (entitlementsFor is pure) — getEntitlements
+   would re-read the same rows.
 
    Memoised per request (getEntitlementsAdmin idiom) because two callers want
    it on the same render — the dashboard layout's PlanBanner and the page
@@ -32,9 +35,10 @@ export type BillingOverview = {
 export const getBillingOverview = cache(async (now = new Date()): Promise<BillingOverview> => {
   const { org } = await requireOrg();
   const supabase = await createClient();
-  const [settings, subscription, staffRes, svcRes, orgRow] = await Promise.all([
+  const [settings, subscription, override, staffRes, svcRes, orgRow] = await Promise.all([
     getSchedulingSettings(),
-    getOrgSubscription(org.id, supabase),
+    getRawOrgSubscription(org.id, supabase),
+    getPlanOverride(org.id, supabase),
     supabase.from("staff").select("id", { count: "exact", head: true }).eq("org_id", org.id).eq("active", true),
     supabase.from("services").select("id", { count: "exact", head: true }).eq("org_id", org.id),
     supabase.from("orgs").select("created_at").eq("id", org.id).maybeSingle(),
@@ -55,7 +59,9 @@ export const getBillingOverview = cache(async (now = new Date()): Promise<Billin
   return {
     orgId: org.id,
     subscription,
-    entitlements: entitlementsFor(subscription, now),
+    override,
+    // A live comp beats the provider row (lib/billing/queries.ts#getOrgSubscription).
+    entitlements: entitlementsFor(activeOverrideRow(override, now) ?? subscription, now),
     usage: {
       bookingsThisMonth,
       activeStaff: staffRes.count ?? 0,

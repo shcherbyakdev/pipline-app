@@ -20,6 +20,10 @@ export const BILLING_ERRORS = {
   // it already pays for, so the answer is the portal, where the switch is a
   // proration on the existing one.
   use_portal: "Change plans in the billing portal.",
+  // A comped org reaching startCheckout (stale tab, or the picker rendered
+  // before the comp was granted): an unexpired override wins outright at the
+  // seam, so the purchase would bill a card for entitlements nobody reads.
+  complimentary: "Your plan is complimentary right now — there's nothing to buy until it ends.",
   portal: "There's no subscription to manage yet.",
   portal_unavailable: "Couldn't open the billing portal — try again.",
 } as const;

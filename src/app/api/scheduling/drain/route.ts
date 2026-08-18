@@ -5,7 +5,7 @@ import { isAuthorizedDrainRequest } from "@/features/chasing/drain-auth";
 import { runReminderDrain } from "@/features/scheduling/reminders";
 import { emailBadgeUrl, getEntitlementsAdmin, monthlyBookingUsage } from "@/lib/billing/queries";
 import { reminderQuotaExceeded } from "@/lib/billing/entitlements";
-import { BILLING_ENABLED } from "@/lib/flags";
+import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 
 // Booking-reminder drain tick. Same operational model as /api/chase/drain:
 // POST + Bearer secret now (scripts/scheduling-drain.ts), a cron
@@ -25,21 +25,22 @@ export async function POST(request: Request) {
       // Reminders carry the badge under the same rule as every other
       // client-facing mail (plan + the org's toggle).
       badgeFor: emailBadgeUrl,
-      // Free-plan reminder quota (spec §7.10): only checked once billing is
-      // live — while the flag is off every org is unmetered, same as the
-      // rest of the billing surface.
+      // Free-plan reminder quota (spec §7.10): checked per booking's org, not
+      // once for the whole tick — a batch mixes orgs with billing on and off.
       //
       // Ordinal, not a running total: the count is "originals this org made
       // in the booking's own month BEFORE this booking", so the answer is
       // "is this the 31st?" — stable no matter when the tick runs or what
       // was cancelled since (spec §3, "the first 30 bookings each month").
-      quotaExceeded: BILLING_ENABLED
-        ? async (orgId, tz, createdAt) =>
-            reminderQuotaExceeded(
-              await monthlyBookingUsage(orgId, tz, new Date(createdAt), admin, { before: createdAt }),
-              await getEntitlementsAdmin(orgId),
-            )
-        : undefined,
+      quotaExceeded: async (orgId, tz, createdAt) => {
+        // Only metered once the ORG's billing flag is on — an org with billing
+        // off is unmetered, same as the rest of its billing surface.
+        if (!(await getOrgFlagsAdmin(orgId)).billing) return false;
+        return reminderQuotaExceeded(
+          await monthlyBookingUsage(orgId, tz, new Date(createdAt), admin, { before: createdAt }),
+          await getEntitlementsAdmin(orgId),
+        );
+      },
     });
     return Response.json(summary);
   } catch (error) {

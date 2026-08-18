@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { RENTALS_ENABLED } from "@/lib/flags";
+import { FLAG_DEFAULTS } from "@/lib/flags";
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -74,7 +74,11 @@ const moveToEnd = d(47);
 
 // The public actions refuse while rentals are parked for the MVP
 // (lib/flags.ts) — this file comes back the moment the flag flips.
-describe.skipIf(!RENTALS_ENABLED)("rental flow e2e (action layer)", () => {
+// Suite is skipped while the environment default is off; a per-org test
+// would enable rentals by inserting an `org_feature_flags` row
+// (`{ org_id, flag: 'rentals', enabled: true, updated_by }`) with the admin
+// client in beforeAll.
+describe.skipIf(!FLAG_DEFAULTS.rentals)("rental flow e2e (action layer)", () => {
   beforeAll(async () => {
     const owner = await signedInUser("rentflow_owner");
     const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowCo" });

@@ -11,7 +11,7 @@ import { limitPublicOffering } from "./bookable";
 import { getEntitlementsAdminStrict } from "@/lib/billing/queries";
 import { type Entitlements } from "@/lib/billing/entitlements";
 import { PLANS } from "@/lib/billing/plans";
-import { BILLING_ENABLED } from "@/lib/flags";
+import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 
 // The one loader every public entry point uses (/book/[handle], its staff
 // pages, /embed, and the public server actions): the org's active roster and
@@ -39,7 +39,7 @@ const UNLIMITED: Entitlements = {
 };
 
 async function loadEntitlements(orgId: string): Promise<Entitlements> {
-  if (!BILLING_ENABLED) return UNLIMITED;
+  if (!(await getOrgFlagsAdmin(orgId)).billing) return UNLIMITED;
   try {
     return await getEntitlementsAdminStrict(orgId);
   } catch (error) {

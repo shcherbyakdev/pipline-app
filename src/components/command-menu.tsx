@@ -13,13 +13,13 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { NAV_ITEMS } from "@/components/shell/nav";
+import type { NavItem } from "@/components/shell/nav";
 
 /** Dispatched on `window` by the top bar's search button; the menu toggles on it
     just like ⌘K. */
 export const OPEN_COMMAND_MENU_EVENT = "booklo:open-command-menu";
 
-export function CommandMenu() {
+export function CommandMenu({ items }: { items: NavItem[] }) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
@@ -51,12 +51,12 @@ export function CommandMenu() {
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Navigate">
-          {/* Sourced from the same NAV_ITEMS as the sidebar so the two lists
-              can't drift again (this slice is what caused Settings to be in
-              one but not the other). Actions below stays hand-listed —
+          {/* Sourced from the same navItemsFor list as the sidebar so the two
+              lists can't drift again (this slice is what caused Settings to
+              be in one but not the other). Actions below stays hand-listed —
               "create X" only makes sense for Services, not Availability or
               Settings, so there's no drift risk to guard against there. */}
-          {NAV_ITEMS.map((item) => (
+          {items.map((item) => (
             <CommandItem key={item.href} onSelect={() => go(item.href)}>
               <HugeiconsIcon icon={item.icon} size={16} /> {item.label}
             </CommandItem>

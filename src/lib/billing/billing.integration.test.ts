@@ -148,9 +148,10 @@ describe("billing: monthlyBookingUsage", () => {
 });
 
 describe("billing: emailBadgeUrl", () => {
-  // While BILLING_ENABLED is false hiding is allowed unconditionally, so the
-  // org's own tick decides — the same answer its booking page gives. (Flag
-  // on, the org's plan has to allow it too; that path is unit-covered by
+  // While the org's `billing` flag is off (the default; this org has no
+  // org_feature_flags row) hiding is allowed unconditionally, so the org's
+  // own tick decides — the same answer its booking page gives. (Flag on,
+  // the org's plan has to allow it too; that path is unit-covered by
   // badgeVisible + entitlementsFor.)
   //
   // Its OWN org, with no org_subscriptions row: the shared `orgId` above is

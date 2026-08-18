@@ -6,10 +6,11 @@ import { env } from "@/env";
 import { requireOrg } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { selectBillingProvider } from "@/lib/billing/provider";
-import { getOrgSubscription } from "@/lib/billing/queries";
+import { getPlanOverride, getRawOrgSubscription } from "@/lib/billing/queries";
+import { isOverrideActive } from "@/lib/billing/overrides";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { isPaidPlan } from "@/lib/billing/plans";
-import { BILLING_ENABLED } from "@/lib/flags";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 import { isFounderEligible } from "./founder";
 import { checkoutInput } from "./schema";
 
@@ -38,29 +39,53 @@ async function providerUrl(make: () => Promise<string>, label: string): Promise<
 
 /** The org's subscription row for the duplicate-purchase guard, with "no row"
     (Free — may buy) kept distinct from "couldn't read" (unknown — must not).
-    getOrgSubscription throws, and a thrown Server Action would show an error
-    boundary instead of this page's `?error=` line. */
+    getRawOrgSubscription throws, and a thrown Server Action would show an
+    error boundary instead of this page's `?error=` line.
+
+    RAW, not effective: a comped org has no provider subscription to prorate,
+    so it may still buy one — the comp simply keeps winning until it lapses. */
 async function readSubscription(orgId: string, supabase: SupabaseClient) {
   try {
-    return { ok: true as const, sub: await getOrgSubscription(orgId, supabase) };
+    return { ok: true as const, sub: await getRawOrgSubscription(orgId, supabase) };
   } catch (error) {
     console.error("[billing] startCheckout subscription read:", error);
     return { ok: false as const, sub: null };
   }
 }
 
+/** The org's comp override for the "nothing to buy" guard — same
+    "couldn't read ⇒ refuse" shape as readSubscription above, and for the same
+    reason: a read we could not make must never pass for "no comp". */
+async function readOverride(orgId: string, supabase: SupabaseClient) {
+  try {
+    return { ok: true as const, override: await getPlanOverride(orgId, supabase) };
+  } catch (error) {
+    console.error("[billing] startCheckout override read:", error);
+    return { ok: false as const, override: null };
+  }
+}
+
 /** Form action: hidden `plan` + `interval` inputs → the provider's checkout. */
 export async function startCheckout(formData: FormData): Promise<void> {
-  // The page 404s while the flag is off, so a POST that gets here is
+  const { user, org } = await requireOrg();
+  // The page 404s while the org's flag is off, so a POST that gets here is
   // hand-crafted; answer it the same way the route does.
-  if (!BILLING_ENABLED) notFound();
+  if (!(await getDashboardFlags(org.id)).billing) notFound();
   const parsed = checkoutInput.safeParse({
     plan: formData.get("plan"),
     interval: formData.get("interval"),
   });
   if (!parsed.success) redirect("/billing?error=checkout");
-  const { user, org } = await requireOrg();
   const supabase = await createClient();
+  // A comped org has nothing to buy. An unexpired override wins outright at
+  // the seam (lib/billing/queries.ts#getOrgSubscription), so letting checkout
+  // through would charge a card for a subscription the entitlements ignore,
+  // and the return page's activation poller would spin forever waiting for an
+  // effective plan that never moves. The page hides the picker for the same
+  // reason — this is its server-side twin.
+  const comp = await readOverride(org.id, supabase);
+  if (!comp.ok) redirect("/billing?error=checkout");
+  if (isOverrideActive(comp.override, new Date())) redirect("/billing?error=complimentary");
   const current = await readSubscription(org.id, supabase);
   // "Couldn't read" must never pass for "Free": that is precisely how a
   // paying org would end up buying a second subscription (§7.10 — refuse
@@ -120,8 +145,8 @@ export async function startCheckout(formData: FormData): Promise<void> {
 /** Form action: the provider's portal, where cards, invoices, downgrades and
     cancellations live — we build none of those screens (spec §7.6). */
 export async function openPortal(): Promise<void> {
-  if (!BILLING_ENABLED) notFound();
   const { org } = await requireOrg();
+  if (!(await getDashboardFlags(org.id)).billing) notFound();
   const supabase = await createClient();
   // The row itself is the ticket: provider_customer_id is NOT NULL (0042),
   // and a cancelled or expired org still belongs in the portal (invoices,

@@ -4,7 +4,7 @@ import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
-import { RENTALS_ENABLED } from "@/lib/flags";
+import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { badgeVisible } from "@/lib/billing/entitlements";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
@@ -20,8 +20,8 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
   const [offering, offerings, branding] = await Promise.all([
     // Active-and-linked, then plan-limited — see /book/[handle].
     loadPublicOffering(org.orgId),
-    // Rentals parked for the MVP (lib/flags.ts): the widget lists services only.
-    RENTALS_ENABLED ? listPublicOfferings(org.orgId) : Promise.resolve([]),
+    // Rentals parked unless the org's `rentals` flag is on (lib/flags): the widget lists services only.
+    getOrgFlagsAdmin(org.orgId).then((f) => (f.rentals ? listPublicOfferings(org.orgId) : [])),
     getOrgBranding(org.orgId),
   ]);
   const { services: orgServices, staff, serviceStaffIds } = offering;

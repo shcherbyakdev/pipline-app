@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
-import { BILLING_ENABLED } from "@/lib/flags";
+import { requireOrg } from "@/lib/auth/session";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 import { isPaidPlan } from "@/lib/billing/plans";
+import { isOverrideActive } from "@/lib/billing/overrides";
 import { getBillingOverview } from "@/features/billing/queries";
 import { billingErrorMessage } from "@/features/billing/schema";
 import { ActivationPoller } from "@/features/billing/components/activation-poller";
@@ -9,10 +11,18 @@ import { PlanPicker } from "@/features/billing/components/plan-picker";
 import { UsageMeters } from "@/features/billing/components/usage-meters";
 import { PageIntro } from "@/components/shell/page-header";
 
+// Fixed locale + UTC (current-plan.tsx idiom): hydration must not depend on
+// the server's locale.
+const formatDate = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })
+    .format(new Date(iso));
+
 export default async function BillingPage({ searchParams }: PageProps<"/billing">) {
-  // Dormant until the flag flips (spec §7.9): the route file exists so the
-  // Stripe account can be wired first, but nothing links here and it 404s.
-  if (!BILLING_ENABLED) notFound();
+  // Dormant unless the org's `billing` flag resolves true (lib/flags): the
+  // route file exists so the Stripe account can be wired first, but nothing
+  // links here and it 404s.
+  const { org } = await requireOrg();
+  if (!(await getDashboardFlags(org.id)).billing) notFound();
   const { checkout, error, plan } = await searchParams;
   const overview = await getBillingOverview();
   // Back from checkout but the webhook hasn't landed yet — poll, don't lie.
@@ -23,6 +33,11 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
     checkout === "success" &&
     (bought ? overview.entitlements.plan !== bought : overview.entitlements.plan === "free");
   const errorMessage = billingErrorMessage(error);
+  // A live comp beats anything the picker could sell: startCheckout refuses
+  // while it lasts, so offering the buttons would only produce that refusal.
+  // Destructured (current-plan.tsx idiom) so the guard narrows the binding.
+  const { override } = overview;
+  const comped = isOverrideActive(override, new Date());
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
@@ -45,10 +60,18 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
       ) : null}
       <CurrentPlan overview={overview} />
       <UsageMeters overview={overview} />
-      <PlanPicker
-        currentPlan={overview.entitlements.plan}
-        founderEligible={overview.founderEligible}
-      />
+      {comped ? (
+        <p className="text-muted-foreground text-sm">
+          Your plan is complimentary
+          {override.expiresAt ? ` until ${formatDate(override.expiresAt)}` : ""}. Plans can be bought once it
+          ends.
+        </p>
+      ) : (
+        <PlanPicker
+          currentPlan={overview.entitlements.plan}
+          founderEligible={overview.founderEligible}
+        />
+      )}
     </div>
   );
 }

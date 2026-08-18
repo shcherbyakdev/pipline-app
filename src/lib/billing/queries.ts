@@ -4,15 +4,23 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { badgeShows, entitlementsFor, monthWindow, type Entitlements, type OrgSubscriptionRow } from "./entitlements";
+import { activeOverrideRow, type PlanOverride, type PlanOverrideDetails } from "./overrides";
 import { isPaidPlan } from "./plans";
-import { BILLING_ENABLED } from "@/lib/flags";
+import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { env } from "@/env";
 
 const SUB_COLS = "plan, status, billing_interval, seats, current_period_end, cancel_at_period_end";
+// What `authenticated` is granted on org_plan_overrides (0046), and all the
+// seam needs. The note and granted_by columns are owner-only — see
+// getPlanOverrideDetails.
+const OVERRIDE_COLS = "plan, expires_at";
+const OVERRIDE_DETAIL_COLS = "plan, expires_at, note, granted_by, updated_at";
 
-// Works with the RLS client (dashboard: policy scopes to the member's org)
-// and the admin client (public/drain paths: caller resolved orgId already).
-export async function getOrgSubscription(orgId: string, client: SupabaseClient): Promise<OrgSubscriptionRow | null> {
+/** The PROVIDER's row only (webhook-written cache), or null. For the two
+    callers that must see Stripe's truth rather than the effective plan: the
+    duplicate-purchase guard in startCheckout and the /billing "manage in
+    portal" affordance. Everything else wants getOrgSubscription below. */
+export async function getRawOrgSubscription(orgId: string, client: SupabaseClient): Promise<OrgSubscriptionRow | null> {
   const { data, error } = await client.from("org_subscriptions").select(SUB_COLS).eq("org_id", orgId).maybeSingle();
   if (error) throw error;
   if (!data || !isPaidPlan(data.plan)) return null;
@@ -26,8 +34,54 @@ export async function getOrgSubscription(orgId: string, client: SupabaseClient):
   };
 }
 
+/** The org's complimentary plan as granted in /utils (spec 2026-08-18-internal-utils
+    §3.4), or null. NOT expiry-filtered — the /billing and /utils pages show an
+    expired comp as expired; activeOverrideRow decides whether it counts.
+
+    Plan + expiry ONLY: those are the columns `authenticated` is granted (0046),
+    so this works with the RLS client as well as the admin one. */
+export async function getPlanOverride(orgId: string, client: SupabaseClient): Promise<PlanOverride | null> {
+  const { data, error } = await client.from("org_plan_overrides").select(OVERRIDE_COLS).eq("org_id", orgId).maybeSingle();
+  if (error) throw error;
+  if (!data || !isPaidPlan(data.plan)) return null;
+  return { plan: data.plan, expiresAt: data.expires_at };
+}
+
+/** The same row with the owner-only columns — the note and who granted it.
+    ADMIN client only: `authenticated` has no privilege on those columns
+    (0046), so the RLS client gets "permission denied", not a filtered row.
+    /utils is the only caller. */
+export async function getPlanOverrideDetails(orgId: string, admin: SupabaseClient): Promise<PlanOverrideDetails | null> {
+  const { data, error } = await admin.from("org_plan_overrides").select(OVERRIDE_DETAIL_COLS).eq("org_id", orgId).maybeSingle();
+  if (error) throw error;
+  if (!data || !isPaidPlan(data.plan)) return null;
+  return {
+    plan: data.plan,
+    expiresAt: data.expires_at,
+    note: data.note,
+    grantedBy: data.granted_by,
+    grantedAt: data.updated_at,
+  };
+}
+
+/** The EFFECTIVE subscription: an unexpired comp override wins outright over
+    the provider row; otherwise the provider row; otherwise null = Free. The
+    single seam every entitlement read goes through — gates, badge, public
+    offering, reminders inherit comps without knowing they exist.
+
+    Works with the RLS client (dashboard: both tables have a member SELECT
+    policy) and the admin client (public/drain paths). */
+export async function getOrgSubscription(
+  orgId: string,
+  client: SupabaseClient,
+  now = new Date(),
+): Promise<OrgSubscriptionRow | null> {
+  const [raw, override] = await Promise.all([getRawOrgSubscription(orgId, client), getPlanOverride(orgId, client)]);
+  return activeOverrideRow(override, now) ?? raw;
+}
+
 export async function getEntitlements(orgId: string, client: SupabaseClient, now = new Date()): Promise<Entitlements> {
-  return entitlementsFor(await getOrgSubscription(orgId, client), now);
+  return entitlementsFor(await getOrgSubscription(orgId, client, now), now);
 }
 
 /** Public/drain paths. Per-request memoised. Degrades to Free on failure —
@@ -89,8 +143,8 @@ export async function monthlyBookingUsage(
     templates stay pure (they take `badgeUrl: string | null`, never import
     env themselves).
 
-    While BILLING_ENABLED is false, hiding is allowed unconditionally — the
-    same answer the public pages get from loadPublicOffering's UNLIMITED
+    While the org's `billing` flag is off, hiding is allowed unconditionally —
+    the same answer the public pages get from loadPublicOffering's UNLIMITED
     entitlements. Without that check the flag-off world would read Free
     (hideBadge: false) and badge the emails of an org whose own booking page
     honours its "Hide" tick: one product, two answers. */
@@ -105,7 +159,7 @@ export async function emailBadgeUrl(orgId: string): Promise<string | null> {
     const admin = createAdminClient();
     const { data, error } = await admin.from("orgs").select("widget_theme, handle").eq("id", orgId).maybeSingle();
     if (error) throw error;
-    const hideAllowed = BILLING_ENABLED ? (await getEntitlementsAdmin(orgId)).hideBadge : true;
+    const hideAllowed = (await getOrgFlagsAdmin(orgId)).billing ? (await getEntitlementsAdmin(orgId)).hideBadge : true;
     return badgeShows(parseWidgetTheme(data?.widget_theme).hidePoweredBy, hideAllowed) ? url(data?.handle) : null;
   } catch (error) {
     console.error("[billing] emailBadgeUrl:", error);

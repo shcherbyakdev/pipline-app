@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BILLING_ENABLED } from "@/lib/flags";
+import { FLAG_DEFAULTS } from "@/lib/flags";
+import { getOrgFlags } from "@/lib/flags/resolve";
 import { getEntitlements } from "./queries";
 import { canAddService, canAddStaff, type Entitlements } from "./entitlements";
 import {
@@ -27,7 +28,7 @@ export function serviceGateMessage(serviceCount: number, ent: Entitlements): str
 // (assertCanAdd*, and tests) always get back a string|null, never a
 // rejection. Exported (rather than inlined in assertCanAdd*) so tests can
 // exercise both the success and failure paths with a stub client, without
-// needing BILLING_ENABLED true.
+// needing the org's `billing` flag on.
 export async function evaluateStaffGate(orgId: string, client: SupabaseClient): Promise<string | null> {
   try {
     const [ent, { count, error }] = await Promise.all([
@@ -56,12 +57,27 @@ export async function evaluateServiceGate(orgId: string, client: SupabaseClient)
   }
 }
 
+/* The public entry points. Resolve the org's flag through the same RLS
+   client the action holds (org_feature_flags has a member SELECT policy);
+   a failed FLAG read refuses conservatively like a failed entitlement read
+   would (spec §7.10) — evaluate* already wraps its own lookups. */
 export async function assertCanAddStaff(orgId: string, client: SupabaseClient): Promise<string | null> {
-  if (!BILLING_ENABLED) return null;
+  if (!(await billingOn(orgId, client))) return null;
   return evaluateStaffGate(orgId, client);
 }
 
 export async function assertCanAddService(orgId: string, client: SupabaseClient): Promise<string | null> {
-  if (!BILLING_ENABLED) return null;
+  if (!(await billingOn(orgId, client))) return null;
   return evaluateServiceGate(orgId, client);
+}
+
+async function billingOn(orgId: string, client: SupabaseClient): Promise<boolean> {
+  try {
+    return (await getOrgFlags(orgId, client)).billing;
+  } catch (error) {
+    // Unknown flag state → behave as the environment default rather than
+    // block a provider from adding a service because a flag table hiccuped.
+    console.error("[billing] flag read failed in gate (using default):", error);
+    return FLAG_DEFAULTS.billing;
+  }
 }

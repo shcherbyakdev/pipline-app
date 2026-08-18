@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Menu01Icon } from "@hugeicons/core-free-icons";
+import type { Flags } from "@/lib/flags";
 import { SidebarBody } from "./sidebar-body";
 import {
   Sheet,
@@ -11,7 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-export function MobileNav({ org, userEmail }: { org: string; userEmail: string }) {
+export function MobileNav({ org, userEmail, flags }: { org: string; userEmail: string; flags: Flags }) {
   const [open, setOpen] = useState(false);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -26,7 +27,7 @@ export function MobileNav({ org, userEmail }: { org: string; userEmail: string }
         className="bg-sidebar text-sidebar-foreground flex w-[260px] flex-col p-0"
       >
         <SheetTitle className="sr-only">Navigation</SheetTitle>
-        <SidebarBody org={org} userEmail={userEmail} onNavigate={() => setOpen(false)} />
+        <SidebarBody org={org} userEmail={userEmail} flags={flags} onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>
   );

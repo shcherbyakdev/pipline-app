@@ -14,7 +14,7 @@ import {
 } from "@/lib/booking/public";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
-import { RENTALS_ENABLED } from "@/lib/flags";
+import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { wallTimeToUtc } from "@/features/scheduling/slots";
 import {
   bookingConfirmationEmail,
@@ -45,6 +45,9 @@ async function limited(): Promise<boolean> {
 async function loadRangeContext(handle: string, offeringId: string, fromDate: string, days: number) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
+  // Rentals parked unless the org's flag is on (lib/flags) — no UI reaches
+  // these actions, this is the server-side defence.
+  if (!(await getOrgFlagsAdmin(org.orgId)).rentals) return null;
   const ctx = await loadOrgRangeContext(org.orgId, offeringId, fromDate, days);
   if (!ctx) return null;
   return { org, ...ctx };
@@ -55,9 +58,6 @@ export async function getRangeAvailability(
 ): Promise<
   { ok: true; availability: RangeAvailability; units: PublicUnit[] } | { ok: false; error: string }
 > {
-  // Rentals parked for the MVP (lib/flags.ts) — no UI reaches these actions,
-  // this is the server-side defence.
-  if (!RENTALS_ENABLED) return { ok: false, error: GENERIC_WRITE_ERROR };
   if (await limited()) return { ok: false, error: "Too many requests — slow down." };
   const parsed = getRangeAvailabilityInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
@@ -92,7 +92,6 @@ function isTaken(error: { message?: string; code?: string }): boolean {
 export async function createRentalBooking(
   input: unknown,
 ): Promise<{ ok: true; token: string } | { ok: false; error: string; datesTaken?: boolean }> {
-  if (!RENTALS_ENABLED) return { ok: false, error: GENERIC_WRITE_ERROR };
   if (await limited()) return { ok: false, error: "Too many requests — slow down." };
   const parsed = createRentalBookingInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
@@ -101,6 +100,7 @@ export async function createRentalBooking(
   try {
     const org = await getBookingOrg(handle);
     if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!(await getOrgFlagsAdmin(org.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
     const offering = await getPublicOfferingById(org.orgId, offeringId);
     if (!offering) return { ok: false, error: GENERIC_WRITE_ERROR };
     // The span the stay occupies plus its turnover tail — capped at the
