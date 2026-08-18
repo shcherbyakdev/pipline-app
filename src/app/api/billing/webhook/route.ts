@@ -10,10 +10,22 @@ import { applyBillingEvents } from "@/lib/billing/apply-events";
 export async function POST(request: Request) {
   const secretSet = env.BILLING_PROVIDER === "stripe" ? Boolean(env.STRIPE_WEBHOOK_SECRET) : Boolean(env.BILLING_FAKE_SECRET);
   if (!secretSet) return Response.json({ error: "billing webhook disabled" }, { status: 503 });
+  // Construct the provider in its own try/catch, BEFORE the parseWebhook
+  // try below: a construction failure (e.g. STRIPE_SECRET_KEY unset while
+  // STRIPE_WEBHOOK_SECRET is set) is a config problem, not a bad request —
+  // fail closed with 503, same as the secretSet check above, instead of
+  // letting it fall into the 401/400 classification meant for parseWebhook.
+  let provider;
+  try {
+    provider = selectBillingProvider();
+  } catch (error) {
+    console.error("[billing] provider construction failed:", error);
+    return Response.json({ error: "billing webhook disabled" }, { status: 503 });
+  }
   const rawBody = await request.text();
   let events;
   try {
-    events = selectBillingProvider().parseWebhook(rawBody, request.headers);
+    events = provider.parseWebhook(rawBody, request.headers);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     if (/signature/i.test(msg)) return Response.json({ error: "unauthorized" }, { status: 401 });

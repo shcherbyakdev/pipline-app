@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { env } from "@/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { applyBillingEvents } from "@/lib/billing/apply-events";
@@ -25,5 +26,12 @@ export async function GET(request: Request) {
       currentPeriodEnd: new Date(now.getTime() + 30 * 864e5).toISOString(), cancelAtPeriodEnd: false,
     },
   }]);
-  return Response.redirect(`${back}${back.includes("?") ? "&" : "?"}checkout=success`, 303);
+  // `new URL(back, request.url)`, not a template string: `back` may be a
+  // relative path (`return=/billing`) — a bare Response.redirect() throws
+  // on those (auth/confirm/route.ts idiom). `.set`, not string
+  // concatenation, so a `return` that already carries `checkout=success`
+  // doesn't end up with the param twice.
+  const target = new URL(back, request.url);
+  target.searchParams.set("checkout", "success");
+  return NextResponse.redirect(target, 303);
 }

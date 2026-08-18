@@ -7,6 +7,7 @@ process.env.BILLING_PROVIDER = "fake";
 process.env.BILLING_FAKE_SECRET = "test-secret-0123456789abcdef";
 
 const { POST } = await import("./route");
+const { GET: devCheckoutGET } = await import("../dev-checkout/route");
 const { signFakeWebhook } = await import("@/lib/billing/fake");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -59,5 +60,24 @@ describe("POST /api/billing/webhook (fake provider)", () => {
   it("400 on malformed body", async () => {
     const res = await post("not json", signFakeWebhook("not json", process.env.BILLING_FAKE_SECRET!));
     expect(res.status).toBe(400);
+  });
+});
+
+describe("GET /api/billing/dev-checkout (fake provider)", () => {
+  it("redirects 303, resolving a relative `return` against the request instead of throwing", async () => {
+    const res = await devCheckoutGET(new Request(
+      `http://x/api/billing/dev-checkout?org=${orgId}&plan=pro&interval=month&return=/billing`,
+    ));
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toMatch(/\/billing\?checkout=success$/);
+  });
+
+  it("does not duplicate checkout=success when `return` already carries it", async () => {
+    const back = encodeURIComponent("http://x/billing?checkout=success");
+    const res = await devCheckoutGET(new Request(
+      `http://x/api/billing/dev-checkout?org=${orgId}&plan=pro&interval=month&return=${back}`,
+    ));
+    const location = res.headers.get("location")!;
+    expect(location.match(/checkout=success/g)).toHaveLength(1);
   });
 });
