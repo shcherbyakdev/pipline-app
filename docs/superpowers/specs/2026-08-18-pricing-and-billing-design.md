@@ -1,0 +1,283 @@
+# Pricing & Billing — monetization strategy + billing slice
+
+**Date:** 2026-08-18
+**Status:** Draft — pending Andrii's review (strategy discussed in chat; plan ladder accepted, prices/limits are proposals)
+**Type:** Strategy (why/what we charge for) + design of the first billing slice (how). Follow-up product slices (Google Calendar sync, intake questions, reminder schedules, SMS, deposits) get their own specs.
+**Parent:** `2026-08-13-scheduling-pivot-vision-and-roadmap-design.md` ("No payments at MVP … Stripe is a later slice") and `2026-08-17-team-staff-design.md` (staff is the Team lever).
+**Base:** `main` @ `fecf09e` (PR #39 merged; last migration `0041_staff_security.sql`; rentals parked behind `RENTALS_ENABLED`).
+
+## 1. Goal
+
+Turn Booklo from "free during early access" into a product that earns **$1–3k MRR as the first target, with a ladder that scales** without re-architecting. Solo builder, no marketing budget, no sensitive-data appetite (card data must never touch our servers).
+
+Success for this slice: a Free / Pro / Team ladder is live, a provider can upgrade and manage their subscription self-serve, plan limits are enforced server-side, and MRR is readable from SQL.
+
+## 2. Market position (why the ladder looks like this)
+
+The floor in this category is **free**: Calendly Free, Setmore Free, Square Appointments Free, Fresha (no subscription), Google/Microsoft Bookings bundled. "A booking page exists" is worth $0. What providers *pay* for, in order: more staff/calendars, fewer no-shows (reminders, SMS, deposits), their own brand (no vendor badge), calendar sync, volume.
+
+Verified anchors (2026): Calendly Standard $12/seat monthly ($10 annual), Teams $20 ($16 annual); Acuity Emerging $16, Growing $27 (SMS, up to 6 staff), Powerhouse $49; SimplyBook.me Free = 50 bookings/mo, Basic ≈ $10, Standard ≈ $25 (500 bookings).
+
+Booklo's differentiators today: no client accounts, DB-guaranteed no double-booking, self-resizing embed, multi-staff with in-DB auto-assign, brand basics, minimal data. Its gap for a paid solo tier: Google Calendar sync (S4 was skipped) — table stakes for consultants/coaches, less so for salons/studios where staff count is the lever. Hence: **Team is the paid lever from day one; Pro gets its headline feature (Google Calendar) in the next slice.**
+
+## 3. Plan ladder
+
+USD list prices; the Merchant of Record shows local currency. All numbers are proposals Andrii can change without touching the design — they live in one constants module (§7.3).
+
+| | **Free** | **Pro** — $12/mo · $9/mo annual ($108/yr) | **Team** — $29/mo · $24/mo annual (5 staff incl.) |
+|---|---|---|---|
+| Publicly bookable staff | 1 (primary) | 1 | 5 (extra seats +$5/staff — follow-up, see §8) |
+| Publicly offered services | 3 | unlimited | unlimited |
+| Bookings / month | reminders for the first **30**; confirmations always | unlimited | unlimited |
+| Hosted page + embed | ✅ (deliberately free — it is the distribution) | ✅ | ✅ |
+| Cancel/reschedule links, double-book guard, confirmations | ✅ never gated | ✅ | ✅ |
+| Reminder | 1 fixed (24h) | custom schedule 🔨 | same |
+| "Powered by Booklo" on page + emails | shown | removable | removable |
+| Brand basics (logo, colour, welcome, theme) | ✅ | ✅ | ✅ |
+| Google Calendar 2-way sync | — | ✅ 🔨 | ✅ |
+| Intake questions per service | — | ✅ 🔨 | ✅ |
+| Team layer (per-staff pages, "Anyone available", staff colours/filter/notices) | — | — | ✅ (shipped, #39) |
+| Staff logins & permissions | — | — | 🔨 later |
+| SMS reminders | — | metered add-on 🔨 | same |
+| Deposits (Stripe Checkout) | — | 🔨 later; ~1 % platform fee on Free, 0 % Pro/Team | same |
+
+🔨 = not shipped; not gated by this slice (the entitlement flags exist so the follow-up slices only read them).
+
+**Founder price:** Pro at **$8/mo, locked for life**, for the first 100 orgs — offered to every org created before the public launch date, honouring the landing's "early users will hear first". Implemented as a provider discount code with a redemption cap, prefilled at checkout (§7.6); no schema.
+
+**Rejected models** (kept for the record):
+- *Per-seat only* — zero uplift on the core solo persona.
+- *Per-booking pricing* — unpredictable for the customer, metering + invoicing pain for us; kept only for the SMS add-on later.
+- *Take-rate only* (Fresha/Square) — needs payments first; becomes an *extra* lever with the deposits slice, never the base.
+- *Lifetime deal / AppSumo* — cash now, no compounding, heavy support; the Founder price does the same job for the existing base.
+- *Trials* — not at launch; monthly plans are cheap and cancellable, and Free already lets you try the whole solo product. Revisit for Team if conversion says so.
+
+## 4. Principles (the rules the code enforces)
+
+1. **Never turn a client away.** No plan limit ever blocks a public booking, a confirmation, or a manage link. Limits act on the *provider's* side.
+2. **Limits shape the public offering; nothing is deleted.** On Free the booking page offers the primary staff and the first 3 services (by `sort_order`); on downgrade, over-limit staff/services simply stop being publicly bookable. Data, history and admin views stay intact. This also closes the "subscribe one month, add 10 staff, cancel" loop with no engine change.
+3. **Free's volume cap = reminders.** Confirmations always send; reminder emails are included for the first 30 bookings each calendar month (org timezone). Past that, reminders are suppressed for that org until the month rolls over. Reminders are the provider's no-show insurance — the exact thing Pro sells.
+4. **Our DB is a cache of the provider's truth.** `org_subscriptions` is written only by the webhook route; entitlements are computed from that row; the request path never calls the billing provider.
+5. **Provider behind a seam.** One adapter interface (`src/lib/billing/provider.ts`), a Merchant-of-Record adapter for production, a fake for dev/tests — the email transport idiom.
+6. **Behind a compile-time flag** (`BILLING_ENABLED` in `src/lib/flags.ts`, false until launch). While false: no gates, no nav item, no pricing page — early access continues exactly as today.
+
+## 5. The math
+
+**Customer side (the pricing-page argument).** A solo doing 60 bookings/mo at $60 avg books $3,600/mo. Industry no-show rates run ~10–20 %; reminders cut them by roughly a third; deposits far more. At 12 % → ~7 no-shows → ~$430/mo lost; one extra reminder recovering a third → ~$140/mo. Pro at $12 pays for itself ~12×. Line: *"Pro costs less than one no-show."* Team: one extra chair filled via "Anyone available" pays the month.
+
+**Business side.** Fixed: Vercel Pro $20 + Supabase Pro $25 + Resend $0–20 + domain ≈ **$50–70/mo**. Merchant of Record ≈ 5 % + $0.50 → we keep ≈ $10.90 of $12 (Stripe direct ≈ $0.70 but we would own VAT/OSS filing — not worth it solo). Variable per Pro org: ~3.5 emails/booking × 100 bookings ≈ 350 emails ≈ $0.15/mo. **Gross margin ≈ 88 %. Break-even ≈ 6 Pro subscribers.**
+
+Assumptions: free→paid 3 % (freemium norm 2–5 %), blended ARPU ≈ $15 (¾ Pro incl. annual mix, ¼ Team), logo churn 5 %/mo monthly, ~2.5 % annual.
+
+| Target | Paying orgs | Signups needed (3 %) | New paying/mo just to offset 5 % churn |
+|---|---|---|---|
+| $1k MRR | ~67 | ~2,200 | ~3–4 |
+| $3k MRR | ~200 | ~6,700 | ~10 |
+| $10k MRR | ~670 | ~22,000 | ~33 |
+
+LTV ≈ 15 × 0.88 / 0.05 ≈ **$264** on monthly; annual roughly doubles it → the checkout defaults to annual. With no ad budget CAC is time; paid acquisition only makes sense under ~$80/customer.
+
+Badge loop (measure, don't trust): a free org's page gets ~40–80 views/mo; if 0.3–1 % of viewers are providers who click through, that is 0.1–0.8 new orgs per free org per month — k < 1, so not viral alone, but it multiplies every other channel over ~6 months. The badge link carries `?ref=badge&org=<handle>` so this is measurable from day one.
+
+## 6. Provider choice
+
+**Merchant of Record** (handles VAT/sales tax, invoices, dunning, customer portal): first adapter **Lemon Squeezy** — hosted checkout with `custom` data, HMAC-signed webhooks, prefillable discount codes, subscription customer portal. **Paddle** is the swap-in if Lemon Squeezy cannot pay out to the founder's country of incorporation (**verify before building the adapter** — open decision §9). Stripe direct only if a Stripe-supported entity exists; the seam makes any of the three a one-file change.
+
+## 7. Billing slice design
+
+### 7.1 Provider seam — `src/lib/billing/provider.ts`
+
+```ts
+type PlanId = "pro" | "team";
+type Interval = "month" | "year";
+
+interface BillingProvider {
+  /** Hosted checkout for an org. Returns a URL to redirect the admin to. */
+  createCheckoutUrl(input: {
+    orgId: string; plan: PlanId; interval: Interval;
+    email: string; discountCode?: string; returnUrl: string;
+  }): Promise<string>;
+  /** Provider-hosted "manage subscription" portal (update card, cancel, switch interval). */
+  createPortalUrl(providerCustomerId: string): Promise<string>;
+  /** Verify signature and normalise one webhook request into events. Throws on bad signature. */
+  parseWebhook(rawBody: string, headers: Headers): BillingEvent[];
+}
+
+type BillingEvent = {
+  providerEventId: string;          // idempotency key
+  occurredAt: string;               // ISO, from the provider payload
+  orgId: string;                    // from checkout custom data
+  type: "subscription_created" | "subscription_updated" | "subscription_cancelled"
+      | "subscription_expired" | "payment_failed" | "payment_recovered";
+  subscription: {
+    providerCustomerId: string; providerSubscriptionId: string;
+    plan: PlanId; interval: Interval; seats: number;   // seats: 1 for pro; 5 (+extra later) for team
+    status: "active" | "past_due" | "cancelled" | "expired";
+    currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean;
+  };
+};
+```
+
+`selectBillingProvider()` (same file): `env.BILLING_PROVIDER === "lemonsqueezy"` → `lemonsqueezy.ts` (bare `fetch`, no SDK — the Resend idiom); anything else → `fake.ts`. The fake's `createCheckoutUrl` returns `/api/billing/dev-checkout?org=…&plan=…&interval=…`, a **non-production-only** route that writes the subscription directly (guarded by `process.env.NODE_ENV !== "production"` **and** `env.BILLING_PROVIDER !== "lemonsqueezy"`; 404 otherwise). Its `parseWebhook` accepts our own normalised JSON signed with `BILLING_WEBHOOK_SECRET` (HMAC-SHA256 hex in `x-signature`) — that is what integration tests post.
+
+Plan ↔ provider variant ids are env (`BILLING_VARIANT_PRO_MONTH`, `…_PRO_YEAR`, `…_TEAM_MONTH`, `…_TEAM_YEAR`); the adapter maps both directions.
+
+### 7.2 Data model — migrations `0042_<generated>.sql` + `0043_billing_security.sql`
+
+Drizzle: new `src/db/schema/billing.ts` (added to the barrel). Custom SQL follows the repo idiom (idempotent, explicit grants, RLS, `search_path=''`).
+
+**`org_subscriptions`** — one row per org that has ever subscribed; **absence = Free**.
+
+| column | type | notes |
+|---|---|---|
+| org_id | uuid pk → orgs cascade | |
+| plan | text not null | CHECK in (`'pro'`,`'team'`) — Free is the absence of an effective row |
+| status | text not null | CHECK in (`'active'`,`'past_due'`,`'cancelled'`,`'expired'`) |
+| interval | text not null | CHECK in (`'month'`,`'year'`) |
+| seats | int not null default 1 | bookable-staff allowance for Team; 1 for Pro |
+| provider | text not null | `'lemonsqueezy'` / `'fake'` |
+| provider_customer_id | text not null | |
+| provider_subscription_id | text not null | unique |
+| current_period_end | timestamptz null | |
+| cancel_at_period_end | bool not null default false | |
+| provider_updated_at | timestamptz not null | ordering guard for out-of-order webhooks |
+| created_at / updated_at | timestamptz | |
+
+Effective plan (SQL and TS agree, one rule): `status in ('active','past_due')` **or** (`status = 'cancelled'` and `current_period_end > now()`) → `plan`; otherwise Free. `past_due` keeps access while the provider retries (dunning is theirs); `expired` is the provider's word for "retries exhausted / period over".
+
+**`billing_events`** — webhook audit + idempotency: `id uuid pk`, `provider text`, `provider_event_id text` (unique with provider), `org_id uuid null` (null when unresolvable — still recorded), `type text`, `payload jsonb`, `error text null`, `received_at timestamptz`. Retention is not this slice's problem.
+
+RLS + grants: `org_subscriptions` — org members `select` via `user_orgs()`; **no** authenticated insert/update/delete policies; `grant select … to authenticated; grant all … to service_role`; anon nothing. `billing_events` — service_role only. The webhook route and the fake checkout write with `createAdminClient()` (service role) — the reminder-drain precedent. No definer RPC needed: there is no cross-table invariant to protect and no client-driven write.
+
+Index for the monthly usage count: `bookings (org_id, created_at)` (0043). A **SQL view `billing_mrr`** (service_role only) sums effective subscriptions by plan × interval at list price — the founder's MRR dashboard until there is a real one; a copy of the query goes to `supabase/snippets/mrr.sql`.
+
+**`0042/0043` take the numbers the parked R3 plan reserved** — R3 renumbers again when un-parked (note added to `rentals-r3` memory).
+
+### 7.3 Plans + entitlements module — `src/lib/billing/plans.ts`, `entitlements.ts`
+
+`plans.ts` is the single source of truth for what the pricing page shows and what the code enforces:
+
+```ts
+export const PLANS = {
+  free: { name: "Free", monthly: 0, yearly: 0,
+          limits: { bookableStaff: 1, publicServices: 3, reminderBookingsPerMonth: 30, hideBadge: false,
+                    customReminders: false, gcalSync: false, intakeQuestions: false } },
+  pro:  { name: "Pro",  monthly: 12, yearly: 108,
+          limits: { bookableStaff: 1, publicServices: null, reminderBookingsPerMonth: null, hideBadge: true,
+                    customReminders: true, gcalSync: true, intakeQuestions: true } },
+  team: { name: "Team", monthly: 29, yearly: 288,
+          limits: { bookableStaff: 5 /* = seats */, publicServices: null, reminderBookingsPerMonth: null, hideBadge: true,
+                    customReminders: true, gcalSync: true, intakeQuestions: true } },
+} as const;
+```
+
+`entitlements.ts`:
+- `entitlementsFor(row: OrgSubscriptionRow | null, now: Date): Entitlements` — pure; applies the effective-plan rule, substitutes `seats` for Team's `bookableStaff`. Unit-tested.
+- `getEntitlements(orgId, client)` — one `select` on `org_subscriptions`, called with the RLS client in dashboard actions/pages and with the admin client on public/drain paths. Wrapped in React `cache()` for the request.
+- `monthlyBookingUsage(orgId, timeZone, now, admin)` — `count(*)` of `bookings` where `org_id = ? and rescheduled_from_id is null and created_at >= <month start in org tz>` (reschedules don't double-count; cancelled bookings still consumed the slot — "bookings made this month", the SimplyBook definition). Also drives the usage meter on `/billing`.
+
+### 7.4 Gates (all server-side; every refusal carries an upgrade CTA)
+
+| Where | Rule | Refusal |
+|---|---|---|
+| `createStaff` (`staff-actions.ts:44`) and `setStaffActive(true)` | count(active staff) ≥ `bookableStaff` → refuse | `'plan_limit'` → "Team members are on the Team plan" / "Your plan allows N team members" |
+| `createService` (`actions.ts:63`) | count(services) ≥ `publicServices` (Free: 3) → refuse | "Free includes 3 services — upgrade for unlimited" |
+| Public offering — `src/lib/booking/public.ts` (`listPublicServices`, `listPublicStaff`, `loadOrgSlotContext`) | services = first `publicServices` active by `sort_order`; staff = first `bookableStaff` active by `sort_order`, intersected with `service_staff` | none — the page shows what the plan allows |
+| `createBooking` / `getSlots` (`public-actions.ts`) | staff not in the bookable set → treated as ineligible (existing `staff_unavailable` path); **`p_staff_id` is null only when the bookable set has > 1 members**, otherwise the single bookable id is passed explicitly, so DB auto-assign never picks a non-bookable staff | existing copy |
+| `/book/[handle]/[staffSlug]`, `?staff=` on embed | slug not in bookable set → `notFound()` / falls back to org flow (the deactivated-staff rule) | — |
+| Badge | hosted `/book` page (both routes) gets the same footer `<p>` the embed already has; embed keeps its own; every client-facing template in `templates.ts` gets a `Powered by Booklo` line after the footer `<p>` (and in `text`); all three render iff `!(theme.hidePoweredBy && ent.hideBadge)` | — |
+| `hidePoweredBy` toggle (`widget-appearance.tsx:239`) | disabled + "Pro" pill on Free; stored value is kept, just ineffective (`update_org_widget_theme` unchanged) | — |
+| Reminder drain (`reminders.ts`) | per candidate: if org is Free and `monthlyBookingUsage ≥ 30` → `"suppress"` (stamped like the in-window suppress; not re-scanned). One count per distinct org per tick (≤ 25 rows) | — |
+| Overview / dashboard shell | Free: pill "Free · 24/30 reminders this month" in the sidebar footer; ≥ 24 → banner; over-limit after downgrade → persistent banner "Your plan allows 1 team member; Anna and Ben aren't bookable publicly" | — |
+
+Not gated (deliberately): walk-ins and admin reschedules to *any* active staff, calendar/list views, clients directory, stats — the admin can always run what they already have.
+
+Grandfathering at flip: existing orgs with > 3 services or > 1 staff keep everything; only the public offering narrows (announced by email ≥ 14 days before, per the FAQ promise) and the Founder code makes staying whole $8.
+
+**Trade-off, accepted:** the creation gates are enforced in TypeScript actions, not DB triggers. A logged-in member could bypass them with a hand-crafted PostgREST call, but the *public offering* filter (the thing that actually delivers value) is server-side on the admin-client path and cannot be bypassed. If abuse shows up, `create_staff` and a `services` insert trigger read `org_subscriptions` — a follow-up, not a redesign.
+
+### 7.5 Webhook — `src/app/api/billing/webhook/route.ts`
+
+`POST` only. Raw body read before parsing (signature is over bytes). `provider.parseWebhook()` → 401 on bad signature; 503 when the provider secret is unset (fail closed — the drain-auth idiom). For each event, in order of `occurredAt`:
+1. `insert into billing_events` — on unique-violation (already processed) skip silently.
+2. Resolve `orgId`; unknown org → record with `error`, return 200 (never make the provider retry a bug).
+3. Upsert `org_subscriptions` **only if** `event.occurredAt > provider_updated_at` (out-of-order guard); `subscription_expired` → `status='expired'`; `payment_failed` → `past_due`; `payment_recovered` → `active`.
+4. Return 200 with `{ processed, skipped }`.
+
+Idempotent and safe to replay; no email is sent from the webhook (the provider mails receipts/dunning). `revalidatePath("/billing")` after writes.
+
+### 7.6 Checkout + portal — `src/features/billing/actions.ts`
+
+- `startCheckout({ plan, interval })` — `requireOrg()`, member email from session, `discountCode = env.BILLING_FOUNDER_CODE` when `org.created_at < env.BILLING_FOUNDER_CUTOFF` (ISO date) — else undefined; `returnUrl = /billing?checkout=success`; redirect to the provider URL. Never trusts client-provided prices.
+- `openPortal()` — requires an `org_subscriptions` row; redirect to `createPortalUrl(provider_customer_id)`.
+- Downgrades, card changes, cancellations, interval switches all happen in the provider portal — we do not build those screens.
+- Anyone who is an org member may buy for the org (roles are not enforced anywhere else yet; when they are, `owner`/`admin` gates this).
+
+### 7.7 Admin UI
+
+- **Nav:** `{ href: "/billing", label: "Billing", icon: CreditCardIcon, section: "configure" }` between *Website embed* and *Settings* — an org-level noun in the Configure group (Settings stays per-user, per the 2026-08-17 IA ruling). Rendered only when `BILLING_ENABLED`.
+- **`/billing`** (`src/app/(dashboard)/billing/page.tsx`, components in `src/features/billing/components/`): current plan card (name, price, interval, renews/ends on, `past_due` warning), usage meters (reminders this month X/30 on Free; bookable staff N/M; services N/3 on Free), a plan picker (Free/Pro/Team columns from `PLANS`, monthly/annual switch defaulting to annual, Founder ribbon when eligible) → `startCheckout`; "Manage subscription" → `openPortal`. `?checkout=success` shows a toast and re-reads the row (webhook may lag by seconds — the card says "Activating…" until the row exists; a `router.refresh()` retry every 3 s for 30 s).
+- **Gate CTAs:** the refusals in §7.4 render an inline "Upgrade" link to `/billing`.
+- **Shell:** the sidebar footer pill + banners from §7.4 (`src/components/shell/plan-pill.tsx`, data via `getEntitlements` in `(dashboard)/layout.tsx`).
+
+### 7.8 Marketing
+
+- `/pricing` route in `(marketing)`; nav gets "Pricing"; the pricing table is rendered from `PLANS` (no second source of truth); the FAQ "What does it cost?" answer becomes the plan summary; `heroNote` → "Free plan · No credit card". Copy must not violate `FORBIDDEN_COPY` (still no "google", "calendar sync", "stripe", "payment" — Pro's 🔨 rows stay off the page until shipped; the pricing table shows only shipped rows plus "more coming to Pro").
+- Legal: `/privacy`, `/terms` (+ refund policy line) become real pages — the Merchant of Record requires them at store setup. Static content pages in `(marketing)`; wording is a launch-checklist item, not a design question.
+- Badge href: `${APP_URL}/?ref=badge&org=${handle}` (both page and email badges).
+
+### 7.9 Env + flags
+
+`src/env.ts` additions (all optional, server-only): `BILLING_PROVIDER` (`"fake" | "lemonsqueezy"`, default `"fake"`), `BILLING_WEBHOOK_SECRET` (min 16), `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `BILLING_VARIANT_PRO_MONTH|PRO_YEAR|TEAM_MONTH|TEAM_YEAR`, `BILLING_FOUNDER_CODE`, `BILLING_FOUNDER_CUTOFF`. `.env.example` documents each. `src/lib/flags.ts`: `export const BILLING_ENABLED = false;` with the un-flip doctrine comment. Everything in §7.4/§7.7/§7.8 checks the flag; the webhook route and tables exist regardless (so the store can be wired before the flip).
+
+### 7.10 Error handling
+
+- Provider API failure on checkout/portal → action returns `GENERIC_WRITE_ERROR` shape ("Couldn't open checkout — try again"); nothing is written.
+- Webhook: signature failure 401, unset secret 503, malformed payload 400 (provider retries), business-level unknowns 200 + `billing_events.error`.
+- Entitlement lookup failure on a **public** path degrades to Free limits (never throws into the booking page); on the **drain** it degrades to "send" (a missed suppression beats a missed reminder); in the **dashboard** it surfaces as the plan pill showing "—" and the gates refusing conservatively.
+- Over-limit after downgrade is a *state*, not an error: banners explain, nothing blocks.
+
+### 7.11 Testing
+
+- **Unit (Vitest):** `entitlementsFor` (every status × period-end combination; seats → bookableStaff), `PLANS` shape (prices > 0 for paid, yearly < 12×monthly), `monthlyBookingUsage` window maths across a DST month in a non-UTC org tz, `decideReminder` with the quota input, fake `parseWebhook` signature accept/reject, event normaliser mapping for the Lemon Squeezy fixture payloads (checked-in JSON), badge visibility rule, marketing `site.test.ts` extended for `/pricing` + `FORBIDDEN_COPY` on the pricing copy.
+- **Integration (existing `*.integration.test.ts` idiom, serial):**
+  - webhook route: created → row; replayed event → skipped; older `occurredAt` after newer → ignored; `expired` → entitlements Free; unknown org → 200 + event with `error`; bad signature → 401; no secret → 503;
+  - RLS: member selects own row, cannot insert/update; member of org B cannot see org A; anon nothing on both tables;
+  - gates: Free org `createStaff` → `plan_limit`; 4th `createService` → refused; after fake upgrade to Team both succeed; downgrade (fake `expired`) → `listPublicStaff` returns only the primary, `listPublicServices` returns 3, admin `listStaff` still returns all;
+  - public booking on Free with 2 active staff: `createBooking` passes the primary id explicitly (spy on the rpc args) and a `staffId` of the second staff is rejected;
+  - reminder drain: Free org with 31 bookings this month → 31st reminder `suppress`ed, Pro org identical setup → sent;
+  - `billing_mrr` view sums correctly for a fixture set.
+- **Manual (no Playwright in the repo):** Lemon Squeezy test-mode end-to-end once the store exists — checkout → webhook → `/billing` shows Pro → badge gone on `/book/[handle]`; portal cancel → `cancelled` with period end → still Pro → simulate `expired` → Free.
+
+### 7.12 Rollout / launch checklist
+
+1. Build the slice with `BILLING_ENABLED = false` (merge safe).
+2. Merchant-of-Record account: confirm payout country, create store, products (Pro/Team × month/year), Founder discount (100 redemptions, forever), webhook URL + secret; fill env on the deploy.
+3. Legal pages live; support email in footer.
+4. Email early-access orgs: pricing, Founder code, date (≥ 14 days out).
+5. Flip `BILLING_ENABLED = true`, deploy, watch `billing_events` and `billing_mrr`.
+6. Then: Google Calendar sync spec (Pro's headline), intake questions, reminder schedule.
+
+## 8. Roadmap after this slice (each its own spec)
+
+1. **Google Calendar 2-way sync** (revive S4) → the Pro headline; flip Pro marketing on.
+2. **Intake questions per service** + **custom reminder schedule** (e.g. 24h + 2h) — small, high perceived value; both already have entitlement flags.
+3. **Team extra seats** (`seats` > 5 via provider quantity → webhook writes `seats`).
+4. **SMS reminders** — metered add-on (Twilio pass-through + margin; EU SMS ≈ 10× US, so never "unlimited"). `src/lib/sms/` is an empty seam today.
+5. **Deposits via Stripe Checkout** — the biggest no-show killer and a second revenue line (Free ~1 % platform fee, Pro/Team 0 %). Card data never touches us; we store payment-intent ids only.
+6. Growth: SEO niche pages templated from `site.ts` ("booking page for tutors / therapists / barbers"), directory listings, measure the badge loop via `?ref=badge`.
+
+## 9. Open decisions (need Andrii)
+
+1. **Payout country / provider** — Lemon Squeezy vs Paddle vs Stripe direct; decided by where the money can legally land. The seam absorbs the answer; the adapter is the only file that changes.
+2. **Price points and limits** — $12/$9, $29/$24, 3 services, 30 reminder-bookings, 5 seats: proposals. Regional (PPP) pricing is off for MVP; the MoR shows local currency.
+3. **Founder cap and price** — 100 orgs at $8: proposal.
+4. **Team trial** — none at launch; revisit with data.
+
+## 10. Out of scope
+
+Payments/deposits, SMS, Google Calendar, intake questions, reminder schedules (all §8); role-based purchase rights; invoices/receipts UI (provider portal); tax handling (MoR); PPP pricing; usage analytics beyond the SQL view; DB-level enforcement of the creation gates (§7.4 trade-off).
+
+## Implementation notes
+
+(filled during execution — deviations from this spec are recorded here, per repo convention)
