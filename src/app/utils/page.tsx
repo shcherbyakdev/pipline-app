@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { env } from "@/env";
 import { requireInternal } from "@/features/utils/guard";
+import { FLAG_DEFAULTS, FLAG_KEYS, FLAG_META } from "@/lib/flags";
 
 /* The hub (spec §3.2): where the utilities live, and an Environment card so
-   the owner sees at a glance what this deployment is configured as. Flag
-   defaults join the card in Task 6. */
+   the owner sees at a glance what this deployment is configured as. */
 const TOOLS = [
   { href: "/utils/subscriptions", title: "Subscriptions", blurb: "Grant or revoke a complimentary Pro/Team plan on any org." },
   { href: "/utils/flags", title: "Feature flags", blurb: "Turn dormant features on or off for one org." },
@@ -35,6 +36,12 @@ export default async function UtilsHubPage() {
           <dd className="font-mono">{env.NEXT_PUBLIC_APP_URL}</dd>
           <dt className="text-muted-foreground">Billing provider</dt>
           <dd className="font-mono">{env.BILLING_PROVIDER}</dd>
+          {FLAG_KEYS.map((key) => (
+            <Fragment key={key}>
+              <dt className="text-muted-foreground">Flag default · {FLAG_META[key].label}</dt>
+              <dd className="font-mono">{FLAG_DEFAULTS[key] ? "on" : "off"}</dd>
+            </Fragment>
+          ))}
         </dl>
         {devBillingAlive ? (
           <Link href="/dev/billing/portal" className="text-sm underline underline-offset-4">
