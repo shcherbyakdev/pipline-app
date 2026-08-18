@@ -110,9 +110,16 @@ describe("billing: RLS + grants", () => {
 
 describe("billing: monthlyBookingUsage", () => {
   it("counts original bookings created this month, ignores reschedule rows", async () => {
-    // Fixture: a staff + service exist for the org from create_org; insert bookings directly.
-    const { data: staff } = await admin.from("staff").select("id").eq("org_id", orgId).limit(1).single();
-    const { data: svc } = await admin.from("services").insert({ org_id: orgId, name: "U", duration_min: 30 }).select("id").single();
+    // Fixture: create_org seeded a staff row; the service is created by the
+    // OWNER (authenticated) client — service_role has no INSERT on `services`
+    // (0026: writes are member-only via RLS), and a fresh CI database has no
+    // default ACLs to paper over that. Bookings go in via service_role, which
+    // 0026 grants insert on.
+    const { data: staff, error: staffErr } = await admin.from("staff").select("id").eq("org_id", orgId).limit(1).single();
+    if (staffErr) throw staffErr;
+    const { data: svc, error: svcErr } = await owner
+      .from("services").insert({ org_id: orgId, name: "U", duration_min: 30 }).select("id").single();
+    if (svcErr) throw svcErr;
     const base = Date.now() + 7 * 864e5;
     const mk = (i: number, extra: Record<string, unknown> = {}) => ({
       org_id: orgId, service_id: svc!.id, staff_id: staff!.id, client_name: "c", client_email: "c@example.com",
