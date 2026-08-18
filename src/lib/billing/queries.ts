@@ -4,15 +4,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { badgeShows, entitlementsFor, monthWindow, type Entitlements, type OrgSubscriptionRow } from "./entitlements";
+import { activeOverrideRow, type PlanOverride } from "./overrides";
 import { isPaidPlan } from "./plans";
 import { BILLING_ENABLED } from "@/lib/flags";
 import { env } from "@/env";
 
 const SUB_COLS = "plan, status, billing_interval, seats, current_period_end, cancel_at_period_end";
+const OVERRIDE_COLS = "plan, expires_at, note, granted_by, updated_at";
 
-// Works with the RLS client (dashboard: policy scopes to the member's org)
-// and the admin client (public/drain paths: caller resolved orgId already).
-export async function getOrgSubscription(orgId: string, client: SupabaseClient): Promise<OrgSubscriptionRow | null> {
+/** The PROVIDER's row only (webhook-written cache), or null. For the two
+    callers that must see Stripe's truth rather than the effective plan: the
+    duplicate-purchase guard in startCheckout and the /billing "manage in
+    portal" affordance. Everything else wants getOrgSubscription below. */
+export async function getRawOrgSubscription(orgId: string, client: SupabaseClient): Promise<OrgSubscriptionRow | null> {
   const { data, error } = await client.from("org_subscriptions").select(SUB_COLS).eq("org_id", orgId).maybeSingle();
   if (error) throw error;
   if (!data || !isPaidPlan(data.plan)) return null;
@@ -26,8 +30,40 @@ export async function getOrgSubscription(orgId: string, client: SupabaseClient):
   };
 }
 
+/** The org's complimentary plan as granted in /utils (spec 2026-08-18-internal-utils
+    §3.4), or null. NOT expiry-filtered — the /billing and /utils pages show an
+    expired comp as expired; activeOverrideRow decides whether it counts. */
+export async function getPlanOverride(orgId: string, client: SupabaseClient): Promise<PlanOverride | null> {
+  const { data, error } = await client.from("org_plan_overrides").select(OVERRIDE_COLS).eq("org_id", orgId).maybeSingle();
+  if (error) throw error;
+  if (!data || !isPaidPlan(data.plan)) return null;
+  return {
+    plan: data.plan,
+    expiresAt: data.expires_at,
+    note: data.note,
+    grantedBy: data.granted_by,
+    grantedAt: data.updated_at,
+  };
+}
+
+/** The EFFECTIVE subscription: an unexpired comp override wins outright over
+    the provider row; otherwise the provider row; otherwise null = Free. The
+    single seam every entitlement read goes through — gates, badge, public
+    offering, reminders inherit comps without knowing they exist.
+
+    Works with the RLS client (dashboard: both tables have a member SELECT
+    policy) and the admin client (public/drain paths). */
+export async function getOrgSubscription(
+  orgId: string,
+  client: SupabaseClient,
+  now = new Date(),
+): Promise<OrgSubscriptionRow | null> {
+  const [raw, override] = await Promise.all([getRawOrgSubscription(orgId, client), getPlanOverride(orgId, client)]);
+  return activeOverrideRow(override, now) ?? raw;
+}
+
 export async function getEntitlements(orgId: string, client: SupabaseClient, now = new Date()): Promise<Entitlements> {
-  return entitlementsFor(await getOrgSubscription(orgId, client), now);
+  return entitlementsFor(await getOrgSubscription(orgId, client, now), now);
 }
 
 /** Public/drain paths. Per-request memoised. Degrades to Free on failure —

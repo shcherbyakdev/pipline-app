@@ -6,7 +6,7 @@ import { env } from "@/env";
 import { requireOrg } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { selectBillingProvider } from "@/lib/billing/provider";
-import { getOrgSubscription } from "@/lib/billing/queries";
+import { getRawOrgSubscription } from "@/lib/billing/queries";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { isPaidPlan } from "@/lib/billing/plans";
 import { BILLING_ENABLED } from "@/lib/flags";
@@ -38,11 +38,14 @@ async function providerUrl(make: () => Promise<string>, label: string): Promise<
 
 /** The org's subscription row for the duplicate-purchase guard, with "no row"
     (Free — may buy) kept distinct from "couldn't read" (unknown — must not).
-    getOrgSubscription throws, and a thrown Server Action would show an error
-    boundary instead of this page's `?error=` line. */
+    getRawOrgSubscription throws, and a thrown Server Action would show an
+    error boundary instead of this page's `?error=` line.
+
+    RAW, not effective: a comped org has no provider subscription to prorate,
+    so it may still buy one — the comp simply keeps winning until it lapses. */
 async function readSubscription(orgId: string, supabase: SupabaseClient) {
   try {
-    return { ok: true as const, sub: await getOrgSubscription(orgId, supabase) };
+    return { ok: true as const, sub: await getRawOrgSubscription(orgId, supabase) };
   } catch (error) {
     console.error("[billing] startCheckout subscription read:", error);
     return { ok: false as const, sub: null };

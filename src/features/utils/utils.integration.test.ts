@@ -1,13 +1,19 @@
 /**
  * Internal utils tables against the real DB: RLS/grants on
- * org_plan_overrides + org_feature_flags. Requires the local Supabase stack.
- * (The comp seam test joins this file in Task 4.)
+ * org_plan_overrides + org_feature_flags, and the comp seam
+ * (getOrgSubscription honouring an unexpired override). Requires the local
+ * Supabase stack.
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 try { loadEnvFile(".env.local"); } catch { /* CI exports env directly */ }
+
+// Dynamic, not static: queries.ts reaches @/env, which parses process.env
+// eagerly at module load. A static import would resolve (and fail) before
+// the loadEnvFile() call above ever runs.
+const { getOrgSubscription, getRawOrgSubscription, getPlanOverride } = await import("@/lib/billing/queries");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -77,5 +83,35 @@ describe("utils tables: RLS + grants", () => {
     expect(up.error).toBeNull();
     const { data } = await admin.from("org_feature_flags").select("enabled").eq("org_id", orgId).eq("flag", "billing");
     expect(data).toEqual([{ enabled: false }]);
+  });
+});
+
+describe("comp seam: getOrgSubscription", () => {
+  const now = new Date("2026-08-18T12:00:00Z");
+  it("an unexpired override wins over the provider row; the raw read still shows the provider row", async () => {
+    const ins = await admin.from("org_subscriptions").insert({
+      org_id: orgId, plan: "pro", status: "expired", billing_interval: "month", seats: 1,
+      provider: "fake", provider_customer_id: `cus_utils_${orgId}`, provider_subscription_id: `sub_utils_${orgId}`,
+      provider_updated_at: "2000-01-01T00:00:00Z",
+    });
+    if (ins.error) throw ins.error;
+    const set = await admin.from("org_plan_overrides").upsert({ org_id: orgId, plan: "team", expires_at: null, granted_by: "owner@test" });
+    if (set.error) throw set.error;
+    expect((await getOrgSubscription(orgId, admin, now))?.plan).toBe("team");
+    expect((await getRawOrgSubscription(orgId, admin))?.status).toBe("expired");
+    expect((await getPlanOverride(orgId, admin))?.plan).toBe("team");
+  });
+  it("an expired override is ignored and the provider row is what counts", async () => {
+    const set = await admin.from("org_plan_overrides").update({ expires_at: "2020-01-01T00:00:00Z" }).eq("org_id", orgId);
+    if (set.error) throw set.error;
+    const row = await getOrgSubscription(orgId, admin, now);
+    expect(row?.plan).toBe("pro");
+    expect(row?.status).toBe("expired");
+  });
+  it("revoked (deleted) → provider row only", async () => {
+    const del = await admin.from("org_plan_overrides").delete().eq("org_id", orgId);
+    if (del.error) throw del.error;
+    expect(await getPlanOverride(orgId, admin)).toBeNull();
+    expect((await getOrgSubscription(orgId, admin, now))?.status).toBe("expired");
   });
 });

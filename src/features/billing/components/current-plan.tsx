@@ -1,4 +1,5 @@
 import { formatUsd, PLANS, pricePerMonth } from "@/lib/billing/plans";
+import { isOverrideActive } from "@/lib/billing/overrides";
 import { Button } from "@/components/ui/button";
 import { openPortal } from "../actions";
 import type { BillingOverview } from "../queries";
@@ -21,10 +22,14 @@ function periodLabel(sub: NonNullable<BillingOverview["subscription"]>): string 
    The plan shown is the EFFECTIVE one — a cancelled subscription keeps its
    plan until the period ends, an expired one already reads Free. */
 export function CurrentPlan({ overview }: { overview: BillingOverview }) {
-  const { entitlements: ent, subscription: sub } = overview;
+  const { entitlements: ent, subscription: sub, override } = overview;
   const plan = PLANS[ent.plan];
-  const price =
-    sub && ent.plan !== "free"
+  // A live comp (granted in /utils) is what the org is on; the provider row,
+  // if any, is dormant underneath it and still manageable in the portal.
+  const comped = isOverrideActive(override, new Date());
+  const price = comped
+    ? "Complimentary"
+    : sub && ent.plan !== "free"
       ? `${formatUsd(pricePerMonth(sub.plan, sub.interval))} / month${sub.interval === "year" ? " · billed yearly" : ""}`
       : "No card needed";
 
@@ -36,18 +41,24 @@ export function CurrentPlan({ overview }: { overview: BillingOverview }) {
       </div>
       <p className="text-muted-foreground text-sm">{plan.blurb}</p>
 
-      {/* Both lines when both apply: the warning says what to do, the date
-          says by when. */}
-      {sub?.status === "past_due" ? (
-        <p className="text-sm text-amber-600 dark:text-amber-500">
-          We couldn&rsquo;t charge your card — update it in the billing portal to keep your plan.
-        </p>
-      ) : null}
-      {sub?.currentPeriodEnd ? (
+      {comped ? (
         <p className="text-muted-foreground text-sm">
-          {periodLabel(sub)} {formatDate(sub.currentPeriodEnd)}
+          {override.expiresAt ? `Until ${formatDate(override.expiresAt)}` : "No expiry"}
         </p>
-      ) : null}
+      ) : (
+        <>
+          {sub?.status === "past_due" ? (
+            <p className="text-sm text-amber-600 dark:text-amber-500">
+              We couldn&rsquo;t charge your card — update it in the billing portal to keep your plan.
+            </p>
+          ) : null}
+          {sub?.currentPeriodEnd ? (
+            <p className="text-muted-foreground text-sm">
+              {periodLabel(sub)} {formatDate(sub.currentPeriodEnd)}
+            </p>
+          ) : null}
+        </>
+      )}
 
       {sub ? (
         <form action={openPortal}>
