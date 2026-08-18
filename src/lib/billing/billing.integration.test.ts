@@ -160,4 +160,30 @@ describe("billing: applyBillingEvents", () => {
     const statusRow = (await admin.from("org_subscriptions").select("status").eq("org_id", orgId).single()).data! as unknown as { plan: string; seats: number; status: string };
     expect(statusRow.status).toBe("expired");
   });
+
+  it("is order-safe under concurrent, interleaved deliveries", async () => {
+    // Later than the previous test's last event (12:00Z), so every one of
+    // these six actually beats the row currently in place.
+    const base = Date.parse("2026-08-18T12:00:00Z");
+    const cev = (n: number) => ev(`c${n}`, new Date(base + n * 60_000).toISOString(), {}, { plan: n % 2 === 0 ? "team" : "pro" });
+    const [e1, e2, e3, e4, e5, e6] = [1, 2, 3, 4, 5, 6].map(cev);
+
+    // Two overlapping batches, each internally out of order, racing the
+    // same org's row — the projection RPC must still land on the single
+    // newest event (e6) no matter how the two batches interleave.
+    await Promise.all([
+      applyBillingEvents(admin, [e6, e1, e3]),
+      applyBillingEvents(admin, [e5, e2, e4]),
+    ]);
+
+    const row = (await admin.from("org_subscriptions").select("plan, provider_updated_at").eq("org_id", orgId).single()).data!;
+    expect(row.plan).toBe("team");
+    // Value equality, not string equality: PostgREST serialises timestamptz
+    // as "...+00:00", not the "...Z" that Date#toISOString() produces.
+    expect(Date.parse(row.provider_updated_at)).toBe(Date.parse(e6.occurredAt));
+
+    const recorded = await admin.from("billing_events").select("provider_event_id")
+      .in("provider_event_id", [e1, e2, e3, e4, e5, e6].map((e) => e.providerEventId));
+    expect(recorded.data ?? []).toHaveLength(6);
+  });
 });

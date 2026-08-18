@@ -55,3 +55,43 @@ where status in ('active','past_due')
 group by plan, billing_interval;
 revoke all on public.billing_mrr from public, anon, authenticated, service_role;
 grant select on public.billing_mrr to service_role;
+
+-- ---------- Webhook projection (spec §7.5): one transaction per event.
+-- Idempotent (billing_events unique → 'replayed'), order-safe (conditional
+-- upsert on provider_updated_at → 'stale' when older), records unresolvable
+-- events without touching the cache ('skipped'). service_role only.
+create or replace function public.apply_billing_event(
+  p_provider text, p_event_id text, p_occurred_at timestamptz, p_org_id uuid,
+  p_type text, p_payload jsonb, p_sub jsonb
+) returns text
+language plpgsql security definer set search_path = '' as $$
+begin
+  begin
+    insert into public.billing_events (provider, provider_event_id, org_id, type, payload, error)
+    values (p_provider, p_event_id, p_org_id, p_type, coalesce(p_payload, '{}'::jsonb),
+            case when p_org_id is null then 'unresolvable org' when p_sub is null then 'no subscription payload' else null end);
+  exception when unique_violation then
+    return 'replayed';
+  end;
+  if p_org_id is null or p_sub is null then
+    return 'skipped';
+  end if;
+  insert into public.org_subscriptions as s (
+    org_id, plan, status, billing_interval, seats, provider, provider_customer_id, provider_subscription_id,
+    current_period_end, cancel_at_period_end, provider_updated_at, updated_at)
+  values (
+    p_org_id, p_sub->>'plan', p_sub->>'status', p_sub->>'interval', coalesce((p_sub->>'seats')::int, 1),
+    p_provider, p_sub->>'providerCustomerId', p_sub->>'providerSubscriptionId',
+    nullif(p_sub->>'currentPeriodEnd','')::timestamptz, coalesce((p_sub->>'cancelAtPeriodEnd')::boolean, false),
+    p_occurred_at, now())
+  on conflict (org_id) do update set
+    plan = excluded.plan, status = excluded.status, billing_interval = excluded.billing_interval,
+    seats = excluded.seats, provider = excluded.provider, provider_customer_id = excluded.provider_customer_id,
+    provider_subscription_id = excluded.provider_subscription_id, current_period_end = excluded.current_period_end,
+    cancel_at_period_end = excluded.cancel_at_period_end, provider_updated_at = excluded.provider_updated_at,
+    updated_at = now()
+  where s.provider_updated_at < excluded.provider_updated_at;
+  if found then return 'processed'; else return 'stale'; end if;
+end $$;
+revoke all on function public.apply_billing_event(text, text, timestamptz, uuid, text, jsonb, jsonb) from public, anon, authenticated, service_role;
+grant execute on function public.apply_billing_event(text, text, timestamptz, uuid, text, jsonb, jsonb) to service_role;
