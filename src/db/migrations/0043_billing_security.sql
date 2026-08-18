@@ -58,8 +58,10 @@ grant select on public.billing_mrr to service_role;
 
 -- ---------- Webhook projection (spec §7.5): one transaction per event.
 -- Idempotent (billing_events unique → 'replayed'), order-safe (conditional
--- upsert on provider_updated_at → 'stale' when older), records unresolvable
--- events without touching the cache ('skipped'). service_role only.
+-- upsert on provider_updated_at → 'stale' when strictly older), expires the
+-- cache for a resolvable 'subscription_expired' that carries no subscription
+-- payload, and records everything else unresolvable without touching the
+-- cache ('skipped'). service_role only.
 create or replace function public.apply_billing_event(
   p_provider text, p_event_id text, p_occurred_at timestamptz, p_org_id uuid,
   p_type text, p_payload jsonb, p_sub jsonb
@@ -69,10 +71,23 @@ begin
   begin
     insert into public.billing_events (provider, provider_event_id, org_id, type, payload, error)
     values (p_provider, p_event_id, p_org_id, p_type, coalesce(p_payload, '{}'::jsonb),
-            case when p_org_id is null then 'unresolvable org' when p_sub is null then 'no subscription payload' else null end);
+            case when p_org_id is null then 'unresolvable org'
+                 when p_sub is null and p_type <> 'subscription_expired' then 'no subscription payload'
+                 else null end);
   exception when unique_violation then
     return 'replayed';
   end;
+  -- An expiry we can resolve to an org but not to a subscription payload
+  -- (Stripe deleted a subscription whose price maps to nothing we know) is
+  -- still unambiguous: the org has stopped paying. Expire the cached row
+  -- under the SAME ordering guard as the upsert below, rather than dropping
+  -- the event and leaving the org paid forever in our cache.
+  if p_org_id is not null and p_sub is null and p_type = 'subscription_expired' then
+    update public.org_subscriptions s
+       set status = 'expired', provider_updated_at = p_occurred_at, updated_at = now()
+     where s.org_id = p_org_id and s.provider_updated_at <= p_occurred_at;
+    if found then return 'processed'; else return 'stale'; end if;
+  end if;
   if p_org_id is null or p_sub is null then
     return 'skipped';
   end if;
@@ -90,7 +105,13 @@ begin
     provider_subscription_id = excluded.provider_subscription_id, current_period_end = excluded.current_period_end,
     cancel_at_period_end = excluded.cancel_at_period_end, provider_updated_at = excluded.provider_updated_at,
     updated_at = now()
-  where s.provider_updated_at < excluded.provider_updated_at;
+  -- `<=`, not `<`: Stripe emits created and updated within the same second
+  -- all the time, and a strict `<` would drop the later of the pair as
+  -- "stale". A true replay of one event never reaches this line — the
+  -- billing_events unique index above already returned 'replayed' — so the
+  -- only thing ties can do here is let the last ARRIVAL win, which is what
+  -- applyBillingEvents' occurredAt sort already lines up.
+  where s.provider_updated_at <= excluded.provider_updated_at;
   if found then return 'processed'; else return 'stale'; end if;
 end $$;
 revoke all on function public.apply_billing_event(text, text, timestamptz, uuid, text, jsonb, jsonb) from public, anon, authenticated, service_role;

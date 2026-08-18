@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { entitlementsFor, type OrgSubscriptionRow } from "./entitlements";
 import {
   GENERIC_WRITE_ERROR,
+  planLimitStaffError,
   PLAN_LIMIT_SERVICES_ERROR,
   PLAN_LIMIT_STAFF_ERROR,
 } from "@/features/scheduling/schema";
@@ -31,6 +32,19 @@ describe("staffGateMessage", () => {
   });
   it("Team (5 seats) at 4 active staff → null", () => {
     expect(staffGateMessage(4, team5)).toBeNull();
+  });
+  it("Team (5 seats) at 5 active staff → the seat-cap copy, not the Team-plan pitch", () => {
+    const message = staffGateMessage(5, team5);
+    expect(message).toBe(planLimitStaffError(5));
+    expect(message).toContain("allows 5 team members");
+    expect(message).not.toBe(PLAN_LIMIT_STAFF_ERROR);
+  });
+});
+
+describe("planLimitStaffError", () => {
+  it("one seat keeps the upgrade pitch; more than one names the cap", () => {
+    expect(planLimitStaffError(1)).toBe(PLAN_LIMIT_STAFF_ERROR);
+    expect(planLimitStaffError(5)).toBe("Your plan allows 5 team members. Upgrade in Billing to add more.");
   });
 });
 

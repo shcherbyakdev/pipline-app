@@ -181,6 +181,9 @@ describe("reminder drain", () => {
     expect(sent[0].to).toBe("reminded@example.com");
     expect(sent[0].idempotencyKey).toBe(`booking/${dueId}/reminder`);
     expect(asked).toContain(orgId);
+    // Memoised per org per tick: a batch of rows from one org must not
+    // re-run the badge lookup (plan read + orgs read) once per row.
+    expect(new Set(asked).size).toBe(asked.length);
     expect(sent[0].html).toContain("Powered by Booklo");
     expect(sent[0].html).toContain(badgeUrl);
     // Still link-free apart from the badge: the manage credential cannot be
@@ -260,12 +263,20 @@ describe("reminder drain", () => {
     const overQuotaId = inserted!.id;
 
     const { transport, sent } = recordingTransport();
+    // The quota is ordinal, so the drain hands the check the BOOKING's own
+    // created_at (not just the org): "is this booking the org's 31st this
+    // month?", answered the same way on every future tick.
+    const asked: Array<[string, string, string]> = [];
     const summary = await runReminderDrain({
       db: admin,
       transport,
-      quotaExceeded: async () => true,
+      quotaExceeded: async (org, tz, createdAt) => {
+        asked.push([org, tz, createdAt]);
+        return true;
+      },
     });
 
+    expect(asked.some(([org, , createdAt]) => org === orgId && !Number.isNaN(Date.parse(createdAt)))).toBe(true);
     expect(summary.skipped).toBeGreaterThanOrEqual(1);
     expect(sent.some((m) => m.to === "overquota@example.com")).toBe(false);
     const { data: row } = await admin
@@ -301,7 +312,12 @@ describe("reminder drain", () => {
     const summary = await runReminderDrain({
       db: admin,
       transport,
-      quotaExceeded: async () => false,
+      quotaExceeded: async (_org, _tz, createdAt) => {
+        // Per booking, not per tick: the check must see a real timestamp for
+        // each candidate row.
+        expect(typeof createdAt).toBe("string");
+        return false;
+      },
     });
 
     expect(summary.sent).toBeGreaterThanOrEqual(1);

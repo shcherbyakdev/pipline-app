@@ -54,21 +54,39 @@ export async function runReminderDrain(deps: {
   // "Powered by Booklo" for this org's client mail, or null when its plan
   // lets it hide the badge and it did (lib/billing/queries.ts#emailBadgeUrl,
   // which the drain route injects). Optional: tests and any caller that does
-  // not care get badge-free reminders, exactly as before billing. A rejected
-  // lookup degrades to no badge (`.catch` at the call site): the badge is
-  // decoration, it must never burn one of the row's five attempts.
+  // not care get badge-free reminders, exactly as before billing. Called at
+  // most once per org per tick (badgeUrlFor below); a rejected lookup
+  // degrades to no badge: the badge is decoration, it must never burn one of
+  // the row's five attempts.
   badgeFor?: (orgId: string) => Promise<string | null>;
   // Free-plan reminder quota (spec §7.10 / lib/billing/queries.ts +
   // entitlements.ts, which the drain route injects). Optional: tests and any
   // caller that does not care get unmetered reminders, exactly as before
   // billing. A failed check degrades to "not over quota" (send) — a missed
   // suppression beats a missed reminder.
-  quotaExceeded?: (orgId: string, timeZone: string) => Promise<boolean>;
+  //
+  // Asked PER BOOKING, with that booking's own created_at, because the quota
+  // is ordinal: "reminders for the first 30 bookings each month" (spec §3)
+  // asks whether THIS booking is the org's 31st or later, not whether the
+  // org happens to be over 30 right now.
+  quotaExceeded?: (orgId: string, timeZone: string, bookingCreatedAt: string) => Promise<boolean>;
 }): Promise<ReminderSummary> {
   const now = deps.now ?? new Date();
   const summary: ReminderSummary = { sent: 0, skipped: 0, failed: 0 };
-  // Memoised per tick: every row for the same org shares one quota read.
-  const quotaCache = new Map<string, boolean>();
+  // Memoised per tick: the badge answer is per ORG (plan + the org's toggle),
+  // so a batch of rows from one org shares a single lookup. Promises, not
+  // values, so two rows resolved in the same pass can't both start one.
+  const badgeCache = new Map<string, Promise<string | null>>();
+  const badgeUrlFor = (orgId: string): Promise<string | null> => {
+    const lookup = deps.badgeFor;
+    if (!lookup) return Promise.resolve(null);
+    let pending = badgeCache.get(orgId);
+    if (!pending) {
+      pending = lookup(orgId).catch(() => null);
+      badgeCache.set(orgId, pending);
+    }
+    return pending;
+  };
 
   const { data, error } = await deps.db
     .from("bookings")
@@ -86,18 +104,14 @@ export async function runReminderDrain(deps: {
 
   for (const row of (data ?? []) as unknown as CandidateRow[]) {
     try {
-      let overQuota = quotaCache.get(row.org_id);
-      if (overQuota === undefined) {
-        overQuota = false;
-        if (deps.quotaExceeded) {
-          try {
-            overQuota = await deps.quotaExceeded(row.org_id, row.orgs?.timezone ?? "UTC");
-          } catch (e) {
-            // spec §7.10: a missed suppression beats a missed reminder.
-            console.error("[scheduling] quota check failed (sending):", e);
-          }
+      let overQuota = false;
+      if (deps.quotaExceeded) {
+        try {
+          overQuota = await deps.quotaExceeded(row.org_id, row.orgs?.timezone ?? "UTC", row.created_at);
+        } catch (e) {
+          // spec §7.10: a missed suppression beats a missed reminder.
+          console.error("[scheduling] quota check failed (sending):", e);
         }
-        quotaCache.set(row.org_id, overQuota);
       }
       const decision = decideReminder(
         { startsAt: new Date(row.starts_at), createdAt: new Date(row.created_at) },
@@ -137,7 +151,7 @@ export async function runReminderDrain(deps: {
             },
             row.orgs?.timezone ?? "UTC",
           ),
-          badgeUrl: deps.badgeFor ? await deps.badgeFor(row.org_id).catch(() => null) : null,
+          badgeUrl: await badgeUrlFor(row.org_id),
         });
         await deps.transport.send({
           to: row.client_email,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { env } from "@/env";
+import { requireOrg } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { applyBillingEvents } from "@/lib/billing/apply-events";
 import { isPaidPlan, TEAM_INCLUDED_SEATS } from "@/lib/billing/plans";
@@ -16,6 +17,13 @@ export async function GET(request: Request) {
   const interval = url.searchParams.get("interval") === "year" ? "year" : "month";
   const back = url.searchParams.get("return") ?? `${env.NEXT_PUBLIC_APP_URL}/billing`;
   if (!org || !plan || !isPaidPlan(plan)) return Response.json({ error: "bad params" }, { status: 400 });
+  // `org` arrives in the query string, and this route writes a paid
+  // subscription with the admin client — so it must be the caller's OWN org.
+  // Without this, anyone who can reach a dev/preview deployment could hand
+  // any org a free Team plan by guessing its id. requireOrg() redirects to
+  // /login when signed out, which is the right answer for a browser hop.
+  const { org: current } = await requireOrg();
+  if (current.id !== org) return Response.json({ error: "forbidden" }, { status: 403 });
   const now = new Date();
   await applyBillingEvents(createAdminClient(), [{
     provider: "fake", providerEventId: `dev-${org}-${now.getTime()}`, occurredAt: now.toISOString(), orgId: org,

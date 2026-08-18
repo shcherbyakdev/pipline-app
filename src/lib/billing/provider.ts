@@ -38,6 +38,10 @@ export type BillingEvent = {
 export type CheckoutInput = {
   orgId: string; plan: PaidPlanId; interval: Interval; email: string;
   discountCode?: string; returnUrl: string;
+  /** The org's existing provider customer, when it has one (resubscribe after
+      an expired/ended plan). Set → the session attaches to that customer
+      instead of creating a second one for the same org. */
+  providerCustomerId?: string;
 };
 
 export interface BillingProvider {

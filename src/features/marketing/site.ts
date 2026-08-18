@@ -13,7 +13,10 @@ export const SITE = {
   headline: "Let clients book you in seconds.",
   subheadline:
     "A booking page and embeddable widget for solo providers. No client accounts, no double bookings — confirmations, reminders and rescheduling handled for you.",
-  heroNote: "Free plan · No credit card",
+  // Flag-conditional (lib/flags.ts): while billing is off there IS no paid
+  // ladder to contrast a "Free plan" with, and /pricing 404s — so the note
+  // says what is actually true today. Flipping the flag flips the copy.
+  heroNote: BILLING_ENABLED ? "Free plan · No credit card" : "Free during early access · No credit card",
   links: { home: "/", login: "/login", signup: "/signup", pricing: "/pricing" },
   anchors: { how: "#how-it-works", features: "#features", faq: "#faq" },
 } as const;
@@ -112,7 +115,14 @@ export const FAQ: FaqItem[] = [
   { question: "What happens if two people pick the same slot?", answer: "Only one booking can win. The other person sees that the slot was just taken and is offered fresh times — never a silent double booking." },
   { question: "How do clients cancel or reschedule?", answer: "Their confirmation email contains a secure manage link. From there they can cancel or pick another slot; you get notified either way." },
   { question: "What data do you store about my clients?", answer: "Name, email and an optional note — nothing else. No documents, no card numbers, no accounts." },
-  { question: "What does it cost?", answer: "Free for solo providers — one bookable person, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and a team; see Pricing." },
+  // Same flag rule as SITE.heroNote: the paid answer names plans that cannot
+  // be bought and points at a /pricing that 404s until BILLING_ENABLED flips.
+  {
+    question: "What does it cost?",
+    answer: BILLING_ENABLED
+      ? "Free for solo providers — one bookable person, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and a team; see Pricing."
+      : "Booklo is free during early access. We'll announce pricing well before anything changes, and early users will hear first.",
+  },
 ];
 
 export type FooterColumn = { heading: string; links: NavLink[] };

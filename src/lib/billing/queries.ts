@@ -52,18 +52,32 @@ export const getEntitlementsAdminStrict = cache(
 );
 
 /** "Bookings made this month": original bookings (rescheduled_from_id null),
-    any status, created inside the org-local calendar month. */
+    any status, created inside the org-local calendar month.
+
+    `opts.before` makes the answer ORDINAL rather than a running total: how
+    many the org had made before that instant, i.e. which number in the month
+    the booking created at `before` is. The reminder quota is "the first 30
+    bookings each month" (spec §3), so booking #31 must stay suppressed even
+    once the month has moved on — a plain "how many so far" count would flip
+    it back to sendable the moment a later booking is cancelled or the tick
+    runs in a fresh month. The month window is taken from `before` for the
+    same reason: it must be the booking's own month, not today's. */
 export async function monthlyBookingUsage(
   orgId: string, timeZone: string, now: Date, db: SupabaseClient,
+  opts: { before?: string } = {},
 ): Promise<number> {
-  const { fromIso, toIso } = monthWindow(now, timeZone);
-  const { count, error } = await db
+  const { fromIso, toIso } = monthWindow(opts.before ? new Date(opts.before) : now, timeZone);
+  let query = db
     .from("bookings")
     .select("id", { count: "exact", head: true })
     .eq("org_id", orgId)
     .is("rescheduled_from_id", null)
     .gte("created_at", fromIso)
     .lt("created_at", toIso);
+  // Two `lt` filters on one column are ANDed by PostgREST; `before` is always
+  // inside [from, to), so this only ever narrows the window's upper bound.
+  if (opts.before) query = query.lt("created_at", opts.before);
+  const { count, error } = await query;
   if (error) throw error;
   return count ?? 0;
 }
@@ -81,15 +95,20 @@ export async function monthlyBookingUsage(
     (hideBadge: false) and badge the emails of an org whose own booking page
     honours its "Hide" tick: one product, two answers. */
 export async function emailBadgeUrl(orgId: string): Promise<string | null> {
-  const url = `${env.NEXT_PUBLIC_APP_URL}/?ref=badge`;
+  // The badge is a growth loop, so it carries WHICH org sent the client here
+  // (spec §8.6, "measure the badge loop via ?ref=badge") — the handle, not
+  // the org id: it is the public name already in every booking URL, and it
+  // reads as attribution rather than as a tracking id.
+  const url = (handle: string | null | undefined) =>
+    `${env.NEXT_PUBLIC_APP_URL}/?ref=badge${handle ? `&org=${encodeURIComponent(handle)}` : ""}`;
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin.from("orgs").select("widget_theme").eq("id", orgId).maybeSingle();
+    const { data, error } = await admin.from("orgs").select("widget_theme, handle").eq("id", orgId).maybeSingle();
     if (error) throw error;
     const hideAllowed = BILLING_ENABLED ? (await getEntitlementsAdmin(orgId)).hideBadge : true;
-    return badgeShows(parseWidgetTheme(data?.widget_theme).hidePoweredBy, hideAllowed) ? url : null;
+    return badgeShows(parseWidgetTheme(data?.widget_theme).hidePoweredBy, hideAllowed) ? url(data?.handle) : null;
   } catch (error) {
     console.error("[billing] emailBadgeUrl:", error);
-    return url;
+    return url(null);
   }
 }

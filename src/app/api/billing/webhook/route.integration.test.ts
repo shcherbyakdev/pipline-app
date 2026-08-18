@@ -1,6 +1,20 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+
+// /api/billing/dev-checkout now demands a signed-in member of the org it is
+// asked to upgrade (it writes a paid subscription with the admin client).
+// Vitest has no Next request scope, so the real requireOrg would throw inside
+// cookies() rather than answer — stub it, with a mutable org id so the same
+// file can drive both the member path and the 403. (auth/actions.test.ts
+// idiom: vi.hoisted holder + vi.mock factory.)
+const session = vi.hoisted(() => ({ orgId: "" }));
+vi.mock("@/lib/auth/session", () => ({
+  requireOrg: async () => ({
+    user: { id: "00000000-0000-0000-0000-000000000000", email: "dev@example.com" },
+    org: { id: session.orgId, name: "HookCo", slug: "hookco" },
+  }),
+}));
 
 try { loadEnvFile(".env.local"); } catch { /* CI */ }
 process.env.BILLING_PROVIDER = "fake";
@@ -64,6 +78,22 @@ describe("POST /api/billing/webhook (fake provider)", () => {
 });
 
 describe("GET /api/billing/dev-checkout (fake provider)", () => {
+  beforeAll(() => {
+    session.orgId = orgId; // the caller is a member of the org being upgraded
+  });
+
+  it("403s when the signed-in member asks for someone else's org", async () => {
+    session.orgId = "11111111-1111-1111-1111-111111111111";
+    const res = await devCheckoutGET(new Request(
+      `http://x/api/billing/dev-checkout?org=${orgId}&plan=team&interval=month&return=/billing`,
+    ));
+    expect(res.status).toBe(403);
+    // ...and nothing was written for the org it did not own.
+    const row = await admin.from("org_subscriptions").select("plan").eq("org_id", orgId).single();
+    expect(row.data?.plan).toBe("pro");
+    session.orgId = orgId;
+  });
+
   it("redirects 303, resolving a relative `return` against the request instead of throwing", async () => {
     const res = await devCheckoutGET(new Request(
       `http://x/api/billing/dev-checkout?org=${orgId}&plan=pro&interval=month&return=/billing`,

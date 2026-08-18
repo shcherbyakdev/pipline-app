@@ -72,6 +72,11 @@ describe("billing: RLS + grants", () => {
   });
 
   it("member cannot insert/update/delete", async () => {
+    // Insert too, not just update/delete: there is no insert POLICY, but the
+    // grant is what actually stops it — a member handing itself a Team row
+    // would be a free upgrade, so the hole is worth its own assertion.
+    const ins = await owner.from("org_subscriptions").insert(subRow({ org_id: orgId, plan: "team", provider_subscription_id: `sub_self_${RUN}` }));
+    expect(ins.error).not.toBeNull();
     const up = await owner.from("org_subscriptions").update({ plan: "team" }).eq("org_id", orgId);
     expect(up.error).not.toBeNull();
     const del = await owner.from("org_subscriptions").delete().eq("org_id", orgId);
@@ -122,6 +127,16 @@ describe("billing: monthlyBookingUsage", () => {
     await admin.from("bookings").insert(mk(4, { status: "cancelled_by_client" }));
     const n = await monthlyBookingUsage(orgId, "UTC", new Date(), admin);
     expect(n).toBe(3);
+
+    // Ordinal form (`before`): how many the org had made BEFORE that instant
+    // — the number the reminder quota asks for. mk(1)+mk(2) went in as one
+    // statement, so they share now(); mk(4) is a later statement, so asking
+    // "before mk(4)" must answer 2, not 3.
+    const { data: last } = await admin
+      .from("bookings").select("created_at").eq("org_id", orgId).is("rescheduled_from_id", null)
+      .order("created_at", { ascending: false }).limit(1).single();
+    const before = await monthlyBookingUsage(orgId, "UTC", new Date(), admin, { before: last!.created_at });
+    expect(before).toBe(2);
   });
 });
 
@@ -211,5 +226,40 @@ describe("billing: applyBillingEvents", () => {
     const recorded = await admin.from("billing_events").select("provider_event_id")
       .in("provider_event_id", [e1, e2, e3, e4, e5, e6].map((e) => e.providerEventId));
     expect(recorded.data ?? []).toHaveLength(6);
+  });
+
+  it("expires the cached row for a subscription_expired that carries no subscription payload", async () => {
+    // Stripe deleted a subscription whose price maps to nothing we know
+    // (rotated/archived price): the adapter still emits the expiry with
+    // `subscription: null`. Dropping it as "skipped" would leave the org
+    // paid forever in our cache, so the RPC expires it from type + org.
+    const r = await applyBillingEvents(admin, [
+      ev("expnull", "2026-08-18T13:00:00Z", { type: "subscription_expired", subscription: null }),
+    ]);
+    expect(r).toEqual({ processed: 1, skipped: 0 });
+    const row = (await admin.from("org_subscriptions").select("status, provider_updated_at").eq("org_id", orgId).single()).data!;
+    expect(row.status).toBe("expired");
+    expect(Date.parse(row.provider_updated_at)).toBe(Date.parse("2026-08-18T13:00:00Z"));
+
+    // Same guard as the upsert: an OLDER null-payload expiry is stale, not a
+    // second write.
+    const older = await applyBillingEvents(admin, [
+      ev("expold", "2026-08-18T12:30:00Z", { type: "subscription_expired", subscription: null }),
+    ]);
+    expect(older).toEqual({ processed: 0, skipped: 1 });
+  });
+
+  it("same-second events: the later-applied one wins (guard is <=, not <)", async () => {
+    // Stripe emits created + updated inside the same second routinely. A
+    // strict `<` guard dropped the second of the pair as "stale"; replays
+    // are caught by the billing_events unique index, not by this guard.
+    const at = "2026-08-18T14:00:00Z";
+    const first = ev("tie-a", at, {}, { plan: "pro", interval: "month", seats: 1 });
+    const second = ev("tie-b", at, {}, { plan: "team", interval: "year", seats: 5 });
+    const r = await applyBillingEvents(admin, [first, second]);
+    expect(r).toEqual({ processed: 2, skipped: 0 });
+    const row = (await admin.from("org_subscriptions").select("plan, seats, status").eq("org_id", orgId).single()).data!;
+    expect(row.plan).toBe("team");
+    expect(row.seats).toBe(5);
   });
 });

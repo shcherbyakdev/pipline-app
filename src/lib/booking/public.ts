@@ -167,19 +167,6 @@ export async function listPublicStaff(orgId: string, serviceId?: string): Promis
   return (data ?? []).map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
 }
 
-export async function getPublicStaffBySlug(orgId: string, slug: string): Promise<PublicStaff | null> {
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("staff")
-    .select(STAFF_COLS)
-    .eq("org_id", orgId)
-    .eq("slug", slug)
-    .eq("active", true)
-    .maybeSingle();
-  if (error || !data) return null;
-  return { id: data.id, name: data.name, slug: data.slug, color: data.color };
-}
-
 // serviceId → eligible staff ids, in one query. The booking pages need the
 // whole map up front (the widget filters the staff step per service without a
 // round trip); listPublicStaff(orgId, serviceId) stays the one-service path.

@@ -5,15 +5,17 @@ import { getEntitlements } from "./queries";
 import { canAddService, canAddStaff, type Entitlements } from "./entitlements";
 import {
   GENERIC_WRITE_ERROR,
+  planLimitStaffError,
   PLAN_LIMIT_SERVICES_ERROR,
-  PLAN_LIMIT_STAFF_ERROR,
 } from "@/features/scheduling/schema";
 
 // Creation gates (spec §7.4). Enforced in actions, not triggers — the
 // public-offering filter is the value gate; these keep the admin honest.
 // Return the refusal copy, or null when allowed.
 export function staffGateMessage(activeCount: number, ent: Entitlements): string | null {
-  return canAddStaff(activeCount, ent) ? null : PLAN_LIMIT_STAFF_ERROR;
+  // The cap comes from the entitlements, so a Team org at 5 of 5 is told it
+  // has 5 — not that team members are a Team-plan feature it already pays for.
+  return canAddStaff(activeCount, ent) ? null : planLimitStaffError(ent.bookableStaff);
 }
 export function serviceGateMessage(serviceCount: number, ent: Entitlements): string | null {
   return canAddService(serviceCount, ent) ? null : PLAN_LIMIT_SERVICES_ERROR;

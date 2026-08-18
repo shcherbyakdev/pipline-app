@@ -17,7 +17,7 @@ import {
   type PlanDef,
   type PlanId,
 } from "@/lib/billing/plans";
-import { startCheckout } from "../actions";
+import { openPortal, startCheckout } from "../actions";
 
 /* The ladder, rendered from PLANS — the only place prices and limits live
    (spec §7.3). The rows below read the same limits, so a number changed in
@@ -188,14 +188,22 @@ function PlanCta({
       </Button>
     );
   }
-  // Free stays where it is, and every move DOWN the ladder (Team → Pro, or
-  // leaving a paid plan) happens in the provider's portal — we build no
-  // downgrade screens (spec §7.6).
-  if (plan.id === "free" || (currentPlan === "team" && plan.id === "pro")) {
+  // Free is where everyone starts; leaving a paid plan is a cancellation,
+  // which lives in the provider's portal — we build no downgrade screens
+  // (spec §7.6).
+  if (plan.id === "free") {
+    return <p className="text-muted-foreground text-center text-xs">Included in every plan</p>;
+  }
+  // Any paid → paid move, in EITHER direction, is a change to the
+  // subscription this org already pays for: a proration the portal does and
+  // checkout cannot. A second checkout would buy a second subscription
+  // alongside the first, so the only door here is the portal (startCheckout
+  // refuses the same move server-side).
+  if (isPaidPlan(currentPlan)) {
     return (
-      <p className="text-muted-foreground text-center text-xs">
-        {plan.id === "free" ? "Included in every plan" : "Switch in the billing portal"}
-      </p>
+      <form action={openPortal}>
+        <PortalButton />
+      </form>
     );
   }
   return (
@@ -212,6 +220,15 @@ function CheckoutButton({ children }: { children: React.ReactNode }) {
   return (
     <Button type="submit" disabled={pending} className="w-full">
       {pending ? "Opening checkout…" : children}
+    </Button>
+  );
+}
+
+function PortalButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" variant="secondary" disabled={pending} className="w-full">
+      {pending ? "Opening portal…" : "Switch in the billing portal"}
     </Button>
   );
 }

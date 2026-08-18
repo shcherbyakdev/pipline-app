@@ -17,7 +17,11 @@ import { BILLING_ENABLED } from "@/lib/flags";
 // pages, /embed, and the public server actions): the org's active roster and
 // services, narrowed to what the org's plan may offer. While billing is off
 // this is exactly today's behaviour (Team-shaped entitlements = no narrowing).
-export type PublicOffering = {
+//
+// Named for what it IS — an appointments roster after the plan limits — so it
+// never reads as a twin of `PublicOffering` in ./public, which is the rentals
+// product (a rentable thing with units and a date window).
+export type PlanLimitedOffering = {
   services: PublicService[];
   staff: PublicStaff[];
   serviceStaffIds: Record<string, string[]>;
@@ -52,7 +56,7 @@ async function loadEntitlements(orgId: string): Promise<Entitlements> {
 // Per-request memoised: the pages render it once, but getSlots/createBooking
 // each reach it through loadSlotContext, and a single request must not repeat
 // these three reads.
-export const loadPublicOffering = cache(async (orgId: string): Promise<PublicOffering> => {
+export const loadPublicOffering = cache(async (orgId: string): Promise<PlanLimitedOffering> => {
   const [allServices, allStaff, serviceStaffIds, entitlements] = await Promise.all([
     listPublicServices(orgId),
     listPublicStaff(orgId),

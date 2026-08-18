@@ -28,9 +28,17 @@ export async function POST(request: Request) {
       // Free-plan reminder quota (spec §7.10): only checked once billing is
       // live — while the flag is off every org is unmetered, same as the
       // rest of the billing surface.
+      //
+      // Ordinal, not a running total: the count is "originals this org made
+      // in the booking's own month BEFORE this booking", so the answer is
+      // "is this the 31st?" — stable no matter when the tick runs or what
+      // was cancelled since (spec §3, "the first 30 bookings each month").
       quotaExceeded: BILLING_ENABLED
-        ? async (orgId, tz) =>
-            reminderQuotaExceeded(await monthlyBookingUsage(orgId, tz, new Date(), admin), await getEntitlementsAdmin(orgId))
+        ? async (orgId, tz, createdAt) =>
+            reminderQuotaExceeded(
+              await monthlyBookingUsage(orgId, tz, new Date(createdAt), admin, { before: createdAt }),
+              await getEntitlementsAdmin(orgId),
+            )
         : undefined,
     });
     return Response.json(summary);

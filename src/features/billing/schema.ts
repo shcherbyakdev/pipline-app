@@ -15,6 +15,11 @@ export const checkoutInput = z.object({
    this page wants one). */
 export const BILLING_ERRORS = {
   checkout: "Couldn't open checkout — try again.",
+  // A paid org that reaches startCheckout anyway (stale tab, hand-crafted
+  // POST): a second checkout would buy a SECOND subscription next to the one
+  // it already pays for, so the answer is the portal, where the switch is a
+  // proration on the existing one.
+  use_portal: "Change plans in the billing portal.",
   portal: "There's no subscription to manage yet.",
   portal_unavailable: "Couldn't open the billing portal — try again.",
 } as const;
