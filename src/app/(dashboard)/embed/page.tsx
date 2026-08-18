@@ -12,11 +12,16 @@ import { env } from "@/env";
 import { PageIntro } from "@/components/shell/page-header";
 
 async function badgeToggleEnabled(orgId: string): Promise<boolean> {
-  if (!(await getDashboardFlags(orgId)).billing) return true;
   try {
+    // BOTH reads sit inside the try: a flags hiccup on this page fails OPEN
+    // exactly like the entitlement read does. getDashboardFlags degrades to
+    // FLAG_DEFAULTS on its own now (billing off ⇒ toggle enabled), so this is
+    // belt-and-braces — but leaving one of the two reads able to 500 the page
+    // while the other cannot is the asymmetry worth removing.
+    if (!(await getDashboardFlags(orgId)).billing) return true;
     return (await getEntitlements(orgId, await createClient())).hideBadge;
   } catch (error) {
-    console.error("[billing] entitlements read failed — toggle stays enabled:", error);
+    console.error("[billing] embed badge-toggle read failed — toggle stays enabled:", error);
     return true;
   }
 }

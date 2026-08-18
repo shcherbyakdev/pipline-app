@@ -126,6 +126,7 @@ The four `*_ENABLED` constants are **removed**. Every remaining reader is either
 **Resolver** — `src/lib/flags/resolve.ts` (`server-only`):
 - `getOrgFlags(orgId, client): Promise<Flags>` — reads `org_feature_flags` for the org, merges over `FLAG_DEFAULTS`. Works with the RLS client (dashboard) or the admin client.
 - `getOrgFlagsAdmin = cache(async (orgId) => …)` — public/drain paths; per-request memoised; **degrades to `FLAG_DEFAULTS` on read failure** (log + defaults; a broken flag read must never break a booking page — `getEntitlementsAdmin` stance).
+- `getDashboardFlags = cache(async (orgId) => …)` — the caller's own org through the RLS client; per-request memoised; **degrades to `FLAG_DEFAULTS` on read failure too** (ruling at final review 2026-08-18) — the flag-off default IS the pre-branch product, so degrading can only reproduce it, whereas throwing would 500 every dashboard page during a PostgREST schema-cache window or on a deploy where `0044`/`0045` have not been applied yet.
 - Dashboard: `(dashboard)/layout.tsx` resolves once and passes `flags` down as a prop (`AppShell` → `SidebarBody`, `Providers`); pages that need flags call `getOrgFlags` themselves (wrap in React `cache()` so the second call in a request is free).
 
 **Consumer conversion** — all 21 import sites, by flag:
@@ -147,7 +148,7 @@ The four `*_ENABLED` constants are **removed**. Every remaining reader is either
 - Guard failures: `notFound()`; signed-out: redirect to `/login`.
 - Actions: zod failure ⇒ `?error=invalid`; DB errors throw (internal surface; stack trace is the useful output). `redirect()` never wrapped.
 - Reads on customer paths degrade as stated: flags → defaults; entitlements unchanged (Free / strict as today).
-- Dashboard `getOrgFlags` failure throws — the layout already throws on `getCurrentOrg` failure; same stance.
+- Dashboard `getDashboardFlags` failure **degrades to defaults** (ruling at final review 2026-08-18) — the flag-off default is the pre-branch product, so the page renders what it rendered before this slice instead of 500-ing. `getOrgFlags` itself still throws; callers decide.
 
 ## 4. Testing
 

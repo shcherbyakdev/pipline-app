@@ -27,10 +27,21 @@ export async function getOrgFlags(orgId: string, client: SupabaseClient): Promis
 
 /** Dashboard pages, layouts and server actions: the caller's own org through
     the RLS client. Per-request memoised, so the layout and the page reading
-    the same org cost one query. Throws — the dashboard already throws when
-    the org read fails, and a page rendered against the wrong flags is worse
-    than an error page. */
-export const getDashboardFlags = cache(async (orgId: string): Promise<Flags> => getOrgFlags(orgId, await createClient()));
+    the same org cost one query. DEGRADES TO DEFAULTS on failure, same as
+    getOrgFlagsAdmin below (ruling at final review 2026-08-18): the flag-off
+    default IS the pre-branch product, so degrading can only reproduce it —
+    the sidebar, /billing and the gates behave exactly as they did before this
+    slice. Throwing, by contrast, would 500 EVERY dashboard page during a
+    PostgREST schema-cache window, or on any deploy where 0044/0045 have not
+    been applied yet. */
+export const getDashboardFlags = cache(async (orgId: string): Promise<Flags> => {
+  try {
+    return await getOrgFlags(orgId, await createClient());
+  } catch (error) {
+    console.error("[flags] dashboard read failed (using defaults):", error);
+    return { ...FLAG_DEFAULTS };
+  }
+});
 
 /** Public/drain paths (org resolved by handle or booking): admin client,
     per-request memoised, DEGRADES TO DEFAULTS on failure — a broken flag read
