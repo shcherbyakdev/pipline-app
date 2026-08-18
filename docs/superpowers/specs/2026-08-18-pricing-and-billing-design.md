@@ -290,3 +290,5 @@ Payments/deposits, SMS, Google Calendar, intake questions, reminder schedules (a
 ## Implementation notes
 
 (filled during execution — deviations from this spec are recorded here, per repo convention)
+
+**Task 6 (`stripe.ts`):** §7.1 says `parseWebhook` maps `invoice.payment_failed` → `payment_failed` and `invoice.paid` (billing_reason ≠ `subscription_create`) → `payment_recovered`. Built instead: both are ignored (`normalizeStripeEvent` returns `null` for them). Reason: Stripe flips the subscription's own `status` field to `past_due`/`active` on payment failure/recovery and emits `customer.subscription.updated` for it — that single event is already the source `mapStripeStatus` reads, so mapping the invoice events too would mean re-fetching the subscription (invoice payloads don't carry `metadata.org_id`) to derive the same status a second time. One source, no re-fetch. `BillingEventType` still has `payment_failed`/`payment_recovered` for other providers (e.g. Paddle, which models them distinctly) to use.
