@@ -22,10 +22,12 @@ export function fakeProvider(): BillingProvider {
     name: "fake",
     async createCheckoutUrl(input: CheckoutInput) {
       const q = new URLSearchParams({ org: input.orgId, plan: input.plan, interval: input.interval, return: input.returnUrl });
-      return `${env.NEXT_PUBLIC_APP_URL}/api/billing/dev-checkout?${q}`;
+      if (input.providerCustomerId) q.set("customer", input.providerCustomerId);
+      return `${env.NEXT_PUBLIC_APP_URL}/dev/billing/checkout?${q}`;
     },
     async createPortalUrl(_customerId: string, returnUrl: string) {
-      return returnUrl; // nothing to manage in the fake
+      const q = new URLSearchParams({ return: returnUrl });
+      return `${env.NEXT_PUBLIC_APP_URL}/dev/billing/portal?${q}`;
     },
     parseWebhook(rawBody, headers) {
       if (!env.BILLING_FAKE_SECRET) throw new Error("BILLING_FAKE_SECRET unset");
