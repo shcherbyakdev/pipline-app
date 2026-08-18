@@ -62,3 +62,20 @@ export function isPaidPlan(id: string): id is PaidPlanId {
 export function pricePerMonth(plan: PaidPlanId, interval: Interval): number {
   return interval === "month" ? PLANS[plan].monthly : PLANS[plan].yearly / 12;
 }
+
+/** Mirrors the Stripe coupon: 33.3 % off Pro monthly, forever. Monthly only —
+    the coupon does not touch the yearly price. */
+export const FOUNDER_PRICE_FACTOR = 2 / 3;
+
+/** Whole dollars stay whole ($9, not $9.00); anything else keeps its cents.
+    Rounds to cents first, so a derived price carrying float noise
+    (12 * 2/3 = 7.999…) still reads as the dollar amount it is. */
+export function formatUsd(amount: number): string {
+  const cents = Math.round(amount * 100);
+  return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
+}
+
+/** Share of the list price the yearly plan saves, e.g. 0.25 → "save 25%". */
+export function yearlySaving(plan: PaidPlanId): number {
+  return 1 - PLANS[plan].yearly / (PLANS[plan].monthly * 12);
+}

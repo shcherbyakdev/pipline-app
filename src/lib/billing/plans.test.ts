@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { PLANS, PAID_PLANS, TEAM_INCLUDED_SEATS, pricePerMonth } from "./plans";
+import {
+  PLANS, PAID_PLANS, TEAM_INCLUDED_SEATS, pricePerMonth,
+  FOUNDER_PRICE_FACTOR, formatUsd, yearlySaving,
+} from "./plans";
 
 describe("PLANS", () => {
   it("has free, pro, team with the spec prices", () => {
@@ -23,5 +26,16 @@ describe("PLANS", () => {
     expect(pricePerMonth("pro", "month")).toBe(12);
     expect(pricePerMonth("pro", "year")).toBe(9);
     expect(pricePerMonth("team", "year")).toBe(24);
+  });
+  it("the Founder factor prices Pro monthly at $8, float noise and all", () => {
+    expect(formatUsd(PLANS.pro.monthly * FOUNDER_PRICE_FACTOR)).toBe("$8");
+  });
+  it("formatUsd keeps whole dollars whole and cents to two places", () => {
+    expect(formatUsd(9)).toBe("$9");
+    expect(formatUsd(24.5)).toBe("$24.50");
+  });
+  it("yearlySaving is per plan", () => {
+    expect(Math.round(yearlySaving("pro") * 100)).toBe(25);
+    expect(Math.round(yearlySaving("team") * 100)).toBe(17);
   });
 });

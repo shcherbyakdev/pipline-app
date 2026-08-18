@@ -6,19 +6,17 @@ import { requireOrg } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { selectBillingProvider } from "@/lib/billing/provider";
 import { BILLING_ENABLED } from "@/lib/flags";
+import { isFounderEligible } from "./founder";
 import { checkoutInput } from "./schema";
 
-/** The Founder promotion code when this org was created before the cutoff
-    (spec §3) — undefined whenever the env pair is unset, which is every
-    environment until the promo is configured. */
+/** The Founder promotion code when this org qualifies (isFounderEligible) —
+    undefined whenever the env pair is unset, which is every environment until
+    the promo is configured, and the reason the org read is skipped there. */
 async function founderCodeFor(orgId: string): Promise<string | undefined> {
-  if (!env.BILLING_FOUNDER_PROMO_CODE || !env.BILLING_FOUNDER_CUTOFF) return undefined;
+  if (!env.BILLING_FOUNDER_PROMO_CODE) return undefined;
   const supabase = await createClient();
   const { data } = await supabase.from("orgs").select("created_at").eq("id", orgId).maybeSingle();
-  if (!data?.created_at) return undefined;
-  return Date.parse(data.created_at) < Date.parse(`${env.BILLING_FOUNDER_CUTOFF}T00:00:00Z`)
-    ? env.BILLING_FOUNDER_PROMO_CODE
-    : undefined;
+  return isFounderEligible(data?.created_at) ? env.BILLING_FOUNDER_PROMO_CODE : undefined;
 }
 
 /* Provider calls are network I/O against a third party: a failure must land
@@ -54,7 +52,10 @@ export async function startCheckout(formData: FormData): Promise<void> {
         interval: parsed.data.interval,
         email: user.email ?? "",
         discountCode,
-        returnUrl: `${env.NEXT_PUBLIC_APP_URL}/billing?checkout=success`,
+        // `plan` rides along so the return page knows WHICH plan to wait
+        // for — a Pro org buying Team is still "free"-free of Team until the
+        // webhook lands, and `checkout=success` alone couldn't tell.
+        returnUrl: `${env.NEXT_PUBLIC_APP_URL}/billing?checkout=success&plan=${parsed.data.plan}`,
       }),
     "startCheckout",
   );
@@ -85,6 +86,6 @@ export async function openPortal(): Promise<void> {
       ),
     "openPortal",
   );
-  if (!url) redirect("/billing?error=checkout");
+  if (!url) redirect("/billing?error=portal_unavailable");
   redirect(url);
 }

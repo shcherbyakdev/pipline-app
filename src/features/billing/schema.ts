@@ -16,6 +16,7 @@ export const checkoutInput = z.object({
 export const BILLING_ERRORS = {
   checkout: "Couldn't open checkout — try again.",
   portal: "There's no subscription to manage yet.",
+  portal_unavailable: "Couldn't open the billing portal — try again.",
 } as const;
 
 export type BillingErrorCode = keyof typeof BILLING_ERRORS;

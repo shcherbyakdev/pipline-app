@@ -5,11 +5,15 @@ import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  formatUsd,
+  FOUNDER_PRICE_FACTOR,
   isPaidPlan,
   PAID_PLANS,
   PLANS,
   pricePerMonth,
+  yearlySaving,
   type Interval,
+  type PaidPlanId,
   type PlanDef,
   type PlanId,
 } from "@/lib/billing/plans";
@@ -43,14 +47,12 @@ const PLAN_ROWS: { label: string; value: (plan: PlanDef) => string }[] = [
 
 const COLUMNS: PlanId[] = ["free", ...PAID_PLANS];
 
-/** Mirrors the Founder coupon applied at checkout (spec §3): Pro for $8/mo,
-    locked for life. Not in PLANS — that holds list prices, this is a promo. */
-const FOUNDER_MONTHLY = 8;
+/** What the Founder coupon makes Pro cost, derived from the same factor the
+    coupon uses (spec §3/§7.12) — monthly only, which is why the ribbon below
+    only appears on the monthly tab. */
+const FOUNDER_MONTHLY = formatUsd(PLANS.pro.monthly * FOUNDER_PRICE_FACTOR);
 
-/** How much the yearly price saves on Pro, for the toggle's hint. */
-const YEARLY_SAVING = Math.round((1 - PLANS.pro.yearly / (PLANS.pro.monthly * 12)) * 100);
-
-const formatUsd = (n: number) => (Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`);
+const savingPercent = (plan: PaidPlanId) => Math.round(yearlySaving(plan) * 100);
 
 export function PlanPicker({
   currentPlan,
@@ -60,7 +62,7 @@ export function PlanPicker({
   founderEligible: boolean;
 }) {
   // Yearly first: it is the cheaper per-month number and the one we want read.
-  const [interval, setInterval] = React.useState<Interval>("year");
+  const [interval, setBillingInterval] = React.useState<Interval>("year");
 
   return (
     <section className="flex flex-col gap-4">
@@ -76,7 +78,7 @@ export function PlanPicker({
               key={id}
               type="button"
               aria-pressed={interval === id}
-              onClick={() => setInterval(id)}
+              onClick={() => setBillingInterval(id)}
               className={cn(
                 "focus-visible:ring-ring/50 flex h-7 items-center rounded-[6px] px-2.5 text-sm outline-none focus-visible:ring-2",
                 interval === id
@@ -84,7 +86,7 @@ export function PlanPicker({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {id === "year" ? `Yearly · save ${YEARLY_SAVING}%` : "Monthly"}
+              {id === "year" ? "Yearly" : "Monthly"}
             </button>
           ))}
         </div>
@@ -133,13 +135,21 @@ function PlanColumn({
         <span className="text-muted-foreground text-xs">
           {paid
             ? interval === "year"
-              ? `billed yearly · ${formatUsd(plan.yearly)} a year`
+              ? `billed yearly · ${formatUsd(plan.yearly)} a year · save ${savingPercent(paid)}%`
               : "billed monthly"
             : "no card needed"}
         </span>
-        {showFounder ? (
+        {/* The coupon is 33.3 % off Pro MONTHLY, forever — so the ribbon only
+            claims the price on the tab where it would actually apply, and the
+            yearly tab says where to find it instead of implying it's included. */}
+        {showFounder && interval === "month" ? (
           <span className="border-primary/40 text-primary mt-1 w-fit rounded-full border px-2 py-0.5 text-[11px] font-medium">
-            Founder price · ${FOUNDER_MONTHLY}/mo for life
+            Founder price · {FOUNDER_MONTHLY}/mo for life
+          </span>
+        ) : null}
+        {showFounder && interval === "year" ? (
+          <span className="text-muted-foreground mt-1 text-[11px]">
+            Founder price ({FOUNDER_MONTHLY}/mo for life) applies to monthly billing.
           </span>
         ) : null}
       </div>

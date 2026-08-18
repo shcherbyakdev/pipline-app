@@ -1,4 +1,4 @@
-import { PLANS, pricePerMonth } from "@/lib/billing/plans";
+import { formatUsd, PLANS, pricePerMonth } from "@/lib/billing/plans";
 import { Button } from "@/components/ui/button";
 import { openPortal } from "../actions";
 import type { BillingOverview } from "../queries";
@@ -8,8 +8,6 @@ import type { BillingOverview } from "../queries";
 const formatDate = (iso: string) =>
   new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })
     .format(new Date(iso));
-
-const formatUsd = (n: number) => (Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`);
 
 /** Past tense once the period is behind us; "Ends" while a cancellation is
     still running out; "Renews" otherwise. */
@@ -38,11 +36,14 @@ export function CurrentPlan({ overview }: { overview: BillingOverview }) {
       </div>
       <p className="text-muted-foreground text-sm">{plan.blurb}</p>
 
+      {/* Both lines when both apply: the warning says what to do, the date
+          says by when. */}
       {sub?.status === "past_due" ? (
         <p className="text-sm text-amber-600 dark:text-amber-500">
           We couldn&rsquo;t charge your card — update it in the billing portal to keep your plan.
         </p>
-      ) : sub?.currentPeriodEnd ? (
+      ) : null}
+      {sub?.currentPeriodEnd ? (
         <p className="text-muted-foreground text-sm">
           {periodLabel(sub)} {formatDate(sub.currentPeriodEnd)}
         </p>

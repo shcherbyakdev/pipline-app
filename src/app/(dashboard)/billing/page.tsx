@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { BILLING_ENABLED } from "@/lib/flags";
+import { isPaidPlan } from "@/lib/billing/plans";
 import { getBillingOverview } from "@/features/billing/queries";
 import { billingErrorMessage } from "@/features/billing/schema";
 import { ActivationPoller } from "@/features/billing/components/activation-poller";
@@ -12,10 +13,15 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
   // Dormant until the flag flips (spec §7.9): the route file exists so the
   // Stripe account can be wired first, but nothing links here and it 404s.
   if (!BILLING_ENABLED) notFound();
-  const { checkout, error } = await searchParams;
+  const { checkout, error, plan } = await searchParams;
   const overview = await getBillingOverview();
   // Back from checkout but the webhook hasn't landed yet — poll, don't lie.
-  const activating = checkout === "success" && overview.entitlements.plan === "free";
+  // `plan` says what was bought, so a Pro org buying Team waits for Team; the
+  // older links without it only knew "anything but Free".
+  const bought = typeof plan === "string" && isPaidPlan(plan) ? plan : null;
+  const activating =
+    checkout === "success" &&
+    (bought ? overview.entitlements.plan !== bought : overview.entitlements.plan === "free");
   const errorMessage = billingErrorMessage(error);
 
   return (
