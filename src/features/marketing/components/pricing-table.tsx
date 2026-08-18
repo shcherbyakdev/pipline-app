@@ -31,9 +31,11 @@ export function PricingTable() {
         <table className="w-full min-w-[36rem] border-collapse text-sm">
           <thead>
             <tr className="border-b text-left">
-              <th className="py-3 pr-4 font-normal" />
+              <th scope="col" className="py-3 pr-4 font-normal">
+                <span className="sr-only">Feature</span>
+              </th>
               {COLUMNS.map((id) => (
-                <th key={id} className="px-4 py-3 font-medium">
+                <th key={id} scope="col" className="px-4 py-3 font-medium">
                   {PLANS[id].name}
                 </th>
               ))}
@@ -42,15 +44,21 @@ export function PricingTable() {
           <tbody className="divide-y">
             {PRICING.rows.map((row) => (
               <tr key={row.label}>
-                <td className="text-muted-foreground py-3 pr-4">{row.label}</td>
-                <td className="px-4 py-3">{row.free}</td>
-                <td className="px-4 py-3">{row.pro}</td>
-                <td className="px-4 py-3">{row.team}</td>
+                <th scope="row" className="text-muted-foreground py-3 pr-4 text-left font-normal">
+                  {row.label}
+                </th>
+                {COLUMNS.map((id) => (
+                  <td key={id} className="px-4 py-3">
+                    {row[id]}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <p className="text-muted-foreground mt-4 text-sm">{PRICING.moreComing}</p>
 
       <div className="mt-10 max-w-xl space-y-2">
         <p className="text-foreground/80 text-sm">{PRICING.founder}</p>

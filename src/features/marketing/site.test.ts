@@ -86,7 +86,7 @@ describe("site config", () => {
         ...("paragraphs" in s ? s.paragraphs : []),
       ]),
       ...Object.values(CTA),
-      PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder,
+      PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder, PRICING.moreComing,
       ...PRICING.rows.flatMap((r) => [r.label, r.free, r.pro, r.team]),
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);

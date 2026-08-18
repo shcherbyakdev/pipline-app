@@ -2,6 +2,7 @@
 // so it can be unit-tested and reused by every marketing component.
 
 import { BILLING_ENABLED } from "@/lib/flags";
+import { FOUNDER_PRICE_FACTOR, formatUsd, PLANS, type PlanId } from "@/lib/billing/plans";
 
 export const SITE = {
   name: "Booklo",
@@ -134,6 +135,16 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   },
 ];
 
+/** One row of the pricing comparison table: a label plus one cell per plan,
+    keyed by PlanId so a component can iterate the same COLUMNS array it uses
+    for the header and index straight into the row (`row[id]`). */
+export type PricingRow = Record<PlanId, string> & { label: string };
+
+/** Mirrors the Stripe coupon via the same factor billing/plans.ts uses
+    (FOUNDER_PRICE_FACTOR), so the number in this copy can never drift from
+    what checkout actually charges. */
+const FOUNDER_MONTHLY = formatUsd(PLANS.pro.monthly * FOUNDER_PRICE_FACTOR);
+
 /** Pricing page copy (spec docs/superpowers/specs/2026-08-18-pricing-and-billing-design.md).
     Rows are prose, not limits — the pricing table reads prices from PLANS
     (lib/billing/plans.ts) directly so a number never lives in two places. */
@@ -150,8 +161,9 @@ export const PRICING = {
     { label: "Your logo, colours, welcome text", free: "✓", pro: "✓", team: "✓" },
     { label: "Remove “Powered by Booklo”", free: "—", pro: "✓", team: "✓" },
     { label: "Team layer: per-person links, “Anyone available”, colours", free: "—", pro: "—", team: "✓" },
-  ],
-  founder: "Early-access accounts get Pro for $8/month, locked for life — look for the Founder ribbon in Billing.",
+  ] satisfies PricingRow[],
+  founder: `Early-access accounts get Pro for ${FOUNDER_MONTHLY}/month, locked for life — look for the Founder ribbon in Billing.`,
+  moreComing: "More is coming to Pro — early-access accounts hear first.",
 } as const;
 
 /** Words that must not appear in marketing copy: features not shipped yet. */
