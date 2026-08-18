@@ -28,6 +28,8 @@ const envSchema = z.object({
   STRIPE_PRICE_TEAM_YEAR: z.string().min(1).optional(),
   BILLING_FOUNDER_PROMO_CODE: z.string().min(1).optional(),
   BILLING_FOUNDER_CUTOFF: z.string().date().optional(),
+  // Comma-separated emails allowed into /utils (owner-only back office). Unset = nobody.
+  INTERNAL_EMAILS: z.string().optional(),
 });
 
 export const env = envSchema.parse({
@@ -52,4 +54,5 @@ export const env = envSchema.parse({
   STRIPE_PRICE_TEAM_YEAR: process.env.STRIPE_PRICE_TEAM_YEAR,
   BILLING_FOUNDER_PROMO_CODE: process.env.BILLING_FOUNDER_PROMO_CODE,
   BILLING_FOUNDER_CUTOFF: process.env.BILLING_FOUNDER_CUTOFF,
+  INTERNAL_EMAILS: process.env.INTERNAL_EMAILS,
 });
