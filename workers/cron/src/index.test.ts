@@ -40,4 +40,27 @@ describe("runDrain", () => {
     await expect(runDrain(ENV, fake as unknown as typeof fetch)).resolves.toBe(false);
     expect(calls).toEqual([ENV.DRAIN_URL]);
   });
+
+  it("does NOT ping the healthcheck when the drain request throws", async () => {
+    const calls: string[] = [];
+    const fake = vi.fn(async (input: Request | string) => {
+      calls.push(typeof input === "string" ? input : input.url);
+      throw new Error("DNS failure");
+    });
+    await expect(runDrain(ENV, fake as unknown as typeof fetch)).resolves.toBe(false);
+    expect(calls).toEqual([ENV.DRAIN_URL]);
+  });
+
+  it("resolves false when the healthcheck ping throws", async () => {
+    const calls: string[] = [];
+    const fake = vi.fn(async (input: Request | string) => {
+      calls.push(typeof input === "string" ? input : input.url);
+      if (typeof input === "string") {
+        throw new Error("healthcheck connection refused");
+      }
+      return new Response("{}", { status: 200 });
+    });
+    await expect(runDrain(ENV, fake as unknown as typeof fetch)).resolves.toBe(false);
+    expect(calls).toEqual([ENV.DRAIN_URL, ENV.HEALTHCHECK_URL]);
+  });
 });

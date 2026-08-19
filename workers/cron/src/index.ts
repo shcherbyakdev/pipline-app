@@ -20,12 +20,23 @@ export function drainRequest(env: WorkerEnv): Request {
     success: it is the alarm for a dead scheduler, and a dead scheduler also
     stops the database traffic that keeps a Free-tier project from pausing. */
 export async function runDrain(env: WorkerEnv, fetchImpl: typeof fetch = fetch): Promise<boolean> {
-  const response = await fetchImpl(drainRequest(env));
+  let response: Response;
+  try {
+    response = await fetchImpl(drainRequest(env));
+  } catch (error) {
+    console.error(`[cron] drain request threw: ${error}`);
+    return false;
+  }
   if (!response.ok) {
     console.error(`[cron] drain failed: ${response.status} ${await response.text()}`);
     return false;
   }
-  await fetchImpl(env.HEALTHCHECK_URL);
+  try {
+    await fetchImpl(env.HEALTHCHECK_URL);
+  } catch (error) {
+    console.error(`[cron] healthcheck ping threw: ${error}`);
+    return false;
+  }
   return true;
 }
 
