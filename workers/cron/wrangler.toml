@@ -1,0 +1,9 @@
+name = "booklo-cron"
+main = "src/index.ts"
+compatibility_date = "2026-08-19"
+
+# Every 15 minutes. Reminders have a 24h lead window, so this granularity is
+# ample; it also produces ~96 database round trips a day, which is what keeps
+# the Supabase Free project from pausing for inactivity.
+[triggers]
+crons = ["*/15 * * * *"]

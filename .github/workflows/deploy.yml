@@ -1,18 +1,26 @@
 name: Deploy
 
-# ─── DEPLOYS DISABLED — local development only for now ────────────────────────
+# ─── DEPLOYS DISABLED until cutover step 14 ───────────────────────────────────
 # The automatic trigger below is commented out, so this workflow never fires on
-# its own. (Manual `workflow_dispatch` remains, but without the `production`
-# environment secrets it would fail immediately — nothing can reach a real
-# database or Vercel.)
+# its own. Manual `workflow_dispatch` is how the first deploy is performed.
 #
-# To re-enable production deploys:
-#   1. Uncomment the `workflow_run` block below.
-#   2. Create the `production` GitHub Environment with secrets: DATABASE_URL
-#      (direct connection, port 5432 — not the pooler), VERCEL_TOKEN,
-#      VERCEL_ORG_ID, VERCEL_PROJECT_ID.
-#   3. In Vercel → Settings → Git, disable automatic deployments (otherwise
-#      Vercel races the migration step).
+# To enable automatic deploys (spec 2026-08-19-launch-infrastructure §11):
+#   1. Set these as REPOSITORY secrets (not environment secrets: GitHub
+#      environments are public-repo-only on the Free plan, and this repo is
+#      private):
+#        DATABASE_URL       Supabase SESSION pooler, ...pooler.supabase.com:5432
+#                           NOT the direct connection (db.<ref>.supabase.co) —
+#                           that is IPv6-only and GitHub runners are IPv4-only.
+#                           NOT the transaction pooler (:6543) — that is the
+#                           Vercel runtime's value and cannot run DDL reliably.
+#        VERCEL_TOKEN
+#        VERCEL_ORG_ID      from .vercel/project.json, written by `vercel link`
+#        VERCEL_PROJECT_ID  same
+#   2. The Vercel project must NOT be connected to Git. This workflow uses
+#      Vercel's token + `--prebuilt` CI flow, which needs no Git connection;
+#      connecting one would race this workflow's migration step.
+#   3. Uncomment the `workflow_run` block below. This is its own one-line PR,
+#      done LAST — before the environment exists it would deploy into nothing.
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Triggered by CI finishing, not by the push itself — so a green CI run is a
@@ -38,7 +46,6 @@ jobs:
   deploy:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    environment: production
     # Bounds a hung step (e.g. a stuck `drizzle-kit migrate` against production).
     # The `deploy-production` concurrency lock is held for the job's full
     # duration, so an unbounded hang would block every subsequent deploy for up

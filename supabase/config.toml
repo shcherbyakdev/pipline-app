@@ -399,3 +399,44 @@ s3_region = "env(S3_REGION)"
 s3_access_key = "env(S3_ACCESS_KEY)"
 # Configures AWS_SECRET_ACCESS_KEY for S3 bucket
 s3_secret_key = "env(S3_SECRET_KEY)"
+
+# ─── Production overrides (spec 2026-08-19-launch-infrastructure §6) ──────────
+# Applied by: supabase config push --project-ref <ref> --yes
+#
+# WARNING: if project_id below does not match --project-ref, the CLI SILENTLY
+# skips this whole block and pushes the base config instead — localhost
+# site_url, email_sent = 2, no SMTP — with no error and a zero exit code.
+# scripts/setup-production.ts asserts the match before pushing and asserts
+# "Loading config override" appears in the output.
+#
+# project_id is the REAL production project ref (substituted at cutover step 2;
+# it is not a secret — it is the ref in the project's dashboard URL). Any
+# value here must stay format-valid, 20 lowercase letters: the config decoder
+# validates [remotes.*].project_id on every command, not just remote ones, so
+# an invalid-format value breaks `supabase start`/`status`/`db reset` and this
+# project's `predev` preflight wholesale.
+[remotes.production]
+project_id = "fkxtjtgwzwhwugxchuxo"
+
+[remotes.production.auth]
+site_url = "https://booklo.co"
+additional_redirect_urls = ["https://booklo.co", "https://booklo.co/auth/confirm"]
+
+# The base config sets email_sent = 2 for local development. Pushed as-is,
+# the THIRD signup in any hour would silently never receive its confirmation.
+# Note this key is only pushed when smtp.enabled is true in the same effective
+# config — which the block below satisfies.
+[remotes.production.auth.rate_limit]
+email_sent = 30
+
+# Without custom SMTP, Supabase Auth refuses to deliver to any address outside
+# the project team: nobody but the owner could sign up. This is the hardest
+# launch blocker in the spec, not a nicety.
+[remotes.production.auth.email.smtp]
+enabled = true
+host = "smtp.resend.com"
+port = 465
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "support@booklo.co"
+sender_name = "Booklo"

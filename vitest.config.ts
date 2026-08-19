@@ -15,7 +15,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "scripts/**/*.test.ts", "workers/**/*.test.ts"],
     // Integration tests need the local Supabase stack; they run via
     // `npm run test:integration` (see vitest.integration.config.ts).
     exclude: ["**/node_modules/**", "**/*.integration.test.ts"],

@@ -1,0 +1,83 @@
+name: Backup
+
+# Supabase Free has no restorable backups, so this dump is the ONLY restore
+# path (spec §10). Daily, so worst-case data loss is 24 hours.
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # This workflow is committed at spec step 2, before the GitHub secrets
+      # it needs arrive at cutover step 9 — with Resend verification and DNS
+      # propagation in between, potentially days. Without this guard the
+      # scheduled run fails every night in that window, normalising a red
+      # Backup job for the only restore path this project has on Supabase
+      # Free. Remove this step once the secrets are in place.
+      - name: Guard against running before secrets exist
+        id: guard
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "::notice::DATABASE_URL secret not set yet (pre-cutover-step-9) — skipping backup run."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.guard.outputs.ready == 'true'
+
+      - uses: supabase/setup-cli@v3
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          version: latest
+
+      # `supabase db dump` ships a version-matched dump binary. Raw pg_dump
+      # from ubuntu-latest is client 16 and aborts against our PostgreSQL 17.
+      #
+      # Schemas: public + auth + storage + drizzle.
+      #   auth    — omit it and user accounts are unrestorable.
+      #   drizzle — holds __drizzle_migrations, the migration journal. Restore
+      #             without it and the next `drizzle-kit migrate` re-runs all
+      #             47 migrations against an already-populated database.
+      - name: Dump
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          supabase db dump \
+            --db-url "$DATABASE_URL" \
+            -s public -s auth -s storage -s drizzle \
+            -f dump.sql
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      # The dump contains client names and email addresses. An unencrypted
+      # artifact would be a PII leak.
+      - name: Encrypt
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          openssl enc -aes-256-cbc -pbkdf2 -iter 600000 \
+            -in dump.sql -out "booklo-$(date -u +%Y%m%d).sql.enc" \
+            -pass env:BACKUP_PASSPHRASE
+          rm dump.sql
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+
+      # GitHub Free allows 500MB of artifact storage in total, with a 90-day
+      # default retention that daily dumps would quietly exhaust.
+      - uses: actions/upload-artifact@v4
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          name: booklo-backup-${{ github.run_id }}
+          path: "*.sql.enc"
+          retention-days: 7
