@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { envSchema } from "./env";
+import { envSchema } from "./env-schema";
 
 // The three values CI's build job actually supplies (.github/workflows/ci.yml:52-58).
 const CI_BUILD_ENV = {
