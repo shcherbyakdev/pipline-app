@@ -107,13 +107,12 @@ Supabase Free has no restorable backups — the daily encrypted dump
 (`.github/workflows/backup.yml`) is the **only** restore path, with a
 worst-case data loss window of 24 hours.
 
-Note: `supabase/config.toml`'s `[remotes.production]` block still carries its
-committed placeholder (`replacewithprodrefxx`) until cutover step 2. That
-placeholder is format-valid, so ordinary `supabase` CLI commands (including
-anything this restore procedure needs) work fine against it — but
-`scripts/setup-production.ts`'s `checkRemoteRef` refuses to let a
-`config push` proceed while it's in place. Substitute the real project ref
-into that block at cutover step 2, same as §2 below.
+Note: `supabase/config.toml`'s `[remotes.production]` block carries the real
+production project ref (substituted at cutover step 2). If you ever replace it
+with a placeholder again — for a second environment, say — keep the value
+format-valid (20 lowercase letters). The config decoder validates it on every
+command, so an invalid-format value breaks the ordinary `supabase` CLI calls
+this restore procedure needs, not just remote ones.
 
 1. Download the artifact (`booklo-backup-<run-id>`) from the `Backup` workflow
    run in GitHub Actions and unzip it to get `booklo-YYYYMMDD.sql.enc`.
