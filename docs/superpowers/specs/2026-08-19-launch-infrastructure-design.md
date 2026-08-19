@@ -27,6 +27,7 @@ The app has never been deployed. There is no production environment. Everything 
 | Inbound support | Cloudflare Email Routing → Gmail | Free; DNS already at Cloudflare; Stripe activation requires a contact address. |
 | Scheduler | Cloudflare Worker cron | Only genuinely free option at 15-minute granularity (§7). |
 | Canonical host | apex `booklo.co`, `www` redirects to it | Public booking pages are handle-based URLs. |
+| Git ↔ Vercel | **Never connect the repo to Vercel** | `deploy.yml` already uses Vercel's documented token + `--prebuilt` CI flow, which needs no Git connection. Not connecting is simpler and safer than connecting and disabling. |
 
 The user chose the cheapest viable tier on every axis, with the explicit intent to upgrade once there are paying customers. §10 records what that buys and what it costs.
 
@@ -34,23 +35,23 @@ The user chose the cheapest viable tier on every axis, with the explicit intent 
 
 | Concern | Production |
 |---|---|
-| Host | Vercel Hobby, region **`fra1`**, Git auto-deploy **off** |
+| Host | Vercel Hobby, region **`fra1`** via `vercel.json`, no Git connection |
 | Promotion | `.github/workflows/deploy.yml`, triggered by a green CI run on `main` |
 | Schema | `drizzle-kit migrate` from GitHub Actions via the **session pooler** |
-| Supabase config | `supabase config push --project-ref <ref>`, driven by `[remotes.production]` in `config.toml` |
+| Supabase config | `supabase config push --project-ref <ref> --yes`, driven by `[remotes.production]` |
 | App mail | Resend API (`src/lib/email/transport.ts` already selects it when `RESEND_API_KEY` is set) |
 | Auth mail | Resend **SMTP relay**, configured through `config.toml` |
 | Inbound mail | Cloudflare Email Routing, `support@booklo.co` → Gmail |
 | Scheduler | Cloudflare Worker, one cron trigger → `/api/scheduling/drain` |
 | Liveness | Worker pings healthchecks.io after each successful drain (§7.1) |
-| Backups | GitHub Actions, daily `pg_dump` via the session pooler |
+| Backups | GitHub Actions, daily `supabase db dump` via the session pooler |
 | DNS | Cloudflare; **all** Vercel and Resend records **DNS-only (grey cloud)** |
 
-Crons live on Cloudflare and backups on GitHub because `pg_dump` needs a filesystem a Worker does not have, and once daily is cheap enough that Actions is the simpler home.
+Crons live on Cloudflare and backups on GitHub because dumping needs a filesystem a Worker does not have, and once daily is cheap enough that Actions is the simpler home.
 
 ## 4. The two `DATABASE_URL`s
 
-This is the single most important correction in this design, and it contradicts the comment currently in `deploy.yml:11-13`.
+This is the most important correction in this design, and it contradicts the comment currently in `deploy.yml:11-13`.
 
 Supabase **direct** connections (`db.<ref>.supabase.co:5432`) resolve to **IPv6 only**. The IPv4 add-on is Pro-and-above. GitHub-hosted runners are IPv4-only. A direct-connection `DATABASE_URL` therefore fails with `ENETUNREACH` on the first deploy, and again in the backup job.
 
@@ -58,18 +59,21 @@ The Supavisor shared pooler is IPv4 on every tier.
 
 | Consumer | URL | Port | Why |
 |---|---|---|---|
-| GitHub Actions — `drizzle-kit migrate`, `pg_dump` | **session** pooler `...pooler.supabase.com` | `5432` | IPv4; session mode supports DDL and `pg_dump` |
+| GitHub Actions — migrate, dump | **session** pooler `...pooler.supabase.com` | `5432` | IPv4; session mode supports DDL and dumping |
 | Vercel runtime — `src/db/index.ts` | **transaction** pooler `...pooler.supabase.com` | `6543` | IPv4; matches the existing `prepare: false` |
 
-`src/db/index.ts:7` reads `process.env.DATABASE_URL!` directly, bypassing `src/env.ts` — so an unset value is a runtime crash on first query, not a build failure. §5 addresses that.
+The migrations are pooler-safe: no `CONCURRENTLY`, no `ALTER SYSTEM`, and advisory locks appear only inside function bodies (runtime, not migration time). The known drizzle hang is against the *transaction* pooler; port 5432 session mode is the documented fix.
 
-**Action:** correct the `deploy.yml` header comment, which currently instructs the operator to use the direct connection.
+`src/db/index.ts:7` reads `process.env.DATABASE_URL!` directly, bypassing `src/env.ts` — so an unset value is a runtime crash on first query, not a build failure. §5.4 addresses that.
+
+**Action:** rewrite the `deploy.yml` header comment entirely. It currently instructs both the direct connection (wrong, §4) *and* creating a GitHub Environment (impossible, §5.2).
 
 ## 5. Environment variables
 
 ### 5.1 Vercel (Production scope)
 
 ```
+APP_ENV                        production
 NEXT_PUBLIC_SUPABASE_URL       https://<ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY  <anon key>
 NEXT_PUBLIC_APP_URL            https://booklo.co
@@ -86,16 +90,19 @@ INTERNAL_EMAILS                andriyshcherbyak@gmail.com
 
 `INTERNAL_EMAILS` is load-bearing: omit it and you are locked out of `/utils` on the exact deployment where you need it to flip your own billing flag.
 
+Because `vercel pull --environment=production` runs before `vercel build`, `NEXT_PUBLIC_*` values are inlined from the Vercel project env at deploy time. **Consequence for the runbook: editing `NEXT_PUBLIC_APP_URL` in the Vercel dashboard changes nothing until the next CI deploy.**
+
 ### 5.2 GitHub repository secrets
 
 ```
-DATABASE_URL      <session pooler, :5432>   # NOT the same value as Vercel's
+DATABASE_URL       <session pooler, :5432>   # NOT the same value as Vercel's
 VERCEL_TOKEN
-VERCEL_ORG_ID
-VERCEL_PROJECT_ID
+VERCEL_ORG_ID                                # from .vercel/project.json after `vercel link`
+VERCEL_PROJECT_ID                            # same
+BACKUP_PASSPHRASE  <random, >=32 chars>      # symmetric key for §8.1
 ```
 
-Repository-level, **not** environment-level: GitHub environments and environment secrets are unavailable in private repositories on the Free plan, and this repo is private. `deploy.yml` drops its `environment: production` line accordingly. Environments buy a solo operator nothing here; the alternative is paying for GitHub Pro.
+Repository-level, **not** environment-level: GitHub environments and environment secrets are unavailable in private repositories on the Free plan, and this repo is private. `deploy.yml` drops its `environment: production` line accordingly.
 
 ### 5.3 Cloudflare Worker secrets
 
@@ -105,19 +112,27 @@ SCHEDULING_DRAIN_SECRET   <same value as Vercel>
 HEALTHCHECK_URL           <healthchecks.io ping URL>
 ```
 
-### 5.4 Required-in-production validation
+### 5.4 Production-required validation — gated on `APP_ENV`, not `NODE_ENV`
 
-`src/env.ts` currently marks every server variable `.optional()`, and defaults `NEXT_PUBLIC_APP_URL` to `http://localhost:3000` (`src/env.ts:12`). That default is the most dangerous value in the file: it feeds `emailRedirectTo` in `src/features/auth/actions.ts:24,68,88`, every ICS link, and every manage/cancel link the product sends. Zod would never complain; every production email would simply carry `localhost` URLs.
+`src/env.ts` marks every server variable `.optional()` and defaults `NEXT_PUBLIC_APP_URL` to `http://localhost:3000` (`src/env.ts:12`). That default is the most dangerous value in the file: it feeds `emailRedirectTo` (`src/features/auth/actions.ts:24,68,88`), every ICS link, and every manage/cancel link the product sends. Zod never complains; every production email simply carries `localhost` URLs.
 
-Add a production-only refinement requiring: `NEXT_PUBLIC_APP_URL` (and rejecting a `localhost` value), `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`, `SCHEDULING_DRAIN_SECRET`, `INTERNAL_EMAILS`. Fail at boot, loudly, rather than at the first email.
+Add a refinement requiring `NEXT_PUBLIC_APP_URL` (non-localhost), `DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`, `SCHEDULING_DRAIN_SECRET`, `INTERNAL_EMAILS`.
+
+**It must be gated on `APP_ENV === "production"`, never `NODE_ENV`.** `NODE_ENV` is `production` inside *every* `next build`, including CI's build job — which deliberately supplies three placeholder values, one of them `NEXT_PUBLIC_APP_URL: http://localhost:3000` (`ci.yml:52-58`). A `NODE_ENV` gate turns CI red; `deploy.yml` triggers on green CI; nothing could ever deploy again. `APP_ENV` is set only in the Vercel project (§5.1), so it is present during `vercel build` and absent in CI — exactly the discrimination required.
 
 ## 6. Supabase config-as-code
 
-`supabase/config.toml` is the source of truth for auth settings and the three custom email templates in `supabase/templates/`. Production is configured with `supabase config push --project-ref <ref>`, never by hand in the dashboard — push treats the file (plus CLI defaults for keys you never set) as authoritative, so any dashboard edit to a pushed key is silently reverted on the next push.
+`supabase/config.toml` is the source of truth for auth settings and the three custom email templates in `supabase/templates/`. Production is configured with `supabase config push --project-ref <ref> --yes`, never by hand in the dashboard.
 
-### 6.1 `[remotes.production]`, not `env()` for config
+Two properties of push, both source-verified against CLI v2.75.0:
 
-A `[remotes.production]` override block keyed to the production project ref keeps local values literal and production values in git:
+- It sends the **full config body** assembled from your file plus CLI defaults — so any dashboard edit to a pushed key is silently reverted on the next push.
+- It covers **API, database and storage settings too, not only auth**. Review the entire diff on the first push rather than assuming an auth-only blast radius.
+- Push prompts per service, and in a non-TTY auto-answers **yes** within milliseconds. Always pass `--yes` explicitly so the behaviour is intentional rather than incidental.
+
+### 6.1 The `[remotes.production]` block
+
+Verified to parse clean against the installed CLI 2.75.0 — meaningful because the decoder is strict and rejects unknown keys, so a clean parse means every key name is recognised. Paste as-is with the real ref:
 
 ```toml
 [remotes.production]
@@ -140,17 +155,25 @@ admin_email = "support@booklo.co"
 sender_name = "Booklo"
 ```
 
-`env()` interpolation was rejected for **non-secret** config: on CLI 2.75 an unset variable emits only `WARN: environment variable is unset` and substitutes the **empty string**, then exits 0 — so a forgotten shell export silently pushes a blank `site_url` to production. It is retained for the SMTP **password** only, where there is no alternative because the key must not be committed. The wizard verifies `RESEND_API_KEY` is exported before invoking push (§9).
+`env()` interpolation is rejected for **non-secret** config: on CLI 2.75 an unset variable emits only `WARN: environment variable is unset` and substitutes the **empty string**, then exits 0. It is retained for the SMTP **password** only, where there is no alternative because the key must not be committed.
+
+`rate_limit.email_sent` is pushed **only when `smtp.enabled = true` in the same effective config**. The block above satisfies that — but if SMTP is ever disabled here, the rate-limit override silently stops being pushed too.
 
 There is no `--dry-run` on `config push` in 2.75.
 
-**Unverified detail:** the `[remotes.production]` mechanism is confirmed working on the installed CLI, but the exact nesting of the sub-tables above (`[remotes.production.auth.email.smtp]` and friends) is written from the documented pattern, not from a run. Confirm it on the first push — this is why §9 has the wizard read `site_url` back from the remote rather than trusting exit code 0.
+### 6.2 The silent-skip trap
 
-### 6.2 The rate limit that must be overridden
+If `project_id` under `[remotes.production]` does not match the `--project-ref` argument — a leftover placeholder, a typo — **the CLI silently skips the override and pushes the base config**: `site_url = "http://localhost:3000"` (`config.toml:150`), `email_sent = 2`, no SMTP. No error, no non-zero exit. That is every failure mode in §6.3 and §6.4, self-inflicted and invisible.
 
-`config.toml:178` sets `email_sent = 2` under `[auth.rate_limit]`. That is a deliberate local value. Pushed to production, with `enable_confirmations = true` (`config.toml:205`), the **third signup in any hour silently never receives its confirmation email**. The override above is not optional.
+Two assertions guard it, both in the wizard (§9): the target ref must appear as a `remotes.*.project_id` in `config.toml` *before* pushing, and the push output must contain `Loading config override`.
 
-### 6.3 Custom SMTP is a launch blocker, not a nicety
+Sequencing consequence: the real project ref only exists after §11 step 1, so the `[remotes.production]` block cannot be finalised until then. §11 sequences this explicitly.
+
+### 6.3 The rate limit that must be overridden
+
+`config.toml:178` sets `email_sent = 2` under `[auth.rate_limit]` — a deliberate local value. Pushed to production, with `enable_confirmations = true` (`config.toml:205`), the **third signup in any hour silently never receives its confirmation email**.
+
+### 6.4 Custom SMTP is a launch blocker, not a nicety
 
 Without custom SMTP, Supabase Auth **refuses to deliver mail to any address outside the project team** — nobody but the owner can sign up. The built-in service is additionally capped at 2–30 messages/hour. With custom SMTP the default is 30 new users/hour, adjustable.
 
@@ -158,13 +181,15 @@ Without custom SMTP, Supabase Auth **refuses to deliver mail to any address outs
 
 A single Cloudflare Worker with one cron trigger, every 15 minutes, POSTing to `/api/scheduling/drain` with `Authorization: Bearer ${SCHEDULING_DRAIN_SECRET}`.
 
-Cloudflare Workers Free allows 100,000 requests/day and includes cron triggers; this uses ~96/day. GitHub Actions was rejected: a private repo gets 2,000 free minutes/month, runs bill at a 1-minute minimum, and 15-minute ticks are ~2,880 runs/month — over budget before CI. Vercel Cron was rejected: Hobby runs once per day at an arbitrary point in the hour.
+Cloudflare Workers Free allows 100,000 requests/day and includes cron triggers; this uses ~96/day. GitHub Actions was rejected: a private repo gets 2,000 free minutes/month at a 1-minute minimum, and 15-minute ticks are ~2,880 runs/month. Vercel Cron was rejected: Hobby runs once per day at an arbitrary point in the hour.
 
-**One trigger, not two.** The chase drain (`/api/chase/drain`) belongs to the legacy fire-safety engine; a fresh production database has zero rows for it. Scheduling a job with nothing to do is noise. `CHASE_DRAIN_SECRET` is still set in Vercel so the endpoint is not left in its 503 state, and adding the second trigger later is a three-line change.
+**One trigger, not two.** The chase drain (`/api/chase/drain`) belongs to the legacy fire-safety engine and a fresh production database has zero rows for it. `CHASE_DRAIN_SECRET` is still set so the endpoint is not left in its 503 state; adding the second trigger later is a three-line change.
+
+The Worker is ~30 lines. One unit test over the request-building logic, no test harness.
 
 ### 7.1 Liveness
 
-The drain's PostgREST traffic is what keeps a Free-tier project from pausing after ~7 days of low activity. So a dead Worker is not merely late reminders — drains stop, the database idles, and roughly a week later the entire site is down and needs a manual un-pause, from a failure that nothing alerts on.
+The drain's traffic is what keeps a Free-tier project from pausing after ~7 days of low activity. A dead Worker is therefore not merely late reminders: drains stop, the database idles, and roughly a week later the entire site is down needing a manual un-pause — from a failure nothing alerts on.
 
 The Worker pings a healthchecks.io check after each successful drain. Free, and it converts a silent week-long decay into an email within the hour.
 
@@ -172,32 +197,47 @@ The Worker pings a healthchecks.io check after each successful drain. Free, and 
 
 | File | Change |
 |---|---|
-| `workers/cron/` (new) | Worker + `wrangler.toml` (one cron expression). Fetch logic pure and unit-tested. |
-| `.github/workflows/backup.yml` (new) | Daily `pg_dump`, encrypted before upload |
-| `.github/workflows/deploy.yml` | Uncomment the `workflow_run` trigger; drop `environment: production`; correct the direct-connection comment (§4) |
-| `supabase/config.toml` | Add the `[remotes.production]` block (§6.1) |
-| `src/env.ts` | Production-required validation (§5.4) |
+| `workers/cron/` (new) | Worker + `wrangler.toml` (one cron expression) + one unit test |
+| `.github/workflows/backup.yml` (new) | Daily encrypted `supabase db dump` (§8.1) |
+| `.github/workflows/deploy.yml` | Drop `environment: production`; rewrite the header comment (§4). **Leave the `workflow_run` trigger commented.** |
+| `vercel.json` (new) | `{"regions": ["fra1"]}` |
+| `supabase/config.toml` | Add `[remotes.production]` (§6.1) — finalised after §11 step 1 |
+| `src/env.ts` | `APP_ENV`-gated production validation (§5.4) |
 | `.env.example` | Document production-only variables and the two-pooler distinction |
-| `docs/runbook-production.md` (new) | Operator runbook: rotate a secret, restore a backup, un-pause the project, roll back a deploy |
+| `docs/runbook-production.md` (new) | Rotate a secret, restore a backup, un-pause the project, roll back a deploy |
 | `scripts/setup-production.ts` (new) | The provisioning wizard (§9) |
 
-### 8.1 Backup job specifics
+**The repo-change PR must keep the `workflow_run` trigger commented out.** Uncommenting it is §11 step 11, its own one-line PR, after the environment exists. Otherwise every merge to `main` from that moment attempts a production deploy into nothing.
 
-Three independent failure modes, all addressed:
+### 8.1 Backup job
 
-1. `ubuntu-latest` ships `pg_dump` 16; the hosted project is PostgreSQL 17 (`config.toml:36`) — a version mismatch aborts the dump. Install `postgresql-client-17` from PGDG.
-2. An unscoped dump as `postgres` hits permission errors on `vault` and other internal schemas. Scope to `-n public -n auth -n storage`. **Dropping `auth` would make user accounts unrestorable** — it stays.
-3. GitHub Free provides 500MB of total artifact storage with 90-day default retention; daily dumps exhaust it quietly. Set `retention-days: 7`.
+Use `supabase db dump --db-url <session pooler>` rather than raw `pg_dump`. It ships a version-matched dump binary, which removes the failure mode where `ubuntu-latest`'s client 16 aborts against the hosted PostgreSQL 17 (`config.toml:36`).
 
-The dump contains client names and email addresses. It is **encrypted before upload** — an unencrypted Actions artifact is a PII leak.
+Schemas: `public`, `auth`, `storage`, **and `drizzle`**. The `drizzle` schema holds `__drizzle_migrations`, the migration journal — restore without it and the next `drizzle-kit migrate` re-runs all 47 migrations against an already-populated schema. Dropping `auth` would make user accounts unrestorable.
+
+The dump contains client names and email addresses. **Encrypt before upload** using `BACKUP_PASSPHRASE` (§5.2) — an unencrypted Actions artifact is a PII leak. Set `retention-days: 7`; GitHub Free provides 500MB of total artifact storage with a 90-day default that daily dumps would quietly exhaust.
+
+Restore caveat for the runbook: dumped `auth` and `storage` DDL is owned by `supabase_auth_admin` / `supabase_storage_admin`, so a restore into a fresh project is **data-only** for those schemas.
 
 ## 9. The provisioning wizard
 
-Roughly half this slice is browser work only the operator can do. `scripts/setup-production.ts` walks it in order and **validates each step before allowing the next**, because the characteristic failure here is silent: a mistyped DKIM record looks fine for hours.
+`scripts/setup-production.ts` validates the steps whose failure is *silent*. Checks whose failure is loud and immediate (a 500 page, a missing region) are not worth scripting.
 
-Checks, in order: domain resolves → Vercel project linked and region is `fra1` → Supabase project linked → session pooler reachable from this machine → `RESEND_API_KEY` exported → Resend domain verified → SMTP authenticates → `config push` applied and `site_url` reads back correctly → migrations applied (`0046` present) → deployment returns 200 → drain endpoint returns 200 for a valid Bearer and 401 for a bad one → Worker cron registered.
+**Credentials the wizard needs, and must check for up front:** `SUPABASE_ACCESS_TOKEN` (Management API), `RESEND_API_KEY`, `SCHEDULING_DRAIN_SECRET`, and the session-pooler `DATABASE_URL`.
 
-The wizard is idempotent and re-runnable; it reports state, it does not assume a fresh start.
+Checks, in the order §11 makes them true:
+
+1. `supabase/config.toml` contains a `remotes.*.project_id` equal to the target ref (§6.2).
+2. `config push --yes` output contains `Loading config override` (§6.2).
+3. `site_url` read back from the Management API equals `https://booklo.co`.
+4. Resend reports `mail.booklo.co` **verified** (Resend API, not eyeballed).
+5. DNS: apex resolves to Vercel; the Resend records exist under `mail.booklo.co`.
+6. Migrations: row count in `drizzle.__drizzle_migrations` equals the entry count in `src/db/migrations/meta/_journal.json` — *not* "0046 exists", which is already stale at 47 entries and will go staler when the parked R3 work renumbers.
+7. Drain: valid Bearer → 200, bad Bearer → 401. Note that the valid call runs a real tick; harmless, but it is not a dry run.
+
+Deliberately **not** checked: "SMTP authenticates" (there is no client to build it on — `src/lib/email/smtp.ts` is plaintext, no-auth, Mailpit-only; §12 step 1 is the real proof), "session pooler reachable from this machine" (validates the wrong machine — the GitHub migrate step is the real test), "deployment returns 200" and "region is `fra1`" (loud failures; the latter is now a line in `vercel.json`).
+
+The wizard is idempotent and re-runnable; it reports state rather than assuming a fresh start.
 
 ## 10. Risks accepted, and their upgrade triggers
 
@@ -205,36 +245,46 @@ The wizard is idempotent and re-runnable; it reports state, it does not assume a
 |---|---|
 | **Vercel Hobby forbids commercial use** | Upgrade to Pro **before** billing goes live for customers. Note the bad timing: a suspension while a Stripe eligibility review is open. |
 | Resend 100/day shared across auth + confirmations + staff notices + reminders — roughly 25–30 bookings/day saturates it, after which reminder rows burn their 5 attempts against 429s | First day exceeding 60 sends |
-| Supabase Free: 500MB, no PITR — the daily dump is the only restore path, with up to 24h of loss | First paying customer |
-| Supabase Free pauses after ~7 quiet days | Mitigated by the drain traffic; healthchecks.io (§7.1) is the alarm |
-| Vercel's 4.5MB request-body cap overrides `next.config.ts`'s `bodySizeLimit: "16mb"` | Contained today — evidence upload is legacy/hidden. Any future photo flow needs direct-to-storage signed uploads, not a server-action relay. |
+| Supabase Free: 500MB, no PITR — the daily dump is the only restore path, up to 24h of loss | First paying customer |
+| Supabase Free pauses after ~7 quiet days | Mitigated by drain traffic; healthchecks.io (§7.1) is the alarm |
+| Vercel's 4.5MB request-body cap overrides `next.config.ts`'s `bodySizeLimit: "16mb"` | Contained — evidence upload is legacy/hidden. Any future photo flow needs direct-to-storage signed uploads, not a server-action relay. |
+| `support@booklo.co` is **receive-only**: Resend Free allows one domain (`mail.booklo.co`), so there is no send-as path — replies visibly come from the Gmail address | Cosmetic; revisit if the Stripe reviewer or customers react to it |
+
+### 10.1 Unverified assumptions
+
+- **Next.js 16.3's `src/proxy.ts` and Node 24 functions deploying cleanly through Vercel CLI 58's prebuilt output.** Very likely, not verified. Confirm on the first deploy; it is the most plausible source of a surprising first-deploy failure.
+- `vercel@^58.0.0` currently resolves one major behind npm latest (59.x). Intended per the existing pin comment, noted so it is not mistaken for drift.
 
 ## 11. Cutover
 
 Each step is verifiable before the next.
 
-1. **Supabase project** — create (Frankfurt), `supabase link`, record both pooler URLs.
-2. **Resend** — account, API key, verify `mail.booklo.co`, add DNS at Cloudflare (**grey cloud**), wait for verification. *Must precede step 4.*
-3. **Cloudflare Email Routing** — `support@booklo.co` → Gmail.
-4. **`supabase config push`** — one push carrying SMTP, `site_url`, redirect allowlist, rate limits and templates together.
-5. **Migrate** — `drizzle-kit migrate` against the session pooler. Watch the first hosted run; storage buckets are provisioned by migrations `0015`/`0018`, so no manual bucket setup is needed.
-6. **Vercel** — create project, `vercel link`, set env (§5.1), **set region `fra1`**, add `booklo.co` + `www` redirect, disable Git auto-deploy.
-7. **First deploy** — `workflow_dispatch` on `deploy.yml`.
-8. **Cloudflare Worker** — `wrangler deploy`, set secrets, confirm the first tick.
-9. **Smoke test** (§12).
-10. **Enable auto-deploy** — uncomment the `workflow_run` trigger.
+1. **Supabase project** — create (Frankfurt), `supabase link`, record the ref and **both** pooler URLs.
+2. **Finalise and merge the §8 repo changes** — with the real ref in `[remotes.production]`, and the `workflow_run` trigger still commented.
+3. **Resend** — account, API key, add `mail.booklo.co`, create its DNS records at Cloudflare (**grey cloud**), wait for verified status. *Must precede step 5.*
+4. **Cloudflare Email Routing** — `support@booklo.co` → Gmail. Its records live at the apex; Resend's live under `mail.booklo.co`. **No collision** — the two do not overlap.
+5. **`supabase config push --project-ref <ref> --yes`** — one push carrying SMTP, `site_url`, redirect allowlist, rate limits and templates. Confirm `Loading config override` appears. Review the full diff: push covers API/DB/storage, not just auth.
+6. **Migrate** — `DATABASE_URL='<session pooler :5432>' npx drizzle-kit migrate`. The explicit prefix is required: `drizzle.config.ts` calls `loadEnvFile(".env.local")`, so a bare invocation silently migrates your **local** stack. (An exported shell variable takes precedence over the file, which is why the prefix works.)
+7. **Vercel** — create project (do **not** connect Git), `vercel link`, set env (§5.1), add `booklo.co` + `www` redirect.
+8. **Cloudflare DNS for Vercel** — add the records Vercel's domain card displays, apex and `www`, **grey cloud**. Apex CNAME flattening is automatic on all Cloudflare plans, including DNS-only records.
+9. **GitHub secrets** (§5.2) — `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` come from `.vercel/project.json`, written by step 7's `vercel link`.
+10. **healthchecks.io** — create the check, record its ping URL.
+11. **First deploy** — `workflow_dispatch` on `deploy.yml`.
+12. **Cloudflare Worker** — `wrangler deploy`, set secrets (§5.3), confirm the first tick and the first healthcheck ping.
+13. **Smoke test** (§12).
+14. **Enable auto-deploy** — the one-line PR uncommenting the `workflow_run` trigger.
 
-Step 2 before step 4 matters: pushing an `[auth.email.smtp]` block before the Resend domain is verified means auth mail is rejected at send.
+Step 3 before step 5 matters: pushing an `[auth.email.smtp]` block before the Resend domain is verified means auth mail is rejected at send.
 
 ## 12. Smoke test
 
-Run against production, from an address that is **not** the owner's — that is the entire point, since the custom-SMTP failure mode (§6.3) is invisible to the account owner.
+Run against production from an address that is **not** the owner's — that is the whole point, since the custom-SMTP failure mode (§6.4) is invisible to the account owner.
 
-1. Sign up as a non-owner address → confirmation email arrives, from `noreply@mail.booklo.co`, with **`https://booklo.co`** links, not localhost.
-2. Confirm → land in onboarding → complete it.
+1. Sign up as a non-owner address → confirmation arrives, from `noreply@mail.booklo.co`, with **`https://booklo.co`** links, not localhost.
+2. Confirm → onboarding → complete it.
 3. Open the public booking page; take a booking as a client.
-4. Confirmation email to the client, notification to the provider.
-5. **Reminder:** create a booking starting **~24h15m out**, then wait for the lead window to open plus one cron tick. A booking made inside the 24h window is deliberately suppressed (`src/features/scheduling/reminders.ts:31` — "the confirmation just arrived"), so a same-day test proves nothing and will read as a broken reminder system.
+4. Confirmation to the client, notification to the provider.
+5. **Reminder:** create a booking starting **~24h15m out**, then wait for the lead window to open plus one cron tick. A booking made inside the 24h window is deliberately suppressed (`src/features/scheduling/reminders.ts:29-31` — "the confirmation just arrived"), so a same-day test proves nothing and will read as a broken reminder system.
 6. Sign in as the owner, reach `/utils` (confirms `INTERNAL_EMAILS`).
 7. Password reset end-to-end.
 8. healthchecks.io shows a green ping.
