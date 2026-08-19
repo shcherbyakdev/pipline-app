@@ -1,13 +1,12 @@
-import { loadEnvFile } from "node:process";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-try {
-  loadEnvFile(".env.local");
-} catch {
-  // env may be exported directly
-}
-
+// Deliberately does NOT load .env.local. This wizard validates PRODUCTION
+// readiness; reading local dev env here would let an operator who forgot to
+// export a credential silently validate their laptop instead (the local
+// value is "present", so checkCredentials passes, and checkMigrations would
+// count local migration rows against the local journal and print a
+// misleading PASS). docs/runbook-production.md mandates explicit exports.
 const REF = process.env.PROD_PROJECT_REF ?? "";
 const APP_URL = "https://booklo.co";
 const SEND_DOMAIN = "mail.booklo.co";
@@ -18,7 +17,16 @@ export type CheckResult = { name: string; ok: boolean; detail: string };
 export function configHasRemoteRef(toml: string, ref: string): boolean {
   if (!ref) return false;
   const remotes = toml.split(/^\[remotes\./m).slice(1);
-  return remotes.some((block) => new RegExp(`project_id\\s*=\\s*"${ref}"`).test(block));
+  const escaped = ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return remotes.some((block) => new RegExp(`project_id\\s*=\\s*"${escaped}"`).test(block));
+}
+
+/** True when `url` is a Supabase SESSION pooler URL (port 5432), the only
+ * form the wizard's own checks (and GitHub Actions migrations/dumps) are
+ * safe to run against. Catches an operator who exported the :6543
+ * transaction pooler (Vercel's value) or a direct-connection URL instead. */
+export function isSessionPoolerUrl(url: string): boolean {
+  return url.includes("pooler.supabase.com:5432");
 }
 
 /** The CLI prints this only when it actually applied the override. */
@@ -41,10 +49,23 @@ async function checkCredentials(): Promise<CheckResult> {
   const missing = ["SUPABASE_ACCESS_TOKEN", "RESEND_API_KEY", "SCHEDULING_DRAIN_SECRET", "DATABASE_URL"]
     .filter((k) => !process.env[k]);
   if (!REF) missing.push("PROD_PROJECT_REF");
+
+  const databaseUrl = process.env.DATABASE_URL;
+  const wrongPooler = Boolean(databaseUrl) && !isSessionPoolerUrl(databaseUrl!);
+
+  const details: string[] = [];
+  if (missing.length) details.push(`missing: ${missing.join(", ")}`);
+  if (wrongPooler) {
+    details.push(
+      "DATABASE_URL is not the session pooler (expected pooler.supabase.com:5432) — " +
+        "looks like the :6543 transaction pooler or the direct connection",
+    );
+  }
+
   return {
     name: "credentials exported",
-    ok: missing.length === 0,
-    detail: missing.length ? `missing: ${missing.join(", ")}` : "all present",
+    ok: missing.length === 0 && !wrongPooler,
+    detail: details.length ? details.join("; ") : "all present",
   };
 }
 

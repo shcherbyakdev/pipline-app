@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { configHasRemoteRef, migrationsMatch, pushAppliedOverride } from "./setup-production";
+import { configHasRemoteRef, isSessionPoolerUrl, migrationsMatch, pushAppliedOverride } from "./setup-production";
 
 describe("configHasRemoteRef", () => {
   const toml = `
@@ -19,7 +19,7 @@ project_id = "abcdefghijklmnop"
   });
 
   it("rejects the committed placeholder", () => {
-    expect(configHasRemoteRef(`[remotes.production]\nproject_id = "REPLACE_WITH_PROD_REF"\n`, "abcdefghijklmnop")).toBe(false);
+    expect(configHasRemoteRef(`[remotes.production]\nproject_id = "replacewithprodrefxx"\n`, "abcdefghijklmnop")).toBe(false);
   });
 });
 
@@ -30,6 +30,30 @@ describe("pushAppliedOverride", () => {
 
   it("rejects output without it", () => {
     expect(pushAppliedOverride("Finished supabase config push.")).toBe(false);
+  });
+});
+
+describe("isSessionPoolerUrl", () => {
+  it("accepts the session pooler, port 5432", () => {
+    expect(isSessionPoolerUrl("postgresql://postgres:pw@aws-0-eu-central-1.pooler.supabase.com:5432/postgres")).toBe(
+      true,
+    );
+  });
+
+  it("rejects the transaction pooler, port 6543", () => {
+    expect(
+      isSessionPoolerUrl("postgresql://postgres:pw@aws-0-eu-central-1.pooler.supabase.com:6543/postgres"),
+    ).toBe(false);
+  });
+
+  it("rejects the direct connection", () => {
+    expect(isSessionPoolerUrl("postgresql://postgres:pw@db.abcdefghijklmnop.supabase.co:5432/postgres")).toBe(
+      false,
+    );
+  });
+
+  it("rejects the local dev URL", () => {
+    expect(isSessionPoolerUrl("postgresql://postgres:postgres@127.0.0.1:54352/postgres")).toBe(false);
   });
 });
 
