@@ -83,12 +83,12 @@ RESEND_API_KEY                 <resend key>
 EMAIL_FROM                     Booklo <noreply@booklo.co>
 SCHEDULING_DRAIN_SECRET        <random, >=16 chars>
 CHASE_DRAIN_SECRET             <random, >=16 chars>
-INTERNAL_EMAILS                andriyshcherbyak@gmail.com
+INTERNAL_EMAILS                andriishcherbiakdev@gmail.com,andriyshcherbyak@gmail.com
 ```
 
 `BILLING_PROVIDER` stays unset (defaults to `fake`). With billing off for every org nothing can reach checkout; the fake provider's dev pages already 404 under `NODE_ENV === "production"` (`src/features/billing/dev/guard.ts`). Stripe variables arrive in a later slice.
 
-`INTERNAL_EMAILS` is load-bearing: omit it and you are locked out of `/utils` on the exact deployment where you need it to flip your own billing flag.
+`INTERNAL_EMAILS` is load-bearing: omit it and you are locked out of `/utils` on the exact deployment where you need it to flip your own billing flag. It is a comma-separated allowlist and both of the owner's addresses are listed deliberately — the canonical one is `andriishcherbiakdev@gmail.com` (it is also the Cloudflare Email Routing destination for `support@booklo.co`), and the second is kept only as a lockout hedge. Widening it to a second address the owner already controls costs nothing; guessing wrong costs the admin panel.
 
 Because `vercel pull --environment=production` runs before `vercel build`, `NEXT_PUBLIC_*` values are inlined from the Vercel project env at deploy time. **Consequence for the runbook: editing `NEXT_PUBLIC_APP_URL` in the Vercel dashboard changes nothing until the next CI deploy.**
 
