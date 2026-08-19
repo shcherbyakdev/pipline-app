@@ -165,7 +165,9 @@ There is no `--dry-run` on `config push` in 2.75.
 
 If `project_id` under `[remotes.production]` does not match the `--project-ref` argument — a leftover placeholder, a typo — **the CLI silently skips the override and pushes the base config**: `site_url = "http://localhost:3000"` (`config.toml:150`), `email_sent = 2`, no SMTP. No error, no non-zero exit. That is every failure mode in §6.3 and §6.4, self-inflicted and invisible.
 
-Two assertions guard it, both in the wizard (§9): the target ref must appear as a `remotes.*.project_id` in `config.toml` *before* pushing, and the push output must contain `Loading config override`.
+The committed placeholder (`replacewithprodrefxx`) is deliberately **format-valid but fake** — 20 lowercase letters — not "deliberately invalid". The config decoder validates `[remotes.*].project_id` on essentially every command, not just remote ones (`supabase start`, `status`, `db reset`, this project's `predev` preflight); an invalid-format placeholder breaks all of those outright, which is a worse failure than the trap it would be guarding against. Format-valid-but-fake lets the CLI decode the file while never matching a real `--project-ref`.
+
+One assertion guards the trap in the wizard (§9): the target ref must appear as a `remotes.*.project_id` in `config.toml` *before* pushing. The other is an operator check in the runbook (§2), not the wizard: `pushAppliedOverride` exists and is unit-tested, but nothing in the wizard calls it — the operator runs `config push` themselves and confirms `Loading config override` in the output by eye.
 
 Sequencing consequence: the real project ref only exists after §11 step 1, so the `[remotes.production]` block cannot be finalised until then. §11 sequences this explicitly.
 
@@ -231,7 +233,7 @@ Checks, in the order §11 makes them true:
 2. `config push --yes` output contains `Loading config override` (§6.2).
 3. `site_url` read back from the Management API equals `https://booklo.co`.
 4. Resend reports `mail.booklo.co` **verified** (Resend API, not eyeballed).
-5. DNS: apex resolves to Vercel; the Resend records exist under `mail.booklo.co`.
+5. **Deferred, not implemented.** DNS: apex resolves to Vercel; the Resend records exist under `mail.booklo.co`. Deferred because the two halves are already covered elsewhere: the Resend `verified` check (item 4) implies its DNS records are correct, and a wrong apex fails loudly — the site simply doesn't load — so it isn't the class of silent failure this wizard exists to catch.
 6. Migrations: row count in `drizzle.__drizzle_migrations` equals the entry count in `src/db/migrations/meta/_journal.json` — *not* "0046 exists", which is already stale at 47 entries and will go staler when the parked R3 work renumbers.
 7. Drain: valid Bearer → 200, bad Bearer → 401. Note that the valid call runs a real tick; harmless, but it is not a dry run.
 

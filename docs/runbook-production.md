@@ -107,6 +107,14 @@ Supabase Free has no restorable backups — the daily encrypted dump
 (`.github/workflows/backup.yml`) is the **only** restore path, with a
 worst-case data loss window of 24 hours.
 
+Note: `supabase/config.toml`'s `[remotes.production]` block still carries its
+committed placeholder (`replacewithprodrefxx`) until cutover step 2. That
+placeholder is format-valid, so ordinary `supabase` CLI commands (including
+anything this restore procedure needs) work fine against it — but
+`scripts/setup-production.ts`'s `checkRemoteRef` refuses to let a
+`config push` proceed while it's in place. Substitute the real project ref
+into that block at cutover step 2, same as §2 below.
+
 1. Download the artifact (`booklo-backup-<run-id>`) from the `Backup` workflow
    run in GitHub Actions and unzip it to get `booklo-YYYYMMDD.sql.enc`.
 
@@ -179,6 +187,12 @@ select the prior one → Promote to Production**), or via CLI:
 ```bash
 vercel rollback --token=<vercel token>
 ```
+
+**Hobby plan caveat:** `vercel rollback` can only promote the **immediately
+previous** production deployment. Going further back returns `To roll back
+further than the previous production deployment, upgrade to pro` — for
+anything older than one deployment, use the dashboard's **Deployments** list
+and **Promote to Production** on the specific deployment you want instead.
 
 **Migrations are not rolled back by this.** `deploy.yml` runs
 `drizzle-kit migrate` **before** promoting the new build, specifically so the
