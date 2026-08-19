@@ -23,7 +23,7 @@ The app has never been deployed. There is no production environment. Everything 
 | Hosting | Vercel **Hobby** | Cheapest. Upgrade gated on billing going live (§10). |
 | Database + Auth | Supabase **Free**, EU Central (Frankfurt) | Cheapest; nearest region to PL; keeps data in-EU. |
 | Email | Resend **Free** | 100/day, 3,000/month, 1 domain, SMTP relay included. |
-| Sending identity | `noreply@mail.booklo.co` | Subdomain keeps automated-send reputation off the root domain. |
+| Sending identity | `noreply@booklo.co` | Resend Free verifies one domain and the apex was already verified. Resend's return-path MX/SPF sit on `send.booklo.co`, so inbound Email Routing at the apex is unaffected. |
 | Inbound support | Cloudflare Email Routing → Gmail | Free; DNS already at Cloudflare; Stripe activation requires a contact address. |
 | Scheduler | Cloudflare Worker cron | Only genuinely free option at 15-minute granularity (§7). |
 | Canonical host | apex `booklo.co`, `www` redirects to it | Public booking pages are handle-based URLs. |
@@ -80,7 +80,7 @@ NEXT_PUBLIC_APP_URL            https://booklo.co
 SUPABASE_SERVICE_ROLE_KEY      <service role key>
 DATABASE_URL                   <transaction pooler, :6543>
 RESEND_API_KEY                 <resend key>
-EMAIL_FROM                     Booklo <noreply@mail.booklo.co>
+EMAIL_FROM                     Booklo <noreply@booklo.co>
 SCHEDULING_DRAIN_SECRET        <random, >=16 chars>
 CHASE_DRAIN_SECRET             <random, >=16 chars>
 INTERNAL_EMAILS                andriyshcherbyak@gmail.com
@@ -232,8 +232,8 @@ Checks, in the order §11 makes them true:
 1. `supabase/config.toml` contains a `remotes.*.project_id` equal to the target ref (§6.2).
 2. `config push --yes` output contains `Loading config override` (§6.2).
 3. `site_url` read back from the Management API equals `https://booklo.co`.
-4. Resend reports `mail.booklo.co` **verified** (Resend API, not eyeballed).
-5. **Deferred, not implemented.** DNS: apex resolves to Vercel; the Resend records exist under `mail.booklo.co`. Deferred because the two halves are already covered elsewhere: the Resend `verified` check (item 4) implies its DNS records are correct, and a wrong apex fails loudly — the site simply doesn't load — so it isn't the class of silent failure this wizard exists to catch.
+4. Resend reports `booklo.co` **verified** (Resend API, not eyeballed).
+5. **Deferred, not implemented.** DNS: apex resolves to Vercel; the Resend records exist under `booklo.co`. Deferred because the two halves are already covered elsewhere: the Resend `verified` check (item 4) implies its DNS records are correct, and a wrong apex fails loudly — the site simply doesn't load — so it isn't the class of silent failure this wizard exists to catch.
 6. Migrations: row count in `drizzle.__drizzle_migrations` equals the entry count in `src/db/migrations/meta/_journal.json` — *not* "0046 exists", which is already stale at 47 entries and will go staler when the parked R3 work renumbers.
 7. Drain: valid Bearer → 200, bad Bearer → 401. Note that the valid call runs a real tick; harmless, but it is not a dry run.
 
@@ -250,7 +250,7 @@ The wizard is idempotent and re-runnable; it reports state rather than assuming 
 | Supabase Free: 500MB, no PITR — the daily dump is the only restore path, up to 24h of loss | First paying customer |
 | Supabase Free pauses after ~7 quiet days | Mitigated by drain traffic; healthchecks.io (§7.1) is the alarm |
 | Vercel's 4.5MB request-body cap overrides `next.config.ts`'s `bodySizeLimit: "16mb"` | Contained — evidence upload is legacy/hidden. Any future photo flow needs direct-to-storage signed uploads, not a server-action relay. |
-| `support@booklo.co` is **receive-only**: Resend Free allows one domain (`mail.booklo.co`), so there is no send-as path — replies visibly come from the Gmail address | Cosmetic; revisit if the Stripe reviewer or customers react to it |
+| `support@booklo.co` is **receive-only**: Resend Free allows one domain (`booklo.co`), so there is no send-as path — replies visibly come from the Gmail address | Cosmetic; revisit if the Stripe reviewer or customers react to it |
 
 ### 10.1 Unverified assumptions
 
@@ -263,8 +263,8 @@ Each step is verifiable before the next.
 
 1. **Supabase project** — create (Frankfurt), `supabase link`, record the ref and **both** pooler URLs.
 2. **Finalise and merge the §8 repo changes** — with the real ref in `[remotes.production]`, and the `workflow_run` trigger still commented.
-3. **Resend** — account, API key, add `mail.booklo.co`, create its DNS records at Cloudflare (**grey cloud**), wait for verified status. *Must precede step 5.*
-4. **Cloudflare Email Routing** — `support@booklo.co` → Gmail. Its records live at the apex; Resend's live under `mail.booklo.co`. **No collision** — the two do not overlap.
+3. **Resend** — account, API key, verify `booklo.co`, create its DNS records at Cloudflare (**grey cloud**), wait for verified status. *Must precede step 5.*
+4. **Cloudflare Email Routing** — `support@booklo.co` → Gmail. Its records live at the apex; Resend's return-path MX and SPF live under `send.booklo.co` and its DKIM at `resend._domainkey`. **No collision** — the apex MX and apex SPF stay free for Email Routing.
 5. **`supabase config push --project-ref <ref> --yes`** — one push carrying SMTP, `site_url`, redirect allowlist, rate limits and templates. Confirm `Loading config override` appears. Review the full diff: push covers API/DB/storage, not just auth.
 6. **Migrate** — `DATABASE_URL='<session pooler :5432>' npx drizzle-kit migrate`. The explicit prefix is required: `drizzle.config.ts` calls `loadEnvFile(".env.local")`, so a bare invocation silently migrates your **local** stack. (An exported shell variable takes precedence over the file, which is why the prefix works.)
 7. **Vercel** — create project (do **not** connect Git), `vercel link`, set env (§5.1), add `booklo.co` + `www` redirect.
@@ -282,7 +282,7 @@ Step 3 before step 5 matters: pushing an `[auth.email.smtp]` block before the Re
 
 Run against production from an address that is **not** the owner's — that is the whole point, since the custom-SMTP failure mode (§6.4) is invisible to the account owner.
 
-1. Sign up as a non-owner address → confirmation arrives, from `noreply@mail.booklo.co`, with **`https://booklo.co`** links, not localhost.
+1. Sign up as a non-owner address → confirmation arrives, from `noreply@booklo.co`, with **`https://booklo.co`** links, not localhost.
 2. Confirm → onboarding → complete it.
 3. Open the public booking page; take a booking as a client.
 4. Confirmation to the client, notification to the provider.

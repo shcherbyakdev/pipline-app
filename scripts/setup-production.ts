@@ -9,7 +9,11 @@ import { readFileSync } from "node:fs";
 // misleading PASS). docs/runbook-production.md mandates explicit exports.
 const REF = process.env.PROD_PROJECT_REF ?? "";
 const APP_URL = "https://booklo.co";
-const SEND_DOMAIN = "mail.booklo.co";
+/* The apex, not a `mail.` subdomain: Resend's free plan verifies exactly one
+   domain and booklo.co was already verified. Resend puts the return-path MX
+   and SPF on `send.booklo.co`, so this does NOT collide with Cloudflare Email
+   Routing, which owns the apex MX for inbound support@. */
+const SEND_DOMAIN = "booklo.co";
 
 export type CheckResult = { name: string; ok: boolean; detail: string };
 

@@ -16,7 +16,7 @@ const PROD_ENV = {
   DATABASE_URL: "postgresql://postgres:pw@aws-0-eu-central-1.pooler.supabase.com:6543/postgres",
   SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
   RESEND_API_KEY: "re_test_key",
-  EMAIL_FROM: "Booklo <noreply@mail.booklo.co>",
+  EMAIL_FROM: "Booklo <noreply@booklo.co>",
   SCHEDULING_DRAIN_SECRET: "0123456789abcdef0123",
   INTERNAL_EMAILS: "owner@example.com",
 };
