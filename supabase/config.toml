@@ -409,10 +409,15 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # scripts/setup-production.ts asserts the match before pushing and asserts
 # "Loading config override" appears in the output.
 #
-# The placeholder below is deliberately invalid so that assertion fires until
-# the real ref is filled in (cutover step 2).
+# The placeholder below is deliberately format-valid but fake: 20 lowercase
+# letters, so the CLI can decode this file (the config decoder validates
+# [remotes.*].project_id on every command, not just remote ones — an
+# invalid-format placeholder breaks `supabase start`/`status`/`db reset`
+# wholesale). scripts/setup-production.ts's configHasRemoteRef still refuses
+# to let a `config push` proceed against it, since it never matches a real
+# ref (cutover step 2).
 [remotes.production]
-project_id = "REPLACE_WITH_PROD_REF"
+project_id = "replacewithprodrefxx"
 
 [remotes.production.auth]
 site_url = "https://booklo.co"
