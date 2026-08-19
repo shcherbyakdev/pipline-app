@@ -5,9 +5,7 @@ name: Deploy
 # its own. Manual `workflow_dispatch` is how the first deploy is performed.
 #
 # To enable automatic deploys (spec 2026-08-19-launch-infrastructure §11):
-#   1. Uncomment the `workflow_run` block below. This is its own one-line PR,
-#      done LAST — before the environment exists it would deploy into nothing.
-#   2. Set these as REPOSITORY secrets (not environment secrets: GitHub
+#   1. Set these as REPOSITORY secrets (not environment secrets: GitHub
 #      environments are public-repo-only on the Free plan, and this repo is
 #      private):
 #        DATABASE_URL       Supabase SESSION pooler, ...pooler.supabase.com:5432
@@ -18,9 +16,11 @@ name: Deploy
 #        VERCEL_TOKEN
 #        VERCEL_ORG_ID      from .vercel/project.json, written by `vercel link`
 #        VERCEL_PROJECT_ID  same
-#   3. The Vercel project must NOT be connected to Git. This workflow uses
+#   2. The Vercel project must NOT be connected to Git. This workflow uses
 #      Vercel's token + `--prebuilt` CI flow, which needs no Git connection;
 #      connecting one would race this workflow's migration step.
+#   3. Uncomment the `workflow_run` block below. This is its own one-line PR,
+#      done LAST — before the environment exists it would deploy into nothing.
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Triggered by CI finishing, not by the push itself — so a green CI run is a
