@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { envSchema } from "./env";
 
 // The three values CI's build job actually supplies (.github/workflows/ci.yml:52-58).
@@ -22,11 +22,20 @@ const PROD_ENV = {
 };
 
 describe("envSchema", () => {
-  // Regression guard: a NODE_ENV-based gate would fail this, turning CI red.
-  // deploy.yml triggers on a green CI run, so that would make the pipeline
-  // permanently undeployable.
-  it("accepts CI's placeholder build env, because APP_ENV is absent", () => {
-    expect(envSchema.safeParse(CI_BUILD_ENV).success).toBe(true);
+  // Regression guard: if the gate were changed from APP_ENV to NODE_ENV, this
+  // would fail. We stub the runner's own NODE_ENV to "production" to prove the
+  // refinement does not consult it — only APP_ENV in the input object matters.
+  // If it did consult process.env.NODE_ENV, the CI build (which sets neither
+  // APP_ENV nor NODE_ENV to production) would be unaffected, but a NODE_ENV-based
+  // gate would be wrong, because NODE_ENV is "production" inside every `next build`,
+  // including CI's, which supplies placeholder values.
+  it("still accepts CI's placeholder env even if the runner's own NODE_ENV is production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    try {
+      expect(envSchema.safeParse(CI_BUILD_ENV).success).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("accepts a complete production env", () => {
