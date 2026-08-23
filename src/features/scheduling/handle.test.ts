@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   HANDLE_RE,
   HANDLE_MAX,
@@ -66,5 +68,15 @@ describe("reserved handles", () => {
   });
   it("has no duplicates", () => {
     expect(new Set(RESERVED_HANDLES).size).toBe(RESERVED_HANDLES.length);
+  });
+});
+
+describe("reserved list parity with 0047_handles.sql", () => {
+  it("RESERVED_HANDLES equals the array in reserved_handles()", () => {
+    const sql = readFileSync(join(process.cwd(), "src/db/migrations/0047_handles.sql"), "utf8");
+    const block = /function public\.reserved_handles\(\)[\s\S]*?select array\[([\s\S]*?)\]::text\[\]/.exec(sql);
+    expect(block, "reserved_handles() array not found").not.toBeNull();
+    const inSql = [...block![1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();
+    expect(inSql).toEqual([...RESERVED_HANDLES].sort());
   });
 });
