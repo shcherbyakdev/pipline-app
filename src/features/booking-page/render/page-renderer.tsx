@@ -56,21 +56,26 @@ export function PageRenderer({ doc, ctx, initialServiceId = null }: { doc: PageD
   const others = sections.filter((s) => s.type !== "booking").length;
   return (
     <PageStateProvider initialServiceId={initialServiceId}>
-      <div
-        className={cn("@container flex w-full flex-col gap-8", split && "@3xl:grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)] @3xl:gap-x-10")}
-        style={split ? { gridTemplateRows: `repeat(${Math.max(others, 1)}, auto)` } : undefined}
-      >
-        {sections.map((section) => {
-          const docked = split && section.type === "booking";
-          const inner = renderSection(section, ctx);
-          return ctx.mode === "preview" ? (
-            <SectionFrame key={section.id} id={section.id} type={section.type} hidden={section.hidden} className={cn(docked && DOCKED)}>
-              {inner}
-            </SectionFrame>
-          ) : (
-            <div key={section.id} className={cn(docked && DOCKED)}>{inner}</div>
-          );
-        })}
+      {/* Container queries resolve against an ancestor, never the element
+          that declares containment — so the @container lives on this plain
+          wrapper and the @3xl: variants on the layout div inside it. */}
+      <div className="@container w-full">
+        <div
+          className={cn("flex w-full flex-col gap-8", split && "@3xl:grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)] @3xl:gap-x-10")}
+          style={split ? { gridTemplateRows: `repeat(${Math.max(others, 1)}, auto)` } : undefined}
+        >
+          {sections.map((section) => {
+            const docked = split && section.type === "booking";
+            const inner = renderSection(section, ctx);
+            return ctx.mode === "preview" ? (
+              <SectionFrame key={section.id} id={section.id} type={section.type} hidden={section.hidden} className={cn(docked && DOCKED)}>
+                {inner}
+              </SectionFrame>
+            ) : (
+              <div key={section.id} className={cn(docked && DOCKED)}>{inner}</div>
+            );
+          })}
+        </div>
       </div>
     </PageStateProvider>
   );

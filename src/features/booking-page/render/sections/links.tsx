@@ -1,4 +1,4 @@
-import type { LinkIcon, SectionOf } from "../../schema";
+import { allowedLinkUrl, type LinkIcon, type SectionOf } from "../../schema";
 import type { RenderContext } from "../context";
 import { Ghost } from "../ghost";
 
@@ -13,8 +13,12 @@ export function LinksSection({ section, ctx }: { section: SectionOf<"links">; ct
   if (items.length === 0) return <Ghost mode={ctx.mode} label="Add a link" />;
   return (
     <section className="flex flex-wrap gap-2">
-      {items.map((item, i) =>
-        ctx.mode === "preview" ? (
+      {items.map((item, i) => {
+        // Belt-and-braces: the schema already rejects bad URLs and only
+        // validated documents render publicly, but the anchor itself must
+        // not trust its input either — never render a non-allowlisted href.
+        const inert = ctx.mode === "preview" || !allowedLinkUrl(item.url, item.icon);
+        return inert ? (
           <span key={i} className={PILL}>{item.label}</span>
         ) : (
           <a
@@ -27,8 +31,8 @@ export function LinksSection({ section, ctx }: { section: SectionOf<"links">; ct
           >
             {item.label}
           </a>
-        ),
-      )}
+        );
+      })}
     </section>
   );
 }
