@@ -7,7 +7,7 @@ export function FinalCta() {
   return (
     <section aria-labelledby="cta-heading" className="bg-muted/40 border-t">
       <div className="mx-auto w-full max-w-6xl px-6 py-20 text-center md:py-28">
-        <h2 id="cta-heading" className="text-3xl font-medium tracking-[-0.03em] text-balance md:text-5xl">{SITE.headline}</h2>
+        <h2 id="cta-heading" className="text-3xl font-medium tracking-[-0.03em] text-balance md:text-5xl">{SITE.headline.join(" ")}</h2>
         <p className="text-muted-foreground mx-auto mt-4 max-w-md">{SITE.heroNote}</p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
           <Link href={SITE.links.signup} className={marketingButton("primary", "lg")}>

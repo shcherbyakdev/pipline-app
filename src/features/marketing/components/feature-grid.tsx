@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { BellRing, CalendarCheck, CodeXml, Globe, Palette, RefreshCw } from "lucide-react";
-import { anchorId, FEATURES, type FeatureIcon, SECTIONS, SITE } from "@/features/marketing/site";
+import { FEATURES, type FeatureIcon, SECTIONS } from "@/features/marketing/site";
 
 const ICONS: Record<FeatureIcon, LucideIcon> = {
   globe: Globe,
@@ -13,7 +13,7 @@ const ICONS: Record<FeatureIcon, LucideIcon> = {
 
 export function FeatureGrid() {
   return (
-    <section id={anchorId(SITE.anchors.features)} aria-labelledby="features-heading" className="bg-muted/40 scroll-mt-20 border-t">
+    <section id="features" aria-labelledby="features-heading" className="bg-muted/40 scroll-mt-20 border-t">
       <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
         <h2 id="features-heading" className="text-3xl font-medium tracking-[-0.03em] md:text-4xl">{SECTIONS.features.heading}</h2>
         <p className="text-muted-foreground mt-3 max-w-xl">{SECTIONS.features.sub}</p>

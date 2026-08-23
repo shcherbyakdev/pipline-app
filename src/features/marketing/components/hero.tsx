@@ -36,11 +36,8 @@ export function Hero() {
     <section aria-labelledby="hero-heading" className="relative overflow-x-clip">
       <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16 md:pt-24 lg:min-h-[44rem] lg:pb-24">
         <div className="max-w-xl lg:max-w-[46%] lg:pr-6 xl:max-w-xl">
-          <p className={cn(reveal.fade, "text-primary font-mono text-sm")} style={{ "--delay": "0ms" } as React.CSSProperties}>
-            {SITE.eyebrow}
-          </p>
           <h1 id="hero-heading" className="mt-4 text-4xl leading-[1.05] font-medium tracking-[-0.03em] text-balance md:text-6xl">
-            <WordReveal text={SITE.headline} />
+            <WordReveal text={SITE.headline.join(" ")} />
           </h1>
           <p className={cn(reveal.fade, "text-foreground/80 mt-6 text-lg text-pretty")} style={{ "--delay": "620ms" } as React.CSSProperties}>
             {SITE.subheadline}

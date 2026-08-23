@@ -11,16 +11,15 @@ export const SITE = {
   tagline: "Booking page & widget for solo providers",
   description:
     "Booklo gives freelancers and small businesses a hosted booking page and an embeddable widget. Clients book without an account; confirmations, reminders and rescheduling are handled for you.",
-  eyebrow: "Scheduling for solo providers",
-  headline: "Let clients book you in seconds.",
-  subheadline:
-    "A booking page and embeddable widget for solo providers. No client accounts, no double bookings — confirmations, reminders and rescheduling handled for you.",
+  // Two staggered lines; the last word of the second carries the highlight.
+  headline: ["Your booking page.", "Claimed in a minute."],
+  subheadline: "Clients pick a time, you both get the email. No accounts, no double bookings.",
   // Flag-conditional (lib/flags.ts): while billing is off there IS no paid
   // ladder to contrast a "Free plan" with, and /pricing 404s — so the note
   // says what is actually true today. Flipping the flag flips the copy.
   heroNote: BILLING_ON ? "Free plan · No credit card" : "Free during early access · No credit card",
   links: { home: "/", login: "/login", signup: "/signup", pricing: "/pricing" },
-  anchors: { how: "#how-it-works", features: "#features", faq: "#faq" },
+  anchors: { how: "#how-it-works", faq: "#faq" },
 } as const;
 
 /** `#features` → `features`, so a section's `id` and the nav href that targets it share one source. */
@@ -33,7 +32,7 @@ export function anchorId(anchor: string): string {
 export const SECTIONS = {
   how: {
     heading: "How it works",
-    sub: "Three steps from sign-up to your first booking.",
+    sub: "Three steps from your name to your first booking.",
   },
   features: {
     heading: "Everything a booking page should do",
@@ -66,11 +65,25 @@ export const CTA = {
   seeHow: "See how it works",
 } as const;
 
+/** The claim bar (hero + final CTA). The status line is assembled from
+    these: `taken(url)` + " — " + (`tryPrefix` + suggestion | `tryAnother`). */
+export const CLAIM = {
+  placeholder: "your-name",
+  button: "Claim",
+  hint: "3–50 characters: letters, numbers, dashes.",
+  taken: (url: string) => `${url} is taken`,
+  tryPrefix: "try ",
+  tryAnother: "try another name",
+  unavailable: "That name can't be used — try another.",
+  checkFailed: "Couldn't check right now — you can still continue.",
+} as const;
+
+export const FINAL_CTA = { heading: "Claim your page." } as const;
+
 export type NavLink = { label: string; href: string };
 
 export const NAV_LINKS: NavLink[] = [
   { label: "How it works", href: SITE.anchors.how },
-  { label: "Features", href: SITE.anchors.features },
   // Only listed once billing is live (lib/flags.ts) — while off, /pricing 404s
   // and nothing should link to it from the nav.
   ...(BILLING_ON ? [{ label: "Pricing", href: SITE.links.pricing }] : []),
@@ -80,21 +93,9 @@ export const NAV_LINKS: NavLink[] = [
 export type Step = { number: "01" | "02" | "03"; title: string; body: string };
 
 export const STEPS: Step[] = [
-  {
-    number: "01",
-    title: "Set your services and weekly hours",
-    body: "Add what you offer, how long it takes and when you're available. Buffers, notice and daily limits are one setting each.",
-  },
-  {
-    number: "02",
-    title: "Share your link or embed the widget",
-    body: "Every account gets a hosted booking page. Paste one line to embed it on your own site — it resizes itself.",
-  },
-  {
-    number: "03",
-    title: "Clients pick a slot; you both get confirmations",
-    body: "They see only the times that are really free. Confirmation and reminder emails go out automatically.",
-  },
+  { number: "01", title: "Set your services and hours", body: "What you offer, how long it takes, when you're free." },
+  { number: "02", title: "Share your link or embed the widget", body: "Every account gets a page at its own address. One line embeds it on your site." },
+  { number: "03", title: "Clients book; you both get confirmations", body: "They see only real openings. Confirmations and reminders go out on their own." },
 ];
 
 export type FeatureIcon = "globe" | "code" | "calendar-check" | "refresh" | "bell" | "palette";
