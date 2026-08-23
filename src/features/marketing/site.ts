@@ -203,7 +203,7 @@ export const ONBOARDING = {
 /** First screen after onboarding (/bookings?welcome=1). */
 export const WELCOME = {
   owned: (url: string) => `${url} is yours.`,
-  sub: "Add your first service to go live.",
+  sub: "Add a service and set your hours to go live.",
   addService: "Add a service",
   copyLink: "Copy link",
   copied: "Copied",
