@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import type { BrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
+import { updateWidgetTheme } from "@/features/orgs/actions";
 import type { PublicService, PublicStaff } from "@/lib/booking/public";
 import type { PlanLimits } from "@/lib/billing/plans";
 import { effectiveContrast, parseWidgetTheme, type WidgetThemeConfig } from "@/lib/widget-theme";
@@ -15,11 +17,13 @@ import { replaceSection } from "../doc-ops";
 import type { RenderContext } from "../render/context";
 import { PageRenderer, pageContainerClass } from "../render/page-renderer";
 import { SelectionProvider } from "../render/selection";
+import type { TemplateSkin } from "../templates";
 import { usePageDraft } from "./use-page-draft";
 import { StudioTabs, type StudioTab } from "./studio-tabs";
 import { SectionsPanel } from "./sections-panel";
 import { SectionInspector } from "./section-inspector";
 import { SettingsTab } from "./settings-tab";
+import { TemplatePicker } from "./template-picker";
 
 type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSettings>>>;
 
@@ -53,6 +57,28 @@ export function BookingPageBuilder({
     setTab("sections");
   }, []);
   const selection = React.useMemo(() => ({ selectedId, select }), [selectedId, select]);
+
+  const [, startSaveSkin] = React.useTransition();
+  const applySkin = (skin: TemplateSkin) => {
+    // Theme/radius/font from the template; accent, logo and the badge setting
+    // are the org's own; bg/text overrides cleared so the skin reads as designed.
+    const previous = theme;
+    const next: WidgetThemeConfig = { ...theme, ...skin, background: undefined, text: undefined };
+    setTheme(next);
+    startSaveSkin(async () => {
+      const result = await updateWidgetTheme(next);
+      if (!result.ok) {
+        setTheme(previous);
+        toast.error("Template applied, but the look couldn't be saved.");
+      }
+    });
+  };
+  const onApplyTemplate = (next: PageDocument, skin: TemplateSkin | null) => {
+    draft.update(next);
+    setSelectedId(null);
+    if (skin) applySkin(skin);
+    toast.success("Template applied");
+  };
 
   const host = appUrl.replace(/^https?:\/\//, "");
   const previewHandle = handle.trim() || "your-handle";
@@ -95,7 +121,7 @@ export function BookingPageBuilder({
             emptyContext={{ serviceCount: previewServices.length, staffCount: staff.length }}
             liveUrl={scheduling.handle ? `${appUrl}/book/${scheduling.handle}` : null}
             pageSections={pageSections}
-            templatePicker={null}
+            templatePicker={<TemplatePicker doc={draft.doc} ctx={ctx} onApply={onApplyTemplate} />}
           />
         )}
       </div>
