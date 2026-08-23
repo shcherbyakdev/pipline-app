@@ -32,6 +32,7 @@ export function ScaledFrame({
       setScale(s);
       setHeight(i.offsetHeight * s);
     };
+    // Initial measurement runs synchronously pre-paint (SSR-safe, corrected before first paint by ResizeObserver).
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(o);

@@ -88,7 +88,7 @@ export function BookingPageMock({ handle }: { handle: string }) {
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-[10px] tracking-wider uppercase">Wed {SELECTED_DAY}</p>
+          <p className="text-muted-foreground text-[10px] tracking-wider uppercase">Sat {SELECTED_DAY}</p>
           {SLOTS.map((t) => (
             <div
               key={t}
