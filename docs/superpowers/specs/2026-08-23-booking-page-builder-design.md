@@ -223,6 +223,7 @@ type Template = {
 - No resizing or CDN transforms. Sections render `<img loading="lazy" decoding="async">` with `sizes`; the upload control hints "Best under 2000 px wide".
 - Caps: ≤24 image references per document (schema). Worst case ≈120 MB per org.
 - **Orphans**: `publishBookingPage` and `discardBookingPageDraft` (server actions, after the RPC succeeds) list `{orgId}/page/` and delete every object not referenced by `draft ∪ published` (pure `orphanPaths(listed, referenced)` in `images.ts`). Images removed from a draft before publish linger until the next publish/discard — acceptable.
+- The `branding` bucket's `file_size_limit` is raised from 1 MB (0018) to 5 MB in migration 0049; logos keep their 1 MB app-level check.
 
 ## Plan gating
 
@@ -254,6 +255,6 @@ Free canvas / absolute positioning; per-section style overrides (colours, spacin
 
 ## Notes
 
-- Migration numbers **0047** (table) and **0048** (security). Rentals R3, if ever un-parked, renumbers from 0049 (same hazard as noted in the R3 and Team notes).
+- Migration numbers **0047** (table), **0048** (security) and **0049** (bucket cap). Rentals R3, if ever un-parked, renumbers from 0050 (same hazard as noted in the R3 and Team notes).
 - `applyTemplate` skin write reuses `update_org_widget_theme`; no new theme RPC.
 - Post-implementation: `graphify update .` (repo rule).

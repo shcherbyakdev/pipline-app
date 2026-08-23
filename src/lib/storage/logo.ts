@@ -17,7 +17,7 @@ export const LOGO_MIME_EXTENSIONS: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
 };
-export const LOGO_MAX_BYTES = 1_048_576; // mirrors the bucket cap
+export const LOGO_MAX_BYTES = 1_048_576; // app-level cap for logos; the bucket itself allows 5 MB for page images (0049)
 
 export function isAllowedLogoType(mime: string): boolean {
   return Object.hasOwn(LOGO_MIME_EXTENSIONS, mime);
