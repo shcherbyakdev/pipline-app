@@ -8,8 +8,9 @@ import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 import { matchesLogoMagicBytes } from "@/lib/storage/logo";
 import { BRANDING_BUCKET, uploadBrandingObject } from "@/lib/storage/branding";
-import { getPageDraftState } from "./queries";
-import { parsePageDocument, PAGE_TOO_LARGE_ERROR, IMAGE_REJECTED_ERROR, type PageDocument } from "./schema";
+import { getPageDraftState, getPageSectionsEntitlement } from "./queries";
+import { gatedVisibleSections } from "./gating";
+import { parsePageDocument, PAGE_TOO_LARGE_ERROR, IMAGE_REJECTED_ERROR, PAGE_GATED_ERROR, type PageDocument } from "./schema";
 import {
   PAGE_IMAGE_MAX_BYTES, isAllowedPageImageType, pageImagePathFor, pageImagePrefix, imagePathsIn, orphanPaths,
 } from "./images";
@@ -51,6 +52,8 @@ export async function publishBookingPage(input: unknown): Promise<ActionState> {
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const doc = parsePageDocument(input, orgId);
   if (!doc) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const pageSections = await getPageSectionsEntitlement(orgId);
+  if (gatedVisibleSections(doc, { pageSections }).length > 0) return { ok: false, error: PAGE_GATED_ERROR };
   const saved = await saveDraft(orgId, doc);
   if (!saved.ok) return saved;
   const supabase = await createClient();

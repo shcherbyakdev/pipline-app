@@ -2,6 +2,9 @@ import "server-only";
 import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getDashboardFlags } from "@/lib/flags/resolve";
+import { getEntitlements } from "@/lib/billing/queries";
+import type { PlanLimits } from "@/lib/billing/plans";
 import { DEFAULT_PAGE } from "./defaults";
 import { parsePageDocument, type PageDocument } from "./schema";
 
@@ -44,4 +47,15 @@ export async function getPageDraftState(orgId: string): Promise<PageDraftState> 
     published,
     publishedAt: data.published_at,
   };
+}
+
+/** Fails OPEN: a billing hiccup must never block publishing a page. */
+export async function getPageSectionsEntitlement(orgId: string): Promise<PlanLimits["pageSections"]> {
+  try {
+    if (!(await getDashboardFlags(orgId)).billing) return "all";
+    return (await getEntitlements(orgId, await createClient())).pageSections;
+  } catch (error) {
+    console.error("[billing] page-sections read failed — publish proceeds:", error);
+    return "all";
+  }
 }
