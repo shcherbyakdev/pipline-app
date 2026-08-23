@@ -83,7 +83,7 @@ export function BookingWidget({
   // Apply a requested service once per request key, during render (React's
   // sanctioned "adjust state on prop change"). Mirrors the service-card click
   // handler below minus the focus move — the caller scrolls instead.
-  const [appliedRequestKey, setAppliedRequestKey] = React.useState(0);
+  const [appliedRequestKey, setAppliedRequestKey] = React.useState<number | null>(null);
   if (requestedService && requestedService.key !== appliedRequestKey) {
     setAppliedRequestKey(requestedService.key);
     const requested = services.find((s) => s.id === requestedService.id);
