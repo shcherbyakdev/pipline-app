@@ -39,7 +39,11 @@ describe("no stray /book/ literals", () => {
     }
   }
   function stripComments(source: string): string {
-    return source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+    // The line-comment branch skips `//` immediately preceded by `:` so a
+    // URL scheme (`http://…`) isn't mistaken for a comment start — a scheme
+    // occurring earlier on the line would otherwise delete everything after
+    // it, including a real /book/ literal further along the same line.
+    return source.replace(/\/\*[\s\S]*?\*\/|(?<!:)\/\/.*$/gm, "");
   }
   it("src, scripts, workers (except src/app/book and tests) never build a /book/ path", () => {
     const cwd = process.cwd();
