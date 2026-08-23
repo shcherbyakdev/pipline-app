@@ -15,20 +15,23 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/
 const initial: OrgState = {};
 const TIMEZONES = Intl.supportedValuesOf("timeZone");
 
+// Browser-only value with a fixed placeholder until mount: useSyncExternalStore
+// is the idiomatic tool for this (no subscription needed — the store never
+// changes — so subscribe is a no-op), not an effect. getServerSnapshot keeps
+// SSR and the client's first paint both "UTC" (no hydration mismatch); the
+// real snapshot below is a pure read, so no setState-in-effect either.
+const subscribeNoop = () => () => {};
+const getBrowserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+const getServerTimeZone = () => "UTC";
+
 export function OnboardingForm({ initialHandle, host }: { initialHandle: string | null; host: string }) {
   const [state, action, pending] = useActionState(createOrgWithPage, initial);
   const [name, setName] = React.useState(initialHandle ? toDisplayName(initialHandle) : "");
   const [handle, setHandle] = React.useState(initialHandle ?? "");
-  // SSR renders UTC; the browser's zone replaces it after mount (no hydration
-  // mismatch). The setState is deferred to a microtask rather than called
-  // directly in the effect body — eslint-plugin-react-hooks'
-  // set-state-in-effect rule flags a synchronous setState right in an
-  // effect, but not one inside a nested callback (mirrors the debounce
-  // callback in useHandleCheck).
-  const [timezone, setTimezone] = React.useState("UTC");
-  React.useEffect(() => {
-    queueMicrotask(() => setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone));
-  }, []);
+  const detectedTimezone = React.useSyncExternalStore(subscribeNoop, getBrowserTimeZone, getServerTimeZone);
+  // null until the user picks one; the detected zone is the default until then.
+  const [timezone, setTimezone] = React.useState<string | null>(null);
+  const effectiveTimezone = timezone ?? detectedTimezone;
 
   const { result, checking } = useHandleCheck(handle);
   const url = `${host}/${handle || ONBOARDING.handlePlaceholder}`;
@@ -106,7 +109,7 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
         <select
           id="timezone"
           name="timezone"
-          value={timezone}
+          value={effectiveTimezone}
           onChange={(e) => setTimezone(e.target.value)}
           className="border-input h-9 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         >
