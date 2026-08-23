@@ -65,4 +65,34 @@ export const envSchema = z.object({
       message: "NEXT_PUBLIC_APP_URL must not be localhost when APP_ENV=production",
     });
   }
+
+  // Billing provider selection is env-only (selectBillingProvider): anything
+  // other than "stripe" falls back to the fake emulator, whose webhook accepts
+  // self-signed events — it verifies only an HMAC over the body with
+  // BILLING_FAKE_SECRET and then trusts orgId/plan/status verbatim, granting
+  // any org a paid plan via the service-role client. That secret is a dev-only
+  // artifact and must never exist in production; forbidding it here fails the
+  // deploy closed rather than leaving the fake webhook live. (The dev checkout
+  // UI is separately dead in prod behind requireDevBilling's NODE_ENV gate.)
+  if (value.BILLING_FAKE_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["BILLING_FAKE_SECRET"],
+      message: "BILLING_FAKE_SECRET must not be set when APP_ENV=production (dev emulator only)",
+    });
+  }
+
+  // When Stripe billing is actually live, fail closed at boot if it is
+  // half-configured, instead of 503-ing on the first webhook or checkout.
+  if (value.BILLING_PROVIDER === "stripe") {
+    for (const key of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `${key} is required when BILLING_PROVIDER=stripe`,
+        });
+      }
+    }
+  }
 });

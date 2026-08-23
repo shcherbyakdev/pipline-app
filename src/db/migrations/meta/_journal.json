@@ -330,6 +330,13 @@
       "when": 1787086714080,
       "tag": "0046_utils_overrides_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1787090000000,
+      "tag": "0047_staff_grant_scope",
+      "breakpoints": true
     }
   ]
 }
