@@ -199,6 +199,19 @@ export const ONBOARDING = {
   justTaken: "That name was just taken — pick another.",
 } as const;
 
+/** First screen after onboarding (/bookings?welcome=1). */
+export const WELCOME = {
+  owned: (url: string) => `${url} is yours.`,
+  sub: "Add your first service to go live.",
+  addService: "Add a service",
+  copyLink: "Copy link",
+  copied: "Copied",
+  noHandle: "Your workspace is ready.",
+  noHandleSub: "Pick a page address and you're bookable.",
+  setUpPage: "Set up your booking page",
+  dismiss: "Dismiss",
+} as const;
+
 /** Words that must not appear in marketing copy: features not shipped yet. */
 export const FORBIDDEN_COPY = ["google", "calendar sync", "stripe", "payment"] as const;
 

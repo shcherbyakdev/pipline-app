@@ -19,6 +19,8 @@ import { mondayOf } from "@/features/scheduling/calendar-geometry";
 import { wallTimeToUtc, addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { env } from "@/env";
+import { WelcomeBanner } from "@/features/scheduling/components/welcome-banner";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -51,13 +53,15 @@ function validDate(param: string | undefined, fallback: string): string {
 export default async function BookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; week?: string; from?: string; staff?: string }>;
+  searchParams: Promise<{ view?: string; week?: string; from?: string; staff?: string; welcome?: string }>;
 }) {
   const params = await searchParams;
   const settings = await getSchedulingSettings();
   const timeZone = settings?.timezone ?? "UTC";
   const { org } = await requireOrg();
   const { rentals: rentalsOn } = await getDashboardFlags(org.id);
+  const welcome =
+    params.welcome === "1" ? <WelcomeBanner handle={settings?.handle ?? null} appUrl={env.NEXT_PUBLIC_APP_URL} /> : null;
 
   // Rentals parked unless the org's flag is on (lib/flags): the timeline view
   // falls back to the week calendar and its link never renders.
@@ -73,6 +77,7 @@ export default async function BookingsPage({
     );
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
+        {welcome}
         <div className="flex items-center justify-end gap-2">
           {/* view switchers only — date navigation (‹ Today ›) lives in the
               timeline's own header row, next to the window it moves. */}
@@ -121,6 +126,7 @@ export default async function BookingsPage({
     ]);
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
+        {welcome}
         <div className="flex items-center justify-end gap-2">
           {timelineLink}
           <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
@@ -164,6 +170,7 @@ export default async function BookingsPage({
     // flex-1 + min-h-0: the calendar fills main's leftover viewport height
     // (week arrows live inside the grid header; see CalendarWeek).
     <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {welcome}
       <div className="flex items-center justify-end gap-2">
         <div className="flex items-center gap-2">
           <Link
