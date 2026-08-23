@@ -2625,3 +2625,16 @@ Spec: docs/superpowers/specs/2026-08-23-landing-claim-design.md
 EOF
 )"
 ```
+
+---
+
+## QA notes (2026-08-23, post-execution)
+
+Manual browser QA (Playwright, three widths, full claim → Mailpit confirm → onboarding → welcome → public page walk): **all 8 steps PASS**. Findings and what was done:
+
+- **F1 (fixed):** a fresh org has no availability rules, so the page was live-but-unbookable after adding a service. `WELCOME.sub` now reads "Add a service and set your hours to go live." Seeding default hours stays an open product question.
+- **F2 (no repo change):** local Supabase emails still said "RolloutOS" — the running stack predates the rename; `supabase stop && start` re-reads config.
+- Final-review fix wave (6 commits): welcome copy, root metadata → `SITE.description`, reserved-handle copy in the settings action and onboarding, `normalizeHandle` transliteration (ł→l, ß→ss, ø→o, …), `HANDLE_RE` import in the moved root pages.
+- **Addition (user request):** the animated CSS-3D week calendar returned as the product section between How it works and FAQ, re-skinned for light (`--hero-accent` now aliases `--highlight`).
+- Cosmetic backlog (ship as is): 375px headline wraps to 3 lines; hero mockup small at mobile scale; faint wash seam; `/signup` "Sign in" link drops `?handle=`; `mocks/calendar-mock.tsx` now dead code (delete with the §9 cleanup).
+- **Merge hazard:** `feat/booking-page-builder` (built in parallel) also uses migrations 0047–0049. Whichever merges second renumbers: rename `0047_handles.sql`, regenerate the snapshot after rebasing (do not hand-edit — `prevId` must chain from the other branch's last snapshot), edit the journal entry, and update the hardcoded migration path in `handle.test.ts` (the parity test fails loudly if forgotten). Then `supabase db reset` + `npm run db:migrate` locally.
