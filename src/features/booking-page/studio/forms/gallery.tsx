@@ -18,6 +18,14 @@ export function GalleryForm({ section, issues, supabaseUrl, onChange }: FormProp
   const [error, setError] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const room = MAX_IMAGES - section.images.length;
+  // The upload loop spans several renders; read the latest section through a
+  // ref so an edit made mid-upload (columns, a caption) is never reverted.
+  // Synced in an effect, not during render — react-hooks/refs forbids
+  // writing ref.current in the render body.
+  const sectionRef = React.useRef(section);
+  React.useEffect(() => {
+    sectionRef.current = section;
+  }, [section]);
 
   const onFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []).slice(0, room);
@@ -31,7 +39,6 @@ export function GalleryForm({ section, issues, supabaseUrl, onChange }: FormProp
     setError(null);
     startTransition(async () => {
       // Sequential so the order in the gallery matches the pick order.
-      let next = section.images;
       for (const file of files) {
         const formData = new FormData();
         formData.set("file", file);
@@ -40,8 +47,8 @@ export function GalleryForm({ section, issues, supabaseUrl, onChange }: FormProp
           setError(result.error);
           break;
         }
-        next = [...next, { path: result.path, alt: "" }];
-        onChange(patch(section, { images: next }));
+        const latest = sectionRef.current;
+        onChange(patch(latest, { images: [...latest.images, { path: result.path, alt: "" }] }));
       }
       if (fileRef.current) fileRef.current.value = "";
     });
@@ -50,8 +57,8 @@ export function GalleryForm({ section, issues, supabaseUrl, onChange }: FormProp
   return (
     <>
       <SelectField id="sec-gallery-columns" label="Columns" value={String(section.columns) as "2" | "3"} options={[{ value: "2", label: "Two" }, { value: "3", label: "Three" }]} onChange={(v) => onChange(patch(section, { columns: v === "2" ? 2 : 3 }))} />
-      <SettingsRow label="Photos" hint={`${IMAGE_HINT} Up to ${MAX_IMAGES}.`}>
-        <input ref={fileRef} type="file" multiple accept={PAGE_IMAGE_ACCEPT} onChange={onFiles} disabled={pending || room === 0} className="sr-only" />
+      <SettingsRow label="Photos" htmlFor="sec-gallery-files" hint={`${IMAGE_HINT} Up to ${MAX_IMAGES}.`}>
+        <input ref={fileRef} id="sec-gallery-files" type="file" multiple accept={PAGE_IMAGE_ACCEPT} onChange={onFiles} disabled={pending || room === 0} className="sr-only" />
         <Button variant="outline" size="sm" disabled={pending || room === 0} onClick={() => fileRef.current?.click()}>
           <HugeiconsIcon icon={Upload04Icon} size={14} />
           {pending ? "Uploading…" : "Add photos"}
