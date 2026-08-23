@@ -12,11 +12,15 @@ import { BookloWordmark } from "./booklo-mark";
    and on Escape. */
 export function MarketingNav() {
   const [open, setOpen] = React.useState(false);
+  const toggleRef = React.useRef<HTMLButtonElement>(null);
 
   React.useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -50,6 +54,7 @@ export function MarketingNav() {
             {CTA.getStarted}
           </Link>
           <button
+            ref={toggleRef}
             type="button"
             className="text-foreground hover:bg-accent inline-flex size-9 items-center justify-center rounded-full md:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
