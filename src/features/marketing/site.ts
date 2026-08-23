@@ -189,6 +189,7 @@ export const ONBOARDING = {
   handleLabel: "Page address",
   handlePlaceholder: "your-name",
   handleHint: "3–50 characters: letters, numbers, dashes. Leave empty to choose later.",
+  handleReserved: "That name can't be used — try another.",
   handleFree: (url: string) => `${url} is free`,
   handleTaken: (url: string) => `${url} is taken`,
   handleTakenSuggest: (suggestion: string) => `try ${suggestion}`,

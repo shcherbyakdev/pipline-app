@@ -4,7 +4,7 @@ import * as React from "react";
 import { useActionState } from "react";
 import { createOrgWithPage } from "@/features/orgs/actions";
 import type { OrgState } from "@/features/orgs/schema";
-import { HANDLE_RE, normalizeHandle, toDisplayName } from "@/features/scheduling/handle";
+import { HANDLE_RE, isReservedHandle, normalizeHandle, toDisplayName } from "@/features/scheduling/handle";
 import { useHandleCheck } from "@/features/scheduling/use-handle-check";
 import { ONBOARDING } from "@/features/marketing/site";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,7 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
     );
     tone = "text-destructive";
   } else if (result?.status === "invalid") {
+    if (isReservedHandle(handle)) status = ONBOARDING.handleReserved;
     tone = "text-destructive";
   } else if (result?.status === "error") {
     status = ONBOARDING.handleCheckFailed;
