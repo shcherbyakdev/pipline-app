@@ -143,7 +143,7 @@ describe("suggestHandles", () => {
 
 describe("reserved handles", () => {
   it("includes every top-level app route and rejects them", () => {
-    for (const h of ["login", "signup", "book", "bookings", "pricing", "api", "p", "utils"]) {
+    for (const h of ["login", "signup", "book", "bookings", "pricing", "api", "utils"]) {
       expect(isReservedHandle(h), h).toBe(true);
     }
     expect(isReservedHandle("anna")).toBe(false);
@@ -181,11 +181,11 @@ export const HANDLE_MAX = 50;
 // Keep in sync with reserved_handles() in 0047_handles.sql.
 export const RESERVED_HANDLES = [
   "api", "auth", "availability", "billing", "book", "booking", "booking-page", "bookings",
-  "clients", "dev", "embed", "forgot-password", "login", "onboarding", "overview", "p", "portal",
+  "clients", "dev", "embed", "forgot-password", "login", "onboarding", "overview", "portal",
   "pricing", "privacy", "programs", "rentals", "reset-password", "services", "settings", "signup",
   "team", "templates", "terms", "utils",
   "admin", "app", "www", "mail", "help", "support", "docs", "blog", "about", "contact", "status",
-  "static", "assets", "public", "booklo", "me", "new", "home", "index", "sitemap", "robots",
+  "static", "assets", "public", "booklo", "new", "home", "index", "sitemap", "robots",
   "favicon",
 ] as const;
 
@@ -309,11 +309,11 @@ create or replace function public.reserved_handles() returns text[]
 language sql immutable set search_path = '' as $$
   select array[
     'api','auth','availability','billing','book','booking','booking-page','bookings',
-    'clients','dev','embed','forgot-password','login','onboarding','overview','p','portal',
+    'clients','dev','embed','forgot-password','login','onboarding','overview','portal',
     'pricing','privacy','programs','rentals','reset-password','services','settings','signup',
     'team','templates','terms','utils',
     'admin','app','www','mail','help','support','docs','blog','about','contact','status',
-    'static','assets','public','booklo','me','new','home','index','sitemap','robots',
+    'static','assets','public','booklo','new','home','index','sitemap','robots',
     'favicon'
   ]::text[]
 $$;
@@ -1820,7 +1820,7 @@ Replace the whole `.marketing { … }` block (and its leading comment) with:
 }
 ```
 
-Delete `src/features/marketing/components/hero-reveal.module.css` (`git rm`). `hero.tsx` still imports it — it's rewritten in Task 12; until then `npm run typecheck` will fail on that import, which is expected and noted in this task's commit message.
+Keep `src/features/marketing/components/hero-reveal.module.css` for now — Task 12 deletes it with the hero rewrite. So that typecheck stays green in between, patch the **old** `hero.tsx` minimally: change `<WordReveal text={SITE.headline} />` to `<WordReveal text={SITE.headline.join(" ")} />`, and delete the `<p …>{SITE.eyebrow}</p>` element (lines 39–41) since `eyebrow` is gone. In `final-cta.tsx` change `{SITE.headline}` to `{SITE.headline.join(" ")}`. Both files are rewritten in Task 12.
 
 - [ ] **Step 6: Pill buttons**
 
@@ -1854,14 +1854,13 @@ const SIZE = {
 } as const;
 ```
 
-- [ ] **Step 7: Commit (typecheck knowingly red until Task 12)**
+- [ ] **Step 7: Verify and commit**
 
-Run: `npx vitest run src/features/marketing`
-Expected: PASS.
+Run: `npm run verify`
+Expected: lint, typecheck and unit tests all green.
 
 ```bash
-git add src/app/globals.css src/features/marketing/site.ts src/features/marketing/site.test.ts src/features/marketing/components/marketing-button.ts src/features/marketing/components/feature-grid.tsx
-git rm -q src/features/marketing/components/hero-reveal.module.css
+git add src/app/globals.css src/features/marketing/site.ts src/features/marketing/site.test.ts src/features/marketing/components/marketing-button.ts src/features/marketing/components/feature-grid.tsx src/features/marketing/components/hero.tsx src/features/marketing/components/final-cta.tsx
 git commit -m "feat(landing): light .marketing tokens + --highlight, landing keyframes, claim copy, pill buttons (hero rewrite follows)"
 ```
 
@@ -2380,6 +2379,7 @@ git commit -m "feat(landing): ScaledFrame + browser chrome, booking-page mock th
 **Files:**
 - Rewrite: `src/features/marketing/components/hero.tsx`, `how-it-works.tsx`, `final-cta.tsx`
 - Modify: `src/features/marketing/components/faq.tsx` (token check only), `src/app/(marketing)/page.tsx`
+- Delete: `src/features/marketing/components/hero-reveal.module.css` (`git rm` — the new hero no longer imports it)
 
 **Interfaces:**
 - Consumes: `ClaimBar` (Task 10), `ScaledFrame`/`BrowserFrame`/`BookingPageMock` (Task 11), `MarketingNav` (Task 9), `SITE`/`SECTIONS`/`STEPS`/`FINAL_CTA`/`anchorId` (Task 8), `hostLabel` (Task 4)
@@ -2568,6 +2568,7 @@ Expected: lint clean, typecheck clean (the `hero-reveal.module.css` import is go
 - [ ] **Step 7: Commit**
 
 ```bash
+git rm -q src/features/marketing/components/hero-reveal.module.css
 git add src/features/marketing/components src/app/\(marketing\)/page.tsx src/features/marketing/site.ts
 git commit -m "feat(landing): light minimal page — hero with claim bar + mirrored mockup, how it works, FAQ, final CTA"
 ```

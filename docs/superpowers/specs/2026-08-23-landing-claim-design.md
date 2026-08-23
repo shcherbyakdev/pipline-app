@@ -120,11 +120,11 @@ Delays are Tailwind arbitrary values (`[animation-delay:220ms]`).
 create or replace function public.reserved_handles() returns text[]
 language sql immutable set search_path = '' as $$
   select array['api','auth','availability','billing','book','booking','booking-page','bookings',
-    'clients','dev','embed','forgot-password','login','onboarding','overview','p','portal','pricing',
+    'clients','dev','embed','forgot-password','login','onboarding','overview','portal','pricing',
     'privacy','programs','rentals','reset-password','services','settings','signup','team','templates',
     'terms','utils',                                   -- every top-level app route today
     'admin','app','www','mail','help','support','docs','blog','about','contact','status','static',
-    'assets','public','booklo','me','new','home','index','sitemap','robots','favicon']
+    'assets','public','booklo','new','home','index','sitemap','robots','favicon']
     -- generic names. `_next` and `embed.js` are omitted: neither can match HANDLE_RE.
 $$;
 
