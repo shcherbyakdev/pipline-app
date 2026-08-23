@@ -1,4 +1,4 @@
--- 0047 (security hardening): column-scope the authenticated grants on
+-- 0050 (security hardening): column-scope the authenticated grants on
 -- public.staff. 0041 granted table-wide INSERT + UPDATE to authenticated,
 -- unlike every sibling tenant table (units, chases, availability_rules,
 -- bookings, unit_stages, access_tokens, …), which grant write access only on

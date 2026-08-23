@@ -25,6 +25,7 @@ export function BookingWidget({
   serviceStaffIds,
   lockedStaff = null,
   preview,
+  requestedService = null,
 }: {
   handle: string;
   orgTimeZone: string;
@@ -37,6 +38,9 @@ export function BookingWidget({
   /** Per-staff page / `?staff=`: skips the staff step, offers no "Anyone". */
   lockedStaff?: PublicStaff | null;
   preview?: { slots: string[] };
+  /** Booking-page hand-off (services section / `?service=`): each request
+      carries a key so re-picking the same service after "change" still applies. */
+  requestedService?: { id: string; key: number } | null;
 }) {
   // Who can take this service. Declared before the state below because the
   // lazy initialiser for `staffChoice` has to answer the same question for an
@@ -75,6 +79,21 @@ export function BookingWidget({
   const [pending, startTransition] = React.useTransition();
   const slotsRegionRef = React.useRef<HTMLDivElement>(null);
   const staffRegionRef = React.useRef<HTMLDivElement>(null);
+
+  // Apply a requested service once per request key, during render (React's
+  // sanctioned "adjust state on prop change"). Mirrors the service-card click
+  // handler below minus the focus move — the caller scrolls instead.
+  const [appliedRequestKey, setAppliedRequestKey] = React.useState<number | null>(null);
+  if (requestedService && requestedService.key !== appliedRequestKey) {
+    setAppliedRequestKey(requestedService.key);
+    const requested = services.find((s) => s.id === requestedService.id);
+    if (requested) {
+      setService(requested);
+      setStaffChoice(resolveStaff(requested));
+      setOffering(null);
+      setSlot(null);
+    }
+  }
 
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });

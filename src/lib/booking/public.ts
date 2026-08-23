@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -31,9 +32,10 @@ export type PublicService = {
   bookingWindowDays: number;
 };
 
-export async function getBookingOrg(
+// Per-request memoised: generateMetadata and the page both resolve the handle.
+export const getBookingOrg = cache(async (
   handle: string,
-): Promise<{ orgId: string; orgName: string; timeZone: string } | null> {
+): Promise<{ orgId: string; orgName: string; timeZone: string } | null> => {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("orgs")
@@ -42,7 +44,7 @@ export async function getBookingOrg(
     .maybeSingle();
   if (error || !data) return null;
   return { orgId: data.id, orgName: data.name, timeZone: data.timezone };
-}
+});
 
 export async function listPublicServices(orgId: string): Promise<PublicService[]> {
   const admin = createAdminClient();
