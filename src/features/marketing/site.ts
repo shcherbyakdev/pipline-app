@@ -178,6 +178,27 @@ export const PRICING = {
   moreComing: "More is coming to Pro — early-access accounts hear first.",
 } as const;
 
+/** Onboarding ("Claim your page") copy. Lives here with the rest of the
+    funnel copy so site.test.ts guards it like everything else. */
+export const ONBOARDING = {
+  heading: "Claim your page",
+  sub: "This is the address clients book you at. You can change it later.",
+  nameLabel: "Your name or business",
+  namePlaceholder: "Anna Studio",
+  handleLabel: "Page address",
+  handlePlaceholder: "your-name",
+  handleHint: "3–50 characters: letters, numbers, dashes. Leave empty to choose later.",
+  handleFree: (url: string) => `${url} is free`,
+  handleTaken: (url: string) => `${url} is taken`,
+  handleTakenSuggest: (suggestion: string) => `try ${suggestion}`,
+  handleChecking: "Checking…",
+  handleCheckFailed: "Couldn't check right now — you can still continue.",
+  timezoneLabel: "Timezone",
+  submit: "Claim my page",
+  submitting: "Claiming…",
+  justTaken: "That name was just taken — pick another.",
+} as const;
+
 /** Words that must not appear in marketing copy: features not shipped yet. */
 export const FORBIDDEN_COPY = ["google", "calendar sync", "stripe", "payment"] as const;
 
