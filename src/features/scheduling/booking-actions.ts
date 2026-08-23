@@ -60,13 +60,17 @@ export async function cancelBookingAdmin(
     if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
     const supabase = await createClient();
     // Column-scoped seam from 0028: only confirmed → cancelled_by_provider
-    // can succeed; the org filter is defense-in-depth on top of RLS.
+    // can succeed; the org filter is defense-in-depth on top of RLS. Future
+    // only: a booking that has already started is history, and the client
+    // would otherwise get a "had to cancel" email about an appointment that
+    // happened (the RPCs behind reschedule/resend already refuse the past).
     const { data, error } = await supabase
       .from("bookings")
       .update({ status: "cancelled_by_provider" })
       .eq("id", parsed.data.id)
       .eq("org_id", org.id)
       .eq("status", "confirmed")
+      .gt("starts_at", new Date().toISOString())
       .select(
         "id, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, staff(name), services(name), rental_offerings(name), rental_units(name)",
       );
@@ -84,7 +88,7 @@ export async function cancelBookingAdmin(
       rental_offerings: { name: string } | null;
       rental_units: { name: string } | null;
     }>)?.[0];
-    if (!row) return { ok: false, error: "Only a confirmed booking can be cancelled." };
+    if (!row) return { ok: false, error: "Only a confirmed, upcoming booking can be cancelled." };
 
     // Past this line the cancel is APPLIED — nothing below may turn into a
     // failed action, so the whole tail sits in its own catch rather than
@@ -167,13 +171,15 @@ export async function getAdminSlots(
     const org = await currentOrg();
     if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
     // One person's grid: the walk-in and move dialogs both name whose slots
-    // they are showing, so `perStaff` holds exactly that one member.
+    // they are showing, so `perStaff` holds exactly that one member. The
+    // service may be deactivated (hidden from the public page) and still have
+    // bookings the admin needs to move — hence includeInactive.
     const ctx = await loadOrgSlotContext(
       org.id,
       parsed.data.serviceId,
       parsed.data.fromDate,
       parsed.data.days,
-      { staffId: parsed.data.staffId },
+      { staffId: parsed.data.staffId, includeInactive: true },
     );
     if (!ctx) return { ok: false, error: STAFF_UNAVAILABLE };
     const slots = computeSlots({
@@ -229,6 +235,9 @@ export async function rescheduleBookingAdmin(
     const ctx = await loadOrgSlotContext(org.id, booking.service_id, localDate, 1, {
       staffId: targetStaffId,
       excludeBookingId: booking.id,
+      // A deactivated service keeps its future bookings; moving one must not
+      // fail as "doesn't offer this service" (public pages still hide it).
+      includeInactive: true,
     });
     // Null here means the target is not an active member offering this
     // service (deactivated, or the service unlinked, since the dialog
@@ -279,9 +288,13 @@ export async function rescheduleBookingAdmin(
       movedToStaffName = row?.staff_changed ? row.staff_name : null;
       const oldWhenLine = formatWhenLine(new Date(booking.starts_at), org.timezone);
       const whenLine = formatWhenLine(starts, org.timezone);
-      // Keyed on the OLD id: the new id is not always in hand here, and
-      // old-id + kind is just as collision-free.
-      const idempotencyKey = bookingLifecycleKey(booking.id, "rescheduled");
+      // Keyed on the NEW id, never the old one. A reschedule writes a new row,
+      // so "booking/<old>/rescheduled" is NOT collision-free: after a client
+      // move A→B, an admin move B→C would reuse B's key with a different
+      // payload — Resend answers 409 and the client never gets the C link.
+      // The new id is minted once, so its key is fresh by construction; the
+      // fallback only covers an RPC that returned no row (logged above).
+      const idempotencyKey = bookingLifecycleKey(row?.new_booking_id ?? booking.id, "rescheduled");
 
       if (!booking.client_email) {
         noEmail = true;

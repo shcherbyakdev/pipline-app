@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   HANDLE_RE,
@@ -72,6 +72,34 @@ describe("reserved handles", () => {
   });
   it("has no duplicates", () => {
     expect(new Set(RESERVED_HANDLES).size).toBe(RESERVED_HANDLES.length);
+  });
+});
+
+describe("reserved list covers every top-level app route", () => {
+  // Derived from the filesystem, not hand-picked (audit 2026-08-24): a new
+  // /faq or /changelog would otherwise silently shadow an org's page — the
+  // static route wins over /[handle] — with no test noticing.
+  it("every real segment under src/app is reserved or cannot be a handle at all", () => {
+    const root = join(process.cwd(), "src/app");
+    const segments = new Set<string>();
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const name = entry.name;
+        if (name.startsWith("(") && name.endsWith(")")) {
+          walk(join(dir, name)); // route groups add no URL segment
+          continue;
+        }
+        if (name.startsWith("[") || name.startsWith("_") || name.startsWith(".")) continue;
+        segments.add(name);
+      }
+    };
+    walk(root);
+    expect(segments.size).toBeGreaterThan(10);
+    for (const seg of segments) {
+      const legal = HANDLE_RE.test(seg);
+      expect(!legal || isReservedHandle(seg), `route segment "${seg}" must be reserved`).toBe(true);
+    }
   });
 });
 

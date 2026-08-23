@@ -4,7 +4,14 @@
 // Same split as lib/storage/logo.ts vs branding.ts.
 import type { PageDocument, Section } from "./schema";
 
-export const PAGE_IMAGE_MAX_BYTES = 5 * 1_048_576;
+// 4 MiB, not 5: the upload relays through a server action, and Vercel caps a
+// function's request body at 4.5 MB — a 5 MB file would fail with an opaque
+// 413 before the action ever ran. The bucket's own limit matches (migration).
+export const PAGE_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
+// Per-org ceiling on objects under `{orgId}/page/` — the bucket is public and
+// orphans are only swept on publish/discard, so an upload loop must not be
+// able to fill it without bound.
+export const PAGE_IMAGE_MAX_OBJECTS = 200;
 export const PAGE_IMAGE_MIME_EXTENSIONS: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",

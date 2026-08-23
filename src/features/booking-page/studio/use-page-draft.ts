@@ -20,13 +20,20 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
   const [doc, setDoc] = React.useState(initial.draft);
   const [published, setPublished] = React.useState(initial.published);
   const [status, setStatus] = React.useState<SaveStatus>("idle");
+  // Has update() ever run? `status` alone can't say "unsaved": it starts at
+  // "idle" for a freshly loaded (and therefore saved) draft.
+  const [edited, setEdited] = React.useState(false);
   const [issues, setIssues] = React.useState<IssueMap>({});
   const [busy, startTransition] = React.useTransition();
   const docRef = React.useRef(doc);
   const lastSaved = React.useRef(initial.draft);
   const timer = React.useRef<number | null>(null);
-  const saving = React.useRef(false);
+  // The autosave request in flight, if any. Held as a promise (not a flag) so
+  // publish/discard can wait for it: an older autosave landing AFTER a
+  // publish or discard would re-install stale draft content server-side.
+  const inFlight = React.useRef<Promise<void> | null>(null);
   const flushAgain = React.useRef(false);
+  const mounted = React.useRef(false);
 
   const clearTimer = React.useCallback(() => {
     if (timer.current !== null) {
@@ -46,10 +53,20 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
     return null;
   }, []);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  // Unmount path: no state, no transition — just get the bytes to the server.
+  // Invalid documents are dropped (the RPC would refuse them anyway).
+  const saveDetached = React.useCallback((candidate: PageDocument) => {
+    const parsed = pageDocumentSchema.safeParse(candidate);
+    if (!parsed.success || deepEqual(parsed.data, lastSaved.current)) return;
+    lastSaved.current = parsed.data;
+    void saveBookingPageDraft(parsed.data).catch((error) => {
+      console.error("[booking-page] detached autosave threw:", error);
+    });
+  }, []);
+
   const flush = React.useCallback(() => {
     clearTimer();
-    if (saving.current) {
+    if (inFlight.current) {
       // A save is in flight: run once more when it settles, never concurrently —
       // out-of-order responses would otherwise regress lastSaved.
       flushAgain.current = true;
@@ -62,8 +79,7 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
       return;
     }
     setStatus("saving");
-    saving.current = true;
-    startTransition(async () => {
+    const run = (async () => {
       try {
         const result = await saveBookingPageDraft(valid);
         if (result.ok) {
@@ -78,20 +94,37 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
         setStatus("error");
         toast.error(GENERIC_WRITE_ERROR);
       } finally {
-        saving.current = false;
+        inFlight.current = null;
         if (flushAgain.current) {
           flushAgain.current = false;
-          flush();
+          // The studio may have unmounted while this save ran — the queued
+          // edit still has to reach the server, just without touching state.
+          if (mounted.current) flush();
+          else saveDetached(docRef.current);
         }
       }
+    })();
+    inFlight.current = run;
+    // `busy` (isPending) tracks the request; the promise itself never rejects.
+    startTransition(async () => {
+      await run;
     });
-  }, [validate, clearTimer, startTransition]);
+  }, [validate, clearTimer, startTransition, saveDetached]);
+
+  // Wait for whatever autosave is running (and any re-run it queues) before a
+  // write that must not be overtaken. A queued re-flush is dropped first:
+  // publish/discard write the document themselves.
+  const settle = React.useCallback(async () => {
+    flushAgain.current = false;
+    while (inFlight.current) await inFlight.current;
+  }, []);
 
   const update = React.useCallback(
     (next: PageDocument | ((prev: PageDocument) => PageDocument)) => {
       const resolved = typeof next === "function" ? next(docRef.current) : next;
       docRef.current = resolved;
       setDoc(resolved);
+      setEdited(true);
       setStatus("idle");
       clearTimer();
       timer.current = window.setTimeout(flush, AUTOSAVE_MS);
@@ -99,8 +132,33 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
     [flush, clearTimer],
   );
 
-  // Unmount: drop a pending autosave (the draft is re-read on next visit).
-  React.useEffect(() => clearTimer, [clearTimer]);
+  // Unmount: an edit made inside the debounce window would otherwise be lost
+  // (the draft is re-read on next visit). Fire it; if a save is in flight its
+  // `finally` sends the latest document instead, so the two never race.
+  React.useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      clearTimer();
+      if (inFlight.current) flushAgain.current = true;
+      else saveDetached(docRef.current);
+    };
+  }, [clearTimer, saveDetached]);
+
+  // Closing the tab mid-debounce or mid-save: let the browser ask first.
+  // Every path that brings the server level with the local doc ends in
+  // status "saved"; anything else after an edit is unsaved.
+  const unsaved = edited && status !== "saved";
+  React.useEffect(() => {
+    if (!unsaved) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Legacy browsers key off returnValue; modern ones off preventDefault.
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsaved]);
 
   const publish = React.useCallback(() => {
     clearTimer();
@@ -112,6 +170,7 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
     setStatus("saving");
     startTransition(async () => {
       try {
+        await settle();
         const result = await publishBookingPage(valid);
         if (!result.ok) {
           setStatus("error");
@@ -128,12 +187,13 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
         toast.error(GENERIC_WRITE_ERROR);
       }
     });
-  }, [validate, clearTimer, startTransition]);
+  }, [validate, clearTimer, startTransition, settle]);
 
   const discard = React.useCallback(() => {
     clearTimer();
     startTransition(async () => {
       try {
+        await settle();
         const result = await discardBookingPageDraft();
         // No "error" status here: discard has no retry affordance, the toast is the whole signal.
         if (!result.ok) {
@@ -152,7 +212,7 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
         toast.error(GENERIC_WRITE_ERROR);
       }
     });
-  }, [published, clearTimer, startTransition]);
+  }, [published, clearTimer, startTransition, settle]);
 
   return {
     doc, update, published, status, issues, busy,

@@ -1,9 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const rpc = vi.hoisted(() => vi.fn());
+// The action throttles per client (x-forwarded-for). Each test gets its own
+// address so the 20/min bucket never bleeds across tests; the throttle test
+// pins one address on purpose.
+const client = vi.hoisted(() => ({ ip: "10.0.0.1", n: 0 }));
 
 vi.mock("@/lib/supabase/anon-server", () => ({
   createAnonServerClient: () => ({ rpc }),
+}));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ "x-forwarded-for": client.ip }),
 }));
 vi.mock("@/env", () => ({
   env: { NEXT_PUBLIC_SUPABASE_URL: "http://localhost", NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon" },
@@ -13,6 +20,8 @@ import { checkHandle } from "./handle-actions";
 
 beforeEach(() => {
   rpc.mockReset();
+  client.ip = `10.0.${Math.floor(client.n / 250)}.${client.n % 250}`;
+  client.n += 1;
 });
 
 describe("checkHandle", () => {
@@ -47,5 +56,20 @@ describe("checkHandle", () => {
   it("returns error (not taken) when the RPC fails", async () => {
     rpc.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
     expect(await checkHandle("anna")).toEqual({ status: "error" });
+  });
+});
+
+describe("checkHandle throttle", () => {
+  it("refuses a client that exceeds the per-minute budget, without touching the DB", async () => {
+    rpc.mockResolvedValue({ data: true, error: null });
+    for (let i = 0; i < 20; i++) expect(await checkHandle("anna")).toEqual({ status: "free" });
+    expect(await checkHandle("anna")).toEqual({ status: "error" });
+    expect(rpc).toHaveBeenCalledTimes(20);
+  });
+
+  it("suggest: false answers taken without suggestion lookups", async () => {
+    rpc.mockResolvedValueOnce({ data: false, error: null });
+    expect(await checkHandle("anna", { suggest: false })).toEqual({ status: "taken", suggestion: null });
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 });

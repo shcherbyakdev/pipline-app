@@ -14,6 +14,17 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({ auth })),
 }));
 
+// updatePassword spends the recovery-link proof cookie (next-path.ts);
+// the jar is a plain in-memory map per test.
+const jar = vi.hoisted(() => new Map<string, string>());
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) => (jar.has(name) ? { name, value: jar.get(name)! } : undefined),
+    set: (name: string, value: string) => void jar.set(name, value),
+    delete: (name: string) => void jar.delete(name),
+  }),
+}));
+
 // actions.ts imports @/env, which validates real env vars at module load.
 vi.mock("@/env", () => ({
   env: { NEXT_PUBLIC_APP_URL: "http://localhost:3000" },
@@ -43,6 +54,7 @@ function form(entries: Record<string, string>): FormData {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  jar.clear();
 });
 
 describe("sendMagicLink", () => {
@@ -78,6 +90,18 @@ describe("signInWithPassword", () => {
     await expect(
       signInWithPassword({}, form({ email: "a@b.com", password: "right-pass" })),
     ).rejects.toThrow("REDIRECT:/bookings");
+  });
+
+  it("honours a same-site `next` and refuses anything else", async () => {
+    auth.signInWithPassword.mockResolvedValue({ error: null });
+    await expect(
+      signInWithPassword({}, form({ email: "a@b.com", password: "p", next: "/settings?tab=1" })),
+    ).rejects.toThrow("REDIRECT:/settings?tab=1");
+    for (const bad of ["//evil.com", "https://evil.com/x", "/login", "/\\evil.com"]) {
+      await expect(
+        signInWithPassword({}, form({ email: "a@b.com", password: "p", next: bad })),
+      ).rejects.toThrow("REDIRECT:/bookings");
+    }
   });
 });
 
@@ -157,17 +181,27 @@ describe("updatePassword", () => {
     expect(auth.updateUser).not.toHaveBeenCalled();
   });
 
-  it("updates and redirects to /bookings on success", async () => {
+  it("refuses a session that did not come from a recovery link", async () => {
+    auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    const state = await updatePassword({}, form({ password: "12345678", confirm: "12345678" }));
+    expect(state.error).toMatch(/reset link has expired/);
+    expect(auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("updates, spends the recovery proof and redirects to /bookings on success", async () => {
     auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
     auth.updateUser.mockResolvedValue({ error: null });
+    jar.set("booklo_recovery", "1");
     await expect(
       updatePassword({}, form({ password: "12345678", confirm: "12345678" })),
     ).rejects.toThrow("REDIRECT:/bookings");
     expect(auth.updateUser).toHaveBeenCalledWith({ password: "12345678" });
+    expect(jar.has("booklo_recovery")).toBe(false);
   });
 
   it("maps update failures to generic copy", async () => {
     auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+    jar.set("booklo_recovery", "1");
     auth.updateUser.mockResolvedValue({ error: { message: "boom" } });
     const state = await updatePassword(
       {},
@@ -175,6 +209,19 @@ describe("updatePassword", () => {
     );
     expect(state.error).toBe(
       "Could not update your password. Request a new reset link.",
+    );
+  });
+});
+
+describe("signUp error codes", () => {
+  it("names a rejected (leaked/common) password and the rate limit; everything else stays generic", async () => {
+    auth.signUp.mockResolvedValueOnce({ error: { code: "weak_password", message: "x" } });
+    expect((await signUp({}, form({ email: "a@b.com", password: "password1" }))).error).toMatch(/data breach/);
+    auth.signUp.mockResolvedValueOnce({ error: { code: "over_request_rate_limit", message: "x" } });
+    expect((await signUp({}, form({ email: "a@b.com", password: "password1" }))).error).toMatch(/Too many attempts/);
+    auth.signUp.mockResolvedValueOnce({ error: { code: "user_already_exists", message: "x" } });
+    expect((await signUp({}, form({ email: "a@b.com", password: "password1" }))).error).toBe(
+      "Could not create your account. Try again.",
     );
   });
 });

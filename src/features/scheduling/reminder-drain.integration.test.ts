@@ -6,7 +6,6 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { generateAccessToken } from "@/lib/tokens/mint";
-import { runReminderDrain } from "./reminders";
 import type { EmailTransport, OutboundEmail } from "@/lib/email/transport";
 
 try {
@@ -14,6 +13,12 @@ try {
 } catch {
   // CI exports env directly.
 }
+
+// Dynamic import so env is loaded before src/env.ts parses it: reminders.ts
+// reaches @/env through @/lib/booking/public (the staff-name rule) and a
+// static import would be hoisted above the loadEnvFile call
+// (booking-flow.integration.test.ts precedent).
+const { runReminderDrain } = await import("./reminders");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -140,9 +145,14 @@ describe("reminder drain", () => {
     if (cancelled.error) throw cancelled.error;
   });
 
+  // Every tick below is table-wide (a drain has no org scoping — that is the
+  // point of a drain), so rows left behind by other integration files share
+  // the batch. Assertions therefore read THIS file's rows back by id; the
+  // summary counters are only ever checked with >= where they are checked
+  // at all.
   it("failed send rolls the claim back and counts an attempt", async () => {
     const summary = await runReminderDrain({ db: admin, transport: failingTransport });
-    expect(summary.failed).toBe(1); // the due row
+    expect(summary.failed).toBeGreaterThanOrEqual(1); // the due row
     expect(summary.skipped).toBeGreaterThanOrEqual(1); // the late row got stamped
     const { data } = await admin
       .from("bookings")
@@ -177,25 +187,48 @@ describe("reminder drain", () => {
         return badgeUrl;
       },
     });
-    expect(summary.sent).toBe(1);
-    expect(sent[0].to).toBe("reminded@example.com");
-    expect(sent[0].idempotencyKey).toBe(`booking/${dueId}/reminder`);
+    expect(summary.sent).toBeGreaterThanOrEqual(1);
+    const mine = sent.find((m) => m.idempotencyKey === `booking/${dueId}/reminder`);
+    expect(mine).toBeDefined();
+    expect(mine!.to).toBe("reminded@example.com");
     expect(asked).toContain(orgId);
     // Memoised per org per tick: a batch of rows from one org must not
     // re-run the badge lookup (plan read + orgs read) once per row.
     expect(new Set(asked).size).toBe(asked.length);
-    expect(sent[0].html).toContain("Powered by Booklo");
-    expect(sent[0].html).toContain(badgeUrl);
+    expect(mine!.html).toContain("Powered by Booklo");
+    expect(mine!.html).toContain(badgeUrl);
     // Still link-free apart from the badge: the manage credential cannot be
     // reconstructed at drain time and must never appear in a reminder.
-    expect(sent[0].html.replaceAll(badgeUrl, "")).not.toContain("http");
+    expect(mine!.html.replaceAll(badgeUrl, "")).not.toContain("http");
+    // Solo org (create_org seeded exactly one staff row): no "With" line,
+    // byte-identical to the pre-team copy. The multi-staff case is the last
+    // test in this file.
+    expect(mine!.html).not.toContain("With ");
+    const { data: row } = await admin
+      .from("bookings")
+      .select("reminder_sent_at, reminder_attempts")
+      .eq("id", dueId)
+      .single();
+    expect(row!.reminder_sent_at).not.toBeNull(); // claimed and kept
+    expect(row!.reminder_attempts).toBe(1); // the failed first tick, nothing since
   });
 
-  it("third tick is a no-op", async () => {
+  it("third tick does not touch the already-sent row", async () => {
+    const { data: before } = await admin
+      .from("bookings")
+      .select("reminder_sent_at")
+      .eq("id", dueId)
+      .single();
     const { transport, sent } = recordingTransport();
-    const summary = await runReminderDrain({ db: admin, transport });
-    expect(summary.sent).toBe(0);
-    expect(sent.length).toBe(0);
+    await runReminderDrain({ db: admin, transport });
+    expect(sent.some((m) => m.idempotencyKey === `booking/${dueId}/reminder`)).toBe(false);
+    const { data: after } = await admin
+      .from("bookings")
+      .select("reminder_sent_at, reminder_attempts")
+      .eq("id", dueId)
+      .single();
+    expect(after!.reminder_sent_at).toBe(before!.reminder_sent_at); // stamp untouched
+    expect(after!.reminder_attempts).toBe(1);
   });
 
   it("stamps emailless bookings as suppressed without sending", async () => {
@@ -221,7 +254,7 @@ describe("reminder drain", () => {
     expect(error).toBeNull();
 
     const sends: (string | null)[] = [];
-    const summary = await runReminderDrain({
+    await runReminderDrain({
       db: admin,
       transport: {
         send: async (m) => {
@@ -231,7 +264,6 @@ describe("reminder drain", () => {
       },
     });
 
-    expect(summary.failed).toBe(0);
     expect(sends).not.toContain(null);
     const { data: row } = await admin
       .from("bookings")
@@ -326,6 +358,54 @@ describe("reminder drain", () => {
       .from("bookings")
       .select("reminder_sent_at, reminder_attempts")
       .eq("id", underQuotaId)
+      .single();
+    expect(row!.reminder_sent_at).not.toBeNull();
+    expect(row!.reminder_attempts).toBe(0);
+  });
+
+  // Team spec: once an org has more than one active staff member, every
+  // client-facing mail names who the appointment is with — reminders
+  // included. Last in the file on purpose: adding the second staff row flips
+  // the org from solo to team for every later tick.
+  it("names the staff member on a reminder once the org has a team", async () => {
+    const { data: second, error: staffError } = await admin
+      .from("staff")
+      .insert({ org_id: orgId, name: "Dana Second", slug: "dana-second", color: "#336699" })
+      .select("id")
+      .single();
+    expect(staffError).toBeNull();
+
+    const { data: inserted, error } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        service_id: serviceId,
+        staff_id: second!.id,
+        client_name: "Team Client",
+        client_email: "teamclient@example.com",
+        starts_at: hours(18),
+        ends_at: hours(19),
+        created_at: hours(-48),
+        status: "confirmed",
+        cancel_token_hash: generateAccessToken().tokenHash,
+      })
+      .select("id")
+      .single();
+    expect(error).toBeNull();
+    const teamBookingId = inserted!.id;
+
+    const { transport, sent } = recordingTransport();
+    await runReminderDrain({ db: admin, transport });
+
+    const mine = sent.find((m) => m.idempotencyKey === `booking/${teamBookingId}/reminder`);
+    expect(mine).toBeDefined();
+    expect(mine!.to).toBe("teamclient@example.com");
+    expect(mine!.html).toContain("With Dana Second");
+    expect(mine!.text).toContain("With Dana Second");
+    const { data: row } = await admin
+      .from("bookings")
+      .select("reminder_sent_at, reminder_attempts")
+      .eq("id", teamBookingId)
       .single();
     expect(row!.reminder_sent_at).not.toBeNull();
     expect(row!.reminder_attempts).toBe(0);

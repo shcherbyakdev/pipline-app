@@ -12,9 +12,12 @@ import {
 import { RentalReschedulePanel } from "@/features/rentals/components/rental-reschedule-panel";
 import { Button } from "@/components/ui/button";
 
-// UTC "today" — matches booking-widget's documented caveat (far-west
-// evening viewers start one day ahead; navigation covers it).
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// The viewer's local date (booking-widget's rule; getManageSlots pads its
+// engine window a day each side, the picker keeps what lands on its page).
+const todayISO = () =>
+  new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+const viewerDay = (iso: string) =>
+  new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 
 const slotLabel = (iso: string) =>
   new Intl.DateTimeFormat(undefined, {
@@ -45,12 +48,19 @@ export function ManageBooking({
   const [picking, setPicking] = React.useState(false);
   const [fromDate, setFromDate] = React.useState(todayISO);
   const [slots, setSlots] = React.useState<string[] | null>(null);
+  // A picked slot waits for an explicit confirm (audit 2026-08-24: one
+  // mis-click used to move the booking and email everyone).
+  const [candidate, setCandidate] = React.useState<string | null>(null);
 
   const loadSlots = (date: string) => {
+    setCandidate(null);
     startTransition(async () => {
       const res = await getManageSlots({ token, fromDate: date, days: 7 });
       if (!res.ok) toast.error(res.error);
-      else setSlots(res.slots);
+      else {
+        const last = addDaysISO(date, 6);
+        setSlots(res.slots.filter((s) => viewerDay(s) >= date && viewerDay(s) <= last));
+      }
     });
   };
 
@@ -130,6 +140,20 @@ export function ManageBooking({
             <p className="text-muted-foreground text-sm">Loading…</p>
           ) : slots.length === 0 ? (
             <p className="text-muted-foreground text-sm">No free times this week — try the next.</p>
+          ) : candidate ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm">
+                Move this booking to <span className="font-medium">{slotLabel(candidate)}</span>?
+              </p>
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={() => pick(candidate)} disabled={pending}>
+                  Confirm new time
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setCandidate(null)} disabled={pending}>
+                  Pick another
+                </Button>
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {slots.map((s) => (
@@ -138,7 +162,7 @@ export function ManageBooking({
                   variant="outline"
                   size="sm"
                   disabled={pending}
-                  onClick={() => pick(s)}
+                  onClick={() => setCandidate(s)}
                 >
                   {slotLabel(s)}
                 </Button>

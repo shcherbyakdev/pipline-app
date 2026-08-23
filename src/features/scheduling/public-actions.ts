@@ -1,9 +1,9 @@
 "use server";
 
 import { headers } from "next/headers";
-import { createAnonServerClient } from "@/lib/supabase/anon-server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
-import { publicBookingLimiter } from "@/lib/tokens/rate-limit";
+import { publicBookingLimiter, publicSlotsLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import {
   getBookingOrg,
@@ -14,23 +14,32 @@ import {
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { chooseStaffForBooking } from "@/lib/booking/bookable";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
+import { getProviderEmail } from "@/lib/booking/provider";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
-import { computeSlots, dateInZone, unionSlots } from "./slots";
+import { addDaysISO, computeSlots, dateInZone, unionSlots } from "./slots";
 import {
   bookingConfirmationEmail,
   bookingIdempotencyKey,
+  bookingLifecycleKey,
+  providerNewBookingEmail,
   formatWhenLine,
 } from "./templates";
 import { getSlotsInput, createBookingInput, GENERIC_WRITE_ERROR } from "./schema";
 import { SLOT_TAKEN, slotLostMessage } from "./booking-errors";
 
 
-async function limited(): Promise<boolean> {
+const TOO_MANY_REQUESTS = "Too many requests — slow down.";
+const TOO_MANY_FOR_EMAIL =
+  "Too many bookings for this email address in the last hour — try again later.";
+
+// Two buckets (rate-limit.ts): browsing weeks is cheap and frequent, a
+// booking is an RPC plus emails.
+async function limited(kind: "slots" | "booking"): Promise<boolean> {
   const key = clientKeyFrom(await headers());
-  return !publicBookingLimiter.allow(key);
+  return !(kind === "slots" ? publicSlotsLimiter : publicBookingLimiter).allow(key);
 }
 
 // slotLostMessage (booking-errors.ts) holds the rule; this only feeds it the
@@ -101,17 +110,45 @@ function slotsPerStaff(
   }));
 }
 
+// On a team org the provider (org owner) may also be a staff row with the
+// same address — one booking, one mail. Read-only and best-effort.
+async function isStaffTheProvider(
+  orgId: string,
+  staffId: string,
+  providerEmail: string | null,
+): Promise<boolean> {
+  if (!providerEmail) return false;
+  try {
+    const { data } = await createAdminClient()
+      .from("staff")
+      .select("email")
+      .eq("id", staffId)
+      .eq("org_id", orgId)
+      .maybeSingle();
+    return (data?.email ?? "").trim().toLowerCase() === providerEmail.trim().toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 export async function getSlots(
   input: unknown,
 ): Promise<{ ok: true; slots: string[] } | { ok: false; error: string }> {
-  if (await limited()) return { ok: false, error: "Too many requests — slow down." };
+  if (await limited("slots")) return { ok: false, error: TOO_MANY_REQUESTS };
   const parsed = getSlotsInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const { handle, serviceId, fromDate, days, staffId } = parsed.data;
   try {
-    const ctx = await loadSlotContext(handle, serviceId, fromDate, days, staffId);
+    // `fromDate` is the VIEWER's local date (the widget groups by viewer
+    // day); the engine walks ORG-local dates. Pad a day on each side so a
+    // viewer far west or east of the org still sees every slot that falls on
+    // their own days — the widget keeps only what lands inside its page, and
+    // `notBefore` has already dropped the past.
+    const from = addDaysISO(fromDate, -1);
+    const span = days + 2;
+    const ctx = await loadSlotContext(handle, serviceId, from, span, staffId);
     if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
-    const slots = unionSlots(slotsPerStaff(ctx, fromDate, days));
+    const slots = unionSlots(slotsPerStaff(ctx, from, span));
     return { ok: true, slots: slots.map((s) => s.startsAt.toISOString()) };
   } catch (error) {
     console.error("[scheduling] getSlots:", error);
@@ -125,7 +162,7 @@ export async function createBooking(
   | { ok: true; token: string; staffName: string | null }
   | { ok: false; error: string; slotTaken?: boolean }
 > {
-  if (await limited()) return { ok: false, error: "Too many requests — slow down." };
+  if (await limited("booking")) return { ok: false, error: TOO_MANY_REQUESTS };
   const parsed = createBookingInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const { handle, serviceId, startsAt, name, email, note, staffId } = parsed.data;
@@ -150,8 +187,18 @@ export async function createBooking(
     }
 
     const { token, tokenHash } = generateAccessToken();
-    const anon = createAnonServerClient();
-    const { data, error } = await anon.rpc("create_booking", {
+    // 0052: create_booking left the anon grant surface — the engine re-check
+    // above (min notice, buffers, grid, max/day, plan roster) is the only
+    // entry, so this action calls it as service_role. The DB keeps its own
+    // last lines: org/service/staff membership, containment, EXCLUDE.
+    const admin = createAdminClient();
+    const choice = chooseStaffForBooking({
+      staffId,
+      bookableIds: ctx.bookableIds,
+      eligibleStaffIds: ctx.eligibleStaffIds,
+      freeStaffIdsAtSlot: match.staffIds,
+    });
+    const { data, error } = await admin.rpc("create_booking", {
       p_handle: handle,
       p_service_id: serviceId,
       p_starts_at: starts.toISOString(),
@@ -159,18 +206,14 @@ export async function createBooking(
       p_email: email,
       p_note: note ?? null,
       p_token_hash: tokenHash,
-      // The DB's auto-assign ranks over every active member linked to the
-      // service and knows nothing of plan limits, so "anyone" may only reach
-      // it while the bookable roster covers that whole set — see
-      // chooseStaffForBooking for the three cases.
-      p_staff_id: chooseStaffForBooking({
-        staffId,
-        bookableIds: ctx.bookableIds,
-        eligibleStaffIds: ctx.eligibleStaffIds,
-        freeStaffIdsAtSlot: match.staffIds,
-      }),
+      // A named person, or null + the engine's free set for the DB to rank
+      // inside (chooseStaffForBooking).
+      p_staff_id: choice.staffId,
+      p_candidates: choice.candidates,
     });
     if (error) {
+      // Per-email hourly cap (0052) — say so; "try again" would be a lie.
+      if (isRpcSentinel(error, "too_many")) return { ok: false, error: TOO_MANY_FOR_EMAIL };
       // The RPC raises a bare `staff_unavailable` when a NAMED staff member
       // cannot take the slot; `taken`/23P01 is the classic race. Solo orgs
       // reach the first branch too (they send a named id), so the wording is
@@ -199,6 +242,12 @@ export async function createBooking(
     const staffName = await resolveClientStaffName(ctx.org.orgId, row.staff_name);
     const whenLine = formatWhenLine(starts, ctx.org.timeZone);
     const idempotencyKey = bookingIdempotencyKey(row.booking_id);
+    // Best-effort like everything below: a null provider address only means
+    // the client's mail carries no reply-to and the provider copy is skipped.
+    const providerEmail = await getProviderEmail(ctx.org.orgId).catch((e) => {
+      console.error("[scheduling] getProviderEmail:", e);
+      return null;
+    });
 
     // Best-effort confirmation (spec: the booking survives email failure;
     // S2's drain adds retries).
@@ -221,16 +270,45 @@ export async function createBooking(
         subject: msg.subject,
         html: msg.html,
         text: msg.text,
+        // Replies go to the provider, not the no-reply sender.
+        replyTo: providerEmail ?? undefined,
         idempotencyKey,
       });
     } catch (mailError) {
       console.error("[scheduling] confirmation email failed:", mailError);
     }
 
+    // The provider's own copy — the org owner, whoever the booking landed
+    // with (audit 2026-08-24: solo providers previously got nothing at all).
+    // Its own try so a failed client mail can't skip it.
+    if (providerEmail) {
+      try {
+        const notice = providerNewBookingEmail({
+          serviceName: ctx.service.name,
+          clientName: name,
+          clientEmail: email,
+          whenLine,
+          staffName,
+          note: note ?? null,
+        });
+        await selectTransport().send({
+          to: providerEmail,
+          subject: notice.subject,
+          html: notice.html,
+          text: notice.text,
+          replyTo: email,
+          idempotencyKey: bookingLifecycleKey(row.booking_id, "provider-new"),
+        });
+      } catch (mailError) {
+        console.error("[scheduling] provider notice failed:", mailError);
+      }
+    }
+
     // Staff-side heads-up (never throws, swallows its own errors). Solo orgs
     // are unaffected: sendStaffNotice itself skips orgs with <= 1 active staff,
-    // where the provider notice already says the same thing.
-    await sendStaffNotice({
+    // where the provider notice already says the same thing. Team orgs: the
+    // assigned member gets theirs unless they ARE the provider address.
+    if (!(await isStaffTheProvider(ctx.org.orgId, row.staff_id, providerEmail))) await sendStaffNotice({
       orgId: ctx.org.orgId,
       staffId: row.staff_id,
       kind: "new",

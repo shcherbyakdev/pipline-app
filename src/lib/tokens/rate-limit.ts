@@ -54,9 +54,17 @@ export class SlidingWindowLimiter {
 // re-resolves the token; x-forwarded-for is client-settable anyway.
 export const tokenLimiter = new SlidingWindowLimiter(120, 60_000);
 
-// Public booking surface (slot queries + booking creation). Tighter than
-// tokenLimiter: every request does real work (slot computation / an RPC).
-export const publicBookingLimiter = new SlidingWindowLimiter(30, 60_000);
+// Public booking surface, two buckets (audit 2026-08-24: one shared 30/min
+// bucket let a visitor paging through weeks — or a NAT-shared office IP —
+// spend the budget on slot queries and then be refused at "Confirm").
+// Slot/availability queries: cheap-ish, browsed freely.
+export const publicSlotsLimiter = new SlidingWindowLimiter(60, 60_000);
+// Mutations (create / reschedule / cancel): each one is an RPC plus emails.
+export const publicBookingLimiter = new SlidingWindowLimiter(10, 60_000);
+// The landing/onboarding handle check: public, unauthenticated, one definer
+// RPC per call — bounded so it can't be used to sweep the handle namespace
+// or as a DB amplifier.
+export const handleCheckLimiter = new SlidingWindowLimiter(20, 60_000);
 
 // All token pages derive the limiter bucket the same way; keep it in one
 // place so surfaces can never drift. An IP when the proxy sets one, else

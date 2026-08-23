@@ -8,6 +8,7 @@ const BASE = {
   summary: "Consultation — BookingCo",
   description: "Manage: https://example.com/booking/tok",
   url: "https://example.com/booking/tok",
+  now: new Date("2027-02-01T09:00:00Z"),
 };
 
 describe("bookingIcs", () => {
@@ -16,9 +17,22 @@ describe("bookingIcs", () => {
     expect(ics.startsWith("BEGIN:VCALENDAR\r\n")).toBe(true);
     expect(ics).toContain("DTSTART:20270301T100000Z");
     expect(ics).toContain("DTEND:20270301T110000Z");
-    expect(ics).toContain(`UID:${BASE.uid}`);
+    expect(ics).toContain(`UID:${BASE.uid}@booklo.co`);
+    expect(ics).toContain("SEQUENCE:0");
+    expect(ics).toContain("DTSTAMP:20270201T090000Z");
+    expect(ics).toContain("METHOD:PUBLISH");
+    expect(ics).toContain("STATUS:CONFIRMED");
     expect(ics.endsWith("END:VCALENDAR")).toBe(true);
     expect(ics.split("\r\n").every((l) => !l.includes("\n"))).toBe(true);
+  });
+
+  it("a rescheduled booking keeps the UID and bumps SEQUENCE; a cancelled one is a CANCEL", () => {
+    const moved = bookingIcs({ ...BASE, sequence: 2 });
+    expect(moved).toContain(`UID:${BASE.uid}@booklo.co`);
+    expect(moved).toContain("SEQUENCE:2");
+    const gone = bookingIcs({ ...BASE, sequence: 2, cancelled: true });
+    expect(gone).toContain("METHOD:CANCEL");
+    expect(gone).toContain("STATUS:CANCELLED");
   });
 
   it("appends the staff member to SUMMARY only when staffName is given", () => {

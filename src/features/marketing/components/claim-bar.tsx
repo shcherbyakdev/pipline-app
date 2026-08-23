@@ -40,7 +40,9 @@ export function ClaimBar({
       return;
     }
     startTransition(async () => {
-      const r = await checkHandle(handle);
+      // No suggestion lookups here — the bar only needs free/taken;
+      // onboarding offers alternatives.
+      const r = await checkHandle(handle, { suggest: false });
       if (r.status === "free" || r.status === "error") {
         // A failed check never blocks the claim: onboarding re-checks.
         router.push(`${SITE.links.signup}?handle=${encodeURIComponent(handle)}`);

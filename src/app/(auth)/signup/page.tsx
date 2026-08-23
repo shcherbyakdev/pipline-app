@@ -1,14 +1,19 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { env } from "@/env";
-import { HANDLE_RE, isReservedHandle } from "@/features/scheduling/handle";
+import { getOptionalUser } from "@/lib/auth/session";
+import { HANDLE_RE, isReservedHandle, normalizeHandle } from "@/features/scheduling/handle";
 import { hostLabel } from "@/lib/booking/url";
 import { SignupForm } from "./signup-form";
 
-// ?handle= comes from the landing claim bar. Anything malformed or reserved
-// is dropped silently — the plain signup is the fallback, never an error.
+// ?handle= comes from the landing claim bar (normalised the way the bar
+// normalises as you type, so "Anna Studio" pasted into the URL still
+// claims anna-studio). Anything still malformed or reserved is dropped
+// silently — the plain signup is the fallback, never an error.
 export default async function SignupPage({ searchParams }: PageProps<"/signup">) {
+  if (await getOptionalUser()) redirect("/bookings");
   const { handle: raw } = await searchParams;
-  const candidate = typeof raw === "string" ? raw : null;
+  const candidate = typeof raw === "string" ? normalizeHandle(raw).replace(/-+$/, "") : null;
   const handle = candidate && HANDLE_RE.test(candidate) && !isReservedHandle(candidate) ? candidate : null;
   const host = hostLabel(env.NEXT_PUBLIC_APP_URL);
 

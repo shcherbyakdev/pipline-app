@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 import {
   offeringInput,
   updateOfferingInput,
@@ -24,10 +25,16 @@ function fail(context: string, error: unknown): { ok: false; error: string } {
   return { ok: false, error: GENERIC_WRITE_ERROR };
 }
 
+// The session's single org — null while its `rentals` flag is off
+// (lib/flags): rentals are parked and no UI reaches these actions, so
+// every caller's null branch (the generic error) is the server-side
+// defence (public-actions.ts idiom).
 async function currentOrgId(): Promise<string | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("orgs").select("id").limit(1).maybeSingle();
-  return data?.id ?? null;
+  if (!data) return null;
+  if (!(await getDashboardFlags(data.id)).rentals) return null;
+  return data.id;
 }
 
 // No org_id here (updates must never rewrite it — scheduling/actions.ts idiom).

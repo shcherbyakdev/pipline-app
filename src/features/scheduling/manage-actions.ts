@@ -1,9 +1,10 @@
 "use server";
 
 import { headers } from "next/headers";
-import { createAnonServerClient } from "@/lib/supabase/anon-server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
-import { publicBookingLimiter } from "@/lib/tokens/rate-limit";
+import { publicBookingLimiter, publicSlotsLimiter } from "@/lib/tokens/rate-limit";
+import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { resolveBookingToken, buildBookingManageUrl } from "@/lib/tokens/booking";
 import { loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
 import { getProviderEmail } from "@/lib/booking/provider";
@@ -11,7 +12,7 @@ import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
-import { computeSlots, dateInZone } from "./slots";
+import { addDaysISO, computeSlots, dateInZone } from "./slots";
 import {
   bookingCancelledEmail,
   bookingRescheduledEmail,
@@ -31,10 +32,13 @@ import {
 
 const SLOT_TAKEN = "That time was just taken — please pick another.";
 const NOT_CHANGEABLE = "This booking can no longer be changed online.";
+const TOO_MANY_REQUESTS = "Too many requests — slow down.";
+const TOO_MANY_FOR_EMAIL =
+  "This booking has been changed too many times in the last hour — try again later.";
 
-async function limited(): Promise<boolean> {
+async function limited(kind: "slots" | "booking"): Promise<boolean> {
   const key = clientKeyFrom(await headers());
-  return !publicBookingLimiter.allow(key);
+  return !(kind === "slots" ? publicSlotsLimiter : publicBookingLimiter).allow(key);
 }
 
 // Token-authenticated resolve for mutations/pickers: only a confirmed,
@@ -51,7 +55,7 @@ async function resolveActionable(token: string) {
 export async function getManageSlots(
   input: unknown,
 ): Promise<{ ok: true; slots: string[] } | { ok: false; error: string }> {
-  if (await limited()) return { ok: false, error: "Too many requests — slow down." };
+  if (await limited("slots")) return { ok: false, error: TOO_MANY_REQUESTS };
   const parsed = manageSlotsInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   try {
@@ -65,11 +69,15 @@ export async function getManageSlots(
     }
     // Team: a client reschedule stays with the SAME staff member (the RPC
     // enforces it), so the grid is that one person's — never a fan-out.
+    // Viewer-local fromDate, org-local engine: pad a day each side (see
+    // public-actions getSlots); the picker keeps what lands on its page.
+    const from = addDaysISO(parsed.data.fromDate, -1);
+    const span = parsed.data.days + 2;
     const ctx = await loadOrgSlotContext(
       booking.orgId,
       booking.serviceId,
-      parsed.data.fromDate,
-      parsed.data.days,
+      from,
+      span,
       { staffId: booking.staffId, excludeBookingId: booking.id },
     );
     if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
@@ -81,8 +89,8 @@ export async function getManageSlots(
       busy: own.busy,
       timeZone: booking.orgTimezone,
       now: new Date(),
-      fromDate: parsed.data.fromDate,
-      days: parsed.data.days,
+      fromDate: from,
+      days: span,
     });
     return { ok: true, slots: slots.map((s) => s.toISOString()) };
   } catch (error) {
@@ -92,12 +100,14 @@ export async function getManageSlots(
 }
 
 export async function cancelBooking(input: unknown): Promise<ActionState> {
-  if (await limited()) return { ok: false, error: "Too many requests — slow down." };
+  if (await limited("booking")) return { ok: false, error: TOO_MANY_REQUESTS };
   const parsed = manageTokenInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   try {
-    const anon = createAnonServerClient();
-    const { data, error } = await anon.rpc("cancel_booking", { p_token: parsed.data.token });
+    // 0052: the lifecycle RPCs left the anon grant surface; the token stays
+    // the credential, service_role is the caller.
+    const admin = createAdminClient();
+    const { data, error } = await admin.rpc("cancel_booking", { p_token: parsed.data.token });
     if (error) {
       console.error("[scheduling] cancelBooking:", error.code || "rpc error");
       return { ok: false, error: GENERIC_WRITE_ERROR };
@@ -135,8 +145,10 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     const staffName = await resolveClientStaffName(row.org_id, row.staff_name);
 
     // Best-effort notifications — the cancellation is already committed.
+    // Client and provider mails in SEPARATE tries so one failing never
+    // skips the other.
+    const providerEmail = await getProviderEmail(row.org_id).catch(() => null);
     try {
-      const transport = selectTransport();
       const msg = bookingCancelledEmail({
         orgName: row.org_name,
         serviceName: row.service_name,
@@ -147,30 +159,35 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
         // opt out and it did (emailBadgeUrl swallows its own errors).
         badgeUrl: await emailBadgeUrl(row.org_id),
       });
-      await transport.send({
+      await selectTransport().send({
         to: row.client_email,
         subject: msg.subject,
         html: msg.html,
         text: msg.text,
+        replyTo: providerEmail ?? undefined,
         idempotencyKey: bookingLifecycleKey(row.booking_id, "cancelled"),
       });
-      const providerEmail = await getProviderEmail(row.org_id);
-      if (providerEmail) {
+    } catch (mailError) {
+      console.error("[scheduling] cancel email (client) failed:", mailError);
+    }
+    if (providerEmail) {
+      try {
         const notice = providerCancelledEmail({
           serviceName: row.service_name,
           whenLine,
           clientName: row.client_name,
         });
-        await transport.send({
+        await selectTransport().send({
           to: providerEmail,
           subject: notice.subject,
           html: notice.html,
           text: notice.text,
+          replyTo: row.client_email,
           idempotencyKey: bookingLifecycleKey(row.booking_id, "provider-cancelled"),
         });
+      } catch (mailError) {
+        console.error("[scheduling] cancel email (provider) failed:", mailError);
       }
-    } catch (mailError) {
-      console.error("[scheduling] cancel emails failed:", mailError);
     }
     // Team: the freed calendar belongs to the staff member — tell them too.
     // Outside the try above so a failed provider mail can't skip it; the
@@ -196,7 +213,7 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
 export async function rescheduleBooking(
   input: unknown,
 ): Promise<{ ok: true; token: string } | { ok: false; error: string; slotTaken?: boolean }> {
-  if (await limited()) return { ok: false, error: "Too many requests — slow down." };
+  if (await limited("booking")) return { ok: false, error: TOO_MANY_REQUESTS };
   const parsed = rescheduleBookingInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   try {
@@ -237,14 +254,16 @@ export async function rescheduleBooking(
     }
 
     const fresh = generateAccessToken();
-    const anon = createAnonServerClient();
-    const { data, error } = await anon.rpc("reschedule_booking", {
+    // 0052: service_role caller, token credential (see cancelBooking).
+    const admin = createAdminClient();
+    const { data, error } = await admin.rpc("reschedule_booking", {
       p_token: parsed.data.token,
       p_starts_at: starts.toISOString(),
       p_new_token_hash: fresh.tokenHash,
     });
     if (error) {
       if (error.code === "23P01") return { ok: false, error: SLOT_TAKEN, slotTaken: true };
+      if (isRpcSentinel(error, "too_many")) return { ok: false, error: TOO_MANY_FOR_EMAIL };
       console.error("[scheduling] rescheduleBooking:", error.code || "rpc error");
       return { ok: false, error: GENERIC_WRITE_ERROR };
     }
@@ -271,8 +290,8 @@ export async function rescheduleBooking(
     const whenLine = formatWhenLine(new Date(row.new_starts_at), row.org_timezone);
     const staffName = await resolveClientStaffName(row.org_id, row.staff_name);
 
+    const providerEmail = await getProviderEmail(row.org_id).catch(() => null);
     try {
-      const transport = selectTransport();
       const msg = bookingRescheduledEmail({
         orgName: row.org_name,
         serviceName: row.service_name,
@@ -283,31 +302,36 @@ export async function rescheduleBooking(
         staffName,
         badgeUrl: await emailBadgeUrl(row.org_id),
       });
-      await transport.send({
+      await selectTransport().send({
         to: row.client_email,
         subject: msg.subject,
         html: msg.html,
         text: msg.text,
+        replyTo: providerEmail ?? undefined,
         idempotencyKey: bookingLifecycleKey(row.new_booking_id, "rescheduled"),
       });
-      const providerEmail = await getProviderEmail(row.org_id);
-      if (providerEmail) {
+    } catch (mailError) {
+      console.error("[scheduling] reschedule email (client) failed:", mailError);
+    }
+    if (providerEmail) {
+      try {
         const notice = providerRescheduledEmail({
           serviceName: row.service_name,
           oldWhenLine,
           whenLine,
           clientName: row.client_name,
         });
-        await transport.send({
+        await selectTransport().send({
           to: providerEmail,
           subject: notice.subject,
           html: notice.html,
           text: notice.text,
+          replyTo: row.client_email,
           idempotencyKey: bookingLifecycleKey(row.new_booking_id, "provider-rescheduled"),
         });
+      } catch (mailError) {
+        console.error("[scheduling] reschedule email (provider) failed:", mailError);
       }
-    } catch (mailError) {
-      console.error("[scheduling] reschedule emails failed:", mailError);
     }
     // Team: the staff member whose calendar moved (same person as before —
     // the RPC keeps the assignment). Solo orgs no-op inside the notice.

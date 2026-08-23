@@ -6,6 +6,12 @@ import { z } from "zod";
 export const checkoutInput = z.object({
   plan: z.enum(["pro", "team"]),
   interval: z.enum(["month", "year"]),
+  /** "skip": don't ask the provider for the Founder discount. The picker
+      sends it after `?error=founder_ended` — the org is still eligible by
+      creation date, so without it every retry would ask for the same
+      exhausted code, be refused, and bounce back to the same line forever.
+      Hand-crafting it only ever costs the sender the discount. */
+  founder: z.enum(["skip"]).optional(),
 });
 
 /* A plain `<form action={serverAction}>` discards whatever the action returns,
@@ -24,6 +30,13 @@ export const BILLING_ERRORS = {
   // before the comp was granted): an unexpired override wins outright at the
   // seam, so the purchase would bill a card for entitlements nobody reads.
   complimentary: "Your plan is complimentary right now — there's nothing to buy until it ends.",
+  // The Founder code ran out (or expired/was archived) between the page
+  // showing the Founder price and the provider being asked for it. The
+  // session at list price exists (stripe.ts#withOptionalDiscount), but the
+  // member was promised a different number: say so and let them buy again
+  // at the price now shown — the picker drops the ribbon and sends
+  // `founder=skip` (checkoutInput) so the retry doesn't loop here.
+  founder_ended: "The Founder offer has ended — the regular price applies.",
   portal: "There's no subscription to manage yet.",
   portal_unavailable: "Couldn't open the billing portal — try again.",
 } as const;

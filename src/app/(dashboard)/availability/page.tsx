@@ -5,6 +5,7 @@ import { getSchedulingSettings } from "@/features/orgs/queries";
 import { WeeklyHours } from "@/features/scheduling/components/weekly-hours";
 import { DateOverrides } from "@/features/scheduling/components/date-overrides";
 import { StaffTabs } from "@/features/scheduling/components/staff-tabs";
+import { dateInZone } from "@/features/scheduling/slots";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -42,7 +43,10 @@ export default async function AvailabilityPage({
     );
   }
 
-  const { rules, exceptions } = await getAvailabilityAdmin(current.id);
+  // Org-local today: override dates live in the org's timezone, so "still
+  // upcoming" has to be judged there, not in UTC.
+  const today = dateInZone(new Date(), timezone);
+  const { rules, exceptions } = await getAvailabilityAdmin(current.id, today);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
@@ -62,7 +66,7 @@ export default async function AvailabilityPage({
         />
       </div>
       <WeeklyHours staffId={current.id} rules={rules} />
-      <DateOverrides staffId={current.id} rules={rules} exceptions={exceptions} />
+      <DateOverrides staffId={current.id} timeZone={timezone} rules={rules} exceptions={exceptions} />
     </div>
   );
 }

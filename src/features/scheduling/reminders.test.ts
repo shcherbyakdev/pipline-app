@@ -1,4 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+// reminders.ts resolves the "With {staff}" line through @/lib/booking/public,
+// which pulls in the admin Supabase client and with it @/env's eager parse of
+// process.env — none of which plain `npm run test` provides (only the
+// integration job does). decideReminder is pure; keep this file free of that
+// import graph.
+vi.mock("@/lib/booking/public", () => ({
+  resolveClientStaffName: async () => null,
+}));
+
 import { decideReminder, REMINDER_LEAD_MS } from "./reminders";
 
 const T0 = new Date("2027-02-10T12:00:00Z");

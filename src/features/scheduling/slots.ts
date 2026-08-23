@@ -3,6 +3,10 @@
 // renders them in the viewer's timezone.
 
 export type SlotService = {
+  // Present on real services; absent in a few pure-engine tests. maxPerDay
+  // counts THIS service's bookings (the field lives on the service form —
+  // "3 consultations a day" — not on the person).
+  id?: string;
   durationMin: number;
   bufferBeforeMin: number;
   bufferAfterMin: number;
@@ -17,7 +21,16 @@ export type SlotException = {
   startTime: string | null;
   endTime: string | null;
 };
-export type BusyInterval = { startsAt: Date; endsAt: Date };
+// An existing booking. Its own service's buffers (audit 2026-08-24: the
+// engine used to pad only the CANDIDATE, so a fresh slot could start inside
+// an existing booking's cleanup time) and its service, for max/day.
+export type BusyInterval = {
+  startsAt: Date;
+  endsAt: Date;
+  bufferBeforeMin?: number;
+  bufferAfterMin?: number;
+  serviceId?: string;
+};
 export type SlotInput = {
   service: SlotService;
   rules: SlotRule[];
@@ -101,7 +114,11 @@ export function computeSlots(input: SlotInput): Date[] {
     if (dayExceptions.some((e) => e.closed)) continue;
 
     if (service.maxPerDay !== null) {
-      const bookedToday = busy.filter((b) => dateInZone(b.startsAt, timeZone) === date).length;
+      const bookedToday = busy.filter(
+        (b) =>
+          dateInZone(b.startsAt, timeZone) === date &&
+          (!service.id || !b.serviceId || b.serviceId === service.id),
+      ).length;
       if (bookedToday >= service.maxPerDay) continue;
     }
 
@@ -120,9 +137,18 @@ export function computeSlots(input: SlotInput): Date[] {
         if (start < notBefore || start > notAfter) continue;
         const padStart = start - service.bufferBeforeMin * MIN;
         const padEnd = end + service.bufferAfterMin * MIN;
-        const blocked = busy.some(
-          (b) => padStart < b.endsAt.getTime() && b.startsAt.getTime() < padEnd,
-        );
+        // Two checks so each side's buffer is honoured against the OTHER
+        // side's event (the gap between two bookings is the larger of A's
+        // after-buffer and B's before-buffer, never their sum): the padded
+        // candidate must clear the existing event, and the bare candidate
+        // must clear the existing event's own padding.
+        const blocked = busy.some((b) => {
+          const bStart = b.startsAt.getTime();
+          const bEnd = b.endsAt.getTime();
+          const bPadStart = bStart - (b.bufferBeforeMin ?? 0) * MIN;
+          const bPadEnd = bEnd + (b.bufferAfterMin ?? 0) * MIN;
+          return (padStart < bEnd && bStart < padEnd) || (start < bPadEnd && bPadStart < end);
+        });
         if (blocked) continue;
         slots.push(new Date(start));
       }

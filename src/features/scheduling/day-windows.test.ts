@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { effectiveWindows, subtractRange, addRange } from "./day-windows";
+import { effectiveWindows, subtractRange, addRange, mergeWindows, unionWindows } from "./day-windows";
 
 const RULES = [
   { weekday: 2, startTime: "09:00", endTime: "12:00" },
@@ -87,5 +87,49 @@ describe("addRange", () => {
     expect(addRange([{ startTime: "09:00", endTime: "12:00" }], "11:00", "14:00")).toEqual([
       { startTime: "09:00", endTime: "14:00" },
     ]);
+  });
+});
+
+describe("mergeWindows", () => {
+  it("sorts and coalesces overlapping and touching windows", () => {
+    expect(
+      mergeWindows([
+        { startTime: "13:00", endTime: "17:00" },
+        { startTime: "09:00", endTime: "11:00" },
+        { startTime: "10:30", endTime: "13:00" },
+      ]),
+    ).toEqual([{ startTime: "09:00", endTime: "17:00" }]);
+    expect(mergeWindows([])).toEqual([]);
+  });
+});
+
+describe("unionWindows (multi-staff week)", () => {
+  const ANNA = { rules: RULES, exceptions: [] };
+  const BEN = { rules: [{ weekday: 2, startTime: "11:00", endTime: "15:00" }], exceptions: [] };
+
+  it("is the union of each person's own day", () => {
+    expect(unionWindows(D, [ANNA, BEN])).toEqual([{ startTime: "09:00", endTime: "17:00" }]);
+  });
+  it("one person's closed override does not empty the day for the others", () => {
+    const annaOff = { ...ANNA, exceptions: [{ date: D, closed: true, startTime: null, endTime: null }] };
+    expect(unionWindows(D, [annaOff, BEN])).toEqual([{ startTime: "11:00", endTime: "15:00" }]);
+    // Pooling the rows (the old behaviour) would have returned [].
+    expect(effectiveWindows(D, [...ANNA.rules, ...BEN.rules], annaOff.exceptions)).toEqual([]);
+  });
+  it("one person's open override replaces only their own rules", () => {
+    const benLate = { ...BEN, exceptions: [{ date: D, closed: false, startTime: "18:00", endTime: "20:00" }] };
+    expect(unionWindows(D, [ANNA, benLate])).toEqual([
+      { startTime: "09:00", endTime: "12:00" },
+      { startTime: "13:00", endTime: "17:00" },
+      { startTime: "18:00", endTime: "20:00" },
+    ]);
+    // Pooled, Ben's override would have replaced Anna's hours too.
+    expect(effectiveWindows(D, [...ANNA.rules, ...BEN.rules], benLate.exceptions)).toEqual([
+      { startTime: "18:00", endTime: "20:00" },
+    ]);
+  });
+  it("one person collapses to effectiveWindows", () => {
+    expect(unionWindows(D, [ANNA])).toEqual(effectiveWindows(D, RULES, []));
+    expect(unionWindows(D, [])).toEqual([]);
   });
 });

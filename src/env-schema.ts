@@ -73,7 +73,7 @@ export const envSchema = z.object({
   // any org a paid plan via the service-role client. That secret is a dev-only
   // artifact and must never exist in production; forbidding it here fails the
   // deploy closed rather than leaving the fake webhook live. (The dev checkout
-  // UI is separately dead in prod behind requireDevBilling's NODE_ENV gate.)
+  // UI is separately dead in prod behind requireDevBilling's APP_ENV gate.)
   if (value.BILLING_FAKE_SECRET) {
     ctx.addIssue({
       code: "custom",
@@ -84,8 +84,21 @@ export const envSchema = z.object({
 
   // When Stripe billing is actually live, fail closed at boot if it is
   // half-configured, instead of 503-ing on the first webhook or checkout.
+  // The four price ids are as load-bearing as the secrets: a missing one
+  // throws on the first checkout of that plan (stripe.ts#priceIdFor), and —
+  // worse — leaves that price out of the webhook's price map, so every
+  // subscription on it arrives as "unmapped" and is refused until the id is
+  // set (stripe.ts#normalizeStripeEvent).
   if (value.BILLING_PROVIDER === "stripe") {
-    for (const key of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const) {
+    const stripeKeys = [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "STRIPE_PRICE_PRO_MONTH",
+      "STRIPE_PRICE_PRO_YEAR",
+      "STRIPE_PRICE_TEAM_MONTH",
+      "STRIPE_PRICE_TEAM_YEAR",
+    ] as const;
+    for (const key of stripeKeys) {
       if (!value[key]) {
         ctx.addIssue({
           code: "custom",

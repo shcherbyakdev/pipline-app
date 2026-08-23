@@ -89,8 +89,11 @@ describe("create_rental_booking RPC (0038)", () => {
     return data!.id as string;
   }
 
+  // 0052: create_rental_booking / cancel_booking are service_role-only —
+  // the actions call them through the admin client behind their own
+  // engine pre-check. The token is still the credential inside the RPC.
   const book = (over: Record<string, unknown>) =>
-    anon.rpc("create_rental_booking", {
+    admin.rpc("create_rental_booking", {
       p_handle: HANDLE,
       p_offering_id: offeringId,
       p_unit_id: null,
@@ -284,7 +287,7 @@ describe("create_rental_booking RPC (0038)", () => {
     expect(hit.service_name).toBe("Cabin · U1");
     expect(hit.rental_unit_id).toBe(u1);
 
-    const { data: cancelled, error: cErr } = await anon.rpc("cancel_booking", { p_token: token });
+    const { data: cancelled, error: cErr } = await admin.rpc("cancel_booking", { p_token: token });
     expect(cErr).toBeNull();
     expect((cancelled as Array<Record<string, unknown>>)[0].booking_id).toBe(created.data);
     const { data: after } = await admin
@@ -304,5 +307,19 @@ describe("create_rental_booking RPC (0038)", () => {
     const errors = [a.error, b.error].filter((e) => e !== null);
     expect(errors).toHaveLength(1);
     expect(errors[0]!.message.includes("taken") || errors[0]!.code === "23P01").toBe(true);
+  });
+  it("grants (0052): anon no longer holds EXECUTE on create_rental_booking", async () => {
+    const { error } = await anon.rpc("create_rental_booking", {
+      p_handle: HANDLE,
+      p_offering_id: offeringId,
+      p_unit_id: null,
+      p_start_date: d(120),
+      p_end_date: d(122),
+      p_name: "Nobody",
+      p_email: "nobody@example.com",
+      p_note: null,
+      p_token_hash: generateAccessToken().tokenHash,
+    });
+    expect(error?.code).toBe("42501");
   });
 });

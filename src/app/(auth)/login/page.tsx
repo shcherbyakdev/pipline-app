@@ -1,12 +1,19 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getOptionalUser } from "@/lib/auth/session";
+import { afterLogin, safeNextPath } from "@/lib/auth/next-path";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
+  // Already signed in: nothing to do here (a re-opened confirmation link,
+  // a bookmark). Straight to where they were headed.
+  if (await getOptionalUser()) redirect(afterLogin(next));
+  const nextPath = safeNextPath(next);
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
@@ -22,7 +29,7 @@ export default async function LoginPage({
             That link is invalid or has expired — request a new one.
           </p>
         ) : null}
-        <LoginForm />
+        <LoginForm next={nextPath} />
         <p className="text-muted-foreground mt-6 text-sm">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="text-foreground hover:underline">

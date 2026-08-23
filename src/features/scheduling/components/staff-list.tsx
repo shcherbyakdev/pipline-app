@@ -47,10 +47,17 @@ function Row({
     });
   };
 
-  const copyLink = () => {
+  // Awaited: the clipboard write can be refused (permissions, insecure
+  // context, no focus) and "Copied" must not claim otherwise
+  // (portal-links-panel.tsx precedent).
+  const copyLink = async () => {
     if (!path) return;
-    navigator.clipboard.writeText(`${appUrl}${path}`);
-    toast.success("Copied");
+    try {
+      await navigator.clipboard.writeText(`${appUrl}${path}`);
+      toast.success("Copied");
+    } catch {
+      toast.error("Couldn't copy — select the link text and copy manually.");
+    }
   };
 
   return (

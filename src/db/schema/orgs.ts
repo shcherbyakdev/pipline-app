@@ -43,3 +43,22 @@ export const orgMembers = pgTable(
     index("org_members_user_id_idx").on(t.userId),
   ],
 );
+
+// Handles an org has USED and since renamed away from (0052). A released
+// handle is never re-claimable by another org: the old address lives on in
+// customers' websites (the embed snippet) and in old confirmation emails, so
+// letting a stranger claim it would hand them that traffic. /<old> 308s to
+// the org's current handle and /embed/<old> keeps serving the org. Written
+// ONLY by update_org_scheduling; read by lib/booking/public.ts via the admin
+// client (no API-role grants).
+export const orgHandleHistory = pgTable(
+  "org_handle_history",
+  {
+    handle: text("handle").primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    releasedAt: timestamp("released_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("org_handle_history_org_id_idx").on(t.orgId)],
+);

@@ -35,7 +35,14 @@ export async function resolveBookingToken(
   token: string,
   clientKey: string,
 ): Promise<ResolveBookingResult> {
-  if (!tokenLimiter.allow(`${clientKey}:${token.slice(0, 8)}`)) {
+  // Two buckets: a plain per-client one (audit 2026-08-24 — keyed only on
+  // the token prefix, every guess was a fresh bucket, so one IP could drive
+  // unlimited resolver RPCs through GET /booking/<x>), then the per-token
+  // one that keeps a single hot link from starving the client's other pages.
+  if (
+    !tokenLimiter.allow(clientKey) ||
+    !tokenLimiter.allow(`${clientKey}:${token.slice(0, 8)}`)
+  ) {
     return { status: "rate_limited" };
   }
   if (token.length < 20 || token.length > 200) return { status: "not_found" };

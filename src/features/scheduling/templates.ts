@@ -182,6 +182,8 @@ export function bookingLifecycleKey(
     | "reminder"
     | "provider-cancelled"
     | "provider-rescheduled"
+    // The provider's copy of a new public booking (0052).
+    | "provider-new"
     // Team (multi-staff): an admin move that hands a booking to someone else
     // frees the OLD member's calendar — their notice needs a key of its own
     // so a later real cancellation isn't deduped against it.
@@ -331,6 +333,44 @@ export function staffNewBookingEmail(input: {
     input.whenLine,
     "",
     input.orgName,
+  ].join("\n");
+  return { subject, html, text };
+}
+
+// Provider-side "you have a new booking" — the org owner's copy of every
+// public booking (audit 2026-08-24: solo providers got NOTHING when a client
+// booked; staffNewBookingEmail only reaches a named team member). Link-free
+// like the staff notice: the manage credential belongs to the client and the
+// booking is in the admin calendar. Team orgs get the "With X" line.
+export function providerNewBookingEmail(input: {
+  serviceName: string;
+  clientName: string;
+  clientEmail: string;
+  whenLine: string;
+  staffName?: string | null;
+  note?: string | null;
+}): { subject: string; html: string; text: string } {
+  const subject = `New booking — ${input.serviceName}, ${input.whenLine}`;
+  const noteHtml = input.note
+    ? `\n  <p style="margin: 0 0 16px; color: #444; white-space: pre-wrap;">${esc(input.note)}</p>`
+    : "";
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <p style="margin: 0 0 8px;"><strong>${esc(input.clientName)}</strong> booked with you.</p>
+  <p style="margin: 0 0 4px;">${esc(input.serviceName)}</p>${staffHtmlLine(input.staffName)}
+  <p style="margin: 0 0 4px;">${esc(input.whenLine)}</p>
+  <p style="margin: 0 0 16px; color: #666;">${esc(input.clientEmail)}</p>${noteHtml}
+  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">It's on your calendar; the client got their confirmation.</p>
+</div>`.trim();
+  const text = [
+    `${input.clientName} booked with you.`,
+    input.serviceName,
+    ...staffTextLine(input.staffName),
+    input.whenLine,
+    input.clientEmail,
+    ...(input.note ? ["", input.note] : []),
+    "",
+    "It's on your calendar; the client got their confirmation.",
   ].join("\n");
   return { subject, html, text };
 }

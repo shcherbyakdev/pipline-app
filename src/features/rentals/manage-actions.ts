@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { createAnonServerClient } from "@/lib/supabase/anon-server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl, resolveBookingToken } from "@/lib/tokens/booking";
@@ -15,6 +15,7 @@ import {
 import { getProviderEmail } from "@/lib/booking/provider";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
+import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 import {
   bookingLifecycleKey,
@@ -99,6 +100,10 @@ export async function getManageRangeAvailability(input: unknown): Promise<
   try {
     const booking = await resolveActionable(token);
     if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    // Rentals parked unless the org's flag is on (lib/flags) — no UI reaches
+    // these actions while it is off; this is the server-side defence
+    // (public-actions.ts idiom).
+    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
     const offeringId = await getBookingOfferingId(booking.id);
     if (offeringId === null) return { ok: false, error: NOT_CHANGEABLE };
     const ctx = await loadOrgRangeContext(booking.orgId, offeringId, fromDate, days, {
@@ -142,6 +147,8 @@ export async function rescheduleRentalBooking(
   try {
     const booking = await resolveActionable(token);
     if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    // Same flag gate as getManageRangeAvailability: the move is a write.
+    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
     const offeringId = await getBookingOfferingId(booking.id);
     if (offeringId === null) return { ok: false, error: NOT_CHANGEABLE };
     const offering = await getPublicOfferingById(booking.orgId, offeringId);
@@ -200,8 +207,10 @@ export async function rescheduleRentalBooking(
     }
 
     const fresh = generateAccessToken();
-    const anon = createAnonServerClient();
-    const { data, error } = await anon.rpc("reschedule_rental_booking", {
+    // 0052: the RPC left the anon surface (service_role only) — the token is
+    // still the credential, this action's engine pre-check is the only entry.
+    const admin = createAdminClient();
+    const { data, error } = await admin.rpc("reschedule_rental_booking", {
       p_token: token,
       p_unit_id: pickedUnitId,
       p_start_date: startDate,

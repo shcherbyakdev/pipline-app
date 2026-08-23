@@ -10,6 +10,10 @@ export type OutboundEmail = {
   text: string;
   // Stable per logical send (chase/{id}/send/{n}) — the dedupe handle.
   idempotencyKey: string;
+  // Where a reply lands. Mail goes out from the platform's own address, so
+  // without this a client hitting "reply" on a confirmation writes to a
+  // noreply mailbox instead of the provider who can actually answer.
+  replyTo?: string;
 };
 
 export type EmailTransport = {

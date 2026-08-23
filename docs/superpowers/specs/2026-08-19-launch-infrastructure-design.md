@@ -215,11 +215,13 @@ The Worker pings a healthchecks.io check after each successful drain. Free, and 
 
 Use `supabase db dump --db-url <session pooler>` rather than raw `pg_dump`. It ships a version-matched dump binary, which removes the failure mode where `ubuntu-latest`'s client 16 aborts against the hosted PostgreSQL 17 (`config.toml:36`).
 
-Schemas: `public`, `auth`, `storage`, **and `drizzle`**. The `drizzle` schema holds `__drizzle_migrations`, the migration journal — restore without it and the next `drizzle-kit migrate` re-runs all 47 migrations against an already-populated schema. Dropping `auth` would make user accounts unrestorable.
+**Two dumps per run.** A bare `supabase db dump` runs `pg_dump --schema-only`: on its own it looks like a backup and restores an empty database. The job therefore takes a schema dump (`schema.sql`) *and* a data dump (`--data-only --use-copy`, `data.sql`), and fails if `data.sql` contains no `COPY` block — an empty data dump must not upload green. The data file is the backup; the schema file is a reference copy.
+
+Schemas: `public`, `auth`, `storage`, **and `drizzle`**. The `drizzle` schema holds `__drizzle_migrations`, the migration journal — restore without it and the next `drizzle-kit migrate` re-runs the full migration chain against an already-populated schema. Dropping `auth` would make user accounts unrestorable.
 
 The dump contains client names and email addresses. **Encrypt before upload** using `BACKUP_PASSPHRASE` (§5.2) — an unencrypted Actions artifact is a PII leak. Set `retention-days: 7`; GitHub Free provides 500MB of total artifact storage with a 90-day default that daily dumps would quietly exhaust.
 
-Restore caveat for the runbook: dumped `auth` and `storage` DDL is owned by `supabase_auth_admin` / `supabase_storage_admin`, so a restore into a fresh project is **data-only** for those schemas.
+Restore (runbook §4): recreate the schema by applying the migration chain at the backup's commit, then `psql -f data.sql`. `schema.sql` is not applied on a Supabase target — its `auth` and `storage` DDL is owned by `supabase_auth_admin` / `supabase_storage_admin`, which only a Supabase-provisioned project has, and `drizzle-kit migrate` already owns `public`/`drizzle`.
 
 ## 9. The provisioning wizard
 
@@ -234,7 +236,7 @@ Checks, in the order §11 makes them true:
 3. `site_url` read back from the Management API equals `https://booklo.co`.
 4. Resend reports `booklo.co` **verified** (Resend API, not eyeballed).
 5. **Deferred, not implemented.** DNS: apex resolves to Vercel; the Resend records exist under `booklo.co`. Deferred because the two halves are already covered elsewhere: the Resend `verified` check (item 4) implies its DNS records are correct, and a wrong apex fails loudly — the site simply doesn't load — so it isn't the class of silent failure this wizard exists to catch.
-6. Migrations: row count in `drizzle.__drizzle_migrations` equals the entry count in `src/db/migrations/meta/_journal.json` — *not* "0046 exists", which is already stale at 47 entries and will go staler when the parked R3 work renumbers.
+6. Migrations: row count in `drizzle.__drizzle_migrations` equals the entry count in `src/db/migrations/meta/_journal.json` — *not* "0046 exists", which goes stale with every new migration and will go staler when the parked R3 work renumbers.
 7. Drain: valid Bearer → 200, bad Bearer → 401. Note that the valid call runs a real tick; harmless, but it is not a dry run.
 
 Deliberately **not** checked: "SMTP authenticates" (there is no client to build it on — `src/lib/email/smtp.ts` is plaintext, no-auth, Mailpit-only; §12 step 1 is the real proof), "session pooler reachable from this machine" (validates the wrong machine — the GitHub migrate step is the real test), "deployment returns 200" and "region is `fra1`" (loud failures; the latter is now a line in `vercel.json`).

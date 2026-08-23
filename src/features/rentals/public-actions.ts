@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { createAnonServerClient } from "@/lib/supabase/anon-server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
@@ -148,9 +148,13 @@ export async function createRentalBooking(
     }
 
     const { token, tokenHash } = generateAccessToken();
-    const anon = createAnonServerClient();
+    // 0052: create_rental_booking left the anon grant surface — the range
+    // engine's rules (min stay, turnover, notice) run here, not in the RPC, so
+    // this action is the only entry. service_role calls it; the token stays
+    // the credential.
+    const admin = createAdminClient();
     const call = () =>
-      anon.rpc("create_rental_booking", {
+      admin.rpc("create_rental_booking", {
         p_handle: handle,
         p_offering_id: offeringId,
         p_unit_id: unitId,

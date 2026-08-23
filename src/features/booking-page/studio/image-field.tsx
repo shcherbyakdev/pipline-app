@@ -11,12 +11,12 @@ import { uploadPageImage } from "../actions";
 import { PAGE_IMAGE_ACCEPT, PAGE_IMAGE_MAX_BYTES, isAllowedPageImageType, pageImageUrl } from "../images";
 import { FieldError } from "./fields";
 
-export const IMAGE_HINT = "PNG, JPEG or WebP · max 5 MB · best under 2000 px wide.";
+export const IMAGE_HINT = "PNG, JPEG or WebP · max 4 MB · best under 2000 px wide.";
 
 /** Client-side pre-check before any bytes move (branding-form precedent); the server re-validates the buffered bytes. */
 export function preCheckImage(file: File): string | null {
   if (!isAllowedPageImageType(file.type)) return "PNG, JPEG or WebP only.";
-  if (file.size > PAGE_IMAGE_MAX_BYTES) return "Images must be 5 MB or less.";
+  if (file.size > PAGE_IMAGE_MAX_BYTES) return "Images must be 4 MB or less.";
   return null;
 }
 

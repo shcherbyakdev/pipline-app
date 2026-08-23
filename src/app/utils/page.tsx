@@ -22,8 +22,9 @@ export default async function UtilsHubPage() {
   const ownerFlags = await getDashboardFlags(org.id);
   // requireDevBilling (features/billing/dev/guard.ts) 404s unless all three
   // hold, the org's own `billing` flag included — so the link has to check the
-  // same three or it would advertise a dead end.
-  const fakeProviderAlive = process.env.NODE_ENV !== "production" && env.BILLING_PROVIDER === "fake";
+  // same three or it would advertise a dead end. APP_ENV, not NODE_ENV, for
+  // the same reason the guard uses it.
+  const fakeProviderAlive = env.APP_ENV !== "production" && env.BILLING_PROVIDER === "fake";
   const devBillingAlive = fakeProviderAlive && ownerFlags.billing;
   return (
     <div className="flex flex-col gap-6">
@@ -41,6 +42,12 @@ export default async function UtilsHubPage() {
       <section className="flex flex-col gap-2 rounded-lg border p-4">
         <h2 className="font-medium">Environment</h2>
         <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+          {/* APP_ENV is the production marker every prod-only gate reads
+              (env-schema.ts); NODE_ENV is only how Next was started. Both
+              shown, because "development" next to "production" is exactly
+              the mix-up worth seeing at a glance. */}
+          <dt className="text-muted-foreground">APP_ENV</dt>
+          <dd className="font-mono">{env.APP_ENV ?? "unset"}</dd>
           <dt className="text-muted-foreground">NODE_ENV</dt>
           <dd className="font-mono">{process.env.NODE_ENV}</dd>
           <dt className="text-muted-foreground">App URL</dt>

@@ -132,7 +132,7 @@ describe("update_org_widget_theme", () => {
 describe("rotate_booking_token", () => {
   it("rotates the hash so the old manage link dies", async () => {
     const first = generateAccessToken();
-    const { data: created } = await anon.rpc("create_booking", {
+    const { data: created } = await admin.rpc("create_booking", {
       p_handle: HANDLE, p_service_id: serviceId,
       p_starts_at: "2027-06-01T10:00:00Z", p_name: "Rotate Me",
       p_email: "rotate@example.com", p_note: null, p_token_hash: first.tokenHash,
@@ -159,7 +159,7 @@ describe("rotate_booking_token", () => {
     expect(foreignErr).not.toBeNull();
     // cancelled: create then admin-cancel via status update, then rotate must fail
     const t = generateAccessToken();
-    const { data: cancelRows } = await anon.rpc("create_booking", {
+    const { data: cancelRows } = await admin.rpc("create_booking", {
       p_handle: HANDLE, p_service_id: serviceId,
       p_starts_at: "2027-06-01T12:00:00Z", p_name: "Cancelled",
       p_email: "cancelled@example.com", p_note: null, p_token_hash: t.tokenHash,
@@ -174,7 +174,7 @@ describe("rotate_booking_token", () => {
     // past: create in the future (create_booking rejects past starts_at
     // outright), then admin-backdate starts_at/ends_at, then rotate must fail.
     const p = generateAccessToken();
-    const { data: pastRows } = await anon.rpc("create_booking", {
+    const { data: pastRows } = await admin.rpc("create_booking", {
       p_handle: HANDLE, p_service_id: serviceId,
       p_starts_at: "2027-06-01T14:00:00Z", p_name: "Past",
       p_email: "past@example.com", p_note: null, p_token_hash: p.tokenHash,

@@ -45,7 +45,14 @@ export async function grantPlanOverride(formData: FormData): Promise<void> {
     expires: formData.get("expires") ?? "",
     note: formData.get("note") ?? "",
   });
-  if (!parsed.success) redirect(subsUrl(safeOrgId(orgRaw), { error: "invalid" }));
+  if (!parsed.success) {
+    // The one failure with its own line: a past expiry is a well-formed date
+    // the owner typed on purpose, so "didn't validate" would send them
+    // hunting through the other fields. The refine is the only `custom`
+    // issue the schema raises on `expires`.
+    const pastExpiry = parsed.error.issues.some((i) => i.path[0] === "expires" && i.code === "custom");
+    redirect(subsUrl(safeOrgId(orgRaw), { error: pastExpiry ? "expires_past" : "invalid" }));
+  }
   const { org, plan, expires, note } = parsed.data;
   const admin = createAdminClient();
   const { error } = await admin.from("org_plan_overrides").upsert(

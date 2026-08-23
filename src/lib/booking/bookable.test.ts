@@ -105,37 +105,36 @@ describe("limitPublicOffering", () => {
 describe("chooseStaffForBooking", () => {
   const base = { bookableIds: ["a", "b", "c"], eligibleStaffIds: ["a", "b", "c"], freeStaffIdsAtSlot: ["b", "c"] };
 
-  it("a named staff member is passed straight through", () => {
-    expect(chooseStaffForBooking({ ...base, staffId: "b" })).toBe("b");
+  it("a named staff member is passed straight through, no candidates", () => {
+    expect(chooseStaffForBooking({ ...base, staffId: "b" })).toEqual({ staffId: "b", candidates: null });
     // Even when the plan would not offer them: the RPC's strict named check
     // is the gate, and this function must not silently redirect a booking.
-    expect(chooseStaffForBooking({ ...base, staffId: "z" })).toBe("z");
+    expect(chooseStaffForBooking({ ...base, staffId: "z" })).toEqual({ staffId: "z", candidates: null });
   });
 
   it("one bookable person is named rather than auto-assigned", () => {
     expect(
       chooseStaffForBooking({ staffId: "any", bookableIds: ["a"], eligibleStaffIds: ["a", "b"], freeStaffIdsAtSlot: ["a"] }),
-    ).toBe("a");
+    ).toEqual({ staffId: "a", candidates: null });
   });
 
-  it("hands the DB the choice when the bookable set is the whole eligible roster", () => {
-    expect(chooseStaffForBooking({ ...base, staffId: "any" })).toBeNull();
+  it("hands the DB the choice among the people the engine found free", () => {
+    expect(chooseStaffForBooking({ ...base, staffId: "any" })).toEqual({ staffId: null, candidates: ["b", "c"] });
   });
 
-  it("names the first free bookable person when the roster is a strict subset", () => {
-    // c is eligible but not bookable, so the DB picker (which ranks over all
-    // three) could assign them — name b, the first bookable person free.
+  it("never lets a non-bookable (plan-hidden) person into the candidate set", () => {
+    // c is eligible but not bookable; the engine listed b and c as free.
     expect(
       chooseStaffForBooking({
         staffId: "any",
         bookableIds: ["a", "b"],
         eligibleStaffIds: ["a", "b", "c"],
-        freeStaffIdsAtSlot: ["b"],
+        freeStaffIdsAtSlot: ["b", "c"],
       }),
-    ).toBe("b");
+    ).toEqual({ staffId: null, candidates: ["b"] });
   });
 
-  it("falls back to the first bookable person when nobody is listed as free", () => {
+  it("falls back to the whole bookable roster when nobody is listed as free", () => {
     expect(
       chooseStaffForBooking({
         staffId: "any",
@@ -143,6 +142,6 @@ describe("chooseStaffForBooking", () => {
         eligibleStaffIds: ["a", "b", "c"],
         freeStaffIdsAtSlot: [],
       }),
-    ).toBe("a");
+    ).toEqual({ staffId: null, candidates: ["a", "b"] });
   });
 });

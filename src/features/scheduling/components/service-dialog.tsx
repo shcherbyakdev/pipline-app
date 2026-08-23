@@ -32,6 +32,11 @@ export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff:
   const [manuallyOpened, setManuallyOpened] = React.useState(false);
   const open = urlOpen || manuallyOpened;
   const [pending, startTransition] = React.useTransition();
+  // Field-level refusal for the one number that has no sane empty value:
+  // a cleared field is `Number("") === 0`, which zod's min(1) rejects with
+  // the generic "couldn't save" — say which field instead.
+  const [windowError, setWindowError] = React.useState<string | null>(null);
+  const staffGroupId = React.useId();
 
   // Solo rule: with one person on the roster there is nothing to choose, so
   // the checklist never appears and `createService` assigns them server-side.
@@ -48,6 +53,7 @@ export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff:
     // The popup unmounts when closed, so the uncontrolled fields reset on
     // reopen — the checklist is state, and has to be put back by hand to match.
     if (next) setStaffIds(defaultStaffIds());
+    setWindowError(null);
     setManuallyOpened(next);
     if (!next && urlOpen) router.replace("/services");
   };
@@ -68,6 +74,11 @@ export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff:
     const description = String(fd.get("description") ?? "").trim();
     const priceLabel = String(fd.get("priceLabel") ?? "").trim();
     const maxPerDayRaw = String(fd.get("maxPerDay") ?? "").trim();
+    const bookingWindowDays = Number(String(fd.get("bookingWindowDays") ?? "").trim());
+    if (!Number.isInteger(bookingWindowDays) || bookingWindowDays < 1 || bookingWindowDays > 365) {
+      setWindowError("Enter how many days ahead clients can book — 1 to 365.");
+      return;
+    }
     const payload = {
       name,
       description: description === "" ? undefined : description,
@@ -77,7 +88,7 @@ export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff:
       bufferAfterMin: Number(fd.get("bufferAfterMin")),
       minNoticeMin: Number(fd.get("minNoticeMin")),
       maxPerDay: maxPerDayRaw === "" ? null : Number(maxPerDayRaw),
-      bookingWindowDays: Number(fd.get("bookingWindowDays")),
+      bookingWindowDays,
       active: fd.get("active") === "on",
       // Omitted when the checklist wasn't rendered: the server then keeps the
       // existing links (edit) or assigns every active member (create).
@@ -215,14 +226,26 @@ export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff:
               id="service-booking-window"
               name="bookingWindowDays"
               type="number"
+              required
               min={1}
               max={365}
               defaultValue={service?.bookingWindowDays ?? 60}
+              aria-invalid={windowError !== null || undefined}
+              aria-describedby={windowError !== null ? "service-booking-window-error" : undefined}
+              onInput={() => setWindowError(null)}
             />
+            {windowError ? (
+              <p id="service-booking-window-error" className="text-destructive text-xs">
+                {windowError}
+              </p>
+            ) : null}
           </div>
           {showStaff ? (
-            <div className="flex flex-col gap-2">
-              <Label>Team members</Label>
+            // A group heading, not a <label>: a label with nothing to point
+            // at is announced as orphaned; the checklist's own labels do the
+            // per-row work.
+            <div role="group" aria-labelledby={staffGroupId} className="flex flex-col gap-2">
+              <p id={staffGroupId} className="text-sm leading-none font-medium">Team members</p>
               <ul className="flex flex-col gap-1.5">
                 {activeStaff.map((person) => (
                   <li key={person.id} className="flex items-center gap-2">

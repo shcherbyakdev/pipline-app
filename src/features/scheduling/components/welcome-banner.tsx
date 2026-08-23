@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { WELCOME } from "@/features/marketing/site";
@@ -17,11 +18,17 @@ export function WelcomeBanner({ handle, appUrl }: { handle: string | null; appUr
   const [copied, setCopied] = React.useState(false);
   const url = handle ? bookingUrl(appUrl, handle) : null;
 
-  const copy = () => {
+  // Awaited: a refused clipboard write must not flip the button to "Copied"
+  // (portal-links-panel.tsx precedent).
+  const copy = async () => {
     if (!url) return;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Couldn't copy — select the link text and copy manually.");
+    }
   };
 
   return (

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { grantPlanOverride, revokePlanOverride } from "../actions";
 import type { OrgAdminView } from "../queries";
+import { todayUtc } from "../schema";
 
 /* One org's billing state as the owner sees it: the provider row (read-only),
    the comp override, the effective plan, and the grant/revoke forms. */
@@ -97,7 +98,9 @@ export function SubscriptionPanel({ view, now }: { view: OrgAdminView; now: Date
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor="expires">Expires (UTC, optional)</Label>
-              <Input id="expires" name="expires" type="date" defaultValue={override?.expiresAt?.slice(0, 10) ?? ""} />
+              {/* `min` mirrors grantOverrideInput's refine so the browser's
+                  picker greys out what the action would refuse anyway. */}
+              <Input id="expires" name="expires" type="date" min={todayUtc(now)} defaultValue={override?.expiresAt?.slice(0, 10) ?? ""} />
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor="note">Note</Label>

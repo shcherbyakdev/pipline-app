@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getBookingOrg, listPublicOfferings } from "@/lib/booking/public";
+import { getBookingOrg, listPublicOfferings, resolveHandleAlias } from "@/lib/booking/public";
+import { HANDLE_RE } from "@/features/scheduling/handle";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
@@ -13,9 +14,21 @@ import { EmbedResizeReporter } from "@/features/scheduling/components/embed-resi
 import { PoweredBy } from "@/components/powered-by";
 
 export default async function EmbedPage({ params, searchParams }: PageProps<"/embed/[handle]">) {
-  const { handle } = await params;
-  if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(handle)) notFound();
-  const org = await getBookingOrg(handle);
+  const { handle: requested } = await params;
+  if (!HANDLE_RE.test(requested)) notFound();
+  // A snippet pasted on a customer's website carries the handle the org had
+  // at the time; after a rename (0052 org_handle_history) it must keep
+  // serving the same org. The widget is handed the CURRENT handle — its
+  // server actions resolve by handle, and only the current one resolves.
+  let handle = requested;
+  let org = await getBookingOrg(handle);
+  if (!org) {
+    const current = await resolveHandleAlias(requested);
+    if (current) {
+      handle = current;
+      org = await getBookingOrg(current);
+    }
+  }
   if (!org) notFound();
   const [offering, offerings, branding] = await Promise.all([
     // Active-and-linked, then plan-limited — see /book/[handle].

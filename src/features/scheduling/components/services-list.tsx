@@ -20,6 +20,10 @@ function teamLabel(service: ServiceRow, activeStaff: StaffRow[]): string | null 
 
 function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
   const [pending, startTransition] = React.useTransition();
+  // Delete is irreversible (a service with bookings is refused server-side,
+  // one without simply vanishes), so it takes two clicks — the same inline
+  // Confirm/Keep step bookings-list.tsx uses for cancelling.
+  const [confirming, setConfirming] = React.useState(false);
   const team = teamLabel(
     service,
     staff.filter((s) => s.active),
@@ -28,6 +32,7 @@ function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
   const onDelete = () => {
     startTransition(async () => {
       const result = await deleteService({ id: service.id });
+      setConfirming(false);
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -50,9 +55,26 @@ function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <ServiceDialog service={service} staff={staff} />
-        <Button size="sm" variant="outline" onClick={onDelete} disabled={pending}>
-          {pending ? "Deleting…" : "Delete"}
-        </Button>
+        {confirming ? (
+          <>
+            <Button size="sm" variant="destructive" onClick={onDelete} disabled={pending}>
+              {pending ? "Deleting…" : "Confirm delete"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={pending}>
+              Keep
+            </Button>
+          </>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setConfirming(true)}
+            disabled={pending}
+            aria-label={`Delete ${service.name}`}
+          >
+            Delete
+          </Button>
+        )}
       </div>
     </li>
   );

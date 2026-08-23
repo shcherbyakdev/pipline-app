@@ -101,5 +101,7 @@ export function parsePageDocument(raw: unknown, orgId: string): PageDocument | n
 // Named refusals (a "use server" module may only export async functions, so
 // the copy lives here — the orgs/schema.ts precedent).
 export const PAGE_TOO_LARGE_ERROR = "This page is too large to save — remove some content or images.";
-export const IMAGE_REJECTED_ERROR = "Use a PNG, JPEG or WebP image under 5 MB.";
+export const IMAGE_REJECTED_ERROR = "Use a PNG, JPEG or WebP image under 4 MB.";
+export const IMAGE_LIMIT_ERROR =
+  "This page has reached its image limit. Publish or discard the draft to clear unused images, then try again.";
 export const PAGE_GATED_ERROR = "Some sections on this page need a higher plan. Hide or remove them to publish.";

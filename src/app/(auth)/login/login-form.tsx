@@ -10,20 +10,22 @@ import { Label } from "@/components/ui/label";
 
 const initial: AuthState = {};
 
-export function LoginForm() {
+export function LoginForm({ next = null }: { next?: string | null }) {
   const [mode, setMode] = useState<"password" | "magic">("password");
   return mode === "password" ? (
-    <PasswordForm onSwitch={() => setMode("magic")} />
+    <PasswordForm onSwitch={() => setMode("magic")} next={next} />
   ) : (
     <MagicLinkForm onSwitch={() => setMode("password")} />
   );
 }
 
-function PasswordForm({ onSwitch }: { onSwitch: () => void }) {
+function PasswordForm({ onSwitch, next }: { onSwitch: () => void; next: string | null }) {
   const [state, action, pending] = useActionState(signInWithPassword, initial);
 
   return (
     <form action={action} className="flex flex-col gap-4">
+      {/* Validated again server-side (afterLogin) — this is only a carrier. */}
+      {next ? <input type="hidden" name="next" value={next} /> : null}
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
         <Input

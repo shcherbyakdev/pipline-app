@@ -1,8 +1,14 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
+import { RECOVERY_COOKIE } from "@/lib/auth/next-path";
 import { ResetPasswordForm } from "./reset-password-form";
 
 export default async function ResetPasswordPage() {
   await requireUser();
+  // Reachable only through a recovery link (the proof /auth/confirm set);
+  // updatePassword checks it again on submit.
+  if (!(await cookies()).get(RECOVERY_COOKIE)) redirect("/forgot-password?expired=1");
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">

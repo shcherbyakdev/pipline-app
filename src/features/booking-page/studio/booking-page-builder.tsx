@@ -61,10 +61,12 @@ export function BookingPageBuilder({
 
   const [, startSaveSkin] = React.useTransition();
   const applySkin = (skin: TemplateSkin) => {
-    // Theme/radius/font from the template; accent, logo and the badge setting
-    // are the org's own; bg/text overrides cleared so the skin reads as designed.
+    // Theme/radius/font from the template; accent, logo, the badge setting
+    // and any bg/text colour overrides (set on Website embed) stay the org's
+    // own unless the skin itself defines them — this saves to the LIVE look,
+    // so it must not silently wipe what the embed page was tuned to.
     const previous = theme;
-    const next: WidgetThemeConfig = { ...theme, ...skin, background: undefined, text: undefined };
+    const next: WidgetThemeConfig = { ...theme, ...skin };
     setTheme(next);
     startSaveSkin(async () => {
       try {

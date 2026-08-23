@@ -209,8 +209,9 @@ describe("booking guards (0037)", () => {
     expect(row.rental_unit_id).toBe(u2);
     expect(row.range_mode).toBe("nights");
     expect(row.service_id).toBeNull();
-    // cancel works for a rental and returns ends_at
-    const { data: cancelled } = await anon.rpc("cancel_booking", { p_token: token });
+    // cancel works for a rental and returns ends_at (service role: 0052 took
+    // cancel_booking off the anon surface; the token is still the credential)
+    const { data: cancelled } = await admin.rpc("cancel_booking", { p_token: token });
     const c = (cancelled as Array<Record<string, unknown>>)[0];
     expect(c.rental_unit_id).toBe(u2);
     expect(c.ends_at).toBeTruthy();
@@ -228,7 +229,9 @@ describe("booking guards (0037)", () => {
       ends_at: "2027-09-03T09:00:00Z",
     });
     expect(error).toBeNull();
-    const { error: rescheduleError } = await anon.rpc("reschedule_booking", {
+    // service role (0052) so the refusal below is the RPC's own rental check,
+    // not a missing grant.
+    const { error: rescheduleError } = await admin.rpc("reschedule_booking", {
       p_token: token,
       p_starts_at: "2027-09-05T13:00:00Z",
       p_new_token_hash: generateAccessToken().tokenHash,

@@ -31,6 +31,9 @@ export function SettingsCard({
   );
 }
 
+/* `htmlFor` names the row's one control. Without it (a swatch row, an
+   upload button, a colour pair) the heading is a plain <p> the row points at
+   via role="group" — a <label> tied to nothing is announced as orphaned. */
 export function SettingsRow({
   label,
   htmlFor,
@@ -42,13 +45,26 @@ export function SettingsRow({
   hint?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const headingId = React.useId();
+  const hintNode = hint ? <p className="text-muted-foreground text-[11px] leading-4">{hint}</p> : null;
+  if (!htmlFor) {
+    return (
+      <div role="group" aria-labelledby={headingId} className="flex flex-col gap-1.5 px-4 py-3">
+        <p id={headingId} className="text-xs leading-none font-medium select-none">
+          {label}
+        </p>
+        {children}
+        {hintNode}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-1.5 px-4 py-3">
       <Label htmlFor={htmlFor} className="text-xs font-medium">
         {label}
       </Label>
       {children}
-      {hint ? <p className="text-muted-foreground text-[11px] leading-4">{hint}</p> : null}
+      {hintNode}
     </div>
   );
 }

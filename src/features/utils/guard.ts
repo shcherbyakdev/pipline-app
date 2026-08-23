@@ -14,14 +14,15 @@ import { isInternalEmail, parseInternalEmails } from "./allowlist";
    this too: a POST endpoint is reachable without ever loading the page.
 
    The identity compared against the allowlist is the signed-in user's
-   Supabase Auth email — verified because supabase/config.toml enables email
-   confirmations (`[auth.email] enable_confirmations`) and double-confirms
-   email changes (`double_confirm_changes`); the guard relies on that config,
-   it does not re-check `email_confirmed_at` itself. Turning either setting
-   off on a hosted project would let an unconfirmed address claim an
-   allowlisted one. */
+   Supabase Auth email, and only a CONFIRMED one counts: supabase/config.toml
+   enables email confirmations (`[auth.email] enable_confirmations`) and
+   double-confirms email changes (`double_confirm_changes`), but that is a
+   per-project setting a hosted dashboard can flip — and with it off, anyone
+   could sign up as an allowlisted address and walk in. `email_confirmed_at`
+   is checked here so the back office does not depend on it. */
 export async function requireInternal(): Promise<{ user: User }> {
   const user = await requireUser();
+  if (!user.email_confirmed_at) notFound();
   if (!isInternalEmail(user.email, parseInternalEmails(env.INTERNAL_EMAILS))) notFound();
   return { user };
 }

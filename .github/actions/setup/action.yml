@@ -1,12 +1,14 @@
 name: Setup
-description: Check out the repo, install the pinned Node version, and install dependencies.
+description: Install the pinned Node version and install dependencies. Callers check out the repo themselves.
 
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v4
-
-    - uses: actions/setup-node@v4
+    # No actions/checkout here: every caller in ci.yml already checks out
+    # before `uses: ./.github/actions/setup` (a local action cannot even be
+    # resolved until the checkout has happened), so a second one only
+    # re-downloaded the tree and reset anything a caller had staged.
+    - uses: actions/setup-node@v7
       with:
         node-version-file: .nvmrc
         cache: npm

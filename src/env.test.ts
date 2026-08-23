@@ -84,33 +84,45 @@ describe("envSchema", () => {
     expect(envSchema.safeParse(PROD_ENV).success).toBe(true);
   });
 
-  // When billing is live (provider=stripe), the Stripe secrets are load-bearing
-  // and must be present at boot rather than failing on the first webhook.
-  it.each(["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"])(
-    "rejects production with BILLING_PROVIDER=stripe but no %s",
-    (key) => {
-      const stripeEnv: Record<string, unknown> = {
-        ...PROD_ENV,
-        BILLING_PROVIDER: "stripe",
-        STRIPE_SECRET_KEY: "sk_live_x",
-        STRIPE_WEBHOOK_SECRET: "whsec_x",
-      };
-      delete stripeEnv[key];
-      const result = envSchema.safeParse(stripeEnv);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(JSON.stringify(result.error.issues)).toContain(key);
-      }
-    },
-  );
+  // When billing is live (provider=stripe), the Stripe secrets AND the four
+  // price ids are load-bearing and must be present at boot rather than
+  // failing on the first webhook/checkout: a missing price id throws on the
+  // first checkout of that plan and leaves every subscription on that price
+  // "unmapped" at the webhook (refused until the id is set).
+  const STRIPE_LIVE = {
+    BILLING_PROVIDER: "stripe",
+    STRIPE_SECRET_KEY: "sk_live_x",
+    STRIPE_WEBHOOK_SECRET: "whsec_x",
+    STRIPE_PRICE_PRO_MONTH: "price_pro_m",
+    STRIPE_PRICE_PRO_YEAR: "price_pro_y",
+    STRIPE_PRICE_TEAM_MONTH: "price_team_m",
+    STRIPE_PRICE_TEAM_YEAR: "price_team_y",
+  };
 
-  it("accepts a live-billing production env (provider=stripe with both secrets)", () => {
-    const result = envSchema.safeParse({
-      ...PROD_ENV,
-      BILLING_PROVIDER: "stripe",
-      STRIPE_SECRET_KEY: "sk_live_x",
-      STRIPE_WEBHOOK_SECRET: "whsec_x",
-    });
-    expect(result.success).toBe(true);
+  it.each([
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "STRIPE_PRICE_PRO_MONTH",
+    "STRIPE_PRICE_PRO_YEAR",
+    "STRIPE_PRICE_TEAM_MONTH",
+    "STRIPE_PRICE_TEAM_YEAR",
+  ])("rejects production with BILLING_PROVIDER=stripe but no %s", (key) => {
+    const stripeEnv: Record<string, unknown> = { ...PROD_ENV, ...STRIPE_LIVE };
+    delete stripeEnv[key];
+    const result = envSchema.safeParse(stripeEnv);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(JSON.stringify(result.error.issues)).toContain(key);
+    }
+  });
+
+  it("accepts a live-billing production env (provider=stripe with secrets and all four price ids)", () => {
+    expect(envSchema.safeParse({ ...PROD_ENV, ...STRIPE_LIVE }).success).toBe(true);
+  });
+
+  // Outside production the price ids stay optional: a dev box can point at
+  // Stripe test mode with only the plans it is exercising.
+  it("does not require the price ids for provider=stripe outside production", () => {
+    expect(envSchema.safeParse({ ...CI_BUILD_ENV, BILLING_PROVIDER: "stripe", STRIPE_SECRET_KEY: "sk_test_x" }).success).toBe(true);
   });
 });

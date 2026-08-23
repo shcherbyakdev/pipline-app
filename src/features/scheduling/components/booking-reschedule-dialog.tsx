@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { addDaysISO } from "@/features/scheduling/slots";
+import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import { getAdminSlots, rescheduleBookingAdmin } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
@@ -16,7 +16,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// Slot days are org-local (getAdminSlots walks `fromDate` in the org's
+// zone), so the week the picker opens on — and the floor it can't go
+// before — is the org's today, not UTC's.
+const todayISO = (timeZone: string) => dateInZone(new Date(), timeZone);
+
+// "Week of Mon 24 Aug": noon UTC pins the calendar date whatever the
+// browser's offset (date-overrides.tsx precedent).
+const weekLabel = (date: string) =>
+  new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
+    .format(new Date(`${date}T12:00:00Z`));
 
 const slotLabel = (iso: string) =>
   new Intl.DateTimeFormat(undefined, {
@@ -44,7 +53,7 @@ export function BookingRescheduleDialog({
 }) {
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
-  const [fromDate, setFromDate] = React.useState(todayISO);
+  const [fromDate, setFromDate] = React.useState(() => todayISO(timeZone));
   const [slots, setSlots] = React.useState<string[] | null>(null);
   // null = untouched ⇒ the person the booking already belongs to. A booking
   // whose owner is no longer eligible (deactivated, service unlinked) falls
@@ -77,7 +86,7 @@ export function BookingRescheduleDialog({
 
   const nav = (days: number) => {
     const next = addDaysISO(fromDate, days);
-    if (next < todayISO()) return;
+    if (next < todayISO(timeZone)) return;
     setFromDate(next);
     loadSlots(next, staffId);
   };
@@ -144,13 +153,13 @@ export function BookingRescheduleDialog({
           </div>
         ) : null}
         <div className="flex items-center justify-between">
-          <p className="text-muted-foreground text-sm">Week of {fromDate}</p>
+          <p className="text-muted-foreground text-sm">Week of {weekLabel(fromDate)}</p>
           <div className="flex gap-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => nav(-7)}
-              disabled={pending || fromDate <= todayISO()}
+              disabled={pending || fromDate <= todayISO(timeZone)}
               aria-label="Previous week"
             >
               ←

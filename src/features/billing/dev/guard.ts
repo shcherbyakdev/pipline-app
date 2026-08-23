@@ -10,7 +10,10 @@ import { getDashboardFlags } from "@/lib/flags/resolve";
    hold before an admin click may write a paid subscription with the service
    role:
 
-   - not production — these pages hand out plans for free;
+   - not production — these pages hand out plans for free. APP_ENV, never
+     NODE_ENV: NODE_ENV is "production" inside every `next build`, CI's
+     included, and "development" under `next dev` even when the process is
+     pointed at the production database (env-schema.ts);
    - not the real provider — with Stripe on, subscriptions come from Stripe's
      webhooks and nothing else may forge them;
    - the caller's org has `billing` resolved on (lib/flags) — an org with
@@ -25,7 +28,7 @@ import { getDashboardFlags } from "@/lib/flags/resolve";
    redirects to /login when signed out, which is the right answer for a
    browser hop. */
 export async function requireDevBilling(orgParam?: string | null): Promise<{ user: User; org: Org }> {
-  if (process.env.NODE_ENV === "production" || env.BILLING_PROVIDER === "stripe") notFound();
+  if (env.APP_ENV === "production" || env.BILLING_PROVIDER === "stripe") notFound();
   const { user, org } = await requireOrg();
   if (!(await getDashboardFlags(org.id)).billing) notFound();
   if (orgParam && orgParam !== org.id) notFound();

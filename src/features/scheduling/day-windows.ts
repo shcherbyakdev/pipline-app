@@ -12,7 +12,7 @@ function toMin(t: string): number {
 }
 
 // The org-local date's weekday is a property of the date itself (slots.ts idiom).
-function weekdayOf(date: string): number {
+export function weekdayOf(date: string): number {
   return new Date(`${date}T12:00:00Z`).getUTCDay();
 }
 
@@ -39,13 +39,11 @@ function toTime(min: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-// Inverse of subtractRange: open [start,end) on top of the given windows,
-// merging overlapping/adjacent windows into a canonical sorted list.
-export function addRange(windows: DayWindow[], start: string, end: string): DayWindow[] {
-  const intervals = [
-    ...windows.map((w) => [toMin(w.startTime), toMin(w.endTime)]),
-    [toMin(start), toMin(end)],
-  ].sort((a, b) => a[0] - b[0]);
+// Canonical form: sorted, with overlapping/adjacent windows merged.
+export function mergeWindows(windows: DayWindow[]): DayWindow[] {
+  const intervals = windows
+    .map((w) => [toMin(w.startTime), toMin(w.endTime)])
+    .sort((a, b) => a[0] - b[0]);
   const merged: number[][] = [];
   for (const [s, e] of intervals) {
     const last = merged[merged.length - 1];
@@ -53,6 +51,26 @@ export function addRange(windows: DayWindow[], start: string, end: string): DayW
     else merged.push([s, e]);
   }
   return merged.map(([s, e]) => ({ startTime: toTime(s), endTime: toTime(e) }));
+}
+
+// Inverse of subtractRange: open [start,end) on top of the given windows,
+// merging overlapping/adjacent windows into a canonical sorted list.
+export function addRange(windows: DayWindow[], start: string, end: string): DayWindow[] {
+  return mergeWindows([...windows, { startTime: start, endTime: end }]);
+}
+
+export type StaffAvailability = {
+  rules: Array<{ weekday: number; startTime: string; endTime: string }>;
+  exceptions: Array<{ date: string; closed: boolean; startTime: string | null; endTime: string | null }>;
+};
+
+// Team (multi-staff): "someone is open" for a date. Each person's day is
+// resolved on its own (their rules, their overrides) and the results are
+// unioned — pooling everyone's rows into ONE effectiveWindows call would let
+// one person's closed day empty the whole column, and one person's open
+// override replace everybody else's hours.
+export function unionWindows(date: string, perStaff: StaffAvailability[]): DayWindow[] {
+  return mergeWindows(perStaff.flatMap((p) => effectiveWindows(date, p.rules, p.exceptions)));
 }
 
 export function subtractRange(windows: DayWindow[], start: string, end: string): DayWindow[] {

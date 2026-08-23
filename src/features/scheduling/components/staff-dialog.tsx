@@ -103,6 +103,10 @@ function StaffForm({
 }) {
   const isEdit = Boolean(staff);
   const [pending, startTransition] = React.useTransition();
+  // Group headings (colour swatches, service checklist) are <p>s that a
+  // role="group" points at — a <label> with no control is an a11y orphan.
+  const colourGroupId = React.useId();
+  const servicesGroupId = React.useId();
   const [name, setName] = React.useState(staff?.name ?? "");
   const [slug, setSlug] = React.useState(staff?.slug ?? "");
   // An existing person's link is never silently rewritten by a rename — their
@@ -201,8 +205,8 @@ function StaffForm({
         />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label>Colour</Label>
+      <div role="group" aria-labelledby={colourGroupId} className="flex flex-col gap-2">
+        <p id={colourGroupId} className="text-sm leading-none font-medium">Colour</p>
         <div className="flex flex-wrap gap-2">
           {STAFF_COLORS.map((c) => (
             <button
@@ -222,8 +226,8 @@ function StaffForm({
       </div>
 
       {services.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          <Label>Services</Label>
+        <div role="group" aria-labelledby={servicesGroupId} className="flex flex-col gap-2">
+          <p id={servicesGroupId} className="text-sm leading-none font-medium">Services</p>
           <ul className="flex flex-col gap-1.5">
             {services.map((service) => (
               <li key={service.id} className="flex items-center gap-2">

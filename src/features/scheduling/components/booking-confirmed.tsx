@@ -26,10 +26,12 @@ export function BookingConfirmed({
         A confirmation email is on its way. Keep it — the links below are your access to this
         booking.
       </p>
-      <a className="text-sm underline" href={`/booking/${token}`}>
+      {/* New tab: inside the website embed these would otherwise navigate
+          the iframe itself into the manage page (audit 2026-08-24). */}
+      <a className="text-sm underline" href={`/booking/${token}`} target="_blank" rel="noopener">
         View your booking
       </a>
-      <a className="text-sm underline" href={`/booking/${token}/calendar.ics`}>
+      <a className="text-sm underline" href={`/booking/${token}/calendar.ics`} target="_blank" rel="noopener">
         Add to calendar (.ics)
       </a>
     </div>
