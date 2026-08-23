@@ -1,7 +1,7 @@
 // The booking-page handle: booklo.co/<handle>. One module for the rule, the
 // reserved words and the helpers the landing claim bar, signup and onboarding
 // share. The DB enforces the same rule (orgs_handle_format_check, 0026) and
-// the same reserved list (reserved_handles(), 0047) — handle.test.ts asserts
+// the same reserved list (reserved_handles(), 0051) — handle.test.ts asserts
 // the two lists are identical.
 
 export const HANDLE_RE = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/;
@@ -9,7 +9,7 @@ export const HANDLE_MAX = 50;
 
 // Every top-level app route (a handle must never shadow one now that the
 // public page answers at /<handle>), plus generic names nobody should own.
-// Keep in sync with reserved_handles() in 0047_handles.sql.
+// Keep in sync with reserved_handles() in 0051_handles.sql.
 export const RESERVED_HANDLES = [
   "api", "auth", "availability", "billing", "book", "booking", "booking-page", "bookings",
   "clients", "dev", "embed", "forgot-password", "login", "onboarding", "overview", "portal",

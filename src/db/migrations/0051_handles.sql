@@ -1,4 +1,4 @@
--- 0047 (Landing claim): the public page now answers at /<handle>, so a handle
+-- 0051 (Landing claim; was 0047 — booking-page builder took 0047–0049, security hardening 0050): the public page now answers at /<handle>, so a handle
 -- must never shadow an app route; the landing checks availability before
 -- signup; onboarding creates the org with its handle + timezone in one call.
 -- Idempotent (create or replace; revoke-then-grant).

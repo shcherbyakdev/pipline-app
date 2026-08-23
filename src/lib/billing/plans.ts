@@ -18,6 +18,10 @@ export type PlanLimits = {
   customReminders: boolean;
   gcalSync: boolean;
   intakeQuestions: boolean;
+  /** Which booking-page sections may be published: "basic" = header, booking,
+      about, links (a link-in-bio page); "all" = the whole catalogue. Every
+      plan is "all" for now — the gate is wired so flipping it is a one-line change. */
+  pageSections: "basic" | "all";
 };
 
 export type PlanDef = {
@@ -32,14 +36,14 @@ export type PlanDef = {
 
 export const TEAM_INCLUDED_SEATS = 5;
 
-const PAID_LIMITS = { hideBadge: true, customReminders: true, gcalSync: true, intakeQuestions: true } as const;
+const PAID_LIMITS = { hideBadge: true, customReminders: true, gcalSync: true, intakeQuestions: true, pageSections: "all" } as const;
 
 export const PLANS: Record<PlanId, PlanDef> = {
   free: {
     id: "free", name: "Free", blurb: "Everything a solo provider needs to take bookings.",
     monthly: 0, yearly: 0,
     limits: { bookableStaff: 1, publicServices: 3, reminderBookingsPerMonth: 30,
-      hideBadge: false, customReminders: false, gcalSync: false, intakeQuestions: false },
+      hideBadge: false, customReminders: false, gcalSync: false, intakeQuestions: false, pageSections: "all" },
   },
   pro: {
     id: "pro", name: "Pro", blurb: "Your brand, unlimited services, reminders for every booking.",

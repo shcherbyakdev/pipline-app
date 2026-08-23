@@ -72,7 +72,7 @@ export const schedulingSettingsInput = z.object({
     z
       .union([z.string().regex(HANDLE_RE), z.null()])
       // Reserved words would shadow an app route now that the public page
-      // answers at /<handle>; 0047's update_org_scheduling rejects them too.
+      // answers at /<handle>; 0051's update_org_scheduling rejects them too.
       .refine((h) => h === null || !isReservedHandle(h), { message: "reserved handle" }),
   ),
   timezone: z.string().min(1).max(64),

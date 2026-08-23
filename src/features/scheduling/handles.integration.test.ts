@@ -1,5 +1,5 @@
 /**
- * 0047: is_handle_available (anon), reserved handles, create_org_with_page.
+ * 0051: is_handle_available (anon), reserved handles, create_org_with_page.
  * Requires the local Supabase stack.
  */
 import { describe, it, expect, beforeAll } from "vitest";

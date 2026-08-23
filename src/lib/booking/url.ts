@@ -1,4 +1,4 @@
-// The public booking page's address. Root-level since 0047 (/<handle>,
+// The public booking page's address. Root-level since 0051 (/<handle>,
 // /<handle>/<staffSlug>); /book/… only redirects. `appUrl` is passed in
 // (NEXT_PUBLIC_APP_URL at the call site) so this module stays env-free.
 
