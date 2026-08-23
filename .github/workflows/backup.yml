@@ -75,7 +75,7 @@ jobs:
 
       # GitHub Free allows 500MB of artifact storage in total, with a 90-day
       # default retention that daily dumps would quietly exhaust.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.guard.outputs.ready == 'true'
         with:
           name: booklo-backup-${{ github.run_id }}
