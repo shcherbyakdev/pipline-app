@@ -8,6 +8,7 @@ import type { getSchedulingSettings } from "@/features/orgs/queries";
 import type { PublicService } from "@/lib/booking/public";
 import { parseWidgetTheme, WIDGET_THEME_OPTIONS, effectiveContrast, type WidgetThemeConfig } from "@/lib/widget-theme";
 import { updateWidgetTheme } from "@/features/orgs/actions";
+import { bookingPath, hostLabel } from "@/lib/booking/url";
 import { BrandedHeader } from "@/components/branded-header";
 import { LivePreview, PreviewNotice, SchemeToggle, type Scheme } from "@/components/live-preview";
 import { SettingsCard, SettingsRow } from "@/components/settings-row";
@@ -22,7 +23,7 @@ type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSet
 
 /* Booking page studio: compact settings cards on the left, and on the right
    the hosted page as a visitor will see it — same composition as
-   /book/[handle] (page in the widget theme, max-w-lg column, BrandedHeader,
+   /[handle] (page in the widget theme, max-w-lg column, BrandedHeader,
    then the widget, transparent unless the org set a background). Accent and
    handle track the forms live, before saving. */
 export function BookingPageStudio({
@@ -66,8 +67,8 @@ export function BookingPageStudio({
     });
   };
 
-  const host = appUrl.replace(/^https?:\/\//, "");
-  const url = `${host}/book/${handle.trim() || "your-handle"}`;
+  const host = hostLabel(appUrl);
+  const url = `${host}${bookingPath(handle.trim() || "your-handle")}`;
   // Colour overrides (set on Website embed) apply here too — surface a weak
   // pair the same way the embed page does, so it isn't missed on this page.
   const overrideRatio = theme.background || theme.text ? effectiveContrast(theme) : null;
@@ -115,7 +116,7 @@ export function BookingPageStudio({
         <LivePreview
           url={url}
           dark={resolved === "dark"}
-          // Same shell as /book/[handle], resolved for the preview: scoping
+          // Same shell as /[handle], resolved for the preview: scoping
           // .light/.dark here keeps it faithful whatever the admin's theme is.
           pageClassName={cn(resolved, "bg-background text-foreground")}
           desktopMaxWidth="max-w-lg"
