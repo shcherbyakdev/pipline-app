@@ -51,6 +51,7 @@ export function TemplatePicker({
     setPending(null);
     setOpen(false);
   };
+  const choose = (t: Template) => (dirty ? setPending(t) : commit(t));
 
   return (
     <>
@@ -68,25 +69,19 @@ export function TemplatePicker({
           <ul className="grid max-h-[60vh] grid-cols-1 gap-3 overflow-y-auto p-0.5 sm:grid-cols-3">
             {TEMPLATES.map((t) => (
               <li key={t.id}>
-                {/* A <button> can't contain the thumbnail's own SectionFrame
-                    "Edit …" buttons (invalid nested-interactive HTML — the
-                    thumbnail is `inert` regardless, so no functionality is
-                    lost); role="button" + a key handler keep it a keyboard-
-                    operable control. */}
+                {/* Click anywhere on the card selects; the name/description is a
+                    real <button>, so Enter/Space come for free and bubble to the
+                    wrapper as a click. The thumbnail stays an inert sibling — never
+                    a descendant of an interactive role (Tasks 7–8 ruling). */}
                 <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => (dirty ? setPending(t) : commit(t))}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter" && e.key !== " ") return;
-                    e.preventDefault();
-                    if (dirty) setPending(t); else commit(t);
-                  }}
-                  className="hover:border-primary focus-visible:ring-ring/50 flex w-full cursor-pointer flex-col gap-2 rounded-lg border p-2 text-left outline-none focus-visible:ring-2"
+                  onClick={() => choose(t)}
+                  className="hover:border-primary has-[button:focus-visible]:ring-ring/50 flex w-full cursor-pointer flex-col gap-2 rounded-lg border p-2 has-[button:focus-visible]:ring-2"
                 >
                   <TemplateThumb template={t} ctx={ctx} />
-                  <span className="text-sm font-medium">{t.name}</span>
-                  <span className="text-muted-foreground text-xs">{t.description}</span>
+                  <button type="button" className="flex flex-col items-start gap-0.5 text-left outline-none" aria-label={`Use the ${t.name} template`}>
+                    <span className="text-sm font-medium">{t.name}</span>
+                    <span className="text-muted-foreground text-xs">{t.description}</span>
+                  </button>
                 </div>
               </li>
             ))}
