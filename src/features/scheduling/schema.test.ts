@@ -114,6 +114,10 @@ describe("schedulingSettingsInput", () => {
       expect(schedulingSettingsInput.safeParse({ handle, timezone: "UTC" }).success).toBe(false);
     }
   });
+  it("rejects a reserved handle", () => {
+    expect(schedulingSettingsInput.safeParse({ handle: "login", timezone: "Europe/Warsaw" }).success).toBe(false);
+    expect(schedulingSettingsInput.safeParse({ handle: "anna", timezone: "Europe/Warsaw" }).success).toBe(true);
+  });
 });
 
 describe("public inputs", () => {
