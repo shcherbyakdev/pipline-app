@@ -235,6 +235,11 @@
   /* Indigo #4f46e5. Headline highlight, focus rings, the mockup's selected
      day, the wash under the mockup — nothing else. */
   --highlight: oklch(0.511 0.262 276.966);
+  /* Hero-calendar accent: the landing's indigo, with a deeper stop for its
+     gradient. Only mocks/hero-calendar.* may use these. */
+  --hero-accent: var(--highlight);
+  --hero-accent-deep: oklch(0.42 0.24 277);
+  --hero-accent-foreground: oklch(1 0 0);
 }
 
 /* Landing motion (spec §3.8). Delays are arbitrary values on the element. */

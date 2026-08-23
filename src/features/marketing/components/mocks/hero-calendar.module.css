@@ -25,28 +25,29 @@
   transform: translateZ(0);
 }
 /* Glass (grid only — the floating panels stay solid so they read as objects
-   above the pane): translucent surface + backdrop blur (set in the TSX) with
-   a hairline top highlight so edges catch light; the window shadow lifts the
-   grid off the ground. */
+   above the pane): translucent card surface + backdrop blur (set in the TSX)
+   with a hairline top highlight in border-token so the edge still reads on a
+   light ground; the window shadow lifts the grid off the page. */
 .glass {
-  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.08);
+  box-shadow: inset 0 1px 0 var(--border);
 }
 .window {
   box-shadow:
-    inset 0 1px 0 oklch(1 0 0 / 0.08),
-    0 24px 60px -24px oklch(0 0 0 / 0.7),
-    0 8px 20px -10px oklch(0 0 0 / 0.5);
+    inset 0 1px 0 var(--border),
+    0 20px 50px -24px oklch(0 0 0 / 0.16),
+    0 8px 20px -10px oklch(0 0 0 / 0.08);
 }
-/* Soft ambient light behind the calendar — the glass reads as glass only if
-   there is something to blur. Indigo (hero accent) high-left, a whisper of
-   the yellow accent low-right; both far below "background" intensity. */
+/* Soft ambient wash behind the calendar — the glass reads as glass only if
+   there is something to blur through it. Both stops are the landing's one
+   accent (--hero-accent, indigo), far below "background" intensity, just
+   offset in position so the wash doesn't look flat. */
 .ambient {
   position: absolute;
   inset: -12% -8% -12% -8%;
   pointer-events: none;
   background:
-    radial-gradient(45% 45% at 22% 18%, color-mix(in oklab, var(--hero-accent) 40%, transparent), transparent 70%),
-    radial-gradient(40% 40% at 85% 90%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 70%);
+    radial-gradient(45% 45% at 22% 18%, color-mix(in oklab, var(--hero-accent) 30%, transparent), transparent 70%),
+    radial-gradient(40% 40% at 85% 90%, color-mix(in oklab, var(--hero-accent) 12%, transparent), transparent 70%);
   filter: blur(24px);
 }
 
@@ -61,8 +62,8 @@
 /* Shadow reads as distance from the grid: bigger and softer the further out. */
 .lifted {
   box-shadow:
-    0 1px 2px oklch(0 0 0 / 0.3),
-    0 calc(var(--z) * 0.35) calc(var(--z) * 0.7) calc(var(--z) * -0.15) oklch(0 0 0 / 0.6);
+    0 1px 2px oklch(0 0 0 / 0.1),
+    0 calc(var(--z) * 0.35) calc(var(--z) * 0.7) calc(var(--z) * -0.15) oklch(0 0 0 / 0.22);
 }
 /* The status strip sits a little closer to the grid than the message card. */
 .lower {
@@ -205,11 +206,17 @@
   }
 }
 
-/* Shimmering status text while something is "in progress". */
+/* Shimmering status text while something is "in progress" — foreground-token
+   text fading in and out of alpha, so the pulse reads on a light card. */
 .shimmer {
   color: transparent;
-  background: linear-gradient(90deg, oklch(0.97 0 0 / 0.9) 30%, oklch(0.97 0 0 / 0.3) 50%, oklch(0.97 0 0 / 0.9) 70%) 0 0 / 200% 100%
-    text;
+  background: linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--foreground) 90%, transparent) 30%,
+      color-mix(in oklab, var(--foreground) 35%, transparent) 50%,
+      color-mix(in oklab, var(--foreground) 90%, transparent) 70%
+    )
+    0 0 / 200% 100% text;
   -webkit-background-clip: text;
   animation: hero-shimmer 2.2s linear infinite;
 }

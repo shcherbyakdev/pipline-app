@@ -69,7 +69,7 @@ const KIND_CLASS: Record<Kind, string> = {
   walkin: "bg-muted",
 };
 const HATCH = {
-  backgroundImage: "repeating-linear-gradient(-45deg, oklch(1 0 0 / 0.06) 0 3px, transparent 3px 9px)",
+  backgroundImage: "repeating-linear-gradient(-45deg, color-mix(in oklab, var(--foreground) 8%, transparent) 0 3px, transparent 3px 9px)",
 };
 
 type CellState = { ev?: Event; hold?: boolean; fresh?: boolean };
@@ -338,7 +338,7 @@ export function HeroCalendar({ className }: { className?: string }) {
       {/* Ambient light behind the glass so the blur has something to refract. */}
       <div aria-hidden="true" className={styles.ambient} />
       <div className={styles.stage}>
-        <div className={cn(styles.grid, styles.window, styles.glass, "overflow-hidden rounded-l-lg border-t border-b border-l border-white/10 bg-white/[0.035] backdrop-blur-2xl")}>
+        <div className={cn(styles.grid, styles.window, styles.glass, "border-border bg-card/70 overflow-hidden rounded-l-lg border-t border-b border-l backdrop-blur-2xl")}>
           <div className="grid grid-cols-7">
             {DOW.map((d) => (
               <div
