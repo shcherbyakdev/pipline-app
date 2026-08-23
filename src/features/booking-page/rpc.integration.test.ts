@@ -130,3 +130,19 @@ describe("table access", () => {
     expect((await owner.from("booking_pages").delete().eq("org_id", orgId)).error).not.toBeNull();
   });
 });
+
+describe("getPublishedPage", () => {
+  // Dynamic import: queries.ts reaches @/env through the admin client, which
+  // parses process.env at module load — after loadEnvFile() above.
+  it("returns the published document, and DEFAULT_PAGE when never published or unparseable", async () => {
+    const { getPublishedPage } = await import("./queries");
+    await owner.rpc("save_booking_page_draft", { p_org_id: orgId, p_doc: withHero });
+    await owner.rpc("publish_booking_page", { p_org_id: orgId });
+    expect(await getPublishedPage(orgId)).toEqual(withHero);
+    expect(await getPublishedPage(strangerOrgId)).toEqual(DEFAULT_PAGE);
+    // Junk that passes the SQL checks but not zod: the renderer must never trust it.
+    await admin.from("booking_pages").update({ published: { ...withHero, layout: "diagonal" } }).eq("org_id", orgId);
+    expect(await getPublishedPage(orgId)).toEqual(DEFAULT_PAGE);
+    await owner.rpc("publish_booking_page", { p_org_id: orgId });
+  });
+});
