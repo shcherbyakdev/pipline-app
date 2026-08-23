@@ -32,6 +32,9 @@ export function SectionsPanel({
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
+  // dnd-kit derives its aria ids from a module counter unless given one — a
+  // server/client mismatch on every load. React's useId is SSR-stable.
+  const dndId = React.useId();
 
   const onDragEnd = (e: DragEndEvent) => {
     const over = e.over;
@@ -70,7 +73,7 @@ export function SectionsPanel({
       {published === null && deepEqual(doc, DEFAULT_PAGE) ? (
         <p className="text-muted-foreground text-xs">This is the default page. Pick a template or add sections.</p>
       ) : null}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={doc.sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
           <ul className="flex flex-col gap-1.5">
             {doc.sections.map((s) => (
