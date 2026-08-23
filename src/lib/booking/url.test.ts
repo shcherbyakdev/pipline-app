@@ -19,7 +19,11 @@ describe("booking URLs", () => {
 });
 
 // Source guard: nothing outside the legacy redirect folder builds a /book/
-// URL by hand — the public page lives at /<handle> now.
+// URL by hand — the public page lives at /<handle> now. Walks every root
+// that can hand-build a URL (src, scripts, workers — skipping one that
+// doesn't exist), strips comments first so documentation prose mentioning
+// /book/[handle] doesn't count as an offender, then flags any remaining
+// /book/ literal in real code.
 describe("no stray /book/ literals", () => {
   function walk(dir: string): string[] {
     return readdirSync(dir).flatMap((name) => {
@@ -27,13 +31,25 @@ describe("no stray /book/ literals", () => {
       return statSync(p).isDirectory() ? walk(p) : [p];
     });
   }
-  it("src/** (except src/app/book and tests) never quotes a /book/ path", () => {
-    const root = join(process.cwd(), "src");
-    const offenders = walk(root)
-      .filter((p) => /\.(ts|tsx)$/.test(p) && !/\.test\.tsx?$/.test(p))
-      .filter((p) => !relative(root, p).startsWith("app/book/"))
-      .filter((p) => /(["'`}])\/book\//.test(readFileSync(p, "utf8")))
-      .map((p) => relative(process.cwd(), p));
+  function exists(dir: string): boolean {
+    try {
+      return statSync(dir).isDirectory();
+    } catch {
+      return false;
+    }
+  }
+  function stripComments(source: string): string {
+    return source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+  }
+  it("src, scripts, workers (except src/app/book and tests) never build a /book/ path", () => {
+    const cwd = process.cwd();
+    const roots = ["src", "scripts", "workers"].map((name) => join(cwd, name)).filter(exists);
+    const offenders = roots
+      .flatMap((root) => walk(root).map((p) => ({ root, p })))
+      .filter(({ p }) => /\.(ts|tsx)$/.test(p) && !/\.test\.tsx?$/.test(p))
+      .filter(({ root, p }) => !relative(root, p).startsWith("app/book/"))
+      .filter(({ p }) => /\/book\//.test(stripComments(readFileSync(p, "utf8"))))
+      .map(({ p }) => relative(cwd, p));
     expect(offenders).toEqual([]);
   });
 });
