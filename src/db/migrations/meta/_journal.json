@@ -353,6 +353,13 @@
       "breakpoints": true
     },
     {
+      "idx": 50,
+      "version": "7",
+      "when": 1787522914676,
+      "tag": "0050_staff_grant_scope",
+      "breakpoints": true
+    },
+    {
       "idx": 51,
       "version": "7",
       "when": 1787523166167,
