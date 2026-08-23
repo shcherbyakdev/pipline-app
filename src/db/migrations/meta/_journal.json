@@ -330,6 +330,20 @@
       "when": 1787086714080,
       "tag": "0046_utils_overrides_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1787495700188,
+      "tag": "0047_medical_bucky",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1787495709528,
+      "tag": "0048_booking_pages_security",
+      "breakpoints": true
     }
   ]
 }
