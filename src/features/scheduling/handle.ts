@@ -26,6 +26,13 @@ export function isReservedHandle(handle: string): boolean {
   return RESERVED.has(handle);
 }
 
+// Letters NFKD decomposition doesn't split into base + combining mark, so
+// the generic diacritic strip below never touches them — without this map
+// they'd just be deleted (e.g. "Łukasz" → "ukasz").
+const TRANSLITERATE: Record<string, string> = {
+  "ł": "l", "ß": "ss", "ø": "o", "đ": "d", "æ": "ae", "œ": "oe", "þ": "th", "ð": "d",
+};
+
 // Live-typing normaliser: the field only ever shows a legal prefix of a
 // handle. A trailing dash is allowed mid-typing; HANDLE_RE rejects it on
 // submit and the hint explains.
@@ -34,6 +41,7 @@ export function normalizeHandle(raw: string): string {
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    .replace(/[łßøđæœþð]/g, (m) => TRANSLITERATE[m])
     .replace(/[\s_]+/g, "-")
     .replace(/[^a-z0-9-]/g, "")
     .replace(/-{2,}/g, "-")

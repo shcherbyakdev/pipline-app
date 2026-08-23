@@ -29,6 +29,10 @@ describe("normalizeHandle", () => {
   it("output always satisfies HANDLE_RE once 3+ chars and not dash-terminated", () => {
     for (const raw of ["Anna", "anna b", "ANNA_B_C", "x y z"]) expect(HANDLE_RE.test(normalizeHandle(raw))).toBe(true);
   });
+  it("transliterates non-decomposable letters instead of deleting them", () => {
+    expect(normalizeHandle("Łukasz")).toBe("lukasz");
+    expect(normalizeHandle("Møller & Straße")).toBe("moller-strasse");
+  });
 });
 
 describe("toDisplayName", () => {
