@@ -2,15 +2,17 @@ import { anchorId, SECTIONS, SITE, STEPS } from "@/features/marketing/site";
 
 export function HowItWorks() {
   return (
-    <section id={anchorId(SITE.anchors.how)} aria-labelledby="how-heading" className="scroll-mt-20 border-t">
-      <div className="mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
-        <h2 id="how-heading" className="text-3xl font-medium tracking-[-0.03em] md:text-4xl">{SECTIONS.how.heading}</h2>
+    <section id={anchorId(SITE.anchors.how)} aria-labelledby="how-heading" className="bg-background relative scroll-mt-20 pt-16 sm:pt-28 lg:pt-40">
+      <div className="mx-auto w-full max-w-3xl px-5 py-16 sm:px-8 md:py-24">
+        <h2 id="how-heading" className="text-foreground text-3xl font-normal tracking-tight md:text-4xl">
+          {SECTIONS.how.heading}
+        </h2>
         <p className="text-muted-foreground mt-3 max-w-xl">{SECTIONS.how.sub}</p>
-        <ol className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+        <ol className="mt-10 grid gap-8 md:grid-cols-3">
           {STEPS.map((s) => (
-            <li key={s.number} className="border-t pt-6">
-              <span className="text-primary font-mono text-sm font-medium tabular-nums">{s.number}</span>
-              <h3 className="mt-3 text-lg font-medium tracking-tight text-balance">{s.title}</h3>
+            <li key={s.number} className="border-border border-t pt-5">
+              <span className="text-highlight font-mono text-sm tabular-nums">{s.number}</span>
+              <h3 className="text-foreground mt-3 text-lg font-medium tracking-tight text-balance">{s.title}</h3>
               <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{s.body}</p>
             </li>
           ))}

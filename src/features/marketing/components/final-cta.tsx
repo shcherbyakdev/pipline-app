@@ -1,23 +1,19 @@
-import Link from "next/link";
-import { MoveRight } from "lucide-react";
-import { CTA, SITE } from "@/features/marketing/site";
-import { marketingButton } from "./marketing-button";
+"use client";
 
-export function FinalCta() {
+import * as React from "react";
+import { FINAL_CTA, SITE } from "@/features/marketing/site";
+import { ClaimBar } from "./claim-bar";
+
+export function FinalCta({ host }: { host: string }) {
+  const [handle, setHandle] = React.useState("");
   return (
-    <section aria-labelledby="cta-heading" className="bg-muted/40 border-t">
-      <div className="mx-auto w-full max-w-6xl px-6 py-20 text-center md:py-28">
-        <h2 id="cta-heading" className="text-3xl font-medium tracking-[-0.03em] text-balance md:text-5xl">{SITE.headline.join(" ")}</h2>
-        <p className="text-muted-foreground mx-auto mt-4 max-w-md">{SITE.heroNote}</p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
-          <Link href={SITE.links.signup} className={marketingButton("primary", "lg")}>
-            <MoveRight className="size-6" strokeWidth={1.5} aria-hidden="true" />
-            <span className="flex-1 text-center">{CTA.getStartedFree}</span>
-          </Link>
-          <Link href={SITE.links.login} className={marketingButton("quiet", "text")}>
-            {CTA.login}
-          </Link>
-        </div>
+    <section aria-labelledby="cta-heading" className="bg-secondary/60 border-border border-t">
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-5 py-20 text-center sm:px-8 md:py-28">
+        <h2 id="cta-heading" className="text-foreground text-3xl font-normal tracking-tight text-balance md:text-5xl">
+          {FINAL_CTA.heading}
+        </h2>
+        <ClaimBar handle={handle} onHandleChange={setHandle} host={host} size="md" className="mt-8 max-w-lg" />
+        <p className="text-muted-foreground mt-2 text-sm">{SITE.heroNote}</p>
       </div>
     </section>
   );
