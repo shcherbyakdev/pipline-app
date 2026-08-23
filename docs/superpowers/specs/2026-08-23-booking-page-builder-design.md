@@ -59,8 +59,8 @@ type SectionBase = { id: string /* ^[a-z0-9]{6,12}$ */; hidden: boolean };
 - `column` = today's single `max-w-lg` stack. `split` = at `lg+` the booking section docks sticky in a right column and the rest flows left; on narrower viewports the page stacks in array order.
 - Exactly one `booking` section; it cannot be hidden or deleted.
 - Single-instance types: `header`, `booking`, `services`, `staff`. All others may repeat.
-- Images are **storage paths**, not URLs (`orgs/{orgId}/page/{sha256:16}.{ext}`), validated against the org's own prefix; resolved to public URLs at render.
-- All text is plain text. No markdown, no HTML, no URLs in text fields beyond the `links`/`location` fields defined below.
+- Images are **storage paths**, not URLs (`{orgId}/page/{sha256:16}.{ext}` in the `branding` bucket — same `{orgId}/` prefix discipline as `logoPathFor`), validated against the org's own prefix; resolved to public URLs at render with a pure helper (`pageImageUrl(supabaseUrl, path)`), never the admin client, so the client-side studio preview resolves them identically.
+- All text is plain text. No markdown, no HTML, no URLs in text fields beyond the `links`/`location` fields defined below. Optional text props (`title?`, `tagline?`, …) are stored as empty strings, never omitted; `imagePath?`/`photoPath?` are omitted when unset. `links`/`location` URLs may be empty while a draft is incomplete — an item with an empty `label` or `url` renders nothing.
 
 ### Section catalogue (v1)
 
@@ -114,13 +114,15 @@ src/features/booking-page/
 type RenderContext = {
   org: { orgId; orgName; handle; timeZone };
   branding: { accentColor; logoUrl };
-  services: PublicService[]; staff: PublicStaff[]; serviceStaffIds; offerings;
-  imageUrl(path: string): string;
+  theme: WidgetThemeConfig;          // the booking section nests its own WidgetTheme with it
+  services: PublicService[]; staff: PublicStaff[]; serviceStaffIds?; offerings;
+  lockedStaff: PublicStaff | null;   // staff pages
+  supabaseUrl: string;               // images resolve via the pure pageImageUrl(supabaseUrl, path)
   mode: "public" | "preview";
-  lockedStaff?: PublicStaff;       // staff pages
-  widget: { preview?: { slots } };  // studio passes PREVIEW_SLOTS
+  previewSlots?: string[];           // studio passes PREVIEW_SLOTS
 };
 ```
+Plain data only — no functions — because it crosses the server → client boundary into the client-side sections.
 
 The same renderer serves `/book/[handle]`, `/book/[handle]/[staffSlug]`, the studio preview, and the template thumbnails. Only `doc` and `mode` differ.
 
@@ -128,8 +130,8 @@ The same renderer serves `/book/[handle]`, `/book/[handle]/[staffSlug]`, the stu
 
 - Adds one fetch, `getPublishedPage(org.orgId)` via the admin client (idiom of `getBookingOrg`), selecting only `published`. `parsePageDocument(published) ?? DEFAULT_PAGE`.
 - Existing not-found rules (handle regex, unknown org, no services and no offerings) are unchanged.
-- **`WidgetTheme` moves from wrapping the widget to wrapping the whole `<main>`** so font, radius and accent tokens reach every section. `transparent` keeps its meaning (the widget paints no surface of its own). The `bookShellClass(theme.theme)` shell is unchanged.
-- `layout: "split"` → container `max-w-5xl`, `lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]`; the booking section gets `lg:col-start-2 lg:row-span-full lg:sticky lg:top-6`. DOM order stays the array order.
+- **`WidgetTheme` additionally wraps the whole `<main>`** (always `transparent`) so font, radius, accent, text and line tokens reach every section; the booking section nests its own `WidgetTheme` with `transparent={!theme.background}` so a background override still paints the widget card exactly as today and nothing else. The `bookShellClass(theme.theme)` shell is unchanged. `ctx.theme` carries the parsed config for that.
+- `layout: "split"` → container `max-w-5xl`; the renderer root is a Tailwind v4 `@container` and the split grid engages at `@3xl` (48 rem of *container* width, not viewport), so the studio preview and its phone toggle behave exactly like the real page. Booking section: `@3xl:col-start-2 @3xl:row-start-1 @3xl:row-end-[-1] @3xl:sticky @3xl:top-6 @3xl:self-start` with explicit `grid-template-rows: repeat(n, auto)` (n = other visible sections) so the span covers every row without phantom gap rows. DOM order stays the array order.
 - Hero spans the container width, never the viewport.
 - `PoweredBy` stays last, same `badgeVisible` rule.
 
@@ -139,7 +141,7 @@ The same renderer serves `/book/[handle]`, `/book/[handle]/[staffSlug]`, the stu
 
 ### Services → booking hand-off
 
-`PageStateProvider` (client) wraps the rendered sections with `{ selectedServiceId, selectService(id) }`. A service card calls `selectService(id)` and scrolls the booking section into view (`id="book"`); `BookingWidget` gains an `initialServiceId` prop fed from the context. `?service=<id>` on the URL seeds the provider (pairs with the existing `?staff=`). Unknown ids are ignored.
+`PageStateProvider` (client) wraps the rendered sections with `{ requested: { id, key } | null, selectService(id) }` — every request carries an incrementing key so re-picking the same service after "change" still lands. A service card calls `selectService(id)` and scrolls the booking section into view (`id="book"`); `BookingWidget` gains a `requestedService` prop fed from the context and applies it during render (no effect). `?service=<id>` on the URL seeds the provider (pairs with the existing `?staff=`); `resolveInitialService` (pure) accepts only a uuid naming a listed service. Unknown ids are ignored.
 
 ### Metadata
 
@@ -154,7 +156,7 @@ The same renderer serves `/book/[handle]`, `/book/[handle]/[staffSlug]`, the stu
 
 ### Where
 
-Configure → Booking page (`/booking-page`, `BookingPageStudio`). The left panel gets two tabs:
+Configure → Booking page (`/booking-page`, `BookingPageStudio`). The left panel gets two tabs (a hand-rolled `role="tablist"` strip in local state — there is no Tabs primitive in `ui/`):
 
 - **Sections** — the builder (draft → Publish).
 - **Settings** — today's scheduling settings form and Look card, still saved as you go.
@@ -173,7 +175,7 @@ The right column stays the sticky `LivePreview`, rendering `PageRenderer` with t
 ### Sections list
 
 - Row: drag handle, type icon, type label, summary line (hero headline, "4 images", "3 questions"…), visibility toggle, delete. The `booking` row is marked *required* — no delete, no hide.
-- Reorder with `@dnd-kit/sortable` (`@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` — new dependencies) with `PointerSensor` + `KeyboardSensor` and the sortable keyboard coordinates for a11y; `aria-live` announcements via dnd-kit's accessibility options.
+- Reorder with `@dnd-kit/sortable` (`@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` — new dependencies) with `PointerSensor` + `KeyboardSensor` and the sortable keyboard coordinates for a11y; dnd-kit's built-in screen-reader announcements.
 - **Add section**: popover palette of the ten addable types with one-line descriptions; single-instance types already present are disabled with "Already on the page"; at 20 sections the button is disabled with a hint. New sections insert after the selected section (else at the end) with type defaults and open the inspector.
 - **Layout** segmented control (Column / Split) at the top; drives `doc.layout` and the preview's `desktopMaxWidth`.
 - **Start from a template** button next to it (see Templates).
@@ -181,7 +183,7 @@ The right column stays the sticky `LivePreview`, rendering `PageRenderer` with t
 
 ### Inspector
 
-Selecting a section (from the list or by clicking it in the preview) drills the left panel into its form, with **← Sections** to return. One form per type under `studio/forms/<type>.tsx`, react-hook-form + `zodResolver(<type>Schema)`; values propagate to the doc on change (`watch`), so the preview is live; errors inline. List props (gallery images, FAQ, testimonials, links) use inline add / remove / move up / move down — no nested drag-and-drop. Image fields use an upload control modelled on the logo upload (`uploadPageImage` → `{ path }`), showing a thumbnail and a remove button.
+Selecting a section (from the list or by clicking it in the preview) drills the left panel into its form, with **← Sections** to return. One form per type under `studio/forms/<type>.tsx`, controlled inputs writing straight into the document (the repo idiom — react-hook-form is installed but unused anywhere); the whole document is validated with `pageDocumentSchema` before every autosave and zod issues are mapped back to the owning section's fields, shown inline. List props (gallery images, FAQ, testimonials, links) use inline add / remove / move up / move down — no nested drag-and-drop. Image fields use an upload control modelled on the logo upload (`uploadPageImage` → `{ path }`), showing a thumbnail and a remove button.
 
 ### Preview interaction
 
@@ -216,11 +218,11 @@ type Template = {
 
 ## Media
 
-- Bucket: existing public `branding` bucket (`BRANDING_BUCKET`). Path `orgs/{orgId}/page/{sha256 first 16 hex}.{ext}` built by `pageImagePathFor` (sibling of `logoPathFor`).
-- `uploadPageImage(formData)` server action: org membership; `PAGE_IMAGE_MAX_BYTES = 5 MB`; raster only — `image/png`, `image/jpeg`, `image/webp` — checked by declared type **and** magic bytes (reuse the logo magic-byte helper; SVG excluded). Returns `{ path }`. Checksum paths make re-uploads idempotent (upsert).
+- Bucket: existing public `branding` bucket (`BRANDING_BUCKET`). Path `{orgId}/page/{sha256 first 16 hex}.{ext}` built by `pageImagePathFor` (sibling of `logoPathFor`).
+- `uploadPageImage(formData)` server action: org membership; `PAGE_IMAGE_MAX_BYTES = 5 MB`; raster only — `image/png`, `image/jpeg`, `image/webp` — checked by declared type **and** magic bytes (reuse `matchesLogoMagicBytes`; SVG excluded). Returns `{ ok: true, path }` (an `ActionState` extended with the path). Checksum paths make re-uploads idempotent (upsert).
 - No resizing or CDN transforms. Sections render `<img loading="lazy" decoding="async">` with `sizes`; the upload control hints "Best under 2000 px wide".
 - Caps: ≤24 image references per document (schema). Worst case ≈120 MB per org.
-- **Orphans**: `publishBookingPage` and `discardBookingPageDraft` (server actions, after the RPC succeeds) list `orgs/{orgId}/page/` and delete every object not referenced by `draft ∪ published` (pure `orphanPaths(listed, referenced)` in `images.ts`). Images removed from a draft before publish linger until the next publish/discard — acceptable.
+- **Orphans**: `publishBookingPage` and `discardBookingPageDraft` (server actions, after the RPC succeeds) list `{orgId}/page/` and delete every object not referenced by `draft ∪ published` (pure `orphanPaths(listed, referenced)` in `images.ts`). Images removed from a draft before publish linger until the next publish/discard — acceptable.
 
 ## Plan gating
 
@@ -241,8 +243,9 @@ None in v1 — every template and section is available on Free. One entitlement 
 
 ## Testing
 
-- **Unit (Vitest):** schema — valid documents for every template and `DEFAULT_PAGE`; rejects zero/two booking sections, duplicate single-instance types, >20 sections, >24 images, over-length text, non-`https:` links (and the `tel:`/`mailto:` exceptions), image paths outside the org prefix; `parsePageDocument` returns null on junk; `applyTemplate` strips sample copy and yields a valid doc (table over `TEMPLATES`); `pageMetadata` precedence; `orphanPaths`; unpublished deep-equal; `BookingWidget` honours `initialServiceId` (existing widget tests).
+- **Unit (Vitest):** schema — valid documents for every template and `DEFAULT_PAGE`; rejects zero/two booking sections, duplicate single-instance types, >20 sections, >24 images, over-length text, non-`https:` links (and the `tel:`/`mailto:` exceptions), image paths outside the org prefix; `parsePageDocument` returns null on junk; `applyTemplate` strips sample copy and yields a valid doc (table over `TEMPLATES`); `pageMetadata` precedence; `orphanPaths`; unpublished deep-equal; `resolveInitialService`; `issuesBySection`; the document ops (`insert`/`remove`/`move`/`replace`/`hide`, empty rule, summary); gating rule.
 - **Integration (Supabase):** `save_booking_page_draft` — member OK / non-member rejected / >64 KB rejected / missing booking rejected / `version != 1` rejected; `publish_booking_page` copies draft → published and stamps `published_at`; `discard_booking_page_draft` reverts to published, or to the supplied fallback when never published; `getPublishedPage` returns only `published`; RLS — a member of another org cannot select the row.
+- **No component tests** — the repo has none (`vitest` collects `*.test.ts` only, node environment); every decision lives in a pure `.ts` module with a test, and section/studio components stay thin.
 - **Manual browser checklist (Playwright MCP during QA):** pick *Studio* → fill hero → publish → `/book/<handle>` shows it, staff page inherits without the staff section; `?service=` preselects; keyboard reorder; Split at `lg` and stacked on mobile; dark skin; ghost placeholders never appear publicly; contrast notices still show.
 
 ## Out of scope
