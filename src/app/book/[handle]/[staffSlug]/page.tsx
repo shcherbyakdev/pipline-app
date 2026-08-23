@@ -1,79 +1,10 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getBookingOrg } from "@/lib/booking/public";
-import { loadPublicOffering } from "@/lib/booking/public-offering";
-import { filterBookableServices } from "@/lib/booking/bookable";
+import { notFound, permanentRedirect } from "next/navigation";
+import { HANDLE_RE } from "@/features/scheduling/handle";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
-import { getOrgBranding } from "@/lib/org-branding";
-import { badgeVisible } from "@/lib/billing/entitlements";
-import { PoweredBy } from "@/components/powered-by";
-import { WidgetTheme } from "@/components/widget-theme";
-import { parseWidgetTheme } from "@/lib/widget-theme";
-import { bookShellClass } from "@/lib/book-shell";
-import { cn } from "@/lib/utils";
-import { env } from "@/env";
-import { getPublishedPage } from "@/features/booking-page/queries";
-import { pageMetadata } from "@/features/booking-page/metadata";
-import { resolveInitialService } from "@/features/booking-page/initial-service";
-import type { RenderContext } from "@/features/booking-page/render/context";
-import { PageRenderer, pageContainerClass } from "@/features/booking-page/render/page-renderer";
+import { bookingPath } from "@/lib/booking/url";
 
-const HANDLE_RE = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/;
-
-export async function generateMetadata({ params }: PageProps<"/book/[handle]/[staffSlug]">): Promise<Metadata> {
+export default async function LegacyStaffBookPage({ params }: PageProps<"/book/[handle]/[staffSlug]">) {
   const { handle, staffSlug } = await params;
-  if (!HANDLE_RE.test(handle) || !STAFF_SLUG_RE.test(staffSlug)) return {};
-  const org = await getBookingOrg(handle);
-  if (!org) return {};
-  return pageMetadata(await getPublishedPage(org.orgId), org, env.NEXT_PUBLIC_SUPABASE_URL);
-}
-
-// One team member's own booking link: the org's published page with the
-// staff section dropped (PageRenderer: lockedStaff ⇒ staffCount 0) and the
-// widget locked to this person — only their services, no staff step, no
-// "Anyone available". Rentals are org-level, so this page never lists them.
-export default async function StaffBookPage({ params, searchParams }: PageProps<"/book/[handle]/[staffSlug]">) {
-  const { handle, staffSlug } = await params;
-  if (!HANDLE_RE.test(handle)) notFound();
-  // Shape-checked before any DB call, exactly like the handle above.
-  if (!STAFF_SLUG_RE.test(staffSlug)) notFound();
-  const org = await getBookingOrg(handle);
-  if (!org) notFound();
-  const [offering, branding, doc] = await Promise.all([
-    loadPublicOffering(org.orgId),
-    getOrgBranding(org.orgId),
-    getPublishedPage(org.orgId),
-  ]);
-  // The roster is active-only AND plan-limited, so both a deactivated person
-  // and one the plan no longer offers publicly 404 here — the link stays valid
-  // and starts working again the moment they return to the roster.
-  const person = offering.staff.find((s) => s.slug === staffSlug);
-  if (!person) notFound();
-  const services = filterBookableServices(offering.services, offering.serviceStaffIds, [person], person.id);
-  // Nothing they can be booked for is not a page worth rendering.
-  if (services.length === 0) notFound();
-  const theme = parseWidgetTheme(branding.themeRaw);
-  const initialServiceId = resolveInitialService(services, (await searchParams).service);
-  const ctx: RenderContext = {
-    org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone },
-    branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
-    theme, services,
-    // No serviceStaffIds: the map is only needed to filter a staff step this
-    // page never shows, and shipping the org's whole service→staff graph to
-    // the browser for nothing is worse than letting eligibleFor fall back to
-    // `staff` (= [person]).
-    staff: [person], offerings: [], lockedStaff: person,
-    supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public",
-  };
-  return (
-    <div className={bookShellClass(theme.theme)}>
-      <WidgetTheme config={theme} accentColor={branding.accentColor} transparent className="flex flex-1 flex-col">
-        <main className={cn("mx-auto flex w-full flex-col gap-6 p-6", pageContainerClass(doc.layout))}>
-          <PageRenderer doc={doc} ctx={ctx} initialServiceId={initialServiceId} />
-          {/* Same rule as /book/[handle] and the embed (spec §5). */}
-          {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}
-        </main>
-      </WidgetTheme>
-    </div>
-  );
+  if (!HANDLE_RE.test(handle) || !STAFF_SLUG_RE.test(staffSlug)) notFound();
+  permanentRedirect(bookingPath(handle, staffSlug));
 }

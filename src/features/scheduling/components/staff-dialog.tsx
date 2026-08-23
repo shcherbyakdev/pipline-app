@@ -7,6 +7,7 @@ import { createStaff, updateStaff } from "@/features/scheduling/staff-actions";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { ServiceRow } from "@/features/scheduling/queries";
 import { STAFF_COLORS, nextStaffColor, slugifyStaffName } from "@/features/scheduling/staff-slug";
+import { bookingPath } from "@/lib/booking/url";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -105,7 +106,7 @@ function StaffForm({
   const [name, setName] = React.useState(staff?.name ?? "");
   const [slug, setSlug] = React.useState(staff?.slug ?? "");
   // An existing person's link is never silently rewritten by a rename — their
-  // /book/… URL may already be out in the world.
+  // booking URL may already be out in the world.
   const [slugTouched, setSlugTouched] = React.useState(isEdit);
   const [email, setEmail] = React.useState(staff?.email ?? "");
   const [color, setColor] = React.useState(staff?.color ?? nextStaffColor(usedColors));
@@ -169,7 +170,7 @@ function StaffForm({
         <Label htmlFor="staff-slug">Booking link</Label>
         <div className="flex items-center gap-1">
           <span className="text-muted-foreground shrink-0 font-mono text-xs">
-            /book/{handle ?? "…"}/
+            {bookingPath(handle ?? "…")}/
           </span>
           <Input
             id="staff-slug"

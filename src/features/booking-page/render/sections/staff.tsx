@@ -1,4 +1,5 @@
 import { initials } from "@/features/scheduling/staff-slug";
+import { bookingPath } from "@/lib/booking/url";
 import type { SectionOf } from "../../schema";
 import type { RenderContext } from "../context";
 import { Ghost } from "../ghost";
@@ -23,7 +24,7 @@ export function StaffSection({ section, ctx }: { section: SectionOf<"staff">; ct
           );
           return (
             <li key={p.id}>
-              {ctx.mode === "preview" ? <div className={CARD}>{body}</div> : <a href={`/book/${ctx.org.handle}/${p.slug}`} className={CARD}>{body}</a>}
+              {ctx.mode === "preview" ? <div className={CARD}>{body}</div> : <a href={bookingPath(ctx.org.handle, p.slug)} className={CARD}>{body}</a>}
             </li>
           );
         })}

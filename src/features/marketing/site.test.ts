@@ -9,6 +9,10 @@ import {
   FAQ,
   SECTIONS,
   CTA,
+  CLAIM,
+  ONBOARDING,
+  WELCOME,
+  FINAL_CTA,
   FORBIDDEN_COPY,
   PRICING,
   anchorId,
@@ -56,7 +60,6 @@ describe("site config", () => {
   it("each section derives its id from SITE.anchors", () => {
     const files: Record<string, keyof typeof SITE.anchors> = {
       "how-it-works.tsx": "how",
-      "feature-grid.tsx": "features",
       "faq.tsx": "faq",
     };
     for (const [file, key] of Object.entries(files)) {
@@ -75,7 +78,7 @@ describe("site config", () => {
 
   it("never advertises unshipped features", () => {
     const corpus = [
-      SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
+      ...SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
       ...STEPS.flatMap((s) => [s.title, s.body]),
       ...FEATURES.flatMap((f) => [f.title, f.body]),
       ...FAQ.flatMap((f) => [f.question, f.answer]),
@@ -88,11 +91,16 @@ describe("site config", () => {
       ...Object.values(CTA),
       PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder, PRICING.moreComing,
       ...PRICING.rows.flatMap((r) => [r.label, r.free, r.pro, r.team]),
+      ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
+      ...Object.values(ONBOARDING).map((v) => (typeof v === "function" ? v("x") : v)),
+      ...Object.values(WELCOME).map((v) => (typeof v === "function" ? v("x") : v)),
+      FINAL_CTA.heading,
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);
   });
 
-  it("headline is short and outcome-led (≤ 8 words)", () => {
-    expect(SITE.headline.split(/\s+/).length).toBeLessThanOrEqual(8);
+  it("headline is two short lines (≤ 4 words each)", () => {
+    expect(SITE.headline).toHaveLength(2);
+    for (const line of SITE.headline) expect(line.split(/\s+/).length).toBeLessThanOrEqual(4);
   });
 });

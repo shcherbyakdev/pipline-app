@@ -7,6 +7,7 @@ import { Switch } from "@base-ui/react/switch";
 import { setStaffActive } from "@/features/scheduling/staff-actions";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { ServiceRow } from "@/features/scheduling/queries";
+import { bookingPath } from "@/lib/booking/url";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -35,8 +36,8 @@ function Row({
   // action fails (a deactivation blocked by the offboarding guard).
   const [active, setActive] = React.useOptimistic(staff.active);
 
-  // A deactivated person's /book/… URL 404s, so their link isn't offered.
-  const path = handle && staff.active ? `/book/${handle}/${staff.slug}` : null;
+  // A deactivated person's booking URL 404s, so their link isn't offered.
+  const path = handle && staff.active ? bookingPath(handle, staff.slug) : null;
 
   const onToggle = (next: boolean) => {
     startTransition(async () => {

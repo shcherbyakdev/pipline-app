@@ -7,8 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 import { isAllowedLogoType, matchesLogoMagicBytes, logoPathFor, LOGO_MAX_BYTES } from "@/lib/storage/logo";
 import { uploadBrandingObject, deleteBrandingObject } from "@/lib/storage/branding";
 import { effectiveContrast } from "@/lib/widget-theme";
+import { ONBOARDING } from "@/features/marketing/site";
 import {
   createOrgSchema,
+  createOrgWithPageSchema,
   updateAccentInput,
   widgetThemeInput,
   GENERIC_WRITE_ERROR,
@@ -37,6 +39,38 @@ export async function createOrg(
   if (error) return { error: error.message };
 
   redirect("/bookings");
+}
+
+// One-step onboarding: org + handle + timezone via create_org_with_page (0051).
+// A handle race surfaces as 23505 → specific copy, everything else generic.
+export async function createOrgWithPage(
+  _prev: OrgState,
+  formData: FormData,
+): Promise<OrgState> {
+  const parsed = createOrgWithPageSchema.safeParse({
+    name: formData.get("name"),
+    handle: formData.get("handle"),
+    timezone: formData.get("timezone"),
+  });
+  if (!parsed.success) return { error: "Check the name (2–80 characters) and the page address." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { error } = await supabase.rpc("create_org_with_page", {
+    p_name: parsed.data.name,
+    p_handle: parsed.data.handle,
+    p_timezone: parsed.data.timezone,
+  });
+  if (error) {
+    if (error.code === "23505") return { error: ONBOARDING.justTaken };
+    console.error("[orgs] create_org_with_page:", error.message);
+    return { error: GENERIC_WRITE_ERROR };
+  }
+  redirect("/bookings?welcome=1");
 }
 
 type OrgBrandingRow = { id: string; accent_color: string | null; logo_path: string | null };

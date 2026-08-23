@@ -1,7 +1,22 @@
 import { z } from "zod";
+import { HANDLE_RE, isReservedHandle } from "@/features/scheduling/handle";
 
 export const createOrgSchema = z.object({
   name: z.string().trim().min(2).max(80),
+});
+
+// Onboarding (spec 2026-08-23-landing-claim): org + handle + timezone in one
+// step. Handle is optional — "" (untouched field) → null, as in
+// schedulingSettingsInput.
+export const createOrgWithPageSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  handle: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z
+      .union([z.string().regex(HANDLE_RE), z.null()])
+      .refine((h) => h === null || !isReservedHandle(h), { message: "reserved handle" }),
+  ),
+  timezone: z.string().min(1).max(64),
 });
 
 export type OrgState = { error?: string };

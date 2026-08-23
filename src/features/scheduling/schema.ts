@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { STAFF_SLUG_RE } from "./staff-slug";
+import { HANDLE_RE, isReservedHandle } from "./handle";
 
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
+export { HANDLE_RE };
 
 // An optional text input that was rendered but never filled arrives as "" —
 // treat that as "not provided" rather than as an invalid value.
@@ -9,7 +11,6 @@ const emptyToUndefined = (v: unknown) =>
   typeof v === "string" && v.trim() === "" ? undefined : v;
 
 export const TIME_RE = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
-export const HANDLE_RE = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const timeField = z.string().regex(TIME_RE);
@@ -68,7 +69,11 @@ export const schedulingSettingsInput = z.object({
   // update_org_scheduling already accepts a null handle.
   handle: z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? null : v),
-    z.union([z.string().regex(HANDLE_RE), z.null()]),
+    z
+      .union([z.string().regex(HANDLE_RE), z.null()])
+      // Reserved words would shadow an app route now that the public page
+      // answers at /<handle>; 0051's update_org_scheduling rejects them too.
+      .refine((h) => h === null || !isReservedHandle(h), { message: "reserved handle" }),
   ),
   timezone: z.string().min(1).max(64),
 });

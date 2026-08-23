@@ -10,6 +10,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { hostnameOf, isLoopbackHost } from "./lib/host-guard";
 import { generateAccessToken } from "../src/lib/tokens/mint";
 import { wallTimeToUtc, addDaysISO } from "../src/features/scheduling/slots";
+import { bookingUrl } from "../src/lib/booking/url";
 
 try {
   loadEnvFile(".env.local");
@@ -473,7 +474,7 @@ async function ensureDemoScheduling(client: SupabaseClient, orgId: string): Prom
     if (error) throw error;
     console.log("seed: availability Mon-Fri 09:00-17:00");
   }
-  console.log(`seed: booking page -> http://localhost:3000/book/${DEMO_HANDLE}`);
+  console.log(`seed: booking page -> ${bookingUrl("http://localhost:3000", DEMO_HANDLE)}`);
 
   // Demo confirmed booking (idempotent: skip when any future confirmed
   // booking exists). Books next week 10:00 org-local against the demo

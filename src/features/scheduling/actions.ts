@@ -21,6 +21,7 @@ import {
   deleteOverrideInput,
 } from "./schema";
 import { effectiveWindows, subtractRange, addRange } from "./day-windows";
+import { isReservedHandle } from "./handle";
 
 function fail(context: string, error: unknown): { ok: false; error: string } {
   console.error(`[scheduling] ${context}:`, error);
@@ -396,7 +397,11 @@ export async function reopenDay(input: unknown): Promise<ActionState> {
 
 export async function updateSchedulingSettings(input: unknown): Promise<ActionState> {
   const parsed = schedulingSettingsInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) {
+    const h = typeof (input as { handle?: unknown })?.handle === "string" ? ((input as { handle: string }).handle).trim() : "";
+    if (isReservedHandle(h)) return { ok: false, error: "That address is reserved — pick another." };
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();

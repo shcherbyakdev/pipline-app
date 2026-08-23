@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { bookingPath } from "@/lib/booking/url";
 import { searchOrgs } from "../queries";
 
 // Fixed locale + UTC (current-plan.tsx idiom): hydration must not depend on
@@ -37,7 +38,7 @@ export async function OrgPicker({ basePath, q }: { basePath: string; q: string }
                 <span className="font-medium">{org.name}</span>
                 <span className="text-muted-foreground font-mono text-xs">
                   {org.slug}
-                  {org.handle ? ` · /book/${org.handle}` : ""}
+                  {org.handle ? ` · ${bookingPath(org.handle)}` : ""}
                   {` · ${formatDate(org.createdAt)}`}
                 </span>
               </Link>

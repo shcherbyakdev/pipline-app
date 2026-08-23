@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { SITE } from "@/features/marketing/site";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Booklo",
-  description: "Turn your program spreadsheet into a live operations portal.",
+  description: SITE.description,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

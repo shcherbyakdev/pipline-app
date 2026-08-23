@@ -1,70 +1,73 @@
-import Link from "next/link";
-import { ArrowRight, MoveRight } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { CTA, SITE } from "@/features/marketing/site";
-import { HeroCalendar } from "./mocks/hero-calendar";
-import { marketingButton } from "./marketing-button";
-import reveal from "./hero-reveal.module.css";
+"use client";
 
-/* Headline split into words so each can reveal on its own (Linear-style). The
-   split copy is aria-hidden; the visually hidden span carries the real
-   heading text for the accessibility tree and for `id="hero-heading"`. */
-function WordReveal({ text }: { text: string }) {
-  const words = text.split(" ");
+import * as React from "react";
+import { SITE } from "@/features/marketing/site";
+import { ClaimBar } from "./claim-bar";
+import { BrowserFrame, ScaledFrame } from "./browser-frame";
+import { BookingPageMock } from "./mocks/booking-page-mock";
+
+/* Full-viewport hero (spec §3.4): two-line headline, claim bar, mockup that
+   mirrors the typed handle. The hero owns the handle state. */
+export function Hero({ host }: { host: string }) {
+  const [handle, setHandle] = React.useState("");
+  const [line1, line2] = SITE.headline;
+  const words = line2.split(" ");
+  const last = words.pop();
+
   return (
-    <>
-      <span className="sr-only">{text}</span>
-      <span aria-hidden="true">
-        {words.map((w, i) => (
-          <span key={i}>
-            <span className={reveal.word} style={{ "--i": i } as React.CSSProperties}>
-              {w}
+    <section
+      aria-labelledby="hero-heading"
+      className="bg-background relative flex min-h-[100svh] flex-col overflow-x-clip"
+    >
+      <div className="flex-1 shrink-0 min-h-8 sm:min-h-12 lg:min-h-16" />
+
+      <div className="relative z-10 mx-auto flex w-full max-w-3xl flex-col items-center px-5 text-center">
+        <h1
+          id="hero-heading"
+          className="text-foreground text-[40px] leading-[1.05] font-normal tracking-tight min-[400px]:text-[44px] sm:text-6xl lg:text-7xl xl:text-[80px]"
+        >
+          <span className="sr-only">{`${line1} ${line2}`}</span>
+          <span aria-hidden="true">
+            <span className="animate-fade-up block">{line1}</span>
+            <span className="animate-fade-up block [animation-delay:100ms]">
+              {words.join(" ")}{" "}
+              <span className="relative inline-block">
+                <span className="bg-highlight/30 absolute inset-x-[-0.05em] inset-y-[0.12em] -skew-x-6 rounded-sm" aria-hidden="true" />
+                <span className="relative">{last}</span>
+              </span>
             </span>
-            {i < words.length - 1 ? " " : null}
           </span>
-        ))}
-      </span>
-    </>
-  );
-}
+        </h1>
 
-export function Hero() {
-  return (
-    // `overflow-x-clip` (not hidden): the calendar bleeds past the right edge on
-    // large screens and must not create horizontal scroll, but the floating
-    // cards' shadows and the copy column must stay unclipped vertically.
-    <section aria-labelledby="hero-heading" className="relative overflow-x-clip">
-      <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16 md:pt-24 lg:min-h-[44rem] lg:pb-24">
-        <div className="max-w-xl lg:max-w-[46%] lg:pr-6 xl:max-w-xl">
-          <p className={cn(reveal.fade, "text-primary font-mono text-sm")} style={{ "--delay": "0ms" } as React.CSSProperties}>
-            {SITE.eyebrow}
-          </p>
-          <h1 id="hero-heading" className="mt-4 text-4xl leading-[1.05] font-medium tracking-[-0.03em] text-balance md:text-6xl">
-            <WordReveal text={SITE.headline} />
-          </h1>
-          <p className={cn(reveal.fade, "text-foreground/80 mt-6 text-lg text-pretty")} style={{ "--delay": "620ms" } as React.CSSProperties}>
-            {SITE.subheadline}
-          </p>
-          <div className={cn(reveal.fade, "mt-8 flex flex-wrap items-center gap-x-6 gap-y-3")} style={{ "--delay": "760ms" } as React.CSSProperties}>
-            <Link href={SITE.links.signup} className={marketingButton("primary", "lg")}>
-              <MoveRight className="size-6" strokeWidth={1.5} aria-hidden="true" />
-              <span className="flex-1 text-center">{CTA.getStartedFree}</span>
-            </Link>
-            <a href={SITE.anchors.how} className={marketingButton("quiet", "text", "group/cta")}>
-              {CTA.seeHow}
-              <ArrowRight className="size-4 transition-transform group-hover/cta:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
-            </a>
-          </div>
-          <p className={cn(reveal.fade, "text-muted-foreground mt-4 text-sm")} style={{ "--delay": "880ms" } as React.CSSProperties}>
-            {SITE.heroNote}
-          </p>
-        </div>
+        <p className="animate-fade-up text-foreground/75 mt-4 max-w-md text-sm [animation-delay:220ms] sm:mt-5 sm:text-base lg:text-lg">
+          {SITE.subheadline}
+        </p>
 
-        {/* Below lg the calendar sits under the copy and runs off the right edge
-            of the page; from lg it is pinned to the right half of the viewport. */}
-        <div className="mt-14 -mr-6 lg:absolute lg:top-24 lg:right-[-8vw] lg:left-1/2 lg:mt-0 lg:mr-0 xl:right-[-5vw] xl:left-[calc(50%+2rem)]">
-          <HeroCalendar />
-        </div>
+        <ClaimBar
+          handle={handle}
+          onHandleChange={setHandle}
+          host={host}
+          size="lg"
+          className="animate-fade-up mt-5 max-w-xl [animation-delay:340ms] sm:mt-6"
+        />
+
+        <p className="animate-fade-up text-muted-foreground text-sm [animation-delay:460ms]">{SITE.heroNote}</p>
+      </div>
+
+      <div className="flex-1 shrink-0 min-h-10 sm:min-h-12 lg:min-h-16" />
+
+      {/* wash under the mockup */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%] bg-[radial-gradient(60%_80%_at_50%_100%,color-mix(in_oklch,var(--highlight)_12%,transparent),transparent)]"
+      />
+
+      <div className="animate-hero-rise relative z-[1] mx-auto -mb-10 w-[92%] max-w-4xl shrink-0 [animation-delay:620ms] sm:-mb-20 sm:w-[84%] lg:-mb-32 lg:w-[72%]">
+        <ScaledFrame designWidth={896}>
+          <BrowserFrame url={`${host}/${handle || "your-name"}`}>
+            <BookingPageMock handle={handle} />
+          </BrowserFrame>
+        </ScaledFrame>
       </div>
     </section>
   );

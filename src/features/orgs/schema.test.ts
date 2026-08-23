@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createOrgSchema, updateAccentInput } from "./schema";
+import { createOrgSchema, updateAccentInput, createOrgWithPageSchema } from "./schema";
 
 describe("createOrgSchema", () => {
   it("accepts a valid name", () => {
@@ -24,5 +24,23 @@ describe("accent colour input", () => {
   it("rejects non-hex", () => {
     expect(updateAccentInput.safeParse({ accentColor: "teal" }).success).toBe(false);
     expect(updateAccentInput.safeParse({ accentColor: "#fff" }).success).toBe(false);
+  });
+});
+
+describe("createOrgWithPageSchema", () => {
+  it("accepts name + handle + timezone", () => {
+    expect(createOrgWithPageSchema.parse({ name: "Anna Studio", handle: "anna-studio", timezone: "Europe/Warsaw" })).toEqual({
+      name: "Anna Studio",
+      handle: "anna-studio",
+      timezone: "Europe/Warsaw",
+    });
+  });
+  it("maps an empty handle to null", () => {
+    expect(createOrgWithPageSchema.parse({ name: "Anna", handle: "", timezone: "UTC" }).handle).toBeNull();
+  });
+  it("rejects a malformed or reserved handle and a missing timezone", () => {
+    expect(createOrgWithPageSchema.safeParse({ name: "Anna", handle: "-x", timezone: "UTC" }).success).toBe(false);
+    expect(createOrgWithPageSchema.safeParse({ name: "Anna", handle: "signup", timezone: "UTC" }).success).toBe(false);
+    expect(createOrgWithPageSchema.safeParse({ name: "Anna", handle: "anna", timezone: "" }).success).toBe(false);
   });
 });

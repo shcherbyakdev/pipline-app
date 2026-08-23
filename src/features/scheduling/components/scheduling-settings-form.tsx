@@ -6,6 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { updateSchedulingSettings } from "@/features/scheduling/actions";
 import type { getSchedulingSettings } from "@/features/orgs/queries";
+import { bookingUrl, hostLabel } from "@/lib/booking/url";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import { SettingsCard, SettingsRow } from "@/components/settings-row";
@@ -37,7 +38,7 @@ export function SchedulingSettingsForm({
   const [copied, setCopied] = React.useState(false);
 
   const dirty = handle !== saved.handle || timezone !== saved.timezone;
-  const host = appUrl.replace(/^https?:\/\//, "");
+  const host = hostLabel(appUrl);
 
   const save = () => {
     startTransition(async () => {
@@ -52,7 +53,7 @@ export function SchedulingSettingsForm({
 
   const copyLink = () => {
     if (!saved.handle) return;
-    navigator.clipboard.writeText(`${appUrl}/book/${saved.handle}`);
+    navigator.clipboard.writeText(bookingUrl(appUrl, saved.handle));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
   };
@@ -76,7 +77,7 @@ export function SchedulingSettingsForm({
       >
         <InputGroup>
           <InputGroupAddon>
-            <InputGroupText className="font-mono text-xs">{host}/book/</InputGroupText>
+            <InputGroupText className="font-mono text-xs">{host}/</InputGroupText>
           </InputGroupAddon>
           <InputGroupInput
             id="scheduling-handle"

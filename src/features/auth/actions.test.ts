@@ -104,6 +104,22 @@ describe("signUp", () => {
     const state = await signUp({}, form({ email: "a@b.com", password: "12345678" }));
     expect(state.error).toBe("Could not create your account. Try again.");
   });
+
+  it("stores a claimed handle as user metadata", async () => {
+    auth.signUp.mockResolvedValue({ error: null });
+    await signUp({}, form({ email: "a@b.com", password: "longenough", handle: "anna" }));
+    expect(auth.signUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({ data: { claimed_handle: "anna" } }),
+      }),
+    );
+  });
+  it("sends no metadata when no handle was claimed", async () => {
+    auth.signUp.mockResolvedValue({ error: null });
+    await signUp({}, form({ email: "a@b.com", password: "longenough" }));
+    const call = auth.signUp.mock.calls[0][0];
+    expect(call.options.data).toBeUndefined();
+  });
 });
 
 describe("requestPasswordReset", () => {

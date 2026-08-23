@@ -12,6 +12,7 @@ import { WidgetTheme } from "@/components/widget-theme";
 import { LivePreview, PreviewNotice, SchemeToggle, type Scheme } from "@/components/live-preview";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 import { cn } from "@/lib/utils";
+import { bookingPath, bookingUrl, hostLabel } from "@/lib/booking/url";
 import type { PageDocument } from "../schema";
 import { replaceSection } from "../doc-ops";
 import type { RenderContext } from "../render/context";
@@ -29,7 +30,7 @@ type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSet
 
 /* Booking page builder: Sections / Settings on the left, the hosted page as
    a visitor will see it on the right — the same PageRenderer + WidgetTheme
-   composition as /book/[handle], fed by the draft and the unsaved settings. */
+   composition as /[handle], fed by the draft and the unsaved settings. */
 export function BookingPageBuilder({
   branding, scheduling, appUrl, supabaseUrl, previewServices, staff, initialPage, pageSections,
 }: {
@@ -86,9 +87,9 @@ export function BookingPageBuilder({
     toast.success("Template applied");
   };
 
-  const host = appUrl.replace(/^https?:\/\//, "");
+  const host = hostLabel(appUrl);
   const previewHandle = handle.trim() || "your-handle";
-  const url = `${host}/book/${previewHandle}`;
+  const url = `${host}${bookingPath(previewHandle)}`;
   const ctx: RenderContext = {
     org: { orgId: branding.orgId, orgName: branding.orgName, handle: previewHandle, timeZone: scheduling.timezone },
     branding: { accentColor: accent, logoUrl: branding.logoUrl },
@@ -125,7 +126,7 @@ export function BookingPageBuilder({
             selectedId={selectedId}
             onSelect={setSelectedId}
             emptyContext={{ serviceCount: previewServices.length, staffCount: staff.length }}
-            liveUrl={scheduling.handle ? `${appUrl}/book/${scheduling.handle}` : null}
+            liveUrl={scheduling.handle ? bookingUrl(appUrl, scheduling.handle) : null}
             pageSections={pageSections}
             templatePicker={<TemplatePicker doc={draft.doc} ctx={ctx} onApply={onApplyTemplate} />}
           />
@@ -136,7 +137,7 @@ export function BookingPageBuilder({
         <LivePreview
           url={url}
           dark={resolved === "dark"}
-          // Same shell as /book/[handle], resolved for the preview: scoping
+          // Same shell as /[handle], resolved for the preview: scoping
           // .light/.dark here keeps it faithful whatever the admin's theme is.
           pageClassName={cn(resolved, "bg-background text-foreground")}
           desktopMaxWidth={pageContainerClass(draft.doc.layout)}

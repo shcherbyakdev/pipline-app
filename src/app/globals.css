@@ -45,6 +45,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-highlight: var(--highlight);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -202,55 +203,63 @@
   }
 }
 
-/* Marketing landing palette — Linear-style dark: page ground #08090a, raised
-   levels #0f1011 / #141516 / #191a1b, cool off-white type (#f7f8f8 / #8a8f98),
-   white-alpha hairlines. Accent stays our pale yellow (#FDFAC3) for CTAs; the
-   hero calendar gets Linear's indigo (see --hero-accent). Applied on the
-   (marketing) layout wrapper, so custom properties resolve from it and win
-   over the app's `.dark` tokens on <html> regardless of specificity. Landing
-   components use tokens only, so this block is the single place the
-   landing's colours live. Covers the core tokens the marketing surface uses —
-   no sidebar, chart or status tokens; anything nested here that needs those
-   must add them. */
+/* Marketing landing palette — light and minimal (spec 2026-08-23-landing-claim):
+   off-white ground, near-black type, greys for secondary text, hairlines at
+   low alpha. One accent, --highlight (indigo #4f46e5 — the same value
+   create_org seeds as the first staff colour, so the landing and a fresh
+   booking page agree). --primary is the near-black button. Applied on the
+   (marketing) layout wrapper so these win over the app's `.dark` tokens on
+   <html>. Landing components use tokens only — this block is the single
+   place the landing's colours live. */
 .marketing {
-  color-scheme: dark;
-  --background: oklch(0.139 0.003 246); /* #08090a */
-  --foreground: oklch(0.978 0.001 197); /* #f7f8f8 */
-  --card: oklch(0.172 0.003 248); /* #0f1011 */
-  --card-foreground: oklch(0.978 0.001 197);
-  --popover: oklch(0.195 0.003 248); /* #141516 */
-  --popover-foreground: oklch(0.978 0.001 197);
-  /* Accent: pale yellow #FDFAC3 with near-black text (~18:1). The only warm
-     colour on the page — reserved for primary CTAs, the eyebrow and step
-     numerals. */
-  --primary: oklch(0.974 0.07 105);
-  --primary-foreground: oklch(0.139 0.003 246);
-  --secondary: oklch(0.217 0.002 248); /* #191a1b */
-  --secondary-foreground: oklch(0.978 0.001 197);
-  --muted: oklch(0.195 0.003 248); /* #141516 */
-  /* Linear's tertiary text #8a8f98: 6.3:1 on the ground, 5.6:1 on cards. */
-  --muted-foreground: oklch(0.649 0.015 262);
-  --accent: oklch(1 0 0 / 5%);
-  --accent-foreground: oklch(0.978 0.001 197);
-  --destructive: oklch(0.704 0.191 22.216);
-  /* Hairlines are white at low alpha (Linear: #ffffff14 / #ffffff1f), so they
-     read the same over the ground and over cards. */
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: var(--primary);
-  /* Hero calendar accent: a blue-leaning indigo (Linear's #828fff/#5e6ad2
-     nudged ~10° toward blue) as a two-stop gradient. Pairing rationale vs
-     the yellow CTA: hues sit ~160° apart (complementary contrast, warm vs
-     cool) while the two accents differ in weight — yellow is a pale
-     highlight (L .97, C .07), this is a mid saturated colour (L .69, C .16)
-     — which is what keeps a complementary scheme crisp rather than loud.
-     Nudging away from violet avoids the "purple & gold" cliché. Never lay
-     yellow directly on it (2.7:1). Read via bg-(--hero-accent) /
-     from-(--hero-accent) to-(--hero-accent-deep) in hero-calendar.tsx and
-     its CSS module — nothing else should use it. */
-  --hero-accent: oklch(0.69 0.16 266);
-  --hero-accent-deep: oklch(0.56 0.155 267);
+  color-scheme: light;
+  --background: oklch(0.985 0 0); /* #fafafa */
+  --foreground: oklch(0.17 0 0); /* #111111 */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.17 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.17 0 0);
+  --primary: oklch(0.17 0 0);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.96 0 0); /* #f4f4f5 */
+  --secondary-foreground: oklch(0.17 0 0);
+  --muted: oklch(0.96 0 0);
+  /* gray-500 #6b7280: 4.6:1 on the ground — AA for body text. */
+  --muted-foreground: oklch(0.551 0.023 264);
+  --accent: oklch(0 0 0 / 4%);
+  --accent-foreground: oklch(0.17 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0 0 0 / 8%);
+  --input: oklch(0 0 0 / 12%);
+  --ring: var(--highlight);
+  /* Indigo #4f46e5. Headline highlight, focus rings, the mockup's selected
+     day, the wash under the mockup — nothing else. */
+  --highlight: oklch(0.511 0.262 276.966);
+  /* Hero-calendar accent: the landing's indigo, with a deeper stop for its
+     gradient. Only mocks/hero-calendar.* may use these. */
+  --hero-accent: var(--highlight);
+  --hero-accent-deep: oklch(0.42 0.24 277);
   --hero-accent-foreground: oklch(1 0 0);
+}
+
+/* Landing motion (spec §3.8). Delays are arbitrary values on the element. */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); filter: blur(6px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes fade-down {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(64px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-fade-up { animation: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fade-down { animation: fade-down 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-hero-rise { animation: hero-rise 1.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up, .animate-fade-down, .animate-hero-rise { animation: none; }
 }
 
 @layer base {
