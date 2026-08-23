@@ -66,4 +66,51 @@ describe("envSchema", () => {
       expect(JSON.stringify(result.error.issues)).toContain(key);
     }
   });
+
+  // The fake billing provider's webhook grants any org a paid plan to anyone
+  // who can sign the body with BILLING_FAKE_SECRET. That secret is dev-only and
+  // must never survive into a production env block.
+  it("rejects production when BILLING_FAKE_SECRET is set", () => {
+    const result = envSchema.safeParse({ ...PROD_ENV, BILLING_FAKE_SECRET: "0123456789abcdef0123" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(JSON.stringify(result.error.issues)).toContain("BILLING_FAKE_SECRET");
+    }
+  });
+
+  // A dormant-billing production deploy (provider defaults to "fake", no fake
+  // secret, webhook 503s) is still valid — the guard only forbids the secret.
+  it("accepts a dormant-billing production env (fake provider, no fake secret)", () => {
+    expect(envSchema.safeParse(PROD_ENV).success).toBe(true);
+  });
+
+  // When billing is live (provider=stripe), the Stripe secrets are load-bearing
+  // and must be present at boot rather than failing on the first webhook.
+  it.each(["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"])(
+    "rejects production with BILLING_PROVIDER=stripe but no %s",
+    (key) => {
+      const stripeEnv: Record<string, unknown> = {
+        ...PROD_ENV,
+        BILLING_PROVIDER: "stripe",
+        STRIPE_SECRET_KEY: "sk_live_x",
+        STRIPE_WEBHOOK_SECRET: "whsec_x",
+      };
+      delete stripeEnv[key];
+      const result = envSchema.safeParse(stripeEnv);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(JSON.stringify(result.error.issues)).toContain(key);
+      }
+    },
+  );
+
+  it("accepts a live-billing production env (provider=stripe with both secrets)", () => {
+    const result = envSchema.safeParse({
+      ...PROD_ENV,
+      BILLING_PROVIDER: "stripe",
+      STRIPE_SECRET_KEY: "sk_live_x",
+      STRIPE_WEBHOOK_SECRET: "whsec_x",
+    });
+    expect(result.success).toBe(true);
+  });
 });

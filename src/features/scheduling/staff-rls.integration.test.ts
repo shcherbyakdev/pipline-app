@@ -106,6 +106,37 @@ describe("staff: seed, RLS, triggers, create_staff", () => {
     expect(upd).toEqual([]);
   });
 
+  it("a member cannot set staff.user_id via UPDATE (column-scoped grant, 0047)", async () => {
+    // user_id is the future auth-login link; only SECURITY DEFINER RPCs may
+    // write it. A member's direct UPDATE that touches user_id is denied at the
+    // grant level (42501) even on their own org's row, while the columns the
+    // app does edit stay writable.
+    const { error } = await owner
+      .from("staff")
+      .update({ user_id: "00000000-0000-0000-0000-000000000001" })
+      .eq("id", defaultStaffId);
+    expect(error?.code).toBe("42501");
+    const { error: ok } = await owner
+      .from("staff")
+      .update({ color: "#123456" })
+      .eq("id", defaultStaffId);
+    expect(ok).toBeNull();
+  });
+
+  it("a member cannot INSERT staff directly (no authenticated INSERT grant, 0047)", async () => {
+    // Staff rows are created only through create_org / create_staff (SECURITY
+    // DEFINER). A raw member INSERT — the other way to plant an arbitrary
+    // user_id — is refused at the grant level.
+    const { error } = await owner.from("staff").insert({
+      org_id: orgId,
+      name: "Planted",
+      slug: "planted",
+      color: "#000000",
+      user_id: "00000000-0000-0000-0000-000000000002",
+    });
+    expect(error?.code).toBe("42501");
+  });
+
   it("availability_rules require staff_id (NOT NULL) and staff must belong to the org", async () => {
     const { error } = await owner
       .from("availability_rules")
