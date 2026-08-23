@@ -17,7 +17,7 @@ export function Hero({ host }: { host: string }) {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="bg-background relative flex min-h-[100svh] flex-col overflow-hidden"
+      className="bg-background relative flex min-h-[100svh] flex-col overflow-x-clip"
     >
       <div className="flex-1 shrink-0 min-h-8 sm:min-h-12 lg:min-h-16" />
 
