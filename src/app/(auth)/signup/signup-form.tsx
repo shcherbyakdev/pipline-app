@@ -9,15 +9,28 @@ import { Label } from "@/components/ui/label";
 
 const initial: AuthState = {};
 
-export function SignupForm() {
+export function SignupForm({ handle, host }: { handle: string | null; host: string }) {
   const [state, action, pending] = useActionState(signUp, initial);
+  const claimed = handle ? `${host}/${handle}` : null;
 
   if (state.sent) {
-    return <p className="text-sm">Check your email to confirm your account.</p>;
+    return (
+      <p className="text-sm">
+        {claimed
+          ? `Check your email to confirm your account and claim ${claimed}.`
+          : "Check your email to confirm your account."}
+      </p>
+    );
   }
 
   return (
     <form action={action} className="flex flex-col gap-4">
+      {claimed ? (
+        <p className="bg-muted text-muted-foreground rounded-lg px-3 py-2 font-mono text-xs">
+          Claiming <span className="text-foreground">{claimed}</span>
+        </p>
+      ) : null}
+      {handle ? <input type="hidden" name="handle" value={handle} /> : null}
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
         <Input

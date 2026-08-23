@@ -53,6 +53,7 @@ export async function signUp(
   const parsed = signUpSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
+    handle: formData.get("handle"),
   });
   if (!parsed.success) {
     return {
@@ -65,7 +66,11 @@ export async function signUp(
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
-    options: { emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/confirm` },
+    options: {
+      emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/confirm`,
+      // Advisory only: onboarding pre-fills from it and re-checks availability.
+      ...(parsed.data.handle ? { data: { claimed_handle: parsed.data.handle } } : {}),
+    },
   });
 
   if (error) return { error: "Could not create your account. Try again." };

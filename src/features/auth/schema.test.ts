@@ -47,6 +47,21 @@ describe("signUpSchema", () => {
   });
 });
 
+describe("signUpSchema handle", () => {
+  const base = { email: "a@b.com", password: "longenough" };
+  it("accepts a well-formed handle", () => {
+    expect(signUpSchema.parse({ ...base, handle: "anna-studio" }).handle).toBe("anna-studio");
+  });
+  it("treats an empty string as absent", () => {
+    expect(signUpSchema.parse({ ...base, handle: "" }).handle).toBeUndefined();
+    expect(signUpSchema.parse(base).handle).toBeUndefined();
+  });
+  it("rejects malformed and reserved handles", () => {
+    expect(signUpSchema.safeParse({ ...base, handle: "Ab" }).success).toBe(false);
+    expect(signUpSchema.safeParse({ ...base, handle: "login" }).success).toBe(false);
+  });
+});
+
 describe("newPasswordSchema", () => {
   it("rejects a mismatched confirmation", () => {
     const result = newPasswordSchema.safeParse({
