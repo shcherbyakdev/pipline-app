@@ -4,7 +4,7 @@ import {
   replaceSection, setSectionHidden, sectionSummary, deepEqual, hasUnpublishedChanges, issuesBySection,
 } from "./doc-ops";
 import { DEFAULT_PAGE, newSection } from "./defaults";
-import { pageDocumentSchema } from "./schema";
+import { pageDocumentSchema, type Section } from "./schema";
 
 const ctx = { serviceCount: 2, staffCount: 1 };
 const header = DEFAULT_PAGE.sections[0]!;
@@ -16,16 +16,16 @@ describe("isSectionEmpty", () => {
     expect(isSectionEmpty(booking, ctx)).toBe(false);
   });
   it("text sections are empty until something is written or an image set", () => {
-    const hero = newSection("hero");
+    const hero = newSection("hero") as Extract<Section, { type: "hero" }>;
     expect(isSectionEmpty(hero, ctx)).toBe(true);
     expect(isSectionEmpty({ ...hero, headline: "  " }, ctx)).toBe(true);
     expect(isSectionEmpty({ ...hero, headline: "Hi" }, ctx)).toBe(false);
     expect(isSectionEmpty({ ...hero, imagePath: "o/page/a.png" }, ctx)).toBe(false);
-    const faq = newSection("faq");
+    const faq = newSection("faq") as Extract<Section, { type: "faq" }>;
     expect(isSectionEmpty(faq, ctx)).toBe(true);
     expect(isSectionEmpty({ ...faq, items: [{ q: "Q", a: "" }] }, ctx)).toBe(true);
     expect(isSectionEmpty({ ...faq, items: [{ q: "Q", a: "A" }] }, ctx)).toBe(false);
-    const links = newSection("links");
+    const links = newSection("links") as Extract<Section, { type: "links" }>;
     expect(isSectionEmpty({ ...links, items: [{ label: "IG", url: "", icon: "instagram" }] }, ctx)).toBe(true);
     expect(isSectionEmpty({ ...links, items: [{ label: "IG", url: "https://x", icon: "instagram" }] }, ctx)).toBe(false);
   });
@@ -37,9 +37,9 @@ describe("isSectionEmpty", () => {
 });
 
 describe("publicSections / emptyVisibleSections", () => {
-  const hero = { ...newSection("hero"), headline: "Hi" };
-  const emptyFaq = newSection("faq");
-  const hiddenAbout = { ...newSection("about"), title: "Me", hidden: true };
+  const hero = { ...newSection("hero") as Extract<Section, { type: "hero" }>, headline: "Hi" };
+  const emptyFaq = newSection("faq") as Extract<Section, { type: "faq" }>;
+  const hiddenAbout = { ...newSection("about") as Extract<Section, { type: "about" }>, title: "Me", hidden: true };
   const doc = { ...DEFAULT_PAGE, sections: [header, hero, emptyFaq, hiddenAbout, booking] };
   it("drops hidden and empty sections, keeps order", () => {
     expect(publicSections(doc, ctx).map((s) => s.type)).toEqual(["header", "hero", "booking"]);
@@ -67,7 +67,7 @@ describe("canAddSection / insertSection", () => {
 });
 
 describe("remove / move / replace / hide", () => {
-  const hero = newSection("hero", "hero0001");
+  const hero = newSection("hero", "hero0001") as Extract<Section, { type: "hero" }>;
   const doc = { ...DEFAULT_PAGE, sections: [header, hero, booking] };
   it("removeSection drops by id but never the booking section", () => {
     expect(removeSection(doc, hero.id).sections.map((s) => s.type)).toEqual(["header", "booking"]);
@@ -80,7 +80,7 @@ describe("remove / move / replace / hide", () => {
     expect(moveSection(doc, hero.id, hero.id)).toBe(doc);
   });
   it("replaceSection swaps by id; setSectionHidden refuses the booking section", () => {
-    const next = replaceSection(doc, { ...hero, headline: "New" });
+    const next = replaceSection(doc, { ...hero, headline: "New" } as Extract<Section, { type: "hero" }>);
     expect(next.sections[1]).toEqual({ ...hero, headline: "New" });
     expect(setSectionHidden(doc, hero.id, true).sections[1]!.hidden).toBe(true);
     expect(setSectionHidden(doc, booking.id, true)).toBe(doc);
@@ -90,10 +90,10 @@ describe("remove / move / replace / hide", () => {
 describe("sectionSummary", () => {
   it("describes each section in one line", () => {
     expect(sectionSummary(header)).toBe("Logo and name");
-    expect(sectionSummary({ ...header, tagline: "Hair & colour" })).toBe("Hair & colour");
-    expect(sectionSummary({ ...newSection("gallery"), images: [{ path: "p", alt: "" }] })).toBe("1 image");
-    expect(sectionSummary(newSection("faq"))).toBe("0 questions");
-    expect(sectionSummary({ ...newSection("location"), address: "Main St 1\nWarsaw" })).toBe("Main St 1");
+    expect(sectionSummary({ ...header, tagline: "Hair & colour" } as Extract<Section, { type: "header" }>)).toBe("Hair & colour");
+    expect(sectionSummary({ ...newSection("gallery") as Extract<Section, { type: "gallery" }>, images: [{ path: "p", alt: "" }] })).toBe("1 image");
+    expect(sectionSummary(newSection("faq") as Extract<Section, { type: "faq" }>)).toBe("0 questions");
+    expect(sectionSummary({ ...newSection("location") as Extract<Section, { type: "location" }>, address: "Main St 1\nWarsaw" })).toBe("Main St 1");
   });
 });
 
@@ -114,7 +114,7 @@ describe("deepEqual / hasUnpublishedChanges", () => {
 
 describe("issuesBySection", () => {
   it("keys a field issue by section id with a relative path", () => {
-    const links = { ...newSection("links", "links001"), items: [{ label: "x", url: "http://x", icon: "instagram" as const }] };
+    const links = { ...newSection("links", "links001") as Extract<Section, { type: "links" }>, items: [{ label: "x", url: "http://x", icon: "instagram" as const }] };
     const doc = { ...DEFAULT_PAGE, sections: [header, links, booking] };
     const res = pageDocumentSchema.safeParse(doc);
     expect(res.success).toBe(false);
@@ -124,7 +124,7 @@ describe("issuesBySection", () => {
     });
   });
   it("keys a page-level issue under ''", () => {
-    const doc = { ...DEFAULT_PAGE, sections: [header, { ...booking, id: "booking2" }, booking] };
+    const doc = { ...DEFAULT_PAGE, sections: [header, { ...booking, id: "booking2" } as Extract<Section, { type: "booking" }>, booking] };
     const res = pageDocumentSchema.safeParse(doc);
     expect(res.success).toBe(false);
     if (res.success) return;
