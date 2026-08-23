@@ -14,7 +14,7 @@ export const SINGLE_INSTANCE_TYPES: ReadonlySet<SectionType> = new Set<SectionTy
 export const LINK_ICONS = ["instagram", "facebook", "tiktok", "whatsapp", "website", "phone", "email", "other"] as const;
 export type LinkIcon = (typeof LINK_ICONS)[number];
 
-const HTTPS_RE = /^https:\/\/\S+$/;
+export const HTTPS_RE = /^https:\/\/\S+$/;
 const TEL_RE = /^tel:\+?[0-9 ()-]{3,30}$/;
 const MAILTO_RE = /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

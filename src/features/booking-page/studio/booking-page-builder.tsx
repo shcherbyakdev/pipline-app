@@ -66,8 +66,14 @@ export function BookingPageBuilder({
     const next: WidgetThemeConfig = { ...theme, ...skin, background: undefined, text: undefined };
     setTheme(next);
     startSaveSkin(async () => {
-      const result = await updateWidgetTheme(next);
-      if (!result.ok) {
+      try {
+        const result = await updateWidgetTheme(next);
+        if (!result.ok) {
+          setTheme(previous);
+          toast.error("Template applied, but the look couldn't be saved.");
+        }
+      } catch (error) {
+        console.error("[booking-page] applySkin threw:", error);
         setTheme(previous);
         toast.error("Template applied, but the look couldn't be saved.");
       }

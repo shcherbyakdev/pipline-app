@@ -8,6 +8,7 @@ import { updateWidgetTheme } from "@/features/orgs/actions";
 import { BrandingForm } from "@/features/orgs/components/branding-form";
 import { SchedulingSettingsForm } from "@/features/scheduling/components/scheduling-settings-form";
 import { SettingsCard, SettingsRow } from "@/components/settings-row";
+import { GENERIC_WRITE_ERROR } from "@/lib/actions";
 import { WIDGET_THEME_OPTIONS, type WidgetThemeConfig } from "@/lib/widget-theme";
 import { SELECT_CLASS } from "./fields";
 
@@ -29,11 +30,17 @@ export function SettingsTab({
     const next = { ...theme, theme: value };
     onTheme(next);
     startSaveTheme(async () => {
-      const result = await updateWidgetTheme(next);
-      if (!result.ok) {
+      try {
+        const result = await updateWidgetTheme(next);
+        if (!result.ok) {
+          onTheme(previous);
+          toast.error(result.error);
+        } else toast.success("Theme saved");
+      } catch (error) {
+        console.error("[booking-page] changeTheme threw:", error);
         onTheme(previous);
-        toast.error(result.error);
-      } else toast.success("Theme saved");
+        toast.error(GENERIC_WRITE_ERROR);
+      }
     });
   };
   return (

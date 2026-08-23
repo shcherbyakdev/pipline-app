@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Upload04Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { SettingsRow } from "@/components/settings-row";
+import { GENERIC_WRITE_ERROR } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 import { uploadPageImage } from "../actions";
 import { PAGE_IMAGE_ACCEPT, PAGE_IMAGE_MAX_BYTES, isAllowedPageImageType, pageImageUrl } from "../images";
@@ -43,10 +44,16 @@ export function ImageField({
     const formData = new FormData();
     formData.set("file", file);
     startTransition(async () => {
-      const result = await uploadPageImage(formData);
-      if (!result.ok) setError(result.error);
-      else onChange(result.path);
-      if (fileRef.current) fileRef.current.value = "";
+      try {
+        const result = await uploadPageImage(formData);
+        if (!result.ok) setError(result.error);
+        else onChange(result.path);
+      } catch (error) {
+        console.error("[booking-page] image upload threw:", error);
+        setError(GENERIC_WRITE_ERROR);
+      } finally {
+        if (fileRef.current) fileRef.current.value = "";
+      }
     });
   };
 

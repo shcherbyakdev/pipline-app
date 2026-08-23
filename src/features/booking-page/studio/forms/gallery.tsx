@@ -5,6 +5,7 @@ import { Upload04Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SettingsRow } from "@/components/settings-row";
+import { GENERIC_WRITE_ERROR } from "@/lib/actions";
 import { uploadPageImage } from "../../actions";
 import { PAGE_IMAGE_ACCEPT, pageImageUrl } from "../../images";
 import { FieldError, ListEditor, SelectField } from "../fields";
@@ -38,19 +39,25 @@ export function GalleryForm({ section, issues, supabaseUrl, onChange }: FormProp
     }
     setError(null);
     startTransition(async () => {
-      // Sequential so the order in the gallery matches the pick order.
-      for (const file of files) {
-        const formData = new FormData();
-        formData.set("file", file);
-        const result = await uploadPageImage(formData);
-        if (!result.ok) {
-          setError(result.error);
-          break;
+      try {
+        // Sequential so the order in the gallery matches the pick order.
+        for (const file of files) {
+          const formData = new FormData();
+          formData.set("file", file);
+          const result = await uploadPageImage(formData);
+          if (!result.ok) {
+            setError(result.error);
+            break;
+          }
+          const latest = sectionRef.current;
+          onChange(patch(latest, { images: [...latest.images, { path: result.path, alt: "" }] }));
         }
-        const latest = sectionRef.current;
-        onChange(patch(latest, { images: [...latest.images, { path: result.path, alt: "" }] }));
+      } catch (error) {
+        console.error("[booking-page] gallery upload threw:", error);
+        setError(GENERIC_WRITE_ERROR);
+      } finally {
+        if (fileRef.current) fileRef.current.value = "";
       }
-      if (fileRef.current) fileRef.current.value = "";
     });
   };
 

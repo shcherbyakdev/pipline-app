@@ -1,4 +1,4 @@
-import type { SectionOf } from "../../schema";
+import { HTTPS_RE, type SectionOf } from "../../schema";
 import type { RenderContext } from "../context";
 import { Ghost } from "../ghost";
 
@@ -6,7 +6,7 @@ export function LocationSection({ section, ctx }: { section: SectionOf<"location
   const address = section.address.trim();
   // Never render a non-https href, even though the schema already rejects
   // bad URLs and only validated documents render publicly.
-  const maps = /^https:\/\/\S+$/.test(section.mapsUrl.trim()) ? section.mapsUrl.trim() : "";
+  const maps = HTTPS_RE.test(section.mapsUrl.trim()) ? section.mapsUrl.trim() : "";
   if (!address && !maps) return <Ghost mode={ctx.mode} label="Add your address" />;
   const link = "text-sm font-medium underline underline-offset-3";
   return (

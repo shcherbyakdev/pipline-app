@@ -95,9 +95,9 @@ export function ListEditor<T>({
         <div key={i} className="flex flex-col gap-2 rounded-md border p-2">
           {render(item, (next) => onChange(items.map((it, k) => (k === i ? next : it))), i)}
           <div className="flex items-center justify-end gap-1">
-            <Button size="icon-xs" variant="ghost" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}><ChevronUp className="size-3.5" /></Button>
-            <Button size="icon-xs" variant="ghost" aria-label="Move down" disabled={i === items.length - 1} onClick={() => move(i, 1)}><ChevronDown className="size-3.5" /></Button>
-            <Button size="icon-xs" variant="ghost" aria-label="Remove" onClick={() => onChange(items.filter((_, k) => k !== i))}><Trash2 className="size-3.5" /></Button>
+            <Button size="icon-xs" variant="ghost" aria-label={`Move item ${i + 1} up`} disabled={i === 0} onClick={() => move(i, -1)}><ChevronUp className="size-3.5" /></Button>
+            <Button size="icon-xs" variant="ghost" aria-label={`Move item ${i + 1} down`} disabled={i === items.length - 1} onClick={() => move(i, 1)}><ChevronDown className="size-3.5" /></Button>
+            <Button size="icon-xs" variant="ghost" aria-label={`Remove item ${i + 1}`} onClick={() => onChange(items.filter((_, k) => k !== i))}><Trash2 className="size-3.5" /></Button>
           </div>
         </div>
       ))}
