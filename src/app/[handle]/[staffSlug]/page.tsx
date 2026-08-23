@@ -3,6 +3,7 @@ import { getBookingOrg } from "@/lib/booking/public";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
+import { HANDLE_RE } from "@/features/scheduling/handle";
 import { getOrgBranding } from "@/lib/org-branding";
 import { badgeVisible } from "@/lib/billing/entitlements";
 import { BrandedHeader } from "@/components/branded-header";
@@ -20,7 +21,7 @@ export default async function StaffBookPage({
   params,
 }: PageProps<"/[handle]/[staffSlug]">) {
   const { handle, staffSlug } = await params;
-  if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(handle)) notFound();
+  if (!HANDLE_RE.test(handle)) notFound();
   // Shape-checked before any DB call, exactly like the handle above.
   if (!STAFF_SLUG_RE.test(staffSlug)) notFound();
   const org = await getBookingOrg(handle);

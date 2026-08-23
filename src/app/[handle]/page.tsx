@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getBookingOrg, listPublicOfferings } from "@/lib/booking/public";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
+import { HANDLE_RE } from "@/features/scheduling/handle";
 import { getOrgBranding } from "@/lib/org-branding";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { badgeVisible } from "@/lib/billing/entitlements";
@@ -15,7 +16,7 @@ export default async function BookPage({
   params,
 }: PageProps<"/[handle]">) {
   const { handle } = await params;
-  if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(handle)) notFound();
+  if (!HANDLE_RE.test(handle)) notFound();
   const org = await getBookingOrg(handle);
   if (!org) notFound();
   const [offering, offerings, branding] = await Promise.all([
