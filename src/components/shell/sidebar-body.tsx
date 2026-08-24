@@ -6,6 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Logout03Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { navItemsFor, NAV_SECTION_LABELS } from "./nav";
 import type { Flags } from "@/lib/flags";
+import type { OrgMode } from "@/features/orgs/mode";
 import { signOut } from "@/features/auth/actions";
 import { OPEN_COMMAND_MENU_EVENT } from "@/components/command-menu";
 import { cn } from "@/lib/utils";
@@ -21,18 +22,20 @@ export function SidebarBody({
   org,
   userEmail,
   flags,
+  mode,
   onNavigate,
 }: {
   org: string;
   userEmail: string;
   flags: Flags;
+  mode: OrgMode;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const initial = (org.trim()[0] ?? userEmail[0] ?? "?").toUpperCase();
   const sections = ["main", "configure"] as const;
-  const navItems = navItemsFor(flags);
+  const navItems = navItemsFor(flags, mode);
 
   return (
     <div className="flex h-full flex-col px-4 py-3">

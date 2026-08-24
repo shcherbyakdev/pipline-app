@@ -4,6 +4,7 @@ import { useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Menu01Icon } from "@hugeicons/core-free-icons";
 import type { Flags } from "@/lib/flags";
+import type { OrgMode } from "@/features/orgs/mode";
 import { SidebarBody } from "./sidebar-body";
 import {
   Sheet,
@@ -12,7 +13,17 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-export function MobileNav({ org, userEmail, flags }: { org: string; userEmail: string; flags: Flags }) {
+export function MobileNav({
+  org,
+  userEmail,
+  flags,
+  mode,
+}: {
+  org: string;
+  userEmail: string;
+  flags: Flags;
+  mode: OrgMode;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -27,7 +38,7 @@ export function MobileNav({ org, userEmail, flags }: { org: string; userEmail: s
         className="bg-sidebar text-sidebar-foreground flex w-[260px] flex-col p-0"
       >
         <SheetTitle className="sr-only">Navigation</SheetTitle>
-        <SidebarBody org={org} userEmail={userEmail} flags={flags} onNavigate={() => setOpen(false)} />
+        <SidebarBody org={org} userEmail={userEmail} flags={flags} mode={mode} onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>
   );
