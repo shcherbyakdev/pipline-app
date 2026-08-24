@@ -108,6 +108,52 @@ export async function getAvailabilityAdmin(
   };
 }
 
+/** Offering twin of `getAvailabilityAdmin` (H2, hourly mode) — same two
+    selects, `rental_offering_id`-scoped instead of `staff_id`-scoped, same
+    row mapping. Authenticated client, RLS-scoped: the offering must belong
+    to an org the caller is a member of, same as every other admin query
+    here. */
+export async function getOfferingAvailabilityAdmin(
+  offeringId: string,
+  fromDate: string = new Date().toISOString().slice(0, 10),
+): Promise<{
+  rules: RuleRow[];
+  exceptions: ExceptionRow[];
+}> {
+  const supabase = await createClient();
+  const [rulesRes, exceptionsRes] = await Promise.all([
+    supabase
+      .from("availability_rules")
+      .select("id, weekday, start_time, end_time")
+      .eq("rental_offering_id", offeringId)
+      .order("weekday")
+      .order("start_time"),
+    supabase
+      .from("availability_exceptions")
+      .select("id, date, closed, start_time, end_time")
+      .eq("rental_offering_id", offeringId)
+      .gte("date", fromDate)
+      .order("date"),
+  ]);
+  if (rulesRes.error) throw rulesRes.error;
+  if (exceptionsRes.error) throw exceptionsRes.error;
+  return {
+    rules: (rulesRes.data ?? []).map((r) => ({
+      id: r.id,
+      weekday: r.weekday,
+      startTime: r.start_time,
+      endTime: r.end_time,
+    })),
+    exceptions: (exceptionsRes.data ?? []).map((e) => ({
+      id: e.id,
+      date: e.date,
+      closed: e.closed,
+      startTime: e.start_time,
+      endTime: e.end_time,
+    })),
+  };
+}
+
 export type AdminBooking = {
   id: string;
   // Rentals R1 (0037): a booking is EITHER an appointment (serviceId) or a

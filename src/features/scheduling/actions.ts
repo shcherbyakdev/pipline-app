@@ -34,6 +34,50 @@ async function currentOrgId(): Promise<string | null> {
   return data?.id ?? null;
 }
 
+// H2 (hourly mode): an availability row's owner is a staff member XOR an
+// hours rental offering (0056's XOR CHECK) — every write and filter below
+// goes through these two helpers instead of a bare `staff_id` reference.
+type Owner = { staffId?: string; rentalOfferingId?: string };
+type OwnerCols = { staff_id: string | null; rental_offering_id: string | null };
+function ownerCols(o: Owner): OwnerCols {
+  return { staff_id: o.staffId ?? null, rental_offering_id: o.rentalOfferingId ?? null };
+}
+// `T` is inferred from the caller's query builder and returned as-is — the
+// `.eq` call is checked once against a minimal cast, not re-unified against
+// Supabase's full (select-string-derived) builder type at every call site,
+// which is what TS2589 ("type instantiation is excessively deep") comes
+// from if `T` is constrained directly by an `eq` method shape instead.
+function ownerEq<T>(q: T, o: Owner): T {
+  const filterable = q as unknown as { eq: (column: string, value: string) => T };
+  return o.staffId
+    ? filterable.eq("staff_id", o.staffId)
+    : filterable.eq("rental_offering_id", o.rentalOfferingId!);
+}
+function revalidateOwner(o: Owner) {
+  if (o.staffId) revalidatePath("/availability");
+  else revalidatePath(`/rentals/${o.rentalOfferingId}`);
+}
+
+// Defence-in-depth for the offering path, mirroring the staff org scope
+// beside it: RLS plus the 0056 `check_offering_owner_org` trigger already
+// reject another org's offering id, but this turns that into the same
+// friendly refusal a bad staff id gets instead of a raw DB error. No-op
+// (returns true) for the staff path.
+async function ownerBelongsToOrg(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orgId: string,
+  o: Owner,
+): Promise<boolean> {
+  if (!o.rentalOfferingId) return true;
+  const { data } = await supabase
+    .from("rental_offerings")
+    .select("id")
+    .eq("id", o.rentalOfferingId)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  return data !== null;
+}
+
 // No org_id here: inserts add it explicitly, updates must never rewrite it
 // (a multi-org user's currentOrgId() pick could otherwise migrate the row
 // between their orgs — security-review hardening).
@@ -222,14 +266,15 @@ const HANDLE_FORMAT_ERROR = "Use 3–50 lowercase letters, digits or hyphens.";
 // Shape of an availability_exceptions row as the actions below write it.
 type ExceptionInsert = {
   org_id: string;
-  staff_id: string;
+  staff_id: string | null;
+  rental_offering_id: string | null;
   date: string;
   closed: boolean;
   start_time: string | null;
   end_time: string | null;
 };
 
-// Replace one date's exception rows for one person with `next`, over plain
+// Replace one date's exception rows for one owner with `next`, over plain
 // REST calls (no transaction), such that NO failure can leave the day
 // emptier than it was: a day with no exception rows falls back to the
 // weekly rules, i.e. a half-done rewrite would silently REOPEN a blocked or
@@ -251,15 +296,15 @@ type ExceptionInsert = {
 // overlap mapping) or null.
 async function replaceDayExceptions(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  scope: { orgId: string; staffId: string; date: string },
+  scope: { orgId: string; owner: Owner; date: string },
   prior: Array<{ id: string; closed: boolean }>,
   next: ExceptionInsert[],
 ): Promise<{ code?: string; message: string } | null> {
   const table = () => supabase.from("availability_exceptions");
   const deleteByIds = async (ids: string[]) => {
     if (ids.length === 0) return null;
-    const { error } = await table().delete()
-      .eq("org_id", scope.orgId).eq("staff_id", scope.staffId).eq("date", scope.date)
+    const { error } = await ownerEq(table().delete().eq("org_id", scope.orgId), scope.owner)
+      .eq("date", scope.date)
       .in("id", ids);
     return error;
   };
@@ -282,7 +327,14 @@ async function replaceDayExceptions(
 
   // Bridge: the day is closed from here until the last step succeeds.
   const { data: bridge, error: bridgeError } = await table()
-    .insert({ org_id: scope.orgId, staff_id: scope.staffId, date: scope.date, closed: true, start_time: null, end_time: null })
+    .insert({
+      org_id: scope.orgId,
+      ...ownerCols(scope.owner),
+      date: scope.date,
+      closed: true,
+      start_time: null,
+      end_time: null,
+    })
     .select("id")
     .single();
   if (bridgeError) return bridgeError;
@@ -293,21 +345,28 @@ async function replaceDayExceptions(
   return deleteByIds([bridge.id]);
 }
 
-// Team (multi-staff): availability rows are per person (0040/0041 — `staff_id
-// NOT NULL`, EXCLUDE overlap guards keyed by staff). Each availability action
-// below takes the staff id from its own input and both writes it and filters
-// on it. RLS plus the `check_staff_owner_org` trigger already reject another
-// org's staff id, so the explicit `.eq("staff_id", …)` is defence-in-depth in
-// the same spirit as the org scope beside it.
+// H2 (hourly mode): availability rows are per owner — a staff member XOR an
+// hours rental offering (0040/0041/0056 — the XOR CHECK, EXCLUDE overlap
+// guards keyed by owner). Each availability action below takes the owner id
+// from its own input and both writes it (`ownerCols`) and filters on it
+// (`ownerEq`). RLS plus the `check_staff_owner_org`/`check_offering_owner_org`
+// triggers already reject another org's owner id, so the explicit org-scoped
+// filters are defence-in-depth in the same spirit as the org scope beside
+// them — `ownerBelongsToOrg` adds the friendly-error half of that for the
+// offering path (the staff path already has it via `staffId` foreign keys
+// resolved through RLS-visible staff rows elsewhere).
 export async function addAvailabilityRule(input: unknown): Promise<ActionState> {
   const parsed = availabilityRuleInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
+  if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
   const { error } = await supabase.from("availability_rules").insert({
     org_id: orgId,
-    staff_id: parsed.data.staffId,
+    ...ownerCols(parsed.data),
     weekday: parsed.data.weekday,
     start_time: parsed.data.startTime,
     end_time: parsed.data.endTime,
@@ -316,7 +375,7 @@ export async function addAvailabilityRule(input: unknown): Promise<ActionState> 
     if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
     return fail("addAvailabilityRule", error);
   }
-  revalidatePath("/availability");
+  revalidateOwner(parsed.data);
   revalidatePath("/bookings");
   return { ok: true };
 }
@@ -327,15 +386,23 @@ export async function deleteAvailabilityRule(input: unknown): Promise<ActionStat
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase
+  // Row-id-keyed (no owner on the input — the row already knows whose it
+  // is); reading it back off the delete tells `revalidateOwner` which page
+  // to refresh without the caller having to say so.
+  const { data, error } = await supabase
     .from("availability_rules")
     .delete()
     .eq("id", parsed.data.id)
     // Explicit org scope (defense-in-depth, mirrors deleteService) —
     // Task 11 hardening precedent applied to the delete actions here.
-    .eq("org_id", orgId);
+    .eq("org_id", orgId)
+    .select("staff_id, rental_offering_id")
+    .maybeSingle();
   if (error) return fail("deleteAvailabilityRule", error);
-  revalidatePath("/availability");
+  // No row deleted (bad id or wrong org) — nothing to refresh either target
+  // for; fall back to the pre-H2 default.
+  if (!data) revalidatePath("/availability");
+  else revalidateOwner(data.staff_id ? { staffId: data.staff_id } : { rentalOfferingId: data.rental_offering_id! });
   revalidatePath("/bookings");
   return { ok: true };
 }
@@ -373,12 +440,12 @@ export async function blockTimeRange(input: unknown): Promise<ActionState> {
   const remaining = subtractRange(windows, startTime, endTime);
   const rows: ExceptionInsert[] =
     remaining.length === 0
-      ? [{ org_id: orgId, staff_id: staffId, date, closed: true, start_time: null, end_time: null }]
+      ? [{ org_id: orgId, staff_id: staffId, rental_offering_id: null, date, closed: true, start_time: null, end_time: null }]
       : remaining.map((w) => ({
-          org_id: orgId, staff_id: staffId, date, closed: false,
+          org_id: orgId, staff_id: staffId, rental_offering_id: null, date, closed: false,
           start_time: w.startTime, end_time: w.endTime,
         }));
-  const error = await replaceDayExceptions(supabase, { orgId, staffId, date }, prior, rows);
+  const error = await replaceDayExceptions(supabase, { orgId, owner: { staffId }, date }, prior, rows);
   if (error) return fail("blockTimeRange", error);
 
   revalidatePath("/bookings");
@@ -425,10 +492,10 @@ export async function unblockTimeRange(input: unknown): Promise<ActionState> {
     JSON.stringify(merged) === JSON.stringify(ruleWindows)
       ? []
       : merged.map((w) => ({
-          org_id: orgId, staff_id: staffId, date, closed: false,
+          org_id: orgId, staff_id: staffId, rental_offering_id: null, date, closed: false,
           start_time: w.startTime, end_time: w.endTime,
         }));
-  const error = await replaceDayExceptions(supabase, { orgId, staffId, date }, prior, rows);
+  const error = await replaceDayExceptions(supabase, { orgId, owner: { staffId }, date }, prior, rows);
   if (error) return fail("unblockTimeRange", error);
 
   revalidatePath("/bookings");
@@ -443,12 +510,16 @@ export async function reopenDay(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("availability_exceptions").delete()
-    .eq("org_id", orgId).eq("staff_id", parsed.data.staffId).eq("date", parsed.data.date);
+  if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  const { error } = await ownerEq(
+    supabase.from("availability_exceptions").delete().eq("org_id", orgId),
+    parsed.data,
+  ).eq("date", parsed.data.date);
   if (error) return fail("reopenDay", error);
   revalidatePath("/bookings");
-  revalidatePath("/availability");
+  revalidateOwner(parsed.data);
   return { ok: true };
 }
 
@@ -491,14 +562,14 @@ export async function updateAvailabilityRule(input: unknown): Promise<ActionStat
     .eq("id", parsed.data.id)
     // Explicit org scope (defense-in-depth, mirrors the delete actions).
     .eq("org_id", orgId)
-    .select("id")
+    .select("id, staff_id, rental_offering_id")
     .maybeSingle();
   if (error) {
     if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
     return fail("updateAvailabilityRule", error);
   }
   if (!data) return fail("updateAvailabilityRule", "rule not visible");
-  revalidatePath("/availability");
+  revalidateOwner(data.staff_id ? { staffId: data.staff_id } : { rentalOfferingId: data.rental_offering_id! });
   revalidatePath("/bookings");
   return { ok: true };
 }
@@ -514,25 +585,24 @@ export async function copyDayHours(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { data: source, error: readError } = await supabase
-    .from("availability_rules")
-    .select("start_time, end_time")
-    .eq("org_id", orgId)
-    .eq("staff_id", parsed.data.staffId)
-    .eq("weekday", parsed.data.sourceWeekday);
+  if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  const { data: source, error: readError } = await ownerEq(
+    supabase.from("availability_rules").select("start_time, end_time").eq("org_id", orgId),
+    parsed.data,
+  ).eq("weekday", parsed.data.sourceWeekday);
   if (readError) return fail("copyDayHours", readError);
-  const { error: deleteError } = await supabase
-    .from("availability_rules")
-    .delete()
-    .eq("org_id", orgId)
-    .eq("staff_id", parsed.data.staffId)
-    .in("weekday", parsed.data.targetWeekdays);
+  const { error: deleteError } = await ownerEq(
+    supabase.from("availability_rules").delete().eq("org_id", orgId),
+    parsed.data,
+  ).in("weekday", parsed.data.targetWeekdays);
   if (deleteError) return fail("copyDayHours", deleteError);
   if ((source ?? []).length > 0) {
     const rows = parsed.data.targetWeekdays.flatMap((weekday) =>
       (source ?? []).map((w) => ({
         org_id: orgId,
-        staff_id: parsed.data.staffId,
+        ...ownerCols(parsed.data),
         weekday,
         start_time: w.start_time,
         end_time: w.end_time,
@@ -541,7 +611,7 @@ export async function copyDayHours(input: unknown): Promise<ActionState> {
     const { error: insertError } = await supabase.from("availability_rules").insert(rows);
     if (insertError) return fail("copyDayHours", insertError);
   }
-  revalidatePath("/availability");
+  revalidateOwner(parsed.data);
   revalidatePath("/bookings");
   return { ok: true };
 }
@@ -555,18 +625,19 @@ export async function setDateOverride(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { data: prior, error: readError } = await supabase
-    .from("availability_exceptions")
-    .select("id, closed")
-    .eq("org_id", orgId)
-    .eq("staff_id", parsed.data.staffId)
-    .eq("date", parsed.data.date);
+  if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  const { data: prior, error: readError } = await ownerEq(
+    supabase.from("availability_exceptions").select("id, closed").eq("org_id", orgId),
+    parsed.data,
+  ).eq("date", parsed.data.date);
   if (readError) return fail("setDateOverride", readError);
   const rows: ExceptionInsert[] = parsed.data.closed
     ? [
         {
           org_id: orgId,
-          staff_id: parsed.data.staffId,
+          ...ownerCols(parsed.data),
           date: parsed.data.date,
           closed: true,
           start_time: null,
@@ -575,7 +646,7 @@ export async function setDateOverride(input: unknown): Promise<ActionState> {
       ]
     : parsed.data.windows.map((w) => ({
         org_id: orgId,
-        staff_id: parsed.data.staffId,
+        ...ownerCols(parsed.data),
         date: parsed.data.date,
         closed: false,
         start_time: w.startTime,
@@ -583,7 +654,7 @@ export async function setDateOverride(input: unknown): Promise<ActionState> {
       }));
   const error = await replaceDayExceptions(
     supabase,
-    { orgId, staffId: parsed.data.staffId, date: parsed.data.date },
+    { orgId, owner: parsed.data, date: parsed.data.date },
     prior ?? [],
     rows,
   );
@@ -593,7 +664,7 @@ export async function setDateOverride(input: unknown): Promise<ActionState> {
     if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
     return fail("setDateOverride", error);
   }
-  revalidatePath("/availability");
+  revalidateOwner(parsed.data);
   revalidatePath("/bookings");
   return { ok: true };
 }
@@ -604,14 +675,15 @@ export async function deleteDateOverride(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("availability_exceptions")
-    .delete()
-    .eq("org_id", orgId)
-    .eq("staff_id", parsed.data.staffId)
-    .eq("date", parsed.data.date);
+  if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  const { error } = await ownerEq(
+    supabase.from("availability_exceptions").delete().eq("org_id", orgId),
+    parsed.data,
+  ).eq("date", parsed.data.date);
   if (error) return fail("deleteDateOverride", error);
-  revalidatePath("/availability");
+  revalidateOwner(parsed.data);
   revalidatePath("/bookings");
   return { ok: true };
 }

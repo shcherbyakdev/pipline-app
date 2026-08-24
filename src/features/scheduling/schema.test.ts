@@ -79,6 +79,7 @@ describe("updateServiceInput", () => {
 
 describe("availabilityRuleInput", () => {
   const staffId = "22222222-2222-4222-8222-222222222222";
+  const rentalOfferingId = "33333333-3333-4333-8333-333333333333";
   it("accepts weekday 0-6 with ordered HH:MM times", () => {
     expect(
       availabilityRuleInput.safeParse({ staffId, weekday: 1, startTime: "09:00", endTime: "17:00" })
@@ -90,15 +91,38 @@ describe("availabilityRuleInput", () => {
     expect(availabilityRuleInput.safeParse({ staffId, weekday: 1, startTime: "9am", endTime: "17:00" }).success).toBe(false);
     expect(availabilityRuleInput.safeParse({ staffId, weekday: 1, startTime: "17:00", endTime: "09:00" }).success).toBe(false);
   });
-  // Team (multi-staff): a rule belongs to one person, so the id is not
-  // optional — an omitted or malformed one must never fall back to "the org".
-  it("requires a uuid staffId", () => {
-    expect(
-      availabilityRuleInput.safeParse({ weekday: 1, startTime: "09:00", endTime: "17:00" }).success,
-    ).toBe(false);
+  it("rejects a malformed staffId", () => {
     expect(
       availabilityRuleInput.safeParse({ staffId: "nope", weekday: 1, startTime: "09:00", endTime: "17:00" })
         .success,
+    ).toBe(false);
+  });
+  // H2: a rule belongs to a staff member XOR an hours rental offering — the
+  // owner id is exactly one of the two, never both, never neither.
+  it("accepts an offering-owned rule", () => {
+    expect(
+      availabilityRuleInput.safeParse({
+        rentalOfferingId,
+        weekday: 1,
+        startTime: "09:00",
+        endTime: "17:00",
+      }).success,
+    ).toBe(true);
+  });
+  it("rejects both owner ids at once", () => {
+    expect(
+      availabilityRuleInput.safeParse({
+        staffId,
+        rentalOfferingId,
+        weekday: 1,
+        startTime: "09:00",
+        endTime: "17:00",
+      }).success,
+    ).toBe(false);
+  });
+  it("rejects neither owner id", () => {
+    expect(
+      availabilityRuleInput.safeParse({ weekday: 1, startTime: "09:00", endTime: "17:00" }).success,
     ).toBe(false);
   });
 });
@@ -254,6 +278,7 @@ describe("updateRuleInput", () => {
 
 describe("copyDayHoursInput", () => {
   const staffId = "22222222-2222-4222-8222-222222222222";
+  const rentalOfferingId = "33333333-3333-4333-8333-333333333333";
   it("accepts distinct targets", () => {
     expect(copyDayHoursInput.safeParse({ staffId, sourceWeekday: 1, targetWeekdays: [2, 3] }).success).toBe(true);
   });
@@ -264,13 +289,23 @@ describe("copyDayHoursInput", () => {
     expect(copyDayHoursInput.safeParse({ staffId, sourceWeekday: 1, targetWeekdays: [2, 2] }).success).toBe(false);
     expect(copyDayHoursInput.safeParse({ staffId, sourceWeekday: 1, targetWeekdays: [] }).success).toBe(false);
   });
-  it("requires a staffId — a copy is within one person's week", () => {
+  it("accepts an offering owner", () => {
+    expect(
+      copyDayHoursInput.safeParse({ rentalOfferingId, sourceWeekday: 1, targetWeekdays: [2] }).success,
+    ).toBe(true);
+  });
+  it("requires exactly one owner id — a copy is within one owner's week", () => {
     expect(copyDayHoursInput.safeParse({ sourceWeekday: 1, targetWeekdays: [2] }).success).toBe(false);
+    expect(
+      copyDayHoursInput.safeParse({ staffId, rentalOfferingId, sourceWeekday: 1, targetWeekdays: [2] })
+        .success,
+    ).toBe(false);
   });
 });
 
 describe("dateOverrideInput", () => {
   const staffId = "22222222-2222-4222-8222-222222222222";
+  const rentalOfferingId = "33333333-3333-4333-8333-333333333333";
   it("accepts closed with no windows", () => {
     expect(dateOverrideInput.safeParse({ staffId, date: "2026-09-01", closed: true, windows: [] }).success).toBe(true);
   });
@@ -287,8 +322,23 @@ describe("dateOverrideInput", () => {
       }).success,
     ).toBe(true);
   });
-  it("requires a staffId — an override belongs to one person's calendar", () => {
+  it("accepts an offering owner", () => {
+    expect(
+      dateOverrideInput.safeParse({ rentalOfferingId, date: "2026-09-01", closed: true, windows: [] })
+        .success,
+    ).toBe(true);
+  });
+  it("requires exactly one owner id — an override belongs to one owner's calendar", () => {
     expect(dateOverrideInput.safeParse({ date: "2026-09-01", closed: true, windows: [] }).success).toBe(false);
+    expect(
+      dateOverrideInput.safeParse({
+        staffId,
+        rentalOfferingId,
+        date: "2026-09-01",
+        closed: true,
+        windows: [],
+      }).success,
+    ).toBe(false);
   });
   it("rejects open with no windows and closed with windows", () => {
     expect(dateOverrideInput.safeParse({ staffId, date: "2026-09-01", closed: false, windows: [] }).success).toBe(false);
@@ -320,24 +370,46 @@ describe("dateOverrideInput", () => {
 
 describe("deleteOverrideInput", () => {
   const staffId = "22222222-2222-4222-8222-222222222222";
+  const rentalOfferingId = "33333333-3333-4333-8333-333333333333";
   it("accepts a staff id + date and rejects garbage", () => {
     expect(deleteOverrideInput.safeParse({ staffId, date: "2026-09-01" }).success).toBe(true);
     expect(deleteOverrideInput.safeParse({ staffId, date: "not-a-date" }).success).toBe(false);
     expect(deleteOverrideInput.safeParse({ date: "2026-09-01" }).success).toBe(false);
   });
+  it("accepts an offering owner and rejects both owner ids", () => {
+    expect(deleteOverrideInput.safeParse({ rentalOfferingId, date: "2026-09-01" }).success).toBe(true);
+    expect(
+      deleteOverrideInput.safeParse({ staffId, rentalOfferingId, date: "2026-09-01" }).success,
+    ).toBe(false);
+  });
 });
 
-describe("blockTimeInput / reopenDayInput", () => {
+// blockTimeRange/unblockTimeRange are calendar-only surfaces (spec: H2 task
+// 6) — blockTimeInput stays staff-only, never offering-owned.
+describe("blockTimeInput", () => {
   const staffId = "22222222-2222-4222-8222-222222222222";
-  it("carry the staff whose day is being edited", () => {
+  it("carries the staff whose day is being edited", () => {
     expect(
       blockTimeInput.safeParse({ staffId, date: "2026-09-01", startTime: "09:00", endTime: "10:00" }).success,
     ).toBe(true);
     expect(
       blockTimeInput.safeParse({ date: "2026-09-01", startTime: "09:00", endTime: "10:00" }).success,
     ).toBe(false);
+  });
+});
+
+// reopenDay IS owner-generalized (spec: H2 task 6) even though the only
+// caller today (calendar-week.tsx) is staff-only.
+describe("reopenDayInput", () => {
+  const staffId = "22222222-2222-4222-8222-222222222222";
+  const rentalOfferingId = "33333333-3333-4333-8333-333333333333";
+  it("accepts either owner and rejects both/neither", () => {
     expect(reopenDayInput.safeParse({ staffId, date: "2026-09-01" }).success).toBe(true);
+    expect(reopenDayInput.safeParse({ rentalOfferingId, date: "2026-09-01" }).success).toBe(true);
     expect(reopenDayInput.safeParse({ date: "2026-09-01" }).success).toBe(false);
+    expect(
+      reopenDayInput.safeParse({ staffId, rentalOfferingId, date: "2026-09-01" }).success,
+    ).toBe(false);
   });
 });
 

@@ -14,7 +14,7 @@ import {
   deleteAvailabilityRule,
   copyDayHours,
 } from "@/features/scheduling/actions";
-import { OVERLAP_ERROR } from "@/features/scheduling/schema";
+import { OVERLAP_ERROR, type AvailabilityOwner } from "@/features/scheduling/schema";
 import {
   TIME_OPTIONS,
   endOptions,
@@ -41,16 +41,17 @@ const WEEKDAY_LABELS_SHORT = ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "S
 
 type Conflict = { ruleId: string; message: string } | null;
 
-// `staffId` is whose week this is (the page's `?staff=` tab, or the sole
-// active member for a solo org). Rules are already scoped to that person by
-// the query; the id travels with every write that creates or re-keys a row.
-export function WeeklyHours({ staffId, rules }: { staffId: string; rules: RuleRow[] }) {
+// `owner` is whose week this is: a staff member (the page's `?staff=` tab,
+// or the sole active member for a solo org) XOR an hours rental offering
+// (H2). Rules are already scoped to that owner by the query; the id travels
+// with every write that creates or re-keys a row.
+export function WeeklyHours({ owner, rules }: { owner: AvailabilityOwner; rules: RuleRow[] }) {
   return (
     <div className="rounded-lg border border-border">
       {WEEKDAY_ORDER.map((weekday, i) => (
         <DayRow
           key={weekday}
-          staffId={staffId}
+          owner={owner}
           weekday={weekday}
           rules={rules.filter((r) => r.weekday === weekday)}
           isLast={i === WEEKDAY_ORDER.length - 1}
@@ -61,12 +62,12 @@ export function WeeklyHours({ staffId, rules }: { staffId: string; rules: RuleRo
 }
 
 function DayRow({
-  staffId,
+  owner,
   weekday,
   rules,
   isLast,
 }: {
-  staffId: string;
+  owner: AvailabilityOwner;
   weekday: number;
   rules: RuleRow[];
   isLast: boolean;
@@ -115,7 +116,7 @@ function DayRow({
   function onAdd() {
     if (!next) return;
     startTransition(async () => {
-      const result = await addAvailabilityRule({ staffId, weekday, ...next });
+      const result = await addAvailabilityRule({ ...owner, weekday, ...next });
       if (!result.ok) toast.error(result.error);
     });
   }
@@ -148,7 +149,7 @@ function DayRow({
   function onApplyCopy() {
     startTransition(async () => {
       const result = await copyDayHours({
-        staffId,
+        ...owner,
         sourceWeekday: weekday,
         targetWeekdays: Array.from(targets),
       });
