@@ -16,13 +16,22 @@ export function isHourly(o: { rangeMode: RangeMode }): boolean {
 // only: every current call site is a date-range flow that never resolves an
 // hours offering, so this never actually crosses "hours" at runtime — Task 4
 // routes hours bookings through a different (slot-based) path before ever
-// reaching here, and should call isHourly() to branch away first.
+// reaching here, and should call isHourly() to branch away first. The
+// runtime throw below is defense-in-depth now that hours rows exist (0056)
+// — the type cast alone would lie silently if a guard upstream were ever
+// bypassed.
 // H2: PublicOffering's startTime is `string | null` (null on hours
 // offerings); every caller here is on a range-mode-only flow, so this also
-// narrows it to the non-null string the engine's RangeOffering expects.
-export function asEngineOffering<T extends { rangeMode: RangeMode }>(
+// narrows it to the non-null string the engine's RangeOffering expects. The
+// generic requires an (optional/nullable) startTime field so the return
+// type's `startTime: string` redefines something the input already declares
+// rather than fabricating a property absent from T entirely.
+export function asEngineOffering<T extends { rangeMode: RangeMode; startTime?: string | null }>(
   offering: T,
 ): Omit<T, "rangeMode" | "startTime"> & { rangeMode: EngineMode; startTime: string } {
+  if (offering.rangeMode === "hours") {
+    throw new Error("hours offering reached the nights/days engine");
+  }
   return offering as unknown as Omit<T, "rangeMode" | "startTime"> & {
     rangeMode: EngineMode;
     startTime: string;

@@ -40,18 +40,24 @@ export function RentalBookingFlow({
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
+  // Request-ordering guard: a fast month-nav click can fire a second fetch
+  // before the first resolves — only the most recent request may ever apply
+  // its result.
+  const seqRef = React.useRef(0);
 
   // Deliberately does NOT clear `error`: the datesTaken path re-loads
   // availability *and* wants its message to survive the reload.
   const load = React.useCallback(
     (m: string) => {
       startTransition(async () => {
+        const seq = ++seqRef.current;
         const result = await getRangeAvailability({
           handle,
           offeringId: offering.id,
           fromDate: firstOfMonth(m),
           days: windowDays(offering),
         });
+        if (seq !== seqRef.current) return;
         if (result.ok) {
           setAvailability(result.availability);
           setUnits(result.units);

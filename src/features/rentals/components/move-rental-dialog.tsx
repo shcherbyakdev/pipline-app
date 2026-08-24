@@ -90,6 +90,10 @@ export function MoveRentalDialog({
   const [unitId, setUnitId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
+  // Request-ordering guard (house pattern, mirrors hourSeqRef above): a
+  // fast month-nav click can fire a second fetch before the first
+  // resolves — only the most recent request may ever apply its result.
+  const seqRef = React.useRef(0);
 
   // Deliberately does NOT clear `error`: the datesTaken path reloads
   // availability and wants its message to survive the reload.
@@ -97,12 +101,14 @@ export function MoveRentalDialog({
     (m: string) => {
       if (offeringId === null) return;
       startTransition(async () => {
+        const seq = ++seqRef.current;
         const result = await getAdminRangeAvailability({
           offeringId,
           fromDate: firstOfMonth(m),
           days: WINDOW_DAYS,
           excludeBookingId: booking.id,
         });
+        if (seq !== seqRef.current) return;
         if (result.ok) {
           setAvailability(result.availability);
           setOffering(result.offering);

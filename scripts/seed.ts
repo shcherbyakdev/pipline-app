@@ -56,6 +56,10 @@ const DEMO_SERVICES = [
   { name: "Intro Call", duration_min: 30, price_label: null },
   { name: "Consultation", duration_min: 60, price_label: "€80" },
 ];
+// H2: an hours-mode rental offering alongside the appointment services, so
+// the hourly booking flow / admin timeline have a live example to show.
+const DEMO_HOURLY_OFFERING = "Rehearsal Room";
+const DEMO_HOURLY_UNITS = ["Room A", "Room B"];
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -522,6 +526,76 @@ async function ensureDemoScheduling(client: SupabaseClient, orgId: string): Prom
   }
 }
 
+// H2: a demo hours-mode offering (Rehearsal Room, two units, Mon-Sat
+// opening hours) next to the appointment-services block above. Offering
+// rules are owned by rental_offering_id, not staff_id (0056's staff-XOR-
+// offering availability owner) — no staffId is threaded through here.
+async function ensureDemoHourlyOffering(client: SupabaseClient, orgId: string): Promise<void> {
+  let { data: offering } = await client
+    .from("rental_offerings")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("name", DEMO_HOURLY_OFFERING)
+    .maybeSingle();
+  if (!offering) {
+    const { data: created, error } = await client
+      .from("rental_offerings")
+      .insert({
+        org_id: orgId,
+        name: DEMO_HOURLY_OFFERING,
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+        turnover_min: 15,
+        min_notice_min: 60,
+        booking_window_days: 60,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    offering = created;
+    console.log(`seed: created hourly offering "${DEMO_HOURLY_OFFERING}"`);
+  }
+  const offeringId = offering!.id as string;
+
+  for (const name of DEMO_HOURLY_UNITS) {
+    const { data: existingUnit } = await client
+      .from("rental_units")
+      .select("id")
+      .eq("offering_id", offeringId)
+      .eq("name", name)
+      .maybeSingle();
+    if (!existingUnit) {
+      const { error } = await client
+        .from("rental_units")
+        .insert({ org_id: orgId, offering_id: offeringId, name });
+      if (error) throw error;
+      console.log(`seed: created rental unit "${name}"`);
+    }
+  }
+
+  const { data: anyOfferingRule } = await client
+    .from("availability_rules")
+    .select("id")
+    .eq("rental_offering_id", offeringId)
+    .limit(1)
+    .maybeSingle();
+  if (!anyOfferingRule) {
+    // weekday 0 = Sunday (weekdayOf idiom), so Mon-Sat is 1..6.
+    const rows = [1, 2, 3, 4, 5, 6].map((weekday) => ({
+      org_id: orgId,
+      rental_offering_id: offeringId,
+      weekday,
+      start_time: "09:00",
+      end_time: "21:00",
+    }));
+    const { error } = await client.from("availability_rules").insert(rows);
+    if (error) throw error;
+    console.log("seed: hourly availability Mon-Sat 09:00-21:00");
+  }
+}
+
 async function main(): Promise<void> {
   await ensureDemoUser();
 
@@ -562,6 +636,7 @@ async function main(): Promise<void> {
     await ensureDemoClient(client, orgId);
   }
   await ensureDemoScheduling(client, orgId);
+  await ensureDemoHourlyOffering(client, orgId);
   console.log(`seed: sign in as ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }
 

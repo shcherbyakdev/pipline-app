@@ -224,7 +224,6 @@ export async function listTimelineData(
   const supabase = await createClient();
   const lastDate = addDaysISO(fromDate, days - 1);
   const exclusiveToDate = addDaysISO(fromDate, days);
-  const fromIso = wallTimeToUtc(fromDate, "00:00", timeZone).toISOString();
   const toIso = wallTimeToUtc(exclusiveToDate, "00:00", timeZone).toISOString();
 
   const { data: offeringRows, error: offeringsError } = await supabase
@@ -234,6 +233,14 @@ export async function listTimelineData(
     .order("name");
   if (offeringsError) throw offeringsError;
   const offeringDb = (offeringRows ?? []) as unknown as TimelineOfferingDb[];
+
+  // A stay's turnover tail (post-checkout cleaning/prep) can hang into the
+  // window even when the stay itself checked out before `fromDate` — the
+  // bookings fetch's lower bound widens by the widest turnover_days among
+  // the org's offerings so that booking still comes back. Blackouts carry
+  // no turnover, so their own fetch (below) keeps the unwidened `fromDate`.
+  const maxTurnover = Math.max(0, ...offeringDb.map((o) => o.turnover_days ?? 0));
+  const fromIso = wallTimeToUtc(addDaysISO(fromDate, -maxTurnover), "00:00", timeZone).toISOString();
 
   const allUnitIds = offeringDb.flatMap((o) => (o.rental_units ?? []).map((u) => u.id));
 

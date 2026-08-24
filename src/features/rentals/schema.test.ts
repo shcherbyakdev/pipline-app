@@ -118,6 +118,10 @@ describe("hours offering input", () => {
       }).success,
     ).toBe(false);
   });
+  it("rejects range fields (startTime/minStay) on an hours offering", () => {
+    expect(offeringInput.safeParse({ ...base, startTime: "15:00" }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...base, minStay: 1 }).success).toBe(false);
+  });
 });
 describe("admin inputs", () => {
   const U = "00000000-0000-4000-8000-000000000000";

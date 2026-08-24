@@ -50,17 +50,23 @@ export function RentalReschedulePanel({
   // knows its check-in date; the first response jumps there unless the
   // client has already navigated somewhere themselves.
   const navigated = React.useRef(false);
+  // Request-ordering guard: a fast month-nav click can fire a second fetch
+  // before the first resolves — only the most recent request may ever apply
+  // its result.
+  const seqRef = React.useRef(0);
 
   // Deliberately does NOT clear `error`: the datesTaken path reloads
   // availability and wants its message to survive the reload.
   const load = React.useCallback(
     (m: string) => {
       startTransition(async () => {
+        const seq = ++seqRef.current;
         const result = await getManageRangeAvailability({
           token,
           fromDate: firstOfMonth(m),
           days: WINDOW_DAYS,
         });
+        if (seq !== seqRef.current) return;
         if (result.ok) {
           setAvailability(result.availability);
           setOffering(result.offering);
