@@ -25,7 +25,13 @@ export async function requireUser(): Promise<User> {
   return user;
 }
 
-export type Org = { id: string; name: string; slug: string };
+export type Org = {
+  id: string;
+  name: string;
+  slug: string;
+  offersAppointments: boolean;
+  offersRentals: boolean;
+};
 
 export async function getCurrentOrg(): Promise<Org | null> {
   const supabase = await createClient();
@@ -34,12 +40,19 @@ export async function getCurrentOrg(): Promise<Org | null> {
   // pick is the floor should that ever change.
   const { data, error } = await supabase
     .from("orgs")
-    .select("id, name, slug")
+    .select("id, name, slug, offers_appointments, offers_rentals")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data ?? null;
+  if (!data) return null;
+  return {
+    id: data.id,
+    name: data.name,
+    slug: data.slug,
+    offersAppointments: data.offers_appointments,
+    offersRentals: data.offers_rentals,
+  };
 }
 
 export async function requireOrg(): Promise<{ user: User; org: Org }> {
