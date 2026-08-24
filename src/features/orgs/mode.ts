@@ -16,9 +16,12 @@ export function channelsOf(mode: OrgMode): Channel[] {
 }
 
 /** Rentals-only orgs land on the unit timeline; anyone with appointments
-    keeps the week calendar (S2 ruling: Bookings is the post-login surface). */
-export function defaultBookingsView(mode: OrgMode): "week" | "timeline" {
-  return mode.offersRentals && !mode.offersAppointments ? "timeline" : "week";
+    keeps the week calendar (S2 ruling: Bookings is the post-login surface).
+    H2: hourly rentals are timed events on the week grid, not the
+    nights/days timeline — a rentals-only org that sells by the hour lands
+    on week too, `hasHourly` says whether it has any such offering. */
+export function defaultBookingsView(mode: OrgMode, hasHourly: boolean): "week" | "timeline" {
+  return mode.offersRentals && !mode.offersAppointments && !hasHourly ? "timeline" : "week";
 }
 
 /** Project the mode off any wider org record (session Org, a queries row). */

@@ -66,8 +66,11 @@ export function CalendarWeek({
   // Rentals R1: a multi-day stay has no place on an hour grid — it would
   // stretch a card over the whole column (or several). Split it out into an
   // all-day chip row under the day headers; only appointments stay timed.
-  const timed = bookings.filter((b) => b.rentalUnitId === null);
-  const rentals = bookings.filter((b) => b.rentalUnitId !== null);
+  // H2: an hourly rental is a timed event just like an appointment (it has
+  // a start/end within one day), so it joins `timed` too — only nights/days
+  // stays (multi-day, no clock time) go to the all-day chip row.
+  const timed = bookings.filter((b) => b.rentalUnitId === null || b.rangeMode === "hours");
+  const rentals = bookings.filter((b) => b.rentalUnitId !== null && b.rangeMode !== "hours");
   // Confirmed bookings may legally sit outside open hours (admin-created)
   // or fall outside them after availability shrinks — widen the range so
   // they're never clipped off-grid (finding: invisible off-hours bookings).
