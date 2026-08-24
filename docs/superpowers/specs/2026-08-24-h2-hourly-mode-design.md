@@ -88,7 +88,11 @@ steps candidate starts by the whole block — buffer+duration+buffer — so a 2 
 session could only start every 2 h + turnover): `SlotService` gains an
 optional `stepMin`; when set, candidate starts advance by it instead of the
 block length. Omitted by every appointments caller — behaviour there is
-unchanged. An hourly offering builds `SlotInput` per unit:
+unchanged. A second additive flag, `allowTailOverflow`, lets an hourly slot
+end exactly at the window close with its turnover tail past closing —
+turnover is cleanup between bookings, and the busy-side checks are
+absolute-time, so nothing can double-book; appointments never set it. An
+hourly offering builds `SlotInput` per unit:
 
 | field | source |
 |---|---|

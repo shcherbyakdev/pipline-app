@@ -72,6 +72,7 @@ describe("hourlySlotService", () => {
       maxPerDay: null,
       bookingWindowDays: 30,
       stepMin: 30,
+      allowTailOverflow: true,
     });
   });
 });

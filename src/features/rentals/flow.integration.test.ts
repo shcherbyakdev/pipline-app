@@ -297,3 +297,54 @@ describe("rental flow e2e (action layer)", () => {
     expect(dateInZone(still.booking.startsAt, TZ)).toBe(moveTo);
   });
 });
+
+// H2 review Finding 3: before H2 no offering could be rangeMode "hours", so
+// the date-range action layer never needed to check. 0056 makes it possible;
+// loadOrgRangeContext (public.ts) now refuses one right after it resolves —
+// proved here at the action layer, not just as a unit-tested return value.
+describe("hourly offering rejected by the date-range action layer", () => {
+  const HOURLY_HANDLE = `rentflow-hours-${Date.now()}`;
+  let hourlyOfferingId: string;
+
+  beforeAll(async () => {
+    const owner = await signedInUser("rentflow_hours_owner");
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowHoursCo" });
+    if (e1) throw e1;
+    const hourlyOrgId = (org as { id: string }).id;
+    const { error: eFlag } = await admin
+      .from("org_feature_flags")
+      .insert({ org_id: hourlyOrgId, flag: "rentals", enabled: true, updated_by: "flow-test" });
+    if (eFlag) throw eFlag;
+    const { error: e2 } = await owner.rpc("update_org_scheduling", {
+      p_org_id: hourlyOrgId,
+      p_handle: HOURLY_HANDLE,
+      p_timezone: TZ,
+    });
+    if (e2) throw e2;
+    const { data: offering, error: e3 } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: hourlyOrgId,
+        name: "Court",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+      })
+      .select("id")
+      .single();
+    if (e3) throw e3;
+    hourlyOfferingId = offering!.id as string;
+  });
+
+  it("getRangeAvailability refuses an active hours offering with the generic error", async () => {
+    net.clientIp = "203.0.113.4";
+    const result = await publicActions.getRangeAvailability({
+      handle: HOURLY_HANDLE,
+      offeringId: hourlyOfferingId,
+      fromDate: d(30),
+      days: 5,
+    });
+    expect(result).toEqual({ ok: false, error: GENERIC_WRITE_ERROR });
+  });
+});

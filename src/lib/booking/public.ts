@@ -528,6 +528,9 @@ export async function loadOrgRangeContext(
 } | null> {
   const offering = await getPublicOfferingById(orgId, offeringId);
   if (!offering) return null;
+  // Inverse of loadOrgHourlyContext's guard: this loader feeds the
+  // date-range engine, which never resolves an hours offering.
+  if (offering.rangeMode === "hours") return null;
   const admin = createAdminClient();
   let unitsQuery = admin
     .from("rental_units")

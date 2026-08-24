@@ -17,6 +17,11 @@ export type SlotService = {
   // increment instead of the block length — a 2h session can start every
   // 30 min, not just every 2h.
   stepMin?: number;
+  // Rentals turnover is cleanup BETWEEN bookings, not part of the sellable
+  // window: when set, a candidate may END exactly at the window close, with
+  // its after-buffer (turnover) overflowing past closing. Busy-side conflict
+  // checks are absolute-time and unaffected — nothing can double-book.
+  allowTailOverflow?: boolean;
 };
 export type SlotRule = { weekday: number; startTime: string; endTime: string };
 export type SlotException = {
@@ -113,6 +118,12 @@ export function computeSlots(input: SlotInput): Date[] {
   // Hourly mode: candidate starts advance on the offering's increment grid
   // rather than by the whole block (a 2h session can start every 30 min).
   const stepMs = (service.stepMin ?? 0) * MIN || blockMs;
+  // The fit check: normally the whole block (incl. after-buffer) must clear
+  // the window, but rentals turnover may overflow past closing (see
+  // allowTailOverflow doc above) — only the before-buffer + duration need fit.
+  const fitMs = service.allowTailOverflow
+    ? (service.bufferBeforeMin + service.durationMin) * MIN
+    : blockMs;
   const slots: Date[] = [];
 
   for (let i = 0; i < days; i++) {
@@ -138,7 +149,7 @@ export function computeSlots(input: SlotInput): Date[] {
     for (const w of windows) {
       const winStart = wallTimeToUtc(date, w.startTime, timeZone).getTime();
       const winEnd = wallTimeToUtc(date, w.endTime, timeZone).getTime();
-      for (let t = winStart; t + blockMs <= winEnd; t += stepMs) {
+      for (let t = winStart; t + fitMs <= winEnd; t += stepMs) {
         const start = t + service.bufferBeforeMin * MIN;
         const end = start + service.durationMin * MIN;
         if (start < notBefore || start > notAfter) continue;

@@ -41,6 +41,9 @@ export function hourlySlotService(o: HourlyOffering, durationMin: number): SlotS
     maxPerDay: null,
     bookingWindowDays: o.bookingWindowDays,
     stepMin: o.slotIncrementMin,
+    // Turnover is cleanup between bookings, not sellable time — a session
+    // may end exactly at closing with its turnover tail past it (Finding 1).
+    allowTailOverflow: true,
   };
 }
 
