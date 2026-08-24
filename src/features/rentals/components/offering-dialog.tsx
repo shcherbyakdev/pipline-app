@@ -6,6 +6,7 @@ import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createOffering, updateOffering } from "@/features/rentals/actions";
 import type { OfferingRow } from "@/features/rentals/queries";
+import type { RangeMode } from "@/features/rentals/range";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,8 @@ import {
 
 // create-booking-dialog.tsx's native-<select> idiom.
 const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
+
+const INCREMENT_OPTIONS = [15, 30, 60];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -40,6 +43,16 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
   const [manuallyOpened, setManuallyOpened] = React.useState(false);
   const open = urlOpen || manuallyOpened;
   const [pending, startTransition] = React.useTransition();
+  // Controlled so the render branch (Stay section fields) and the payload
+  // built in onSubmit always agree on which fields are on the page —
+  // switching modes mid-form unmounts the other branch's inputs, so a
+  // stale field is never in the submitted FormData.
+  const [rangeMode, setRangeMode] = React.useState<RangeMode>(offering?.rangeMode ?? "nights");
+  // Drives the min/max duration inputs' `step` so it tracks the increment
+  // select live, not just at mount.
+  const [slotIncrementMin, setSlotIncrementMin] = React.useState<number>(
+    offering?.slotIncrementMin ?? 30,
+  );
 
   const onOpenChange = (next: boolean) => {
     setManuallyOpened(next);
@@ -53,22 +66,40 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
     if (name === "") return;
     const description = String(fd.get("description") ?? "").trim();
     const priceLabel = String(fd.get("priceLabel") ?? "").trim();
-    const maxStayRaw = String(fd.get("maxStay") ?? "").trim();
-    const payload = {
+    const common = {
       name,
       description: description === "" ? undefined : description,
       priceLabel: priceLabel === "" ? undefined : priceLabel,
-      rangeMode: String(fd.get("rangeMode") ?? "nights"),
-      startTime: String(fd.get("startTime") ?? ""),
-      endTime: String(fd.get("endTime") ?? ""),
-      minStay: Number(fd.get("minStay")),
-      maxStay: maxStayRaw === "" ? null : Number(maxStayRaw),
-      turnoverDays: Number(fd.get("turnoverDays")),
-      minNoticeDays: Number(fd.get("minNoticeDays")),
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
       unitSelection: String(fd.get("unitSelection") ?? "auto"),
       active: fd.get("active") === "on",
     };
+    // The hours Zod branch is `.strict()` — only that mode's own fields go
+    // in, or parsing fails (schema.ts).
+    const payload =
+      rangeMode === "hours"
+        ? {
+            ...common,
+            rangeMode: "hours" as const,
+            slotIncrementMin: Number(fd.get("slotIncrementMin")),
+            minDurationMin: Number(fd.get("minDurationMin")),
+            maxDurationMin: Number(fd.get("maxDurationMin")),
+            turnoverMin: Number(fd.get("turnoverMin")),
+            minNoticeMin: Number(fd.get("minNoticeMin")),
+          }
+        : {
+            ...common,
+            rangeMode,
+            startTime: String(fd.get("startTime") ?? ""),
+            endTime: String(fd.get("endTime") ?? ""),
+            minStay: Number(fd.get("minStay")),
+            maxStay:
+              String(fd.get("maxStay") ?? "").trim() === ""
+                ? null
+                : Number(fd.get("maxStay")),
+            turnoverDays: Number(fd.get("turnoverDays")),
+            minNoticeDays: Number(fd.get("minNoticeDays")),
+          };
     startTransition(async () => {
       const result = isEdit
         ? await updateOffering({ id: offering!.id, ...payload })
@@ -143,87 +174,171 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
               id="offering-range-mode"
               name="rangeMode"
               className={selectClass}
-              defaultValue={offering?.rangeMode ?? "nights"}
+              value={rangeMode}
+              onChange={(e) => setRangeMode(e.target.value as RangeMode)}
             >
               <option value="nights">Nightly (check-in → check-out)</option>
               <option value="days">Daily (pickup → return)</option>
+              <option value="hours">Hourly (booked by the hour)</option>
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="offering-start-time">Start time</Label>
-              <Input
-                id="offering-start-time"
-                name="startTime"
-                type="time"
-                step={900}
-                required
-                defaultValue={offering?.startTime ?? "15:00"}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="offering-end-time">End time</Label>
-              <Input
-                id="offering-end-time"
-                name="endTime"
-                type="time"
-                step={900}
-                required
-                defaultValue={offering?.endTime ?? "11:00"}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="offering-min-stay">Min stay</Label>
-              <Input
-                id="offering-min-stay"
-                name="minStay"
-                type="number"
-                required
-                min={1}
-                max={365}
-                defaultValue={offering?.minStay ?? 1}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="offering-max-stay">Max stay</Label>
-              <Input
-                id="offering-max-stay"
-                name="maxStay"
-                type="number"
-                min={1}
-                max={365}
-                placeholder="Unlimited"
-                defaultValue={offering?.maxStay ?? ""}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="offering-turnover">Turnover (days)</Label>
-              <Input
-                id="offering-turnover"
-                name="turnoverDays"
-                type="number"
-                min={0}
-                max={30}
-                defaultValue={offering?.turnoverDays ?? 0}
-              />
-            </div>
-          </div>
+          {rangeMode === "hours" ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="offering-slot-increment">Slot increment</Label>
+                <select
+                  id="offering-slot-increment"
+                  name="slotIncrementMin"
+                  className={selectClass}
+                  value={slotIncrementMin}
+                  onChange={(e) => setSlotIncrementMin(Number(e.target.value))}
+                >
+                  {/* Guards an existing offering whose increment isn't one of
+                      the three common values — editing must not silently
+                      snap it to 15. */}
+                  {!INCREMENT_OPTIONS.includes(slotIncrementMin) ? (
+                    <option value={slotIncrementMin}>{slotIncrementMin} min</option>
+                  ) : null}
+                  {INCREMENT_OPTIONS.map((m) => (
+                    <option key={m} value={m}>
+                      {m} min
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-min-duration">Min duration (min)</Label>
+                  <Input
+                    id="offering-min-duration"
+                    name="minDurationMin"
+                    type="number"
+                    required
+                    min={5}
+                    max={1440}
+                    step={slotIncrementMin}
+                    defaultValue={offering?.minDurationMin ?? 60}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-max-duration">Max duration (min)</Label>
+                  <Input
+                    id="offering-max-duration"
+                    name="maxDurationMin"
+                    type="number"
+                    required
+                    min={5}
+                    max={1440}
+                    step={slotIncrementMin}
+                    defaultValue={offering?.maxDurationMin ?? 240}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-turnover-min">Turnover (minutes)</Label>
+                  <Input
+                    id="offering-turnover-min"
+                    name="turnoverMin"
+                    type="number"
+                    min={0}
+                    max={1440}
+                    defaultValue={offering?.turnoverMin ?? 0}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-start-time">Start time</Label>
+                  <Input
+                    id="offering-start-time"
+                    name="startTime"
+                    type="time"
+                    step={900}
+                    required
+                    defaultValue={offering?.startTime ?? "15:00"}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-end-time">End time</Label>
+                  <Input
+                    id="offering-end-time"
+                    name="endTime"
+                    type="time"
+                    step={900}
+                    required
+                    defaultValue={offering?.endTime ?? "11:00"}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-min-stay">Min stay</Label>
+                  <Input
+                    id="offering-min-stay"
+                    name="minStay"
+                    type="number"
+                    required
+                    min={1}
+                    max={365}
+                    defaultValue={offering?.minStay ?? 1}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-max-stay">Max stay</Label>
+                  <Input
+                    id="offering-max-stay"
+                    name="maxStay"
+                    type="number"
+                    min={1}
+                    max={365}
+                    placeholder="Unlimited"
+                    defaultValue={offering?.maxStay ?? ""}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-turnover">Turnover (days)</Label>
+                  <Input
+                    id="offering-turnover"
+                    name="turnoverDays"
+                    type="number"
+                    min={0}
+                    max={30}
+                    defaultValue={offering?.turnoverDays ?? 0}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           <SectionHeading>Booking</SectionHeading>
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="offering-min-notice">Min notice (days)</Label>
-              <Input
-                id="offering-min-notice"
-                name="minNoticeDays"
-                type="number"
-                min={0}
-                max={365}
-                defaultValue={offering?.minNoticeDays ?? 0}
-              />
-            </div>
+            {rangeMode === "hours" ? (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="offering-min-notice-min">Min notice (minutes)</Label>
+                <Input
+                  id="offering-min-notice-min"
+                  name="minNoticeMin"
+                  type="number"
+                  min={0}
+                  max={43200}
+                  defaultValue={offering?.minNoticeMin ?? 0}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="offering-min-notice">Min notice (days)</Label>
+                <Input
+                  id="offering-min-notice"
+                  name="minNoticeDays"
+                  type="number"
+                  min={0}
+                  max={365}
+                  defaultValue={offering?.minNoticeDays ?? 0}
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <Label htmlFor="offering-booking-window">Booking window (days)</Label>
               <Input

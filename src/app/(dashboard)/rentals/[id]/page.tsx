@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import { getOffering, listUnitsWithBlackouts } from "@/features/rentals/queries";
+import { formatDurationLabel } from "@/features/rentals/hourly";
 import { OfferingDialog } from "@/features/rentals/components/offering-dialog";
 import { UnitsEditor } from "@/features/rentals/components/units-editor";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
   if (!offering) notFound();
   const units = await listUnitsWithBlackouts(id);
 
+  const hourly = offering.rangeMode === "hours";
   const nightly = offering.rangeMode === "nights";
 
   return (
@@ -30,13 +32,15 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex items-center gap-2">
               <h1 className="truncate text-lg font-semibold">{offering.name}</h1>
-              <Badge variant="outline">{nightly ? "Nightly" : "Daily"}</Badge>
+              <Badge variant="outline">{hourly ? "Hourly" : nightly ? "Nightly" : "Daily"}</Badge>
               {!offering.active ? <Badge variant="outline">Inactive</Badge> : null}
             </div>
             <p className="text-muted-foreground text-xs">
-              {nightly
-                ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
-                : `pickup ${offering.startTime} · return ${offering.endTime}`}
+              {hourly
+                ? `${formatDurationLabel(offering.minDurationMin!)}–${formatDurationLabel(offering.maxDurationMin!)} · every ${offering.slotIncrementMin} min`
+                : nightly
+                  ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
+                  : `pickup ${offering.startTime} · return ${offering.endTime}`}
               {offering.priceLabel ? ` · ${offering.priceLabel}` : ""}
             </p>
           </div>

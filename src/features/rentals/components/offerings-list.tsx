@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { deleteOffering } from "@/features/rentals/actions";
 import type { OfferingRow } from "@/features/rentals/queries";
+import { formatDurationLabel } from "@/features/rentals/hourly";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ import { OfferingDialog } from "./offering-dialog";
 
 function Row({ offering }: { offering: OfferingRow }) {
   const [pending, startTransition] = React.useTransition();
+  const hourly = offering.rangeMode === "hours";
   const nightly = offering.rangeMode === "nights";
 
   const onDelete = () => {
@@ -35,7 +37,7 @@ function Row({ offering }: { offering: OfferingRow }) {
           >
             {offering.name}
           </Link>
-          <Badge variant="outline">{nightly ? "Nightly" : "Daily"}</Badge>
+          <Badge variant="outline">{hourly ? "Hourly" : nightly ? "Nightly" : "Daily"}</Badge>
           {!offering.active ? <Badge variant="outline">Inactive</Badge> : null}
         </div>
         <p className="text-muted-foreground text-xs">
@@ -43,9 +45,11 @@ function Row({ offering }: { offering: OfferingRow }) {
           {offering.priceLabel ? ` · ${offering.priceLabel}` : ""}
         </p>
         <p className="text-muted-foreground text-xs">
-          {nightly
-            ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
-            : `pickup ${offering.startTime} · return ${offering.endTime}`}
+          {hourly
+            ? `${formatDurationLabel(offering.minDurationMin!)}–${formatDurationLabel(offering.maxDurationMin!)} · every ${offering.slotIncrementMin} min`
+            : nightly
+              ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
+              : `pickup ${offering.startTime} · return ${offering.endTime}`}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">

@@ -11,8 +11,8 @@ export default async function RentalsPage() {
       </div>
       {offerings.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          No rentals yet — a rental is a unit type clients book by night or day (a flat, a car
-          class, a room). Add one, then add its units.
+          No rentals yet — a rental is a unit type clients book by night, day or hour (a flat, a
+          car class, a room). Add one, then add its units.
         </p>
       ) : (
         <OfferingsList offerings={offerings} />
