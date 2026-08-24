@@ -13,6 +13,10 @@ export type SlotService = {
   minNoticeMin: number;
   maxPerDay: number | null;
   bookingWindowDays: number;
+  // Hourly offerings (rentals H2): candidate starts advance by this grid
+  // increment instead of the block length — a 2h session can start every
+  // 30 min, not just every 2h.
+  stepMin?: number;
 };
 export type SlotRule = { weekday: number; startTime: string; endTime: string };
 export type SlotException = {
@@ -106,6 +110,9 @@ export function computeSlots(input: SlotInput): Date[] {
   const notAfter = now.getTime() + service.bookingWindowDays * DAY;
   const blockMs =
     (service.bufferBeforeMin + service.durationMin + service.bufferAfterMin) * MIN;
+  // Hourly mode: candidate starts advance on the offering's increment grid
+  // rather than by the whole block (a 2h session can start every 30 min).
+  const stepMs = (service.stepMin ?? 0) * MIN || blockMs;
   const slots: Date[] = [];
 
   for (let i = 0; i < days; i++) {
@@ -131,7 +138,7 @@ export function computeSlots(input: SlotInput): Date[] {
     for (const w of windows) {
       const winStart = wallTimeToUtc(date, w.startTime, timeZone).getTime();
       const winEnd = wallTimeToUtc(date, w.endTime, timeZone).getTime();
-      for (let t = winStart; t + blockMs <= winEnd; t += blockMs) {
+      for (let t = winStart; t + blockMs <= winEnd; t += stepMs) {
         const start = t + service.bufferBeforeMin * MIN;
         const end = start + service.durationMin * MIN;
         if (start < notBefore || start > notAfter) continue;

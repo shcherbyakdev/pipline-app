@@ -173,6 +173,53 @@ describe("computeSlots", () => {
   });
 });
 
+describe("computeSlots stepMin", () => {
+  it("stepMin overrides block stepping: 120min sessions every 30min", () => {
+    const slots = computeSlots({
+      service: {
+        durationMin: 120,
+        bufferBeforeMin: 0,
+        bufferAfterMin: 0,
+        minNoticeMin: 0,
+        maxPerDay: null,
+        bookingWindowDays: 30,
+        stepMin: 30,
+      },
+      rules: [{ weekday: 1, startTime: "09:00", endTime: "13:00" }],
+      exceptions: [],
+      busy: [],
+      timeZone: "Europe/Warsaw",
+      now: new Date("2026-08-31T00:00:00Z"),
+      fromDate: "2026-08-31",
+      days: 1,
+    });
+    // starts 09:00, 09:30, 10:00, 10:30, 11:00 (11:00+2h = 13:00 fits; 11:30 doesn't)
+    expect(slots).toHaveLength(5);
+  });
+
+  it("without stepMin behaviour is unchanged (block stepping)", () => {
+    const slots = computeSlots({
+      service: {
+        durationMin: 120,
+        bufferBeforeMin: 0,
+        bufferAfterMin: 0,
+        minNoticeMin: 0,
+        maxPerDay: null,
+        bookingWindowDays: 30,
+      },
+      rules: [{ weekday: 1, startTime: "09:00", endTime: "13:00" }],
+      exceptions: [],
+      busy: [],
+      timeZone: "Europe/Warsaw",
+      now: new Date("2026-08-31T00:00:00Z"),
+      fromDate: "2026-08-31",
+      days: 1,
+    });
+    // 09:00, then 11:00 (09:00+2h); 13:00+2h would overshoot the 13:00 close.
+    expect(slots).toHaveLength(2);
+  });
+});
+
 describe("unionSlots", () => {
   const t = (h: number) => new Date(Date.UTC(2026, 8, 1, h));
   it("merges, dedupes by instant, sorts, and lists eligible staff per slot", () => {
