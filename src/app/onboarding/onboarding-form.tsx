@@ -7,6 +7,7 @@ import type { OrgState } from "@/features/orgs/schema";
 import { HANDLE_RE, isReservedHandle, normalizeHandle, toDisplayName } from "@/features/scheduling/handle";
 import { useHandleCheck } from "@/features/scheduling/use-handle-check";
 import { ONBOARDING } from "@/features/marketing/site";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,7 @@ const getServerTimeZone = () => "UTC";
 export function OnboardingForm({ initialHandle, host }: { initialHandle: string | null; host: string }) {
   const [state, action, pending] = useActionState(createOrgWithPage, initial);
   const [name, setName] = React.useState(initialHandle ? toDisplayName(initialHandle) : "");
+  const [mode, setMode] = React.useState<string | null>(null);
   const [handle, setHandle] = React.useState(initialHandle ?? "");
   const detectedTimezone = React.useSyncExternalStore(subscribeNoop, getBrowserTimeZone, getServerTimeZone);
   // null until the user picks one; the detected zone is the default until then.
@@ -83,6 +85,36 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
           placeholder={ONBOARDING.namePlaceholder}
         />
       </div>
+      {/* Native radios wrapped in label-cards (house idiom is native form
+          controls); the input is visually hidden but stays keyboard/AT
+          reachable. No default: the server validates too. */}
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-sm font-medium">{ONBOARDING.modeLegend}</legend>
+        {ONBOARDING.modes.map((m) => {
+          const selected = mode === m.value;
+          return (
+            <label
+              key={m.value}
+              className={cn(
+                "flex cursor-pointer flex-col gap-0.5 rounded-md border p-3 transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring/50",
+                selected ? "border-foreground/40 bg-accent" : "hover:bg-accent/60",
+              )}
+            >
+              <input
+                type="radio"
+                name="mode"
+                value={m.value}
+                required
+                className="sr-only"
+                checked={selected}
+                onChange={() => setMode(m.value)}
+              />
+              <span className="text-sm font-medium">{m.title}</span>
+              <span className="text-muted-foreground text-sm">{m.blurb}</span>
+            </label>
+          );
+        })}
+      </fieldset>
       <div className="flex flex-col gap-2">
         <Label htmlFor="handle">{ONBOARDING.handleLabel}</Label>
         <InputGroup>
@@ -122,7 +154,7 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
         </select>
       </div>
       {state.error ? <p className="text-destructive text-sm">{state.error}</p> : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending || mode === null}>
         {pending ? ONBOARDING.submitting : ONBOARDING.submit}
       </Button>
     </form>

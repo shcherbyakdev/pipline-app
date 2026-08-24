@@ -196,6 +196,13 @@ export const ONBOARDING = {
   handleChecking: "Checking…",
   handleCheckFailed: "Couldn't check right now — you can still continue.",
   timezoneLabel: "Timezone",
+  modeLegend: "What are you booking?",
+  modeError: "Pick what you're booking.",
+  modes: [
+    { value: "appointments", title: "Appointments", blurb: "Time on your calendar: consultations, sessions, classes." },
+    { value: "rentals", title: "Rentals", blurb: "Things people book by the night or day: rooms, cars, equipment." },
+    { value: "both", title: "Both", blurb: "You sell appointments and rentals." },
+  ],
   submit: "Claim my page",
   submitting: "Claiming…",
   justTaken: "That name was just taken — pick another.",

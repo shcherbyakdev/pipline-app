@@ -12,6 +12,7 @@ import { getCurrentOrg } from "@/lib/auth/session";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
   createOrgWithPageSchema,
+  modeToFlags,
   updateAccentInput,
   widgetThemeInput,
   GENERIC_WRITE_ERROR,
@@ -33,8 +34,15 @@ export async function createOrgWithPage(
     name: formData.get("name"),
     handle: formData.get("handle"),
     timezone: formData.get("timezone"),
+    mode: formData.get("mode"),
   });
-  if (!parsed.success) return { error: "Check the name (2–80 characters) and the page address." };
+  if (!parsed.success) {
+    // A mode issue gets its own copy — the picker is a distinct affordance
+    // from the name/handle text fields, so "check the fields" would send
+    // the user hunting. Mirrors the path[0]-check idiom in utils/actions.ts.
+    const modeIssue = parsed.error.issues.some((i) => i.path[0] === "mode");
+    return { error: modeIssue ? ONBOARDING.modeError : "Check the name (2–80 characters) and the page address." };
+  }
 
   const supabase = await createClient();
   const {
@@ -45,10 +53,13 @@ export async function createOrgWithPage(
   // the RPC refuses too (0052), this just skips the round trip.
   if (await getCurrentOrg()) redirect("/bookings");
 
+  const flags = modeToFlags(parsed.data.mode);
   const { error } = await supabase.rpc("create_org_with_page", {
     p_name: parsed.data.name,
     p_handle: parsed.data.handle,
     p_timezone: parsed.data.timezone,
+    p_offers_appointments: flags.offersAppointments,
+    p_offers_rentals: flags.offersRentals,
   });
   if (error) {
     if (error.code === "23505") return { error: ONBOARDING.justTaken };

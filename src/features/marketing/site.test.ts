@@ -92,7 +92,15 @@ describe("site config", () => {
       PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder, PRICING.moreComing,
       ...PRICING.rows.flatMap((r) => [r.label, r.free, r.pro, r.team]),
       ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
-      ...Object.values(ONBOARDING).map((v) => (typeof v === "function" ? v("x") : v)),
+      // ONBOARDING.modes is an array of {value, title, blurb} cards, not a
+      // string or a function — flatten it to its titles/blurbs so the
+      // picker copy is actually scanned, not silently stringified to
+      // "[object Object]" by the corpus join below.
+      ...Object.values(ONBOARDING).flatMap((v) => {
+        if (typeof v === "function") return v("x");
+        if (Array.isArray(v)) return v.flatMap((m) => [m.title, m.blurb]);
+        return v;
+      }),
       ...Object.values(WELCOME).map((v) => (typeof v === "function" ? v("x") : v)),
       FINAL_CTA.heading,
     ].join("\n").toLowerCase();
