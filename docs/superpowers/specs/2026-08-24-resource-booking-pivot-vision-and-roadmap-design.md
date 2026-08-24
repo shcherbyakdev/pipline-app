@@ -87,15 +87,15 @@ Hourly rental bookings render on the existing **week calendar** like appointment
 
 ## Slice roadmap
 
-Migrations: 0050–0052 are taken (staff grants, handles, audit); this roadmap starts at **0053**. The R3 memory note "R3 starts at 0050" is superseded.
+Migrations: 0050–0052 are taken (staff grants, handles, audit); this roadmap starts at **0053** (H1 needs a generated + a custom migration, so it takes 0053+0054 and the later slices shift by one). The R3 memory note "R3 starts at 0050" is superseded.
 
 | Slice | Scope | Migration | Depends on |
 |---|---|---|---|
 | **H0 — Validation (parallel track, no code)** | List 20 hourly-let spaces in Kraków/Warsaw, talk to 10. Eight questions: booking today, double-booking stories, no-show cost, deposit practice, willingness to pay. **Kill-gate for H4:** <3 of 10 naming deposits as a real pain → rethink the Connect slice (rest of roadmap survives). | — | — |
-| **H1 — Org modes** | Execute the already-approved R3 spec+plan (`2026-08-17-rentals-r3-*`): `offers_appointments`/`offers_rentals`, onboarding picker, nav restore, per-org flag flip. Renumber to 0053; rebase-review against main (booking-page builder, audit hardening landed since). | 0053 | — |
-| **H2 — Hourly mode** | `range_mode='hours'`; increment/min/max duration columns; resource opening hours (+ editor reuse); public duration-picker → time-grid in widget + booking page; week-calendar rendering. Fold in the two R2 deferrals that bite hourly: timeline turnover-padding, picker request-ordering guard. | 0054 | H1 |
-| **H3 — Prices & terms (no Stripe)** | `price_cents` + currency on offerings (per-hour and flat), deposit policy (`none \| deposit(amount\|%) \| full`), cancellation window, terms text + accept checkbox. Display end-to-end; collection = "pay at the venue". Replaces `price_label` for rentals. Makes demos sellable to H0 interviewees. | 0055 | H2 |
-| **H4 — Deposits via Stripe Connect** | Connect Express onboarding in Settings (second Stripe account); Checkout session when policy requires payment; `pending_payment` + `hold_expires_at` + EXCLUDE extension + drain release; webhook-confirmed transitions; refunds per cancellation window. | 0056 | H3 + H0 gate |
+| **H1 — Org modes** | Execute the already-approved R3 spec+plan (`2026-08-17-rentals-r3-*`): `offers_appointments`/`offers_rentals`, onboarding picker, nav restore, per-org flag flip. Renumber to 0053+0054; rebase-review against main (booking-page builder, audit hardening landed since). | 0053+0054 | — |
+| **H2 — Hourly mode** | `range_mode='hours'`; increment/min/max duration columns; resource opening hours (+ editor reuse); public duration-picker → time-grid in widget + booking page; week-calendar rendering. Fold in the two R2 deferrals that bite hourly: timeline turnover-padding, picker request-ordering guard. | 0055 | H1 |
+| **H3 — Prices & terms (no Stripe)** | `price_cents` + currency on offerings (per-hour and flat), deposit policy (`none \| deposit(amount\|%) \| full`), cancellation window, terms text + accept checkbox. Display end-to-end; collection = "pay at the venue". Replaces `price_label` for rentals. Makes demos sellable to H0 interviewees. | 0056 | H2 |
+| **H4 — Deposits via Stripe Connect** | Connect Express onboarding in Settings (second Stripe account); Checkout session when policy requires payment; `pending_payment` + `hold_expires_at` + EXCLUDE extension + drain release; webhook-confirmed transitions; refunds per cancellation window. | 0057 | H3 + H0 gate |
 | **H5 — Repositioning** | Landing, onboarding, pricing copy for the space-owner buyer; per-resource `PLANS`; appointments demoted to "also books people"; `FORBIDDEN_COPY` updated (drop "stripe"/"payment" after H4). Spec can start once H2 screenshots exist. | — | H2 (overlaps H3/H4) |
 | **H6 — Launch + first 10 customers** | Existing launch-infra spec (booklo.co, SMTP, drain cron, HIBP) + in-person sales from H0's list; founder pricing for first orgs. | — | H4, H5 |
 
