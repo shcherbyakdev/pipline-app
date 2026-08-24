@@ -20,11 +20,17 @@ it("clips at both edges and returns null when outside", () => {
   expect(barSpan({ startsAt: new Date("2027-06-01T13:00:00Z"), endsAt: new Date("2027-06-03T09:00:00Z") }, "nights", TZ, "2027-05-01", 21)).toBeNull();
 });
 it("turnover tail follows the last occupied day", () => {
-  const bar = barSpan({ startsAt: new Date("2027-05-03T13:00:00Z"), endsAt: new Date("2027-05-06T09:00:00Z") }, "nights", TZ, "2027-05-01", 21)!;
-  expect(turnoverSpan(bar, "nights", 1, 21)).toEqual({ colStart: 5, colSpan: 1 }); // 05-06 is the tail day (checkout day, occupied by turnover)
-  const dbar = barSpan({ startsAt: new Date("2027-05-03T07:00:00Z"), endsAt: new Date("2027-05-05T16:00:00Z") }, "days", TZ, "2027-05-01", 21)!;
-  expect(turnoverSpan(dbar, "days", 2, 21)).toEqual({ colStart: 5, colSpan: 2 });
-  expect(turnoverSpan(bar, "nights", 0, 21)).toBeNull();
+  const nightsBooking = { endsAt: new Date("2027-05-06T09:00:00Z") };
+  expect(turnoverSpan(nightsBooking, "nights", TZ, 1, "2027-05-01", 21)).toEqual({ colStart: 5, colSpan: 1 }); // 05-06 is the tail day (checkout day, occupied by turnover)
+  const daysBooking = { endsAt: new Date("2027-05-05T16:00:00Z") };
+  expect(turnoverSpan(daysBooking, "days", TZ, 2, "2027-05-01", 21)).toEqual({ colStart: 5, colSpan: 2 });
+  expect(turnoverSpan(nightsBooking, "nights", TZ, 0, "2027-05-01", 21)).toBeNull();
+});
+it("turnover tail is computed independently of the bar: a checkout before the window still leaves a tail inside it", () => {
+  // Checks out the day before windowStart (barSpan for this stay would be
+  // clipped off entirely — no bar to hang the tail off of).
+  const booking = { endsAt: new Date("2027-04-30T09:00:00Z") };
+  expect(turnoverSpan(booking, "nights", TZ, 2, "2027-05-01", 21)).toEqual({ colStart: 0, colSpan: 1 });
 });
 it("blackoutSpan clips inclusive dates", () => {
   expect(blackoutSpan("2027-04-30", "2027-05-02", "2027-05-01", 21)).toEqual({ colStart: 0, colSpan: 2 });

@@ -96,6 +96,7 @@ function DetailBody({
               startsAt: new Date(booking.startsAt),
               endsAt: new Date(booking.endsAt),
               isRental: booking.rentalUnitId !== null,
+              rangeMode: booking.rangeMode,
             },
             timeZone,
           )}

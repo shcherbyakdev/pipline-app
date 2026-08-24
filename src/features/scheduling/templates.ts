@@ -1,6 +1,8 @@
 // Confirmation email. Same discipline as chasing/templates.ts: the manage
 // URL is the credential; org/service names and times only.
 
+import type { RangeMode } from "@/features/rentals/range";
+
 const esc = (s: string) =>
   s
     .replace(/&/g, "&amp;")
@@ -86,12 +88,18 @@ export function formatHourlyWhenLine(starts: Date, ends: Date, timeZone: string)
 }
 
 // One call site for every email/page that renders a booking's time without
-// caring which kind it is.
+// caring which kind it is. `rangeMode` is optional and only read for a
+// rental (H2: "hours" gets the single-day time-range phrasing instead of
+// nights/days' two-date range) — every pre-H2 caller that never passes it
+// keeps rendering exactly as before.
 export function whenLineFor(
-  b: { startsAt: Date; endsAt: Date; isRental: boolean },
+  b: { startsAt: Date; endsAt: Date; isRental: boolean; rangeMode?: RangeMode | null },
   timeZone: string,
 ): string {
-  return b.isRental ? formatRangeWhenLine(b.startsAt, b.endsAt, timeZone) : formatWhenLine(b.startsAt, timeZone);
+  if (!b.isRental) return formatWhenLine(b.startsAt, timeZone);
+  return b.rangeMode === "hours"
+    ? formatHourlyWhenLine(b.startsAt, b.endsAt, timeZone)
+    : formatRangeWhenLine(b.startsAt, b.endsAt, timeZone);
 }
 
 export const STATUS_LABEL: Record<string, string> = {

@@ -49,6 +49,7 @@ export default async function ClientDetailPage({ params }: PageProps<"/clients/[
                       startsAt: new Date(b.startsAt),
                       endsAt: new Date(b.endsAt),
                       isRental: b.rentalUnitId !== null,
+                      rangeMode: b.rangeMode,
                     },
                     timeZone,
                   )}

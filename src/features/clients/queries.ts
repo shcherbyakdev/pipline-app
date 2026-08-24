@@ -1,5 +1,6 @@
 import { createClient as createSupabase } from "@/lib/supabase/server";
 import { bookingTitle } from "@/features/scheduling/booking-label";
+import type { RangeMode } from "@/features/rentals/range";
 
 export type ClientOption = { id: string; name: string };
 export type ClientUnitRow = {
@@ -136,6 +137,11 @@ export type ClientBookingRow = {
   // Rentals R1: non-null for a stay, which renders as a range rather than
   // a single instant (see whenLineFor).
   rentalUnitId: string | null;
+  // H2: the offering's range mode, so whenLineFor can render an hourly
+  // rental's when-line as a single-day time range instead of nights/days'
+  // two-date range. Null for an appointment (see AdminBooking's own
+  // rangeMode, scheduling/queries.ts — same field, same reason).
+  rangeMode: RangeMode | null;
   status: string;
   note: string | null;
 };
@@ -145,7 +151,7 @@ export async function listClientBookings(clientId: string): Promise<ClientBookin
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, starts_at, ends_at, rental_unit_id, status, note, services(name), rental_offerings(name), rental_units(name)",
+      "id, starts_at, ends_at, rental_unit_id, status, note, services(name), rental_offerings(name, range_mode), rental_units(name)",
     )
     .eq("client_id", clientId)
     .order("starts_at", { ascending: false })
@@ -159,7 +165,7 @@ export async function listClientBookings(clientId: string): Promise<ClientBookin
     status: string;
     note: string | null;
     services: { name: string } | null;
-    rental_offerings: { name: string } | null;
+    rental_offerings: { name: string; range_mode: RangeMode } | null;
     rental_units: { name: string } | null;
   };
   return ((data ?? []) as unknown as Row[]).map((b) => ({
@@ -168,6 +174,7 @@ export async function listClientBookings(clientId: string): Promise<ClientBookin
     startsAt: b.starts_at,
     endsAt: b.ends_at,
     rentalUnitId: b.rental_unit_id,
+    rangeMode: b.rental_offerings?.range_mode ?? null,
     status: b.status,
     note: b.note,
   }));

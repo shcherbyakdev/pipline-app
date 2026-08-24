@@ -129,16 +129,23 @@ export function NewRentalBookingDialog({
   const [unitId, setUnitId] = React.useState<string | null>(initialUnitId ?? null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
+  // Request-ordering guard (house pattern, mirrors hourSeqRef above /
+  // move-rental-dialog.tsx's seqRef): a fast month-nav click can fire a
+  // second fetch before the first resolves — only the most recent request
+  // may ever apply its result.
+  const seqRef = React.useRef(0);
 
   const load = React.useCallback((id: string, m: string) => {
     if (!id) return;
     startTransition(async () => {
+      const seq = ++seqRef.current;
       const result = await getAdminRangeAvailability({
         offeringId: id,
         fromDate: firstOfMonth(m),
         days: WINDOW_DAYS,
         excludeBookingId: null,
       });
+      if (seq !== seqRef.current) return;
       if (result.ok) {
         setAvailability(result.availability);
         setOffering(result.offering);
@@ -379,6 +386,7 @@ export function NewRentalBookingDialog({
                   </div>
                 ) : (
                   <select
+                    aria-label="Duration"
                     className={selectClass}
                     defaultValue=""
                     onChange={(e) => changeDuration(Number(e.target.value))}

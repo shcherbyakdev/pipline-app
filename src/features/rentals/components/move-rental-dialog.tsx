@@ -275,6 +275,7 @@ export function MoveRentalDialog({
                 startsAt: new Date(booking.startsAt),
                 endsAt: new Date(booking.endsAt),
                 isRental: true,
+                rangeMode: booking.rangeMode,
               },
               timeZone,
             )}

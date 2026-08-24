@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { EmailTransport } from "@/lib/email/transport";
+import type { RangeMode } from "@/features/rentals/range";
 import { resolveClientStaffName } from "@/lib/booking/public";
 import { bookingReminderEmail, bookingLifecycleKey, whenLineFor } from "./templates";
 import { bookingTitle } from "./booking-label";
@@ -43,7 +44,10 @@ type CandidateRow = {
   reminder_attempts: number;
   rental_unit_id: string | null;
   services: { name: string } | null;
-  rental_offerings: { name: string } | null;
+  // H2: range_mode alongside name — whenLineFor needs it to render an hourly
+  // rental's when-line as a single-day time range instead of nights/days'
+  // two-date range.
+  rental_offerings: { name: string; range_mode: RangeMode } | null;
   rental_units: { name: string } | null;
   orgs: { name: string; timezone: string } | null;
   staff: { name: string } | null;
@@ -113,7 +117,7 @@ export async function runReminderDrain(deps: {
   const { data, error } = await deps.db
     .from("bookings")
     .select(
-      "id, org_id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, services(name), rental_offerings(name), rental_units(name), orgs(name, timezone), staff(name)",
+      "id, org_id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, services(name), rental_offerings(name, range_mode), rental_units(name), orgs(name, timezone), staff(name)",
     )
     .eq("status", "confirmed")
     .is("reminder_sent_at", null)
@@ -170,6 +174,7 @@ export async function runReminderDrain(deps: {
               startsAt: new Date(row.starts_at),
               endsAt: new Date(row.ends_at),
               isRental: row.rental_unit_id !== null,
+              rangeMode: row.rental_offerings?.range_mode ?? null,
             },
             row.orgs?.timezone ?? "UTC",
           ),

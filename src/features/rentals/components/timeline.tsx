@@ -281,13 +281,18 @@ export function Timeline({
                         fromDate,
                         TIMELINE_DAYS,
                       );
-                      if (bar === null) return null;
+                      // Independent of `bar`: a stay whose checkout/return
+                      // fell before the window has no bar to paint, but its
+                      // turnover tail can still reach into the window.
                       const tail = turnoverSpan(
-                        bar,
+                        { endsAt: new Date(b.endsAt) },
                         offering.rangeMode,
+                        timeZone,
                         offering.turnoverDays,
+                        fromDate,
                         TIMELINE_DAYS,
                       );
+                      if (bar === null && tail === null) return null;
                       // Hotel handover: a nightly stay owns the check-in
                       // cell only from mid-afternoon and the checkout cell
                       // only until morning, so the bar starts and ends
@@ -296,7 +301,7 @@ export function Timeline({
                       // clipped by the window's left edge has no visible
                       // check-in cell, so it starts flush at the edge.
                       const halfStart =
-                        offering.rangeMode === "nights" && !bar.clippedLeft ? 0.5 : 0;
+                        bar !== null && offering.rangeMode === "nights" && !bar.clippedLeft ? 0.5 : 0;
                       return (
                         <React.Fragment key={b.id}>
                           {tail === null ? null : (
@@ -314,30 +319,32 @@ export function Timeline({
                               }}
                             />
                           )}
-                          <button
-                            type="button"
-                            onClick={() => setSelected(b)}
-                            title={whenLineFor(
-                              {
-                                startsAt: new Date(b.startsAt),
-                                endsAt: new Date(b.endsAt),
-                                isRental: true,
-                              },
-                              timeZone,
-                            )}
-                            className={cn(
-                              "bg-card absolute inset-y-1 z-10 truncate rounded-md border px-1.5 text-left text-xs shadow-sm hover:shadow",
-                              bar.clippedLeft && "rounded-l-none",
-                              bar.clippedRight && "rounded-r-none",
-                            )}
-                            style={{
-                              left: pct(bar.colStart + halfStart),
-                              width: pct(bar.colSpan - halfStart - (bar.halfEnd ? 0.5 : 0)),
-                              borderLeft: `3px solid ${serviceAccent(b.rentalOfferingId ?? "")}`,
-                            }}
-                          >
-                            {b.clientName}
-                          </button>
+                          {bar === null ? null : (
+                            <button
+                              type="button"
+                              onClick={() => setSelected(b)}
+                              title={whenLineFor(
+                                {
+                                  startsAt: new Date(b.startsAt),
+                                  endsAt: new Date(b.endsAt),
+                                  isRental: true,
+                                },
+                                timeZone,
+                              )}
+                              className={cn(
+                                "bg-card absolute inset-y-1 z-10 truncate rounded-md border px-1.5 text-left text-xs shadow-sm hover:shadow",
+                                bar.clippedLeft && "rounded-l-none",
+                                bar.clippedRight && "rounded-r-none",
+                              )}
+                              style={{
+                                left: pct(bar.colStart + halfStart),
+                                width: pct(bar.colSpan - halfStart - (bar.halfEnd ? 0.5 : 0)),
+                                borderLeft: `3px solid ${serviceAccent(b.rentalOfferingId ?? "")}`,
+                              }}
+                            >
+                              {b.clientName}
+                            </button>
+                          )}
                         </React.Fragment>
                       );
                     })}

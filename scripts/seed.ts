@@ -57,7 +57,7 @@ const DEMO_SERVICES = [
   { name: "Consultation", duration_min: 60, price_label: "€80" },
 ];
 // H2: an hours-mode rental offering alongside the appointment services, so
-// the hourly booking flow / admin timeline have a live example to show.
+// the hourly booking flow / week calendar have a live example to show.
 const DEMO_HOURLY_OFFERING = "Rehearsal Room";
 const DEMO_HOURLY_UNITS = ["Room A", "Room B"];
 

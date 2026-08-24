@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { durationOptions, formatDurationLabel, type HourlyOffering } from "@/features/rentals/hourly";
@@ -90,11 +91,26 @@ export function HourlyBookingFlow({
     load();
   }, [load]);
 
+  // A duration pick mounts the slot grid in its place (this component's own
+  // conditional render below) — flushSync (booking-widget.tsx's staff-pick
+  // idiom) forces that mount to happen before the focus call so the region
+  // actually exists to receive it. Only on the forward pick: `d === null` is
+  // the "change" link going back to the duration step, where there is
+  // nothing of this component's to focus.
   function changeDuration(d: number | null) {
     setError(null);
-    setDurationMin(d);
-    setSlot(null);
-    setUnitId(null);
+    if (d === null) {
+      setDurationMin(d);
+      setSlot(null);
+      setUnitId(null);
+      return;
+    }
+    flushSync(() => {
+      setDurationMin(d);
+      setSlot(null);
+      setUnitId(null);
+    });
+    slotsRegionRef.current?.focus();
   }
 
   function navigate(next: string) {
@@ -201,6 +217,7 @@ export function HourlyBookingFlow({
             </div>
           ) : (
             <select
+              aria-label="Duration"
               className={selectClass}
               defaultValue=""
               onChange={(e) => changeDuration(Number(e.target.value))}

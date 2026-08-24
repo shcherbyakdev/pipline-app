@@ -193,4 +193,29 @@ describe("listTimelineData turnover padding", () => {
     const { bookings } = await listTimelineData(FROM_DATE, TZ);
     expect(bookings.some((b) => b.id === tooEarlyId)).toBe(false);
   });
+
+  // Spec: "Timeline: hourly offerings do not appear" — it's a date-range
+  // grid, an hourly offering has no bar to draw there.
+  it("excludes hours-mode offerings (and their units) from the returned offerings", async () => {
+    const { data: hoursOffering, error: e1 } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: orgId,
+        name: "Rehearsal Room",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 120,
+      })
+      .select("id")
+      .single();
+    if (e1) throw e1;
+    const { error: e2 } = await owner
+      .from("rental_units")
+      .insert({ org_id: orgId, offering_id: hoursOffering!.id, name: "Room A" });
+    if (e2) throw e2;
+
+    const { offerings } = await listTimelineData(FROM_DATE, TZ);
+    expect(offerings.some((o) => o.id === hoursOffering!.id)).toBe(false);
+  });
 });

@@ -8,6 +8,7 @@ import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext, type PublicUnit } from "@/lib/booking/public";
 import { getProviderEmail } from "@/lib/booking/provider";
 import { selectTransport } from "@/lib/email/transport";
+import { emailBadgeUrl } from "@/lib/billing/queries";
 import { env } from "@/env";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { addDaysISO, computeSlots, dateInZone } from "@/features/scheduling/slots";
@@ -224,6 +225,10 @@ export async function createRentalBookingHours(
         whenLine,
         manageUrl: buildBookingManageUrl(token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+        // "Powered by Booklo" unless the org's plan lets it opt out and it
+        // did (emailBadgeUrl swallows its own errors — same discipline as
+        // scheduling/public-actions.ts's own confirmation send).
+        badgeUrl: await emailBadgeUrl(ctx.org.orgId),
       });
       await selectTransport().send({
         to: email,
