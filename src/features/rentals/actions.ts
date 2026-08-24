@@ -38,21 +38,48 @@ async function currentOrgId(): Promise<string | null> {
 }
 
 // No org_id here (updates must never rewrite it — scheduling/actions.ts idiom).
+// The input is a rangeMode-discriminated union (0055): write null/the column
+// default for whichever branch's fields the mode doesn't carry, so switching
+// an offering's mode never leaves a stale value from the other branch behind.
 function toOfferingRow(d: import("zod").infer<typeof offeringInput>) {
-  return {
+  const common = {
     name: d.name,
     description: d.description ?? null,
     price_label: d.priceLabel ?? null,
     range_mode: d.rangeMode,
+    booking_window_days: d.bookingWindowDays,
+    unit_selection: d.unitSelection,
+    active: d.active,
+  };
+  if (d.rangeMode === "hours") {
+    return {
+      ...common,
+      start_time: null,
+      end_time: null,
+      min_stay: 1,
+      max_stay: null,
+      turnover_days: 0,
+      min_notice_days: 0,
+      slot_increment_min: d.slotIncrementMin,
+      min_duration_min: d.minDurationMin,
+      max_duration_min: d.maxDurationMin,
+      turnover_min: d.turnoverMin,
+      min_notice_min: d.minNoticeMin,
+    };
+  }
+  return {
+    ...common,
     start_time: d.startTime,
     end_time: d.endTime,
     min_stay: d.minStay,
     max_stay: d.maxStay,
     turnover_days: d.turnoverDays,
     min_notice_days: d.minNoticeDays,
-    booking_window_days: d.bookingWindowDays,
-    unit_selection: d.unitSelection,
-    active: d.active,
+    slot_increment_min: null,
+    min_duration_min: null,
+    max_duration_min: null,
+    turnover_min: 0,
+    min_notice_min: 0,
   };
 }
 

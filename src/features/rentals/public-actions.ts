@@ -23,6 +23,7 @@ import {
 } from "@/features/scheduling/templates";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
+  asEngineOffering,
   computeRangeAvailability,
   stayLength,
   validateStay,
@@ -69,7 +70,7 @@ export async function getRangeAvailability(
     const ctx = await loadRangeContext(handle, offeringId, fromDate, days);
     if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
     const availability = computeRangeAvailability({
-      offering: ctx.offering,
+      offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
       blackouts: ctx.blackouts,
       bookings: ctx.bookings,
@@ -111,7 +112,7 @@ export async function createRentalBooking(
     // before it ever consults the day map, and an unbounded endDate would
     // otherwise size the engine's loop.
     const span =
-      Math.min(stayLength(offering.rangeMode, startDate, endDate), offering.bookingWindowDays) +
+      Math.min(stayLength(asEngineOffering(offering).rangeMode, startDate, endDate), offering.bookingWindowDays) +
       offering.turnoverDays +
       2;
     const ctx = await loadOrgRangeContext(org.orgId, offeringId, startDate, span);
@@ -129,7 +130,7 @@ export async function createRentalBooking(
     // Re-run the engine over the requested stay; the RPC re-checks the same
     // rules under an advisory lock, this is the friendly-error pass.
     const availability = computeRangeAvailability({
-      offering: ctx.offering,
+      offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
       blackouts: ctx.blackouts,
       bookings: ctx.bookings,
@@ -138,7 +139,7 @@ export async function createRentalBooking(
       fromDate: startDate,
       days: span,
     });
-    const stay = validateStay(ctx.offering, availability, startDate, endDate);
+    const stay = validateStay(asEngineOffering(ctx.offering), availability, startDate, endDate);
     if (!stay.ok) {
       // order/min_stay/max_stay/window can only appear if the UI let a bad
       // range through — nothing the client can fix by picking again.

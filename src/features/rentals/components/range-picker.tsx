@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PublicOffering } from "@/lib/booking/public";
-import { stayLength, validateStay, type RangeAvailability } from "@/features/rentals/range";
+import { asEngineOffering, stayLength, validateStay, type RangeAvailability } from "@/features/rentals/range";
 import { addMonths, monthGrid } from "@/features/rentals/calendar-grid";
 
 export type RangeValue = { start: string | null; end: string | null };
@@ -37,7 +37,7 @@ export function staySummary(
   end: string,
   timeZone: string,
 ): string {
-  const n = stayLength(offering.rangeMode, start, end);
+  const n = stayLength(asEngineOffering(offering).rangeMode, start, end);
   const unit = offering.rangeMode === "nights" ? "night" : "day";
   const [inLabel, outLabel] =
     offering.rangeMode === "nights" ? ["check-in", "check-out"] : ["pickup", "return"];
@@ -87,7 +87,7 @@ export function RangePicker({
     // engine says about the whole span (min/max stay, turnover, unit overlap).
     if (date === start) return false;
     if (date < start!) return true;
-    return !validateStay(offering, availability, start!, date).ok;
+    return !validateStay(asEngineOffering(offering), availability, start!, date).ok;
   }
 
   function inRange(date: string): boolean {
@@ -103,7 +103,7 @@ export function RangePicker({
     if (date === start) {
       // A same-date stay is legal in "days" mode (pickup and return on one
       // day); in "nights" mode it never is, so the click means "start over".
-      const same = availability && validateStay(offering, availability, date, date).ok;
+      const same = availability && validateStay(asEngineOffering(offering), availability, date, date).ok;
       onChange(same ? { start: date, end: date } : { start: null, end: null });
       return;
     }

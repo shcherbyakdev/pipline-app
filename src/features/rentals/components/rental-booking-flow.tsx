@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
-import { validateStay, type RangeAvailability } from "@/features/rentals/range";
+import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
 import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
 import { getRangeAvailability, createRentalBooking } from "@/features/rentals/public-actions";
 import { RangePicker, staySummary, type RangeValue } from "./range-picker";
@@ -83,7 +83,7 @@ export function RentalBookingFlow({
 
   const stay =
     availability && range.start && range.end
-      ? validateStay(offering, availability, range.start, range.end)
+      ? validateStay(asEngineOffering(offering), availability, range.start, range.end)
       : null;
   const eligibleUnits =
     stay && stay.ok ? units.filter((u) => stay.unitIds.includes(u.id)) : [];

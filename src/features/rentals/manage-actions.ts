@@ -25,6 +25,7 @@ import {
 } from "@/features/scheduling/templates";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
+  asEngineOffering,
   computeRangeAvailability,
   stayLength,
   validateStay,
@@ -111,7 +112,7 @@ export async function getManageRangeAvailability(input: unknown): Promise<
     });
     if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
     const availability = computeRangeAvailability({
-      offering: ctx.offering,
+      offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
       blackouts: ctx.blackouts,
       bookings: ctx.bookings,
@@ -159,7 +160,7 @@ export async function rescheduleRentalBooking(
     // "window" before reading the day map, so an absurd endDate must not
     // size the engine's loop).
     const span =
-      Math.min(stayLength(offering.rangeMode, startDate, endDate), offering.bookingWindowDays) +
+      Math.min(stayLength(asEngineOffering(offering).rangeMode, startDate, endDate), offering.bookingWindowDays) +
       offering.turnoverDays +
       2;
     const ctx = await loadOrgRangeContext(booking.orgId, offeringId, startDate, span, {
@@ -184,7 +185,7 @@ export async function rescheduleRentalBooking(
     // Engine re-check (createRentalBooking idiom): the friendly-error pass
     // ahead of the RPC, which re-checks the same rules under its lock.
     const availability = computeRangeAvailability({
-      offering: ctx.offering,
+      offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
       blackouts: ctx.blackouts,
       bookings: ctx.bookings,
@@ -194,7 +195,7 @@ export async function rescheduleRentalBooking(
       days: span,
       excludeBookingId: booking.id,
     });
-    const stay = validateStay(ctx.offering, availability, startDate, endDate);
+    const stay = validateStay(asEngineOffering(ctx.offering), availability, startDate, endDate);
     if (!stay.ok) {
       // order/min_stay/max_stay/window mean the panel let a bad range
       // through — picking again won't help.

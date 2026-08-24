@@ -2,8 +2,27 @@
 // (`now` injected; slots.ts convention). Dates are org-local "YYYY-MM-DD".
 import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
 
-export type RangeMode = "nights" | "days";
-export type RangeOffering = { rangeMode: RangeMode; minStay: number; maxStay: number | null; turnoverDays: number; minNoticeDays: number; bookingWindowDays: number; startTime?: string /* "HH:MM" org-local; when today's org-local time ≥ startTime, notBefore rolls to tomorrow */ };
+// H2 adds "hours" alongside the date-range modes this engine understands.
+// The engine itself (below) stays nights/days-only — an hours offering is a
+// slot-grid booking (services.ts idiom), not a date range — so RangeOffering
+// and stayLength's mode param keep the narrower EngineMode.
+export type RangeMode = "nights" | "days" | "hours";
+export type EngineMode = "nights" | "days";
+export function isHourly(o: { rangeMode: RangeMode }): boolean {
+  return o.rangeMode === "hours";
+}
+// Narrows a wider offering (rangeMode: RangeMode — e.g. PublicOffering,
+// queries.ts's OfferingRow) down to what the engine accepts. Type-level
+// only: every current call site is a date-range flow that never resolves an
+// hours offering, so this never actually crosses "hours" at runtime — Task 4
+// routes hours bookings through a different (slot-based) path before ever
+// reaching here, and should call isHourly() to branch away first.
+export function asEngineOffering<T extends { rangeMode: RangeMode }>(
+  offering: T,
+): T & { rangeMode: EngineMode } {
+  return offering as T & { rangeMode: EngineMode };
+}
+export type RangeOffering = { rangeMode: EngineMode; minStay: number; maxStay: number | null; turnoverDays: number; minNoticeDays: number; bookingWindowDays: number; startTime?: string /* "HH:MM" org-local; when today's org-local time ≥ startTime, notBefore rolls to tomorrow */ };
 export type RangeUnit = { id: string; sortOrder: number };
 export type RangeBlackout = { unitId: string; startDate: string; endDate: string };
 export type RangeBooking = { id?: string; unitId: string; startsAt: Date; endsAt: Date };
@@ -19,10 +38,10 @@ const utc = (d: string) => { const [y, m, dd] = d.split("-").map(Number); return
 export function daysBetween(a: string, b: string): number {
   return Math.round((utc(b) - utc(a)) / DAY);
 }
-export function stayLength(mode: RangeMode, start: string, end: string): number {
+export function stayLength(mode: EngineMode, start: string, end: string): number {
   return mode === "nights" ? daysBetween(start, end) : daysBetween(start, end) + 1;
 }
-export function occupiedDates(mode: RangeMode, start: string, end: string) {
+export function occupiedDates(mode: EngineMode, start: string, end: string) {
   return { start, end: mode === "nights" ? addDaysISO(end, -1) : end };
 }
 function* eachDate(start: string, end: string): Generator<string> {

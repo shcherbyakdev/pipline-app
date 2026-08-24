@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
-import { validateStay, type RangeAvailability } from "@/features/rentals/range";
+import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
 import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
 import { dateInZone } from "@/features/scheduling/slots";
 import { whenLineFor } from "@/features/scheduling/templates";
@@ -104,7 +104,7 @@ export function MoveRentalDialog({
 
   const stay =
     offering && availability && range.start && range.end
-      ? validateStay(offering, availability, range.start, range.end)
+      ? validateStay(asEngineOffering(offering), availability, range.start, range.end)
       : null;
   const freeUnitIds = stay && stay.ok ? stay.unitIds : null;
   const keepUnitName = units.find((u) => u.id === booking.rentalUnitId)?.name ?? null;

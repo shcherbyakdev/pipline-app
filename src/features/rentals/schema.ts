@@ -4,27 +4,55 @@ import { daysBetween } from "./range";
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-export const RANGE_MODES = ["nights", "days"] as const;
+export const RANGE_MODES = ["nights", "days", "hours"] as const;
 export const UNIT_SELECTIONS = ["auto", "client_picks"] as const;
 
-const offeringBase = z.object({
+const offeringCommon = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),
   priceLabel: z.string().trim().max(100).optional(),
-  rangeMode: z.enum(RANGE_MODES),
+  bookingWindowDays: z.number().int().min(1).max(730).default(180),
+  unitSelection: z.enum(UNIT_SELECTIONS).default("auto"),
+  active: z.boolean().default(true),
+});
+const rangeFields = z.object({
+  rangeMode: z.enum(["nights", "days"]),
   startTime: z.string().regex(TIME_RE),
   endTime: z.string().regex(TIME_RE),
   minStay: z.number().int().min(1).max(365).default(1),
   maxStay: z.number().int().min(1).max(365).nullable().default(null),
   turnoverDays: z.number().int().min(0).max(30).default(0),
   minNoticeDays: z.number().int().min(0).max(365).default(0),
-  bookingWindowDays: z.number().int().min(1).max(730).default(180),
-  unitSelection: z.enum(UNIT_SELECTIONS).default("auto"),
-  active: z.boolean().default(true),
 });
-const stayOrder = (o: { minStay: number; maxStay: number | null }) => o.maxStay === null || o.maxStay >= o.minStay;
-export const offeringInput = offeringBase.refine(stayOrder, { message: "max stay must be ≥ min stay" });
-export const updateOfferingInput = offeringBase.extend({ id: z.uuid() }).refine(stayOrder, { message: "max stay must be ≥ min stay" });
+const hoursFields = z.object({
+  rangeMode: z.literal("hours"),
+  slotIncrementMin: z.number().int().min(5).max(240),
+  minDurationMin: z.number().int().min(5).max(1440),
+  maxDurationMin: z.number().int().min(5).max(1440),
+  turnoverMin: z.number().int().min(0).max(1440).default(0),
+  minNoticeMin: z.number().int().min(0).max(43200).default(0),
+});
+const stayOrder = (o: { minStay: number; maxStay: number | null }) =>
+  o.maxStay === null || o.maxStay >= o.minStay;
+export const HOURS_GRID_MSG = "durations must be multiples of the increment, max ≥ min";
+const hoursGrid = (o: z.infer<typeof hoursFields>) =>
+  o.maxDurationMin >= o.minDurationMin &&
+  o.minDurationMin % o.slotIncrementMin === 0 &&
+  o.maxDurationMin % o.slotIncrementMin === 0;
+
+// `strict()` on each branch so hours fields on a nights offering (and vice
+// versa) are rejected rather than silently dropped.
+const rangeOffering = offeringCommon.extend(rangeFields.shape).strict()
+  .refine(stayOrder, { message: "max stay must be ≥ min stay" });
+const hoursOffering = offeringCommon.extend(hoursFields.shape).strict()
+  .refine(hoursGrid, { message: HOURS_GRID_MSG });
+export const offeringInput = z.union([rangeOffering, hoursOffering]);
+export const updateOfferingInput = z.union([
+  offeringCommon.extend(rangeFields.shape).extend({ id: z.uuid() }).strict()
+    .refine(stayOrder, { message: "max stay must be ≥ min stay" }),
+  offeringCommon.extend(hoursFields.shape).extend({ id: z.uuid() }).strict()
+    .refine(hoursGrid, { message: HOURS_GRID_MSG }),
+]);
 export const offeringIdInput = z.object({ id: z.uuid() });
 
 export const unitInput = z.object({

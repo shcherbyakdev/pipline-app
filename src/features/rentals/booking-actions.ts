@@ -24,6 +24,7 @@ import {
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
   ADMIN_WINDOW_DAYS,
+  asEngineOffering,
   computeRangeAvailability,
   stayLength,
   validateStay,
@@ -105,7 +106,7 @@ export async function getAdminRangeAvailability(input: unknown): Promise<
         : { ok: false, error: GENERIC_WRITE_ERROR };
     }
     const availability = computeRangeAvailability({
-      offering: ctx.offering,
+      offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
       blackouts: ctx.blackouts,
       bookings: ctx.bookings,
@@ -186,7 +187,7 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
     }
 
     const availability = computeRangeAvailability({
-      offering: ctx.offering,
+      offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
       blackouts: ctx.blackouts,
       bookings: ctx.bookings,
@@ -197,7 +198,7 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
       ignoreLimits: true,
       excludeBookingId: row.id,
     });
-    const stay = validateStay(ctx.offering, availability, startDate, endDate);
+    const stay = validateStay(asEngineOffering(ctx.offering), availability, startDate, endDate);
     if (!stay.ok) {
       // order/min_stay/max_stay/window mean the dialog let a bad range
       // through — picking again won't help.
@@ -320,7 +321,7 @@ export async function createRentalBookingAdmin(
     }
 
     const availability = computeRangeAvailability({
-      offering: ctx.offering,
+      offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
       blackouts: ctx.blackouts,
       bookings: ctx.bookings,
@@ -330,7 +331,7 @@ export async function createRentalBookingAdmin(
       days: span,
       ignoreLimits: true,
     });
-    const stay = validateStay(ctx.offering, availability, startDate, endDate);
+    const stay = validateStay(asEngineOffering(ctx.offering), availability, startDate, endDate);
     if (!stay.ok) {
       return stay.reason === "unavailable"
         ? { ok: false, error: DATES_TAKEN, datesTaken: true }
