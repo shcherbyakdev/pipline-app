@@ -28,6 +28,13 @@ export type ResolveBookingResult =
         // lives in resolveClientStaffName, applied per surface.
         staffId: string | null;
         staffName: string | null;
+        // H3: pricing/deposit/cancel-window info for the money lines and the
+        // cancel-window gate on the manage page. Null across the board for
+        // an offering with no price set.
+        priceCents: number | null;
+        currency: string | null;
+        depositCents: number | null;
+        cancelWindowMin: number | null;
       };
     };
 
@@ -66,6 +73,10 @@ export async function resolveBookingToken(
     range_mode: "nights" | "days" | "hours" | null;
     staff_id: string | null;
     staff_name: string | null;
+    price_cents: number | null;
+    currency: string | null;
+    deposit_cents: number | null;
+    cancel_window_min: number | null;
   }> | null)?.[0];
   if (!row) return { status: "not_found" };
   return {
@@ -84,6 +95,10 @@ export async function resolveBookingToken(
       rangeMode: row.range_mode,
       staffId: row.staff_id ?? null,
       staffName: row.staff_name ?? null,
+      priceCents: row.price_cents,
+      currency: row.currency,
+      depositCents: row.deposit_cents,
+      cancelWindowMin: row.cancel_window_min,
     },
   };
 }

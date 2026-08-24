@@ -29,6 +29,7 @@ import {
   GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
+import { CANCEL_WINDOW_PASSED } from "@/features/rentals/schema";
 
 const SLOT_TAKEN = "That time was just taken — please pick another.";
 const NOT_CHANGEABLE = "This booking can no longer be changed online.";
@@ -109,6 +110,9 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     const admin = createAdminClient();
     const { data, error } = await admin.rpc("cancel_booking", { p_token: parsed.data.token });
     if (error) {
+      if (isRpcSentinel(error, "cancel_window")) {
+        return { ok: false, error: CANCEL_WINDOW_PASSED };
+      }
       console.error("[scheduling] cancelBooking:", error.code || "rpc error");
       return { ok: false, error: GENERIC_WRITE_ERROR };
     }

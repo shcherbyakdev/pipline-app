@@ -5,6 +5,7 @@ import { resolveBookingToken } from "@/lib/tokens/booking";
 import { resolveClientStaffName } from "@/lib/booking/public";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { ManageBooking } from "@/features/scheduling/components/manage-booking";
+import { moneyInfoLines } from "@/features/rentals/pricing";
 
 const STATUS_LINE: Record<string, string> = {
   confirmed: "Confirmed",
@@ -28,8 +29,23 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
   // Team: name the staff member the booking belongs to. Solo orgs collapse to
   // null, so the card reads exactly as it did before the team slice.
   const staffName = await resolveClientStaffName(b.orgId, b.staffName);
+  // H3: money lines (total/deposit/cancel-window) for the booking card.
+  const infoLines = moneyInfoLines({
+    totalCents: b.priceCents,
+    depositCents: b.depositCents,
+    currency: b.currency,
+    cancelWindowMin: b.cancelWindowMin ?? 0,
+  });
   // eslint-disable-next-line react-hooks/purity
-  const isInFuture = b.startsAt.getTime() > Date.now();
+  const now = Date.now();
+  const isInFuture = b.startsAt.getTime() > now;
+  // H3: appointments (rentalUnitId null) and offerings with no cancel window
+  // are always cancellable — the gate only bites a rental past its
+  // free-cancellation deadline (the RPC's cancel_booking is the backstop).
+  const canCancel =
+    b.rentalUnitId === null ||
+    !b.cancelWindowMin ||
+    now <= b.startsAt.getTime() - b.cancelWindowMin * 60_000;
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-4 p-6">
       <h1 className="text-lg font-semibold">{b.orgName}</h1>
@@ -47,6 +63,11 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
             b.orgTimezone,
           )}
         </p>
+        {infoLines.map((l) => (
+          <p key={l} className="text-muted-foreground">
+            {l}
+          </p>
+        ))}
         <p className="text-muted-foreground">{STATUS_LINE[b.status] ?? b.status}</p>
       </div>
       {b.status === "confirmed" ? (
@@ -62,6 +83,7 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
               // (reschedule_rental_booking), an appointment through the slot
               // grid — both are self-serve.
               canReschedule={true}
+              canCancel={canCancel}
               kind={b.rentalUnitId === null ? "appointment" : "rental"}
               rangeMode={b.rangeMode}
             />

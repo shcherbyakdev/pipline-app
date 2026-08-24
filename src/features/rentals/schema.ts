@@ -278,3 +278,9 @@ export const rescheduleRentalHoursAdminInput = z.object({
 // A booking that has begun is immovable — STAY_STARTED's hourly twin
 // (0056's reschedule_rental_hours_apply raises the same 'started' sentinel).
 export const SESSION_STARTED = "This booking has already started.";
+
+// H3: cancel_booking raises this sentinel once the offering's free-cancel
+// window has elapsed — the manage page also gates the cancel button on the
+// same deadline client-side, but the RPC is the actual enforcement.
+export const CANCEL_WINDOW_PASSED =
+  "The free-cancellation window has passed — contact the venue to cancel.";

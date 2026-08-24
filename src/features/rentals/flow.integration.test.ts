@@ -233,6 +233,14 @@ describe("rental flow e2e (action layer)", () => {
     expect(fresh.booking.status).toBe("confirmed");
     expect(dateInZone(fresh.booking.startsAt, TZ)).toBe(moveTo);
     expect(dateInZone(fresh.booking.endsAt, TZ)).toBe(moveToEnd);
+    // H3: the resolver's four money/cancel-window columns are wired through —
+    // this fixture's offering has no price/deposit set (null) and the
+    // column's own default cancel window (0), so the manage page's gate
+    // reads canCancel === true for it.
+    expect(fresh.booking.priceCents).toBeNull();
+    expect(fresh.booking.currency).toBeNull();
+    expect(fresh.booking.depositCents).toBeNull();
+    expect(fresh.booking.cancelWindowMin).toBe(0);
 
     // …and the old one is dead: it still resolves (the manage page says so)
     // but only as a rescheduled row.
