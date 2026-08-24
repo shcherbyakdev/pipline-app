@@ -4,6 +4,7 @@ import {
   bookingConfirmationEmail,
   staffNewBookingEmail,
   formatRangeWhenLine,
+  formatHourlyWhenLine,
   whenLineFor,
   bookingLifecycleKey,
   bookingCancelledEmail,
@@ -182,6 +183,15 @@ describe("booking lifecycle templates", () => {
       "Europe/Berlin",
     );
     expect(s).toBe("Fri, 10 Sept 2027, 15:00 → Mon, 13 Sept 2027, 11:00 (CEST)");
+  });
+
+  it("formatHourlyWhenLine prints the date once with an en-dash time range", () => {
+    const s = formatHourlyWhenLine(
+      new Date("2026-09-07T08:00:00Z"),
+      new Date("2026-09-07T10:00:00Z"),
+      "Europe/Warsaw",
+    );
+    expect(s).toBe("Mon, 07 Sept 2026, 10:00–12:00 (CEST)");
   });
 
   it("whenLineFor dispatches on isRental", () => {

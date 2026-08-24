@@ -162,3 +162,27 @@ export const createRentalAdminInput = z.object({
   email: z.email().max(320).optional(),
   note: z.string().trim().max(2000).optional(),
 });
+
+// ---------- Hourly mode (H2), public. Duration-based occupancy instead of
+// date ranges — startsAt mirrors createBookingInput's z.iso.datetime() idiom
+// (scheduling/schema.ts) rather than a bare regex.
+
+export const getHourlySlotsInput = z.object({
+  handle: z.string().regex(HANDLE_RE),
+  offeringId: z.uuid(),
+  durationMin: z.number().int().min(5).max(1440),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(10),
+  unitId: z.uuid().nullable().default(null),
+});
+export const createRentalBookingHoursInput = z.object({
+  handle: z.string().regex(HANDLE_RE),
+  offeringId: z.uuid(),
+  unitId: z.uuid().nullable(),
+  startsAt: z.iso.datetime(),
+  durationMin: z.number().int().min(5).max(1440),
+  name: z.string().trim().min(1).max(200),
+  email: z.email().max(320),
+  note: z.string().trim().max(2000).optional(),
+});
+export const SLOT_TAKEN_HOURLY = "That time was just taken — please pick another.";
