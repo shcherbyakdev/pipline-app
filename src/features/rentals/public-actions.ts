@@ -29,6 +29,7 @@ import {
   validateStay,
   type RangeAvailability,
 } from "./range";
+import { moneyInfoLines, totalCents, depositCents, stayUnits } from "./pricing";
 import {
   getRangeAvailabilityInput,
   createRentalBookingInput,
@@ -195,12 +196,23 @@ export async function createRentalBooking(
       const starts = wallTimeToUtc(startDate, ctx.offering.startTime!, tz);
       const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
       const unitName = await getBookingUnitName(bookingId as string);
+      const total = totalCents(
+        ctx.offering,
+        stayUnits(ctx.offering.rangeMode as "nights" | "days", startDate, endDate),
+      );
+      const infoLines = moneyInfoLines({
+        totalCents: total,
+        depositCents: depositCents(ctx.offering, total),
+        currency: org.currency,
+        cancelWindowMin: ctx.offering.cancelWindowMin,
+      });
       const msg = bookingConfirmationEmail({
         orgName: org.orgName,
         serviceName: unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name,
         whenLine: formatRangeWhenLine(starts, ends, tz),
         manageUrl: buildBookingManageUrl(token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+        infoLines,
       });
       await selectTransport().send({
         to: email,

@@ -27,6 +27,7 @@ import {
   unionUnitSlots,
   type HourlyOffering,
 } from "./hourly";
+import { moneyInfoLines, totalCents, depositCents } from "./pricing";
 import {
   getHourlySlotsInput,
   createRentalBookingHoursInput,
@@ -223,6 +224,15 @@ export async function createRentalBookingHours(
       console.error("[rentals] getProviderEmail:", e);
       return null;
     });
+    // H3: total / deposit / pay-at-venue / cancellation-policy lines, shared
+    // by the client confirmation and the provider's copy below.
+    const total = totalCents(ctx.offering, durationMin / 60);
+    const infoLines = moneyInfoLines({
+      totalCents: total,
+      depositCents: depositCents(ctx.offering, total),
+      currency: ctx.org.currency,
+      cancelWindowMin: ctx.offering.cancelWindowMin,
+    });
 
     // Best-effort confirmation (the booking survives email failure).
     try {
@@ -236,6 +246,7 @@ export async function createRentalBookingHours(
         // did (emailBadgeUrl swallows its own errors — same discipline as
         // scheduling/public-actions.ts's own confirmation send).
         badgeUrl: await emailBadgeUrl(ctx.org.orgId),
+        infoLines,
       });
       await selectTransport().send({
         to: email,
@@ -260,6 +271,7 @@ export async function createRentalBookingHours(
           clientEmail: email,
           whenLine,
           note: note ?? null,
+          infoLines,
         });
         await selectTransport().send({
           to: providerEmail,

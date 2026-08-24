@@ -13,6 +13,7 @@ import {
   bookingManageLinkEmail,
   providerCancelledEmail,
   providerRescheduledEmail,
+  providerNewBookingEmail,
 } from "./templates";
 
 describe("booking lifecycle templates", () => {
@@ -300,5 +301,57 @@ describe("email badge", () => {
         whenLine: "Mon",
       }).html,
     ).not.toContain("Powered by Booklo");
+  });
+});
+
+// H3: money + policy lines on confirmations (Task 8). infoLines is an
+// optional pass-through — absent/empty must render byte-identical to the
+// pre-H3 templates (the omission tests below depend on that).
+describe("H3 money/policy infoLines", () => {
+  it("bookingConfirmationEmail renders infoLines in html and text", () => {
+    const msg = bookingConfirmationEmail({
+      orgName: "Org",
+      serviceName: "Studio · Room 1",
+      whenLine: "Mon",
+      manageUrl: "https://x/m",
+      icsUrl: "https://x/i",
+      infoLines: ["Total: 300 zł", "Payment: pay at the venue"],
+    });
+    expect(msg.html).toContain("Total: 300 zł");
+    expect(msg.text).toContain("Payment: pay at the venue");
+  });
+
+  it("omits the block when infoLines is absent", () => {
+    const msg = bookingConfirmationEmail({
+      orgName: "Org",
+      serviceName: "S",
+      whenLine: "Mon",
+      manageUrl: "https://x/m",
+      icsUrl: "https://x/i",
+    });
+    expect(msg.html).not.toContain("Total:");
+  });
+
+  it("providerNewBookingEmail renders infoLines in html and text", () => {
+    const msg = providerNewBookingEmail({
+      serviceName: "Studio · Room 1",
+      clientName: "A",
+      clientEmail: "a@example.com",
+      whenLine: "Mon",
+      infoLines: ["Total: 300 zł", "Payment: pay at the venue"],
+    });
+    expect(msg.html).toContain("Total: 300 zł");
+    expect(msg.text).toContain("Payment: pay at the venue");
+  });
+
+  it("providerNewBookingEmail omits the block when infoLines is absent", () => {
+    const msg = providerNewBookingEmail({
+      serviceName: "S",
+      clientName: "A",
+      clientEmail: "a@example.com",
+      whenLine: "Mon",
+    });
+    expect(msg.html).not.toContain("Total:");
+    expect(msg.text).not.toContain("Total:");
   });
 });

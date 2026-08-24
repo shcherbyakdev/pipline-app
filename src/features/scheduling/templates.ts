@@ -117,6 +117,9 @@ export function bookingConfirmationEmail(input: {
   icsUrl: string;
   staffName?: string | null;
   badgeUrl?: string | null;
+  // H3: total / deposit / pay-at-venue / cancellation-policy lines. Absent
+  // or empty renders byte-identical to the pre-H3 template.
+  infoLines?: string[];
 }): { subject: string; html: string; text: string } {
   const subject = `Booking confirmed — ${input.serviceName}, ${input.whenLine}`;
   const html = `
@@ -124,7 +127,7 @@ export function bookingConfirmationEmail(input: {
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
   <p style="margin: 0 0 8px;">Your booking is confirmed.</p>
   <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
-  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${(input.infoLines ?? []).map((l) => `\n  <p style="margin: 0 0 4px; color: #444;">${esc(l)}</p>`).join("")}
   <p style="margin: 0 0 8px;">
     <a href="${esc(input.icsUrl)}">Add to calendar (.ics)</a>
   </p>
@@ -142,6 +145,7 @@ export function bookingConfirmationEmail(input: {
     input.serviceName,
     ...staffTextLine(input.staffName),
     input.whenLine,
+    ...(input.infoLines ?? []),
     "",
     `Add to calendar: ${input.icsUrl}`,
     `View or manage: ${input.manageUrl}`,
@@ -376,6 +380,10 @@ export function providerNewBookingEmail(input: {
   whenLine: string;
   staffName?: string | null;
   note?: string | null;
+  // H3: same total / deposit / pay-at-venue / cancellation-policy lines as
+  // the client confirmation. Absent or empty renders byte-identical to the
+  // pre-H3 template.
+  infoLines?: string[];
 }): { subject: string; html: string; text: string } {
   const subject = `New booking — ${input.serviceName}, ${input.whenLine}`;
   const noteHtml = input.note
@@ -385,7 +393,7 @@ export function providerNewBookingEmail(input: {
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <p style="margin: 0 0 8px;"><strong>${esc(input.clientName)}</strong> booked with you.</p>
   <p style="margin: 0 0 4px;">${esc(input.serviceName)}</p>${staffHtmlLine(input.staffName)}
-  <p style="margin: 0 0 4px;">${esc(input.whenLine)}</p>
+  <p style="margin: 0 0 4px;">${esc(input.whenLine)}</p>${(input.infoLines ?? []).map((l) => `\n  <p style="margin: 0 0 4px; color: #444;">${esc(l)}</p>`).join("")}
   <p style="margin: 0 0 16px; color: #666;">${esc(input.clientEmail)}</p>${noteHtml}
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">It's on your calendar; the client got their confirmation.</p>
 </div>`.trim();
@@ -394,6 +402,7 @@ export function providerNewBookingEmail(input: {
     input.serviceName,
     ...staffTextLine(input.staffName),
     input.whenLine,
+    ...(input.infoLines ?? []),
     input.clientEmail,
     ...(input.note ? ["", input.note] : []),
     "",
