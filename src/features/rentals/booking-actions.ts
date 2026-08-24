@@ -51,9 +51,10 @@ function fail(context: string, error: unknown): { ok: false; error: string } {
 // booking-actions.ts (scheduling) idiom: the session's single org. Every
 // loader below is called with this id, which is what scopes the
 // admin-client reads in @/lib/booking/public to the caller's own data.
-// Null while the org's `rentals` flag is off (lib/flags): rentals are
-// parked and no UI reaches these actions, so every caller's null branch
-// (the generic error) is the server-side defence (public-actions.ts idiom).
+// Null while the org's `rentals` flag is off (lib/flags): rentals are on by
+// default since H1, and the flag is a kill switch, so every caller's null
+// branch (the generic error) is the server-side defence while it's off
+// (public-actions.ts idiom).
 async function currentOrg(): Promise<{ id: string; name: string; timezone: string } | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("orgs").select("id, name, timezone").limit(1).maybeSingle();

@@ -28,12 +28,16 @@ export async function getOrgFlags(orgId: string, client: SupabaseClient): Promis
 /** Dashboard pages, layouts and server actions: the caller's own org through
     the RLS client. Per-request memoised, so the layout and the page reading
     the same org cost one query. DEGRADES TO DEFAULTS on failure, same as
-    getOrgFlagsAdmin below (ruling at final review 2026-08-18): the flag-off
-    default IS the pre-branch product, so degrading can only reproduce it —
-    the sidebar, /billing and the gates behave exactly as they did before this
-    slice. Throwing, by contrast, would 500 EVERY dashboard page during a
-    PostgREST schema-cache window, or on any deploy where 0044/0045 have not
-    been applied yet. */
+    getOrgFlagsAdmin below (ruling at final review 2026-08-18, reaffirmed at
+    the H1 review 2026-08-24 once FLAG_DEFAULTS.rentals flipped true):
+    degrading reproduces the DEFAULT product, which since H1 un-parked
+    rentals includes them — so a per-org `rentals` kill switch can be
+    briefly bypassed during a flags-read outage. Accepted trade-off: failing
+    closed instead would hide rentals for EVERY org for the same window,
+    which is worse than the rare org whose kill switch is momentarily
+    ignored. Throwing, the alternative, would 500 EVERY dashboard page during
+    a PostgREST schema-cache window, or on any deploy where 0044/0045 have
+    not been applied yet. */
 export const getDashboardFlags = cache(async (orgId: string): Promise<Flags> => {
   try {
     return await getOrgFlags(orgId, await createClient());

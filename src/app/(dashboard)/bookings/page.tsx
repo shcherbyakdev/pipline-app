@@ -11,7 +11,7 @@ import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listTimelineData } from "@/features/rentals/queries";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
-import { defaultBookingsView, modeOf } from "@/features/orgs/mode";
+import { defaultBookingsView, effectiveMode, modeOf } from "@/features/orgs/mode";
 import { TIMELINE_DAYS, timelineDefaultStart } from "@/features/rentals/timeline-geometry";
 import { BookingsList } from "@/features/scheduling/components/bookings-list";
 import { CalendarWeek } from "@/features/scheduling/components/calendar-week";
@@ -61,19 +61,23 @@ export default async function BookingsPage({
   const timeZone = settings?.timezone ?? "UTC";
   const today = dateInZone(new Date(), timeZone);
   const { org } = await requireOrg();
-  const { rentals: rentalsOn } = await getDashboardFlags(org.id);
+  const flags = await getDashboardFlags(org.id);
   const mode = modeOf(org);
-  const rentals = rentalsOn && mode.offersRentals;
-  const view = params.view ?? (rentals ? defaultBookingsView(mode) : "week");
+  const eff = effectiveMode(flags, mode);
+  const rentals = eff.offersRentals;
+  const view = params.view ?? (rentals ? defaultBookingsView(eff) : "week");
   const welcome =
-    params.welcome === "1" ? <WelcomeBanner handle={settings?.handle ?? null} appUrl={env.NEXT_PUBLIC_APP_URL} /> : null;
+    params.welcome === "1" ? (
+      <WelcomeBanner handle={settings?.handle ?? null} appUrl={env.NEXT_PUBLIC_APP_URL} mode={eff} />
+    ) : null;
 
-  // Rentals parked unless the org's flag is on (lib/flags) AND its mode
-  // sells them: the timeline view falls back to the week calendar and its
-  // link never renders.
+  // Rentals are on by default since H1; the org's `rentals` flag is a kill
+  // switch and the org-mode gate (offersRentals) decides what the org
+  // sells: the timeline view falls back to the week calendar and its link
+  // never renders unless both say yes.
   if (rentals && view === "timeline") {
-    // Rentals are parked for most orgs: the timeline (a client component)
-    // is only pulled in when this branch actually renders it.
+    // The timeline (a client component) is only pulled in when this branch
+    // actually renders it.
     const { Timeline } = await import("@/features/rentals/components/timeline");
     const fromDate = validDate(params.from, timelineDefaultStart(today));
     const { offerings, blackouts, bookings } = await listTimelineData(
@@ -141,7 +145,7 @@ export default async function BookingsPage({
             Calendar view
           </Link>
         </div>
-        <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} staff={activeStaff} mode={mode} />
+        <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} staff={activeStaff} mode={eff} />
       </div>
     );
   }

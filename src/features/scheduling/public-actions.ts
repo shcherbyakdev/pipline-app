@@ -68,6 +68,9 @@ async function loadSlotContext(
 ) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
+  // The org-mode gate (offers_appointments) decides what the org sells: a
+  // channel it doesn't offer must not disclose availability either.
+  if (!org.offersAppointments) return null;
   // The plan's public roster decides who the public may reach — a person the
   // org can no longer offer publicly must not surface slots or take bookings.
   const offering = await loadPublicOffering(org.orgId);

@@ -174,7 +174,9 @@ export function BookingsList({
             )}
             {mode.offersRentals && (
               <>
-                <Link href="/rentals" className="underline">add a rental offering and its units</Link>{" "}
+                <Link href="/rentals" className="underline">
+                  {mode.offersAppointments ? "add" : "Add"} a rental offering and its units
+                </Link>{" "}
               </>
             )}
             to start taking bookings, then share your booking page.

@@ -25,3 +25,11 @@ export function defaultBookingsView(mode: OrgMode): "week" | "timeline" {
 export function modeOf(org: { offersAppointments: boolean; offersRentals: boolean }): OrgMode {
   return { offersAppointments: org.offersAppointments, offersRentals: org.offersRentals };
 }
+
+/** The mode a surface should actually render: the org's declared channels
+    intersected with the feature-flag kill switches (H1: only rentals has
+    one). Compose with this everywhere instead of hand-writing
+    `flags.rentals && mode.offersRentals`. */
+export function effectiveMode(flags: { rentals: boolean }, mode: OrgMode): OrgMode {
+  return { ...mode, offersRentals: flags.rentals && mode.offersRentals };
+}

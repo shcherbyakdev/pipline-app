@@ -213,6 +213,11 @@ export const WELCOME = {
   owned: (url: string) => `${url} is yours.`,
   sub: "Add a service and set your hours to go live.",
   addService: "Add a service",
+  // Rentals-only orgs (no `offersAppointments`): the calendar-oriented CTA
+  // above dead-ends them at a channel they don't sell, so they get their own
+  // primary action and subtitle instead.
+  subRentals: "Add an offering and its units to go live.",
+  addOffering: "Add a rental offering",
   copyLink: "Copy link",
   copied: "Copied",
   noHandle: "Your workspace is ready.",

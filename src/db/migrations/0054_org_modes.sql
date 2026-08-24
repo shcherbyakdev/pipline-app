@@ -10,6 +10,7 @@
 --     off (no channel-existence oracle). Admin RPCs are NOT gated — an owner
 --     may still hand-book a hidden channel from the timeline / calendar.
 
+-- One-shot backfill: do NOT re-apply this file once orgs may have changed modes in Settings — it would overwrite their choice from data.
 update public.orgs o set
   offers_rentals = exists (select 1 from public.rental_offerings r where r.org_id = o.id),
   offers_appointments =
