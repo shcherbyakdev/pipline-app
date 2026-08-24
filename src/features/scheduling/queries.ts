@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { type StatsBookingRow } from "./stats";
 import { bookingTitle } from "./booking-label";
+import type { RangeMode } from "@/features/rentals/range";
 
 export type ServiceRow = {
   id: string;
@@ -161,6 +162,11 @@ export type AdminBooking = {
   serviceId: string | null;
   rentalOfferingId: string | null;
   rentalUnitId: string | null;
+  // H2 (Task 10): the offering's range mode, so a caller (the move dialog)
+  // can pick a range-engine or hourly-engine picker without a second fetch.
+  // Null for an appointment; also null if the offering row is somehow gone
+  // (never happens in practice — a booking's offering is never hard-deleted).
+  rangeMode: RangeMode | null;
   serviceName: string;
   clientName: string;
   clientEmail: string | null;
@@ -178,7 +184,7 @@ export type AdminBooking = {
 };
 
 export const BOOKING_COLUMNS =
-  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, services(name), rental_offerings(name), rental_units(name), staff(name, color)";
+  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
 
 export type BookingRow = {
   id: string;
@@ -195,7 +201,7 @@ export type BookingRow = {
   staff_id: string | null;
   staff: { name: string; color: string } | null;
   services: { name: string } | null;
-  rental_offerings: { name: string } | null;
+  rental_offerings: { name: string; range_mode: RangeMode } | null;
   rental_units: { name: string } | null;
 };
 
@@ -205,6 +211,7 @@ export function toAdminBooking(b: BookingRow): AdminBooking {
     serviceId: b.service_id,
     rentalOfferingId: b.rental_offering_id,
     rentalUnitId: b.rental_unit_id,
+    rangeMode: b.rental_offerings?.range_mode ?? null,
     serviceName: bookingTitle(b),
     clientName: b.client_name,
     clientEmail: b.client_email,

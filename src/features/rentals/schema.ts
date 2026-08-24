@@ -200,3 +200,38 @@ export const createRentalBookingHoursInput = z.object({
   note: z.string().trim().max(2000).optional(),
 });
 export const SLOT_TAKEN_HOURLY = "That time was just taken — please pick another.";
+
+// ---------- Hourly mode (H2), admin (Task 10). Same shapes as the admin
+// range trio (adminRangeAvailabilityInput / createRentalAdminInput /
+// rescheduleRentalAdminInput above) with a duration-based instant instead of
+// a date range — the org comes from the session, the client's email is
+// optional (walk-ins).
+
+export const adminHourlySlotsInput = z.object({
+  offeringId: z.uuid(),
+  durationMin: z.number().int().min(5).max(1440),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(10),
+  unitId: z.uuid().nullable().default(null),
+  // The booking being moved: its own occupancy is ignored so the slot it
+  // currently holds reads as free (adminRangeAvailabilityInput idiom).
+  excludeBookingId: z.uuid().nullable().default(null),
+});
+export const createRentalHoursAdminInput = z.object({
+  offeringId: z.uuid(),
+  unitId: z.uuid().nullable(),
+  startsAt: z.iso.datetime(),
+  durationMin: z.number().int().min(5).max(1440),
+  name: z.string().trim().min(1).max(200),
+  email: z.email().max(320).optional(),
+  note: z.string().trim().max(2000).optional(),
+});
+export const rescheduleRentalHoursAdminInput = z.object({
+  id: z.uuid(),
+  unitId: z.uuid().nullable(),
+  startsAt: z.iso.datetime(),
+});
+
+// A booking that has begun is immovable — STAY_STARTED's hourly twin
+// (0056's reschedule_rental_hours_apply raises the same 'started' sentinel).
+export const SESSION_STARTED = "This booking has already started.";

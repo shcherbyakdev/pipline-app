@@ -8,18 +8,20 @@ import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import {
   getBookingUnitName,
   loadOrgRangeContext,
+  loadOrgHourlyContext,
   type PublicOffering,
   type PublicUnit,
 } from "@/lib/booking/public";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
-import { wallTimeToUtc } from "@/features/scheduling/slots";
+import { wallTimeToUtc, dateInZone, computeSlots } from "@/features/scheduling/slots";
 import {
   bookingConfirmationEmail,
   bookingIdempotencyKey,
   bookingLifecycleKey,
   bookingRescheduledEmail,
   formatRangeWhenLine,
+  formatHourlyWhenLine,
 } from "@/features/scheduling/templates";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
@@ -31,14 +33,35 @@ import {
   type RangeAvailability,
 } from "./range";
 import {
+  durationOptions,
+  hourlySlotService,
+  isHourlyOffering,
+  unionUnitSlots,
+  type HourlyOffering,
+} from "./hourly";
+import {
   adminRangeAvailabilityInput,
   createRentalAdminInput,
   rescheduleRentalAdminInput,
+  adminHourlySlotsInput,
+  createRentalHoursAdminInput,
+  rescheduleRentalHoursAdminInput,
   CHECK_IN_PASSED,
   DATES_TAKEN,
   STAY_STARTED,
+  SESSION_STARTED,
+  SLOT_TAKEN_HOURLY,
   GENERIC_WRITE_ERROR,
 } from "./schema";
+
+// Admin posture (Task 10, the R2 ignoreLimits equivalent): the provider is
+// not bound by their own offering's notice/booking-window policy — occupancy
+// (busy) still applies via the fetched context, only these two engine knobs
+// are overridden. 366, not Infinity: bookingWindowDays feeds a plain date
+// arithmetic add (slots.ts), which an infinite value would blow up.
+function adminHourlyService(offering: HourlyOffering, durationMin: number) {
+  return { ...hourlySlotService(offering, durationMin), minNoticeMin: 0, bookingWindowDays: 366 };
+}
 
 // An offering that is no longer active comes back as the same uniform 'not
 // found' raise as everything else; say what actually went wrong.
@@ -392,5 +415,318 @@ export async function createRentalBookingAdmin(
     return { ok: true, emailed };
   } catch (error) {
     return fail("createRentalBookingAdmin", error);
+  }
+}
+
+// ---------- Hourly mode (H2), admin (Task 10). Duration-based occupancy
+// instead of a date range — same trio shape as the range actions above,
+// with the range engine swapped for the hourly slot engine and the admin
+// posture (minNotice/window ignored) applied via adminHourlyService.
+
+export async function getAdminHourlySlots(input: unknown): Promise<
+  | { ok: true; slots: { startsAt: string; unitIds: string[] }[]; units: PublicUnit[] }
+  | { ok: false; error: string }
+> {
+  const parsed = adminHourlySlotsInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const { offeringId, durationMin, fromDate, days, unitId, excludeBookingId } = parsed.data;
+  try {
+    const org = await currentOrg();
+    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const ctx = await loadOrgHourlyContext(org.id, offeringId, org.timezone, fromDate, days, {
+      unitId: unitId ?? undefined,
+      excludeBookingId: excludeBookingId ?? undefined,
+      includeInactiveUnits: true,
+    });
+    if (!ctx || !isHourlyOffering(ctx.offering)) {
+      return (await offeringIsInactive(org.id, offeringId))
+        ? { ok: false, error: OFFERING_INACTIVE }
+        : { ok: false, error: GENERIC_WRITE_ERROR };
+    }
+    if (!durationOptions(ctx.offering).includes(durationMin)) {
+      return { ok: false, error: GENERIC_WRITE_ERROR };
+    }
+    const service = adminHourlyService(ctx.offering, durationMin);
+    const now = new Date();
+    const slots = unionUnitSlots(
+      ctx.perUnit.map((u) => ({
+        unitId: u.unitId,
+        slots: computeSlots({
+          service,
+          rules: ctx.rules,
+          exceptions: ctx.exceptions,
+          busy: u.busy,
+          timeZone: org.timezone,
+          now,
+          fromDate,
+          days,
+        }),
+      })),
+    );
+    return {
+      ok: true,
+      slots: slots.map((s) => ({ startsAt: s.startsAt.toISOString(), unitIds: s.unitIds })),
+      units: ctx.units,
+    };
+  } catch (error) {
+    return fail("getAdminHourlySlots", error);
+  }
+}
+
+export async function createRentalBookingHoursAdmin(
+  input: unknown,
+): Promise<{ ok: true; emailed: boolean } | { ok: false; error: string; slotTaken?: boolean }> {
+  const parsed = createRentalHoursAdminInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const { offeringId, unitId, startsAt, durationMin, name, email, note } = parsed.data;
+  try {
+    const org = await currentOrg();
+    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const starts = new Date(startsAt);
+    const localDate = dateInZone(starts, org.timezone);
+    const ctx = await loadOrgHourlyContext(org.id, offeringId, org.timezone, localDate, 2, {
+      includeInactiveUnits: true,
+    });
+    if (!ctx || !isHourlyOffering(ctx.offering)) {
+      return (await offeringIsInactive(org.id, offeringId))
+        ? { ok: false, error: OFFERING_INACTIVE }
+        : { ok: false, error: GENERIC_WRITE_ERROR };
+    }
+    if (!durationOptions(ctx.offering).includes(durationMin)) {
+      return { ok: false, error: GENERIC_WRITE_ERROR };
+    }
+
+    // Engine re-check (createRentalBookingAdmin idiom): the friendly-error
+    // pass ahead of the RPC, which re-checks occupancy under its own lock.
+    // Exact epoch match — a stale slot (someone else took it, or it fell
+    // outside the offering's hours since the page loaded) simply won't be
+    // in this fresh union.
+    const service = adminHourlyService(ctx.offering, durationMin);
+    const slots = unionUnitSlots(
+      ctx.perUnit.map((u) => ({
+        unitId: u.unitId,
+        slots: computeSlots({
+          service,
+          rules: ctx.rules,
+          exceptions: ctx.exceptions,
+          busy: u.busy,
+          timeZone: org.timezone,
+          now: new Date(),
+          fromDate: localDate,
+          days: 2,
+        }),
+      })),
+    );
+    const match = slots.find((s) => s.startsAt.getTime() === starts.getTime());
+    if (!match || (unitId !== null && !match.unitIds.includes(unitId))) {
+      return { ok: false, error: SLOT_TAKEN_HOURLY, slotTaken: true };
+    }
+
+    const supabase = await createClient();
+    const { token, tokenHash } = generateAccessToken();
+    const { data: bookingId, error } = await supabase.rpc("create_rental_booking_hours_admin", {
+      p_offering_id: offeringId,
+      p_unit_id: unitId,
+      p_starts_at: starts.toISOString(),
+      p_duration_min: durationMin,
+      p_name: name,
+      p_email: email ?? null,
+      p_note: note ?? null,
+      p_token_hash: tokenHash,
+    });
+    if (error) {
+      if (isTaken(error)) return { ok: false, error: SLOT_TAKEN_HOURLY, slotTaken: true };
+      return fail("createRentalBookingHoursAdmin", error);
+    }
+
+    let emailed = false;
+    if (email) {
+      try {
+        const tz = org.timezone;
+        const ends = new Date(starts.getTime() + durationMin * 60_000);
+        const unitName = await getBookingUnitName(bookingId as string);
+        const msg = bookingConfirmationEmail({
+          orgName: org.name,
+          serviceName: unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name,
+          whenLine: formatHourlyWhenLine(starts, ends, tz),
+          manageUrl: buildBookingManageUrl(token),
+          icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+        });
+        await selectTransport().send({
+          to: email,
+          subject: msg.subject,
+          html: msg.html,
+          text: msg.text,
+          idempotencyKey: bookingIdempotencyKey(bookingId as string),
+        });
+        emailed = true;
+      } catch (mailError) {
+        console.error("[rentals] admin hourly create email failed:", mailError);
+      }
+    }
+
+    revalidatePath("/bookings");
+    return { ok: true, emailed };
+  } catch (error) {
+    return fail("createRentalBookingHoursAdmin", error);
+  }
+}
+
+export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
+  | { ok: true; unitChanged: boolean; datesChanged: boolean; emailed: boolean }
+  | { ok: false; error: string; datesTaken?: boolean }
+> {
+  const parsed = rescheduleRentalHoursAdminInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const { id, unitId, startsAt } = parsed.data;
+  try {
+    const org = await currentOrg();
+    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const supabase = await createClient();
+    const { data: booking, error: readError } = await supabase
+      .from("bookings")
+      .select(
+        "id, rental_offering_id, rental_unit_id, starts_at, ends_at, client_email, rental_offerings(unit_selection)",
+      )
+      .eq("id", id)
+      .eq("org_id", org.id)
+      .eq("status", "confirmed")
+      .maybeSingle();
+    if (readError) return fail("rescheduleRentalHoursAdmin", readError);
+    const row = booking as unknown as {
+      id: string;
+      rental_offering_id: string | null;
+      rental_unit_id: string | null;
+      starts_at: string;
+      ends_at: string;
+      client_email: string | null;
+      rental_offerings: { unit_selection: "auto" | "client_picks" } | null;
+    } | null;
+    if (!row || row.rental_offering_id === null) {
+      return { ok: false, error: "Only a confirmed booking can be moved." };
+    }
+    // Same rule as the RPC's own 'started' raise, said before the round trip.
+    if (new Date(row.starts_at).getTime() <= Date.now()) {
+      return { ok: false, error: SESSION_STARTED };
+    }
+
+    // Same-duration ruling: the new booking's span is the OLD booking's
+    // span, computed here (server-side) and never taken from the client —
+    // the RPC copies it from the row the same way (0056's
+    // reschedule_rental_hours_apply).
+    const durationMin = Math.round(
+      (new Date(row.ends_at).getTime() - new Date(row.starts_at).getTime()) / 60_000,
+    );
+    const starts = new Date(startsAt);
+    const localDate = dateInZone(starts, org.timezone);
+    const ctx = await loadOrgHourlyContext(org.id, row.rental_offering_id, org.timezone, localDate, 2, {
+      includeInactiveUnits: true,
+      excludeBookingId: row.id,
+    });
+    if (!ctx || !isHourlyOffering(ctx.offering)) {
+      return (await offeringIsInactive(org.id, row.rental_offering_id))
+        ? { ok: false, error: OFFERING_INACTIVE }
+        : { ok: false, error: GENERIC_WRITE_ERROR };
+    }
+
+    const service = adminHourlyService(ctx.offering, durationMin);
+    const slots = unionUnitSlots(
+      ctx.perUnit.map((u) => ({
+        unitId: u.unitId,
+        slots: computeSlots({
+          service,
+          rules: ctx.rules,
+          exceptions: ctx.exceptions,
+          busy: u.busy,
+          timeZone: org.timezone,
+          now: new Date(),
+          fromDate: localDate,
+          days: 2,
+        }),
+      })),
+    );
+    const match = slots.find((s) => s.startsAt.getTime() === starts.getTime());
+    if (!match || (unitId !== null && !match.unitIds.includes(unitId))) {
+      return { ok: false, error: SLOT_TAKEN_HOURLY, datesTaken: true };
+    }
+
+    const fresh = generateAccessToken();
+    const { data, error } = await supabase.rpc("reschedule_rental_booking_hours_admin", {
+      p_booking_id: row.id,
+      p_unit_id: unitId,
+      p_starts_at: starts.toISOString(),
+      p_new_token_hash: fresh.tokenHash,
+    });
+    if (error) {
+      if (isStarted(error)) return { ok: false, error: SESSION_STARTED };
+      if (isTaken(error)) return { ok: false, error: SLOT_TAKEN_HOURLY, datesTaken: true };
+      return fail("rescheduleRentalHoursAdmin", error);
+    }
+    const moved = (data as Array<{
+      new_booking_id: string;
+      org_id: string;
+      org_name: string;
+      org_timezone: string;
+      service_name: string;
+      client_name: string;
+      client_email: string | null;
+      old_starts_at: string;
+      old_ends_at: string;
+      new_starts_at: string;
+      new_ends_at: string;
+      unit_changed: boolean;
+      dates_changed: boolean;
+    }> | null)?.[0];
+    if (!moved) return { ok: false, error: GENERIC_WRITE_ERROR };
+
+    // Same notification rules as rescheduleRentalBookingAdmin (R2 spec): the
+    // client hears about a time change; a unit swap only matters to a
+    // client who chose the unit themselves; an auto-assigned swap stays
+    // silent. No provider notice on this path — the provider IS the one who
+    // moved the booking.
+    const clientPicks = row.rental_offerings?.unit_selection === "client_picks";
+    const notifyClient =
+      moved.client_email !== null && (moved.dates_changed || (moved.unit_changed && clientPicks));
+    // The move already happened — never fail the action on a send.
+    let emailed = false;
+    const tz = moved.org_timezone;
+    const oldWhenLine = formatHourlyWhenLine(
+      new Date(moved.old_starts_at),
+      new Date(moved.old_ends_at),
+      tz,
+    );
+    const whenLine = formatHourlyWhenLine(new Date(moved.new_starts_at), new Date(moved.new_ends_at), tz);
+    if (notifyClient) {
+      try {
+        const msg = bookingRescheduledEmail({
+          orgName: moved.org_name,
+          serviceName: moved.service_name,
+          oldWhenLine,
+          whenLine,
+          manageUrl: buildBookingManageUrl(fresh.token),
+          icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+        });
+        await selectTransport().send({
+          to: moved.client_email!,
+          subject: msg.subject,
+          html: msg.html,
+          text: msg.text,
+          idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "rescheduled"),
+        });
+        emailed = true;
+      } catch (mailError) {
+        console.error("[rentals] admin hourly move client email failed:", mailError);
+      }
+    }
+
+    revalidatePath("/bookings");
+    return {
+      ok: true,
+      unitChanged: moved.unit_changed,
+      datesChanged: moved.dates_changed,
+      emailed,
+    };
+  } catch (error) {
+    return fail("rescheduleRentalHoursAdmin", error);
   }
 }

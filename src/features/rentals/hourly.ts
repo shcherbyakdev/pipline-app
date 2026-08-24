@@ -25,7 +25,13 @@ export function isHourlyOffering(o: PublicOffering): o is HourlyOffering {
   );
 }
 
-export function durationOptions(o: HourlyOffering): number[] {
+// Narrowed to just the grid fields (not the full HourlyOffering) so a
+// caller that only has an offering's admin listing row (dashboard select
+// options, before any engine context is loaded) can compute the grid
+// without first assembling a whole PublicOffering.
+export function durationOptions(
+  o: Pick<HourlyOffering, "minDurationMin" | "maxDurationMin" | "slotIncrementMin">,
+): number[] {
   const out: number[] = [];
   for (let d = o.minDurationMin; d <= o.maxDurationMin; d += o.slotIncrementMin) out.push(d);
   return out;

@@ -5,7 +5,7 @@
  * (0039) with duration-based occupancy instead of date ranges.
  * Requires the local Supabase stack (npm run setup).
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { generateAccessToken } from "@/lib/tokens/mint";
@@ -16,6 +16,28 @@ try {
 } catch {
   // CI exports env directly.
 }
+
+// ---- Task 10: the admin actions in booking-actions.ts (below, its own
+// describe block) run under `currentOrg()`, which reads the session through
+// `@/lib/supabase/server`'s cookie-based createClient — there is no Next
+// request context under vitest to carry a real session cookie. Swapped for
+// a directly authenticated supabase-js client instead (auth/actions.test.ts's
+// own mock-the-client-boundary idiom, but backed by the real local stack
+// rather than fully mocked): everything past that boundary — Zod
+// validation, the engine pre-check, the RPC call, the error mapping — runs
+// for real. `next/cache`'s revalidatePath is a plain no-op mock
+// (utils/actions.test.ts idiom): it throws outside a request scope.
+const actingClient = vi.hoisted(() => ({ current: null as unknown }));
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: async () => actingClient.current,
+}));
+vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
+
+// Dynamic imports so env is loaded (loadEnvFile above) before src/env.ts
+// (booking-actions.ts's own import) parses it (hourly-flow.integration.test.ts
+// idiom).
+const bookingActions = await import("./booking-actions");
+const { SESSION_STARTED } = await import("./schema");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -660,5 +682,215 @@ describe("hourly rental RPCs (0056 part B)", () => {
       p_enforce_limits: false,
     });
     expect(anonApply.error?.code).toBe("42501");
+  });
+});
+
+// Task 10: the three admin actions (booking-actions.ts) — Zod input,
+// currentOrg() guard, the engine pre-check with the admin posture override
+// (minNoticeMin: 0, bookingWindowDays: 366), the RPC call, and the error
+// mapping. The RPC's own admin behaviour (ignores notice/window, still
+// enforces occupancy; reschedule keeps duration + rotates the token; a
+// started booking raises 'started') is already covered above by the
+// "admin variant ignores min_notice/window" and "hours reschedule..."/
+// "client reschedule..." tests — this block only adds what's new: that the
+// ACTION layer's own SlotService override actually reaches the engine
+// pre-check (not just the RPC), and the create/move/error-mapping contract
+// each action promises.
+describe("hourly admin actions (Task 10, action layer)", () => {
+  let owner: SupabaseClient;
+  let orgId: string;
+  let offeringId: string;
+  let unitAId: string;
+  let unitBId: string;
+
+  beforeAll(async () => {
+    owner = await signedInUser("hourly_admin_actions_owner");
+    const { data: org, error: e1 } = await owner.rpc("create_org", {
+      p_name: "HourlyAdminActionsCo",
+    });
+    if (e1) throw e1;
+    orgId = (org as { id: string }).id;
+    const { error: e2 } = await owner.rpc("update_org_scheduling", {
+      p_org_id: orgId,
+      p_handle: `h2-admin-actions-${Date.now()}`,
+      p_timezone: TZ,
+    });
+    if (e2) throw e2;
+
+    // Deliberately restrictive notice/window: a plain (non-admin) call
+    // against this offering would reject every slot used below, so a test
+    // that only passes WITH the action's admin-posture override in place
+    // actually proves the override reaches the engine pre-check, not just
+    // the RPC (which the RPC-level suite above already covers on its own).
+    const { data: off, error: e3 } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: orgId,
+        name: "Studio",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+        turnover_min: 30,
+        min_notice_min: 43200, // 30 days (CHECK max)
+        booking_window_days: 1,
+      })
+      .select("id")
+      .single();
+    if (e3) throw e3;
+    offeringId = off!.id as string;
+    const { data: uA, error: e4 } = await owner
+      .from("rental_units")
+      .insert({ org_id: orgId, offering_id: offeringId, name: "Unit A", sort_order: 0 })
+      .select("id")
+      .single();
+    if (e4) throw e4;
+    unitAId = uA!.id as string;
+    const { data: uB, error: e5 } = await owner
+      .from("rental_units")
+      .insert({ org_id: orgId, offering_id: offeringId, name: "Unit B", sort_order: 1 })
+      .select("id")
+      .single();
+    if (e5) throw e5;
+    unitBId = uB!.id as string;
+    const rules = Array.from({ length: 7 }, (_, weekday) => ({
+      org_id: orgId,
+      rental_offering_id: offeringId,
+      weekday,
+      start_time: "09:00",
+      end_time: "21:00",
+    }));
+    const { error: e6 } = await owner.from("availability_rules").insert(rules);
+    if (e6) throw e6;
+
+    // The `createClient()` swap (top of file): this org's own owner acts
+    // as "the session" for every test below.
+    actingClient.current = owner;
+  });
+
+  it("getAdminHourlySlots offers a slot beyond the offering's own notice/window", async () => {
+    // d(2): inside the 30-day notice, well past the 1-day booking window —
+    // a plain caller would see neither.
+    const result = await bookingActions.getAdminHourlySlots({
+      offeringId,
+      durationMin: 60,
+      fromDate: d(2),
+      days: 1,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.slots.some((s) => s.startsAt === iso(`${d(2)}T10:00`))).toBe(true);
+  });
+
+  it("admin walk-in inside the notice window succeeds", async () => {
+    const startsAt = iso(`${d(1)}T10:00`);
+    const result = await bookingActions.createRentalBookingHoursAdmin({
+      offeringId,
+      unitId: unitAId,
+      startsAt,
+      durationMin: 60,
+      name: "Walk In",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // No address on file — the confirmation email never fires.
+    expect(result.emailed).toBe(false);
+
+    const { data: rows, error } = await admin
+      .from("bookings")
+      .select("rental_unit_id, starts_at, ends_at")
+      .eq("org_id", orgId)
+      .eq("client_name", "Walk In");
+    expect(error).toBeNull();
+    expect(rows).toHaveLength(1);
+    expect(rows![0].rental_unit_id).toBe(unitAId);
+    expect(new Date(rows![0].starts_at as string).getTime()).toBe(new Date(startsAt).getTime());
+    expect(
+      new Date(rows![0].ends_at as string).getTime() - new Date(rows![0].starts_at as string).getTime(),
+    ).toBe(60 * 60_000);
+  });
+
+  it("admin move keeps duration and prefers the booking's own unit when it's still free", async () => {
+    const created = await bookingActions.createRentalBookingHoursAdmin({
+      offeringId,
+      unitId: unitAId,
+      startsAt: iso(`${d(3)}T10:00`),
+      durationMin: 120,
+      name: "Mover",
+    });
+    expect(created.ok).toBe(true);
+
+    const { data: row, error: readError } = await admin
+      .from("bookings")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("client_name", "Mover")
+      .single();
+    expect(readError).toBeNull();
+    const bookingId = row!.id as string;
+
+    // d(3), still inside the fixture's own 30-day notice but past its
+    // 1-day window — proves the override on the MOVE path too.
+    const moveResult = await bookingActions.rescheduleRentalHoursAdmin({
+      id: bookingId,
+      unitId: null, // auto: keep the old unit if it's still free.
+      startsAt: iso(`${d(3)}T15:00`),
+    });
+    expect(moveResult.ok).toBe(true);
+    if (!moveResult.ok) return;
+    expect(moveResult.unitChanged).toBe(false);
+    expect(moveResult.datesChanged).toBe(true);
+
+    const { data: oldRow } = await admin
+      .from("bookings")
+      .select("status")
+      .eq("id", bookingId)
+      .single();
+    expect(oldRow!.status).toBe("rescheduled");
+
+    const { data: rows } = await admin
+      .from("bookings")
+      .select("status, rental_unit_id, starts_at, ends_at")
+      .eq("org_id", orgId)
+      .eq("client_name", "Mover")
+      .eq("status", "confirmed");
+    expect(rows).toHaveLength(1);
+    expect(rows![0].rental_unit_id).toBe(unitAId);
+    expect(
+      new Date(rows![0].ends_at as string).getTime() - new Date(rows![0].starts_at as string).getTime(),
+    ).toBe(120 * 60_000);
+  });
+
+  // The action re-reads the booking's own starts_at and refuses a move
+  // before ever calling the RPC (STAY_STARTED's own pre-check, mirrored) —
+  // the RPC's own 'started' raise (same condition, one column) is therefore
+  // unreachable from here in any realistic run; it stays covered by the
+  // RPC-level "a started booking is immovable" test above, which calls the
+  // RPC directly. This proves the observable, end-to-end contract: moving a
+  // started booking through the action returns SESSION_STARTED.
+  it("moving a started booking fails with SESSION_STARTED", async () => {
+    const startedToken = generateAccessToken();
+    const { data: ins, error: insErr } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        rental_offering_id: offeringId,
+        rental_unit_id: unitBId,
+        client_name: "Started Admin",
+        starts_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        ends_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        status: "confirmed",
+        cancel_token_hash: startedToken.tokenHash,
+      })
+      .select("id")
+      .single();
+    expect(insErr).toBeNull();
+
+    const result = await bookingActions.rescheduleRentalHoursAdmin({
+      id: ins!.id as string,
+      unitId: null,
+      startsAt: iso(`${d(4)}T10:00`),
+    });
+    expect(result).toEqual({ ok: false, error: SESSION_STARTED });
   });
 });
