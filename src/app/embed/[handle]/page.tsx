@@ -80,6 +80,7 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
       <BookingWidget
         handle={handle}
         orgTimeZone={org.timeZone}
+        currency={org.currency}
         services={services}
         offerings={offerings}
         staff={staff}

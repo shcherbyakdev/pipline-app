@@ -5,11 +5,13 @@ import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { durationOptions, formatDurationLabel, type HourlyOffering } from "@/features/rentals/hourly";
+import { formatOfferingPrice } from "@/features/rentals/pricing";
 import { getHourlySlots, createRentalBookingHours } from "@/features/rentals/hourly-actions";
 import { formatHourlyWhenLine } from "@/features/scheduling/templates";
 import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
+import { BookingMoneySummary } from "./booking-money-summary";
 
 // offering-dialog.tsx's native-<select> idiom.
 const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
@@ -31,11 +33,13 @@ export function HourlyBookingFlow({
   handle,
   orgTimeZone,
   offering,
+  currency,
   onBack,
 }: {
   handle: string;
   orgTimeZone: string;
   offering: PublicOffering;
+  currency: string;
   onBack: (() => void) | null;
 }) {
   // The widget branch only ever hands this component an hours offering
@@ -52,6 +56,7 @@ export function HourlyBookingFlow({
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
   const [slot, setSlot] = React.useState<string | null>(null);
   const [unitId, setUnitId] = React.useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = React.useState(false);
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
@@ -103,12 +108,14 @@ export function HourlyBookingFlow({
       setDurationMin(d);
       setSlot(null);
       setUnitId(null);
+      setTermsAccepted(false);
       return;
     }
     flushSync(() => {
       setDurationMin(d);
       setSlot(null);
       setUnitId(null);
+      setTermsAccepted(false);
     });
     slotsRegionRef.current?.focus();
   }
@@ -122,6 +129,7 @@ export function HourlyBookingFlow({
     setError(null);
     setSlot(null);
     setUnitId(null);
+    setTermsAccepted(false);
   }
 
   const matchingSlot = slot ? slots.find((s) => s.startsAt === slot) : undefined;
@@ -141,6 +149,7 @@ export function HourlyBookingFlow({
         name: String(formData.get("name") ?? ""),
         email: String(formData.get("email") ?? ""),
         note: String(formData.get("note") ?? "") || undefined,
+        termsAccepted,
       });
       if (result.ok) {
         setDoneToken(result.token);
@@ -150,6 +159,7 @@ export function HourlyBookingFlow({
       if (result.slotTaken) {
         setSlot(null);
         setUnitId(null);
+        setTermsAccepted(false);
         load();
       }
     });
@@ -165,6 +175,8 @@ export function HourlyBookingFlow({
     slot && durationMin
       ? `${formatDurationLabel(durationMin)} · ${dayFmt.format(new Date(slot))}, ${timeFmt.format(new Date(slot))}`
       : null;
+  const priceLabel = formatOfferingPrice(offering, currency);
+  const durationUnits = durationMin === null ? null : durationMin / 60;
 
   if (doneToken) {
     const summary =
@@ -192,6 +204,9 @@ export function HourlyBookingFlow({
             </button>
           ) : null}
         </p>
+        {priceLabel ? (
+          <span className="text-muted-foreground shrink-0 text-xs">{priceLabel}</span>
+        ) : null}
       </div>
 
       {!durationMin ? (
@@ -309,6 +324,14 @@ export function HourlyBookingFlow({
             </p>
           ) : null}
           <ClientDetailsFields idPrefix="hourly-" />
+          <BookingMoneySummary
+            offering={offering}
+            currency={currency}
+            units={durationUnits}
+            termsAccepted={termsAccepted}
+            onTermsChange={setTermsAccepted}
+            idPrefix="hourly-"
+          />
           <Button type="submit" className="wt-primary" disabled={pending}>
             {pending ? "Booking…" : "Confirm booking"}
           </Button>

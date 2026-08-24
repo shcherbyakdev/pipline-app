@@ -66,6 +66,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         initial={parseWidgetTheme(settings.widgetTheme)}
         accentColor={settings.accentColor}
         handle={schedulingSettings.handle}
+        currency={schedulingSettings.currency}
         appUrl={env.NEXT_PUBLIC_APP_URL}
         previewServices={previewServices}
         staffOptions={staffOptions}

@@ -4,7 +4,7 @@ import type { WidgetThemeConfig } from "@/lib/widget-theme";
 /** Everything a section may need — and nothing a client component can't
     receive from a server one (plain data only, no functions). */
 export type RenderContext = {
-  org: { orgId: string; orgName: string; handle: string; timeZone: string };
+  org: { orgId: string; orgName: string; handle: string; timeZone: string; currency: string };
   branding: { accentColor: string | null; logoUrl: string | null };
   /** Parsed widget theme; the booking section nests its own WidgetTheme with it. */
   theme: WidgetThemeConfig;
