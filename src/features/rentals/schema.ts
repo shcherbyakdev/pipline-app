@@ -136,6 +136,20 @@ export const rescheduleRentalInput = z.object({
   endDate: z.string().regex(DATE_RE),
 });
 
+// Hourly (H2) analogs of the two shapes above: a time instant instead of a
+// date range — startsAt mirrors createRentalBookingHoursInput's
+// z.iso.datetime() idiom rather than a bare regex.
+export const manageHourlySlotsInput = z.object({
+  token: z.string().min(20).max(200),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(10),
+});
+export const rescheduleRentalHoursInput = z.object({
+  token: z.string().min(20).max(200),
+  unitId: z.uuid().nullable(),
+  startsAt: z.iso.datetime(),
+});
+
 // ---------- Admin (R2). Same shapes minus the handle — the org comes from
 // the session — and with the client's email made optional (walk-ins).
 

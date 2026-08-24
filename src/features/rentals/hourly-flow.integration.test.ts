@@ -9,6 +9,10 @@
  *   the `units` metadata field, and createRentalBookingHours refusing a
  *   unitId that is not among a slot's free units WITHOUT the request ever
  *   reaching the RPC's own occupancy check for a different reason.
+ * Task 9 adds the token-scoped manage-page pair: getManageHourlySlots →
+ * rescheduleRentalBookingHours, proving the same-duration ruling (the new
+ * booking's span is the OLD booking's span, never a client input) and the
+ * R2 token-rotation contract (old row 'rescheduled', new token resolves).
  * Mirrors flow.integration.test.ts's harness (dynamic imports so env loads
  * before src/env.ts parses it, one client IP per test against the shared
  * rate limiters). Requires the local Supabase stack (npm run setup).
@@ -30,8 +34,10 @@ try {
 
 // Dynamic imports so env is loaded before src/env.ts parses it.
 const hourlyActions = await import("./hourly-actions");
+const rentalManage = await import("./manage-actions");
 const { GENERIC_WRITE_ERROR, SLOT_TAKEN_HOURLY } = await import("./schema");
 const { addDaysISO, dateInZone, wallTimeToUtc } = await import("@/features/scheduling/slots");
+const { resolveBookingToken } = await import("@/lib/tokens/booking");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -231,6 +237,61 @@ describe("hourly public booking flow (action layer)", () => {
     if (second.ok) return;
     expect(second.slotTaken).toBe(true);
     expect(second.error).toBe(SLOT_TAKEN_HOURLY);
+  });
+
+  it("manage page (token path): reschedules a booking, same duration, old row dead, new token live", async () => {
+    net.clientIp = "203.0.113.14";
+    const day = d(20);
+    const created = await hourlyActions.createRentalBookingHours({
+      handle: HANDLE,
+      offeringId,
+      unitId: null,
+      startsAt: iso(`${day}T10:00`),
+      durationMin: 120,
+      name: "Move Client",
+      email: "hourly-move@example.com",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    // The manage page's own loader speaks for the same booking: the
+    // duration comes back as the EXISTING booking's own span (120), never a
+    // value the caller could have supplied (getManageHourlySlots takes no
+    // duration input at all).
+    const manageSlots = await rentalManage.getManageHourlySlots({
+      token: created.token,
+      fromDate: day,
+      days: 7,
+    });
+    expect(manageSlots.ok).toBe(true);
+    if (!manageSlots.ok) return;
+    expect(manageSlots.durationMin).toBe(120);
+
+    const moveTo = iso(`${d(21)}T14:00`);
+    const moved = await rentalManage.rescheduleRentalBookingHours({
+      token: created.token,
+      unitId: null, // auto — keep the current unit if it is still free
+      startsAt: moveTo,
+    });
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+    expect(moved.token).not.toBe(created.token);
+
+    // The new token resolves to a confirmed booking on the new time, same
+    // 120-minute span as the original — never renegotiated.
+    const fresh = await resolveBookingToken(moved.token, "h2-manage-test");
+    expect(fresh.status).toBe("ok");
+    if (fresh.status !== "ok") return;
+    expect(fresh.booking.status).toBe("confirmed");
+    expect(fresh.booking.startsAt.toISOString()).toBe(moveTo);
+    expect(fresh.booking.endsAt.getTime() - fresh.booking.startsAt.getTime()).toBe(120 * 60_000);
+
+    // …and the old one is dead: it still resolves (the manage page says so)
+    // but only as a rescheduled row.
+    const stale = await resolveBookingToken(created.token, "h2-manage-test");
+    expect(stale.status).toBe("ok");
+    if (stale.status !== "ok") return;
+    expect(stale.booking.status).toBe("rescheduled");
   });
 });
 
