@@ -100,8 +100,9 @@ export function BookingWidget({
     }
   }
 
-  // Also used by TimeSlotGrid (its own copies) and by the confirmation step
-  // below once a slot is picked.
+  // Used by the confirmation step below once a slot is picked. TimeSlotGrid
+  // needs the same formatting but keeps its own copies — intentionally
+  // duplicated, not shared, across the component boundary.
   const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
   const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 
@@ -328,45 +329,6 @@ export function BookingWidget({
         </div>
       ) : !slot ? (
         <div className="flex flex-col gap-4">
-          <p className="text-sm font-medium">
-            {service.name}
-            {withLabel ? (
-              // "with X" when the person is fixed by the link, "· X" when
-              // it's the visitor's own pick and the dot separates two
-              // choices they can each re-open.
-              <span className="text-muted-foreground">
-                {lockedStaff ? " with " : " · "}
-                {withLabel}
-              </span>
-            ) : null}{" "}
-            {canChangeStaff ? (
-              <button
-                type="button"
-                className="text-muted-foreground underline"
-                onClick={() => {
-                  flushSync(() => {
-                    setStaffChoice(null);
-                    setSlots(preview?.slots ?? []);
-                  });
-                  staffRegionRef.current?.focus();
-                }}
-              >
-                change
-              </button>
-            ) : services.length + offerings.length > 1 ? (
-              <button
-                type="button"
-                className="text-muted-foreground underline"
-                onClick={() => {
-                  setService(null);
-                  setStaffChoice(lockedStaff?.id ?? null);
-                  setSlots(preview?.slots ?? []);
-                }}
-              >
-                change
-              </button>
-            ) : null}
-          </p>
           <TimeSlotGrid
             slots={slots}
             fromDate={fromDate}
@@ -376,6 +338,47 @@ export function BookingWidget({
             onNavigate={setFromDate}
             onPick={setSlot}
             regionRef={slotsRegionRef}
+            headerSlot={
+              <p className="text-sm font-medium">
+                {service.name}
+                {withLabel ? (
+                  // "with X" when the person is fixed by the link, "· X" when
+                  // it's the visitor's own pick and the dot separates two
+                  // choices they can each re-open.
+                  <span className="text-muted-foreground">
+                    {lockedStaff ? " with " : " · "}
+                    {withLabel}
+                  </span>
+                ) : null}{" "}
+                {canChangeStaff ? (
+                  <button
+                    type="button"
+                    className="text-muted-foreground underline"
+                    onClick={() => {
+                      flushSync(() => {
+                        setStaffChoice(null);
+                        setSlots(preview?.slots ?? []);
+                      });
+                      staffRegionRef.current?.focus();
+                    }}
+                  >
+                    change
+                  </button>
+                ) : services.length + offerings.length > 1 ? (
+                  <button
+                    type="button"
+                    className="text-muted-foreground underline"
+                    onClick={() => {
+                      setService(null);
+                      setStaffChoice(lockedStaff?.id ?? null);
+                      setSlots(preview?.slots ?? []);
+                    }}
+                  >
+                    change
+                  </button>
+                ) : null}
+              </p>
+            }
           />
         </div>
       ) : (

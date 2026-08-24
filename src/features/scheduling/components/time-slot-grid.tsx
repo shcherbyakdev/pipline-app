@@ -14,6 +14,7 @@ export function TimeSlotGrid({
   onNavigate,
   onPick,
   regionRef,
+  headerSlot,
 }: {
   slots: string[]; // ISO instants
   fromDate: string; // viewer-local YYYY-MM-DD, 7-day page
@@ -23,8 +24,16 @@ export function TimeSlotGrid({
   onNavigate: (nextFromDate: string) => void;
   onPick: (iso: string) => void;
   regionRef?: React.Ref<HTMLDivElement>;
+  /** Rendered left of the nav buttons, in the original single-row layout
+      (justify-between). Omit for a standalone nav row — a caller with no
+      header content to place there gets today's layout either way, since
+      justify-between with one child packs to flex-start. */
+  headerSlot?: React.ReactNode;
 }): React.JSX.Element {
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Intentionally duplicated, not shared with booking-widget.tsx's own
+  // dayFmt/timeFmt (used there for the post-pick confirmation step) — two
+  // cheap Intl formatters beat threading them through as props.
   const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
   const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
   const tzShortFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
@@ -54,8 +63,12 @@ export function TimeSlotGrid({
   };
 
   return (
+    // Bare fragment: every top-level child here is meant to lay out as a
+    // direct row of the parent's `flex flex-col gap-*` — no wrapper of our
+    // own that would introduce an extra gap or nesting level.
     <>
       <div className="flex items-center justify-between">
+        {headerSlot}
         <div className="flex gap-2">
           <Button
             variant="outline"
