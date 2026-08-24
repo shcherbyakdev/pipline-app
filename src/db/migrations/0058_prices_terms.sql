@@ -35,16 +35,16 @@ alter table public.bookings
 -- ---------- Money helpers (mirrored by src/features/rentals/pricing.ts —
 -- keep the two in lockstep). p_units: nights/days count, or duration/60.
 create function public.rental_total_cents(p_mode text, p_price int, p_units numeric)
-returns int language sql immutable as $$
+returns int language sql immutable set search_path = '' as $$
   select case when p_price is null then null
               when p_mode = 'flat' then p_price
               else round(p_price * p_units)::int end;
 $$;
 revoke all on function public.rental_total_cents(text, int, numeric)
-  from public, anon, authenticated;
+  from public, anon, authenticated, service_role;
 
 create function public.rental_deposit_cents(p_type text, p_value int, p_total int)
-returns int language sql immutable as $$
+returns int language sql immutable set search_path = '' as $$
   select case p_type
            when 'full'    then p_total
            when 'percent' then case when p_total is null then null
@@ -54,7 +54,7 @@ returns int language sql immutable as $$
            else null end;
 $$;
 revoke all on function public.rental_deposit_cents(text, int, int)
-  from public, anon, authenticated;
+  from public, anon, authenticated, service_role;
 
 -- ---------- update_org_scheduling: + currency (signature change → drop).
 drop function public.update_org_scheduling(uuid, text, text);
