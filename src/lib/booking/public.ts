@@ -39,6 +39,7 @@ export type BookingOrg = {
   timeZone: string;
   offersAppointments: boolean;
   offersRentals: boolean;
+  currency: string;
 };
 
 // Per-request memoised: generateMetadata and the page both resolve the handle.
@@ -46,7 +47,7 @@ export const getBookingOrg = cache(async (handle: string): Promise<BookingOrg | 
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("orgs")
-    .select("id, name, timezone, offers_appointments, offers_rentals")
+    .select("id, name, timezone, offers_appointments, offers_rentals, currency")
     .eq("handle", handle)
     .maybeSingle();
   if (error || !data) return null;
@@ -56,6 +57,7 @@ export const getBookingOrg = cache(async (handle: string): Promise<BookingOrg | 
     timeZone: data.timezone,
     offersAppointments: data.offers_appointments,
     offersRentals: data.offers_rentals,
+    currency: data.currency,
   };
 });
 
@@ -374,7 +376,6 @@ export type PublicOffering = {
   id: string;
   name: string;
   description: string | null;
-  priceLabel: string | null;
   rangeMode: RangeMode;
   // H2: nights/days always set these (0056 CHECK); hours reads opening
   // hours from availability_rules instead, so both are null there.
@@ -393,17 +394,22 @@ export type PublicOffering = {
   maxDurationMin: number | null;
   turnoverMin: number;
   minNoticeMin: number;
+  priceCents: number | null;
+  pricingMode: "per_unit" | "flat";
+  depositType: "none" | "fixed" | "percent" | "full";
+  depositValue: number | null;
+  cancelWindowMin: number;
+  termsText: string | null;
 };
 export type PublicUnit = { id: string; name: string; description: string | null; active: boolean };
 
 const PUBLIC_OFFERING_COLUMNS =
-  "id, name, description, price_label, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min";
+  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text";
 
 type PublicOfferingDb = {
   id: string;
   name: string;
   description: string | null;
-  price_label: string | null;
   range_mode: RangeMode;
   start_time: string | null;
   end_time: string | null;
@@ -418,6 +424,12 @@ type PublicOfferingDb = {
   max_duration_min: number | null;
   turnover_min: number;
   min_notice_min: number;
+  price_cents: number | null;
+  pricing_mode: "per_unit" | "flat";
+  deposit_type: "none" | "fixed" | "percent" | "full";
+  deposit_value: number | null;
+  cancel_window_min: number;
+  terms_text: string | null;
 };
 
 function toPublicOffering(o: PublicOfferingDb): PublicOffering {
@@ -425,7 +437,6 @@ function toPublicOffering(o: PublicOfferingDb): PublicOffering {
     id: o.id,
     name: o.name,
     description: o.description,
-    priceLabel: o.price_label,
     rangeMode: o.range_mode,
     startTime: o.start_time,
     endTime: o.end_time,
@@ -440,6 +451,12 @@ function toPublicOffering(o: PublicOfferingDb): PublicOffering {
     maxDurationMin: o.max_duration_min,
     turnoverMin: o.turnover_min,
     minNoticeMin: o.min_notice_min,
+    priceCents: o.price_cents,
+    pricingMode: o.pricing_mode,
+    depositType: o.deposit_type,
+    depositValue: o.deposit_value,
+    cancelWindowMin: o.cancel_window_min,
+    termsText: o.terms_text,
   };
 }
 

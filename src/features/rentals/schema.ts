@@ -6,14 +6,21 @@ export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const RANGE_MODES = ["nights", "days", "hours"] as const;
 export const UNIT_SELECTIONS = ["auto", "client_picks"] as const;
+export const PRICING_MODES = ["per_unit", "flat"] as const;
+export const DEPOSIT_TYPES = ["none", "fixed", "percent", "full"] as const;
 
 const offeringCommon = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),
-  priceLabel: z.string().trim().max(100).optional(),
   bookingWindowDays: z.number().int().min(1).max(730).default(180),
   unitSelection: z.enum(UNIT_SELECTIONS).default("auto"),
   active: z.boolean().default(true),
+  priceCents: z.number().int().min(0).max(100_000_000).nullable().default(null),
+  pricingMode: z.enum(PRICING_MODES).default("per_unit"),
+  depositType: z.enum(DEPOSIT_TYPES).default("none"),
+  depositValue: z.number().int().min(0).max(100_000_000).nullable().default(null),
+  cancelWindowMin: z.number().int().min(0).max(527040).default(0),
+  termsText: z.string().trim().max(10000).optional(),
 });
 const rangeFields = z.object({
   rangeMode: z.enum(["nights", "days"]),

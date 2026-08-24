@@ -42,7 +42,6 @@ function Row({ offering }: { offering: OfferingRow }) {
         </div>
         <p className="text-muted-foreground text-xs">
           {offering.unitCount} {offering.unitCount === 1 ? "unit" : "units"}
-          {offering.priceLabel ? ` · ${offering.priceLabel}` : ""}
         </p>
         <p className="text-muted-foreground text-xs">
           {hourly

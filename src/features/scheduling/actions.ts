@@ -540,6 +540,8 @@ export async function updateSchedulingSettings(input: unknown): Promise<ActionSt
     p_org_id: orgId,
     p_handle: parsed.data.handle,
     p_timezone: parsed.data.timezone,
+    // interim until the settings form sends currency (H3 Task 5)
+    p_currency: "PLN",
   });
   if (error) {
     if (error.code === "23505") return { ok: false, error: "That handle is already taken." };

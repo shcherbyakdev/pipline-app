@@ -263,7 +263,6 @@ export function BookingWidget({
                       </span>
                       <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                         {[
-                          o.priceLabel,
                           o.rangeMode === "hours"
                             ? // H2: hourly offerings have no min-stay concept — the
                               // duration range is the equivalent "how much" hint.

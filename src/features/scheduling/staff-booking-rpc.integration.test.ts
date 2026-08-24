@@ -84,7 +84,7 @@ describe("create_booking per staff", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
 

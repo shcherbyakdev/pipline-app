@@ -143,7 +143,7 @@ describe("rental reschedule + admin walk-in RPCs (0039)", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
     const { data: off, error: e3 } = await owner

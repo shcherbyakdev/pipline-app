@@ -133,7 +133,7 @@ describe("hourly rental RPCs (0056 part B)", () => {
     const { error: e2 } = await client.rpc("update_org_scheduling", {
       p_org_id: newOrgId,
       p_handle: newHandle,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
     const { data: off, error: e3 } = await client
@@ -246,7 +246,7 @@ describe("hourly rental RPCs (0056 part B)", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: handle,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
 
@@ -713,7 +713,7 @@ describe("hourly admin actions (Task 10, action layer)", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: `h2-admin-actions-${Date.now()}`,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
 

@@ -63,7 +63,7 @@ describe("booking flow e2e (action layer)", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
-      p_timezone: "UTC",
+      p_timezone: "UTC", p_currency: "PLN",
     });
     if (e2) throw e2;
     const { data: svc, error: e3 } = await owner

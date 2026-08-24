@@ -99,7 +99,7 @@ describe("rental flow e2e (action layer)", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
     // turnover 0 so a cancelled stay frees its own dates with nothing left
@@ -318,7 +318,7 @@ describe("hourly offering rejected by the date-range action layer", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: hourlyOrgId,
       p_handle: HOURLY_HANDLE,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
     const { data: offering, error: e3 } = await owner

@@ -48,7 +48,7 @@ describe("is_handle_available (anon)", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: (org as { id: string }).id,
       p_handle: TAKEN,
-      p_timezone: "Europe/Warsaw",
+      p_timezone: "Europe/Warsaw", p_currency: "PLN",
     });
     if (e2) throw e2;
   });
@@ -79,7 +79,7 @@ describe("update_org_scheduling rejects reserved handles", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: (org as { id: string }).id,
       p_handle: "pricing",
-      p_timezone: "Europe/Warsaw",
+      p_timezone: "Europe/Warsaw", p_currency: "PLN",
     });
     expect(e2?.message).toMatch(/reserved handle/);
   });
@@ -172,7 +172,7 @@ describe("0052: one org per account, released handles stay with their org", () =
     });
     expect(error).toBeNull();
     const orgId = (org as { id: string }).id;
-    const { error: e1 } = await owner.rpc("update_org_scheduling", { p_org_id: orgId, p_handle: fresh, p_timezone: "UTC" });
+    const { error: e1 } = await owner.rpc("update_org_scheduling", { p_org_id: orgId, p_handle: fresh, p_timezone: "UTC", p_currency: "PLN" });
     expect(e1).toBeNull();
 
     // History row written; the old handle reads as taken to the public check.
@@ -192,12 +192,12 @@ describe("0052: one org per account, released handles stay with their org", () =
     const { error: e3 } = await other.rpc("update_org_scheduling", {
       p_org_id: (otherOrg as { id: string }).id,
       p_handle: old,
-      p_timezone: "UTC",
+      p_timezone: "UTC", p_currency: "PLN",
     });
     expect(e3?.code).toBe("23505");
 
     // The former org may take it back; the history row retires.
-    const { error: e4 } = await owner.rpc("update_org_scheduling", { p_org_id: orgId, p_handle: old, p_timezone: "UTC" });
+    const { error: e4 } = await owner.rpc("update_org_scheduling", { p_org_id: orgId, p_handle: old, p_timezone: "UTC", p_currency: "PLN" });
     expect(e4).toBeNull();
     const { data: gone } = await admin.from("org_handle_history").select("handle").eq("handle", old).maybeSingle();
     expect(gone).toBeNull();

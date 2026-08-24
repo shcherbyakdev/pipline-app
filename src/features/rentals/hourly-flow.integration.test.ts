@@ -91,7 +91,7 @@ describe("hourly public booking flow (action layer)", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
     const { data: offering, error: e3 } = await owner
@@ -323,7 +323,7 @@ describe("hourly public booking flow: client_picks unit membership", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: picksHandle,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
     const { data: offering, error: e3 } = await owner

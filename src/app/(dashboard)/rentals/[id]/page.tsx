@@ -59,7 +59,6 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
                 : nightly
                   ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
                   : `pickup ${offering.startTime} · return ${offering.endTime}`}
-              {offering.priceLabel ? ` · ${offering.priceLabel}` : ""}
             </p>
           </div>
           <OfferingDialog offering={offering} />

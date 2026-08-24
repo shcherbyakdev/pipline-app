@@ -65,11 +65,9 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
     const name = String(fd.get("name") ?? "").trim();
     if (name === "") return;
     const description = String(fd.get("description") ?? "").trim();
-    const priceLabel = String(fd.get("priceLabel") ?? "").trim();
     const common = {
       name,
       description: description === "" ? undefined : description,
-      priceLabel: priceLabel === "" ? undefined : priceLabel,
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
       unitSelection: String(fd.get("unitSelection") ?? "auto"),
       active: fd.get("active") === "on",
@@ -156,17 +154,6 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
               defaultValue={offering?.description ?? ""}
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="offering-price-label">Price label</Label>
-            <Input
-              id="offering-price-label"
-              name="priceLabel"
-              maxLength={100}
-              placeholder="e.g. €120 / night"
-              defaultValue={offering?.priceLabel ?? ""}
-            />
-          </div>
-
           <SectionHeading>Stay</SectionHeading>
           <div className="flex flex-col gap-2">
             <Label htmlFor="offering-range-mode">Booked by</Label>

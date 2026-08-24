@@ -192,9 +192,6 @@ export function HourlyBookingFlow({
             </button>
           ) : null}
         </p>
-        {offering.priceLabel ? (
-          <span className="text-muted-foreground shrink-0 text-xs">{offering.priceLabel}</span>
-        ) : null}
       </div>
 
       {!durationMin ? (

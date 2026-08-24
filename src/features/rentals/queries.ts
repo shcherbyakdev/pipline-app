@@ -13,7 +13,6 @@ export type OfferingRow = {
   id: string;
   name: string;
   description: string | null;
-  priceLabel: string | null;
   rangeMode: RangeMode;
   // H2: nights/days always set these (0056 CHECK); hours reads opening
   // hours from availability_rules instead, so both are null there
@@ -36,19 +35,24 @@ export type OfferingRow = {
   active: boolean;
   sortOrder: number;
   unitCount: number;
+  priceCents: number | null;
+  pricingMode: "per_unit" | "flat";
+  depositType: "none" | "fixed" | "percent" | "full";
+  depositValue: number | null;
+  cancelWindowMin: number;
+  termsText: string | null;
 };
 
 // Exported for the queries.integration.test.ts probe: the count embed's
 // shape (`rental_units(count)` → `[{count: n}]`) is asserted against the
 // live PostgREST instance rather than assumed.
 export const OFFERING_COLUMNS =
-  "id, name, description, price_label, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, sort_order, rental_units(count)";
+  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, sort_order, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text, rental_units(count)";
 
 type OfferingDb = {
   id: string;
   name: string;
   description: string | null;
-  price_label: string | null;
   range_mode: RangeMode;
   start_time: string | null;
   end_time: string | null;
@@ -65,6 +69,12 @@ type OfferingDb = {
   min_notice_min: number;
   active: boolean;
   sort_order: number;
+  price_cents: number | null;
+  pricing_mode: "per_unit" | "flat";
+  deposit_type: "none" | "fixed" | "percent" | "full";
+  deposit_value: number | null;
+  cancel_window_min: number;
+  terms_text: string | null;
   rental_units: Array<{ count: number }> | null;
 };
 
@@ -73,7 +83,6 @@ function toOffering(o: OfferingDb): OfferingRow {
     id: o.id,
     name: o.name,
     description: o.description,
-    priceLabel: o.price_label,
     rangeMode: o.range_mode,
     startTime: o.start_time,
     endTime: o.end_time,
@@ -91,6 +100,12 @@ function toOffering(o: OfferingDb): OfferingRow {
     active: o.active,
     sortOrder: o.sort_order,
     unitCount: o.rental_units?.[0]?.count ?? 0,
+    priceCents: o.price_cents,
+    pricingMode: o.pricing_mode,
+    depositType: o.deposit_type,
+    depositValue: o.deposit_value,
+    cancelWindowMin: o.cancel_window_min,
+    termsText: o.terms_text,
   };
 }
 
@@ -303,4 +318,11 @@ export async function listTimelineData(
     }));
 
   return { offerings, blackouts, bookings };
+}
+
+// The org's settlement currency for money display (single-org session).
+export async function getOrgCurrency(): Promise<string> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("orgs").select("currency").limit(1).maybeSingle();
+  return (data as { currency: string } | null)?.currency ?? "PLN";
 }
