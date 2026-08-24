@@ -4,27 +4,55 @@ import { daysBetween } from "./range";
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-export const RANGE_MODES = ["nights", "days"] as const;
+export const RANGE_MODES = ["nights", "days", "hours"] as const;
 export const UNIT_SELECTIONS = ["auto", "client_picks"] as const;
 
-const offeringBase = z.object({
+const offeringCommon = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),
   priceLabel: z.string().trim().max(100).optional(),
-  rangeMode: z.enum(RANGE_MODES),
+  bookingWindowDays: z.number().int().min(1).max(730).default(180),
+  unitSelection: z.enum(UNIT_SELECTIONS).default("auto"),
+  active: z.boolean().default(true),
+});
+const rangeFields = z.object({
+  rangeMode: z.enum(["nights", "days"]),
   startTime: z.string().regex(TIME_RE),
   endTime: z.string().regex(TIME_RE),
   minStay: z.number().int().min(1).max(365).default(1),
   maxStay: z.number().int().min(1).max(365).nullable().default(null),
   turnoverDays: z.number().int().min(0).max(30).default(0),
   minNoticeDays: z.number().int().min(0).max(365).default(0),
-  bookingWindowDays: z.number().int().min(1).max(730).default(180),
-  unitSelection: z.enum(UNIT_SELECTIONS).default("auto"),
-  active: z.boolean().default(true),
 });
-const stayOrder = (o: { minStay: number; maxStay: number | null }) => o.maxStay === null || o.maxStay >= o.minStay;
-export const offeringInput = offeringBase.refine(stayOrder, { message: "max stay must be ≥ min stay" });
-export const updateOfferingInput = offeringBase.extend({ id: z.uuid() }).refine(stayOrder, { message: "max stay must be ≥ min stay" });
+const hoursFields = z.object({
+  rangeMode: z.literal("hours"),
+  slotIncrementMin: z.number().int().min(5).max(240),
+  minDurationMin: z.number().int().min(5).max(1440),
+  maxDurationMin: z.number().int().min(5).max(1440),
+  turnoverMin: z.number().int().min(0).max(1440).default(0),
+  minNoticeMin: z.number().int().min(0).max(43200).default(0),
+});
+const stayOrder = (o: { minStay: number; maxStay: number | null }) =>
+  o.maxStay === null || o.maxStay >= o.minStay;
+export const HOURS_GRID_MSG = "durations must be multiples of the increment, max ≥ min";
+const hoursGrid = (o: z.infer<typeof hoursFields>) =>
+  o.maxDurationMin >= o.minDurationMin &&
+  o.minDurationMin % o.slotIncrementMin === 0 &&
+  o.maxDurationMin % o.slotIncrementMin === 0;
+
+// `strict()` on each branch so hours fields on a nights offering (and vice
+// versa) are rejected rather than silently dropped.
+const rangeOffering = offeringCommon.extend(rangeFields.shape).strict()
+  .refine(stayOrder, { message: "max stay must be ≥ min stay" });
+const hoursOffering = offeringCommon.extend(hoursFields.shape).strict()
+  .refine(hoursGrid, { message: HOURS_GRID_MSG });
+export const offeringInput = z.union([rangeOffering, hoursOffering]);
+export const updateOfferingInput = z.union([
+  offeringCommon.extend(rangeFields.shape).extend({ id: z.uuid() }).strict()
+    .refine(stayOrder, { message: "max stay must be ≥ min stay" }),
+  offeringCommon.extend(hoursFields.shape).extend({ id: z.uuid() }).strict()
+    .refine(hoursGrid, { message: HOURS_GRID_MSG }),
+]);
 export const offeringIdInput = z.object({ id: z.uuid() });
 
 export const unitInput = z.object({
@@ -108,6 +136,20 @@ export const rescheduleRentalInput = z.object({
   endDate: z.string().regex(DATE_RE),
 });
 
+// Hourly (H2) analogs of the two shapes above: a time instant instead of a
+// date range — startsAt mirrors createRentalBookingHoursInput's
+// z.iso.datetime() idiom rather than a bare regex.
+export const manageHourlySlotsInput = z.object({
+  token: z.string().min(20).max(200),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(10),
+});
+export const rescheduleRentalHoursInput = z.object({
+  token: z.string().min(20).max(200),
+  unitId: z.uuid().nullable(),
+  startsAt: z.iso.datetime(),
+});
+
 // ---------- Admin (R2). Same shapes minus the handle — the org comes from
 // the session — and with the client's email made optional (walk-ins).
 
@@ -134,3 +176,62 @@ export const createRentalAdminInput = z.object({
   email: z.email().max(320).optional(),
   note: z.string().trim().max(2000).optional(),
 });
+
+// ---------- Hourly mode (H2), public. Duration-based occupancy instead of
+// date ranges — startsAt mirrors createBookingInput's z.iso.datetime() idiom
+// (scheduling/schema.ts) rather than a bare regex.
+
+export const getHourlySlotsInput = z.object({
+  handle: z.string().regex(HANDLE_RE),
+  offeringId: z.uuid(),
+  durationMin: z.number().int().min(5).max(1440),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(10),
+  unitId: z.uuid().nullable().default(null),
+});
+export const createRentalBookingHoursInput = z.object({
+  handle: z.string().regex(HANDLE_RE),
+  offeringId: z.uuid(),
+  unitId: z.uuid().nullable(),
+  startsAt: z.iso.datetime(),
+  durationMin: z.number().int().min(5).max(1440),
+  name: z.string().trim().min(1).max(200),
+  email: z.email().max(320),
+  note: z.string().trim().max(2000).optional(),
+});
+export const SLOT_TAKEN_HOURLY = "That time was just taken — please pick another.";
+
+// ---------- Hourly mode (H2), admin (Task 10). Same shapes as the admin
+// range trio (adminRangeAvailabilityInput / createRentalAdminInput /
+// rescheduleRentalAdminInput above) with a duration-based instant instead of
+// a date range — the org comes from the session, the client's email is
+// optional (walk-ins).
+
+export const adminHourlySlotsInput = z.object({
+  offeringId: z.uuid(),
+  durationMin: z.number().int().min(5).max(1440),
+  fromDate: z.string().regex(DATE_RE),
+  days: z.number().int().min(1).max(10),
+  unitId: z.uuid().nullable().default(null),
+  // The booking being moved: its own occupancy is ignored so the slot it
+  // currently holds reads as free (adminRangeAvailabilityInput idiom).
+  excludeBookingId: z.uuid().nullable().default(null),
+});
+export const createRentalHoursAdminInput = z.object({
+  offeringId: z.uuid(),
+  unitId: z.uuid().nullable(),
+  startsAt: z.iso.datetime(),
+  durationMin: z.number().int().min(5).max(1440),
+  name: z.string().trim().min(1).max(200),
+  email: z.email().max(320).optional(),
+  note: z.string().trim().max(2000).optional(),
+});
+export const rescheduleRentalHoursAdminInput = z.object({
+  id: z.uuid(),
+  unitId: z.uuid().nullable(),
+  startsAt: z.iso.datetime(),
+});
+
+// A booking that has begun is immovable — STAY_STARTED's hourly twin
+// (0056's reschedule_rental_hours_apply raises the same 'started' sentinel).
+export const SESSION_STARTED = "This booking has already started.";

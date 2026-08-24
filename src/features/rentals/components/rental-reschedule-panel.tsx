@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
-import { validateStay, type RangeAvailability } from "@/features/rentals/range";
+import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
 import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
 import { dateInZone } from "@/features/scheduling/slots";
 import {
@@ -50,17 +50,23 @@ export function RentalReschedulePanel({
   // knows its check-in date; the first response jumps there unless the
   // client has already navigated somewhere themselves.
   const navigated = React.useRef(false);
+  // Request-ordering guard: a fast month-nav click can fire a second fetch
+  // before the first resolves — only the most recent request may ever apply
+  // its result.
+  const seqRef = React.useRef(0);
 
   // Deliberately does NOT clear `error`: the datesTaken path reloads
   // availability and wants its message to survive the reload.
   const load = React.useCallback(
     (m: string) => {
       startTransition(async () => {
+        const seq = ++seqRef.current;
         const result = await getManageRangeAvailability({
           token,
           fromDate: firstOfMonth(m),
           days: WINDOW_DAYS,
         });
+        if (seq !== seqRef.current) return;
         if (result.ok) {
           setAvailability(result.availability);
           setOffering(result.offering);
@@ -97,7 +103,7 @@ export function RentalReschedulePanel({
 
   const stay =
     offering && availability && range.start && range.end
-      ? validateStay(offering, availability, range.start, range.end)
+      ? validateStay(asEngineOffering(offering), availability, range.start, range.end)
       : null;
   const freeUnitIds = stay && stay.ok ? stay.unitIds : null;
   const currentUnitName = units.find((u) => u.id === currentUnitId)?.name ?? null;

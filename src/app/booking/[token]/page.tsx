@@ -38,7 +38,12 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
         {staffName ? <p className="text-muted-foreground">with {staffName}</p> : null}
         <p>
           {whenLineFor(
-            { startsAt: b.startsAt, endsAt: b.endsAt, isRental: b.rentalUnitId !== null },
+            {
+              startsAt: b.startsAt,
+              endsAt: b.endsAt,
+              isRental: b.rentalUnitId !== null,
+              rangeMode: b.rangeMode,
+            },
             b.orgTimezone,
           )}
         </p>
@@ -58,6 +63,7 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
               // grid — both are self-serve.
               canReschedule={true}
               kind={b.rentalUnitId === null ? "appointment" : "rental"}
+              rangeMode={b.rangeMode}
             />
           ) : (
             <p className="text-muted-foreground text-xs">

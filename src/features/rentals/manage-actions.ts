@@ -8,6 +8,7 @@ import { buildBookingManageUrl, resolveBookingToken } from "@/lib/tokens/booking
 import {
   getBookingOfferingId,
   getPublicOfferingById,
+  loadOrgHourlyContext,
   loadOrgRangeContext,
   type PublicOffering,
   type PublicUnit,
@@ -16,25 +17,31 @@ import { getProviderEmail } from "@/lib/booking/provider";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
-import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
+import { addDaysISO, computeSlots, dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 import {
   bookingLifecycleKey,
   bookingRescheduledEmail,
+  formatHourlyWhenLine,
   formatRangeWhenLine,
   providerRescheduledEmail,
 } from "@/features/scheduling/templates";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
+  asEngineOffering,
   computeRangeAvailability,
   stayLength,
   validateStay,
   type RangeAvailability,
 } from "./range";
+import { hourlySlotService, isHourlyOffering, unionUnitSlots } from "./hourly";
 import {
   manageRangeAvailabilityInput,
+  manageHourlySlotsInput,
   rescheduleRentalInput,
+  rescheduleRentalHoursInput,
   CHECK_IN_PASSED,
   DATES_TAKEN,
+  SLOT_TAKEN_HOURLY,
   STAY_STARTED,
   GENERIC_WRITE_ERROR,
 } from "./schema";
@@ -111,7 +118,7 @@ export async function getManageRangeAvailability(input: unknown): Promise<
     });
     if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
     const availability = computeRangeAvailability({
-      offering: ctx.offering,
+      offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
       blackouts: ctx.blackouts,
       bookings: ctx.bookings,
@@ -159,7 +166,7 @@ export async function rescheduleRentalBooking(
     // "window" before reading the day map, so an absurd endDate must not
     // size the engine's loop).
     const span =
-      Math.min(stayLength(offering.rangeMode, startDate, endDate), offering.bookingWindowDays) +
+      Math.min(stayLength(asEngineOffering(offering).rangeMode, startDate, endDate), offering.bookingWindowDays) +
       offering.turnoverDays +
       2;
     const ctx = await loadOrgRangeContext(booking.orgId, offeringId, startDate, span, {
@@ -176,7 +183,9 @@ export async function rescheduleRentalBooking(
     // A move onto today past the check-in time can never be cancelled, so
     // the RPC refuses it; `datesTaken` makes the panel reset and refetch,
     // which is what the client has to do anyway.
-    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime, booking.orgTimezone);
+    // The tokenized manage flow is nights/days-only (loadOrgRangeContext's
+    // offering here is never hours) — startTime is set (0056 CHECK).
+    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime!, booking.orgTimezone);
     if (startsAt.getTime() <= Date.now()) {
       return { ok: false, error: CHECK_IN_PASSED, datesTaken: true };
     }
@@ -184,7 +193,7 @@ export async function rescheduleRentalBooking(
     // Engine re-check (createRentalBooking idiom): the friendly-error pass
     // ahead of the RPC, which re-checks the same rules under its lock.
     const availability = computeRangeAvailability({
-      offering: ctx.offering,
+      offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
       blackouts: ctx.blackouts,
       bookings: ctx.bookings,
@@ -194,7 +203,7 @@ export async function rescheduleRentalBooking(
       days: span,
       excludeBookingId: booking.id,
     });
-    const stay = validateStay(ctx.offering, availability, startDate, endDate);
+    const stay = validateStay(asEngineOffering(ctx.offering), availability, startDate, endDate);
     if (!stay.ok) {
       // order/min_stay/max_stay/window mean the panel let a bad range
       // through — picking again won't help.
@@ -298,5 +307,241 @@ export async function rescheduleRentalBooking(
     return { ok: true, token: fresh.token };
   } catch (error) {
     return fail("rescheduleRentalBooking", error);
+  }
+}
+
+// ---------- Hourly (H2) analogs. Duration-based occupancy instead of a
+// date range — the same token/limiter/flag doctrine as the pair above, with
+// the range engine swapped for the hourly slot engine (hourly-actions.ts's
+// loadHourlyContext/hourlySlotsFor idiom, duplicated here rather than
+// imported: that helper is keyed by `handle`, this surface by `token`).
+
+export async function getManageHourlySlots(input: unknown): Promise<
+  | {
+      ok: true;
+      slots: { startsAt: string; unitIds: string[] }[];
+      // Same-duration ruling: the booking's own span, never renegotiated.
+      durationMin: number;
+      // getManageRangeAvailability's own twin fields: the client_picks unit
+      // step (R2's UnitSelect) needs the offering (unitSelection) and unit
+      // names, not just the ids a slot's `unitIds` carries.
+      offering: PublicOffering;
+      units: PublicUnit[];
+      currentUnitId: string;
+    }
+  | { ok: false; error: string }
+> {
+  if (await limited()) return { ok: false, error: TOO_MANY };
+  const parsed = manageHourlySlotsInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const { token, fromDate, days } = parsed.data;
+  try {
+    const booking = await resolveActionable(token);
+    if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    // Same flag gate as getManageRangeAvailability: rentals is a kill switch.
+    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const offeringId = await getBookingOfferingId(booking.id);
+    if (offeringId === null) return { ok: false, error: NOT_CHANGEABLE };
+
+    // Duration comes ONLY from the existing row — never from client input.
+    // A reschedule may move the booking, not stretch or shrink it (mirrors
+    // 0056's reschedule_rental_hours_apply, which copies it server-side too).
+    const durationMin = Math.round((booking.endsAt.getTime() - booking.startsAt.getTime()) / 60_000);
+
+    // getHourlySlots idiom (hourly-actions.ts): fromDate is viewer-local; pad
+    // the engine window a day each side, the client keeps what lands on its
+    // page.
+    const from = addDaysISO(fromDate, -1);
+    const span = days + 2;
+    const ctx = await loadOrgHourlyContext(booking.orgId, offeringId, booking.orgTimezone, from, span, {
+      excludeBookingId: booking.id,
+    });
+    if (!ctx || !isHourlyOffering(ctx.offering)) return { ok: false, error: NOT_CHANGEABLE };
+
+    const service = hourlySlotService(ctx.offering, durationMin);
+    const now = new Date();
+    const slots = unionUnitSlots(
+      ctx.perUnit.map((u) => ({
+        unitId: u.unitId,
+        slots: computeSlots({
+          service,
+          rules: ctx.rules,
+          exceptions: ctx.exceptions,
+          busy: u.busy,
+          timeZone: booking.orgTimezone,
+          now,
+          fromDate: from,
+          days: span,
+        }),
+      })),
+    );
+    return {
+      ok: true,
+      slots: slots.map((s) => ({ startsAt: s.startsAt.toISOString(), unitIds: s.unitIds })),
+      durationMin,
+      offering: ctx.offering,
+      units: ctx.units,
+      currentUnitId: booking.rentalUnitId,
+    };
+  } catch (error) {
+    return fail("getManageHourlySlots", error);
+  }
+}
+
+export async function rescheduleRentalBookingHours(
+  input: unknown,
+): Promise<{ ok: true; token: string } | { ok: false; error: string; datesTaken?: boolean }> {
+  if (await limited()) return { ok: false, error: TOO_MANY };
+  const parsed = rescheduleRentalHoursInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const { token, unitId, startsAt } = parsed.data;
+  try {
+    const booking = await resolveActionable(token);
+    if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    // Same flag gate as getManageHourlySlots: the move is a write.
+    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const offeringId = await getBookingOfferingId(booking.id);
+    if (offeringId === null) return { ok: false, error: NOT_CHANGEABLE };
+
+    // Same-duration ruling, computed here (not taken from the client) so the
+    // engine pre-check below and the RPC (which copies it server-side from
+    // the old row) can never disagree with what was actually offered.
+    const durationMin = Math.round((booking.endsAt.getTime() - booking.startsAt.getTime()) / 60_000);
+    const starts = new Date(startsAt);
+    const localDate = dateInZone(starts, booking.orgTimezone);
+
+    // createRentalBookingHours idiom: a narrow 2-day window centred on the
+    // requested instant is enough for the exact-epoch re-check below.
+    const ctx = await loadOrgHourlyContext(booking.orgId, offeringId, booking.orgTimezone, localDate, 2, {
+      excludeBookingId: booking.id,
+    });
+    if (!ctx || !isHourlyOffering(ctx.offering)) return { ok: false, error: NOT_CHANGEABLE };
+
+    // Which unit serves the booking is the provider's business unless the
+    // offering lets the client pick, so drop any unit the payload names on
+    // an `auto` offering (rescheduleRentalBooking idiom) — the RPC then
+    // keeps the current unit if it's still free, else the first free one.
+    const pickedUnitId = ctx.offering.unitSelection === "client_picks" ? unitId : null;
+
+    // Engine re-check (createRentalBookingHours idiom): the friendly-error
+    // pass ahead of the RPC, which re-checks the same rules under its lock.
+    // Exact epoch match — a stale slot (someone else took it, or it fell out
+    // of the offering's hours) simply won't be in this fresh union.
+    const service = hourlySlotService(ctx.offering, durationMin);
+    const slots = unionUnitSlots(
+      ctx.perUnit.map((u) => ({
+        unitId: u.unitId,
+        slots: computeSlots({
+          service,
+          rules: ctx.rules,
+          exceptions: ctx.exceptions,
+          busy: u.busy,
+          timeZone: booking.orgTimezone,
+          now: new Date(),
+          fromDate: localDate,
+          days: 2,
+        }),
+      })),
+    );
+    const match = slots.find((s) => s.startsAt.getTime() === starts.getTime());
+    if (!match || (pickedUnitId !== null && !match.unitIds.includes(pickedUnitId))) {
+      return { ok: false, error: SLOT_TAKEN_HOURLY, datesTaken: true };
+    }
+
+    const fresh = generateAccessToken();
+    // 0052/0056 posture: the RPC left the anon surface (service_role only) —
+    // the token is still the credential, this action's engine pre-check is
+    // the only entry.
+    const admin = createAdminClient();
+    const { data, error } = await admin.rpc("reschedule_rental_booking_hours", {
+      p_token: token,
+      p_unit_id: pickedUnitId,
+      p_starts_at: starts.toISOString(),
+      p_new_token_hash: fresh.tokenHash,
+    });
+    if (error) {
+      if (isStarted(error)) return { ok: false, error: STAY_STARTED };
+      if (isTaken(error)) return { ok: false, error: SLOT_TAKEN_HOURLY, datesTaken: true };
+      console.error("[rentals] rescheduleRentalBookingHours:", error.code || "rpc error");
+      return { ok: false, error: GENERIC_WRITE_ERROR };
+    }
+    const moved = (data as Array<{
+      new_booking_id: string;
+      org_id: string;
+      org_name: string;
+      org_timezone: string;
+      service_name: string;
+      client_name: string;
+      client_email: string | null;
+      old_starts_at: string;
+      old_ends_at: string;
+      new_starts_at: string;
+      new_ends_at: string;
+      unit_changed: boolean;
+      dates_changed: boolean;
+    }> | null)?.[0];
+    // A token miss comes back as no rows (resolver doctrine), never a raise.
+    if (!moved) return { ok: false, error: NOT_CHANGEABLE };
+
+    // Best-effort notifications, copied wholesale from rescheduleRentalBooking
+    // (provider notice IS sent on client reschedules — R2's admin-only-silence
+    // ruling does not apply here) — only formatRangeWhenLine swapped for
+    // formatHourlyWhenLine. The move is already committed; the client always
+    // gets one when they have an address on file, even if nothing moved: the
+    // old link is dead, and this email carries the new one.
+    try {
+      const tz = moved.org_timezone;
+      const oldWhenLine = formatHourlyWhenLine(
+        new Date(moved.old_starts_at),
+        new Date(moved.old_ends_at),
+        tz,
+      );
+      const whenLine = formatHourlyWhenLine(
+        new Date(moved.new_starts_at),
+        new Date(moved.new_ends_at),
+        tz,
+      );
+      if (moved.client_email) {
+        const msg = bookingRescheduledEmail({
+          orgName: moved.org_name,
+          serviceName: moved.service_name,
+          oldWhenLine,
+          whenLine,
+          manageUrl: buildBookingManageUrl(fresh.token),
+          icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+        });
+        await selectTransport().send({
+          to: moved.client_email,
+          subject: msg.subject,
+          html: msg.html,
+          text: msg.text,
+          idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "rescheduled"),
+        });
+      }
+      // The provider only hears about a real move: a no-op re-confirm (same
+      // time, same unit) reissues the client's link and nothing else.
+      const providerEmail = moved.dates_changed ? await getProviderEmail(moved.org_id) : null;
+      if (providerEmail) {
+        const notice = providerRescheduledEmail({
+          serviceName: moved.service_name,
+          oldWhenLine,
+          whenLine,
+          clientName: moved.client_name,
+        });
+        await selectTransport().send({
+          to: providerEmail,
+          subject: notice.subject,
+          html: notice.html,
+          text: notice.text,
+          idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "provider-rescheduled"),
+        });
+      }
+    } catch (mailError) {
+      console.error("[rentals] hourly reschedule emails failed:", mailError);
+    }
+
+    return { ok: true, token: fresh.token };
+  } catch (error) {
+    return fail("rescheduleRentalBookingHours", error);
   }
 }

@@ -45,25 +45,35 @@ export function barSpan(
   };
 }
 
-// Turnover cells after the last OCCUPIED day: nights — the checkout day is
-// the cleaning day, so the tail starts ON the checkout (half) cell; days —
-// the tail starts the day after the return day. Null when there is no
-// turnover, when the bar's tail is already cut off by the window's right
-// edge (we don't know where the real checkout/return day is, so we can't
-// place the tail), or when the tail falls entirely outside the window.
+// Turnover cells after the last OCCUPIED day, computed straight from the
+// stay's own dates rather than from `barSpan`'s output — a stay whose
+// checkout/return fell before the window (barSpan returns null: no bar to
+// paint) can still have turnover days that reach into the window, and that
+// must not depend on a bar existing. Nights — the checkout day is the
+// cleaning day, so the tail starts ON the checkout date; days — the tail
+// starts the day after the return date. Null when there is no turnover, or
+// the tail falls entirely outside the window (this also covers what used to
+// be the "bar clipped by the window's right edge" case: if the checkout is
+// beyond the window, tailStart lands beyond it too and fails the same
+// `tailStart > maxIndex` check below).
 export function turnoverSpan(
-  bar: BarSpan,
+  b: { endsAt: Date },
   mode: RangeMode,
+  timeZone: string,
   turnoverDays: number,
+  windowStart: string,
   days: number,
 ): { colStart: number; colSpan: number } | null {
-  if (turnoverDays === 0 || bar.clippedRight) return null;
-  const occLast = mode === "nights" ? bar.colStart + bar.colSpan - 2 : bar.colStart + bar.colSpan - 1;
-  const tailStart = occLast + 1;
+  if (turnoverDays === 0) return null;
+  const endDate = dateInZone(b.endsAt, timeZone);
+  const rawEnd = daysBetween(windowStart, endDate);
+  const tailStart = mode === "nights" ? rawEnd : rawEnd + 1;
+  const tailLast = tailStart + turnoverDays - 1;
   const maxIndex = days - 1;
-  if (tailStart > maxIndex) return null;
-  const tailEnd = Math.min(maxIndex, tailStart + turnoverDays - 1);
-  return { colStart: tailStart, colSpan: tailEnd - tailStart + 1 };
+  if (tailLast < 0 || tailStart > maxIndex) return null;
+  const colStart = Math.max(0, tailStart);
+  const colEnd = Math.min(maxIndex, tailLast);
+  return { colStart, colSpan: colEnd - colStart + 1 };
 }
 
 export function blackoutSpan(

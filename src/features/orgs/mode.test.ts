@@ -13,10 +13,19 @@ describe("channelsOf", () => {
 });
 
 describe("defaultBookingsView", () => {
-  it("rentals-only defaults to the timeline, everything else to week", () => {
-    expect(defaultBookingsView(RENTALS_ONLY)).toBe("timeline");
-    expect(defaultBookingsView(APPTS_ONLY)).toBe("week");
-    expect(defaultBookingsView(BOTH)).toBe("week");
+  it("rentals-only without hourly offerings defaults to the timeline", () => {
+    expect(defaultBookingsView(RENTALS_ONLY, false)).toBe("timeline");
+  });
+
+  it("rentals-only WITH hourly offerings defaults to the week grid — hourly bookings don't belong on the timeline", () => {
+    expect(defaultBookingsView(RENTALS_ONLY, true)).toBe("week");
+  });
+
+  it("appointments-only and mixed orgs always default to week, regardless of hourly", () => {
+    expect(defaultBookingsView(APPTS_ONLY, false)).toBe("week");
+    expect(defaultBookingsView(APPTS_ONLY, true)).toBe("week");
+    expect(defaultBookingsView(BOTH, false)).toBe("week");
+    expect(defaultBookingsView(BOTH, true)).toBe("week");
   });
 });
 

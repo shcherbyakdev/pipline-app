@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
-import { validateStay, type RangeAvailability } from "@/features/rentals/range";
+import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
 import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
 import { getRangeAvailability, createRentalBooking } from "@/features/rentals/public-actions";
 import { RangePicker, staySummary, type RangeValue } from "./range-picker";
@@ -40,18 +40,24 @@ export function RentalBookingFlow({
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
+  // Request-ordering guard: a fast month-nav click can fire a second fetch
+  // before the first resolves — only the most recent request may ever apply
+  // its result.
+  const seqRef = React.useRef(0);
 
   // Deliberately does NOT clear `error`: the datesTaken path re-loads
   // availability *and* wants its message to survive the reload.
   const load = React.useCallback(
     (m: string) => {
       startTransition(async () => {
+        const seq = ++seqRef.current;
         const result = await getRangeAvailability({
           handle,
           offeringId: offering.id,
           fromDate: firstOfMonth(m),
           days: windowDays(offering),
         });
+        if (seq !== seqRef.current) return;
         if (result.ok) {
           setAvailability(result.availability);
           setUnits(result.units);
@@ -83,7 +89,7 @@ export function RentalBookingFlow({
 
   const stay =
     availability && range.start && range.end
-      ? validateStay(offering, availability, range.start, range.end)
+      ? validateStay(asEngineOffering(offering), availability, range.start, range.end)
       : null;
   const eligibleUnits =
     stay && stay.ok ? units.filter((u) => stay.unitIds.includes(u.id)) : [];

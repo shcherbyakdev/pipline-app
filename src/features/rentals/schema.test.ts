@@ -77,6 +77,52 @@ describe("manage (token) inputs", () => {
     expect(rescheduleRentalInput.safeParse({ ...r, endDate: "2027-5-3" }).success).toBe(false);
   });
 });
+describe("hours offering input", () => {
+  const base = {
+    name: "Rehearsal Room",
+    rangeMode: "hours" as const,
+    slotIncrementMin: 30,
+    minDurationMin: 60,
+    maxDurationMin: 240,
+    turnoverMin: 15,
+    minNoticeMin: 120,
+    bookingWindowDays: 60,
+    unitSelection: "auto" as const,
+    active: true,
+  };
+  it("accepts a valid hours offering without start/end times", () => {
+    expect(offeringInput.safeParse(base).success).toBe(true);
+  });
+  it("rejects a min duration that is not a multiple of the increment", () => {
+    expect(offeringInput.safeParse({ ...base, minDurationMin: 45 }).success).toBe(false);
+  });
+  it("rejects max < min duration", () => {
+    expect(offeringInput.safeParse({ ...base, maxDurationMin: 30 }).success).toBe(false);
+  });
+  it("still accepts a nights offering exactly as before", () => {
+    expect(
+      offeringInput.safeParse({
+        name: "Cabin", rangeMode: "nights", startTime: "15:00", endTime: "11:00",
+        minStay: 1, maxStay: null, turnoverDays: 1, minNoticeDays: 0,
+        bookingWindowDays: 180, unitSelection: "auto", active: true,
+      }).success,
+    ).toBe(true);
+  });
+  it("rejects hours fields on a nights offering", () => {
+    expect(
+      offeringInput.safeParse({
+        name: "Cabin", rangeMode: "nights", startTime: "15:00", endTime: "11:00",
+        minStay: 1, maxStay: null, turnoverDays: 1, minNoticeDays: 0,
+        bookingWindowDays: 180, unitSelection: "auto", active: true,
+        slotIncrementMin: 30,
+      }).success,
+    ).toBe(false);
+  });
+  it("rejects range fields (startTime/minStay) on an hours offering", () => {
+    expect(offeringInput.safeParse({ ...base, startTime: "15:00" }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...base, minStay: 1 }).success).toBe(false);
+  });
+});
 describe("admin inputs", () => {
   const U = "00000000-0000-4000-8000-000000000000";
   it("caps availability days at 93 and defaults excludeBookingId to null", () => {

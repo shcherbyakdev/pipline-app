@@ -4,6 +4,7 @@ import {
   bookingConfirmationEmail,
   staffNewBookingEmail,
   formatRangeWhenLine,
+  formatHourlyWhenLine,
   whenLineFor,
   bookingLifecycleKey,
   bookingCancelledEmail,
@@ -184,11 +185,32 @@ describe("booking lifecycle templates", () => {
     expect(s).toBe("Fri, 10 Sept 2027, 15:00 → Mon, 13 Sept 2027, 11:00 (CEST)");
   });
 
+  it("formatHourlyWhenLine prints the date once with an en-dash time range", () => {
+    const s = formatHourlyWhenLine(
+      new Date("2026-09-07T08:00:00Z"),
+      new Date("2026-09-07T10:00:00Z"),
+      "Europe/Warsaw",
+    );
+    expect(s).toBe("Mon, 07 Sept 2026, 10:00–12:00 (CEST)");
+  });
+
   it("whenLineFor dispatches on isRental", () => {
     const b = { startsAt: new Date("2027-09-10T13:00:00Z"), endsAt: new Date("2027-09-13T09:00:00Z") };
     expect(whenLineFor({ ...b, isRental: false }, "Europe/Berlin")).toBe(
       formatWhenLine(b.startsAt, "Europe/Berlin"),
     );
+    expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin")).toContain("→");
+  });
+
+  it("whenLineFor renders an hourly rental (rangeMode: 'hours') via formatHourlyWhenLine, not the nights/days range", () => {
+    const b = { startsAt: new Date("2027-09-10T08:00:00Z"), endsAt: new Date("2027-09-10T10:00:00Z") };
+    expect(whenLineFor({ ...b, isRental: true, rangeMode: "hours" }, "Europe/Berlin")).toBe(
+      formatHourlyWhenLine(b.startsAt, b.endsAt, "Europe/Berlin"),
+    );
+    expect(whenLineFor({ ...b, isRental: true, rangeMode: "hours" }, "Europe/Berlin")).not.toContain("→");
+    // A nights/days rental (or one that never passes rangeMode at all —
+    // every pre-H2 caller) still gets the two-date range.
+    expect(whenLineFor({ ...b, isRental: true, rangeMode: "nights" }, "Europe/Berlin")).toContain("→");
     expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin")).toContain("→");
   });
 });

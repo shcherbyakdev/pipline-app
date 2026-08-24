@@ -10,6 +10,7 @@ import {
   rescheduleBooking,
 } from "@/features/scheduling/manage-actions";
 import { RentalReschedulePanel } from "@/features/rentals/components/rental-reschedule-panel";
+import { HourlyReschedulePanel } from "@/features/rentals/components/hourly-reschedule-panel";
 import { Button } from "@/components/ui/button";
 
 // The viewer's local date (booking-widget's rule; getManageSlots pads its
@@ -33,6 +34,7 @@ export function ManageBooking({
   timeZone,
   canReschedule,
   kind,
+  rangeMode,
 }: {
   token: string;
   timeZone: string;
@@ -41,6 +43,11 @@ export function ManageBooking({
   // Rentals R2: a stay picks a date RANGE, not a slot — the same
   // Reschedule button opens a range picker instead of the slot grid.
   kind: "appointment" | "rental";
+  // Rentals only (H2): which reschedule surface a booking gets — the range
+  // picker (nights/days) or the hourly time grid. Null for an appointment,
+  // which never reads it (kind === "appointment" always wins the branch
+  // below).
+  rangeMode: "nights" | "days" | "hours" | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
@@ -106,11 +113,19 @@ export function ManageBooking({
           Reschedule
         </Button>
       ) : kind === "rental" ? (
-        <RentalReschedulePanel
-          token={token}
-          timeZone={timeZone}
-          onCancel={() => setPicking(false)}
-        />
+        rangeMode === "hours" ? (
+          <HourlyReschedulePanel
+            token={token}
+            timeZone={timeZone}
+            onCancel={() => setPicking(false)}
+          />
+        ) : (
+          <RentalReschedulePanel
+            token={token}
+            timeZone={timeZone}
+            onCancel={() => setPicking(false)}
+          />
+        )
       ) : (
         <div className="flex flex-col gap-3 rounded-md border p-4">
           <div className="flex items-center justify-between">

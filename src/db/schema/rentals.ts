@@ -29,8 +29,9 @@ export const rentalOfferings = pgTable(
     // 'nights' | 'days' — CHECK in 0037.
     rangeMode: text("range_mode").notNull(),
     // Org-local "HH:MM": check-in/check-out (nights) or pickup/return (days).
-    startTime: text("start_time").notNull(),
-    endTime: text("end_time").notNull(),
+    // NULL in hours mode (H2) — CHECK in 0056 pins NOT NULL to nights/days.
+    startTime: text("start_time"),
+    endTime: text("end_time"),
     // Counted in nights or days per range_mode.
     minStay: integer("min_stay").default(1).notNull(),
     maxStay: integer("max_stay"),
@@ -38,6 +39,15 @@ export const rentalOfferings = pgTable(
     turnoverDays: integer("turnover_days").default(0).notNull(),
     minNoticeDays: integer("min_notice_days").default(0).notNull(),
     bookingWindowDays: integer("booking_window_days").default(180).notNull(),
+    // Hours mode (H2). NULL for nights/days; the trio NOT NULL iff
+    // range_mode='hours' (CHECK in 0056).
+    slotIncrementMin: integer("slot_increment_min"),
+    minDurationMin: integer("min_duration_min"),
+    maxDurationMin: integer("max_duration_min"),
+    // Minutes-granularity siblings of turnover_days/min_notice_days, used
+    // only in hours mode (min_notice_min mirrors services.min_notice_min).
+    turnoverMin: integer("turnover_min").default(0).notNull(),
+    minNoticeMin: integer("min_notice_min").default(0).notNull(),
     // 'auto' | 'client_picks' — CHECK in 0037.
     unitSelection: text("unit_selection").default("auto").notNull(),
     active: boolean("active").default(true).notNull(),

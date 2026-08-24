@@ -106,6 +106,11 @@ export const availabilityRules = pgTable(
       .references(() => orgs.id, { onDelete: "cascade" }),
     // Team slice: nullable in 0040, backfilled + NOT NULL in 0041.
     staffId: uuid("staff_id").references(() => staff.id, { onDelete: "cascade" }),
+    // H2: owner is staff XOR rental offering (CHECK in 0056; 0041's staff
+    // NOT NULL is dropped there).
+    rentalOfferingId: uuid("rental_offering_id").references(() => rentalOfferings.id, {
+      onDelete: "cascade",
+    }),
     // 0 = Sunday … 6 = Saturday (JS getUTCDay convention). CHECK in 0026.
     weekday: integer("weekday").notNull(),
     // Org-local wall-clock "HH:MM". Format CHECK in 0026. The slot engine
@@ -118,6 +123,7 @@ export const availabilityRules = pgTable(
   (t) => [
     index("availability_rules_org_id_idx").on(t.orgId),
     index("availability_rules_staff_weekday_idx").on(t.staffId, t.weekday),
+    index("availability_rules_offering_weekday_idx").on(t.rentalOfferingId, t.weekday),
   ],
 );
 
@@ -130,6 +136,11 @@ export const availabilityExceptions = pgTable(
       .references(() => orgs.id, { onDelete: "cascade" }),
     // Team slice: nullable in 0040, backfilled + NOT NULL in 0041.
     staffId: uuid("staff_id").references(() => staff.id, { onDelete: "cascade" }),
+    // H2: owner is staff XOR rental offering (CHECK in 0056; 0041's staff
+    // NOT NULL is dropped there).
+    rentalOfferingId: uuid("rental_offering_id").references(() => rentalOfferings.id, {
+      onDelete: "cascade",
+    }),
     // Org-local calendar date the exception applies to.
     date: date("date").notNull(),
     // closed=true ⇒ whole day off (start/end null). closed=false ⇒ this
@@ -142,6 +153,7 @@ export const availabilityExceptions = pgTable(
   (t) => [
     index("availability_exceptions_org_date_idx").on(t.orgId, t.date),
     index("availability_exceptions_staff_date_idx").on(t.staffId, t.date),
+    index("availability_exceptions_offering_date_idx").on(t.rentalOfferingId, t.date),
   ],
 );
 

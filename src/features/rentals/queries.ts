@@ -15,16 +15,24 @@ export type OfferingRow = {
   description: string | null;
   priceLabel: string | null;
   rangeMode: RangeMode;
-  // `text`, not `time` — 0037's `rental_offerings_start_time_fmt` CHECK pins
-  // both to "HH:MM", so they need no normalising for <input type="time">.
-  startTime: string;
-  endTime: string;
+  // H2: nights/days always set these (0056 CHECK); hours reads opening
+  // hours from availability_rules instead, so both are null there
+  // (public.ts's PublicOffering precedent).
+  startTime: string | null;
+  endTime: string | null;
   minStay: number;
   maxStay: number | null;
   turnoverDays: number;
   minNoticeDays: number;
   bookingWindowDays: number;
   unitSelection: "auto" | "client_picks";
+  // H2: present (non-null) iff rangeMode === "hours" (0056 CHECK) — the
+  // trio is either all-set or all-null. See hourly.ts's isHourlyOffering.
+  slotIncrementMin: number | null;
+  minDurationMin: number | null;
+  maxDurationMin: number | null;
+  turnoverMin: number;
+  minNoticeMin: number;
   active: boolean;
   sortOrder: number;
   unitCount: number;
@@ -34,7 +42,7 @@ export type OfferingRow = {
 // shape (`rental_units(count)` → `[{count: n}]`) is asserted against the
 // live PostgREST instance rather than assumed.
 export const OFFERING_COLUMNS =
-  "id, name, description, price_label, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, active, sort_order, rental_units(count)";
+  "id, name, description, price_label, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, sort_order, rental_units(count)";
 
 type OfferingDb = {
   id: string;
@@ -42,14 +50,19 @@ type OfferingDb = {
   description: string | null;
   price_label: string | null;
   range_mode: RangeMode;
-  start_time: string;
-  end_time: string;
+  start_time: string | null;
+  end_time: string | null;
   min_stay: number;
   max_stay: number | null;
   turnover_days: number;
   min_notice_days: number;
   booking_window_days: number;
   unit_selection: "auto" | "client_picks";
+  slot_increment_min: number | null;
+  min_duration_min: number | null;
+  max_duration_min: number | null;
+  turnover_min: number;
+  min_notice_min: number;
   active: boolean;
   sort_order: number;
   rental_units: Array<{ count: number }> | null;
@@ -70,6 +83,11 @@ function toOffering(o: OfferingDb): OfferingRow {
     minNoticeDays: o.min_notice_days,
     bookingWindowDays: o.booking_window_days,
     unitSelection: o.unit_selection,
+    slotIncrementMin: o.slot_increment_min,
+    minDurationMin: o.min_duration_min,
+    maxDurationMin: o.max_duration_min,
+    turnoverMin: o.turnover_min,
+    minNoticeMin: o.min_notice_min,
     active: o.active,
     sortOrder: o.sort_order,
     unitCount: o.rental_units?.[0]?.count ?? 0,
@@ -206,7 +224,6 @@ export async function listTimelineData(
   const supabase = await createClient();
   const lastDate = addDaysISO(fromDate, days - 1);
   const exclusiveToDate = addDaysISO(fromDate, days);
-  const fromIso = wallTimeToUtc(fromDate, "00:00", timeZone).toISOString();
   const toIso = wallTimeToUtc(exclusiveToDate, "00:00", timeZone).toISOString();
 
   const { data: offeringRows, error: offeringsError } = await supabase
@@ -215,7 +232,21 @@ export async function listTimelineData(
     .order("sort_order")
     .order("name");
   if (offeringsError) throw offeringsError;
-  const offeringDb = (offeringRows ?? []) as unknown as TimelineOfferingDb[];
+  // Timeline: hourly offerings do not appear (spec) — it's a date-range grid
+  // (Gantt-style, one column per day), and an hourly offering has no bar to
+  // draw there. Filtered out here, before maxTurnover/allUnitIds are
+  // derived, so its units drop out of the blackout fetch too.
+  const offeringDb = ((offeringRows ?? []) as unknown as TimelineOfferingDb[]).filter(
+    (o) => o.range_mode !== "hours",
+  );
+
+  // A stay's turnover tail (post-checkout cleaning/prep) can hang into the
+  // window even when the stay itself checked out before `fromDate` — the
+  // bookings fetch's lower bound widens by the widest turnover_days among
+  // the org's offerings so that booking still comes back. Blackouts carry
+  // no turnover, so their own fetch (below) keeps the unwidened `fromDate`.
+  const maxTurnover = Math.max(0, ...offeringDb.map((o) => o.turnover_days ?? 0));
+  const fromIso = wallTimeToUtc(addDaysISO(fromDate, -maxTurnover), "00:00", timeZone).toISOString();
 
   const allUnitIds = offeringDb.flatMap((o) => (o.rental_units ?? []).map((u) => u.id));
 

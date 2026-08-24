@@ -14,6 +14,7 @@ import type {
   RangeBlackout,
   RangeBooking,
 } from "@/features/rentals/range";
+import { blackoutBusy } from "@/features/rentals/hourly";
 
 // Admin-client reads for the anonymous booking page (getOrgBranding
 // precedent: the public surface stays off the anon SQL grant surface;
@@ -375,19 +376,28 @@ export type PublicOffering = {
   description: string | null;
   priceLabel: string | null;
   rangeMode: RangeMode;
-  startTime: string;
-  endTime: string;
+  // H2: nights/days always set these (0056 CHECK); hours reads opening
+  // hours from availability_rules instead, so both are null there.
+  startTime: string | null;
+  endTime: string | null;
   minStay: number;
   maxStay: number | null;
   turnoverDays: number;
   minNoticeDays: number;
   bookingWindowDays: number;
   unitSelection: "auto" | "client_picks";
+  // H2: present (non-null) iff rangeMode === "hours" (0056 CHECK) — the
+  // trio is either all-set or all-null. See hourly.ts's isHourlyOffering.
+  slotIncrementMin: number | null;
+  minDurationMin: number | null;
+  maxDurationMin: number | null;
+  turnoverMin: number;
+  minNoticeMin: number;
 };
 export type PublicUnit = { id: string; name: string; description: string | null; active: boolean };
 
 const PUBLIC_OFFERING_COLUMNS =
-  "id, name, description, price_label, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection";
+  "id, name, description, price_label, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min";
 
 type PublicOfferingDb = {
   id: string;
@@ -395,14 +405,19 @@ type PublicOfferingDb = {
   description: string | null;
   price_label: string | null;
   range_mode: RangeMode;
-  start_time: string;
-  end_time: string;
+  start_time: string | null;
+  end_time: string | null;
   min_stay: number;
   max_stay: number | null;
   turnover_days: number;
   min_notice_days: number;
   booking_window_days: number;
   unit_selection: "auto" | "client_picks";
+  slot_increment_min: number | null;
+  min_duration_min: number | null;
+  max_duration_min: number | null;
+  turnover_min: number;
+  min_notice_min: number;
 };
 
 function toPublicOffering(o: PublicOfferingDb): PublicOffering {
@@ -420,6 +435,11 @@ function toPublicOffering(o: PublicOfferingDb): PublicOffering {
     minNoticeDays: o.min_notice_days,
     bookingWindowDays: o.booking_window_days,
     unitSelection: o.unit_selection,
+    slotIncrementMin: o.slot_increment_min,
+    minDurationMin: o.min_duration_min,
+    maxDurationMin: o.max_duration_min,
+    turnoverMin: o.turnover_min,
+    minNoticeMin: o.min_notice_min,
   };
 }
 
@@ -508,6 +528,9 @@ export async function loadOrgRangeContext(
 } | null> {
   const offering = await getPublicOfferingById(orgId, offeringId);
   if (!offering) return null;
+  // Inverse of loadOrgHourlyContext's guard: this loader feeds the
+  // date-range engine, which never resolves an hours offering.
+  if (offering.rangeMode === "hours") return null;
   const admin = createAdminClient();
   let unitsQuery = admin
     .from("rental_units")
@@ -571,6 +594,126 @@ export async function loadOrgRangeContext(
     endsAt: new Date(b.ends_at),
   }));
   return { offering, units, rangeUnits, blackouts, bookings };
+}
+
+// H2: opening hours for an hourly offering. Twin of getAvailability(staffId)
+// with the owner column swapped to rental_offering_id (0056).
+export async function getOfferingAvailability(
+  offeringId: string,
+): Promise<{ rules: SlotRule[]; exceptions: SlotException[] }> {
+  const admin = createAdminClient();
+  const [rulesRes, exceptionsRes] = await Promise.all([
+    admin
+      .from("availability_rules")
+      .select("weekday, start_time, end_time")
+      .eq("rental_offering_id", offeringId),
+    admin
+      .from("availability_exceptions")
+      .select("date, closed, start_time, end_time")
+      .eq("rental_offering_id", offeringId),
+  ]);
+  if (rulesRes.error) throw rulesRes.error;
+  if (exceptionsRes.error) throw exceptionsRes.error;
+  return {
+    rules: (rulesRes.data ?? []).map((r) => ({
+      weekday: r.weekday,
+      startTime: r.start_time,
+      endTime: r.end_time,
+    })),
+    exceptions: (exceptionsRes.data ?? []).map((e) => ({
+      date: e.date,
+      closed: e.closed,
+      startTime: e.start_time,
+      endTime: e.end_time,
+    })),
+  };
+}
+
+// Everything the hourly slot engine needs for one org+offering, per unit.
+// `timeZone` is passed in rather than re-queried — every caller already
+// holds the org record (getBookingOrg / currentOrg).
+export async function loadOrgHourlyContext(
+  orgId: string,
+  offeringId: string,
+  timeZone: string,
+  fromDate: string,
+  days: number,
+  opts?: {
+    excludeBookingId?: string;
+    unitId?: string;
+    includeInactiveUnits?: boolean;
+  },
+): Promise<{
+  offering: PublicOffering;
+  units: PublicUnit[];
+  rules: SlotRule[];
+  exceptions: SlotException[];
+  perUnit: { unitId: string; busy: BusyInterval[] }[];
+} | null> {
+  const offering = await getPublicOfferingById(orgId, offeringId);
+  if (!offering || offering.rangeMode !== "hours") return null;
+  const admin = createAdminClient();
+  let unitsQuery = admin
+    .from("rental_units")
+    .select("id, name, description, sort_order, active")
+    .eq("offering_id", offeringId)
+    .eq("org_id", orgId);
+  if (!opts?.includeInactiveUnits) unitsQuery = unitsQuery.eq("active", true);
+  const { data: unitRows, error: unitsError } = await unitsQuery
+    .order("sort_order")
+    .order("created_at");
+  if (unitsError) throw unitsError;
+  const units: PublicUnit[] = (unitRows ?? [])
+    .filter((u) => (opts?.unitId ? u.id === opts.unitId : true))
+    .map((u) => ({ id: u.id, name: u.name, description: u.description, active: u.active }));
+  const { rules, exceptions } = await getOfferingAvailability(offeringId);
+  // Window padded a day each side (viewer/org offset) — getBusyIntervals idiom.
+  const fromIso = `${addDaysISO(fromDate, -1)}T00:00:00Z`;
+  const toIso = `${addDaysISO(fromDate, days + 1)}T23:59:59Z`;
+  const unitIds = units.map((u) => u.id);
+  const [bookingRes, blackoutRes] = await Promise.all([
+    unitIds.length
+      ? admin
+          .from("bookings")
+          .select("id, rental_unit_id, starts_at, ends_at")
+          .in("rental_unit_id", unitIds)
+          .eq("status", "confirmed")
+          .gte("ends_at", fromIso)
+          .lte("starts_at", toIso)
+      : Promise.resolve({ data: [], error: null }),
+    unitIds.length
+      ? admin
+          .from("rental_unit_blackouts")
+          .select("rental_unit_id, start_date, end_date")
+          .in("rental_unit_id", unitIds)
+          .gte("end_date", addDaysISO(fromDate, -1))
+          .lte("start_date", addDaysISO(fromDate, days + 1))
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (bookingRes.error) throw bookingRes.error;
+  if (blackoutRes.error) throw blackoutRes.error;
+  const blackoutMap = blackoutBusy(
+    (blackoutRes.data ?? []).map((b) => ({
+      unitId: b.rental_unit_id,
+      startDate: b.start_date,
+      endDate: b.end_date,
+    })),
+    timeZone,
+  );
+  const perUnit = units.map((u) => ({
+    unitId: u.id,
+    busy: [
+      ...(bookingRes.data ?? [])
+        .filter((b) => b.rental_unit_id === u.id && b.id !== opts?.excludeBookingId)
+        .map((b) => ({
+          startsAt: new Date(b.starts_at),
+          endsAt: new Date(b.ends_at),
+          bufferAfterMin: offering.turnoverMin,
+        })),
+      ...(blackoutMap.get(u.id) ?? []),
+    ],
+  }));
+  return { offering, units, rules, exceptions, perUnit };
 }
 
 // The tokenized manage page knows a stay by its token; the resolver hands

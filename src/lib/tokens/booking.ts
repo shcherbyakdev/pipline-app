@@ -22,7 +22,7 @@ export type ResolveBookingResult =
         // rental stay (rentalUnitId + rangeMode set) — never both.
         serviceId: string | null;
         rentalUnitId: string | null;
-        rangeMode: "nights" | "days" | null;
+        rangeMode: "nights" | "days" | "hours" | null;
         // Team: the assigned staff member (null for rental stays, which have
         // no calendar owner). `staffName` is raw — the solo rule that hides it
         // lives in resolveClientStaffName, applied per surface.
@@ -63,7 +63,7 @@ export async function resolveBookingToken(
     org_id: string;
     service_id: string | null;
     rental_unit_id: string | null;
-    range_mode: "nights" | "days" | null;
+    range_mode: "nights" | "days" | "hours" | null;
     staff_id: string | null;
     staff_name: string | null;
   }> | null)?.[0];

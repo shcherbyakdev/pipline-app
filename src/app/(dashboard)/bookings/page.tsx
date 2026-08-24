@@ -8,7 +8,8 @@ import {
 } from "@/features/scheduling/queries";
 import { listActiveStaff, type StaffRow } from "@/features/scheduling/staff-queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
-import { listTimelineData } from "@/features/rentals/queries";
+import { listOfferings, listTimelineData } from "@/features/rentals/queries";
+import { HourlyWalkInButton } from "@/features/rentals/components/hourly-walk-in-button";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { defaultBookingsView, effectiveMode, modeOf } from "@/features/orgs/mode";
@@ -65,7 +66,16 @@ export default async function BookingsPage({
   const mode = modeOf(org);
   const eff = effectiveMode(flags, mode);
   const rentals = eff.offersRentals;
-  const view = params.view ?? (rentals ? defaultBookingsView(eff) : "week");
+  // H2: fetched once, up front, and threaded through every branch below —
+  // it decides the default view (a rentals-only org that sells by the hour
+  // lands on week, not the timeline) and whether the Timeline link even
+  // makes sense (nothing to show there without a nights/days offering).
+  // The week-view branch further down reuses this array instead of asking
+  // again.
+  const orgOfferings = rentals ? await listOfferings() : [];
+  const hasHourly = orgOfferings.some((o) => o.active && o.rangeMode === "hours");
+  const hasRangeOfferings = orgOfferings.some((o) => o.active && o.rangeMode !== "hours");
+  const view = params.view ?? (rentals ? defaultBookingsView(eff, hasHourly) : "week");
   const welcome =
     params.welcome === "1" ? (
       <WelcomeBanner handle={settings?.handle ?? null} appUrl={env.NEXT_PUBLIC_APP_URL} mode={eff} />
@@ -120,8 +130,10 @@ export default async function BookingsPage({
   }
 
   // The Timeline link only makes sense once the org's declared mode sells
-  // rentals — appointment-only orgs never see it.
-  const hasRentals = rentals;
+  // rentals AND has at least one nights/days offering to show there —
+  // appointment-only orgs never see it, and neither does an hourly-only
+  // rentals org (hourly bookings don't appear on the timeline at all).
+  const hasRentals = rentals && hasRangeOfferings;
   const timelineLink = hasRentals ? (
     <Link
       href="/bookings?view=timeline"
@@ -166,7 +178,7 @@ export default async function BookingsPage({
   // nobody asked to narrow.
   const staffFilter =
     selectedStaffIds.length < activeStaff.length ? selectedStaffIds : undefined;
-  const [bookings, exceptions, services, availability] = await Promise.all([
+  const [rawBookings, exceptions, services, availability] = await Promise.all([
     listConfirmedBookingsBetween(fromIso, toIso, staffFilter),
     selectedStaffIds.length > 0
       ? listExceptionsBetween(weekStart, weekEnd, selectedStaffIds)
@@ -174,6 +186,19 @@ export default async function BookingsPage({
     listServices(),
     Promise.all(selectedStaffIds.map((id) => getAvailabilityAdmin(id, today))),
   ]);
+  // H2: a narrowing staff filter is a lens on a person's work — a room
+  // isn't anybody's work, so rentals drop out whenever it's on. Off (the
+  // "everyone" week), rentals stay. `.in("staff_id", …)` above already
+  // excludes them (staff_id is null on every rental), but this makes the
+  // rule explicit rather than leaning on that null behaviour.
+  const withRentals = staffFilter === undefined;
+  const bookings = withRentals ? rawBookings : rawBookings.filter((b) => b.rentalUnitId === null);
+  // H2 (Task 10): the week-calendar's own walk-in entry point for hourly
+  // offerings only shows up once there's something hourly to book — the
+  // timeline is still where nights/days walk-ins happen. `orgOfferings` was
+  // already fetched up front (it also decided the default view and the
+  // Timeline link), so no second query here.
+  const hourlyOfferings = orgOfferings.filter((o) => o.active && o.rangeMode === "hours");
   // One person ⇒ their rows go straight through (so the grid's block/unblock
   // and "Reopen day" keep working off real exceptions). Several ⇒ each
   // person's day is resolved on its own and the results unioned
@@ -209,6 +234,9 @@ export default async function BookingsPage({
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {welcome}
       <div className="flex items-center justify-end gap-2">
+        {hourlyOfferings.length > 0 ? (
+          <HourlyWalkInButton offerings={hourlyOfferings} timeZone={timeZone} />
+        ) : null}
         <div className="flex items-center gap-2">
           <Link
             href={staffQuery ? `/bookings?${staffQuery.slice(1)}` : "/bookings"}

@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { setDateOverride, deleteDateOverride } from "@/features/scheduling/actions";
-import { OVERLAP_ERROR } from "@/features/scheduling/schema";
+import { OVERLAP_ERROR, type AvailabilityOwner } from "@/features/scheduling/schema";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
 import { dateInZone } from "@/features/scheduling/slots";
 import {
@@ -72,15 +72,15 @@ function groupExceptions(exceptions: ExceptionRow[]): Group[] {
     });
 }
 
-// `staffId`: whose overrides these are — see WeeklyHours for the same note.
+// `owner`: whose overrides these are — see WeeklyHours for the same note.
 // `timeZone`: the org's, for "today" (the earliest date an override can take).
 export function DateOverrides({
-  staffId,
+  owner,
   timeZone,
   rules,
   exceptions,
 }: {
-  staffId: string;
+  owner: AvailabilityOwner;
   timeZone: string;
   rules: RuleRow[];
   exceptions: ExceptionRow[];
@@ -119,7 +119,7 @@ export function DateOverrides({
           {groups.map((group) => (
             <OverrideRow
               key={group.date}
-              staffId={staffId}
+              owner={owner}
               group={group}
               onEdit={() => openEdit(group.date)}
             />
@@ -139,7 +139,7 @@ export function DateOverrides({
         key={dialogKey}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        staffId={staffId}
+        owner={owner}
         timeZone={timeZone}
         date={editingDate}
         rules={rules}
@@ -150,11 +150,11 @@ export function DateOverrides({
 }
 
 function OverrideRow({
-  staffId,
+  owner,
   group,
   onEdit,
 }: {
-  staffId: string;
+  owner: AvailabilityOwner;
   group: Group;
   onEdit: () => void;
 }) {
@@ -164,7 +164,7 @@ function OverrideRow({
   function onDelete(e: React.MouseEvent) {
     e.stopPropagation();
     startTransition(async () => {
-      const result = await deleteDateOverride({ staffId, date: group.date });
+      const result = await deleteDateOverride({ ...owner, date: group.date });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -207,7 +207,7 @@ function OverrideRow({
 function OverrideDialog({
   open,
   onOpenChange,
-  staffId,
+  owner,
   timeZone,
   date,
   rules,
@@ -215,7 +215,7 @@ function OverrideDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  staffId: string;
+  owner: AvailabilityOwner;
   timeZone: string;
   date: string | null;
   rules: RuleRow[];
@@ -292,7 +292,7 @@ function OverrideDialog({
     }
     startTransition(async () => {
       const result = await setDateOverride({
-        staffId,
+        ...owner,
         date: draftDate,
         closed,
         windows: closed ? [] : windows,

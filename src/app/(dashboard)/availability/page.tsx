@@ -65,8 +65,8 @@ export default async function AvailabilityPage({
           hrefFor={(id) => `/availability?staff=${id}`}
         />
       </div>
-      <WeeklyHours staffId={current.id} rules={rules} />
-      <DateOverrides staffId={current.id} timeZone={timezone} rules={rules} exceptions={exceptions} />
+      <WeeklyHours owner={{ staffId: current.id }} rules={rules} />
+      <DateOverrides owner={{ staffId: current.id }} timeZone={timezone} rules={rules} exceptions={exceptions} />
     </div>
   );
 }

@@ -137,11 +137,11 @@ describe("staff: seed, RLS, triggers, create_staff", () => {
     expect(error?.code).toBe("42501");
   });
 
-  it("availability_rules require staff_id (NOT NULL) and staff must belong to the org", async () => {
+  it("availability_rules require an owner (staff XOR rental offering, 0056) and staff must belong to the org", async () => {
     const { error } = await owner
       .from("availability_rules")
       .insert({ org_id: orgId, weekday: 1, start_time: "09:00", end_time: "12:00" });
-    expect(error?.code).toBe("23502");
+    expect(error?.code).toBe("23514"); // availability_rules_owner CHECK (0056 dropped the staff_id NOT NULL)
     const { data: sst } = await admin
       .from("staff")
       .select("id")

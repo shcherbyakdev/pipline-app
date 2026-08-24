@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { type StatsBookingRow } from "./stats";
 import { bookingTitle } from "./booking-label";
+import type { RangeMode } from "@/features/rentals/range";
 
 export type ServiceRow = {
   id: string;
@@ -108,6 +109,52 @@ export async function getAvailabilityAdmin(
   };
 }
 
+/** Offering twin of `getAvailabilityAdmin` (H2, hourly mode) — same two
+    selects, `rental_offering_id`-scoped instead of `staff_id`-scoped, same
+    row mapping. Authenticated client, RLS-scoped: the offering must belong
+    to an org the caller is a member of, same as every other admin query
+    here. */
+export async function getOfferingAvailabilityAdmin(
+  offeringId: string,
+  fromDate: string = new Date().toISOString().slice(0, 10),
+): Promise<{
+  rules: RuleRow[];
+  exceptions: ExceptionRow[];
+}> {
+  const supabase = await createClient();
+  const [rulesRes, exceptionsRes] = await Promise.all([
+    supabase
+      .from("availability_rules")
+      .select("id, weekday, start_time, end_time")
+      .eq("rental_offering_id", offeringId)
+      .order("weekday")
+      .order("start_time"),
+    supabase
+      .from("availability_exceptions")
+      .select("id, date, closed, start_time, end_time")
+      .eq("rental_offering_id", offeringId)
+      .gte("date", fromDate)
+      .order("date"),
+  ]);
+  if (rulesRes.error) throw rulesRes.error;
+  if (exceptionsRes.error) throw exceptionsRes.error;
+  return {
+    rules: (rulesRes.data ?? []).map((r) => ({
+      id: r.id,
+      weekday: r.weekday,
+      startTime: r.start_time,
+      endTime: r.end_time,
+    })),
+    exceptions: (exceptionsRes.data ?? []).map((e) => ({
+      id: e.id,
+      date: e.date,
+      closed: e.closed,
+      startTime: e.start_time,
+      endTime: e.end_time,
+    })),
+  };
+}
+
 export type AdminBooking = {
   id: string;
   // Rentals R1 (0037): a booking is EITHER an appointment (serviceId) or a
@@ -115,6 +162,11 @@ export type AdminBooking = {
   serviceId: string | null;
   rentalOfferingId: string | null;
   rentalUnitId: string | null;
+  // H2 (Task 10): the offering's range mode, so a caller (the move dialog)
+  // can pick a range-engine or hourly-engine picker without a second fetch.
+  // Null for an appointment; also null if the offering row is somehow gone
+  // (never happens in practice — a booking's offering is never hard-deleted).
+  rangeMode: RangeMode | null;
   serviceName: string;
   clientName: string;
   clientEmail: string | null;
@@ -132,7 +184,7 @@ export type AdminBooking = {
 };
 
 export const BOOKING_COLUMNS =
-  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, services(name), rental_offerings(name), rental_units(name), staff(name, color)";
+  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
 
 export type BookingRow = {
   id: string;
@@ -149,7 +201,7 @@ export type BookingRow = {
   staff_id: string | null;
   staff: { name: string; color: string } | null;
   services: { name: string } | null;
-  rental_offerings: { name: string } | null;
+  rental_offerings: { name: string; range_mode: RangeMode } | null;
   rental_units: { name: string } | null;
 };
 
@@ -159,6 +211,7 @@ export function toAdminBooking(b: BookingRow): AdminBooking {
     serviceId: b.service_id,
     rentalOfferingId: b.rental_offering_id,
     rentalUnitId: b.rental_unit_id,
+    rangeMode: b.rental_offerings?.range_mode ?? null,
     serviceName: bookingTitle(b),
     clientName: b.client_name,
     clientEmail: b.client_email,

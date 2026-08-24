@@ -173,6 +173,115 @@ describe("computeSlots", () => {
   });
 });
 
+describe("computeSlots stepMin", () => {
+  it("stepMin overrides block stepping: 120min sessions every 30min", () => {
+    const slots = computeSlots({
+      service: {
+        durationMin: 120,
+        bufferBeforeMin: 0,
+        bufferAfterMin: 0,
+        minNoticeMin: 0,
+        maxPerDay: null,
+        bookingWindowDays: 30,
+        stepMin: 30,
+      },
+      rules: [{ weekday: 1, startTime: "09:00", endTime: "13:00" }],
+      exceptions: [],
+      busy: [],
+      timeZone: "Europe/Warsaw",
+      now: new Date("2026-08-31T00:00:00Z"),
+      fromDate: "2026-08-31",
+      days: 1,
+    });
+    // starts 09:00, 09:30, 10:00, 10:30, 11:00 (11:00+2h = 13:00 fits; 11:30 doesn't)
+    expect(slots).toHaveLength(5);
+  });
+
+  it("without stepMin behaviour is unchanged (block stepping)", () => {
+    const slots = computeSlots({
+      service: {
+        durationMin: 120,
+        bufferBeforeMin: 0,
+        bufferAfterMin: 0,
+        minNoticeMin: 0,
+        maxPerDay: null,
+        bookingWindowDays: 30,
+      },
+      rules: [{ weekday: 1, startTime: "09:00", endTime: "13:00" }],
+      exceptions: [],
+      busy: [],
+      timeZone: "Europe/Warsaw",
+      now: new Date("2026-08-31T00:00:00Z"),
+      fromDate: "2026-08-31",
+      days: 1,
+    });
+    // 09:00, then 11:00 (09:00+2h); 13:00+2h would overshoot the 13:00 close.
+    expect(slots).toHaveLength(2);
+  });
+});
+
+describe("computeSlots allowTailOverflow", () => {
+  it("production configuration: stepMin + turnover + busy — the close-of-window slot survives", () => {
+    // Studio open 09:00–13:00 Warsaw, 60-min sessions, 15-min turnover,
+    // 30-min grid, one existing booking 09:00–10:00 (+15min turnover).
+    const slots = computeSlots({
+      service: {
+        durationMin: 60,
+        bufferBeforeMin: 0,
+        bufferAfterMin: 15,
+        minNoticeMin: 0,
+        maxPerDay: null,
+        bookingWindowDays: 30,
+        stepMin: 30,
+        allowTailOverflow: true,
+      },
+      rules: [{ weekday: 1, startTime: "09:00", endTime: "13:00" }],
+      exceptions: [],
+      busy: [
+        {
+          startsAt: new Date("2026-08-31T07:00:00Z"), // 09:00 Warsaw
+          endsAt: new Date("2026-08-31T08:00:00Z"), // 10:00 Warsaw
+          bufferAfterMin: 15,
+        },
+      ],
+      timeZone: "Europe/Warsaw",
+      now: new Date("2026-08-31T00:00:00Z"),
+      fromDate: "2026-08-31",
+      days: 1,
+    });
+    const starts = slots.map(iso);
+    expect(starts).toContain("2026-08-31T08:30:00.000Z"); // 10:30 present
+    expect(starts).not.toContain("2026-08-31T07:30:00.000Z"); // 09:30 absent — turnover before
+    expect(starts).not.toContain("2026-08-31T08:00:00.000Z"); // 10:00 absent — turnover after
+    expect(starts).toContain("2026-08-31T10:00:00.000Z"); // 12:00 present — ends exactly at 13:00 close, tail overflows
+    expect(starts).not.toContain("2026-08-31T10:30:00.000Z"); // 12:30 absent — would end 13:30, past close
+  });
+
+  it("absent: the full block (incl. after-buffer) must still fit the window — appointments unaffected", () => {
+    const slots = computeSlots({
+      service: {
+        durationMin: 50,
+        bufferBeforeMin: 0,
+        bufferAfterMin: 10, // block = 60min
+        minNoticeMin: 0,
+        maxPerDay: null,
+        bookingWindowDays: 30,
+      },
+      // A 59-min window: the bare 50-min duration would fit, but the 60-min
+      // block (with its after-buffer) does not — without allowTailOverflow
+      // that must still exclude the slot, exactly as before Finding 1.
+      rules: [{ weekday: 1, startTime: "09:00", endTime: "09:59" }],
+      exceptions: [],
+      busy: [],
+      timeZone: "Europe/Warsaw",
+      now: new Date("2026-08-31T00:00:00Z"),
+      fromDate: "2026-08-31",
+      days: 1,
+    });
+    expect(slots).toEqual([]);
+  });
+});
+
 describe("unionSlots", () => {
   const t = (h: number) => new Date(Date.UTC(2026, 8, 1, h));
   it("merges, dedupes by instant, sorts, and lists eligible staff per slot", () => {

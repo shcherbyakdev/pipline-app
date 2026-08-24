@@ -35,20 +35,37 @@ export const serviceInput = z.object({
 export const updateServiceInput = serviceInput.extend({ id: z.uuid() });
 export const serviceIdInput = z.object({ id: z.uuid() });
 
-// Team (multi-staff): hours and overrides hang off a person, not the org, so
-// every input that creates such a row — or that is keyed by (staff, weekday)
-// or (staff, date) — carries the staff id. Row-id-keyed inputs (`ruleIdInput`,
+// H2 (hourly mode): hours and overrides hang off an OWNER, not the org — a
+// staff member OR an hours rental offering, never both, never neither
+// (0056's XOR CHECK on availability_rules/_exceptions). Every input that
+// creates such a row — or that is keyed by (owner, weekday) or (owner,
+// date) — carries exactly one owner id. Row-id-keyed inputs (`ruleIdInput`,
 // `updateRuleInput`) don't: the row already knows whose it is.
+const ownerFields = { staffId: z.uuid().optional(), rentalOfferingId: z.uuid().optional() };
+const oneOwner = (o: { staffId?: string; rentalOfferingId?: string }) =>
+  (o.staffId !== undefined) !== (o.rentalOfferingId !== undefined);
+const ONE_OWNER_MESSAGE = "exactly one owner";
+
+/** The parsed shape every owned availability input settles on: a staff id
+    XOR a rental offering id, never both, never neither. */
+export type AvailabilityOwner =
+  | { staffId: string; rentalOfferingId?: undefined }
+  | { rentalOfferingId: string; staffId?: undefined };
+
 export const availabilityRuleInput = z
   .object({
-    staffId: z.uuid(),
     weekday: z.number().int().min(0).max(6),
     startTime: timeField,
     endTime: timeField,
   })
-  .refine((r) => r.startTime < r.endTime, { message: "start must precede end" });
+  .extend(ownerFields)
+  .refine((r) => r.startTime < r.endTime, { message: "start must precede end" })
+  .refine(oneOwner, { message: ONE_OWNER_MESSAGE });
 export const ruleIdInput = z.object({ id: z.uuid() });
 
+// Calendar-only surface (block/unblock a time range) — stays staff-only,
+// unlike the rest of the availability inputs above: rental offerings have
+// no calendar-block UI (spec, task 6).
 export const blockTimeInput = z
   .object({
     staffId: z.uuid(),
@@ -58,10 +75,14 @@ export const blockTimeInput = z
   })
   .refine((r) => r.startTime < r.endTime, { message: "start must precede end" });
 
-export const reopenDayInput = z.object({
-  staffId: z.uuid(),
-  date: z.string().regex(DATE_RE),
-});
+// Owner-generalized (unlike its blockTimeInput sibling above) even though
+// its only caller today (the calendar's "Reopen day" action) is staff-only —
+// task 6's interface contract requires it for symmetry with the other
+// (owner, date)-keyed inputs.
+export const reopenDayInput = z
+  .object({ date: z.string().regex(DATE_RE) })
+  .extend(ownerFields)
+  .refine(oneOwner, { message: ONE_OWNER_MESSAGE });
 
 export const schedulingSettingsInput = z.object({
   // "" (cleared field) → null: the provider can unpublish the booking page
@@ -192,16 +213,17 @@ export const updateRuleInput = z
 
 export const copyDayHoursInput = z
   .object({
-    staffId: z.uuid(),
     sourceWeekday: z.number().int().min(0).max(6),
     targetWeekdays: z.array(z.number().int().min(0).max(6)).min(1).max(6),
   })
+  .extend(ownerFields)
   .refine((i) => !i.targetWeekdays.includes(i.sourceWeekday), {
     message: "cannot copy a day onto itself",
   })
   .refine((i) => new Set(i.targetWeekdays).size === i.targetWeekdays.length, {
     message: "duplicate target days",
-  });
+  })
+  .refine(oneOwner, { message: ONE_OWNER_MESSAGE });
 
 const overrideWindow = z
   .object({ startTime: timeField, endTime: timeField })
@@ -209,11 +231,11 @@ const overrideWindow = z
 
 export const dateOverrideInput = z
   .object({
-    staffId: z.uuid(),
     date: z.string().regex(DATE_RE),
     closed: z.boolean(),
     windows: z.array(overrideWindow).max(10).default([]),
   })
+  .extend(ownerFields)
   .refine((o) => (o.closed ? o.windows.length === 0 : o.windows.length > 0), {
     message: "closed override has no windows; open override needs at least one",
   })
@@ -228,9 +250,10 @@ export const dateOverrideInput = z
       return true;
     },
     { message: OVERLAP_ERROR },
-  );
+  )
+  .refine(oneOwner, { message: ONE_OWNER_MESSAGE });
 
-export const deleteOverrideInput = z.object({
-  staffId: z.uuid(),
-  date: z.string().regex(DATE_RE),
-});
+export const deleteOverrideInput = z
+  .object({ date: z.string().regex(DATE_RE) })
+  .extend(ownerFields)
+  .refine(oneOwner, { message: ONE_OWNER_MESSAGE });
