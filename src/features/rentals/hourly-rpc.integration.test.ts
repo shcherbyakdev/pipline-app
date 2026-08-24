@@ -28,10 +28,13 @@ const anon = createClient(url, anonKey, { auth: { persistSession: false } });
 
 const HANDLE = `h2-${Date.now()}`;
 const TZ = "Europe/Warsaw";
-// Notice/window offsets are relative to *today* in the org zone (mirrors the
-// R2 suite's `d(n)`), used only for the scenarios that are described (not
-// given as literal code) so they stay clear of the brief's fixed 2026-09-07+
-// calendar dates below.
+// All calendar dates in this file are offsets from *today* in the org zone
+// (mirrors the R2 suite's `d(n)`), not fixed calendar literals — the fixture
+// offering's min_notice/booking_window checks are wall-clock relative, so a
+// hard-coded date would eventually fall in the past and either hard-fail or
+// (worse) silently pass for the wrong reason once notice-rejection kicks in.
+// The availability rules cover all 7 weekdays identically, so no offset
+// needs to avoid a particular weekday.
 const d = (n: number) => addDaysISO(dateInZone(new Date(), TZ), n);
 
 type Row = Record<string, unknown>;
@@ -75,6 +78,72 @@ describe("hourly rental RPCs (0056 part B)", () => {
       .single();
     if (error) throw error;
     return data!.id as string;
+  }
+
+  /** A full, independent org + active hours offering + unit + availability
+      (all 7 weekdays, 09:00-21:00), owned by a freshly signed-in user. Used
+      wherever a test needs a booking attempt that would fully succeed but
+      for the one thing under test (an org-level gate, or a per-org
+      throttle) — a fake/missing offering or a shared org would make such a
+      test unable to fail for the right reason. */
+  async function newHoursOrg(
+    tag: string,
+    name: string,
+    opts: { offersRentals?: boolean } = {},
+  ): Promise<{
+    client: SupabaseClient;
+    orgId: string;
+    handle: string;
+    offeringId: string;
+    unitId: string;
+  }> {
+    const client = await signedInUser(tag);
+    const { data: org, error: e1 } = await client.rpc("create_org", {
+      p_name: name,
+      p_offers_appointments: true,
+      p_offers_rentals: opts.offersRentals ?? true,
+    });
+    if (e1) throw e1;
+    const newOrgId = (org as { id: string }).id;
+    // Handles only allow lowercase letters, digits and hyphens — tags use
+    // underscores (matching signedInUser's own tag convention).
+    const newHandle = `h2-${tag.replace(/_/g, "-")}-${Date.now()}`;
+    const { error: e2 } = await client.rpc("update_org_scheduling", {
+      p_org_id: newOrgId,
+      p_handle: newHandle,
+      p_timezone: TZ,
+    });
+    if (e2) throw e2;
+    const { data: off, error: e3 } = await client
+      .from("rental_offerings")
+      .insert({
+        org_id: newOrgId,
+        name: `${name} Studio`,
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+      })
+      .select("id")
+      .single();
+    if (e3) throw e3;
+    const newOfferingId = off!.id as string;
+    const { data: unit, error: e4 } = await client
+      .from("rental_units")
+      .insert({ org_id: newOrgId, offering_id: newOfferingId, name: "Unit", sort_order: 0 })
+      .select("id")
+      .single();
+    if (e4) throw e4;
+    const rules = Array.from({ length: 7 }, (_, weekday) => ({
+      org_id: newOrgId,
+      rental_offering_id: newOfferingId,
+      weekday,
+      start_time: "09:00",
+      end_time: "21:00",
+    }));
+    const { error: e5 } = await client.from("availability_rules").insert(rules);
+    if (e5) throw e5;
+    return { client, orgId: newOrgId, handle: newHandle, offeringId: newOfferingId, unitId: unit!.id as string };
   }
 
   const bookingRow = async (id: string): Promise<Row> => {
@@ -195,7 +264,7 @@ describe("hourly rental RPCs (0056 part B)", () => {
       p_handle: handle,
       p_offering_id: offeringId,
       p_unit_id: null,
-      p_starts_at: iso("2026-09-07T10:00"),
+      p_starts_at: iso(`${d(1)}T10:00`),
       p_duration_min: 120,
       p_name: "Kasia",
       p_email: "kasia@example.com",
@@ -212,26 +281,26 @@ describe("hourly rental RPCs (0056 part B)", () => {
 
   it("rejects a duration off the grid / below min / above max", async () => {
     for (const dur of [45, 30, 270]) {
-      const { error } = await createHours({ startsAt: iso("2026-09-07T14:00"), durationMin: dur });
+      const { error } = await createHours({ startsAt: iso(`${d(1)}T14:00`), durationMin: dur });
       expect(error?.message).toMatch(/not found/);
     }
   });
 
   it("rejects a slot outside the offering's opening hours", async () => {
-    const { error } = await createHours({ startsAt: iso("2026-09-07T20:30"), durationMin: 60 });
+    const { error } = await createHours({ startsAt: iso(`${d(1)}T20:30`), durationMin: 60 });
     expect(error?.message).toMatch(/not found/); // ends 21:30 > 21:00
   });
 
   it("turnover blocks a back-to-back slot but not one past the gap", async () => {
-    await createHours({ startsAt: iso("2026-09-08T10:00"), durationMin: 60, unitId: unitAId });
+    await createHours({ startsAt: iso(`${d(2)}T10:00`), durationMin: 60, unitId: unitAId });
     const tight = await createHours({
-      startsAt: iso("2026-09-08T11:00"),
+      startsAt: iso(`${d(2)}T11:00`),
       durationMin: 60,
       unitId: unitAId,
     });
     expect(tight.error?.message).toMatch(/taken/);
     const ok = await createHours({
-      startsAt: iso("2026-09-08T11:30"),
+      startsAt: iso(`${d(2)}T11:30`),
       durationMin: 60,
       unitId: unitAId,
     });
@@ -239,7 +308,7 @@ describe("hourly rental RPCs (0056 part B)", () => {
   });
 
   it("auto-pick falls over to unit B when A is taken", async () => {
-    const slot = iso("2026-09-10T10:00");
+    const slot = iso(`${d(3)}T10:00`);
     const firstBooking = await createHours({ startsAt: slot, durationMin: 60, unitId: unitAId });
     expect(firstBooking.error).toBeNull();
     const { data, error } = await createHours({ startsAt: slot, durationMin: 60 });
@@ -251,13 +320,14 @@ describe("hourly rental RPCs (0056 part B)", () => {
   it("a physically overlapping insert loses to the EXCLUDE guard", async () => {
     // Bypass the RPC: direct insert of an overlapping confirmed row on the
     // same unit must raise 23P01 (bookings_rental_unit_no_overlap, 0037).
+    // Overlaps the Test-1 booking (unit A, d(1) 10:00-12:00).
     const { error } = await admin.from("bookings").insert({
       org_id: orgId,
       rental_offering_id: offeringId,
       rental_unit_id: unitAId,
       client_name: "Overlap",
-      starts_at: iso("2026-09-07T11:00"),
-      ends_at: iso("2026-09-07T13:00"),
+      starts_at: iso(`${d(1)}T11:00`),
+      ends_at: iso(`${d(1)}T13:00`),
       status: "confirmed",
       cancel_token_hash: hash(),
     });
@@ -265,16 +335,17 @@ describe("hourly rental RPCs (0056 part B)", () => {
   });
 
   it("blackout on the org-local day blocks the slot", async () => {
+    const blackoutDate = d(4);
     const { error: blErr } = await owner.from("rental_unit_blackouts").insert({
       org_id: orgId,
       rental_unit_id: unitAId,
-      start_date: "2026-09-09",
-      end_date: "2026-09-09",
+      start_date: blackoutDate,
+      end_date: blackoutDate,
     });
     expect(blErr).toBeNull();
 
     const { error } = await createHours({
-      startsAt: iso("2026-09-09T10:00"),
+      startsAt: iso(`${blackoutDate}T10:00`),
       durationMin: 60,
       unitId: unitAId,
     });
@@ -286,23 +357,47 @@ describe("hourly rental RPCs (0056 part B)", () => {
       .from("rental_offerings")
       .update({ min_notice_min: 43200 }) // 30 days (CHECK max)
       .eq("id", offeringId);
+    try {
+      const slot = iso(`${d(5)}T10:00`);
 
-    const slot = iso(`${d(5)}T10:00`);
+      const anonPath = await createHours({ startsAt: slot, durationMin: 60, unitId: unitAId });
+      expect(anonPath.error?.message).toMatch(/not found/);
 
-    const anonPath = await createHours({ startsAt: slot, durationMin: 60, unitId: unitAId });
-    expect(anonPath.error?.message).toMatch(/not found/);
+      const adminOk = await createHoursAdmin(owner, {
+        startsAt: slot,
+        durationMin: 60,
+        unitId: unitAId,
+      });
+      expect(adminOk.error).toBeNull();
 
-    const adminOk = await createHoursAdmin(owner, { startsAt: slot, durationMin: 60, unitId: unitAId });
-    expect(adminOk.error).toBeNull();
+      const adminTaken = await createHoursAdmin(owner, {
+        startsAt: slot,
+        durationMin: 60,
+        unitId: unitAId,
+      });
+      expect(adminTaken.error?.message).toMatch(/taken/);
+    } finally {
+      // Reset even if an assertion above throws — a leaked 30-day notice
+      // would otherwise time-bomb every later test in this file.
+      await owner.from("rental_offerings").update({ min_notice_min: 0 }).eq("id", offeringId);
+    }
 
-    const adminTaken = await createHoursAdmin(owner, {
-      startsAt: slot,
+    // Window half: booking_window_days is 60 in the fixture (untouched by
+    // the notice mutation above) — a slot 70 days out is beyond it, so the
+    // anon path must reject it while the admin path ignores the window.
+    const beyondWindow = iso(`${d(70)}T10:00`);
+    const anonBeyondWindow = await createHours({
+      startsAt: beyondWindow,
       durationMin: 60,
       unitId: unitAId,
     });
-    expect(adminTaken.error?.message).toMatch(/taken/);
-
-    await owner.from("rental_offerings").update({ min_notice_min: 0 }).eq("id", offeringId);
+    expect(anonBeyondWindow.error?.message).toMatch(/not found/);
+    const adminBeyondWindow = await createHoursAdmin(owner, {
+      startsAt: beyondWindow,
+      durationMin: 60,
+      unitId: unitAId,
+    });
+    expect(adminBeyondWindow.error).toBeNull();
   });
 
   it("hours reschedule frees the old row, keeps duration, rotates the token", async () => {
@@ -345,25 +440,26 @@ describe("hourly rental RPCs (0056 part B)", () => {
   it("client reschedule via token enforces limits; a started booking raises 'started'", async () => {
     // -- limits: notice is enforced for the token wrapper, not for admin.
     await owner.from("rental_offerings").update({ min_notice_min: 43200 }).eq("id", offeringId);
+    try {
+      const t = generateAccessToken();
+      const created = await createHoursAdmin(owner, {
+        startsAt: iso(`${d(6)}T10:00`),
+        durationMin: 60,
+        unitId: unitBId,
+        tokenHash: t.tokenHash,
+      });
+      expect(created.error).toBeNull();
 
-    const t = generateAccessToken();
-    const created = await createHoursAdmin(owner, {
-      startsAt: iso(`${d(6)}T10:00`),
-      durationMin: 60,
-      unitId: unitBId,
-      tokenHash: t.tokenHash,
-    });
-    expect(created.error).toBeNull();
-
-    const tooSoon = await reschHours(
-      t.token,
-      null,
-      iso(`${d(7)}T10:00`),
-      generateAccessToken().tokenHash,
-    );
-    expect(tooSoon.error?.message).toMatch(/not found/);
-
-    await owner.from("rental_offerings").update({ min_notice_min: 0 }).eq("id", offeringId);
+      const tooSoon = await reschHours(
+        t.token,
+        null,
+        iso(`${d(7)}T10:00`),
+        generateAccessToken().tokenHash,
+      );
+      expect(tooSoon.error?.message).toMatch(/not found/);
+    } finally {
+      await owner.from("rental_offerings").update({ min_notice_min: 0 }).eq("id", offeringId);
+    }
 
     // -- a started booking (starts_at in the past) is immovable, client + admin.
     const startedToken = generateAccessToken();
@@ -402,27 +498,18 @@ describe("hourly rental RPCs (0056 part B)", () => {
   });
 
   it("create on a rentals-off org raises 'not found'", async () => {
-    const off = await signedInUser("hourly_rpc_off");
-    const { data: org, error: e1 } = await off.rpc("create_org", {
-      p_name: "HourlyOffCo",
-      p_offers_appointments: true,
-      p_offers_rentals: false,
-    });
-    expect(e1).toBeNull();
-    const offOrgId = (org as { id: string }).id;
-    const offHandle = `h2-off-${Date.now()}`;
-    const { error: e2 } = await off.rpc("update_org_scheduling", {
-      p_org_id: offOrgId,
-      p_handle: offHandle,
-      p_timezone: TZ,
-    });
-    expect(e2).toBeNull();
+    // Everything else about this call must be capable of succeeding — a
+    // real active hours offering, a unit, and matching availability — so a
+    // 'not found' here can only be the offers_rentals gate, not a
+    // coincidental failure further down. (A bogus offering id would "prove"
+    // the gate no matter what, even if it had been deleted.)
+    const offOrg = await newHoursOrg("hourly_rpc_off", "HourlyOffCo", { offersRentals: false });
 
     const { error } = await admin.rpc("create_rental_booking_hours", {
-      p_handle: offHandle,
-      p_offering_id: crypto.randomUUID(),
+      p_handle: offOrg.handle,
+      p_offering_id: offOrg.offeringId,
       p_unit_id: null,
-      p_starts_at: iso("2026-09-07T10:00"),
+      p_starts_at: iso(`${d(9)}T10:00`),
       p_duration_min: 60,
       p_name: "Nope",
       p_email: "nope@example.com",
@@ -430,6 +517,70 @@ describe("hourly rental RPCs (0056 part B)", () => {
       p_token_hash: hash(),
     });
     expect(error?.message).toMatch(/not found/);
+  });
+
+  it("tenant isolation: a stranger cannot touch this org's offering or booking via the _admin RPCs", async () => {
+    const stranger = await signedInUser("hourly_rpc_stranger");
+    const { error: e1 } = await stranger.rpc("create_org", { p_name: "StrangerCo" });
+    expect(e1).toBeNull();
+
+    // org_id in (select user_orgs()) is all that stops a logged-in user
+    // from writing into another org — prove it holds for both _admin RPCs.
+    const foreignCreate = await createHoursAdmin(stranger, {
+      startsAt: iso(`${d(11)}T10:00`),
+      durationMin: 60,
+      unitId: unitAId,
+    });
+    expect(foreignCreate.error?.message).toMatch(/not found/);
+
+    // A real booking in this fixture's own org, to prove the reschedule
+    // RPC is scoped the same way.
+    const created = await createHoursAdmin(owner, {
+      startsAt: iso(`${d(12)}T10:00`),
+      durationMin: 60,
+      unitId: unitBId,
+    });
+    expect(created.error).toBeNull();
+
+    const foreignResch = await reschHoursAdmin(
+      stranger,
+      created.data as string,
+      null,
+      iso(`${d(12)}T15:00`),
+      generateAccessToken().tokenHash,
+    );
+    expect(foreignResch.error?.message).toMatch(/not found/);
+    expect((await bookingRow(created.data as string)).status).toBe("confirmed");
+  });
+
+  it("too_many: the per-email hourly cap rejects the 6th booking from the same address", async () => {
+    // Dedicated org: the per-org 30/min throttle is scoped to org_id, so a
+    // fresh org (starting at 0 bookings) keeps that throttle from ever
+    // interacting with however many bookings the rest of this file has
+    // already made in the shared fixture org.
+    const cap = await newHoursOrg("hourly_rpc_too_many", "TooManyCo");
+    const email = `too-many-${Date.now()}@example.com`;
+    // Six slots 2h apart (well past the offering's turnover) so occupancy
+    // never rejects a call — the per-email cap must be the only thing that
+    // can reject the 6th.
+    const hours = [9, 11, 13, 15, 17, 19];
+    const messages: (string | undefined)[] = [];
+    for (const hour of hours) {
+      const { error } = await admin.rpc("create_rental_booking_hours", {
+        p_handle: cap.handle,
+        p_offering_id: cap.offeringId,
+        p_unit_id: null,
+        p_starts_at: iso(`${d(1)}T${String(hour).padStart(2, "0")}:00`),
+        p_duration_min: 60,
+        p_name: "Repeat Client",
+        p_email: email,
+        p_note: null,
+        p_token_hash: hash(),
+      });
+      messages.push(error?.message);
+    }
+    expect(messages.slice(0, 5)).toEqual([undefined, undefined, undefined, undefined, undefined]);
+    expect(messages[5]).toMatch(/too_many/);
   });
 
   it("grants: create/reschedule client RPCs are service_role-only, admin RPCs authenticated-only", async () => {
