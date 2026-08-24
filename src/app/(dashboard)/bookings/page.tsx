@@ -8,9 +8,10 @@ import {
 } from "@/features/scheduling/queries";
 import { listActiveStaff, type StaffRow } from "@/features/scheduling/staff-queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
-import { listOfferings, listTimelineData } from "@/features/rentals/queries";
+import { listTimelineData } from "@/features/rentals/queries";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
+import { defaultBookingsView, modeOf } from "@/features/orgs/mode";
 import { TIMELINE_DAYS, timelineDefaultStart } from "@/features/rentals/timeline-geometry";
 import { BookingsList } from "@/features/scheduling/components/bookings-list";
 import { CalendarWeek } from "@/features/scheduling/components/calendar-week";
@@ -61,12 +62,16 @@ export default async function BookingsPage({
   const today = dateInZone(new Date(), timeZone);
   const { org } = await requireOrg();
   const { rentals: rentalsOn } = await getDashboardFlags(org.id);
+  const mode = modeOf(org);
+  const rentals = rentalsOn && mode.offersRentals;
+  const view = params.view ?? (rentals ? defaultBookingsView(mode) : "week");
   const welcome =
     params.welcome === "1" ? <WelcomeBanner handle={settings?.handle ?? null} appUrl={env.NEXT_PUBLIC_APP_URL} /> : null;
 
-  // Rentals parked unless the org's flag is on (lib/flags): the timeline view
-  // falls back to the week calendar and its link never renders.
-  if (rentalsOn && params.view === "timeline") {
+  // Rentals parked unless the org's flag is on (lib/flags) AND its mode
+  // sells them: the timeline view falls back to the week calendar and its
+  // link never renders.
+  if (rentals && view === "timeline") {
     // Rentals are parked for most orgs: the timeline (a client component)
     // is only pulled in when this branch actually renders it.
     const { Timeline } = await import("@/features/rentals/components/timeline");
@@ -83,9 +88,11 @@ export default async function BookingsPage({
           {/* view switchers only — date navigation (‹ Today ›) lives in the
               timeline's own header row, next to the window it moves. */}
           <div className="flex items-center gap-2">
-            <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-              Week
-            </Link>
+            {mode.offersAppointments ? (
+              <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+                Week
+              </Link>
+            ) : null}
             <Link
               href="/bookings?view=list"
               className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
@@ -108,9 +115,9 @@ export default async function BookingsPage({
     );
   }
 
-  // The Timeline link only makes sense once the org actually rents
-  // something out — appointment-only orgs never see it.
-  const hasRentals = rentalsOn && (await listOfferings()).length > 0;
+  // The Timeline link only makes sense once the org's declared mode sells
+  // rentals — appointment-only orgs never see it.
+  const hasRentals = rentals;
   const timelineLink = hasRentals ? (
     <Link
       href="/bookings?view=timeline"
@@ -120,7 +127,7 @@ export default async function BookingsPage({
     </Link>
   ) : null;
 
-  if (params.view === "list") {
+  if (view === "list") {
     const [{ upcoming, past }, activeStaff] = await Promise.all([
       listBookings(),
       listActiveStaff(),
@@ -134,7 +141,7 @@ export default async function BookingsPage({
             Calendar view
           </Link>
         </div>
-        <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} staff={activeStaff} />
+        <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} staff={activeStaff} mode={mode} />
       </div>
     );
   }

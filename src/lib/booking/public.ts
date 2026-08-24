@@ -32,18 +32,30 @@ export type PublicService = {
   bookingWindowDays: number;
 };
 
+export type BookingOrg = {
+  orgId: string;
+  orgName: string;
+  timeZone: string;
+  offersAppointments: boolean;
+  offersRentals: boolean;
+};
+
 // Per-request memoised: generateMetadata and the page both resolve the handle.
-export const getBookingOrg = cache(async (
-  handle: string,
-): Promise<{ orgId: string; orgName: string; timeZone: string } | null> => {
+export const getBookingOrg = cache(async (handle: string): Promise<BookingOrg | null> => {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("orgs")
-    .select("id, name, timezone")
+    .select("id, name, timezone, offers_appointments, offers_rentals")
     .eq("handle", handle)
     .maybeSingle();
   if (error || !data) return null;
-  return { orgId: data.id, orgName: data.name, timeZone: data.timezone };
+  return {
+    orgId: data.id,
+    orgName: data.name,
+    timeZone: data.timezone,
+    offersAppointments: data.offers_appointments,
+    offersRentals: data.offers_rentals,
+  };
 });
 
 export async function listPublicServices(orgId: string): Promise<PublicService[]> {

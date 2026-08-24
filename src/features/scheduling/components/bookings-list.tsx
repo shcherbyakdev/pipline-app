@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { whenLineFor, STATUS_LABEL } from "@/features/scheduling/templates";
 import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
+import type { OrgMode } from "@/features/orgs/mode";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { RESEND_STARTED_HINT } from "./booking-detail-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -149,11 +151,13 @@ export function BookingsList({
   past,
   timeZone,
   staff,
+  mode,
 }: {
   upcoming: AdminBooking[];
   past: AdminBooking[];
   timeZone: string;
   staff: StaffRow[]; // active members (Team slice); one ⇒ nothing changes
+  mode: OrgMode;
 }) {
   return (
     <div className="flex flex-col gap-6">
@@ -161,7 +165,19 @@ export function BookingsList({
         <h2 className="text-sm font-medium">Upcoming</h2>
         {upcoming.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            No upcoming bookings. Share your booking page to fill the calendar.
+            No upcoming bookings.{" "}
+            {mode.offersAppointments && (
+              <>
+                <Link href="/services" className="underline">Set up a service</Link>
+                {mode.offersRentals ? " or " : " "}
+              </>
+            )}
+            {mode.offersRentals && (
+              <>
+                <Link href="/rentals" className="underline">add a rental offering and its units</Link>{" "}
+              </>
+            )}
+            to start taking bookings, then share your booking page.
           </p>
         ) : (
           <ol className="flex flex-col gap-2">

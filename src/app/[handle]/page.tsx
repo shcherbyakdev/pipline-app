@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { getBookingOrg, listPublicOfferings, resolveHandleAlias } from "@/lib/booking/public";
+import { getBookingOrg, resolveHandleAlias } from "@/lib/booking/public";
 import { bookingPath } from "@/lib/booking/url";
-import { loadPublicOffering } from "@/lib/booking/public-offering";
+import { listPublicCatalog } from "@/lib/booking/catalog";
 import { getOrgBranding } from "@/lib/org-branding";
-import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { badgeVisible } from "@/lib/billing/entitlements";
 import { PoweredBy } from "@/components/powered-by";
 import { WidgetTheme } from "@/components/widget-theme";
@@ -44,12 +43,10 @@ export default async function BookPage({ params, searchParams }: PageProps<"/[ha
     if (current) permanentRedirect(bookingPath(current));
     notFound();
   }
-  const [offering, offerings, branding, doc] = await Promise.all([
-    // The org's roster and services, already narrowed to what someone active
-    // can be booked for AND to what the org's plan may offer publicly.
-    loadPublicOffering(org.orgId),
-    // Rentals parked unless the org's `rentals` flag is on (lib/flags): the widget lists services only.
-    getOrgFlagsAdmin(org.orgId).then((f) => (f.rentals ? listPublicOfferings(org.orgId) : [])),
+  const [{ offering, offerings }, branding, doc] = await Promise.all([
+    // The gated catalogue: services/staff and offerings, each present only
+    // while its channel (org mode, and for rentals the feature flag too) is on.
+    listPublicCatalog(org),
     getOrgBranding(org.orgId),
     // The org's published composition; the default page when none.
     getPublishedPage(org.orgId),
