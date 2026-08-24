@@ -2,7 +2,7 @@
 // (rental_total_cents / rental_deposit_cents). The RPCs are authoritative —
 // this exists so flows, admin and emails can render the same numbers.
 import { formatMoney } from "@/lib/money";
-import { daysBetween, type RangeMode } from "./range";
+import { stayLength, type RangeMode } from "./range";
 
 export type PricingMode = "per_unit" | "flat";
 export type DepositType = "none" | "fixed" | "percent" | "full";
@@ -15,8 +15,7 @@ export type MoneyFields = {
 
 // Units for nights/days stays; hours callers pass durationMin / 60 directly.
 export function stayUnits(rangeMode: "nights" | "days", startDate: string, endDate: string): number {
-  const n = daysBetween(startDate, endDate);
-  return rangeMode === "nights" ? n : n + 1;
+  return stayLength(rangeMode, startDate, endDate);
 }
 
 export function totalCents(m: MoneyFields, units: number): number | null {
