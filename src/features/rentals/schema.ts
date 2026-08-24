@@ -47,18 +47,47 @@ const hoursGrid = (o: z.infer<typeof hoursFields>) =>
   o.minDurationMin % o.slotIncrementMin === 0 &&
   o.maxDurationMin % o.slotIncrementMin === 0;
 
+export const DEPOSIT_VALUE_MSG =
+  "fixed needs an amount, percent needs 1–100, none/full take no value";
+export const DEPOSIT_NEEDS_PRICE_MSG = "percent/full deposits need a price";
+
+const depositRules = (o: {
+  depositType: "none" | "fixed" | "percent" | "full";
+  depositValue: number | null;
+}) => {
+  switch (o.depositType) {
+    case "fixed": return o.depositValue !== null;
+    case "percent": return o.depositValue !== null && o.depositValue >= 1 && o.depositValue <= 100;
+    default: return o.depositValue === null;
+  }
+};
+const depositNeedsPrice = (o: {
+  depositType: "none" | "fixed" | "percent" | "full";
+  priceCents: number | null;
+}) => !["percent", "full"].includes(o.depositType) || o.priceCents !== null;
+
 // `strict()` on each branch so hours fields on a nights offering (and vice
-// versa) are rejected rather than silently dropped.
+// versa) are rejected rather than silently dropped. The deposit refinements
+// don't survive `.extend`, so they're chained onto each of the four
+// branches individually rather than shared on `offeringCommon`.
 const rangeOffering = offeringCommon.extend(rangeFields.shape).strict()
-  .refine(stayOrder, { message: "max stay must be ≥ min stay" });
+  .refine(stayOrder, { message: "max stay must be ≥ min stay" })
+  .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
+  .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG });
 const hoursOffering = offeringCommon.extend(hoursFields.shape).strict()
-  .refine(hoursGrid, { message: HOURS_GRID_MSG });
+  .refine(hoursGrid, { message: HOURS_GRID_MSG })
+  .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
+  .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG });
 export const offeringInput = z.union([rangeOffering, hoursOffering]);
 export const updateOfferingInput = z.union([
   offeringCommon.extend(rangeFields.shape).extend({ id: z.uuid() }).strict()
-    .refine(stayOrder, { message: "max stay must be ≥ min stay" }),
+    .refine(stayOrder, { message: "max stay must be ≥ min stay" })
+    .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
+    .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
   offeringCommon.extend(hoursFields.shape).extend({ id: z.uuid() }).strict()
-    .refine(hoursGrid, { message: HOURS_GRID_MSG }),
+    .refine(hoursGrid, { message: HOURS_GRID_MSG })
+    .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
+    .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
 ]);
 export const offeringIdInput = z.object({ id: z.uuid() });
 

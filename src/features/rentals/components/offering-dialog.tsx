@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { createOffering, updateOffering } from "@/features/rentals/actions";
 import type { OfferingRow } from "@/features/rentals/queries";
 import type { RangeMode } from "@/features/rentals/range";
+import type { DepositType } from "@/features/rentals/pricing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +33,13 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
+export function OfferingDialog({
+  offering,
+  currency,
+}: {
+  offering?: OfferingRow;
+  currency: string;
+}) {
   const isEdit = Boolean(offering);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -53,6 +60,11 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
   const [slotIncrementMin, setSlotIncrementMin] = React.useState<number>(
     offering?.slotIncrementMin ?? 30,
   );
+  // Controlled so the deposit-value input's semantics (amount vs. percent)
+  // and its very presence (none/full take no value) track the select live.
+  const [depositType, setDepositType] = React.useState<DepositType>(
+    offering?.depositType ?? "none",
+  );
 
   const onOpenChange = (next: boolean) => {
     setManuallyOpened(next);
@@ -65,12 +77,34 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
     const name = String(fd.get("name") ?? "").trim();
     if (name === "") return;
     const description = String(fd.get("description") ?? "").trim();
+    const price = String(fd.get("price") ?? "").trim();
+    const termsText = String(fd.get("termsText") ?? "").trim();
+    const depositValueRaw = String(fd.get("depositValue") ?? "").trim();
+    const depositValue =
+      depositType === "fixed" || depositType === "percent"
+        ? depositValueRaw === ""
+          ? null
+          : depositType === "fixed"
+            ? Math.round(Number(depositValueRaw) * 100)
+            : Math.round(Number(depositValueRaw))
+        : null;
+    const cancelWindowRaw = String(fd.get("cancelWindow") ?? "").trim();
+    const cancelWindowMin =
+      cancelWindowRaw === ""
+        ? 0
+        : Math.round(Number(cancelWindowRaw) * (rangeMode === "hours" ? 60 : 1440));
     const common = {
       name,
       description: description === "" ? undefined : description,
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
       unitSelection: String(fd.get("unitSelection") ?? "auto"),
       active: fd.get("active") === "on",
+      priceCents: price === "" ? null : Math.round(Number(price) * 100),
+      pricingMode: String(fd.get("pricingMode") ?? "per_unit"),
+      depositType,
+      depositValue,
+      cancelWindowMin,
+      termsText: termsText === "" ? undefined : termsText,
     };
     // The hours Zod branch is `.strict()` — only that mode's own fields go
     // in, or parsing fails (schema.ts).
@@ -152,6 +186,114 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
               name="description"
               maxLength={2000}
               defaultValue={offering?.description ?? ""}
+            />
+          </div>
+          <SectionHeading>Pricing & policies</SectionHeading>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="offering-price">Price ({currency})</Label>
+              <Input
+                id="offering-price"
+                name="price"
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="Unpriced"
+                defaultValue={offering?.priceCents != null ? offering.priceCents / 100 : ""}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="offering-pricing-mode">Pricing mode</Label>
+              <select
+                id="offering-pricing-mode"
+                name="pricingMode"
+                className={selectClass}
+                defaultValue={offering?.pricingMode ?? "per_unit"}
+              >
+                <option value="per_unit">
+                  {rangeMode === "hours" ? "Per hour" : rangeMode === "nights" ? "Per night" : "Per day"}
+                </option>
+                <option value="flat">Flat per booking</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="offering-deposit-type">Deposit</Label>
+              <select
+                id="offering-deposit-type"
+                name="depositType"
+                className={selectClass}
+                value={depositType}
+                onChange={(e) => setDepositType(e.target.value as DepositType)}
+              >
+                <option value="none">No deposit</option>
+                <option value="fixed">Fixed amount</option>
+                <option value="percent">Percent of total</option>
+                <option value="full">Full amount</option>
+              </select>
+            </div>
+            {depositType === "fixed" ? (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="offering-deposit-value">Deposit amount ({currency})</Label>
+                <Input
+                  id="offering-deposit-value"
+                  name="depositValue"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  defaultValue={
+                    offering?.depositType === "fixed" && offering.depositValue != null
+                      ? offering.depositValue / 100
+                      : ""
+                  }
+                />
+              </div>
+            ) : depositType === "percent" ? (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="offering-deposit-value">Deposit (%)</Label>
+                <Input
+                  id="offering-deposit-value"
+                  name="depositValue"
+                  type="number"
+                  min={1}
+                  max={100}
+                  defaultValue={
+                    offering?.depositType === "percent" && offering.depositValue != null
+                      ? offering.depositValue
+                      : ""
+                  }
+                />
+              </div>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="offering-cancel-window">
+              Free cancellation until ({rangeMode === "hours" ? "hours" : "days"} before start)
+            </Label>
+            <Input
+              id="offering-cancel-window"
+              name="cancelWindow"
+              type="number"
+              min={0}
+              placeholder="No window"
+              defaultValue={
+                offering && offering.cancelWindowMin > 0
+                  ? offering.rangeMode === "hours"
+                    ? offering.cancelWindowMin / 60
+                    : offering.cancelWindowMin / 1440
+                  : ""
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="offering-terms">Terms</Label>
+            <Textarea
+              id="offering-terms"
+              name="termsText"
+              rows={4}
+              maxLength={10000}
+              defaultValue={offering?.termsText ?? ""}
             />
           </div>
           <SectionHeading>Stay</SectionHeading>

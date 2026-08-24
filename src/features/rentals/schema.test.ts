@@ -123,6 +123,36 @@ describe("hours offering input", () => {
     expect(offeringInput.safeParse({ ...base, minStay: 1 }).success).toBe(false);
   });
 });
+describe("offering money rules", () => {
+  const hoursBase = {
+    name: "Rehearsal Room",
+    rangeMode: "hours" as const,
+    slotIncrementMin: 30,
+    minDurationMin: 60,
+    maxDurationMin: 240,
+    turnoverMin: 15,
+    minNoticeMin: 120,
+    bookingWindowDays: 60,
+    unitSelection: "auto" as const,
+    active: true,
+  };
+  it("rejects percent deposit outside 1–100", () => {
+    expect(offeringInput.safeParse({ ...hoursBase, depositType: "percent", depositValue: 150, priceCents: 10000 }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...hoursBase, depositType: "percent", depositValue: 0, priceCents: 10000 }).success).toBe(false);
+  });
+  it("percent and full deposits require a price", () => {
+    expect(offeringInput.safeParse({ ...hoursBase, depositType: "percent", depositValue: 20, priceCents: null }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...hoursBase, depositType: "full", priceCents: null }).success).toBe(false);
+  });
+  it("fixed deposit requires a value; none/full forbid one", () => {
+    expect(offeringInput.safeParse({ ...hoursBase, depositType: "fixed", depositValue: null }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...hoursBase, depositType: "none", depositValue: 100 }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...hoursBase, depositType: "full", depositValue: 100, priceCents: 10000 }).success).toBe(false);
+  });
+  it("fixed deposit on an unpriced offering is allowed", () => {
+    expect(offeringInput.safeParse({ ...hoursBase, priceCents: null, depositType: "fixed", depositValue: 20000 }).success).toBe(true);
+  });
+});
 describe("admin inputs", () => {
   const U = "00000000-0000-4000-8000-000000000000";
   it("caps availability days at 93 and defaults excludeBookingId to null", () => {

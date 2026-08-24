@@ -6,15 +6,17 @@ import { toast } from "sonner";
 import { deleteOffering } from "@/features/rentals/actions";
 import type { OfferingRow } from "@/features/rentals/queries";
 import { formatDurationLabel } from "@/features/rentals/hourly";
+import { formatOfferingPrice } from "@/features/rentals/pricing";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { OfferingDialog } from "./offering-dialog";
 
-function Row({ offering }: { offering: OfferingRow }) {
+function Row({ offering, currency }: { offering: OfferingRow; currency: string }) {
   const [pending, startTransition] = React.useTransition();
   const hourly = offering.rangeMode === "hours";
   const nightly = offering.rangeMode === "nights";
+  const priceLabel = formatOfferingPrice(offering, currency);
 
   const onDelete = () => {
     startTransition(async () => {
@@ -50,6 +52,7 @@ function Row({ offering }: { offering: OfferingRow }) {
               ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
               : `pickup ${offering.startTime} · return ${offering.endTime}`}
         </p>
+        {priceLabel ? <p className="text-muted-foreground text-xs">{priceLabel}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {/*
@@ -64,7 +67,7 @@ function Row({ offering }: { offering: OfferingRow }) {
         >
           Units
         </Link>
-        <OfferingDialog offering={offering} />
+        <OfferingDialog offering={offering} currency={currency} />
         <Button size="sm" variant="outline" onClick={onDelete} disabled={pending}>
           {pending ? "Deleting…" : "Delete"}
         </Button>
@@ -73,11 +76,17 @@ function Row({ offering }: { offering: OfferingRow }) {
   );
 }
 
-export function OfferingsList({ offerings }: { offerings: OfferingRow[] }) {
+export function OfferingsList({
+  offerings,
+  currency,
+}: {
+  offerings: OfferingRow[];
+  currency: string;
+}) {
   return (
     <ol className="flex flex-col gap-2">
       {offerings.map((offering) => (
-        <Row key={offering.id} offering={offering} />
+        <Row key={offering.id} offering={offering} currency={currency} />
       ))}
     </ol>
   );
