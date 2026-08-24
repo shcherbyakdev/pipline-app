@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter, publicSlotsLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
-import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext } from "@/lib/booking/public";
+import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext, type PublicUnit } from "@/lib/booking/public";
 import { getProviderEmail } from "@/lib/booking/provider";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
@@ -96,7 +96,15 @@ function hourlySlotsFor(
 export async function getHourlySlots(
   input: unknown,
 ): Promise<
-  { ok: true; slots: { startsAt: string; unitIds: string[] }[] } | { ok: false; error: string }
+  | {
+      ok: true;
+      slots: { startsAt: string; unitIds: string[] }[];
+      // getRangeAvailability's `units` twin: the client_picks unit step
+      // (HourlyBookingFlow) needs names/descriptions for the ids a slot's
+      // `unitIds` carries, not just the ids themselves.
+      units: PublicUnit[];
+    }
+  | { ok: false; error: string }
 > {
   if (await limited("slots")) return { ok: false, error: TOO_MANY_REQUESTS };
   const parsed = getHourlySlotsInput.safeParse(input);
@@ -117,6 +125,7 @@ export async function getHourlySlots(
     return {
       ok: true,
       slots: slots.map((s) => ({ startsAt: s.startsAt.toISOString(), unitIds: s.unitIds })),
+      units: ctx.units,
     };
   } catch (error) {
     console.error("[rentals] getHourlySlots:", error);

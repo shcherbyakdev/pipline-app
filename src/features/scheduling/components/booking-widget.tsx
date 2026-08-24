@@ -10,6 +10,8 @@ import { BookingConfirmed } from "@/features/scheduling/components/booking-confi
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
 import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
+import { HourlyBookingFlow } from "@/features/rentals/components/hourly-booking-flow";
+import { formatDurationLabel } from "@/features/rentals/hourly";
 
 // The VIEWER's local date (audit 2026-08-24: the UTC date sent a far-west
 // evening visitor one day ahead, hiding the rest of their own today with no
@@ -154,15 +156,26 @@ export function BookingWidget({
     });
   }
 
-  // Rentals are a separate flow end-to-end (date ranges, units, org-local
-  // times) — hand the whole widget over once an offering is picked.
+  // Rentals are a separate flow end-to-end (date ranges/durations, units,
+  // org-local times) — hand the whole widget over once an offering is
+  // picked. Hourly offerings (H2) branch to their own flow: RentalBookingFlow
+  // is nights/days-only (staySummary calls hhmm(startTime!), which is null
+  // for hours) and must never see one.
   if (offering) {
-    return (
+    const onOfferingBack = services.length + offerings.length > 1 ? () => setOffering(null) : null;
+    return offering.rangeMode === "hours" ? (
+      <HourlyBookingFlow
+        handle={handle}
+        orgTimeZone={orgTimeZone}
+        offering={offering}
+        onBack={onOfferingBack}
+      />
+    ) : (
       <RentalBookingFlow
         handle={handle}
         orgTimeZone={orgTimeZone}
         offering={offering}
-        onBack={services.length + offerings.length > 1 ? () => setOffering(null) : null}
+        onBack={onOfferingBack}
       />
     );
   }
@@ -251,7 +264,13 @@ export function BookingWidget({
                       <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                         {[
                           o.priceLabel,
-                          o.minStay > 1 ? `min ${o.minStay} ${o.rangeMode}` : null,
+                          o.rangeMode === "hours"
+                            ? // H2: hourly offerings have no min-stay concept — the
+                              // duration range is the equivalent "how much" hint.
+                              `${formatDurationLabel(o.minDurationMin!)}–${formatDurationLabel(o.maxDurationMin!)}`
+                            : o.minStay > 1
+                              ? `min ${o.minStay} ${o.rangeMode}`
+                              : null,
                         ]
                           .filter(Boolean)
                           .join(" · ")}
