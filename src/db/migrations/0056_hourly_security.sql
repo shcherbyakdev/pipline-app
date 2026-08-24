@@ -25,8 +25,14 @@ alter table public.rental_offerings add constraint rental_offerings_hours_fields
 -- Check-in/out times belong to nights/days only; hours reads opening hours
 -- from availability_rules. (0037's *_fmt CHECKs allow NULL already — verify:
 -- they are `check (start_time ~ ...)`, which is NULL-passing in SQL.)
+-- nights/days keep the pre-0055 column-level NOT NULL as a same-shape CHECK:
+-- both times must be set (not just "not both null" — an equality on the two
+-- booleans would accept exactly-one-set, which is not a valid window).
 alter table public.rental_offerings add constraint rental_offerings_times_by_mode check (
-  (range_mode = 'hours') = (start_time is null and end_time is null)
+  case when range_mode = 'hours'
+       then start_time is null and end_time is null
+       else start_time is not null and end_time is not null
+  end
 );
 
 -- ---------- availability owner: staff XOR rental offering (bookings_kind idiom)

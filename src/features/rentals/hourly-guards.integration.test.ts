@@ -124,6 +124,23 @@ describe("hourly mode guards (0056)", () => {
     expect(error?.code).toBe("23514");
   });
 
+  it("rejects a nights offering with exactly one of start_time/end_time set", async () => {
+    const startOnly = await admin.from("rental_offerings").insert({
+      org_id: orgId,
+      name: "Bad",
+      range_mode: "nights",
+      start_time: "09:00",
+    });
+    expect(startOnly.error?.code).toBe("23514");
+    const endOnly = await admin.from("rental_offerings").insert({
+      org_id: orgId,
+      name: "Bad",
+      range_mode: "nights",
+      end_time: "11:00",
+    });
+    expect(endOnly.error?.code).toBe("23514");
+  });
+
   it("accepts an offering-owned availability rule and rejects a two-owner row", async () => {
     const ok = await admin.from("availability_rules").insert({
       org_id: orgId,
