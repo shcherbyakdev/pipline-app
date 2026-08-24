@@ -209,12 +209,19 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
               <div className="grid grid-cols-3 gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="offering-min-duration">Min duration (min)</Label>
+                  {/* No `min` here: the HTML step-validation base is `min`
+                      (falling back to 0 when absent), so `min={5}` +
+                      `step={slotIncrementMin}` would only accept
+                      5, 5+step, 5+2·step… — disjoint from the Zod branch's
+                      multiples-of-increment-from-0 grid, so no real value
+                      (e.g. 60/240 with a 15/30/60 increment) could ever pass
+                      native validation. The 5-minute floor is still
+                      enforced server-side by hoursFields's `.min(5)`. */}
                   <Input
                     id="offering-min-duration"
                     name="minDurationMin"
                     type="number"
                     required
-                    min={5}
                     max={1440}
                     step={slotIncrementMin}
                     defaultValue={offering?.minDurationMin ?? 60}
@@ -227,7 +234,6 @@ export function OfferingDialog({ offering }: { offering?: OfferingRow }) {
                     name="maxDurationMin"
                     type="number"
                     required
-                    min={5}
                     max={1440}
                     step={slotIncrementMin}
                     defaultValue={offering?.maxDurationMin ?? 240}
