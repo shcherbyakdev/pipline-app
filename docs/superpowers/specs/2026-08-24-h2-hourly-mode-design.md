@@ -83,11 +83,17 @@ touches no bookings constraints. (`pending_payment` hold coverage is H4.)
 
 ## Engine mapping
 
-No changes to `slots.ts`. An hourly offering builds `SlotInput` per unit:
+One **additive** change to `slots.ts` (found while planning: `computeSlots`
+steps candidate starts by the whole block — buffer+duration+buffer — so a 2 h
+session could only start every 2 h + turnover): `SlotService` gains an
+optional `stepMin`; when set, candidate starts advance by it instead of the
+block length. Omitted by every appointments caller — behaviour there is
+unchanged. An hourly offering builds `SlotInput` per unit:
 
 | field | source |
 |---|---|
 | `durationMin` | client-chosen (validated: on the increment grid, within min/max) |
+| `stepMin` | `slot_increment_min` (start-time grid) |
 | `bufferBeforeMin` | 0 |
 | `bufferAfterMin` | `turnover_min` (candidate and busy-side — the 2026-08-24 audit fix pads both) |
 | `minNoticeMin` / `bookingWindowDays` | `min_notice_min` / `booking_window_days` |
