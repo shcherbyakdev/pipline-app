@@ -17,10 +17,16 @@ export function isHourly(o: { rangeMode: RangeMode }): boolean {
 // hours offering, so this never actually crosses "hours" at runtime — Task 4
 // routes hours bookings through a different (slot-based) path before ever
 // reaching here, and should call isHourly() to branch away first.
+// H2: PublicOffering's startTime is `string | null` (null on hours
+// offerings); every caller here is on a range-mode-only flow, so this also
+// narrows it to the non-null string the engine's RangeOffering expects.
 export function asEngineOffering<T extends { rangeMode: RangeMode }>(
   offering: T,
-): T & { rangeMode: EngineMode } {
-  return offering as T & { rangeMode: EngineMode };
+): Omit<T, "rangeMode" | "startTime"> & { rangeMode: EngineMode; startTime: string } {
+  return offering as unknown as Omit<T, "rangeMode" | "startTime"> & {
+    rangeMode: EngineMode;
+    startTime: string;
+  };
 }
 export type RangeOffering = { rangeMode: EngineMode; minStay: number; maxStay: number | null; turnoverDays: number; minNoticeDays: number; bookingWindowDays: number; startTime?: string /* "HH:MM" org-local; when today's org-local time ≥ startTime, notBefore rolls to tomorrow */ };
 export type RangeUnit = { id: string; sortOrder: number };

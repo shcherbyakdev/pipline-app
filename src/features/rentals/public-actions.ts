@@ -122,7 +122,9 @@ export async function createRentalBooking(
     // starts in the past can never be cancelled). Say so here rather than let
     // the picker fail with the generic error; `datesTaken` makes the flow
     // reset and refetch, which is what the client needs to do anyway.
-    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime, org.timeZone);
+    // The public range-booking flow is nights/days-only (createRentalBooking
+    // never resolves an hours offering) — startTime is set (0056 CHECK).
+    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime!, org.timeZone);
     if (startsAt.getTime() <= Date.now()) {
       return { ok: false, error: CHECK_IN_PASSED, datesTaken: true };
     }
@@ -183,8 +185,9 @@ export async function createRentalBooking(
     // Best-effort confirmation (the booking survives email failure).
     try {
       const tz = org.timeZone;
-      const starts = wallTimeToUtc(startDate, ctx.offering.startTime, tz);
-      const ends = wallTimeToUtc(endDate, ctx.offering.endTime, tz);
+      // Nights/days-only flow (as above) — both are set (0056 CHECK).
+      const starts = wallTimeToUtc(startDate, ctx.offering.startTime!, tz);
+      const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
       const unitName = await getBookingUnitName(bookingId as string);
       const msg = bookingConfirmationEmail({
         orgName: org.orgName,

@@ -177,7 +177,9 @@ export async function rescheduleRentalBooking(
     // A move onto today past the check-in time can never be cancelled, so
     // the RPC refuses it; `datesTaken` makes the panel reset and refetch,
     // which is what the client has to do anyway.
-    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime, booking.orgTimezone);
+    // The tokenized manage flow is nights/days-only (loadOrgRangeContext's
+    // offering here is never hours) — startTime is set (0056 CHECK).
+    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime!, booking.orgTimezone);
     if (startsAt.getTime() <= Date.now()) {
       return { ok: false, error: CHECK_IN_PASSED, datesTaken: true };
     }

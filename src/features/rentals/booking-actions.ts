@@ -181,7 +181,9 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
 
     // A same-day move past today's check-in time can never be cancelled, so
     // the RPC refuses it — say so rather than fail with the generic error.
-    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime, org.timezone);
+    // This action is nights/days-only (loadOrgRangeContext's offering is
+    // never an hours offering here) — startTime is set (0056 CHECK).
+    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime!, org.timezone);
     if (startsAt.getTime() <= Date.now()) {
       return { ok: false, error: CHECK_IN_PASSED, datesTaken: true };
     }
@@ -315,7 +317,8 @@ export async function createRentalBookingAdmin(
         : { ok: false, error: GENERIC_WRITE_ERROR };
     }
 
-    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime, org.timezone);
+    // Nights/days-only action (as above) — startTime is set (0056 CHECK).
+    const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime!, org.timezone);
     if (startsAt.getTime() <= Date.now()) {
       return { ok: false, error: CHECK_IN_PASSED, datesTaken: true };
     }
@@ -362,7 +365,8 @@ export async function createRentalBookingAdmin(
     if (email) {
       try {
         const tz = org.timezone;
-        const ends = wallTimeToUtc(endDate, ctx.offering.endTime, tz);
+        // Nights/days-only action (as above) — endTime is set (0056 CHECK).
+        const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
         const unitName = await getBookingUnitName(bookingId as string);
         const msg = bookingConfirmationEmail({
           orgName: org.name,

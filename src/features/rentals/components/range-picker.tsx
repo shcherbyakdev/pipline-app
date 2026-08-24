@@ -41,7 +41,9 @@ export function staySummary(
   const unit = offering.rangeMode === "nights" ? "night" : "day";
   const [inLabel, outLabel] =
     offering.rangeMode === "nights" ? ["check-in", "check-out"] : ["pickup", "return"];
-  return `${n} ${unit}${n === 1 ? "" : "s"} · ${inLabel} ${hhmm(offering.startTime)} · ${outLabel} ${hhmm(offering.endTime)} (${timeZone})`;
+  // RangePicker is nights/days-only (the H2 hourly flow uses its own
+  // widget) — both are set (0056 CHECK).
+  return `${n} ${unit}${n === 1 ? "" : "s"} · ${inLabel} ${hhmm(offering.startTime!)} · ${outLabel} ${hhmm(offering.endTime!)} (${timeZone})`;
 }
 
 export function RangePicker({
