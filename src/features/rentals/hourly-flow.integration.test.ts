@@ -3,7 +3,12 @@
  *   getHourlySlots → createRentalBookingHours, the increment-grid slot list
  *   (not a single per-day block — proves the union runs on the offering's
  *   `slotIncrementMin` grid, not the requested duration), the mode gate
- *   (kill switch + offers_rentals channel), and the stale-slot race.
+ *   (kill switch + offers_rentals channel), the stale-slot race, and (own
+ *   describe block below, own 2-unit `client_picks` offering) the
+ *   unit-membership path: a slot's `unitIds` unioning multiple free units,
+ *   the `units` metadata field, and createRentalBookingHours refusing a
+ *   unitId that is not among a slot's free units WITHOUT the request ever
+ *   reaching the RPC's own occupancy check for a different reason.
  * Mirrors flow.integration.test.ts's harness (dynamic imports so env loads
  * before src/env.ts parses it, one client IP per test against the shared
  * rate limiters). Requires the local Supabase stack (npm run setup).
@@ -226,5 +231,170 @@ describe("hourly public booking flow (action layer)", () => {
     if (second.ok) return;
     expect(second.slotTaken).toBe(true);
     expect(second.error).toBe(SLOT_TAKEN_HOURLY);
+  });
+});
+
+// Own offering (2 units, unit_selection: client_picks) so these tests can't
+// disturb the single-unit fixture/assumptions above (in particular the
+// stale-slot test: a second always-free unit on that SAME offering would
+// let its "re-book the identical slot" attempt auto-assign the other unit
+// and silently pass for the wrong reason instead of failing as taken).
+// unit_selection itself is not read by the action layer (it's a widget-only
+// concern — hourly-actions.ts treats a non-null unitId identically
+// regardless of the offering's setting); set here for fixture realism only.
+describe("hourly public booking flow: client_picks unit membership", () => {
+  let orgId: string;
+  let picksHandle: string;
+  let offeringId: string;
+  let unitAId: string;
+  let unitBId: string;
+
+  beforeAll(async () => {
+    const owner = await signedInUser("h2flow_picks_owner");
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "H2FlowPicksCo" });
+    if (e1) throw e1;
+    orgId = (org as { id: string }).id;
+    const { error: eFlag } = await admin
+      .from("org_feature_flags")
+      .insert({ org_id: orgId, flag: "rentals", enabled: true, updated_by: "h2-flow-test" });
+    if (eFlag) throw eFlag;
+    picksHandle = `h2flow-picks-${Date.now()}`;
+    const { error: e2 } = await owner.rpc("update_org_scheduling", {
+      p_org_id: orgId,
+      p_handle: picksHandle,
+      p_timezone: TZ,
+    });
+    if (e2) throw e2;
+    const { data: offering, error: e3 } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: orgId,
+        name: "Studio",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+        turnover_min: 0,
+        min_notice_min: 0,
+        booking_window_days: 60,
+        unit_selection: "client_picks",
+      })
+      .select("id")
+      .single();
+    if (e3) throw e3;
+    offeringId = offering!.id as string;
+    const { data: units, error: e4 } = await owner
+      .from("rental_units")
+      .insert([
+        { org_id: orgId, offering_id: offeringId, name: "Studio A", sort_order: 0 },
+        { org_id: orgId, offering_id: offeringId, name: "Studio B", sort_order: 1 },
+      ])
+      .select("id, name");
+    if (e4) throw e4;
+    unitAId = units!.find((u) => u.name === "Studio A")!.id as string;
+    unitBId = units!.find((u) => u.name === "Studio B")!.id as string;
+    const rules = Array.from({ length: 7 }, (_, weekday) => ({
+      org_id: orgId,
+      rental_offering_id: offeringId,
+      weekday,
+      start_time: "09:00",
+      end_time: "21:00",
+    }));
+    const { error: e5 } = await owner.from("availability_rules").insert(rules);
+    if (e5) throw e5;
+  });
+
+  it("a slot free for both units carries both unitIds, and `units` names both", async () => {
+    net.clientIp = "203.0.113.21";
+    const day = d(12);
+    const slots = await hourlyActions.getHourlySlots({
+      handle: picksHandle,
+      offeringId,
+      durationMin: 60,
+      fromDate: day,
+      days: 7,
+    });
+    expect(slots.ok).toBe(true);
+    if (!slots.ok) return;
+    const target = slots.slots.find((s) => s.startsAt === iso(`${day}T10:00`));
+    expect(target).toBeDefined();
+    expect([...target!.unitIds].sort()).toEqual([unitAId, unitBId].sort());
+    expect(slots.units.map((u) => u.id).sort()).toEqual([unitAId, unitBId].sort());
+    expect(slots.units.map((u) => u.name).sort()).toEqual(["Studio A", "Studio B"]);
+  });
+
+  it("refuses a unitId the slot doesn't carry, and lands a valid pick on exactly that unit", async () => {
+    net.clientIp = "203.0.113.22";
+    const startsAt = iso(`${d(13)}T10:00`);
+
+    // Happy path first (assertion (d)): book Studio A explicitly.
+    const first = await hourlyActions.createRentalBookingHours({
+      handle: picksHandle,
+      offeringId,
+      unitId: unitAId,
+      startsAt,
+      durationMin: 60,
+      name: "Picks A",
+      email: "picks-a@example.com",
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const { data: row } = await admin
+      .from("bookings")
+      .select("rental_unit_id")
+      .eq("org_id", orgId)
+      .eq("client_email", "picks-a@example.com")
+      .single();
+    expect(row!.rental_unit_id).toBe(unitAId);
+
+    // Membership check (assertion (c)): Studio B is still completely free at
+    // this exact instant, so a fresh getHourlySlots union WOULD still return
+    // this slot (unitIds: [unitBId]) — `match` is defined, only the
+    // requested unitId is missing from it. Requesting the now-taken Studio A
+    // again must be refused before the RPC ever runs. Studio A is a REAL,
+    // active unit on THIS offering that is genuinely busy at this instant —
+    // the RPC's own occupancy check (rental_unit_is_free_hours) would
+    // independently reject it too if this ever reached it, so this proves
+    // the membership check does its job on a realistic value, not on a
+    // synthetic id the RPC would reject for an unrelated reason.
+    const second = await hourlyActions.createRentalBookingHours({
+      handle: picksHandle,
+      offeringId,
+      unitId: unitAId,
+      startsAt,
+      durationMin: 60,
+      name: "Picks A Again",
+      email: "picks-a-again@example.com",
+    });
+    expect(second.ok).toBe(false);
+    if (second.ok) return;
+    expect(second.slotTaken).toBe(true);
+    expect(second.error).toBe(SLOT_TAKEN_HOURLY);
+    const { data: rows } = await admin
+      .from("bookings")
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("client_email", "picks-a-again@example.com");
+    expect(rows).toHaveLength(0);
+
+    // Studio B is untouched and still bookable at the same instant.
+    const third = await hourlyActions.createRentalBookingHours({
+      handle: picksHandle,
+      offeringId,
+      unitId: unitBId,
+      startsAt,
+      durationMin: 60,
+      name: "Picks B",
+      email: "picks-b@example.com",
+    });
+    expect(third.ok).toBe(true);
+    if (!third.ok) return;
+    const { data: rowB } = await admin
+      .from("bookings")
+      .select("rental_unit_id")
+      .eq("org_id", orgId)
+      .eq("client_email", "picks-b@example.com")
+      .single();
+    expect(rowB!.rental_unit_id).toBe(unitBId);
   });
 });
