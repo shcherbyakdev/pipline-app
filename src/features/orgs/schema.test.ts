@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createOrgSchema, updateAccentInput, createOrgWithPageSchema, modeToFlags } from "./schema";
+import { createOrgSchema, updateAccentInput, createOrgWithPageSchema, modeToFlags, updateOrgModesInput } from "./schema";
 
 describe("createOrgSchema", () => {
   it("accepts a valid name", () => {
@@ -83,5 +83,16 @@ describe("modeToFlags", () => {
     expect(modeToFlags("appointments")).toEqual({ offersAppointments: true, offersRentals: false });
     expect(modeToFlags("rentals")).toEqual({ offersAppointments: false, offersRentals: true });
     expect(modeToFlags("both")).toEqual({ offersAppointments: true, offersRentals: true });
+  });
+});
+
+describe("updateOrgModesInput", () => {
+  it("accepts any pair with at least one true", () => {
+    expect(updateOrgModesInput.safeParse({ offersAppointments: true, offersRentals: false }).success).toBe(true);
+    expect(updateOrgModesInput.safeParse({ offersAppointments: true, offersRentals: true }).success).toBe(true);
+  });
+  it("rejects both false and non-booleans", () => {
+    expect(updateOrgModesInput.safeParse({ offersAppointments: false, offersRentals: false }).success).toBe(false);
+    expect(updateOrgModesInput.safeParse({ offersAppointments: "yes", offersRentals: true }).success).toBe(false);
   });
 });

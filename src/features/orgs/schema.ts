@@ -52,4 +52,8 @@ export const widgetThemeInput = z.object({
   hidePoweredBy: z.boolean(),
 });
 
+export const updateOrgModesInput = z
+  .object({ offersAppointments: z.boolean(), offersRentals: z.boolean() })
+  .refine((v) => v.offersAppointments || v.offersRentals, "Keep at least one");
+
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";

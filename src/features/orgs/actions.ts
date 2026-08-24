@@ -14,6 +14,7 @@ import {
   createOrgWithPageSchema,
   modeToFlags,
   updateAccentInput,
+  updateOrgModesInput,
   widgetThemeInput,
   GENERIC_WRITE_ERROR,
   type OrgState,
@@ -201,5 +202,22 @@ export async function removeLogo(): Promise<ActionState> {
   if (error) return brandingFail("removeLogo", error);
   if (org.logo_path) await deleteBrandingObject(org.logo_path);
   revalidatePath("/booking-page");
+  return { ok: true };
+}
+
+export async function updateOrgModes(input: unknown): Promise<ActionState> {
+  const parsed = updateOrgModesInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Keep at least one booking type on." };
+  const { org, error: orgError } = await currentOrgBranding();
+  if (!org) return brandingFail("updateOrgModes", orgError ?? "no org");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_org_modes", {
+    p_org_id: org.id,
+    p_offers_appointments: parsed.data.offersAppointments,
+    p_offers_rentals: parsed.data.offersRentals,
+  });
+  if (error) return brandingFail("updateOrgModes", error);
+  // The sidebar/command menu read the flags in the dashboard layout.
+  revalidatePath("/", "layout");
   return { ok: true };
 }
