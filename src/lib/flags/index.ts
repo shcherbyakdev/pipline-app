@@ -16,11 +16,14 @@ export const FLAG_DEFAULTS = {
       "Powered by Booklo" badge itself; the flag only changes WHO may switch
       it off (badgeShows / badgeVisible, lib/billing/entitlements.ts). */
   billing: false,
-  /** Rentals (R1/R2 shipped; R3 planned) are parked for the appointments-only
-      MVP (ruling 2026-08-17). While off: /rentals 404s, the /bookings timeline
-      view is unreachable, the public widget lists no offerings, the rentals
-      public actions refuse. Schema, RPCs and rows are untouched. */
-  rentals: false,
+  /** Rentals were parked for the appointments-only MVP (ruling 2026-08-17)
+      and UN-PARKED 2026-08-24 by the resource-booking pivot (H1). The flag
+      stays as a per-org kill switch (/utils/flags); what an org actually
+      sells is the org-mode pair on `orgs` (offers_appointments /
+      offers_rentals, 0054). While off: /rentals 404s, the /bookings timeline
+      view is unreachable, the public surface lists no offerings, the rentals
+      public actions refuse. */
+  rentals: true,
   /** /overview (ruling 2026-08-18): four org-wide tiles is not yet a dashboard
       worth the first nav slot. While off: /overview 404s and the sidebar
       starts at Bookings. */

@@ -1,11 +1,10 @@
 import { notFound } from "next/navigation";
-import { getBookingOrg, listPublicOfferings, resolveHandleAlias } from "@/lib/booking/public";
+import { getBookingOrg, resolveHandleAlias } from "@/lib/booking/public";
 import { HANDLE_RE } from "@/features/scheduling/handle";
-import { loadPublicOffering } from "@/lib/booking/public-offering";
+import { listPublicCatalog } from "@/lib/booking/catalog";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
-import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { badgeVisible } from "@/lib/billing/entitlements";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
@@ -30,11 +29,9 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
     }
   }
   if (!org) notFound();
-  const [offering, offerings, branding] = await Promise.all([
-    // Active-and-linked, then plan-limited — see /book/[handle].
-    loadPublicOffering(org.orgId),
-    // Rentals parked unless the org's `rentals` flag is on (lib/flags): the widget lists services only.
-    getOrgFlagsAdmin(org.orgId).then((f) => (f.rentals ? listPublicOfferings(org.orgId) : [])),
+  const [{ offering, offerings }, branding] = await Promise.all([
+    // The gated catalogue: active-and-linked, then plan-limited — see /book/[handle].
+    listPublicCatalog(org),
     getOrgBranding(org.orgId),
   ]);
   const { services: orgServices, staff, serviceStaffIds } = offering;

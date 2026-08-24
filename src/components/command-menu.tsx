@@ -14,12 +14,13 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import type { NavItem } from "@/components/shell/nav";
+import type { OrgMode } from "@/features/orgs/mode";
 
 /** Dispatched on `window` by the top bar's search button; the menu toggles on it
     just like ⌘K. */
 export const OPEN_COMMAND_MENU_EVENT = "booklo:open-command-menu";
 
-export function CommandMenu({ items }: { items: NavItem[] }) {
+export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
@@ -63,9 +64,16 @@ export function CommandMenu({ items }: { items: NavItem[] }) {
           ))}
         </CommandGroup>
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={() => go("/services?new=1")}>
-            <Plus className="size-4" /> New service
-          </CommandItem>
+          {mode.offersAppointments && (
+            <CommandItem onSelect={() => go("/services?new=1")}>
+              <Plus className="size-4" /> New service
+            </CommandItem>
+          )}
+          {mode.offersRentals && (
+            <CommandItem onSelect={() => go("/rentals?new=1")}>
+              <Plus className="size-4" /> New rental offering
+            </CommandItem>
+          )}
         </CommandGroup>
         <CommandGroup heading="Preferences">
           <CommandItem

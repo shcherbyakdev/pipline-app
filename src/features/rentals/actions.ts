@@ -26,9 +26,9 @@ function fail(context: string, error: unknown): { ok: false; error: string } {
 }
 
 // The session's single org — null while its `rentals` flag is off
-// (lib/flags): rentals are parked and no UI reaches these actions, so
-// every caller's null branch (the generic error) is the server-side
-// defence (public-actions.ts idiom).
+// (lib/flags): rentals are on by default since H1, and the flag is a kill
+// switch, so every caller's null branch (the generic error) is the
+// server-side defence while it's off (public-actions.ts idiom).
 async function currentOrgId(): Promise<string | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("orgs").select("id").limit(1).maybeSingle();

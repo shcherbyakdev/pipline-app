@@ -45,9 +45,12 @@ async function limited(): Promise<boolean> {
 async function loadRangeContext(handle: string, offeringId: string, fromDate: string, days: number) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
-  // Rentals parked unless the org's flag is on (lib/flags) — no UI reaches
-  // these actions, this is the server-side defence.
+  // Rentals are on by default since H1; the org's `rentals` flag is a kill
+  // switch — this is the server-side defence while it's off.
   if (!(await getOrgFlagsAdmin(org.orgId)).rentals) return null;
+  // The org-mode gate (offers_rentals) decides what the org sells: a
+  // channel it doesn't offer must not disclose availability either.
+  if (!org.offersRentals) return null;
   const ctx = await loadOrgRangeContext(org.orgId, offeringId, fromDate, days);
   if (!ctx) return null;
   return { org, ...ctx };

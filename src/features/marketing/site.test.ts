@@ -92,7 +92,15 @@ describe("site config", () => {
       PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder, PRICING.moreComing,
       ...PRICING.rows.flatMap((r) => [r.label, r.free, r.pro, r.team]),
       ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
-      ...Object.values(ONBOARDING).map((v) => (typeof v === "function" ? v("x") : v)),
+      // ONBOARDING.modes is an array of {value, title, blurb} cards, not a
+      // string or a function — flatten it to its titles/blurbs so the
+      // picker copy is actually scanned, not silently stringified to
+      // "[object Object]" by the corpus join below.
+      ...Object.values(ONBOARDING).flatMap((v) => {
+        if (typeof v === "function") return v("x");
+        if (Array.isArray(v)) return v.flatMap((m) => [m.title, m.blurb]);
+        return v;
+      }),
       ...Object.values(WELCOME).map((v) => (typeof v === "function" ? v("x") : v)),
       FINAL_CTA.heading,
     ].join("\n").toLowerCase();
@@ -102,5 +110,16 @@ describe("site config", () => {
   it("headline is two short lines (≤ 4 words each)", () => {
     expect(SITE.headline).toHaveLength(2);
     for (const line of SITE.headline) expect(line.split(/\s+/).length).toBeLessThanOrEqual(4);
+  });
+
+  // Rentals-only orgs (welcome-banner.tsx) must not fall back to the
+  // appointments CTA/subtitle — their copy has to actually differ, not just
+  // exist, or the banner's mode branch could collapse to one string and the
+  // dead-end would come right back.
+  it("WELCOME has rentals-specific copy distinct from the appointments copy", () => {
+    expect(WELCOME.addOffering).not.toBe(WELCOME.addService);
+    expect(WELCOME.subRentals).not.toBe(WELCOME.sub);
+    expect(WELCOME.addOffering.length).toBeGreaterThan(0);
+    expect(WELCOME.subRentals.length).toBeGreaterThan(0);
   });
 });

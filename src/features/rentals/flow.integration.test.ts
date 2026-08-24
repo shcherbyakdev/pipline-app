@@ -80,11 +80,12 @@ const moveFromEnd = d(42);
 const moveTo = d(45);
 const moveToEnd = d(47);
 
-// Rentals are parked for the MVP (FLAG_DEFAULTS.rentals is off, lib/flags):
-// every rental action refuses unless the org's flag resolves true, so the
-// suite switches it on for its own org through an `org_feature_flags` row
-// (service role — members may only read the table, see utils tests). The
-// last test removes the row again and watches the same actions refuse.
+// Rentals are un-parked by default (FLAG_DEFAULTS.rentals is on, lib/flags),
+// but every rental action still refuses unless the org's flag resolves true,
+// so the suite pins its own org to an explicit `org_feature_flags` row
+// (service role — members may only read the table, see utils tests) rather
+// than relying on the ambient default either way. The last test flips that
+// same row to enabled:false and watches the same actions refuse.
 describe("rental flow e2e (action layer)", () => {
   beforeAll(async () => {
     const owner = await signedInUser("rentflow_owner");
@@ -260,7 +261,7 @@ describe("rental flow e2e (action layer)", () => {
     expect(movedToken).toBeDefined();
     const { error } = await admin
       .from("org_feature_flags")
-      .delete()
+      .update({ enabled: false })
       .eq("org_id", orgId)
       .eq("flag", "rentals");
     if (error) throw error;

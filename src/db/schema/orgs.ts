@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index, jsonb, boolean } from "drizzle-orm/pg-core";
 
 // Tenant root. Every domain row carries `org_id` and is guarded by an RLS
 // policy keyed on the caller's org membership (read from a JWT claim).
@@ -23,6 +23,12 @@ export const orgs = pgTable("orgs", {
   // (same select-only-orgs discipline as branding). Null = all defaults.
   widgetTheme: jsonb("widget_theme"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  // What the org sells (H1 org modes). Both default true; onboarding sets
+  // them explicitly. Written ONLY via create_org / create_org_with_page /
+  // update_org_modes definer RPCs (orgs stays select-only — 0004). CHECK
+  // "at least one" lives in 0054.
+  offersAppointments: boolean("offers_appointments").default(true).notNull(),
+  offersRentals: boolean("offers_rentals").default(true).notNull(),
 });
 
 export const orgMembers = pgTable(

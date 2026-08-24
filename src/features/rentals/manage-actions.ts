@@ -100,8 +100,8 @@ export async function getManageRangeAvailability(input: unknown): Promise<
   try {
     const booking = await resolveActionable(token);
     if (!booking) return { ok: false, error: NOT_CHANGEABLE };
-    // Rentals parked unless the org's flag is on (lib/flags) — no UI reaches
-    // these actions while it is off; this is the server-side defence
+    // Rentals are on by default since H1; the org's `rentals` flag is a kill
+    // switch — this is the server-side defence while it's off
     // (public-actions.ts idiom).
     if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
     const offeringId = await getBookingOfferingId(booking.id);

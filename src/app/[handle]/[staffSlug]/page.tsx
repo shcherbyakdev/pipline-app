@@ -48,6 +48,9 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
     if (current) permanentRedirect(bookingPath(current, staffSlug));
     notFound();
   }
+  // A rentals-only org has no public people — this page IS the appointments
+  // channel, so its own mode gates it the same way listPublicCatalog would.
+  if (!org.offersAppointments) notFound();
   const [offering, branding, doc] = await Promise.all([
     loadPublicOffering(org.orgId),
     getOrgBranding(org.orgId),

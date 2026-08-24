@@ -51,9 +51,12 @@ function stubClient(result: { data: unknown; error: unknown }): SupabaseClient {
 
 describe("getOrgFlags", () => {
   it("merges the org's rows over the defaults", async () => {
-    const client = stubClient({ data: [{ flag: "rentals", enabled: true }], error: null });
+    // rentals defaults to true (FLAG_DEFAULTS) — override it false so the
+    // merge is actually exercised; asserting `true` here would pass even if
+    // the row were silently dropped and the default alone shone through.
+    const client = stubClient({ data: [{ flag: "rentals", enabled: false }], error: null });
     const flags = await getOrgFlags("org-1", client);
-    expect(flags).toEqual({ ...FLAG_DEFAULTS, rentals: true });
+    expect(flags).toEqual({ ...FLAG_DEFAULTS, rentals: false });
   });
   it("throws on a read error (callers decide how to degrade)", async () => {
     const client = stubClient({ data: null, error: new Error("boom") });
@@ -61,10 +64,13 @@ describe("getOrgFlags", () => {
   });
 });
 
-/* The flag-off defaults ARE the pre-branch product, so a failed read degrading
-   to them can only reproduce it; throwing would take down every dashboard page
-   (getDashboardFlags) or every booking page (getOrgFlagsAdmin) instead.
-   Ruling at final review 2026-08-18. */
+/* Degrading to the defaults reproduces the DEFAULT product, which since the
+   H1 un-parking includes rentals — so a failed read can briefly bypass a
+   per-org `rentals` kill switch. Accepted trade-off: failing closed instead
+   would hide rentals for every org during the same outage window, and
+   throwing would take down every dashboard page (getDashboardFlags) or every
+   booking page (getOrgFlagsAdmin) outright. Ruling at final review
+   2026-08-18, reaffirmed at the H1 review 2026-08-24. */
 describe("degrade paths", () => {
   afterEach(() => vi.restoreAllMocks());
 
