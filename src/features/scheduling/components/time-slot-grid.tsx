@@ -1,0 +1,133 @@
+"use client";
+
+import * as React from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { Button } from "@/components/ui/button";
+
+export function TimeSlotGrid({
+  slots,
+  fromDate,
+  todayISO,
+  pending,
+  orgTimeZone,
+  onNavigate,
+  onPick,
+  regionRef,
+}: {
+  slots: string[]; // ISO instants
+  fromDate: string; // viewer-local YYYY-MM-DD, 7-day page
+  todayISO: string;
+  pending: boolean;
+  orgTimeZone: string;
+  onNavigate: (nextFromDate: string) => void;
+  onPick: (iso: string) => void;
+  regionRef?: React.Ref<HTMLDivElement>;
+}): React.JSX.Element {
+  const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
+  const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const tzShortFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+
+  // Group by the VIEWER's local date, not the UTC date — a late-evening
+  // slot in the viewer's zone must appear under the day they'd call it.
+  const viewerDayKey = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  // Only this page's seven viewer-local days: the server pads its window a
+  // day each side so no day is missed across the org/viewer offset.
+  const lastDay = shiftDays(fromDate, 6);
+  const byDay = new Map<string, string[]>();
+  for (const s of slots) {
+    const day = viewerDayKey.format(new Date(s));
+    if (day < fromDate || day > lastDay) continue;
+    byDay.set(day, [...(byDay.get(day) ?? []), s]);
+  }
+  // A DST fall-back day shows the same HH:MM twice (02:00 CEST, 02:00 CET);
+  // disambiguate those labels with the zone name, and only those.
+  const timeLabel = (iso: string, daySlots: string[]) => {
+    const base = timeFmt.format(new Date(iso));
+    const dup = daySlots.some((o) => o !== iso && timeFmt.format(new Date(o)) === base);
+    return dup ? `${base} ${tzShortFmt.format(new Date(iso)).split(" ").pop()}` : base;
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="wt-surface"
+            aria-label="Previous week"
+            title="Previous week"
+            disabled={fromDate <= todayISO}
+            onClick={() => onNavigate(shiftDays(fromDate, -7))}
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="wt-surface"
+            aria-label="Next week"
+            title="Next week"
+            onClick={() => onNavigate(shiftDays(fromDate, 7))}
+          >
+            <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
+          </Button>
+        </div>
+      </div>
+      {/* While a new week loads, the previous list stays put (dimmed) so
+          the region doesn't collapse and re-expand — no flash. */}
+      <div
+        ref={regionRef}
+        tabIndex={-1}
+        aria-live="polite"
+        aria-busy={pending || undefined}
+        className={pending ? "flex flex-col gap-4 opacity-60 transition-opacity" : "flex flex-col gap-4"}
+      >
+        {pending && byDay.size === 0 ? (
+          <p className="text-muted-foreground text-sm">Loading times…</p>
+        ) : byDay.size === 0 ? (
+          <p className="text-muted-foreground text-sm">No free times this week — try the next.</p>
+        ) : (
+          [...byDay.entries()].map(([day, daySlots]) => (
+            <div key={day} className="flex flex-col gap-2">
+              <p className="text-muted-foreground text-xs font-medium">
+                {dayFmt.format(new Date(daySlots[0]))}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {daySlots.map((s) => (
+                  <Button
+                    key={s}
+                    variant="outline"
+                    size="sm"
+                    className="wt-surface"
+                    onClick={() => onPick(s)}
+                    aria-label={`${dayFmt.format(new Date(s))}, ${timeLabel(s, daySlots)}`}
+                  >
+                    {timeLabel(s, daySlots)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <p className="text-muted-foreground text-xs">Times shown in your timezone ({viewerTz}).</p>
+      {viewerTz !== orgTimeZone ? (
+        <p className="text-muted-foreground text-xs">
+          The organisation&apos;s local timezone is {orgTimeZone}.
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+function shiftDays(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d) + days * 86_400_000).toISOString().slice(0, 10);
+}
