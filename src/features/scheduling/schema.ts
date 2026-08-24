@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { STAFF_SLUG_RE } from "./staff-slug";
 import { HANDLE_RE, isReservedHandle } from "./handle";
+import { CURRENCIES } from "@/lib/money";
 
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 export { HANDLE_RE };
@@ -97,6 +98,8 @@ export const schedulingSettingsInput = z.object({
       .refine((h) => h === null || !isReservedHandle(h), { message: "reserved handle" }),
   ),
   timezone: z.string().min(1).max(64),
+  // Whitelisted server-side too (update_org_scheduling's CHECK, 0058).
+  currency: z.enum(CURRENCIES),
 });
 
 // Team (multi-staff), admin side. `slug` is the person's booking-link name —

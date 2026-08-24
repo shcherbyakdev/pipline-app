@@ -34,13 +34,14 @@ export async function getSchedulingSettings(): Promise<{
   orgId: string;
   handle: string | null;
   timezone: string;
+  currency: string;
 } | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("orgs")
-    .select("id, handle, timezone")
+    .select("id, handle, timezone, currency")
     .limit(1)
     .maybeSingle();
   if (!data) return null;
-  return { orgId: data.id, handle: data.handle, timezone: data.timezone };
+  return { orgId: data.id, handle: data.handle, timezone: data.timezone, currency: data.currency };
 }
