@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ForgotPasswordForm } from "./forgot-password-form";
 
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage({ searchParams }: PageProps<"/forgot-password">) {
+  const { expired } = await searchParams;
   return (
     <main className="flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-sm">
@@ -11,6 +12,11 @@ export default function ForgotPasswordPage() {
         <p className="text-muted-foreground mb-6 text-sm">
           We&apos;ll email you a link to set a new one.
         </p>
+        {expired ? (
+          <p className="text-destructive mb-4 text-sm">
+            That reset link was already used or has expired — request a new one.
+          </p>
+        ) : null}
         <ForgotPasswordForm />
         <p className="text-muted-foreground mt-6 text-sm">
           <Link href="/login" className="text-foreground hover:underline">

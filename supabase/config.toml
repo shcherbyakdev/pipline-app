@@ -426,8 +426,22 @@ additional_redirect_urls = ["https://booklo.co", "https://booklo.co/auth/confirm
 # the THIRD signup in any hour would silently never receive its confirmation.
 # Note this key is only pushed when smtp.enabled is true in the same effective
 # config — which the block below satisfies.
+#
+# 120/hour, not 30: this counts every auth mail (signups, magic links,
+# resets, resends) across ALL users, so 30 is a handful of people stuck on
+# "resend" in the same hour, and the 31st simply never gets their mail.
+# Delivery goes through Resend's SMTP (below), whose own daily cap is the
+# real ceiling; this limit only has to be high enough to stay out of the way.
 [remotes.production.auth.rate_limit]
-email_sent = 30
+email_sent = 120
+
+# The base config's max_frequency = "1s" is a local-dev convenience (Mailpit,
+# no cost). Inherited into production it lets one address request a fresh
+# confirmation/reset mail every second, each one a Resend send against the
+# shared daily cap. 60s per address is the ordinary "didn't get it, resend"
+# cadence and starves nobody.
+[remotes.production.auth.email]
+max_frequency = "60s"
 
 # Without custom SMTP, Supabase Auth refuses to deliver to any address outside
 # the project team: nobody but the owner could sign up. This is the hardest

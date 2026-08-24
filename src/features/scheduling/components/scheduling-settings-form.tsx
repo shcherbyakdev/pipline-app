@@ -5,11 +5,13 @@ import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { updateSchedulingSettings } from "@/features/scheduling/actions";
+import { normalizeHandle } from "@/features/scheduling/handle";
 import type { getSchedulingSettings } from "@/features/orgs/queries";
 import { bookingUrl, hostLabel } from "@/lib/booking/url";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import { SettingsCard, SettingsRow } from "@/components/settings-row";
+import { ConfirmDialog } from "@/features/booking-page/studio/confirm-dialog";
 
 type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSettings>>>;
 
@@ -30,17 +32,24 @@ export function SchedulingSettingsForm({
   onHandleInput?: (handle: string) => void;
 }) {
   const [handle, setHandle] = React.useState(settings.handle ?? "");
-  const [timezone, setTimezone] = React.useState(
-    settings.handle === null ? Intl.DateTimeFormat().resolvedOptions().timeZone : settings.timezone,
-  );
+  // Always the stored timezone. Seeding from the browser when no handle was
+  // set yet made ANY save (even a handle-only one) silently move the org's
+  // timezone — and with it every availability window — to wherever the
+  // admin happened to be sitting.
+  const [timezone, setTimezone] = React.useState(settings.timezone);
   const [saved, setSaved] = React.useState({ handle: settings.handle ?? "", timezone: settings.timezone });
   const [pending, startTransition] = React.useTransition();
   const [copied, setCopied] = React.useState(false);
+  const [confirmingChange, setConfirmingChange] = React.useState(false);
 
   const dirty = handle !== saved.handle || timezone !== saved.timezone;
+  // A handle that is already out in the world (saved, non-empty) is about to
+  // change or go away: the old link and any embed snippet die with it.
+  const handleChanging = saved.handle !== "" && handle !== saved.handle;
   const host = hostLabel(appUrl);
 
   const save = () => {
+    setConfirmingChange(false);
     startTransition(async () => {
       const result = await updateSchedulingSettings({ handle, timezone });
       if (!result.ok) toast.error(result.error);
@@ -50,12 +59,19 @@ export function SchedulingSettingsForm({
       }
     });
   };
+  const onSaveClick = () => (handleChanging ? setConfirmingChange(true) : save());
 
-  const copyLink = () => {
+  // Awaited: a refused clipboard write must not flip the icon to a tick
+  // (portal-links-panel.tsx precedent).
+  const copyLink = async () => {
     if (!saved.handle) return;
-    navigator.clipboard.writeText(bookingUrl(appUrl, saved.handle));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(bookingUrl(appUrl, saved.handle));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Couldn't copy — select the address and copy manually.");
+    }
   };
 
   return (
@@ -64,9 +80,18 @@ export function SchedulingSettingsForm({
       footer={
         <>
           {dirty ? <span className="text-muted-foreground mr-auto text-xs">Unsaved changes</span> : null}
-          <Button size="sm" onClick={save} disabled={pending || !dirty}>
+          <Button size="sm" onClick={onSaveClick} disabled={pending || !dirty}>
             {pending ? "Saving…" : "Save"}
           </Button>
+          <ConfirmDialog
+            open={confirmingChange}
+            title={handle === "" ? "Unpublish your booking page?" : "Change your booking page address?"}
+            description="Your old link and any website embed will stop working — update the snippet on Website embed."
+            confirmLabel={handle === "" ? "Unpublish" : "Change address"}
+            destructive
+            onConfirm={save}
+            onClose={() => setConfirmingChange(false)}
+          />
         </>
       }
     >
@@ -83,8 +108,11 @@ export function SchedulingSettingsForm({
             id="scheduling-handle"
             value={handle}
             onChange={(e) => {
-              setHandle(e.target.value);
-              onHandleInput?.(e.target.value);
+              // Same live normaliser as the claim bar and onboarding: what
+              // you can type is always a legal prefix of a handle.
+              const next = normalizeHandle(e.target.value);
+              setHandle(next);
+              onHandleInput?.(next);
             }}
             disabled={pending}
             placeholder="your-handle"

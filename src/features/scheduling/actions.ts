@@ -21,7 +21,7 @@ import {
   deleteOverrideInput,
 } from "./schema";
 import { effectiveWindows, subtractRange, addRange } from "./day-windows";
-import { isReservedHandle } from "./handle";
+import { HANDLE_RE, isReservedHandle } from "./handle";
 
 function fail(context: string, error: unknown): { ok: false; error: string } {
   console.error(`[scheduling] ${context}:`, error);
@@ -217,6 +217,8 @@ export async function deleteService(input: unknown): Promise<ActionState> {
 // map to the same message the client shows.
 const OVERLAP_DB_CODE = "23P01";
 
+const HANDLE_FORMAT_ERROR = "Use 3–50 lowercase letters, digits or hyphens.";
+
 // Shape of an availability_exceptions row as the actions below write it.
 type ExceptionInsert = {
   org_id: string;
@@ -226,6 +228,70 @@ type ExceptionInsert = {
   start_time: string | null;
   end_time: string | null;
 };
+
+// Replace one date's exception rows for one person with `next`, over plain
+// REST calls (no transaction), such that NO failure can leave the day
+// emptier than it was: a day with no exception rows falls back to the
+// weekly rules, i.e. a half-done rewrite would silently REOPEN a blocked or
+// closed day for booking. The invariant: every intermediate state is the
+// old state, or a state where a closed row is present (closed wins in
+// effectiveWindows/slots), or old ∪ new.
+//
+// Plain "insert new, then delete old" is not available for open windows:
+// availability_exceptions_no_overlap (0035/0041, `where (not closed)`) rejects
+// an open row that overlaps another open row on the same date, and the new
+// windows nearly always overlap the ones they replace. A closed row is
+// outside that constraint, so it doubles as a bridge: park the day closed,
+// swap the open rows underneath, lift the bridge. Two calls when no open
+// rows exist yet (or when the result is closed), four otherwise — and the
+// worst outcome of a mid-way failure is a day stuck CLOSED, which the
+// calendar shows and "Reopen day" fixes; never a day stuck open.
+//
+// Returns the failing step's error (23P01 included, so callers keep their
+// overlap mapping) or null.
+async function replaceDayExceptions(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  scope: { orgId: string; staffId: string; date: string },
+  prior: Array<{ id: string; closed: boolean }>,
+  next: ExceptionInsert[],
+): Promise<{ code?: string; message: string } | null> {
+  const table = () => supabase.from("availability_exceptions");
+  const deleteByIds = async (ids: string[]) => {
+    if (ids.length === 0) return null;
+    const { error } = await table().delete()
+      .eq("org_id", scope.orgId).eq("staff_id", scope.staffId).eq("date", scope.date)
+      .in("id", ids);
+    return error;
+  };
+  const priorIds = prior.map((r) => r.id);
+  const priorHasOpen = prior.some((r) => !r.closed);
+  const nextIsClosed = next.length > 0 && next.every((r) => r.closed);
+
+  // "Back to the weekly rules": one statement, all-or-nothing on its own.
+  if (next.length === 0) return deleteByIds(priorIds);
+
+  if (!priorHasOpen || nextIsClosed) {
+    // Nothing the new rows could collide with (closed rows are outside the
+    // EXCLUDE; a closed result never collides). Insert first: a failure
+    // here leaves the old rows untouched; a failed delete leaves old ∪ new,
+    // which is at least as restrictive as either.
+    const { error } = await table().insert(next);
+    if (error) return error;
+    return deleteByIds(priorIds);
+  }
+
+  // Bridge: the day is closed from here until the last step succeeds.
+  const { data: bridge, error: bridgeError } = await table()
+    .insert({ org_id: scope.orgId, staff_id: scope.staffId, date: scope.date, closed: true, start_time: null, end_time: null })
+    .select("id")
+    .single();
+  if (bridgeError) return bridgeError;
+  const oldError = await deleteByIds(priorIds);
+  if (oldError) return oldError;
+  const { error: nextError } = await table().insert(next);
+  if (nextError) return nextError;
+  return deleteByIds([bridge.id]);
+}
 
 // Team (multi-staff): availability rows are per person (0040/0041 — `staff_id
 // NOT NULL`, EXCLUDE overlap guards keyed by staff). Each availability action
@@ -290,28 +356,21 @@ export async function blockTimeRange(input: unknown): Promise<ActionState> {
   const [rulesRes, exceptionsRes] = await Promise.all([
     supabase.from("availability_rules").select("weekday, start_time, end_time")
       .eq("org_id", orgId).eq("staff_id", staffId),
-    supabase.from("availability_exceptions").select("date, closed, start_time, end_time")
+    supabase.from("availability_exceptions").select("id, date, closed, start_time, end_time")
       .eq("org_id", orgId).eq("staff_id", staffId).eq("date", date),
   ]);
   if (rulesRes.error) return fail("blockTimeRange", rulesRes.error);
   if (exceptionsRes.error) return fail("blockTimeRange", exceptionsRes.error);
 
+  const prior = exceptionsRes.data ?? [];
   const windows = effectiveWindows(
     date,
     (rulesRes.data ?? []).map((r) => ({ weekday: r.weekday, startTime: r.start_time, endTime: r.end_time })),
-    (exceptionsRes.data ?? []).map((e) => ({
-      date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time,
-    })),
+    prior.map((e) => ({ date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time })),
   );
   if (windows.length === 0) return { ok: true }; // already fully closed — no-op
 
   const remaining = subtractRange(windows, startTime, endTime);
-
-  const { error: delError } = await supabase
-    .from("availability_exceptions").delete()
-    .eq("org_id", orgId).eq("staff_id", staffId).eq("date", date);
-  if (delError) return fail("blockTimeRange", delError);
-
   const rows: ExceptionInsert[] =
     remaining.length === 0
       ? [{ org_id: orgId, staff_id: staffId, date, closed: true, start_time: null, end_time: null }]
@@ -319,8 +378,8 @@ export async function blockTimeRange(input: unknown): Promise<ActionState> {
           org_id: orgId, staff_id: staffId, date, closed: false,
           start_time: w.startTime, end_time: w.endTime,
         }));
-  const { error: insError } = await supabase.from("availability_exceptions").insert(rows);
-  if (insError) return fail("blockTimeRange", insError);
+  const error = await replaceDayExceptions(supabase, { orgId, staffId, date }, prior, rows);
+  if (error) return fail("blockTimeRange", error);
 
   revalidatePath("/bookings");
   revalidatePath("/availability");
@@ -342,7 +401,7 @@ export async function unblockTimeRange(input: unknown): Promise<ActionState> {
   const [rulesRes, exceptionsRes] = await Promise.all([
     supabase.from("availability_rules").select("weekday, start_time, end_time")
       .eq("org_id", orgId).eq("staff_id", staffId),
-    supabase.from("availability_exceptions").select("date, closed, start_time, end_time")
+    supabase.from("availability_exceptions").select("id, date, closed, start_time, end_time")
       .eq("org_id", orgId).eq("staff_id", staffId).eq("date", date),
   ]);
   if (rulesRes.error) return fail("unblockTimeRange", rulesRes.error);
@@ -351,28 +410,26 @@ export async function unblockTimeRange(input: unknown): Promise<ActionState> {
   const rules = (rulesRes.data ?? []).map((r) => ({
     weekday: r.weekday, startTime: r.start_time, endTime: r.end_time,
   }));
-  const dayExceptions = (exceptionsRes.data ?? []).map((e) => ({
+  const prior = exceptionsRes.data ?? [];
+  const dayExceptions = prior.map((e) => ({
     date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time,
   }));
   const merged = addRange(effectiveWindows(date, rules, dayExceptions), startTime, endTime);
 
-  const { error: delError } = await supabase
-    .from("availability_exceptions").delete()
-    .eq("org_id", orgId).eq("staff_id", staffId).eq("date", date);
-  if (delError) return fail("unblockTimeRange", delError);
-
   // Rules-only effective windows for this date — if the merged result
-  // equals them, deleting the exceptions above already restored the day.
+  // equals them, the day returns to clean rules (no rows) instead of
+  // carrying an equivalent override. That is the one rewrite that MAY leave
+  // the day without rows, because "no rows" is exactly the intended result.
   const ruleWindows = effectiveWindows(date, rules, []);
-  if (JSON.stringify(merged) !== JSON.stringify(ruleWindows)) {
-    const { error: insError } = await supabase.from("availability_exceptions").insert(
-      merged.map((w) => ({
-        org_id: orgId, staff_id: staffId, date, closed: false,
-        start_time: w.startTime, end_time: w.endTime,
-      })),
-    );
-    if (insError) return fail("unblockTimeRange", insError);
-  }
+  const rows: ExceptionInsert[] =
+    JSON.stringify(merged) === JSON.stringify(ruleWindows)
+      ? []
+      : merged.map((w) => ({
+          org_id: orgId, staff_id: staffId, date, closed: false,
+          start_time: w.startTime, end_time: w.endTime,
+        }));
+  const error = await replaceDayExceptions(supabase, { orgId, staffId, date }, prior, rows);
+  if (error) return fail("unblockTimeRange", error);
 
   revalidatePath("/bookings");
   revalidatePath("/availability");
@@ -400,6 +457,9 @@ export async function updateSchedulingSettings(input: unknown): Promise<ActionSt
   if (!parsed.success) {
     const h = typeof (input as { handle?: unknown })?.handle === "string" ? ((input as { handle: string }).handle).trim() : "";
     if (isReservedHandle(h)) return { ok: false, error: "That address is reserved — pick another." };
+    // The one refusal a person can actually act on: the form normalises as
+    // you type, so this is a too-short handle or a trailing dash.
+    if (h !== "" && !HANDLE_RE.test(h)) return { ok: false, error: HANDLE_FORMAT_ERROR };
     return { ok: false, error: GENERIC_WRITE_ERROR };
   }
   const orgId = await currentOrgId();
@@ -487,20 +547,21 @@ export async function copyDayHours(input: unknown): Promise<ActionState> {
 }
 
 // Replace-all-rows-for-the-date semantics (spec): one closed row, or N
-// window rows. Same non-atomicity note as copyDayHours.
+// window rows. Ordered by replaceDayExceptions so a failure never leaves
+// the day emptier (more open) than it was.
 export async function setDateOverride(input: unknown): Promise<ActionState> {
   const parsed = dateOverrideInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error: deleteError } = await supabase
+  const { data: prior, error: readError } = await supabase
     .from("availability_exceptions")
-    .delete()
+    .select("id, closed")
     .eq("org_id", orgId)
     .eq("staff_id", parsed.data.staffId)
     .eq("date", parsed.data.date);
-  if (deleteError) return fail("setDateOverride", deleteError);
+  if (readError) return fail("setDateOverride", readError);
   const rows: ExceptionInsert[] = parsed.data.closed
     ? [
         {
@@ -520,10 +581,17 @@ export async function setDateOverride(input: unknown): Promise<ActionState> {
         start_time: w.startTime,
         end_time: w.endTime,
       }));
-  const { error: insertError } = await supabase.from("availability_exceptions").insert(rows);
-  if (insertError) {
-    if (insertError.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
-    return fail("setDateOverride", insertError);
+  const error = await replaceDayExceptions(
+    supabase,
+    { orgId, staffId: parsed.data.staffId, date: parsed.data.date },
+    prior ?? [],
+    rows,
+  );
+  if (error) {
+    // Only the new rows' own overlaps can trip the guard now — the bridge
+    // pattern never inserts an open row next to one it is replacing.
+    if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    return fail("setDateOverride", error);
   }
   revalidatePath("/availability");
   revalidatePath("/bookings");

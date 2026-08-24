@@ -14,3 +14,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  # `directory: /` only covers .github/workflows. The composite action pins
+  # its own `uses:` versions and is otherwise invisible to Dependabot.
+  - package-ecosystem: github-actions
+    directory: /.github/actions/setup
+    schedule:
+      interval: weekly

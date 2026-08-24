@@ -133,11 +133,75 @@ describe("create_org_with_page", () => {
     const r1 = await owner.rpc("create_org_with_page", { p_name: "X Co", p_handle: "signup", p_timezone: "UTC" });
     expect(r1.error?.message).toMatch(/reserved handle/);
     const r2 = await owner.rpc("create_org_with_page", { p_name: "X Co", p_handle: null, p_timezone: "Mars/Olympus" });
-    expect(r2.error?.message).toMatch(/not found/);
+    expect(r2.error?.message).toMatch(/invalid timezone/);
   });
 
   it("is not callable by anon", async () => {
     const { error } = await anon.rpc("create_org_with_page", { p_name: "Anon", p_handle: null, p_timezone: "UTC" });
     expect(error).not.toBeNull();
+  });
+});
+
+describe("0052: one org per account, released handles stay with their org", () => {
+  it("create_org refuses a second org for the same user", async () => {
+    const owner = await signedInUser("once");
+    const { error: first } = await owner.rpc("create_org_with_page", {
+      p_name: "Once Co",
+      p_handle: `hnd-once-${STAMP}`,
+      p_timezone: "UTC",
+    });
+    expect(first).toBeNull();
+    const { error: again } = await owner.rpc("create_org", { p_name: "Twice Co" });
+    expect(again?.message).toMatch(/already onboarded/);
+    const { error: again2 } = await owner.rpc("create_org_with_page", {
+      p_name: "Twice Co",
+      p_handle: `hnd-twice-${STAMP}`,
+      p_timezone: "UTC",
+    });
+    expect(again2?.message).toMatch(/already onboarded/);
+  });
+
+  it("a renamed-away handle is unavailable to everyone but its former org", async () => {
+    const old = `hnd-old-${STAMP}`;
+    const fresh = `hnd-new-${STAMP}`;
+    const owner = await signedInUser("rename");
+    const { data: org, error } = await owner.rpc("create_org_with_page", {
+      p_name: "Rename Co",
+      p_handle: old,
+      p_timezone: "UTC",
+    });
+    expect(error).toBeNull();
+    const orgId = (org as { id: string }).id;
+    const { error: e1 } = await owner.rpc("update_org_scheduling", { p_org_id: orgId, p_handle: fresh, p_timezone: "UTC" });
+    expect(e1).toBeNull();
+
+    // History row written; the old handle reads as taken to the public check.
+    const { data: hist } = await admin.from("org_handle_history").select("org_id").eq("handle", old).maybeSingle();
+    expect(hist?.org_id).toBe(orgId);
+    expect(await available(old)).toBe(false);
+
+    // Another account cannot claim it — onboarding or settings — 23505 both ways.
+    const other = await signedInUser("squatter");
+    const { error: e2 } = await other.rpc("create_org_with_page", { p_name: "Squat Co", p_handle: old, p_timezone: "UTC" });
+    expect(e2?.code).toBe("23505");
+    const { data: otherOrg } = await other.rpc("create_org_with_page", {
+      p_name: "Squat Co",
+      p_handle: `hnd-squat-${STAMP}`,
+      p_timezone: "UTC",
+    });
+    const { error: e3 } = await other.rpc("update_org_scheduling", {
+      p_org_id: (otherOrg as { id: string }).id,
+      p_handle: old,
+      p_timezone: "UTC",
+    });
+    expect(e3?.code).toBe("23505");
+
+    // The former org may take it back; the history row retires.
+    const { error: e4 } = await owner.rpc("update_org_scheduling", { p_org_id: orgId, p_handle: old, p_timezone: "UTC" });
+    expect(e4).toBeNull();
+    const { data: gone } = await admin.from("org_handle_history").select("handle").eq("handle", old).maybeSingle();
+    expect(gone).toBeNull();
+    const { data: nowHist } = await admin.from("org_handle_history").select("org_id").eq("handle", fresh).maybeSingle();
+    expect(nowHist?.org_id).toBe(orgId);
   });
 });

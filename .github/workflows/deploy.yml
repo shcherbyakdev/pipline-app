@@ -44,14 +44,24 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # A manual dispatch can be pointed at any branch from the Actions UI. Only
+    # `main` is allowed to reach production: anything else would migrate the
+    # live database with a schema that never passed CI on main.
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     # Bounds a hung step (e.g. a stuck `drizzle-kit migrate` against production).
     # The `deploy-production` concurrency lock is held for the job's full
     # duration, so an unbounded hang would block every subsequent deploy for up
     # to GitHub's default 6-hour job timeout. 20 minutes comfortably covers a
-    # normal run (npm ci + migrate + vercel pull/build/deploy) with headroom.
+    # normal run (npm ci + vercel pull/build + migrate + deploy) with headroom.
     timeout-minutes: 20
+    # Secrets reach scripts through env, never `${{ secrets.X }}` inside a
+    # `run:` body: that form pastes the value into the shell source verbatim,
+    # so a value containing a quote or `$` becomes shell syntax.
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       # workflow_run defaults to the tip of main, which may have moved past the
       # commit CI actually verified. Check out the verified SHA.
@@ -66,11 +76,15 @@ jobs:
 
       - run: npm ci
 
-      # Migrate BEFORE promoting, so the schema is always at or ahead of the
-      # code. Between this step and the deploy below, the currently-live code
-      # runs against the new schema — migrations must be backward compatible.
-      - name: Migrate production database
-        run: npx drizzle-kit migrate
+      # Fail before anything irreversible happens. The transaction pooler
+      # (:6543) is the Vercel runtime's value; DDL through it fails
+      # intermittently and confusingly, and the direct connection is IPv6-only.
+      - name: Assert DATABASE_URL is the session pooler
+        run: |
+          case "$DATABASE_URL" in
+            *pooler.supabase.com:5432*) ;;
+            *) echo "::error::DATABASE_URL is not the session pooler (:5432)"; exit 1;;
+          esac
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -84,19 +98,41 @@ jobs:
         run: npm install --global vercel@^58.0.0
 
       - name: Pull Vercel environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
+      # Build BEFORE migrating: a build failure then leaves production exactly
+      # as it was. The other order would leave the schema ahead of code that
+      # never ships, with nothing to roll it back.
       - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+
+      # Migrate BEFORE promoting, so the schema is always at or ahead of the
+      # code. Between this step and the deploy below, the currently-live code
+      # runs against the new schema — migrations must be backward compatible.
+      #
+      # ALLOW_REMOTE_DB: drizzle.config.ts refuses any non-loopback host unless
+      # it is set, so a stray `npx drizzle-kit migrate` on a laptop with a
+      # production URL exported cannot reach the live database. This is the
+      # one place the override is meant to be set.
+      - name: Migrate production database
+        run: npx drizzle-kit migrate
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ALLOW_REMOTE_DB: "1"
 
       - name: Deploy
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+      # A zero exit from `vercel deploy` only proves Vercel accepted the
+      # build. Prove the promoted site answers, and that the drain route still
+      # turns away an unauthenticated call — 401, not 503, also proves
+      # SCHEDULING_DRAIN_SECRET survived the deploy (the route answers 503
+      # when the secret is unset).
+      - name: Smoke test production
+        run: |
+          curl -fsS https://booklo.co/ >/dev/null
+          status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST https://booklo.co/api/scheduling/drain)"
+          if [ "$status" != "401" ]; then
+            echo "::error::POST /api/scheduling/drain without auth returned $status, expected 401"
+            exit 1
+          fi

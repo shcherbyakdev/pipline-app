@@ -9,9 +9,17 @@ const FOR_MS = 30_000;
 /* Coming back from checkout, the plan is only real once the provider's
    webhook has landed — seconds, usually, but not zero (spec §7.7). So the
    page re-reads itself every 3s for 30s; the moment the row exists the server
-   renders the paid plan, `active` goes false and the effect tears down. */
+   renders the paid plan, `active` goes false and the effect tears down.
+
+   The status line lives here rather than on the page so it can change when
+   the window runs out: a webhook that is late by more than 30s is a real
+   condition (provider incident, a misrouted endpoint) and the member has
+   paid — leaving "Activating…" on screen with nothing happening behind it
+   would read as a hang. router.refresh() keeps client state, so `timedOut`
+   survives every re-render the poll triggers. */
 export function ActivationPoller({ active }: { active: boolean }) {
   const router = useRouter();
+  const [timedOut, setTimedOut] = React.useState(false);
 
   React.useEffect(() => {
     if (!active) return;
@@ -19,6 +27,7 @@ export function ActivationPoller({ active }: { active: boolean }) {
     const id = window.setInterval(() => {
       if (Date.now() - startedAt > FOR_MS) {
         window.clearInterval(id);
+        setTimedOut(true);
         return;
       }
       router.refresh();
@@ -26,5 +35,12 @@ export function ActivationPoller({ active }: { active: boolean }) {
     return () => window.clearInterval(id);
   }, [active, router]);
 
-  return null;
+  if (!active) return null;
+  return (
+    <p role="status" className="text-muted-foreground text-sm">
+      {timedOut
+        ? "Still waiting for the payment provider — refresh in a minute or contact support."
+        : "Activating your plan… this takes a few seconds."}
+    </p>
+  );
 }

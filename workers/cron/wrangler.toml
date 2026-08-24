@@ -2,6 +2,16 @@ name = "booklo-cron"
 main = "src/index.ts"
 compatibility_date = "2026-08-19"
 
+# No *.workers.dev route: this Worker has no fetch handler, only a cron, so a
+# public URL would serve nothing and advertise the Worker's name.
+workers_dev = false
+
+# Ships console.error output to the Cloudflare dashboard's logs. Without it a
+# failing drain is visible only through the healthcheck going quiet, with no
+# record of WHY (status code, body) once the invocation ends.
+[observability]
+enabled = true
+
 # Every 15 minutes. Reminders have a 24h lead window, so this granularity is
 # ample; it also produces ~96 database round trips a day, which is what keeps
 # the Supabase Free project from pausing for inactivity.

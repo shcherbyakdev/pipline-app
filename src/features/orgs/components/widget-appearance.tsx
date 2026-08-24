@@ -86,10 +86,16 @@ export function WidgetAppearance({
     });
   };
 
-  const copySnippet = () => {
+  // Awaited: the clipboard write can be refused (permissions, insecure
+  // context) and "Copied" must not claim otherwise (portal-links-panel.tsx).
+  const copySnippet = async () => {
     if (!handle) return;
-    navigator.clipboard.writeText(snippet);
-    toast.success("Copied");
+    try {
+      await navigator.clipboard.writeText(snippet);
+      toast.success("Copied");
+    } catch {
+      toast.error("Couldn't copy — select the snippet and copy manually.");
+    }
   };
 
   const dirty = JSON.stringify(config) !== JSON.stringify(initial);

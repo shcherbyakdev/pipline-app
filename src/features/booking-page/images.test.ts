@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  PAGE_IMAGE_PATH_RE, pageImagePathFor, pageImagePrefix, pageImageUrl, imagePathsIn, orphanPaths,
-  isAllowedPageImageType,
+  PAGE_IMAGE_PATH_RE, PAGE_IMAGE_MAX_BYTES, PAGE_IMAGE_MAX_OBJECTS, pageImagePathFor, pageImagePrefix, pageImageUrl,
+  imagePathsIn, orphanPaths, isAllowedPageImageType,
 } from "./images";
 
 const ORG = "123e4567-e89b-12d3-a456-426614174000";
@@ -54,5 +54,15 @@ describe("imagePathsIn / orphanPaths", () => {
   it("orphanPaths = listed minus referenced", () => {
     expect(orphanPaths(["o/page/a.png", "o/page/z.png", "o/page/c.png"], imagePathsIn(doc))).toEqual(["o/page/z.png"]);
     expect(orphanPaths([], ["o/page/a.png"])).toEqual([]);
+  });
+});
+
+describe("limits", () => {
+  it("caps a single image under Vercel's 4.5 MB function body (server-action relay)", () => {
+    expect(PAGE_IMAGE_MAX_BYTES).toBe(4 * 1024 * 1024);
+    expect(PAGE_IMAGE_MAX_BYTES).toBeLessThan(4.5 * 1000 * 1000);
+  });
+  it("caps objects per org", () => {
+    expect(PAGE_IMAGE_MAX_OBJECTS).toBe(200);
   });
 });

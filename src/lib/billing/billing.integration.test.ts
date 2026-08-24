@@ -210,6 +210,21 @@ describe("billing: applyBillingEvents", () => {
     expect(statusRow.status).toBe("expired");
   });
 
+  it("an org_id that names no org is 'unresolvable org', not a 23503 (NEEDS 0052)", async () => {
+    // A well-formed UUID that isn't an org: a subscription whose metadata
+    // was edited in the Stripe dashboard, or an org deleted after checkout.
+    // Before 0052 the billing_events insert raised on the FK, the route
+    // answered 500 and Stripe retried the same bug forever; 0052 nulls
+    // p_org_id when no such org exists so the event is recorded and
+    // skipped like any other unresolvable one.
+    const ghost = "00000000-0000-4000-8000-000000000000";
+    const r = await applyBillingEvents(admin, [ev("ghost", "2026-08-18T15:00:00Z", { orgId: ghost })]);
+    expect(r).toEqual({ processed: 0, skipped: 1 });
+    const logged = await admin.from("billing_events").select("org_id, error").eq("provider_event_id", `${RUN}-ghost`).single();
+    expect(logged.error).toBeNull();
+    expect(logged.data).toEqual({ org_id: null, error: "unresolvable org" });
+  });
+
   it("is order-safe under concurrent, interleaved deliveries", async () => {
     // Later than the previous test's last event (12:00Z), so every one of
     // these six actually beats the row currently in place.

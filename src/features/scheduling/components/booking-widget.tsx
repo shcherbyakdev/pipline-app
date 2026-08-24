@@ -12,8 +12,14 @@ import { BookingConfirmed } from "@/features/scheduling/components/booking-confi
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
 
+// The VIEWER's local date (audit 2026-08-24: the UTC date sent a far-west
+// evening visitor one day ahead, hiding the rest of their own today with no
+// way to page back). getSlots pads the engine window by a day on each side;
+// the widget keeps what lands on its page.
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(
+    new Date(),
+  );
 }
 
 export function BookingWidget({
@@ -98,6 +104,7 @@ export function BookingWidget({
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
   const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const tzShortFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
 
   const loadSlots = React.useCallback(
     (svc: PublicService, from: string, staffId: string) => {
@@ -169,11 +176,22 @@ export function BookingWidget({
     month: "2-digit",
     day: "2-digit",
   });
+  // Only this page's seven viewer-local days: the server pads its window a
+  // day each side so no day is missed across the org/viewer offset.
+  const lastDay = shiftDays(fromDate, 6);
   const byDay = new Map<string, string[]>();
   for (const s of slots) {
     const day = viewerDayKey.format(new Date(s));
+    if (day < fromDate || day > lastDay) continue;
     byDay.set(day, [...(byDay.get(day) ?? []), s]);
   }
+  // A DST fall-back day shows the same HH:MM twice (02:00 CEST, 02:00 CET);
+  // disambiguate those labels with the zone name, and only those.
+  const timeLabel = (iso: string, daySlots: string[]) => {
+    const base = timeFmt.format(new Date(iso));
+    const dup = daySlots.some((o) => o !== iso && timeFmt.format(new Date(o)) === base);
+    return dup ? `${base} ${tzShortFmt.format(new Date(iso)).split(" ").pop()}` : base;
+  };
 
   // Whom this booking is with, or null when there is nothing worth saying —
   // a solo org (or one eligible person) must read exactly as it did before
@@ -426,9 +444,9 @@ export function BookingWidget({
                         size="sm"
                         className="wt-surface"
                         onClick={() => setSlot(s)}
-                        aria-label={`${dayFmt.format(new Date(s))}, ${timeFmt.format(new Date(s))}`}
+                        aria-label={`${dayFmt.format(new Date(s))}, ${timeLabel(s, daySlots)}`}
                       >
-                        {timeFmt.format(new Date(s))}
+                        {timeLabel(s, daySlots)}
                       </Button>
                     ))}
                   </div>

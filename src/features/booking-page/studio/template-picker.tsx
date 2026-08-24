@@ -17,9 +17,11 @@ import { ConfirmDialog } from "./confirm-dialog";
 
 /* Live thumbnails: the real PageRenderer, scaled, with the org's own
    name/logo/services and the template's sample copy. `inert` keeps the
-   widget inside from taking focus or clicks. */
+   widget inside from taking focus or clicks. The skin layers over the org's
+   theme exactly as applySkin does — colour overrides included — so the
+   thumbnail is what you'd actually get. */
 function TemplateThumb({ template, ctx }: { template: Template; ctx: RenderContext }) {
-  const base: WidgetThemeConfig = template.skin ? { ...ctx.theme, ...template.skin, background: undefined, text: undefined } : ctx.theme;
+  const base: WidgetThemeConfig = template.skin ? { ...ctx.theme, ...template.skin } : ctx.theme;
   const scheme = base.theme === "auto" ? "light" : base.theme;
   const theme: WidgetThemeConfig = { ...base, theme: scheme };
   return (
@@ -42,7 +44,9 @@ export function TemplatePicker({
   onApply: (next: PageDocument, skin: TemplateSkin | null) => void;
 }) {
   const [open, setOpen] = React.useState(false);
-  const [applySkin, setApplySkin] = React.useState(true);
+  // Off by default: unlike the sections (a draft until published), the look
+  // is org-wide branding that saves straight to the live page and embed.
+  const [applySkin, setApplySkin] = React.useState(false);
   const [pending, setPending] = React.useState<Template | null>(null);
   const dirty = !deepEqual(doc, DEFAULT_PAGE);
 
@@ -62,9 +66,14 @@ export function TemplatePicker({
             <DialogTitle>Start from a template</DialogTitle>
             <DialogDescription>Pick a starting point, then make it yours. Your published page stays until you publish.</DialogDescription>
           </DialogHeader>
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={applySkin} onCheckedChange={(c) => setApplySkin(c === true)} />
-            Also apply the template&apos;s look (theme, font, corners)
+          <label className="flex items-start gap-2 text-sm">
+            <Checkbox className="mt-0.5" checked={applySkin} onCheckedChange={(c) => setApplySkin(c === true)} />
+            <span>
+              Also apply the template&apos;s look now (theme, font, corners)
+              <span className="text-muted-foreground block text-xs">
+                Unlike the sections, this changes the live page and website embed immediately.
+              </span>
+            </span>
           </label>
           <ul className="grid max-h-[60vh] grid-cols-1 gap-3 overflow-y-auto p-0.5 sm:grid-cols-3">
             {TEMPLATES.map((t) => (

@@ -19,14 +19,31 @@ function one(value: string | string[] | undefined): string | null {
   return value ?? null;
 }
 
-/** Where "Cancel" goes: the return URL with the post-purchase markers taken
-    off. `startCheckout` bakes `checkout=success&plan=…` into `return` so the
-    ACTION can land on it, but abandoning checkout must not — /billing would
-    read those and sit on "Activating your plan…" for a purchase that never
-    happened. Anything unparseable falls back to /billing. */
-function cancelUrl(returnTo: string): string {
+/** Where "Cancel" goes. `fake.ts` carries startCheckout's `cancelUrl` as
+    `cancel` (the way a Stripe session carries cancel_url) — that is the
+    /billing?checkout=cancelled line. It rides in the query string of a page
+    anyone signed in can open, so it is origin-checked before it becomes a
+    link (dev/actions.ts#returnUrlWith idiom): a foreign host falls back.
+
+    Without `cancel` (an older link), the fallback is the return URL with the
+    post-purchase markers taken off: `startCheckout` bakes
+    `checkout=success&plan=…` into `return` so the ACTION can land on it, but
+    abandoning checkout must not — /billing would read those and sit on
+    "Activating your plan…" for a purchase that never happened. Anything
+    unparseable falls back to /billing. */
+function cancelUrl(cancelTo: string | null, returnTo: string): string {
+  const appUrl = new URL(env.NEXT_PUBLIC_APP_URL);
+  if (cancelTo) {
+    try {
+      const target = new URL(cancelTo, appUrl);
+      if (target.origin === appUrl.origin) return target.toString();
+    } catch {
+      /* fall through to the derived fallback */
+    }
+  }
   try {
-    const target = new URL(returnTo, env.NEXT_PUBLIC_APP_URL);
+    const target = new URL(returnTo, appUrl);
+    if (target.origin !== appUrl.origin) return "/billing";
     target.searchParams.delete("checkout");
     target.searchParams.delete("plan");
     return target.toString();
@@ -82,7 +99,7 @@ export default async function DevCheckoutPage({ searchParams }: PageProps<"/dev/
         plan={plan}
         interval={interval}
         returnTo={returnTo}
-        cancelTo={cancelUrl(returnTo)}
+        cancelTo={cancelUrl(one(sp.cancel), returnTo)}
         customer={customer}
         payLabel={formatUsd(chargedNow)}
         error={one(sp.error) ?? undefined}

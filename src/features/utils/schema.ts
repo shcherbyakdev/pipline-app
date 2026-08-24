@@ -24,12 +24,31 @@ export const orgSearchInput = z.object({
 
 export const orgIdInput = z.object({ org: z.uuid() });
 
+/** Today as YYYY-MM-DD in UTC — the calendar `expires` is read in (the form
+    says "UTC", the action turns it into end-of-day UTC), so it is the day
+    the past/future line is drawn on. */
+export function todayUtc(now: Date = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}
+
 /** `expires` is a calendar date (YYYY-MM-DD) or empty for "no expiry"; the
-    action turns it into end-of-day UTC. */
+    action turns it into end-of-day UTC. A date already past is refused
+    rather than saved: it would write a comp that is expired on arrival —
+    the panel would read "expired", /billing would show nothing, and the
+    owner would be left wondering whether the grant took. Same-day is fine
+    (end-of-day UTC is still ahead). ISO dates compare as strings.
+
+    `abort: true` on the format check: zod 4 keeps running later checks after
+    a failure, so without it a malformed date would ALSO fail the refine and
+    the action (which keys on the refine's `custom` issue) would call it
+    "past" instead of "invalid". */
 export const grantOverrideInput = z.object({
   org: z.uuid(),
   plan: z.enum(["pro", "team"]),
-  expires: z.union([z.literal(""), z.string().date()]),
+  expires: z.union([
+    z.literal(""),
+    z.string().date({ abort: true }).refine((d) => d >= todayUtc(), { message: "Expiry must be today or later." }),
+  ]),
   note: z.string().trim().max(200),
 });
 
@@ -49,6 +68,7 @@ export const UTILS_DONE = {
 } as const;
 export const UTILS_ERRORS = {
   invalid: "That didn't validate — check the fields and try again.",
+  expires_past: "Expiry must be today or later.",
 } as const;
 
 export function utilsDoneMessage(code: string): string | null {

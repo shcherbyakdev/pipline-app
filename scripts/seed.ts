@@ -549,11 +549,18 @@ async function main(): Promise<void> {
     console.log(`seed: created "${DEMO_ORG}"`);
   }
 
-  await ensureDemoTemplate(client, orgId);
-  await ensureDemoProgram(client, orgId);
-  await ensureDemoProgress(client, orgId);
-  await ensureDemoParticipant(client, orgId);
-  await ensureDemoClient(client, orgId);
+  // The legacy fire-safety stack (template → program → units → participant
+  // → client + portal link) is parked since the 2026-08-13 scheduling
+  // pivot: its pages 404, and its demo client ("Acme Retail Ltd", no
+  // bookings) only pollutes /clients. Opt in with SEED_LEGACY=1 when
+  // working on that code; the helpers stay intact.
+  if (process.env.SEED_LEGACY === "1") {
+    await ensureDemoTemplate(client, orgId);
+    await ensureDemoProgram(client, orgId);
+    await ensureDemoProgress(client, orgId);
+    await ensureDemoParticipant(client, orgId);
+    await ensureDemoClient(client, orgId);
+  }
   await ensureDemoScheduling(client, orgId);
   console.log(`seed: sign in as ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 }

@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { env } from "@/env";
 import { TEAM_INCLUDED_SEATS, type Interval, type PaidPlanId } from "./plans";
 import type { SubscriptionStatus } from "./entitlements";
-import type { BillingEvent, BillingProvider, BillingSubscription, CheckoutInput } from "./provider";
+import type { BillingEvent, BillingProvider, BillingSubscription, CheckoutInput, CheckoutSession } from "./provider";
 
 // Stripe Managed Payments (spec §6/§7.1). The ONLY file in src/ that imports
 // the stripe SDK. Stripe is the merchant of record: Checkout Session in
@@ -53,6 +53,18 @@ export function planFromPriceMetadata(metadata: Record<string, string> | undefin
   return null;
 }
 
+/** `metadata.org_id` is ours (startCheckout sets it on the subscription),
+    but Stripe metadata is free text the dashboard can edit, and
+    apply_billing_event takes it as `uuid`: anything that is not one would
+    make the RPC raise (22P02) — a 500 for every retry of that event. Not a
+    UUID ⇒ null, which the RPC records as 'unresolvable org' and moves on. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function orgIdFromMetadata(metadata: Record<string, string> | undefined): string | null {
+  const id = metadata?.org_id;
+  return typeof id === "string" && UUID_RE.test(id) ? id : null;
+}
+
 type SubLike = {
   id: string; customer: string | { id: string }; status: string; cancel_at_period_end: boolean;
   metadata?: Record<string, string>;
@@ -90,16 +102,39 @@ export function normalizeStripeEvent(event: Stripe.Event, priceMap: PriceMap): B
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
       const sub = obj as SubLike;
+      const created = event.type === "customer.subscription.created";
       const deleted = event.type === "customer.subscription.deleted";
+      // A subscription is born `incomplete` when Checkout has to confirm the
+      // payment first, and Stripe emits created(incomplete) and
+      // updated(active) inside the same second. mapStripeStatus reads
+      // `incomplete` as expired, and apply_billing_event breaks same-second
+      // ties by ARRIVAL — so if the `created` were delivered second it would
+      // overwrite the active row with an expired one. The `updated` is the
+      // source of truth; the `created` says nothing it doesn't.
+      if (created && (sub.status === "incomplete" || sub.status === "incomplete_expired")) return null;
+      const subscription = subscriptionFrom(sub, priceMap, deleted);
       // A deletion whose price maps to nothing still emits with
       // `subscription: null` — apply_billing_event (0043) expires the cached
       // row from the type + org alone, so an unmappable price can no longer
       // leave an org paid-forever in our cache.
+      //
+      // A LIVE subscription on a price we can't map is different: nothing
+      // safe can be projected from it, and answering 200 would have Stripe
+      // consider the event delivered — the org would pay without a plan and
+      // no retry would ever come (a dashboard resend hits the
+      // billing_events unique index and returns 'replayed'). Throw instead:
+      // the route answers non-2xx, Stripe keeps retrying, and the retries
+      // succeed the moment the price id is added to the env map or given
+      // plan/interval metadata (§7.12).
+      if (!subscription && !deleted) {
+        const priceId = sub.items?.data?.[0]?.price.id;
+        if (priceId) throw new Error(`unmapped price ${priceId}`);
+      }
       return {
         ...base,
-        orgId: sub.metadata?.org_id ?? null,
-        type: deleted ? "subscription_expired" : event.type === "customer.subscription.created" ? "subscription_created" : "subscription_updated",
-        subscription: subscriptionFrom(sub, priceMap, deleted),
+        orgId: orgIdFromMetadata(sub.metadata),
+        type: deleted ? "subscription_expired" : created ? "subscription_created" : "subscription_updated",
+        subscription,
       };
     }
     case "invoice.payment_failed":
@@ -115,13 +150,33 @@ export function normalizeStripeEvent(event: Stripe.Event, priceMap: PriceMap): B
   }
 }
 
+/** Is this Stripe's "the discount is the problem" — and nothing else?
+    Stripe reports a promotion code that ran out, expired, was archived or
+    doesn't cover the price as an invalid_request_error whose `param` is
+    under `discounts[…]`, or whose message names the code/coupon. Anything
+    else (a bad API key, a wrong price id, a network failure) is a checkout
+    problem the discount had nothing to do with, and retrying without the
+    discount would only sell at list price into whatever is broken. */
+export function isDiscountRejection(error: unknown): boolean {
+  return (
+    error instanceof Stripe.errors.StripeInvalidRequestError &&
+    (Boolean(error.param?.startsWith("discounts")) || /promotion|coupon/i.test(error.message))
+  );
+}
+
 /** Create a Checkout Session with the Founder discount when there is one, and
-    WITHOUT it if that first attempt fails. The coupon is capped
+    WITHOUT it if Stripe rejects the discount. The coupon is capped
     (`max_redemptions`, spec §7.12): once it runs out — or expires, or is
     archived — Stripe rejects the whole session, which would turn "the promo
-    ended" into "you cannot buy Pro". The retry keeps the sale at list price.
-    If the retry fails too, the FIRST error is thrown: it is the one that
-    describes what actually went wrong when a discount was in play.
+    ended" into "you cannot buy Pro". The retry at list price proves the sale
+    itself is fine, and `founderFallback: true` tells the caller the member
+    is NOT getting the price they were shown — startCheckout stops and says
+    so rather than sending them on to pay more than the page promised.
+
+    Only a discount rejection (isDiscountRejection) retries; every other
+    error is rethrown as-is. If the retry fails too, the FIRST error is
+    thrown: it is the one that describes what actually went wrong when a
+    discount was in play.
 
     Pure w.r.t. the network (the caller injects `create`), which is the only
     reason this retry has a unit test at all. */
@@ -129,17 +184,18 @@ export async function withOptionalDiscount<T>(
   create: (params: Stripe.Checkout.SessionCreateParams) => Promise<T>,
   params: Stripe.Checkout.SessionCreateParams,
   discount: string | undefined,
-): Promise<T> {
-  if (!discount) return create(params);
+): Promise<{ session: T; founderFallback: boolean }> {
+  if (!discount) return { session: await create(params), founderFallback: false };
   try {
-    return await create({ ...params, discounts: [{ promotion_code: discount }] });
+    return { session: await create({ ...params, discounts: [{ promotion_code: discount }] }), founderFallback: false };
   } catch (error) {
+    if (!isDiscountRejection(error)) throw error;
     console.warn(
       "[billing] founder code rejected, retrying without it:",
       error instanceof Error ? error.message : String(error),
     );
     try {
-      return await create(params);
+      return { session: await create(params), founderFallback: true };
     } catch {
       throw error;
     }
@@ -152,7 +208,7 @@ export function stripeProvider(): BillingProvider {
   const priceMap = priceMapFromEnv();
   return {
     name: "stripe",
-    async createCheckoutUrl(input: CheckoutInput) {
+    async createCheckout(input: CheckoutInput): Promise<CheckoutSession> {
       const params: Stripe.Checkout.SessionCreateParams = {
         mode: "subscription",
         line_items: [{ price: priceIdFor(input.plan, input.interval), quantity: 1 }],
@@ -166,17 +222,17 @@ export function stripeProvider(): BillingProvider {
         metadata: { org_id: input.orgId },
         subscription_data: { metadata: { org_id: input.orgId } },
         success_url: input.returnUrl,
-        cancel_url: input.returnUrl,
+        cancel_url: input.cancelUrl,
         allow_promotion_codes: false,
         managed_payments: { enabled: true }, // API ≥ 2025-03-31.basil (spec §6/§7.1)
       };
-      const session = await withOptionalDiscount(
+      const { session, founderFallback } = await withOptionalDiscount(
         (p) => stripe.checkout.sessions.create(p),
         params,
         input.discountCode,
       );
       if (!session.url) throw new Error("stripe: no checkout url");
-      return session.url;
+      return { url: session.url, founderFallback };
     },
     async createPortalUrl(providerCustomerId, returnUrl) {
       const s = await stripe.billingPortal.sessions.create({ customer: providerCustomerId, return_url: returnUrl });

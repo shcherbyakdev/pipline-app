@@ -7,8 +7,22 @@ import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/book
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
+import { RESEND_STARTED_HINT } from "./booking-detail-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+// These rows server-render, so "now" is seeded after mount (the
+// create-booking-dialog idiom): a render-time Date.now() would both trip
+// react-hooks/purity and risk a hydration mismatch. Until seeded, nothing is
+// treated as started — the worst case is one click that the action refuses.
+function useNowMs(): number | null {
+  const [nowMs, setNowMs] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    const seed = setTimeout(() => setNowMs(Date.now()), 0);
+    return () => clearTimeout(seed);
+  }, []);
+  return nowMs;
+}
 
 function Row({
   booking,
@@ -23,6 +37,12 @@ function Row({
 }) {
   const [pending, startTransition] = React.useTransition();
   const [confirming, setConfirming] = React.useState(false);
+  const nowMs = useNowMs();
+  // "Upcoming" is ends_at-based (a stay in progress still lists), but a
+  // manage link can only be reissued before the start (rotate_booking_token).
+  const started = nowMs !== null && new Date(booking.startsAt).getTime() <= nowMs;
+  const resendBlocked = !booking.clientEmail || started;
+  const resendHint = !booking.clientEmail ? "No email on file" : started ? RESEND_STARTED_HINT : undefined;
 
   const cancel = () =>
     startTransition(async () => {
@@ -98,9 +118,9 @@ function Row({
             variant="ghost"
             size="sm"
             onClick={resend}
-            disabled={pending || !booking.clientEmail}
-            focusableWhenDisabled={!booking.clientEmail}
-            title={booking.clientEmail ? undefined : "No email on file"}
+            disabled={pending || resendBlocked}
+            focusableWhenDisabled={resendBlocked}
+            title={resendHint}
           >
             Resend link
           </Button>

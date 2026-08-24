@@ -28,7 +28,7 @@ async function founderCodeFor(orgId: string): Promise<string | undefined> {
    the member back on /billing with a line they can act on, never a stack
    trace. redirect() throws a Next control-flow error, so it stays OUT of the
    try — hence a helper that returns null instead of one wrapped in a catch. */
-async function providerUrl(make: () => Promise<string>, label: string): Promise<string | null> {
+async function providerCall<T>(make: () => Promise<T>, label: string): Promise<T | null> {
   try {
     return await make();
   } catch (error) {
@@ -74,6 +74,8 @@ export async function startCheckout(formData: FormData): Promise<void> {
   const parsed = checkoutInput.safeParse({
     plan: formData.get("plan"),
     interval: formData.get("interval"),
+    // FormData says null for an absent field; zod's optional wants undefined.
+    founder: formData.get("founder") ?? undefined,
   });
   if (!parsed.success) redirect("/billing?error=checkout");
   const supabase = await createClient();
@@ -106,25 +108,31 @@ export async function startCheckout(formData: FormData): Promise<void> {
   if (current.sub) {
     const { data, error } = await supabase
       .from("org_subscriptions")
-      .select("provider_customer_id")
+      .select("provider_customer_id, provider")
       .eq("org_id", org.id)
       .maybeSingle();
     if (error || !data?.provider_customer_id) {
       console.error("[billing] startCheckout customer read:", error);
       redirect("/billing?error=checkout");
     }
-    providerCustomerId = data.provider_customer_id;
+    // Only a customer THIS provider minted is worth handing over: a row the
+    // fake emulator wrote (a dev database pointed at Stripe, or the other
+    // way round) carries an id Stripe has never seen, and the session would
+    // be refused. Let the provider create a fresh customer instead — the
+    // webhook overwrites the row with the real one (openPortal's twin).
+    providerCustomerId = data.provider === env.BILLING_PROVIDER ? data.provider_customer_id : undefined;
   }
   // The Founder coupon is 33.3 % off Pro MONTHLY, forever (spec §3): sending
   // it with any other plan/interval asks Stripe to apply a coupon that does
-  // not cover the price, which it rejects — and the sale with it.
+  // not cover the price, which it rejects — and the sale with it. `founder=
+  // skip` is the retry after `?error=founder_ended` (checkoutInput).
   const discountCode =
-    parsed.data.plan === "pro" && parsed.data.interval === "month"
+    parsed.data.plan === "pro" && parsed.data.interval === "month" && parsed.data.founder !== "skip"
       ? await founderCodeFor(org.id)
       : undefined;
-  const url = await providerUrl(
+  const session = await providerCall(
     () =>
-      selectBillingProvider().createCheckoutUrl({
+      selectBillingProvider().createCheckout({
         orgId: org.id,
         plan: parsed.data.plan,
         interval: parsed.data.interval,
@@ -135,11 +143,19 @@ export async function startCheckout(formData: FormData): Promise<void> {
         // for: the activation poller compares the freshly-read plan against
         // it, and `checkout=success` alone couldn't tell Pro from Team.
         returnUrl: `${env.NEXT_PUBLIC_APP_URL}/billing?checkout=success&plan=${parsed.data.plan}`,
+        // Its own URL, WITHOUT the success markers: "back" from a hosted
+        // checkout is not a purchase, and /billing must not poll for one.
+        cancelUrl: `${env.NEXT_PUBLIC_APP_URL}/billing?checkout=cancelled`,
       }),
     "startCheckout",
   );
-  if (!url) redirect("/billing?error=checkout");
-  redirect(url);
+  if (!session) redirect("/billing?error=checkout");
+  // The provider refused the Founder code and built the session at list
+  // price instead. The member was shown the Founder number, so sending them
+  // on would have them pay more than the page promised: stop, say the offer
+  // has ended, and let them buy again at the price now shown.
+  if (session.founderFallback) redirect("/billing?error=founder_ended");
+  redirect(session.url);
 }
 
 /** Form action: the provider's portal, where cards, invoices, downgrades and
@@ -153,11 +169,17 @@ export async function openPortal(): Promise<void> {
   // resubscribe), so this asks for the row rather than for an active plan.
   const { data } = await supabase
     .from("org_subscriptions")
-    .select("provider_customer_id")
+    .select("provider_customer_id, provider")
     .eq("org_id", org.id)
     .maybeSingle();
   if (!data?.provider_customer_id) redirect("/billing?error=portal");
-  const url = await providerUrl(
+  // A row another provider wrote (the fake emulator's, on a database now
+  // pointed at Stripe — or the reverse) names a customer THIS provider has
+  // never heard of; Stripe would 404 the portal session, and the fake portal
+  // would happily "manage" a Stripe subscription it cannot touch. As far as
+  // this provider is concerned there is no subscription to manage.
+  if (data.provider !== env.BILLING_PROVIDER) redirect("/billing?error=portal");
+  const url = await providerCall(
     () =>
       selectBillingProvider().createPortalUrl(
         data.provider_customer_id,

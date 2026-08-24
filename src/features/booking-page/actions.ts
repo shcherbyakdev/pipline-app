@@ -10,9 +10,12 @@ import { matchesLogoMagicBytes } from "@/lib/storage/logo";
 import { BRANDING_BUCKET, uploadBrandingObject } from "@/lib/storage/branding";
 import { getPageDraftState, getPageSectionsEntitlement } from "./queries";
 import { gatedVisibleSections } from "./gating";
-import { parsePageDocument, PAGE_TOO_LARGE_ERROR, IMAGE_REJECTED_ERROR, PAGE_GATED_ERROR, type PageDocument } from "./schema";
 import {
-  PAGE_IMAGE_MAX_BYTES, isAllowedPageImageType, pageImagePathFor, pageImagePrefix, imagePathsIn, orphanPaths,
+  parsePageDocument, PAGE_TOO_LARGE_ERROR, IMAGE_REJECTED_ERROR, IMAGE_LIMIT_ERROR, PAGE_GATED_ERROR, type PageDocument,
+} from "./schema";
+import {
+  PAGE_IMAGE_MAX_BYTES, PAGE_IMAGE_MAX_OBJECTS, isAllowedPageImageType, pageImagePathFor, pageImagePrefix,
+  imagePathsIn, orphanPaths,
 } from "./images";
 import { DEFAULT_PAGE } from "./defaults";
 
@@ -99,8 +102,41 @@ export async function uploadPageImage(formData: FormData): Promise<UploadResult>
   const checksum = createHash("sha256").update(Buffer.from(bytes)).digest("hex");
   const path = pageImagePathFor(orgId, checksum, file.type);
   if (!path) return { ok: false, error: IMAGE_REJECTED_ERROR };
+  // Per-org ceiling. Re-uploading bytes already stored is a no-op upsert on
+  // the same path, so it is never refused. Orphans are NOT swept here: an
+  // image uploaded seconds ago may be referenced only by the client's
+  // not-yet-autosaved draft, and a sweep against the saved one would delete
+  // it — publish/discard are the safe moments (they see the final document).
+  const listed = await listPageObjects(orgId);
+  if (listed === null) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (listed.length >= PAGE_IMAGE_MAX_OBJECTS && !listed.includes(path)) {
+    return { ok: false, error: IMAGE_LIMIT_ERROR };
+  }
   if (!(await uploadBrandingObject(path, bytes, file.type))) return { ok: false, error: GENERIC_WRITE_ERROR };
   return { ok: true, path };
+}
+
+/** Every object under the org's page prefix, as full paths. Storage lists
+    are paged (1000 by default), so keep pulling until a short page — the cap
+    above is meaningless if the count silently stops at page one. Null on a
+    storage error (already logged). */
+async function listPageObjects(orgId: string): Promise<string[] | null> {
+  const admin = createAdminClient();
+  const prefix = pageImagePrefix(orgId);
+  const PAGE = 1000;
+  const paths: string[] = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const { data, error } = await admin.storage
+      .from(BRANDING_BUCKET)
+      .list(prefix.slice(0, -1), { limit: PAGE, offset, sortBy: { column: "name", order: "asc" } });
+    if (error) {
+      console.error("[booking-page] page image list failed:", error.message);
+      return null;
+    }
+    const page = data ?? [];
+    for (const o of page) paths.push(`${prefix}${o.name}`);
+    if (page.length < PAGE) return paths;
+  }
 }
 
 /** Best-effort: delete objects under the org's page prefix that neither
@@ -108,18 +144,12 @@ export async function uploadPageImage(formData: FormData): Promise<UploadResult>
     publish/discard retries (evidence.ts orphan doctrine). */
 async function cleanupOrphans(orgId: string, draft: PageDocument, published: PageDocument | null): Promise<void> {
   try {
-    const admin = createAdminClient();
-    const prefix = pageImagePrefix(orgId);
-    const { data, error } = await admin.storage.from(BRANDING_BUCKET).list(prefix.slice(0, -1), { limit: 1000 });
-    if (error) {
-      console.error("[booking-page] orphan list failed:", error.message);
-      return;
-    }
-    const listed = (data ?? []).map((o) => `${prefix}${o.name}`);
+    const listed = await listPageObjects(orgId);
+    if (listed === null) return;
     const referenced = [...imagePathsIn(draft), ...(published ? imagePathsIn(published) : [])];
     const orphans = orphanPaths(listed, referenced);
     if (orphans.length === 0) return;
-    const { error: removeError } = await admin.storage.from(BRANDING_BUCKET).remove(orphans);
+    const { error: removeError } = await createAdminClient().storage.from(BRANDING_BUCKET).remove(orphans);
     if (removeError) console.error("[booking-page] orphan delete failed:", removeError.message);
   } catch (error) {
     console.error("[booking-page] orphan cleanup threw:", error);

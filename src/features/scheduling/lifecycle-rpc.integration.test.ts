@@ -43,7 +43,7 @@ async function signedInUser(tag: string): Promise<SupabaseClient> {
 
 async function book(startsAt: string, email: string) {
   const { token, tokenHash } = generateAccessToken();
-  const { data, error } = await anon.rpc("create_booking", {
+  const { data, error } = await admin.rpc("create_booking", {
     p_handle: HANDLE,
     p_service_id: serviceId,
     p_starts_at: startsAt,
@@ -159,7 +159,7 @@ describe("S2 lifecycle RPCs", () => {
   it("cancel_booking flips a confirmed future booking and frees its slot", async () => {
     const { token, error } = await book("2027-04-05T12:00:00Z", "cancelme@example.com");
     expect(error).toBeNull();
-    const { data, error: cErr } = await anon.rpc("cancel_booking", { p_token: token });
+    const { data, error: cErr } = await admin.rpc("cancel_booking", { p_token: token });
     expect(cErr).toBeNull();
     const row = (data as Array<{ booking_id: string; org_timezone: string; client_email: string }>)[0];
     expect(row.client_email).toBe("cancelme@example.com");
@@ -173,7 +173,7 @@ describe("S2 lifecycle RPCs", () => {
     expect(b!.status).toBe("cancelled_by_client");
 
     // Second cancel with the same token: uniform empty no-op.
-    const { data: again } = await anon.rpc("cancel_booking", { p_token: token });
+    const { data: again } = await admin.rpc("cancel_booking", { p_token: token });
     expect(again).toEqual([]);
 
     // The slot is free again.
@@ -194,7 +194,7 @@ describe("S2 lifecycle RPCs", () => {
       cancel_token_hash: tokenHash,
     });
     expect(error).toBeNull();
-    const { data } = await anon.rpc("cancel_booking", { p_token: token });
+    const { data } = await admin.rpc("cancel_booking", { p_token: token });
     expect(data).toEqual([]);
   });
 
@@ -202,7 +202,7 @@ describe("S2 lifecycle RPCs", () => {
     const { token, bookingId, error } = await book("2027-04-05T13:00:00Z", "move@example.com");
     expect(error).toBeNull();
     const fresh = generateAccessToken();
-    const { data, error: rErr } = await anon.rpc("reschedule_booking", {
+    const { data, error: rErr } = await admin.rpc("reschedule_booking", {
       p_token: token,
       p_starts_at: "2027-04-05T15:00:00Z",
       p_new_token_hash: fresh.tokenHash,
@@ -237,7 +237,7 @@ describe("S2 lifecycle RPCs", () => {
     const b = await book("2027-04-08T12:00:00Z", "atomic-b@example.com");
     expect(a.error).toBeNull();
     expect(b.error).toBeNull();
-    const { error } = await anon.rpc("reschedule_booking", {
+    const { error } = await admin.rpc("reschedule_booking", {
       p_token: a.token,
       p_starts_at: "2027-04-08T12:00:00Z",
       p_new_token_hash: generateAccessToken().tokenHash,
@@ -252,7 +252,7 @@ describe("S2 lifecycle RPCs", () => {
   it("reschedule allows overlapping the booking's own old slot", async () => {
     const a = await book("2027-04-09T10:00:00Z", "shift@example.com");
     expect(a.error).toBeNull();
-    const { data, error } = await anon.rpc("reschedule_booking", {
+    const { data, error } = await admin.rpc("reschedule_booking", {
       p_token: a.token,
       p_starts_at: "2027-04-09T10:30:00Z", // overlaps its own 10:00–11:00
       p_new_token_hash: generateAccessToken().tokenHash,
@@ -264,13 +264,13 @@ describe("S2 lifecycle RPCs", () => {
   it("reschedule_booking rejects off-availability and malformed hash", async () => {
     const a = await book("2027-04-12T10:00:00Z", "reject@example.com");
     expect(a.error).toBeNull();
-    const { error: offHours } = await anon.rpc("reschedule_booking", {
+    const { error: offHours } = await admin.rpc("reschedule_booking", {
       p_token: a.token,
       p_starts_at: "2027-04-12T20:00:00Z",
       p_new_token_hash: generateAccessToken().tokenHash,
     });
     expect(offHours).not.toBeNull();
-    const { error: badHash } = await anon.rpc("reschedule_booking", {
+    const { error: badHash } = await admin.rpc("reschedule_booking", {
       p_token: a.token,
       p_starts_at: "2027-04-12T14:00:00Z",
       p_new_token_hash: "not-hex",
@@ -397,7 +397,7 @@ describe("S2 lifecycle RPCs", () => {
       const minutes = (i % 48) * 30;
       const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
       const mm = String(minutes % 60).padStart(2, "0");
-      const { error } = await anon.rpc("create_booking", {
+      const { error } = await admin.rpc("create_booking", {
         p_handle: floodHandle,
         p_service_id: svc2!.id,
         p_starts_at: `2027-05-${String(day).padStart(2, "0")}T${hh}:${mm}:00Z`,

@@ -8,8 +8,9 @@ import { isAllowedLogoType, matchesLogoMagicBytes, logoPathFor, LOGO_MAX_BYTES }
 import { uploadBrandingObject, deleteBrandingObject } from "@/lib/storage/branding";
 import { effectiveContrast } from "@/lib/widget-theme";
 import { ONBOARDING } from "@/features/marketing/site";
+import { getCurrentOrg } from "@/lib/auth/session";
+import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
-  createOrgSchema,
   createOrgWithPageSchema,
   updateAccentInput,
   widgetThemeInput,
@@ -20,29 +21,10 @@ import {
 
 const CONTRAST_BLOCK = "Text and background contrast is below 3:1 — pick more distinct colours.";
 
-export async function createOrg(
-  _prev: OrgState,
-  formData: FormData,
-): Promise<OrgState> {
-  const parsed = createOrgSchema.safeParse({ name: formData.get("name") });
-  if (!parsed.success) {
-    return { error: "Organization name must be 2–80 characters." };
-  }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const { error } = await supabase.rpc("create_org", { p_name: parsed.data.name });
-  if (error) return { error: error.message };
-
-  redirect("/bookings");
-}
-
 // One-step onboarding: org + handle + timezone via create_org_with_page (0051).
 // A handle race surfaces as 23505 → specific copy, everything else generic.
+// (The pre-0051 two-step createOrg action was deleted in the 2026-08-24
+// audit: no caller, and it returned raw Postgres messages to the client.)
 export async function createOrgWithPage(
   _prev: OrgState,
   formData: FormData,
@@ -59,6 +41,9 @@ export async function createOrgWithPage(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+  // A double submit (two tabs, a retried POST) must not mint a second org;
+  // the RPC refuses too (0052), this just skips the round trip.
+  if (await getCurrentOrg()) redirect("/bookings");
 
   const { error } = await supabase.rpc("create_org_with_page", {
     p_name: parsed.data.name,
@@ -67,6 +52,10 @@ export async function createOrgWithPage(
   });
   if (error) {
     if (error.code === "23505") return { error: ONBOARDING.justTaken };
+    if (isRpcSentinel(error, "already onboarded")) redirect("/bookings");
+    if (isRpcSentinel(error, "invalid timezone")) {
+      return { error: "That timezone isn't recognised — pick one from the list." };
+    }
     console.error("[orgs] create_org_with_page:", error.message);
     return { error: GENERIC_WRITE_ERROR };
   }

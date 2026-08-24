@@ -103,6 +103,9 @@ export async function getAvailability(
   };
 }
 
+// Each interval carries its own service's buffers and id — the engine
+// honours an existing booking's cleanup/prep time and counts max/day per
+// service (slots.ts BusyInterval).
 export async function getBusyIntervals(
   staffId: string,
   fromIso: string,
@@ -112,7 +115,7 @@ export async function getBusyIntervals(
   const admin = createAdminClient();
   let query = admin
     .from("bookings")
-    .select("starts_at, ends_at")
+    .select("starts_at, ends_at, service_id, services(buffer_before_min, buffer_after_min)")
     .eq("staff_id", staffId)
     .eq("status", "confirmed")
     // Rentals never block the provider's calendar (unit-level guard, R1).
@@ -124,10 +127,18 @@ export async function getBusyIntervals(
   if (excludeBookingId) query = query.neq("id", excludeBookingId);
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []).map((b) => ({
-    startsAt: new Date(b.starts_at),
-    endsAt: new Date(b.ends_at),
-  }));
+  return (data ?? []).map((b) => {
+    const svc = (b as unknown as {
+      services: { buffer_before_min: number; buffer_after_min: number } | null;
+    }).services;
+    return {
+      startsAt: new Date(b.starts_at),
+      endsAt: new Date(b.ends_at),
+      serviceId: b.service_id ?? undefined,
+      bufferBeforeMin: svc?.buffer_before_min ?? 0,
+      bufferAfterMin: svc?.buffer_after_min ?? 0,
+    };
+  });
 }
 
 export async function getPublicServiceById(
@@ -137,6 +148,75 @@ export async function getPublicServiceById(
   const services = await listPublicServices(orgId);
   return services.find((s) => s.id === serviceId) ?? null;
 }
+
+// Admin paths only: a booking on a service that has since been deactivated
+// must still be movable (audit 2026-08-24 — the active-only read made every
+// admin reschedule of such a booking fail as "doesn't offer this service").
+// Never used by a public caller, which must not see inactive services.
+async function getServiceByIdIncludingInactive(
+  orgId: string,
+  serviceId: string,
+): Promise<PublicService | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("services")
+    .select(
+      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days",
+    )
+    .eq("org_id", orgId)
+    .eq("id", serviceId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    durationMin: data.duration_min,
+    priceLabel: data.price_label,
+    bufferBeforeMin: data.buffer_before_min,
+    bufferAfterMin: data.buffer_after_min,
+    minNoticeMin: data.min_notice_min,
+    maxPerDay: data.max_per_day,
+    bookingWindowDays: data.booking_window_days,
+  };
+}
+
+// The .ics needs one identity per APPOINTMENT across reschedules: walk
+// rescheduled_from_id back to the first row. Bounded — a chain is a handful
+// of rows at most, and a cycle is impossible (each new row points at an
+// older one) but the cap makes that a fact rather than a hope.
+export async function getBookingChain(bookingId: string): Promise<{ rootId: string; depth: number }> {
+  const admin = createAdminClient();
+  let id = bookingId;
+  let depth = 0;
+  for (let i = 0; i < 50; i++) {
+    const { data, error } = await admin
+      .from("bookings")
+      .select("rescheduled_from_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (error || !data?.rescheduled_from_id) break;
+    id = data.rescheduled_from_id;
+    depth++;
+  }
+  return { rootId: id, depth };
+}
+
+// A handle the org used before renaming (0052 org_handle_history) → its
+// current handle, or null when the old handle is unknown or the org has
+// since dropped its handle. /<old> redirects; /embed/<old> keeps serving.
+export const resolveHandleAlias = cache(async (handle: string): Promise<string | null> => {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("org_handle_history")
+    .select("orgs(handle)")
+    .eq("handle", handle)
+    .maybeSingle();
+  if (error || !data) return null;
+  const org = (data as unknown as { orgs: { handle: string | null } | null }).orgs;
+  return org?.handle ?? null;
+});
 
 // Staff directory for the public booking widget. Never selects email —
 // that column stays off the anon-reachable surface.
@@ -232,7 +312,13 @@ export async function loadOrgSlotContext(
   serviceId: string,
   fromDate: string,
   days: number,
-  opts: { staffId: string | "any"; excludeBookingId?: string; allowedStaffIds?: string[] },
+  opts: {
+    staffId: string | "any";
+    excludeBookingId?: string;
+    allowedStaffIds?: string[];
+    // Admin reschedule of a booking whose service was deactivated.
+    includeInactive?: boolean;
+  },
 ): Promise<{
   service: PublicService;
   perStaff: StaffSlotContext[];
@@ -241,7 +327,9 @@ export async function loadOrgSlotContext(
   // caller can tell whether "let the DB choose" is still safe.
   eligibleStaffIds: string[];
 } | null> {
-  const service = await getPublicServiceById(orgId, serviceId);
+  const service = opts.includeInactive
+    ? await getServiceByIdIncludingInactive(orgId, serviceId)
+    : await getPublicServiceById(orgId, serviceId);
   if (!service) return null;
   const eligible = await listPublicStaff(orgId, serviceId);
   // Public callers pass the plan-limited roster; the admin reschedule dialog

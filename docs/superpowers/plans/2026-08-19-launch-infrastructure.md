@@ -17,7 +17,7 @@
 - **Never gate production behaviour on `NODE_ENV`.** `NODE_ENV === "production"` is true inside every `next build`, including CI's build job, which supplies placeholder values (`ci.yml:52-58`). Use `APP_ENV`, set only in the Vercel project.
 - Two different `DATABASE_URL` values exist (spec §4): GitHub Actions uses the **session** pooler (`...pooler.supabase.com:5432`); the Vercel runtime uses the **transaction** pooler (`:6543`). Never conflate them.
 - No secrets in committed files. The Supabase SMTP password is the single `env()` interpolation, by necessity.
-- Domain is `booklo.co`; sending identity is `Booklo <noreply@mail.booklo.co>`; support address is `support@booklo.co`.
+- Domain is `booklo.co`; sending identity is `Booklo <noreply@booklo.co>` (the apex — Resend Free verifies one domain and the apex was already verified; its return-path records sit on `send.booklo.co`); support address is `support@booklo.co`.
 
 ---
 
@@ -57,7 +57,7 @@ const PROD_ENV = {
   DATABASE_URL: "postgresql://postgres:pw@aws-0-eu-central-1.pooler.supabase.com:6543/postgres",
   SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
   RESEND_API_KEY: "re_test_key",
-  EMAIL_FROM: "Booklo <noreply@mail.booklo.co>",
+  EMAIL_FROM: "Booklo <noreply@booklo.co>",
   SCHEDULING_DRAIN_SECRET: "0123456789abcdef0123",
   INTERNAL_EMAILS: "owner@example.com",
 };
@@ -481,8 +481,8 @@ jobs:
       # Schemas: public + auth + storage + drizzle.
       #   auth    — omit it and user accounts are unrestorable.
       #   drizzle — holds __drizzle_migrations, the migration journal. Restore
-      #             without it and the next `drizzle-kit migrate` re-runs all
-      #             47 migrations against an already-populated database.
+      #             without it and the next `drizzle-kit migrate` re-runs the
+      #             full migration chain against an already-populated database.
       - name: Dump
         run: |
           supabase db dump \
@@ -657,8 +657,8 @@ describe("migrationsMatch", () => {
     expect(migrationsMatch(47, 47)).toBe(true);
   });
 
-  // Deliberately not "0046 exists": the journal is already at 47 entries and
-  // the parked R3 work will renumber.
+  // Deliberately not "0046 exists": the journal grows with every migration
+  // and the parked R3 work will renumber.
   it("fails when the remote is behind", () => {
     expect(migrationsMatch(46, 47)).toBe(false);
   });
@@ -687,7 +687,7 @@ try {
 
 const REF = process.env.PROD_PROJECT_REF ?? "";
 const APP_URL = "https://booklo.co";
-const SEND_DOMAIN = "mail.booklo.co";
+const SEND_DOMAIN = "booklo.co";
 
 export type CheckResult = { name: string; ok: boolean; detail: string };
 

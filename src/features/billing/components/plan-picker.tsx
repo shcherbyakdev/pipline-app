@@ -57,9 +57,14 @@ const savingPercent = (plan: PaidPlanId) => Math.round(yearlySaving(plan) * 100)
 export function PlanPicker({
   currentPlan,
   founderEligible,
+  skipFounder = false,
 }: {
   currentPlan: PlanId;
   founderEligible: boolean;
+  /** After `?error=founder_ended`: the checkout forms tell startCheckout not
+      to ask for the Founder code again (checkoutInput.founder), or the retry
+      would be refused the same way and loop back to the same line. */
+  skipFounder?: boolean;
 }) {
   // Yearly first: it is the cheaper per-month number and the one we want read.
   const [interval, setBillingInterval] = React.useState<Interval>("year");
@@ -100,6 +105,7 @@ export function PlanPicker({
             interval={interval}
             currentPlan={currentPlan}
             founderEligible={founderEligible}
+            skipFounder={skipFounder}
           />
         ))}
       </div>
@@ -112,11 +118,13 @@ function PlanColumn({
   interval,
   currentPlan,
   founderEligible,
+  skipFounder,
 }: {
   plan: PlanDef;
   interval: Interval;
   currentPlan: PlanId;
   founderEligible: boolean;
+  skipFounder: boolean;
 }) {
   const current = plan.id === currentPlan;
   const paid = isPaidPlan(plan.id) ? plan.id : null;
@@ -166,7 +174,7 @@ function PlanColumn({
       </dl>
 
       <div className="mt-auto pt-1">
-        <PlanCta plan={plan} interval={interval} currentPlan={currentPlan} />
+        <PlanCta plan={plan} interval={interval} currentPlan={currentPlan} skipFounder={skipFounder} />
       </div>
     </div>
   );
@@ -176,10 +184,12 @@ function PlanCta({
   plan,
   interval,
   currentPlan,
+  skipFounder,
 }: {
   plan: PlanDef;
   interval: Interval;
   currentPlan: PlanId;
+  skipFounder: boolean;
 }) {
   if (plan.id === currentPlan) {
     return (
@@ -210,6 +220,7 @@ function PlanCta({
     <form action={startCheckout}>
       <input type="hidden" name="plan" value={plan.id} />
       <input type="hidden" name="interval" value={interval} />
+      {skipFounder ? <input type="hidden" name="founder" value="skip" /> : null}
       <CheckoutButton>Upgrade to {plan.name}</CheckoutButton>
     </form>
   );

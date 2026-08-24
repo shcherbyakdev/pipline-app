@@ -60,8 +60,17 @@ export type ExceptionRow = {
 /** One person's hours and upcoming overrides. Team (multi-staff): availability
     is per staff (0040/0041), so the caller must say whose — the availability
     editor from its `?staff=` tab, other admin surfaces from
-    `firstActiveStaffId()`. */
-export async function getAvailabilityAdmin(staffId: string): Promise<{
+    `firstActiveStaffId()`.
+
+    `fromDate` is the first override date to keep (YYYY-MM-DD) — pass the
+    org-local today (`dateInZone(new Date(), timezone)`): exception dates are
+    org-local, and a UTC "today" drops this evening's override for anyone
+    east of Greenwich once UTC has rolled over. Defaults to UTC only so a
+    caller without a timezone in hand still gets a sane list. */
+export async function getAvailabilityAdmin(
+  staffId: string,
+  fromDate: string = new Date().toISOString().slice(0, 10),
+): Promise<{
   rules: RuleRow[];
   exceptions: ExceptionRow[];
 }> {
@@ -77,7 +86,7 @@ export async function getAvailabilityAdmin(staffId: string): Promise<{
       .from("availability_exceptions")
       .select("id, date, closed, start_time, end_time")
       .eq("staff_id", staffId)
-      .gte("date", new Date().toISOString().slice(0, 10))
+      .gte("date", fromDate)
       .order("date"),
   ]);
   if (rulesRes.error) throw rulesRes.error;
@@ -220,22 +229,24 @@ export async function listConfirmedBookingsBetween(
 }
 
 /** Overrides in a date window. `staffIds` narrows to those people's rows —
-    omit it only where every staff member's overrides are wanted at once. */
+    omit it only where every staff member's overrides are wanted at once.
+    Each row says whose it is: a multi-person week resolves availability per
+    member (day-windows.ts unionWindows), so the rows must stay attributable. */
 export async function listExceptionsBetween(
   fromDate: string,
   toDate: string,
   staffIds?: string[],
-): Promise<ExceptionRow[]> {
+): Promise<Array<ExceptionRow & { staffId: string }>> {
   const supabase = await createClient();
   const base = supabase
     .from("availability_exceptions")
-    .select("id, date, closed, start_time, end_time")
+    .select("id, staff_id, date, closed, start_time, end_time")
     .gte("date", fromDate)
     .lte("date", toDate);
   const { data, error } = await (staffIds ? base.in("staff_id", staffIds) : base).order("date");
   if (error) throw error;
   return (data ?? []).map((e) => ({
-    id: e.id, date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time,
+    id: e.id, staffId: e.staff_id, date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time,
   }));
 }
 

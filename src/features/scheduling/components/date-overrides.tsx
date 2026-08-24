@@ -17,6 +17,7 @@ import {
 import { setDateOverride, deleteDateOverride } from "@/features/scheduling/actions";
 import { OVERLAP_ERROR } from "@/features/scheduling/schema";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
+import { dateInZone } from "@/features/scheduling/slots";
 import {
   TIME_OPTIONS,
   endOptions,
@@ -30,8 +31,10 @@ import { TimeCombobox } from "./time-combobox";
 
 const MAX_WINDOWS = 10; // mirrors dateOverrideInput's zod cap
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+// Override dates are org-local, so "today" is too — the UTC date is a day
+// off for part of every day everywhere but Greenwich.
+function todayISO(timeZone: string): string {
+  return dateInZone(new Date(), timeZone);
 }
 
 function formatDateLabel(date: string): string {
@@ -70,12 +73,15 @@ function groupExceptions(exceptions: ExceptionRow[]): Group[] {
 }
 
 // `staffId`: whose overrides these are — see WeeklyHours for the same note.
+// `timeZone`: the org's, for "today" (the earliest date an override can take).
 export function DateOverrides({
   staffId,
+  timeZone,
   rules,
   exceptions,
 }: {
   staffId: string;
+  timeZone: string;
   rules: RuleRow[];
   exceptions: ExceptionRow[];
 }) {
@@ -134,6 +140,7 @@ export function DateOverrides({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         staffId={staffId}
+        timeZone={timeZone}
         date={editingDate}
         rules={rules}
         exceptions={exceptions}
@@ -201,6 +208,7 @@ function OverrideDialog({
   open,
   onOpenChange,
   staffId,
+  timeZone,
   date,
   rules,
   exceptions,
@@ -208,12 +216,14 @@ function OverrideDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   staffId: string;
+  timeZone: string;
   date: string | null;
   rules: RuleRow[];
   exceptions: ExceptionRow[];
 }) {
   const isEditing = date !== null;
-  const initialDate = date ?? todayISO();
+  const today = todayISO(timeZone);
+  const initialDate = date ?? today;
   const initialWindows = effectiveWindows(initialDate, rules, exceptions);
 
   const [draftDate, setDraftDate] = React.useState(initialDate);
@@ -223,7 +233,6 @@ function OverrideDialog({
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
 
-  const today = todayISO();
   const next = closed ? null : nextInterval(windows);
   const addDisabled = closed || next === null || windows.length >= MAX_WINDOWS;
   const errorId = "date-override-error";

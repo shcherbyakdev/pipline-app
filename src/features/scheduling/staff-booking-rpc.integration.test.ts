@@ -57,7 +57,7 @@ let annaId: string;
 
 function book(staffId: string | null, hm = "09:00", email = "c@example.com") {
   const { tokenHash } = generateAccessToken();
-  return anon.rpc("create_booking", {
+  return admin.rpc("create_booking", {
     p_handle: HANDLE,
     p_service_id: serviceId,
     p_starts_at: at(3, hm),
@@ -249,7 +249,7 @@ describe("create_booking per staff", () => {
 
   it("reschedule_booking keeps the staff and reports staff_name", async () => {
     const { token, tokenHash } = generateAccessToken();
-    await anon.rpc("create_booking", {
+    await admin.rpc("create_booking", {
       p_handle: HANDLE,
       p_service_id: serviceId,
       p_starts_at: at(6, "09:00"),
@@ -260,7 +260,7 @@ describe("create_booking per staff", () => {
       p_staff_id: annaId,
     });
     const fresh = generateAccessToken();
-    const { data, error } = await anon.rpc("reschedule_booking", {
+    const { data, error } = await admin.rpc("reschedule_booking", {
       p_token: token,
       p_starts_at: at(6, "10:00"),
       p_new_token_hash: fresh.tokenHash,

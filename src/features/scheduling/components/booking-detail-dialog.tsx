@@ -13,6 +13,17 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 
+// Hint on the disabled "Resend link": rotate_booking_token (the RPC behind
+// it) only accepts a booking that hasn't started, so the button says why
+// rather than failing with the generic error.
+export const RESEND_STARTED_HINT = "The appointment has already started — the link can't be reissued.";
+
+// `Date.now()` is impure and react-hooks/purity forbids it during render;
+// `useState(fn)` runs the initialiser once at mount, which is fine — and the
+// body below is keyed on the booking id, so "mount" is "this booking was
+// opened". (This dialog never server-renders open, so no hydration concern.)
+const nowMs = () => Date.now();
+
 export function BookingDetailDialog({
   booking, timeZone, staff, open, onOpenChange,
 }: {
@@ -24,17 +35,32 @@ export function BookingDetailDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  if (!booking) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DetailBody key={booking.id} booking={booking} timeZone={timeZone} staff={staff} onClose={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DetailBody({
+  booking, timeZone, staff, onClose,
+}: {
+  booking: AdminBooking;
+  timeZone: string;
+  staff: StaffRow[];
+  onClose: () => void;
+}) {
   const [pending, startTransition] = React.useTransition();
   const [confirming, setConfirming] = React.useState(false);
   const [moveOpen, setMoveOpen] = React.useState(false);
-  const handleOpenChange = (next: boolean) => {
-    if (!next) {
-      setConfirming(false);
-      setMoveOpen(false);
-    }
-    onOpenChange(next);
-  };
-  if (!booking) return null;
+  const [now] = React.useState(nowMs);
+  // Past this point the booking is history: nothing to cancel or move (the
+  // actions refuse it too — this just stops offering what can't happen).
+  const ended = new Date(booking.endsAt).getTime() < now;
+  const started = new Date(booking.startsAt).getTime() <= now;
 
   const cancel = () =>
     startTransition(async () => {
@@ -43,7 +69,7 @@ export function BookingDetailDialog({
       else if (result.noEmail) toast.success("Booking cancelled — no email on file for this client.");
       else if (result.emailed) toast.success("Booking cancelled — the client has been emailed");
       else toast.warning("Booking cancelled — but the email to the client failed. Contact them directly.");
-      handleOpenChange(false);
+      onClose();
     });
 
   const resend = () =>
@@ -57,37 +83,42 @@ export function BookingDetailDialog({
         );
     });
 
+  const resendBlocked = !booking.clientEmail || started;
+  const resendHint = !booking.clientEmail ? "No email on file" : started ? RESEND_STARTED_HINT : undefined;
+
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{booking.serviceName}</DialogTitle>
-          <DialogDescription>
-            {whenLineFor(
-              {
-                startsAt: new Date(booking.startsAt),
-                endsAt: new Date(booking.endsAt),
-                isRental: booking.rentalUnitId !== null,
-              },
-              timeZone,
-            )}
-          </DialogDescription>
-        </DialogHeader>
-        {staff.length > 1 && booking.staffName ? (
-          <p className="flex items-center gap-1.5 text-sm">
-            <span
-              aria-hidden
-              style={{ background: booking.staffColor ?? "var(--muted-foreground)" }}
-              className="size-2 shrink-0 rounded-full"
-            />
-            {booking.staffName}
-          </p>
-        ) : null}
-        <p className="text-sm text-muted-foreground">
-          {booking.clientName}
-          {booking.clientEmail ? ` · ${booking.clientEmail}` : " · no email on file"}
-          {booking.note ? ` · “${booking.note}”` : null}
+    <>
+      <DialogHeader>
+        <DialogTitle>{booking.serviceName}</DialogTitle>
+        <DialogDescription>
+          {whenLineFor(
+            {
+              startsAt: new Date(booking.startsAt),
+              endsAt: new Date(booking.endsAt),
+              isRental: booking.rentalUnitId !== null,
+            },
+            timeZone,
+          )}
+        </DialogDescription>
+      </DialogHeader>
+      {staff.length > 1 && booking.staffName ? (
+        <p className="flex items-center gap-1.5 text-sm">
+          <span
+            aria-hidden
+            style={{ background: booking.staffColor ?? "var(--muted-foreground)" }}
+            className="size-2 shrink-0 rounded-full"
+          />
+          {booking.staffName}
         </p>
+      ) : null}
+      <p className="text-sm text-muted-foreground">
+        {booking.clientName}
+        {booking.clientEmail ? ` · ${booking.clientEmail}` : " · no email on file"}
+        {booking.note ? ` · “${booking.note}”` : null}
+      </p>
+      {ended ? (
+        <p className="text-muted-foreground text-xs">This appointment has ended.</p>
+      ) : (
         <div className="flex items-center gap-2">
           {/* An appointment moves on the slot grid; a stay moves on the
               range calendar (R2) — the two pickers share nothing. */}
@@ -107,9 +138,9 @@ export function BookingDetailDialog({
             variant="ghost"
             size="sm"
             onClick={resend}
-            disabled={pending || !booking.clientEmail}
-            focusableWhenDisabled={!booking.clientEmail}
-            title={booking.clientEmail ? undefined : "No email on file"}
+            disabled={pending || resendBlocked}
+            focusableWhenDisabled={resendBlocked}
+            title={resendHint}
           >
             Resend link
           </Button>
@@ -122,20 +153,20 @@ export function BookingDetailDialog({
             <Button variant="ghost" size="sm" onClick={() => setConfirming(true)} disabled={pending}>Cancel booking</Button>
           )}
         </div>
-        {/* Nested inside the popup: Base UI's own nested-dialog shape, so
-            focus and dismissal stack instead of fighting each other. */}
-        {booking.rentalUnitId === null ? null : (
-          <MoveRentalDialog
-            booking={booking}
-            timeZone={timeZone}
-            open={moveOpen}
-            onOpenChange={setMoveOpen}
-            // The move writes a new booking row; this one is stale the
-            // moment it succeeds, so the detail dialog goes with it.
-            onMoved={() => handleOpenChange(false)}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+      )}
+      {/* Nested inside the popup: Base UI's own nested-dialog shape, so
+          focus and dismissal stack instead of fighting each other. */}
+      {booking.rentalUnitId === null || ended ? null : (
+        <MoveRentalDialog
+          booking={booking}
+          timeZone={timeZone}
+          open={moveOpen}
+          onOpenChange={setMoveOpen}
+          // The move writes a new booking row; this one is stale the
+          // moment it succeeds, so the detail dialog goes with it.
+          onMoved={onClose}
+        />
+      )}
+    </>
   );
 }

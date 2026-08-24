@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getBookingOrg, listPublicOfferings } from "@/lib/booking/public";
+import { notFound, permanentRedirect } from "next/navigation";
+import { getBookingOrg, listPublicOfferings, resolveHandleAlias } from "@/lib/booking/public";
+import { bookingPath } from "@/lib/booking/url";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { getOrgBranding } from "@/lib/org-branding";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
@@ -29,9 +30,20 @@ export async function generateMetadata({ params }: PageProps<"/[handle]">): Prom
 
 export default async function BookPage({ params, searchParams }: PageProps<"/[handle]">) {
   const { handle } = await params;
+  // Typed with capitals (a business card, a spoken URL) → the canonical
+  // lowercase address; anything else off-shape is a 404.
+  if (handle !== handle.toLowerCase() && HANDLE_RE.test(handle.toLowerCase())) {
+    permanentRedirect(bookingPath(handle.toLowerCase()));
+  }
   if (!HANDLE_RE.test(handle)) notFound();
   const org = await getBookingOrg(handle);
-  if (!org) notFound();
+  if (!org) {
+    // A handle the org renamed away from (0052 org_handle_history) keeps
+    // working: old emails and printed links follow the org.
+    const current = await resolveHandleAlias(handle);
+    if (current) permanentRedirect(bookingPath(current));
+    notFound();
+  }
   const [offering, offerings, branding, doc] = await Promise.all([
     // The org's roster and services, already narrowed to what someone active
     // can be booked for AND to what the org's plan may offer publicly.

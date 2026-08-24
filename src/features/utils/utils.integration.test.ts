@@ -72,6 +72,19 @@ describe("utils tables: RLS + grants", () => {
     expect((await owner.from("org_plan_overrides").select("granted_by").eq("org_id", orgId)).error).not.toBeNull();
   });
 
+  it("member reads flag + enabled of its own org's flags, never who set them (NEEDS 0052)", async () => {
+    // 0052 column-scopes the authenticated SELECT on org_feature_flags to
+    // (org_id, flag, enabled), the 0046 treatment for org_plan_overrides:
+    // `updated_by` names a staffer, and nothing a member renders needs it.
+    // Until 0052 is applied the first assertion fails (the grant is still
+    // table-wide) — that is the migration this test is written against.
+    const visible = await owner.from("org_feature_flags").select("flag, enabled").eq("org_id", orgId);
+    expect(visible.error).toBeNull();
+    expect(visible.data).toEqual([{ flag: "billing", enabled: true }]);
+    const hidden = await owner.from("org_feature_flags").select("updated_by").eq("org_id", orgId);
+    expect(hidden.error?.code).toBe("42501");
+  });
+
   it("member cannot insert/update/delete either table", async () => {
     // A member handing itself Team, or switching billing on for itself, is
     // exactly the hole these tables must not have.

@@ -17,6 +17,11 @@ first thing to run whenever something in production looks wrong. It only
 checks failures that are **silent** — a 500 page or a wrong region will tell
 you directly, so it does not bother re-checking those.
 
+It also needs `psql` on your `PATH`: the migration-count check shells out to
+it (`brew install libpq` and add its `bin` to `PATH` on macOS;
+`postgresql-client` on Debian/Ubuntu). Without it the check fails with an
+`ENOENT` spawn error, not a database error.
+
 Export the four credentials it needs, then run it:
 
 ```bash
@@ -69,18 +74,24 @@ storage file-size limit) can ride along in the same push.
 ## 3. Migrate production
 
 ```bash
-DATABASE_URL='<session pooler, :5432>' npx drizzle-kit migrate
+ALLOW_REMOTE_DB=1 DATABASE_URL='<session pooler, :5432>' npx drizzle-kit migrate
 ```
 
-**Do not run a bare `npx drizzle-kit migrate`.** `drizzle.config.ts` calls
-`loadEnvFile(".env.local")` before reading `process.env.DATABASE_URL`, so an
-unqualified invocation migrates your **local** Supabase stack, not
-production — silently, since your local database happily accepts the same
-migrations. The only safe form is the one above: an explicitly exported
-`DATABASE_URL` shell variable, set inline on the command itself. An exported
-shell variable takes precedence over the value `loadEnvFile` loads from the
-file, which is exactly why this works — but only if you set it every time,
-not once in your shell profile where it's easy to forget it's there.
+Both variables, inline on the command itself:
+
+- `DATABASE_URL` — `drizzle.config.ts` calls `loadEnvFile(".env.local")`
+  before reading `process.env.DATABASE_URL`, so a bare `npx drizzle-kit
+  migrate` targets your **local** Supabase stack, not production —
+  silently, since your local database happily accepts the same migrations.
+  An exported shell variable takes precedence over the value `loadEnvFile`
+  loads from the file, which is why setting it inline works.
+- `ALLOW_REMOTE_DB=1` — `drizzle.config.ts` refuses any `DATABASE_URL` whose
+  host is not loopback (`127.0.0.1` / `localhost` / `::1`) unless this is
+  set. That is the guard against the opposite mistake: a production URL
+  left exported in your shell from §1 or §4, and then a bare `drizzle-kit
+  migrate` (or `push`, or `drop`) run for local work reaching the live
+  database. Set it inline, never in a shell profile; `deploy.yml` sets it on
+  its migrate step and nowhere else.
 
 Use the **session pooler** (`:5432`), not the transaction pooler (`:6543`)
 and not the direct connection. This project uses two different
@@ -114,44 +125,75 @@ format-valid (20 lowercase letters). The config decoder validates it on every
 command, so an invalid-format value breaks the ordinary `supabase` CLI calls
 this restore procedure needs, not just remote ones.
 
-1. Download the artifact (`booklo-backup-<run-id>`) from the `Backup` workflow
-   run in GitHub Actions and unzip it to get `booklo-YYYYMMDD.sql.enc`.
+Each run uploads **two** encrypted files: `booklo-YYYYMMDD-schema.sql.enc`
+(a `pg_dump --schema-only` of `public`/`auth`/`storage`/`drizzle`) and
+`booklo-YYYYMMDD-data.sql.enc` (`--data-only --use-copy`, the same four
+schemas). A bare `supabase db dump` is schema-only — it *looks* like a backup
+and restores an empty database — which is why the job takes both and fails
+if the data dump contains no `COPY` block. **The data file is the backup.**
+The schema file is the reference for what the database looked like, and the
+fallback for a target where the migration chain below cannot be applied.
 
-2. Decrypt it. This must match `backup.yml`'s encryption exactly — cipher
+1. Download the artifact (`booklo-backup-<run-id>`) from the `Backup` workflow
+   run in GitHub Actions and unzip it to get the two `.sql.enc` files.
+
+2. Decrypt them. This must match `backup.yml`'s encryption exactly — cipher
    `aes-256-cbc`, key derivation `-pbkdf2`, 600000 iterations — or `openssl`
    will fail or (worse) produce garbage:
 
    ```bash
-   openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
-     -in booklo-YYYYMMDD.sql.enc -out dump.sql \
-     -pass env:BACKUP_PASSPHRASE
+   for part in schema data; do
+     openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+       -in booklo-YYYYMMDD-$part.sql.enc -out $part.sql \
+       -pass env:BACKUP_PASSPHRASE
+   done
    ```
 
    `BACKUP_PASSPHRASE` is the same GitHub Actions secret the backup job
    encrypts with — pull it from wherever your credential store keeps repo
    secrets, export it locally, and unset it from your shell when you're done.
 
-3. Restore into the target database:
+3. Recreate the schema by applying migrations, **at the commit the backup
+   was taken from** (the `Backup` run's commit SHA, on its summary page), so
+   the tables match the rows about to land in them:
 
    ```bash
-   psql '<target DATABASE_URL, session pooler :5432>' -f dump.sql
+   git checkout <sha of the backup run>
+   ALLOW_REMOTE_DB=1 DATABASE_URL='<target, session pooler :5432>' npx drizzle-kit migrate
    ```
 
-**Restoring into a fresh Supabase project is data-only for `auth` and
-`storage`.** The dump includes `public`, `auth`, `storage`, and `drizzle`
-(the last one specifically so a restored database's `__drizzle_migrations`
-table matches its schema and `drizzle-kit migrate` doesn't try to re-run all
-47 migrations against already-populated tables). But the `auth` and
-`storage` schemas' tables, functions, and triggers are owned by the roles
-`supabase_auth_admin` and `supabase_storage_admin`, which only exist inside
-a Supabase-provisioned project — a plain Postgres target, or even a
-different Supabase project, will reject that DDL. In practice this means:
-restoring into the **same** already-provisioned project (disaster recovery)
-works end to end, but restoring into a **new** project only replays data for
-`auth`/`storage` — expect DDL errors on those two schemas' `CREATE TABLE` /
-`CREATE FUNCTION` statements, and don't treat that error as a failed
-restore; the data statements after it still apply. `public` and `drizzle`
-are owned by `postgres`/your migration role and restore in full either way.
+   This is the full migration chain, not `schema.sql`: a Supabase project
+   already owns the `auth`/`storage` DDL, and `drizzle-kit migrate` owns
+   `public`/`drizzle`. Applying `schema.sql` on top would fail on the
+   `auth`/`storage` objects (owned by `supabase_auth_admin` /
+   `supabase_storage_admin`, roles that exist only inside a Supabase-provisioned
+   project) and fight the migration journal for `public`.
+
+4. Load the data. `drizzle-kit migrate` just wrote its own rows into
+   `drizzle.__drizzle_migrations`, and `data.sql` carries the backup's copy of
+   that same journal — clear the fresh rows first, or that `COPY` conflicts
+   and aborts the transaction:
+
+   ```bash
+   psql '<target DATABASE_URL>' -c 'truncate drizzle.__drizzle_migrations'
+   psql '<target DATABASE_URL>' --single-transaction -v ON_ERROR_STOP=1 -f data.sql
+   ```
+
+   `data.sql` opens with `SET session_replication_role = replica` (triggers
+   and FK checks off for the load) and is ordered by dependency, so it applies
+   in one transaction and either lands whole or not at all.
+
+5. If the backup predates the code you intend to run, check out `main` and
+   migrate forward with the §3 command; the restored journal is exactly what
+   makes that apply only the newer migrations rather than the full chain.
+
+**Why `drizzle` is in the dump at all:** without its `__drizzle_migrations`
+rows, step 5 would re-run the full migration chain against already-populated
+tables. **Why `auth` is:** without it, user accounts are unrestorable — the
+data dump carries `auth.users`, `auth.identities`, sessions and refresh
+tokens; Supabase's own `auth.schema_migrations` / `storage.migrations`
+bookkeeping is excluded by the CLI, so those rows never conflict with the
+target project's.
 
 ---
 
@@ -228,6 +270,19 @@ runtime) lives in **three** places that must be rotated together:
    ```
 3. **The operator shell** — anywhere you export `SCHEDULING_DRAIN_SECRET` to
    run `scripts/setup-production.ts` or `npm run scheduling:drain` by hand.
+
+   Note that `npm run scheduling:drain` posts to `NEXT_PUBLIC_APP_URL`, which
+   `.env.local` sets to `localhost` — so by default it drains your **local**
+   stack, and a rotated production secret would look "verified" against the
+   wrong database. To tick production, point it there explicitly:
+   ```bash
+   npm run scheduling:drain -- --url https://booklo.co
+   # or: DRAIN_URL=https://booklo.co npm run scheduling:drain
+   ```
+   (`DRAIN_URL` also accepts the full route, so the Worker's own secret value
+   can be pasted as-is.) Prefer the flag over exporting
+   `NEXT_PUBLIC_APP_URL=https://booklo.co` shell-wide, which every other
+   script would then also read.
 
 Rotate all three **together**, in the same sitting. If you update the
 Vercel value but not the Worker's, the next scheduled drain sends the old

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getBookingOrg } from "@/lib/booking/public";
+import { notFound, permanentRedirect } from "next/navigation";
+import { getBookingOrg, resolveHandleAlias } from "@/lib/booking/public";
+import { bookingPath } from "@/lib/booking/url";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
@@ -34,11 +35,19 @@ export async function generateMetadata({ params }: PageProps<"/[handle]/[staffSl
 // "Anyone available". Rentals are org-level, so this page never lists them.
 export default async function StaffBookPage({ params, searchParams }: PageProps<"/[handle]/[staffSlug]">) {
   const { handle, staffSlug } = await params;
+  if (handle !== handle.toLowerCase() && HANDLE_RE.test(handle.toLowerCase())) {
+    permanentRedirect(bookingPath(handle.toLowerCase(), staffSlug));
+  }
   if (!HANDLE_RE.test(handle)) notFound();
   // Shape-checked before any DB call, exactly like the handle above.
   if (!STAFF_SLUG_RE.test(staffSlug)) notFound();
   const org = await getBookingOrg(handle);
-  if (!org) notFound();
+  if (!org) {
+    // Renamed org (0052 org_handle_history): follow it, keeping the person.
+    const current = await resolveHandleAlias(handle);
+    if (current) permanentRedirect(bookingPath(current, staffSlug));
+    notFound();
+  }
   const [offering, branding, doc] = await Promise.all([
     loadPublicOffering(org.orgId),
     getOrgBranding(org.orgId),

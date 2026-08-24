@@ -48,20 +48,21 @@ export function limitPublicOffering<S extends { id: string }, T extends { id: st
   return { services: capped, staff: bookableStaff };
 }
 
-// Who `create_booking` should be told to assign — null means "let the DB
-// auto-assign" (pick_staff_for_slot). The DB picker ranks over EVERY active
-// member linked to the service, so it knows nothing about plan limits: handing
-// it null on a plan-restricted org could assign someone the public page does
-// not even list. Three cases, in order:
-//   1. the client named a person   → that person (the RPC checks them strictly);
+// What `create_booking` is told about staff. Two fields (0052):
+//   staffId    — a named person (the RPC checks them strictly), or null for
+//                "let the DB pick";
+//   candidates — when staffId is null, the people the DB may pick FROM: the
+//                bookable roster members the engine found free at the
+//                instant (buffers, max/day and plan limits already applied).
+//                The DB's pick_staff_for_slot ranks least-loaded INSIDE this
+//                set, so it can never land on someone the engine excluded
+//                (before 0052 it ranked over the raw roster and could).
+// Cases, in order:
+//   1. the client named a person   → that person;
 //   2. exactly one bookable person → name them, same strict check;
-//   3. "anyone" across several     → null ONLY while the bookable set covers
-//      the service's whole eligible roster; when it is a strict subset, name
-//      the first bookable person free at that instant instead (the pre-flight
-//      union already knows who that is, in sort order).
-// The bookableIds fallback in case 3 cannot normally fire — the caller has
-// already asserted the instant is in the union — but naming someone bookable
-// beats handing the DB a free choice it would make wrongly.
+//   3. "anyone" across several     → null + the free bookable set (falling
+//      back to the whole bookable roster only if the caller passed nobody as
+//      free, which the pre-flight union normally rules out).
 export function chooseStaffForBooking(args: {
   staffId: string | "any";
   /** The plan's public roster, in sort order. */
@@ -70,11 +71,10 @@ export function chooseStaffForBooking(args: {
   eligibleStaffIds: string[];
   /** Bookable staff free at the requested instant, in sort order. */
   freeStaffIdsAtSlot: string[];
-}): string | null {
-  const { staffId, bookableIds, eligibleStaffIds, freeStaffIdsAtSlot } = args;
-  if (staffId !== "any") return staffId;
-  if (bookableIds.length === 1) return bookableIds[0];
-  const restricted = eligibleStaffIds.some((id) => !bookableIds.includes(id));
-  if (!restricted) return null;
-  return freeStaffIdsAtSlot[0] ?? bookableIds[0];
+}): { staffId: string | null; candidates: string[] | null } {
+  const { staffId, bookableIds, freeStaffIdsAtSlot } = args;
+  if (staffId !== "any") return { staffId, candidates: null };
+  if (bookableIds.length === 1) return { staffId: bookableIds[0], candidates: null };
+  const free = freeStaffIdsAtSlot.filter((id) => bookableIds.includes(id));
+  return { staffId: null, candidates: free.length > 0 ? free : bookableIds };
 }

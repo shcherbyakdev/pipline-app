@@ -1,7 +1,9 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { afterLogin, RECOVERY_COOKIE } from "@/lib/auth/next-path";
 import { env } from "@/env";
 import {
   emailSchema,
@@ -43,7 +45,9 @@ export async function signInWithPassword(
   // Generic on purpose: raw Supabase messages distinguish unknown accounts
   // from unconfirmed ones, which leaks account existence.
   if (error) return { error: "Invalid email or password." };
-  redirect("/bookings");
+  // Back to the page the session expired on (requireUser / the proxy set
+  // it); afterLogin refuses anything that is not a same-site path.
+  redirect(afterLogin(formData.get("next")));
 }
 
 export async function signUp(
@@ -73,7 +77,18 @@ export async function signUp(
     },
   });
 
-  if (error) return { error: "Could not create your account. Try again." };
+  if (error) {
+    // Two codes are worth their own copy and reveal nothing about accounts:
+    // a rejected password (HIBP leaked-password protection at launch) and
+    // the auth rate limit. Everything else stays generic.
+    if (error.code === "weak_password") {
+      return { error: "That password is too common or has appeared in a data breach — choose another." };
+    }
+    if (error.code === "over_request_rate_limit" || error.code === "over_email_send_rate_limit") {
+      return { error: "Too many attempts — wait a few minutes and try again." };
+    }
+    return { error: "Could not create your account. Try again." };
+  }
   // Existing emails get an obfuscated user (no error) from Supabase when
   // confirmations are on, so this copy never reveals account existence.
   return { sent: true };
@@ -120,12 +135,22 @@ export async function updatePassword(
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Only a session minted by a recovery link may set a password without
+  // knowing the old one (audit 2026-08-24: any live session could, so an
+  // unattended tab was a full takeover). /auth/confirm sets the proof for
+  // 15 minutes; it is spent here.
+  const jar = await cookies();
+  if (!jar.get(RECOVERY_COOKIE)) {
+    return { error: "Your reset link has expired — request a new one." };
+  }
+
   const { error } = await supabase.auth.updateUser({
     password: parsed.data.password,
   });
   if (error) {
     return { error: "Could not update your password. Request a new reset link." };
   }
+  jar.delete(RECOVERY_COOKIE);
   redirect("/bookings");
 }
 

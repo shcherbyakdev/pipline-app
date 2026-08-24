@@ -32,7 +32,16 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
   const activating =
     checkout === "success" &&
     (bought ? overview.entitlements.plan !== bought : overview.entitlements.plan === "free");
+  // "Back" from the hosted checkout (startCheckout's cancelUrl): nothing
+  // happened, and the page should say so rather than look like a purchase
+  // that hasn't landed.
+  const cancelled = checkout === "cancelled";
   const errorMessage = billingErrorMessage(error);
+  // The Founder code was refused at checkout: the ribbon comes off (the
+  // price it names is no longer on offer) and the picker's forms carry
+  // `founder=skip` so the next attempt goes straight to list price instead
+  // of being refused the same way (features/billing/actions.ts).
+  const founderEnded = error === "founder_ended";
   // A live comp beats anything the picker could sell: startCheckout refuses
   // while it lasts, so offering the buttons would only produce that refusal.
   // Destructured (current-plan.tsx idiom) so the guard narrows the binding.
@@ -50,14 +59,12 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
           {errorMessage}
         </p>
       ) : null}
-      {activating ? (
-        <>
-          <p role="status" className="text-muted-foreground text-sm">
-            Activating your plan… this takes a few seconds.
-          </p>
-          <ActivationPoller active />
-        </>
+      {cancelled ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          Checkout cancelled — nothing was charged.
+        </p>
       ) : null}
+      {activating ? <ActivationPoller active /> : null}
       <CurrentPlan overview={overview} />
       <UsageMeters overview={overview} />
       {comped ? (
@@ -69,7 +76,8 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
       ) : (
         <PlanPicker
           currentPlan={overview.entitlements.plan}
-          founderEligible={overview.founderEligible}
+          founderEligible={overview.founderEligible && !founderEnded}
+          skipFounder={founderEnded}
         />
       )}
     </div>

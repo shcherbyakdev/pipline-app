@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { EmailTransport } from "@/lib/email/transport";
+import { resolveClientStaffName } from "@/lib/booking/public";
 import { bookingReminderEmail, bookingLifecycleKey, whenLineFor } from "./templates";
 import { bookingTitle } from "./booking-label";
 
@@ -45,6 +46,7 @@ type CandidateRow = {
   rental_offerings: { name: string } | null;
   rental_units: { name: string } | null;
   orgs: { name: string; timezone: string } | null;
+  staff: { name: string } | null;
 };
 
 export async function runReminderDrain(deps: {
@@ -88,10 +90,30 @@ export async function runReminderDrain(deps: {
     return pending;
   };
 
+  // Team (multi-staff): the reminder carries the "With {staff}" line under
+  // the same rule as every other client-facing mail. resolveClientStaffName
+  // is the one place that rule lives (solo orgs never name a staff member;
+  // it swallows its own errors → null, so a failed lookup costs the line,
+  // never one of the row's attempts). Its answer is a per-ORG count, but the
+  // name is per row, so the memo is keyed on both: one lookup per org per
+  // staff member per tick, and the rule stays in one place instead of being
+  // re-derived here to make the key org-only.
+  const staffNameCache = new Map<string, Promise<string | null>>();
+  const staffNameFor = (orgId: string, name: string | null): Promise<string | null> => {
+    if (!name) return Promise.resolve(null);
+    const key = `${orgId}/${name}`;
+    let pending = staffNameCache.get(key);
+    if (!pending) {
+      pending = resolveClientStaffName(orgId, name);
+      staffNameCache.set(key, pending);
+    }
+    return pending;
+  };
+
   const { data, error } = await deps.db
     .from("bookings")
     .select(
-      "id, org_id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, services(name), rental_offerings(name), rental_units(name), orgs(name, timezone)",
+      "id, org_id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, services(name), rental_offerings(name), rental_units(name), orgs(name, timezone), staff(name)",
     )
     .eq("status", "confirmed")
     .is("reminder_sent_at", null)
@@ -151,6 +173,7 @@ export async function runReminderDrain(deps: {
             },
             row.orgs?.timezone ?? "UTC",
           ),
+          staffName: await staffNameFor(row.org_id, row.staff?.name ?? null),
           badgeUrl: await badgeUrlFor(row.org_id),
         });
         await deps.transport.send({

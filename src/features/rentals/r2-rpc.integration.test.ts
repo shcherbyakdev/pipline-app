@@ -66,9 +66,11 @@ describe("rental reschedule + admin walk-in RPCs (0039)", () => {
     return data!.id as string;
   }
 
-  /** anon create_rental_booking (0038) — the fixture for every reschedule. */
+  /** create_rental_booking (0038) — the fixture for every reschedule. Service
+      role since 0052 took the client RPCs off the anon surface (the actions
+      call them through the admin client; the token is still the credential). */
   const book = (over: Row = {}) =>
-    anon.rpc("create_rental_booking", {
+    admin.rpc("create_rental_booking", {
       p_handle: HANDLE,
       p_offering_id: offeringId,
       p_unit_id: null,
@@ -88,7 +90,7 @@ describe("rental reschedule + admin walk-in RPCs (0039)", () => {
     end: string,
     newHash: string,
   ) =>
-    anon.rpc("reschedule_rental_booking", {
+    admin.rpc("reschedule_rental_booking", {
       p_token: token,
       p_unit_id: unitId,
       p_start_date: start,
@@ -459,7 +461,7 @@ describe("rental reschedule + admin walk-in RPCs (0039)", () => {
     expect(foreign.error?.message).toContain("not found");
   });
 
-  it("grants: the admin RPCs are authenticated-only, the client RPC anon-only", async () => {
+  it("grants: the admin RPCs are authenticated-only, the client RPC service_role-only (0052)", async () => {
     const anonAdminResch = await reschAdmin(
       anon,
       crypto.randomUUID(),

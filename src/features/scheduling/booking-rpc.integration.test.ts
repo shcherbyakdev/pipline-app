@@ -112,9 +112,33 @@ describe("create_booking RPC", () => {
     expect(h).not.toBeNull();
   });
 
-  it("anon books happy-path: booking + upserted client + resolvable token", async () => {
+  it("0052: the booking RPCs are off the anon surface (service_role only)", async () => {
+    // The server actions re-run the slot engine (min notice, buffers, grid,
+    // max/day, plan roster) and are the only entry; with the public anon key
+    // a caller could otherwise book straight through PostgREST past them.
+    const { error } = await anon.rpc("create_booking", {
+      p_handle: HANDLE,
+      p_service_id: serviceId,
+      p_starts_at: START,
+      p_name: "Anon Caller",
+      p_email: "anon@example.com",
+      p_note: null,
+      p_token_hash: "a".repeat(64),
+    });
+    expect(error?.code).toBe("42501");
+    const { error: e2 } = await anon.rpc("cancel_booking", { p_token: "x".repeat(40) });
+    expect(e2?.code).toBe("42501");
+    const { error: e3 } = await anon.rpc("reschedule_booking", {
+      p_token: "x".repeat(40),
+      p_starts_at: START,
+      p_new_token_hash: "b".repeat(64),
+    });
+    expect(e3?.code).toBe("42501");
+  });
+
+  it("books happy-path: booking + upserted client + resolvable token", async () => {
     const { token, tokenHash } = generateAccessToken();
-    const { data, error } = await anon.rpc("create_booking", {
+    const { data, error } = await admin.rpc("create_booking", {
       p_handle: HANDLE,
       p_service_id: serviceId,
       p_starts_at: START,
@@ -160,7 +184,7 @@ describe("create_booking RPC", () => {
 
   it("re-booking with the same email reuses the client row", async () => {
     const { tokenHash } = generateAccessToken();
-    const { error } = await anon.rpc("create_booking", {
+    const { error } = await admin.rpc("create_booking", {
       p_handle: HANDLE,
       p_service_id: serviceId,
       p_starts_at: "2027-03-02T10:00:00Z",
@@ -200,7 +224,7 @@ describe("create_booking RPC", () => {
     // only staff is busy comes back as 'taken' rather than the guard's
     // 23P01. Both map to SLOT_TAKEN in the action.
     const { tokenHash } = generateAccessToken();
-    const { error } = await anon.rpc("create_booking", {
+    const { error } = await admin.rpc("create_booking", {
       p_handle: HANDLE,
       p_service_id: serviceId,
       p_starts_at: "2027-03-01T10:30:00Z", // overlaps the 10:00–11:00 booking
@@ -213,7 +237,7 @@ describe("create_booking RPC", () => {
     expect(error).not.toBeNull();
     expect(error!.message).toMatch(/taken/);
     // A named staff still surfaces the raw exclusion violation.
-    const { error: named } = await anon.rpc("create_booking", {
+    const { error: named } = await admin.rpc("create_booking", {
       p_handle: HANDLE,
       p_service_id: serviceId,
       p_starts_at: "2027-03-01T10:30:00Z",
@@ -228,7 +252,7 @@ describe("create_booking RPC", () => {
 
   it("back-to-back booking (11:00 after 10:00–11:00) is allowed", async () => {
     const { tokenHash } = generateAccessToken();
-    const { error } = await anon.rpc("create_booking", {
+    const { error } = await admin.rpc("create_booking", {
       p_handle: HANDLE,
       p_service_id: serviceId,
       p_starts_at: "2027-03-01T11:00:00Z",
@@ -243,7 +267,7 @@ describe("create_booking RPC", () => {
 
   it("unknown handle, inactive service, and past start are all generic misses", async () => {
     const { tokenHash } = generateAccessToken();
-    const { error: badHandle } = await anon.rpc("create_booking", {
+    const { error: badHandle } = await admin.rpc("create_booking", {
       p_handle: "no-such-handle",
       p_service_id: serviceId,
       p_starts_at: "2027-03-03T10:00:00Z",
@@ -261,7 +285,7 @@ describe("create_booking RPC", () => {
       .update({ active: false })
       .eq("id", serviceId);
     expect(deactivateErr).toBeNull();
-    const { error: inactive } = await anon.rpc("create_booking", {
+    const { error: inactive } = await admin.rpc("create_booking", {
       p_handle: HANDLE,
       p_service_id: serviceId,
       p_starts_at: "2027-03-03T10:00:00Z",
@@ -278,7 +302,7 @@ describe("create_booking RPC", () => {
       .eq("id", serviceId);
     expect(reactivateErr).toBeNull();
 
-    const { error: past } = await anon.rpc("create_booking", {
+    const { error: past } = await admin.rpc("create_booking", {
       p_handle: HANDLE,
       p_service_id: serviceId,
       p_starts_at: "2020-01-01T10:00:00Z",
@@ -304,7 +328,7 @@ describe("create_booking RPC", () => {
       .update({ status: "cancelled_by_provider" })
       .eq("org_id", orgId)
       .eq("starts_at", START);
-    const { error } = await anon.rpc("create_booking", {
+    const { error } = await admin.rpc("create_booking", {
       p_handle: HANDLE,
       p_service_id: serviceId,
       p_starts_at: START,

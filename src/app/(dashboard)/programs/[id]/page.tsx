@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { z } from "zod";
 import { getProgram } from "@/features/programs/queries";
 import { ProgramHeader } from "@/features/programs/components/program-header";
 import { StageStrip } from "@/features/programs/components/stage-strip";
@@ -11,6 +12,9 @@ import { ChasePanel } from "@/features/chasing/components/chase-panel";
 
 export default async function ProgramDetailPage({ params }: PageProps<"/programs/[id]">) {
   const { id } = await params;
+  // uuid guard: a malformed id must 404, not crash the PostgREST query
+  // (22P02) — units/[unitId]/page.tsx idiom.
+  if (!z.uuid().safeParse(id).success) notFound();
   const [program, participants, links, clients, chases] = await Promise.all([
     getProgram(id),
     listParticipants(),

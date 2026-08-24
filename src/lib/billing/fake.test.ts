@@ -28,23 +28,30 @@ describe("fake webhook", () => {
 });
 
 describe("fakeProvider URLs", () => {
-  it("createCheckoutUrl points at the dev checkout page with org/plan/interval/return", async () => {
-    const url = await fakeProvider().createCheckoutUrl({
-      orgId: "org-1", plan: "pro", interval: "month", email: "a@b.com", returnUrl: "http://x/billing",
-    });
-    const parsed = new URL(url);
+  const input = {
+    orgId: "org-1", plan: "pro" as const, interval: "month" as const, email: "a@b.com",
+    returnUrl: "http://x/billing?checkout=success&plan=pro", cancelUrl: "http://x/billing?checkout=cancelled",
+  };
+
+  it("createCheckout points at the dev checkout page with org/plan/interval/return/cancel", async () => {
+    const out = await fakeProvider().createCheckout(input);
+    // The emulator has no promotion codes to run out of.
+    expect(out.founderFallback).toBe(false);
+    const parsed = new URL(out.url);
     expect(parsed.pathname).toBe("/dev/billing/checkout");
     expect(parsed.searchParams.get("org")).toBe("org-1");
     expect(parsed.searchParams.get("plan")).toBe("pro");
     expect(parsed.searchParams.get("interval")).toBe("month");
-    expect(parsed.searchParams.get("return")).toBe("http://x/billing");
+    expect(parsed.searchParams.get("return")).toBe(input.returnUrl);
+    // Carried separately, the way a Stripe session carries cancel_url: the
+    // page's Cancel link must not land on the success markers.
+    expect(parsed.searchParams.get("cancel")).toBe(input.cancelUrl);
     expect(parsed.searchParams.has("customer")).toBe(false);
   });
 
-  it("createCheckoutUrl carries the existing customer id when resubscribing", async () => {
-    const url = await fakeProvider().createCheckoutUrl({
-      orgId: "org-1", plan: "team", interval: "year", email: "a@b.com", returnUrl: "http://x/billing",
-      providerCustomerId: "cus_fake_org-1",
+  it("createCheckout carries the existing customer id when resubscribing", async () => {
+    const { url } = await fakeProvider().createCheckout({
+      ...input, plan: "team", interval: "year", providerCustomerId: "cus_fake_org-1",
     });
     expect(new URL(url).searchParams.get("customer")).toBe("cus_fake_org-1");
   });

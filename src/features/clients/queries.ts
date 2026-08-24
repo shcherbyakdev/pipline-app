@@ -1,12 +1,6 @@
 import { createClient as createSupabase } from "@/lib/supabase/server";
 import { bookingTitle } from "@/features/scheduling/booking-label";
 
-export type ClientListItem = {
-  id: string;
-  name: string;
-  unitCount: number;
-  liveLinkCount: number;
-};
 export type ClientOption = { id: string; name: string };
 export type ClientUnitRow = {
   unitId: string;
@@ -27,37 +21,6 @@ export type ClientLink = {
 };
 
 // RLS scopes every read to the caller's orgs.
-
-export async function listClients(): Promise<ClientListItem[]> {
-  const supabase = await createSupabase();
-  // Three small selects aggregated in JS: embedded counts can't express
-  // "live links only" (revoked_at null AND unexpired), and client counts
-  // stay small at v1 scale.
-  const [{ data: clients, error: e1 }, { data: units, error: e2 }, { data: links, error: e3 }] =
-    await Promise.all([
-      supabase.from("clients").select("id, name").order("name"),
-      supabase.from("units").select("client_id").not("client_id", "is", null),
-      supabase.from("access_tokens").select("client_id, revoked_at, expires_at").eq("kind", "portal"),
-    ]);
-  if (e1 || e2 || e3) throw e1 ?? e2 ?? e3;
-  const unitCounts = new Map<string, number>();
-  for (const u of units ?? []) {
-    unitCounts.set(u.client_id!, (unitCounts.get(u.client_id!) ?? 0) + 1);
-  }
-  const now = Date.now();
-  const liveCounts = new Map<string, number>();
-  for (const l of links ?? []) {
-    if (l.client_id && !l.revoked_at && Date.parse(l.expires_at) > now) {
-      liveCounts.set(l.client_id, (liveCounts.get(l.client_id) ?? 0) + 1);
-    }
-  }
-  return (clients ?? []).map((c) => ({
-    id: c.id,
-    name: c.name,
-    unitCount: unitCounts.get(c.id) ?? 0,
-    liveLinkCount: liveCounts.get(c.id) ?? 0,
-  }));
-}
 
 export async function listClientOptions(): Promise<ClientOption[]> {
   const supabase = await createSupabase();

@@ -56,6 +56,24 @@ describe("grantPlanOverride: malformed org id on validation failure", () => {
   });
 });
 
+describe("grantPlanOverride: expiry already past", () => {
+  it("redirects with its own error code, back to that org's panel", async () => {
+    // A well-formed date the owner typed on purpose: "didn't validate" would
+    // send them hunting through the other fields (schema.ts refine).
+    const org = "123e4567-e89b-12d3-a456-426614174000";
+    await expect(
+      grantPlanOverride(form({ org, plan: "pro", expires: "2020-01-01", note: "" })),
+    ).rejects.toThrow(`REDIRECT:/utils/subscriptions?error=expires_past&org=${org}`);
+  });
+
+  it("a malformed date is still the generic 'invalid'", async () => {
+    const org = "123e4567-e89b-12d3-a456-426614174000";
+    await expect(
+      grantPlanOverride(form({ org, plan: "pro", expires: "01/01/2999", note: "" })),
+    ).rejects.toThrow(`REDIRECT:/utils/subscriptions?error=invalid&org=${org}`);
+  });
+});
+
 describe("revokePlanOverride: malformed org id on validation failure", () => {
   it("a non-UUID org falls back to the picker (no `org` param) rather than being echoed", async () => {
     await expect(revokePlanOverride(form({ org: "abc" }))).rejects.toThrow(

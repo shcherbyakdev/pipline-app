@@ -6,16 +6,21 @@
  *        rescheduleRentalBooking → the new token is confirmed on the new
  *        dates, the old one reads 'rescheduled', and the vacated dates free
  *        up while the new ones fill.
+ *   Gate — with the org's `rentals` flag off again, the public and the
+ *        token-authenticated actions all refuse with the generic error.
  * Emails are best-effort inside the actions; transport failures must not
  * fail either flow. Requires the local Supabase stack (npm run setup).
  */
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { FLAG_DEFAULTS } from "@/lib/flags";
 
+// Every public/token action rate-limits per client key (x-forwarded-for,
+// lib/tokens/rate-limit). One key for the whole file would let the tests
+// spend each other's 10/min budget, so each test picks its own address.
+const net = vi.hoisted(() => ({ clientIp: "203.0.113.1" }));
 vi.mock("next/headers", () => ({
-  headers: async () => new Headers(),
+  headers: async () => new Headers({ "x-forwarded-for": net.clientIp }),
 }));
 
 try {
@@ -30,6 +35,7 @@ const rentalManage = await import("./manage-actions");
 const manageActions = await import("@/features/scheduling/manage-actions");
 const { resolveBookingToken } = await import("@/lib/tokens/booking");
 const { addDaysISO, dateInZone } = await import("@/features/scheduling/slots");
+const { GENERIC_WRITE_ERROR } = await import("./schema");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -63,6 +69,8 @@ async function signedInUser(tag: string): Promise<SupabaseClient> {
 
 let orgId: string;
 let offeringId: string;
+// The reschedule test's fresh token, re-used by the gate test below.
+let movedToken: string;
 const startDate = d(30);
 const endDate = d(32);
 // Far enough from the first test's window that neither stay (nor its
@@ -72,18 +80,21 @@ const moveFromEnd = d(42);
 const moveTo = d(45);
 const moveToEnd = d(47);
 
-// The public actions refuse while rentals are parked for the MVP
-// (lib/flags.ts) — this file comes back the moment the flag flips.
-// Suite is skipped while the environment default is off; a per-org test
-// would enable rentals by inserting an `org_feature_flags` row
-// (`{ org_id, flag: 'rentals', enabled: true, updated_by }`) with the admin
-// client in beforeAll.
-describe.skipIf(!FLAG_DEFAULTS.rentals)("rental flow e2e (action layer)", () => {
+// Rentals are parked for the MVP (FLAG_DEFAULTS.rentals is off, lib/flags):
+// every rental action refuses unless the org's flag resolves true, so the
+// suite switches it on for its own org through an `org_feature_flags` row
+// (service role — members may only read the table, see utils tests). The
+// last test removes the row again and watches the same actions refuse.
+describe("rental flow e2e (action layer)", () => {
   beforeAll(async () => {
     const owner = await signedInUser("rentflow_owner");
     const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowCo" });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
+    const { error: eFlag } = await admin
+      .from("org_feature_flags")
+      .insert({ org_id: orgId, flag: "rentals", enabled: true, updated_by: "flow-test" });
+    if (eFlag) throw eFlag;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
@@ -117,6 +128,7 @@ describe.skipIf(!FLAG_DEFAULTS.rentals)("rental flow e2e (action layer)", () => 
   });
 
   it("books a stay, cancels it, and frees the dates again", async () => {
+    net.clientIp = "203.0.113.1";
     const availability = () =>
       publicActions.getRangeAvailability({ handle: HANDLE, offeringId, fromDate: startDate, days: 5 });
 
@@ -175,6 +187,7 @@ describe.skipIf(!FLAG_DEFAULTS.rentals)("rental flow e2e (action layer)", () => 
   });
 
   it("reschedules a stay by token: new link, dead old token, freed dates", async () => {
+    net.clientIp = "203.0.113.2";
     const created = await publicActions.createRentalBooking({
       handle: HANDLE,
       offeringId,
@@ -210,6 +223,7 @@ describe.skipIf(!FLAG_DEFAULTS.rentals)("rental flow e2e (action layer)", () => 
     expect(moved.ok).toBe(true);
     if (!moved.ok) return;
     expect(moved.token).not.toBe(created.token);
+    movedToken = moved.token;
 
     // The new token resolves to a confirmed stay on the new dates…
     const fresh = await resolveBookingToken(moved.token, "flow-test");
@@ -239,5 +253,46 @@ describe.skipIf(!FLAG_DEFAULTS.rentals)("rental flow e2e (action layer)", () => 
     expect(moveAvailability.availability.dates[addDaysISO(moveFrom, 1)].free).toBe(2);
     expect(moveAvailability.availability.dates[moveTo].free).toBe(1);
     expect(moveAvailability.availability.dates[addDaysISO(moveTo, 1)].free).toBe(1);
+  });
+
+  it("refuses the public and the token actions once the org's rentals flag is off", async () => {
+    net.clientIp = "203.0.113.3";
+    expect(movedToken).toBeDefined();
+    const { error } = await admin
+      .from("org_feature_flags")
+      .delete()
+      .eq("org_id", orgId)
+      .eq("flag", "rentals");
+    if (error) throw error;
+
+    // A live, confirmed, future stay — the only thing standing in the way
+    // of each action is the flag, and each says the same uniform thing.
+    const availability = await publicActions.getRangeAvailability({
+      handle: HANDLE,
+      offeringId,
+      fromDate: moveTo,
+      days: 5,
+    });
+    expect(availability).toEqual({ ok: false, error: GENERIC_WRITE_ERROR });
+    const picker = await rentalManage.getManageRangeAvailability({
+      token: movedToken,
+      fromDate: moveTo,
+      days: 5,
+    });
+    expect(picker).toEqual({ ok: false, error: GENERIC_WRITE_ERROR });
+    const moved = await rentalManage.rescheduleRentalBooking({
+      token: movedToken,
+      unitId: null,
+      startDate: addDaysISO(moveTo, 5),
+      endDate: addDaysISO(moveToEnd, 5),
+    });
+    expect(moved).toEqual({ ok: false, error: GENERIC_WRITE_ERROR });
+
+    // Nothing moved: the stay is still on its dates under the same token.
+    const still = await resolveBookingToken(movedToken, "flow-test");
+    expect(still.status).toBe("ok");
+    if (still.status !== "ok") return;
+    expect(still.booking.status).toBe("confirmed");
+    expect(dateInZone(still.booking.startsAt, TZ)).toBe(moveTo);
   });
 });

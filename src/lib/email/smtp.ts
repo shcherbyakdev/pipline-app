@@ -33,15 +33,26 @@ function smtpExchange(host: string, port: number, cmdsAfterGreeting: string[]): 
   });
 }
 
+// One header per line is the whole protocol: a CR/LF inside a value (a
+// subject built from an org or service name, an address that slipped past
+// validation) would end that header and start another — classic header
+// injection — or, in an envelope command, end the command and start a new
+// one. Collapse to a space; the value is only ever shown, never parsed back.
+export const headerValue = (value: string) => value.replace(/[\r\n]+/g, " ");
+
 export function smtpTransport(host: string, port: number, from: string): EmailTransport {
+  const fromHeader = headerValue(from);
   // "Name <addr>" → addr for the envelope.
-  const envelopeFrom = from.match(/<([^>]+)>/)?.[1] ?? from;
+  const envelopeFrom = fromHeader.match(/<([^>]+)>/)?.[1] ?? fromHeader;
   return {
     async send(msg) {
+      const to = headerValue(msg.to);
+      const replyTo = msg.replyTo ? headerValue(msg.replyTo) : null;
       const body =
-        `From: ${from}\r\n` +
-        `To: ${msg.to}\r\n` +
-        `Subject: ${msg.subject}\r\n` +
+        `From: ${fromHeader}\r\n` +
+        `To: ${to}\r\n` +
+        (replyTo ? `Reply-To: ${replyTo}\r\n` : "") +
+        `Subject: ${headerValue(msg.subject)}\r\n` +
         `MIME-Version: 1.0\r\n` +
         `Content-Type: text/html; charset=utf-8\r\n` +
         `\r\n` +
@@ -51,7 +62,7 @@ export function smtpTransport(host: string, port: number, from: string): EmailTr
       await smtpExchange(host, port, [
         `EHLO localhost\r\n`,
         `MAIL FROM:<${envelopeFrom}>\r\n`,
-        `RCPT TO:<${msg.to}>\r\n`,
+        `RCPT TO:<${to}>\r\n`,
         `DATA\r\n`,
         body,
         `QUIT\r\n`,

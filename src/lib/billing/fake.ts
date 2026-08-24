@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/env";
-import type { BillingEvent, BillingProvider, CheckoutInput } from "./provider";
+import type { BillingEvent, BillingProvider, CheckoutInput, CheckoutSession } from "./provider";
 
 export function signFakeWebhook(body: string, secret: string): string {
   return createHmac("sha256", secret).update(body, "utf8").digest("hex");
@@ -20,10 +20,17 @@ export function parseFakeWebhook(rawBody: string, headers: Headers, secret: stri
 export function fakeProvider(): BillingProvider {
   return {
     name: "fake",
-    async createCheckoutUrl(input: CheckoutInput) {
-      const q = new URLSearchParams({ org: input.orgId, plan: input.plan, interval: input.interval, return: input.returnUrl });
+    async createCheckout(input: CheckoutInput): Promise<CheckoutSession> {
+      // `cancel` rides along the way Stripe's session carries cancel_url; the
+      // checkout page origin-checks it before rendering it as a link.
+      const q = new URLSearchParams({
+        org: input.orgId, plan: input.plan, interval: input.interval, return: input.returnUrl, cancel: input.cancelUrl,
+      });
       if (input.providerCustomerId) q.set("customer", input.providerCustomerId);
-      return `${env.NEXT_PUBLIC_APP_URL}/dev/billing/checkout?${q}`;
+      // The emulator has no promotion codes to run out of, so the Founder
+      // fallback never happens here (the checkout page prices the discount
+      // itself from isFounderEligible).
+      return { url: `${env.NEXT_PUBLIC_APP_URL}/dev/billing/checkout?${q}`, founderFallback: false };
     },
     async createPortalUrl(_customerId: string, returnUrl: string) {
       const q = new URLSearchParams({ return: returnUrl });

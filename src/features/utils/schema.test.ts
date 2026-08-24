@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { orgSearchInput } from "./schema";
+import { grantOverrideInput, orgSearchInput, todayUtc } from "./schema";
 
 describe("orgSearchInput", () => {
   it("strips characters that would corrupt a PostgREST .or() ilike pattern", () => {
@@ -25,5 +25,38 @@ describe("orgSearchInput", () => {
   it("trims surrounding whitespace and passes an empty string through", () => {
     expect(orgSearchInput.parse({ q: "  " })).toEqual({ q: "" });
     expect(orgSearchInput.parse({ q: "" })).toEqual({ q: "" });
+  });
+});
+
+describe("grantOverrideInput.expires", () => {
+  const base = { org: "123e4567-e89b-12d3-a456-426614174000", plan: "pro", note: "" };
+  const expiresIssue = (expires: string) => {
+    const r = grantOverrideInput.safeParse({ ...base, expires });
+    return r.success ? null : r.error.issues.find((i) => i.path[0] === "expires") ?? null;
+  };
+
+  it("accepts empty (no expiry), today and any later date", () => {
+    expect(expiresIssue("")).toBeNull();
+    // Same day is still ahead: the action turns it into end-of-day UTC.
+    expect(expiresIssue(todayUtc())).toBeNull();
+    expect(expiresIssue("2999-12-31")).toBeNull();
+  });
+
+  it("refuses a date already past, with its own line", () => {
+    // Saving it would write a comp that is expired on arrival — the panel
+    // would read "expired" and the owner would wonder whether the grant took.
+    const yesterday = todayUtc(new Date(Date.now() - 864e5));
+    expect(expiresIssue(yesterday)).toMatchObject({ code: "custom", message: "Expiry must be today or later." });
+    expect(expiresIssue("2020-01-01")).toMatchObject({ code: "custom" });
+  });
+
+  it("still rejects a malformed date as a format error, not as 'past'", () => {
+    expect(expiresIssue("31/12/2999")?.code).not.toBe("custom");
+    expect(expiresIssue("31/12/2999")).not.toBeNull();
+  });
+
+  it("todayUtc is the UTC calendar day", () => {
+    expect(todayUtc(new Date("2026-08-24T23:59:59Z"))).toBe("2026-08-24");
+    expect(todayUtc(new Date("2026-08-25T00:00:00Z"))).toBe("2026-08-25");
   });
 });

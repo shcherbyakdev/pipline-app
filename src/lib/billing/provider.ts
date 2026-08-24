@@ -37,16 +37,32 @@ export type BillingEvent = {
 
 export type CheckoutInput = {
   orgId: string; plan: PaidPlanId; interval: Interval; email: string;
-  discountCode?: string; returnUrl: string;
+  discountCode?: string;
+  /** Where the provider sends the member after PAYING. Carries the
+      post-purchase markers (`checkout=success&plan=…`) /billing polls on. */
+  returnUrl: string;
+  /** Where "back"/"cancel" on the hosted checkout goes. A separate URL, not
+      `returnUrl`: an abandoned checkout must not land on the success markers
+      and sit on "Activating your plan…" for a purchase that never happened. */
+  cancelUrl: string;
   /** The org's existing provider customer, when it has one (resubscribe after
       an expired/ended plan). Set → the session attaches to that customer
       instead of creating a second one for the same org. */
   providerCustomerId?: string;
 };
 
+export type CheckoutSession = {
+  url: string;
+  /** The Founder discount was asked for but the provider refused it (the
+      code ran out, expired, or was archived) and the session was created at
+      list price instead. The caller decides whether to send the member on or
+      tell them first — startCheckout tells them (`?error=founder_ended`). */
+  founderFallback: boolean;
+};
+
 export interface BillingProvider {
   readonly name: ProviderName;
-  createCheckoutUrl(input: CheckoutInput): Promise<string>;
+  createCheckout(input: CheckoutInput): Promise<CheckoutSession>;
   createPortalUrl(providerCustomerId: string, returnUrl: string): Promise<string>;
   /** Verify the signature and normalise. Throws on a bad signature. */
   parseWebhook(rawBody: string, headers: Headers): BillingEvent[];

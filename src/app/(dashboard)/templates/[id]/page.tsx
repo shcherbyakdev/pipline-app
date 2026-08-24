@@ -1,10 +1,14 @@
 import { notFound } from "next/navigation";
+import { z } from "zod";
 import { getTemplate } from "@/features/templates/queries";
 import { TemplateHeader } from "@/features/templates/components/template-header";
 import { StageList } from "@/features/templates/components/stage-list";
 
 export default async function TemplateDetailPage({ params }: PageProps<"/templates/[id]">) {
   const { id } = await params;
+  // uuid guard: a malformed id must 404, not crash the PostgREST query
+  // (22P02) — programs/[id]/units/[unitId]/page.tsx idiom.
+  if (!z.uuid().safeParse(id).success) notFound();
   const template = await getTemplate(id);
   // RLS returns nothing for foreign orgs' templates — indistinguishable from
   // a nonexistent id, which is exactly the 404 we want.
