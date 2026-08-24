@@ -32,6 +32,7 @@ import {
   createRentalBookingHoursInput,
   GENERIC_WRITE_ERROR,
   SLOT_TAKEN_HOURLY,
+  TERMS_REQUIRED,
 } from "./schema";
 
 const TOO_MANY_REQUESTS = "Too many requests — slow down.";
@@ -147,7 +148,7 @@ export async function createRentalBookingHours(
   if (await limited("booking")) return { ok: false, error: TOO_MANY_REQUESTS };
   const parsed = createRentalBookingHoursInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
-  const { handle, offeringId, unitId, startsAt, durationMin, name, email, note } = parsed.data;
+  const { handle, offeringId, unitId, startsAt, durationMin, name, email, note, termsAccepted } = parsed.data;
 
   try {
     const starts = new Date(startsAt);
@@ -162,6 +163,12 @@ export async function createRentalBookingHours(
     if (!ctx || !isHourlyOffering(ctx.offering)) return { ok: false, error: GENERIC_WRITE_ERROR };
     if (!durationOptions(ctx.offering).includes(durationMin)) {
       return { ok: false, error: GENERIC_WRITE_ERROR };
+    }
+    // H3: the RPC stamps terms_accepted_at on its own whenever the offering
+    // carries terms_text — this is the actual enforcement in front of it
+    // (rentals/public-actions.ts's createRentalBooking idiom).
+    if (ctx.offering.termsText !== null && !termsAccepted) {
+      return { ok: false, error: TERMS_REQUIRED };
     }
 
     // Re-run the engine for the org-local day of the requested instant; the

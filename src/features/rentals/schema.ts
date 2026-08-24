@@ -145,7 +145,13 @@ export const createRentalBookingInput = z.object({
   name: z.string().trim().min(1).max(200),
   email: z.email().max(320),
   note: z.string().trim().max(2000).optional(),
+  termsAccepted: z.boolean().default(false),
 });
+
+// H3: an offering with terms_text set refuses a create action whose caller
+// didn't check the box — the RPC stamps terms_accepted_at on its own
+// regardless, so this guard is the actual enforcement.
+export const TERMS_REQUIRED = "Please accept the terms to book.";
 
 // ---------- Reschedule (R2), client + admin. Same reasons as DATES_TAKEN:
 // a "use server" module may only export async functions, so the shared copy
@@ -234,6 +240,7 @@ export const createRentalBookingHoursInput = z.object({
   name: z.string().trim().min(1).max(200),
   email: z.email().max(320),
   note: z.string().trim().max(2000).optional(),
+  termsAccepted: z.boolean().default(false),
 });
 export const SLOT_TAKEN_HOURLY = "That time was just taken — please pick another.";
 

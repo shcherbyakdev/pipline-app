@@ -35,7 +35,7 @@ try {
 // Dynamic imports so env is loaded before src/env.ts parses it.
 const hourlyActions = await import("./hourly-actions");
 const rentalManage = await import("./manage-actions");
-const { GENERIC_WRITE_ERROR, SLOT_TAKEN_HOURLY } = await import("./schema");
+const { GENERIC_WRITE_ERROR, SLOT_TAKEN_HOURLY, TERMS_REQUIRED } = await import("./schema");
 const { addDaysISO, dateInZone, wallTimeToUtc } = await import("@/features/scheduling/slots");
 const { resolveBookingToken } = await import("@/lib/tokens/booking");
 
@@ -457,5 +457,151 @@ describe("hourly public booking flow: client_picks unit membership", () => {
       .eq("client_email", "picks-b@example.com")
       .single();
     expect(rowB!.rental_unit_id).toBe(unitBId);
+  });
+});
+
+// H3 (task 6): the create action refuses a termed offering unless the
+// caller checked the box — the RPC stamps terms_accepted_at on its own
+// regardless of the action's decision, so this is the actual enforcement,
+// proved at the action layer rather than just against the schema (flow
+// .integration.test.ts's own terms-gate describe is the date-range twin).
+describe("terms acceptance gate (hourly action layer)", () => {
+  const TERMS_HANDLE = `h2flow-terms-${Date.now()}`;
+  let termsOrgId: string;
+  let termedOfferingId: string;
+  let plainOfferingId: string;
+
+  beforeAll(async () => {
+    const owner = await signedInUser("h2flow_terms_owner");
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "H2FlowTermsCo" });
+    if (e1) throw e1;
+    termsOrgId = (org as { id: string }).id;
+    const { error: eFlag } = await admin
+      .from("org_feature_flags")
+      .insert({ org_id: termsOrgId, flag: "rentals", enabled: true, updated_by: "h2-flow-test" });
+    if (eFlag) throw eFlag;
+    const { error: e2 } = await owner.rpc("update_org_scheduling", {
+      p_org_id: termsOrgId,
+      p_handle: TERMS_HANDLE,
+      p_timezone: TZ, p_currency: "PLN",
+    });
+    if (e2) throw e2;
+    const { data: termed, error: e3 } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: termsOrgId,
+        name: "Termed Court",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+        turnover_min: 0,
+        min_notice_min: 0,
+        booking_window_days: 60,
+        terms_text: "No refunds within 24h.",
+      })
+      .select("id")
+      .single();
+    if (e3) throw e3;
+    termedOfferingId = termed!.id as string;
+    const { error: e4 } = await owner
+      .from("rental_units")
+      .insert({ org_id: termsOrgId, offering_id: termedOfferingId, name: "Court A", sort_order: 0 });
+    if (e4) throw e4;
+
+    const { data: plain, error: e5 } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: termsOrgId,
+        name: "Plain Court",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+        turnover_min: 0,
+        min_notice_min: 0,
+        booking_window_days: 60,
+      })
+      .select("id")
+      .single();
+    if (e5) throw e5;
+    plainOfferingId = plain!.id as string;
+    const { error: e6 } = await owner
+      .from("rental_units")
+      .insert({ org_id: termsOrgId, offering_id: plainOfferingId, name: "Court A", sort_order: 0 });
+    if (e6) throw e6;
+
+    const rulesFor = (offId: string) =>
+      Array.from({ length: 7 }, (_, weekday) => ({
+        org_id: termsOrgId,
+        rental_offering_id: offId,
+        weekday,
+        start_time: "09:00",
+        end_time: "21:00",
+      }));
+    const { error: e7 } = await owner
+      .from("availability_rules")
+      .insert([...rulesFor(termedOfferingId), ...rulesFor(plainOfferingId)]);
+    if (e7) throw e7;
+  });
+
+  it("(a) refuses a termed offering when termsAccepted is omitted, and creates no row", async () => {
+    net.clientIp = "203.0.113.41";
+    const email = `h2-terms-a-${Date.now()}@example.com`;
+    const result = await hourlyActions.createRentalBookingHours({
+      handle: TERMS_HANDLE,
+      offeringId: termedOfferingId,
+      unitId: null,
+      startsAt: iso(`${d(30)}T10:00`),
+      durationMin: 60,
+      name: "Terms Client",
+      email,
+    });
+    expect(result).toEqual({ ok: false, error: TERMS_REQUIRED });
+    const { data: rows } = await admin
+      .from("bookings")
+      .select("id")
+      .eq("org_id", termsOrgId)
+      .eq("client_email", email);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("(b) books a termed offering when termsAccepted is true, and stamps terms_accepted_at", async () => {
+    net.clientIp = "203.0.113.42";
+    const email = `h2-terms-b-${Date.now()}@example.com`;
+    const result = await hourlyActions.createRentalBookingHours({
+      handle: TERMS_HANDLE,
+      offeringId: termedOfferingId,
+      unitId: null,
+      startsAt: iso(`${d(31)}T10:00`),
+      durationMin: 60,
+      name: "Terms Client",
+      email,
+      termsAccepted: true,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { data: rows } = await admin
+      .from("bookings")
+      .select("terms_accepted_at")
+      .eq("org_id", termsOrgId)
+      .eq("client_email", email);
+    expect(rows).toHaveLength(1);
+    expect(rows![0].terms_accepted_at).not.toBeNull();
+  });
+
+  it("(c) books an offering with no terms when termsAccepted is omitted (no regression)", async () => {
+    net.clientIp = "203.0.113.43";
+    const email = `h2-terms-c-${Date.now()}@example.com`;
+    const result = await hourlyActions.createRentalBookingHours({
+      handle: TERMS_HANDLE,
+      offeringId: plainOfferingId,
+      unitId: null,
+      startsAt: iso(`${d(32)}T10:00`),
+      durationMin: 60,
+      name: "No Terms Client",
+      email,
+    });
+    expect(result.ok).toBe(true);
   });
 });
