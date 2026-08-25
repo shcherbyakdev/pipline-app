@@ -14,6 +14,7 @@ import {
 import type { IconSvgElement } from "@hugeicons/react";
 import type { Flags } from "@/lib/flags";
 import type { Channel, OrgMode } from "@/features/orgs/mode";
+import { SPACES } from "@/features/orgs/vocab";
 
 // Post-pivot nav (S5): Bookings leads and stays the post-login surface (S2
 // user ruling). The command menu derives from this list. `section` splits
@@ -41,7 +42,7 @@ const ALL_NAV_ITEMS: readonly NavItem[] = [
   // Always present, solo or not: a solo provider sees one row (themselves).
   { href: "/team", label: "Team", icon: UserGroupIcon, section: "configure", channel: "appointments" },
   { href: "/availability", label: "Availability", icon: Clock01Icon, section: "configure", channel: "appointments" },
-  { href: "/rentals", label: "Rentals", icon: House01Icon, section: "configure", channel: "rentals" },
+  { href: "/rentals", label: SPACES.nav, icon: House01Icon, section: "configure", channel: "rentals" },
   { href: "/booking-page", label: "Booking page", icon: Globe02Icon, section: "configure" },
   { href: "/embed", label: "Website embed", icon: SourceCodeIcon, section: "configure" },
   // Org-level, so it sits in Configure next to the other org nouns — Settings

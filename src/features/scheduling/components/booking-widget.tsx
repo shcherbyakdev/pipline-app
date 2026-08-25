@@ -13,6 +13,7 @@ import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-
 import { HourlyBookingFlow } from "@/features/rentals/components/hourly-booking-flow";
 import { formatDurationLabel } from "@/features/rentals/hourly";
 import { formatOfferingPrice } from "@/features/rentals/pricing";
+import { SPACES } from "@/features/orgs/vocab";
 
 // The VIEWER's local date (audit 2026-08-24: the UTC date sent a far-west
 // evening visitor one day ahead, hiding the rest of their own today with no
@@ -253,7 +254,7 @@ export function BookingWidget({
           {offerings.length > 0 ? (
             <div className="flex flex-col gap-2">
               {services.length > 0 ? (
-                <h2 className="text-muted-foreground text-sm font-medium">Stays &amp; rentals</h2>
+                <h2 className="text-muted-foreground text-sm font-medium">{SPACES.widgetGroup}</h2>
               ) : null}
               <ul className="flex flex-col gap-2">
                 {offerings.map((o) => (
