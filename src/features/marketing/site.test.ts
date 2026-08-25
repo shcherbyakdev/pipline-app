@@ -21,6 +21,7 @@ import {
   anchorId,
   allInternalHrefs,
 } from "./site";
+import { PLANS } from "@/lib/billing/plans";
 
 // Route hrefs → the app directory that must exist for them (route groups omitted from URL).
 const ROUTE_DIRS: Record<string, string> = {
@@ -94,6 +95,7 @@ describe("site config", () => {
       ...Object.values(CTA),
       PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder, PRICING.moreComing,
       ...PRICING.rows.flatMap((r) => [r.label, r.free, r.pro, r.team]),
+      ...Object.values(PLANS).map((p) => p.blurb),
       ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
       // ONBOARDING.modes is an array of {value, title, blurb} cards, not a
       // string or a function — flatten it to its titles/blurbs so the
@@ -128,5 +130,25 @@ describe("site config", () => {
     expect(WELCOME.subBoth).not.toBe(WELCOME.subRentals);
     expect(WELCOME.subRentals.length).toBeGreaterThan(0);
     expect(WELCOME.subBoth.length).toBeGreaterThan(0);
+  });
+
+  it("FORBIDDEN_COPY retires the old channel words and keeps the H4 ones (H5b ruling 7)", () => {
+    expect(FORBIDDEN_COPY).toEqual(["google", "calendar sync", "stripe", "payment", "offering", "rentals"]);
+  });
+
+  it("the resources pricing row reads its numbers from PLANS", () => {
+    const row = PRICING.rows[0];
+    expect(row.label).toBe("Bookable resources — people and units");
+    expect([row.free, row.pro, row.team]).toEqual(
+      (["free", "pro", "team"] as const).map((id) => String(PLANS[id].limits.bookableResources)),
+    );
+  });
+
+  it("pricing and the cost FAQ speak of one person or one room, never seats", () => {
+    expect(PRICING.sub).toBe(
+      "Free for one person or one room. Pay when you need your brand, unlimited services or more bookable resources.",
+    );
+    const cost = FAQ.find((f) => f.question === "What does it cost?")!;
+    expect(cost.answer.toLowerCase()).not.toMatch(/seat|team member/);
   });
 });
