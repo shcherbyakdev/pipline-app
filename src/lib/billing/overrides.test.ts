@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { activeOverrideRow, type PlanOverride } from "./overrides";
-import { TEAM_INCLUDED_SEATS } from "./plans";
+import { TEAM_INCLUDED_RESOURCES } from "./plans";
 
 const now = new Date("2026-08-18T12:00:00Z");
 // The narrow shape: plan + expiry is all the seam reads, and all a member is
@@ -11,7 +11,7 @@ describe("activeOverrideRow", () => {
   it("null → null", () => expect(activeOverrideRow(null, now)).toBeNull());
   it("no expiry → an active row with the comped plan, Team seat count, no cancellation", () => {
     expect(activeOverrideRow(ovr(), now)).toEqual({
-      plan: "pro", status: "active", interval: "month", seats: TEAM_INCLUDED_SEATS,
+      plan: "pro", status: "active", interval: "month", seats: TEAM_INCLUDED_RESOURCES,
       currentPeriodEnd: null, cancelAtPeriodEnd: false,
     });
   });

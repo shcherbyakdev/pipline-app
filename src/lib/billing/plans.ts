@@ -6,8 +6,12 @@ export type PaidPlanId = Exclude<PlanId, "free">;
 export type Interval = "month" | "year";
 
 export type PlanLimits = {
-  /** Staff members the PUBLIC page may offer (Team: = seats). */
-  bookableStaff: number;
+  /** Bookable things the PUBLIC page may offer (H5b): active people when the
+      org offers appointments, plus active units of its spaces when it offers
+      spaces — one budget, people first (lib/booking/bookable.ts
+      limitPublicResources). Team: = seats (the org_subscriptions column keeps
+      its name). */
+  bookableResources: number;
   /** Services the PUBLIC page may offer; null = unlimited. */
   publicServices: number | null;
   /** Reminder emails are sent for the first N bookings made each month; null = unlimited. */
@@ -34,26 +38,29 @@ export type PlanDef = {
   limits: PlanLimits;
 };
 
-export const TEAM_INCLUDED_SEATS = 5;
+/** Team's included bookable resources (people + units). Written into
+    org_subscriptions.seats by the Stripe mapping, the fake emulator and comp
+    overrides; entitlementsFor reads it back for Team. */
+export const TEAM_INCLUDED_RESOURCES = 10;
 
 const PAID_LIMITS = { hideBadge: true, customReminders: true, gcalSync: true, intakeQuestions: true, pageSections: "all" } as const;
 
 export const PLANS: Record<PlanId, PlanDef> = {
   free: {
-    id: "free", name: "Free", blurb: "Everything a solo provider needs to take bookings.",
+    id: "free", name: "Free", blurb: "Everything one person — or one room — needs to take bookings.",
     monthly: 0, yearly: 0,
-    limits: { bookableStaff: 1, publicServices: 3, reminderBookingsPerMonth: 30,
+    limits: { bookableResources: 1, publicServices: 3, reminderBookingsPerMonth: 30,
       hideBadge: false, customReminders: false, gcalSync: false, intakeQuestions: false, pageSections: "all" },
   },
   pro: {
-    id: "pro", name: "Pro", blurb: "Your brand, unlimited services, reminders for every booking.",
+    id: "pro", name: "Pro", blurb: "Your brand, unlimited services, reminders for every booking, up to three bookable people or units.",
     monthly: 12, yearly: 108,
-    limits: { bookableStaff: 1, publicServices: null, reminderBookingsPerMonth: null, ...PAID_LIMITS },
+    limits: { bookableResources: 3, publicServices: null, reminderBookingsPerMonth: null, ...PAID_LIMITS },
   },
   team: {
-    id: "team", name: "Team", blurb: "Up to five team members, each bookable, auto-assigned.",
+    id: "team", name: "Team", blurb: "Up to ten bookable people and units, auto-assigned.",
     monthly: 29, yearly: 288,
-    limits: { bookableStaff: TEAM_INCLUDED_SEATS, publicServices: null, reminderBookingsPerMonth: null, ...PAID_LIMITS },
+    limits: { bookableResources: TEAM_INCLUDED_RESOURCES, publicServices: null, reminderBookingsPerMonth: null, ...PAID_LIMITS },
   },
 };
 

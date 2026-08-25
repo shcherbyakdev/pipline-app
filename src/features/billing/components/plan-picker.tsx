@@ -25,7 +25,7 @@ import { openPortal, startCheckout } from "../actions";
    limits: the team layer (shipped in #39) and the brand basics every plan
    gets. Nothing here names an unshipped feature. */
 const PLAN_ROWS: { label: string; value: (plan: PlanDef) => string }[] = [
-  { label: "Bookable team members", value: (p) => String(p.limits.bookableStaff) },
+  { label: "Bookable team members", value: (p) => String(p.limits.bookableResources) },
   {
     label: "Services on your booking page",
     value: (p) => (p.limits.publicServices === null ? "Unlimited" : String(p.limits.publicServices)),

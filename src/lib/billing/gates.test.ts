@@ -10,9 +10,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { entitlementsFor, type OrgSubscriptionRow } from "./entitlements";
 import {
   GENERIC_WRITE_ERROR,
-  planLimitStaffError,
+  planLimitResourceError,
   PLAN_LIMIT_SERVICES_ERROR,
-  PLAN_LIMIT_STAFF_ERROR,
 } from "@/features/scheduling/schema";
 const { staffGateMessage, serviceGateMessage, evaluateStaffGate, evaluateServiceGate } = await import("./gates");
 
@@ -27,24 +26,27 @@ const pro = entitlementsFor(row({ plan: "pro" }), now);
 const team5 = entitlementsFor(row({ plan: "team", seats: 5 }), now);
 
 describe("staffGateMessage", () => {
-  it("Free at 1 active staff → message", () => {
-    expect(staffGateMessage(1, free)).toBe(PLAN_LIMIT_STAFF_ERROR);
+  it("Free at 1 active staff → the one-resource copy", () => {
+    expect(staffGateMessage(1, free)).toBe(planLimitResourceError(1));
   });
   it("Team (5 seats) at 4 active staff → null", () => {
     expect(staffGateMessage(4, team5)).toBeNull();
   });
-  it("Team (5 seats) at 5 active staff → the seat-cap copy, not the Team-plan pitch", () => {
+  it("Team (5 seats) at 5 active staff → names the cap", () => {
     const message = staffGateMessage(5, team5);
-    expect(message).toBe(planLimitStaffError(5));
-    expect(message).toContain("allows 5 team members");
-    expect(message).not.toBe(PLAN_LIMIT_STAFF_ERROR);
+    expect(message).toBe(planLimitResourceError(5));
+    expect(message).toContain("allows 5 bookable resources");
   });
 });
 
-describe("planLimitStaffError", () => {
-  it("one seat keeps the upgrade pitch; more than one names the cap", () => {
-    expect(planLimitStaffError(1)).toBe(PLAN_LIMIT_STAFF_ERROR);
-    expect(planLimitStaffError(5)).toBe("Your plan allows 5 team members. Upgrade in Billing to add more.");
+describe("planLimitResourceError", () => {
+  it("one resource explains the budget; more than one names the cap", () => {
+    expect(planLimitResourceError(1)).toBe(
+      "Free includes 1 bookable resource — one person or one unit. Upgrade in Billing to add more.",
+    );
+    expect(planLimitResourceError(5)).toBe(
+      "Your plan allows 5 bookable resources — people and units together. Upgrade in Billing to add more.",
+    );
   });
 });
 
@@ -88,7 +90,7 @@ describe("evaluateStaffGate", () => {
       org_subscriptions: { data: null, error: null },
       staff: { count: 1, error: null },
     });
-    await expect(evaluateStaffGate("org-1", client)).resolves.toBe(PLAN_LIMIT_STAFF_ERROR);
+    await expect(evaluateStaffGate("org-1", client)).resolves.toBe(planLimitResourceError(1));
   });
   it("Team org (5 seats) at 4 active staff → allowed (null)", async () => {
     const client = stubClient({

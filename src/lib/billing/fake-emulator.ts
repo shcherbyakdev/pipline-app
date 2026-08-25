@@ -6,7 +6,7 @@
 // webhook would take — so walking every scenario locally exercises the same
 // projection code production does.
 import type { Interval, PaidPlanId } from "./plans";
-import { TEAM_INCLUDED_SEATS } from "./plans";
+import { TEAM_INCLUDED_RESOURCES } from "./plans";
 import type { OrgSubscriptionRow } from "./entitlements";
 import type { BillingEvent, BillingEventType, BillingSubscription } from "./provider";
 
@@ -94,7 +94,7 @@ export function fakeIds(orgId: string): { customer: string; subscription: string
 }
 
 function seatsFor(plan: PaidPlanId): number {
-  return plan === "team" ? TEAM_INCLUDED_SEATS : 1;
+  return plan === "team" ? TEAM_INCLUDED_RESOURCES : 1;
 }
 
 // ---------- Row / event shapes ----------

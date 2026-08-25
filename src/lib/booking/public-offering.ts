@@ -35,7 +35,7 @@ export type PlanLimitedOffering = {
 const UNLIMITED: Entitlements = {
   ...PLANS.team.limits,
   plan: "team",
-  bookableStaff: Number.MAX_SAFE_INTEGER,
+  bookableResources: Number.MAX_SAFE_INTEGER,
 };
 
 async function loadEntitlements(orgId: string): Promise<Entitlements> {

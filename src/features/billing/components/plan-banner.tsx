@@ -13,7 +13,7 @@ type Usage = BillingOverview["usage"];
    so both render, staff first: that one is silent, because the people it
    names simply aren't bookable publicly. */
 export function PlanBanner({ ent, usage }: { ent: Entitlements; usage: Usage }) {
-  const hidden = usage.activeStaff - ent.bookableStaff;
+  const hidden = usage.activeStaff - ent.bookableResources;
   const cap = ent.reminderBookingsPerMonth;
   const overStaff = hidden > 0;
   const nearQuota = cap !== null && usage.bookingsThisMonth >= REMINDER_WARN_AT;
@@ -23,7 +23,7 @@ export function PlanBanner({ ent, usage }: { ent: Entitlements; usage: Usage }) 
     <div className="mb-4 flex flex-col gap-2">
       {overStaff ? (
         <Notice cta="Manage plan">
-          Your plan allows {ent.bookableStaff} bookable team member{ent.bookableStaff === 1 ? "" : "s"}; {hidden}{" "}
+          Your plan allows {ent.bookableResources} bookable team member{ent.bookableResources === 1 ? "" : "s"}; {hidden}{" "}
           {hidden === 1 ? "person isn't" : "people aren't"} bookable publicly.
         </Notice>
       ) : null}

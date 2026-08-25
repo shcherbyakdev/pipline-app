@@ -8,7 +8,7 @@ export function UsageMeters({ overview }: { overview: BillingOverview }) {
   const { entitlements: ent, usage } = overview;
   const reminderCap = ent.reminderBookingsPerMonth;
   const serviceCap = ent.publicServices;
-  const extraStaff = usage.activeStaff - ent.bookableStaff;
+  const extraStaff = usage.activeStaff - ent.bookableResources;
 
   return (
     <div className="grid gap-3 sm:grid-cols-3">
@@ -25,10 +25,10 @@ export function UsageMeters({ overview }: { overview: BillingOverview }) {
       />
       <StatTile
         label="Bookable team members"
-        value={`${usage.activeStaff} / ${ent.bookableStaff}`}
+        value={`${usage.activeStaff} / ${ent.bookableResources}`}
         caption={
           extraStaff > 0
-            ? `only the first ${ent.bookableStaff} are bookable publicly`
+            ? `only the first ${ent.bookableResources} are bookable publicly`
             : "active on your booking page"
         }
       />

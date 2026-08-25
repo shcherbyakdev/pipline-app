@@ -3,10 +3,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { FLAG_DEFAULTS } from "@/lib/flags";
 import { getOrgFlags } from "@/lib/flags/resolve";
 import { getEntitlements } from "./queries";
-import { canAddService, canAddStaff, type Entitlements } from "./entitlements";
+import { canAddResource, canAddService, type Entitlements } from "./entitlements";
 import {
   GENERIC_WRITE_ERROR,
-  planLimitStaffError,
+  planLimitResourceError,
   PLAN_LIMIT_SERVICES_ERROR,
 } from "@/features/scheduling/schema";
 
@@ -16,7 +16,7 @@ import {
 export function staffGateMessage(activeCount: number, ent: Entitlements): string | null {
   // The cap comes from the entitlements, so a Team org at 5 of 5 is told it
   // has 5 — not that team members are a Team-plan feature it already pays for.
-  return canAddStaff(activeCount, ent) ? null : planLimitStaffError(ent.bookableStaff);
+  return canAddResource(activeCount, ent) ? null : planLimitResourceError(ent.bookableResources);
 }
 export function serviceGateMessage(serviceCount: number, ent: Entitlements): string | null {
   return canAddService(serviceCount, ent) ? null : PLAN_LIMIT_SERVICES_ERROR;
