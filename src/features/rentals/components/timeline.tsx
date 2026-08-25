@@ -16,9 +16,10 @@ import { serviceAccent } from "@/features/scheduling/calendar-geometry";
 import { dateInZone } from "@/features/scheduling/slots";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { BookingDetailDialog } from "@/features/scheduling/components/booking-detail-dialog";
-import { NewRentalBookingDialog } from "./new-rental-booking-dialog";
+import { NewBookingDialog } from "@/features/scheduling/components/new-booking-dialog";
+import type { OfferingOption } from "@/features/rentals/offering-option";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SPACES } from "@/features/orgs/vocab";
 
@@ -98,8 +99,8 @@ export function Timeline({
     unitId?: string;
     date?: string;
   } | null>(null);
-  const offeringOptions = React.useMemo(
-    () => offerings.map((o) => ({ id: o.id, name: o.name })),
+  const offeringOptions = React.useMemo<OfferingOption[]>(
+    () => offerings.map((o) => ({ id: o.id, name: o.name, rangeMode: o.rangeMode })),
     [offerings],
   );
 
@@ -138,11 +139,6 @@ export function Timeline({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-end">
-        <Button variant="outline" size="sm" onClick={() => setNewStay({})}>
-          {SPACES.walkIn}
-        </Button>
-      </div>
       <div className="overflow-x-auto">
         <div className={cn("grid min-w-[960px]", GRID_COLS)}>
           {/* header: window arrows in the rail, then one cell per day */}
@@ -368,16 +364,15 @@ export function Timeline({
         }}
       />
       {newStay === null ? null : (
-        <NewRentalBookingDialog
+        <NewBookingDialog
           open
-          onOpenChange={(o) => {
-            if (!o) setNewStay(null);
-          }}
-          offerings={offeringOptions}
-          initialOfferingId={newStay.offeringId}
-          initialUnitId={newStay.unitId ?? null}
-          initialStartDate={newStay.date}
+          onOpenChange={(o) => { if (!o) setNewStay(null); }}
+          services={[]}
+          spaces={offeringOptions}
+          staff={[]}
+          defaultStaffId=""
           timeZone={timeZone}
+          initial={{ kind: "space", offeringId: newStay.offeringId, unitId: newStay.unitId ?? null, date: newStay.date }}
         />
       )}
     </div>
