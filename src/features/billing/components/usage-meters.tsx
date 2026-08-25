@@ -1,14 +1,15 @@
 import { StatTile } from "@/features/scheduling/components/stat-tiles";
+import { resourceMeter } from "../resource-usage";
 import type { BillingOverview } from "../queries";
 
 /* The three numbers a plan can actually run out of (spec §7.7). Limits come
-   from the entitlements, never from a literal here — Team's bookable staff is
-   the seat count, not the plan default. */
+   from the entitlements, never from a literal here — Team's bookable resources
+   is the seat count, not the plan default. */
 export function UsageMeters({ overview }: { overview: BillingOverview }) {
   const { entitlements: ent, usage } = overview;
   const reminderCap = ent.reminderBookingsPerMonth;
   const serviceCap = ent.publicServices;
-  const extraStaff = usage.activeStaff - ent.bookableResources;
+  const resources = resourceMeter(usage, overview.mode, ent);
 
   return (
     <div className="grid gap-3 sm:grid-cols-3">
@@ -23,15 +24,7 @@ export function UsageMeters({ overview }: { overview: BillingOverview }) {
               : "confirmations always send"
         }
       />
-      <StatTile
-        label="Bookable team members"
-        value={`${usage.activeStaff} / ${ent.bookableResources}`}
-        caption={
-          extraStaff > 0
-            ? `only the first ${ent.bookableResources} are bookable publicly`
-            : "active on your booking page"
-        }
-      />
+      <StatTile label="Bookable resources" value={resources.value} caption={resources.caption} />
       <StatTile
         label="Services"
         value={serviceCap === null ? String(usage.services) : `${usage.services} / ${serviceCap}`}
