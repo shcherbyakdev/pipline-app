@@ -80,10 +80,13 @@ export function AppointmentBookingForm({
   const validDate = DATE_RE.test(date) && !Number.isNaN(new Date(`${date}T12:00:00Z`).getTime());
   const startMin = validStart ? timeToMin(startTime) : 0;
   // End time is editable. Default: a real drag (more than one 15-min snap
-  // unit) sets the length; otherwise the service duration. Until the user
-  // touches the end, it follows the start and the service.
+  // unit) sets the LENGTH, not a fixed end clock time — so editing the
+  // start later carries the same length forward instead of pinning the old
+  // end. No drag (or a click-sized one) falls back to the service duration.
+  // Until the user touches the end, it follows the start.
   const dragged = drag !== null && drag.dragEndMin - drag.startMin > 15;
-  const defaultEndMin = dragged && drag ? drag.dragEndMin : startMin + (service?.durationMin ?? 60);
+  const defaultLengthMin = dragged && drag ? drag.dragEndMin - drag.startMin : (service?.durationMin ?? 60);
+  const defaultEndMin = startMin + defaultLengthMin;
   const [endTouched, setEndTouched] = React.useState(false);
   const [endTime, setEndTime] = React.useState(minToTime(Math.min(defaultEndMin, 24 * 60 - 1)));
   const effectiveEndTime = endTouched ? endTime : minToTime(Math.min(defaultEndMin, 24 * 60 - 1));
@@ -147,7 +150,9 @@ export function AppointmentBookingForm({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="ab-start">Starts at</Label>
+          <Label htmlFor="ab-start">
+            Starts at <span className="text-muted-foreground font-normal">({timeZone})</span>
+          </Label>
           <Input
             id="ab-start"
             type="time"

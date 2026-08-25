@@ -71,9 +71,12 @@ export function SpaceBookingForm({
     end: null,
   }));
 
-  // ---- hours (H2) state.
+  // ---- hours (H2) state. A drag's day seeds the 7-day window (falls back
+  // to today when there's no drag prefill), same as the range side above.
   const [durationMin, setDurationMin] = React.useState<number | null>(null);
-  const [hourFromDate, setHourFromDate] = React.useState(() => dateInZone(new Date(), timeZone));
+  const [hourFromDate, setHourFromDate] = React.useState(
+    () => initialStartDate ?? dateInZone(new Date(), timeZone),
+  );
   const [hourSlots, setHourSlots] = React.useState<HourlySlot[]>([]);
   const [hourUnits, setHourUnits] = React.useState<PublicUnit[]>([]);
   const [slot, setSlot] = React.useState<string | null>(null);

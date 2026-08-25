@@ -82,11 +82,13 @@ export default async function BookingsPage({
 
   // Fetched once, up front, for every view: the catalogue decides the
   // default view, the Timeline link and (Task 3) the New-booking picker;
-  // the roster drives the week's lens and the walk-in's staff picker.
+  // the roster is fetched unconditionally (every org has at least one
+  // staff row — 0041 backfill + create_staff) and drives the week's
+  // lens and the walk-in's staff picker even for rentals-only orgs.
   const [orgOfferings, services, activeStaff] = await Promise.all([
     rentals ? listOfferings() : Promise.resolve([]),
     eff.offersAppointments ? listServices() : Promise.resolve([]),
-    eff.offersAppointments ? listActiveStaff() : Promise.resolve([]),
+    listActiveStaff(),
   ]);
   const spaces = orgOfferings.filter((o) => o.active);
   const activeServices = services.filter((s) => s.active);

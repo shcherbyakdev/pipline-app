@@ -214,6 +214,13 @@ export function CalendarWeek({
         date <= zonedParts(new Date(b.endsAt), timeZone).date,
     );
 
+  // What a selection would prefill into New booking — computed once and
+  // shared by the popover's gate and the dialog's mount (same inputs both
+  // places; no reason to run dragInitial twice).
+  const dragPrefill = selection
+    ? dragInitial(selection, services, spaces, windowsByDay[days.indexOf(selection.date)] ?? [])
+    : null;
+
   return (
     // The grid fills whatever height `main` gives the page (the page root
     // is flex-1) instead of scrolling inside a capped box — rows are
@@ -462,7 +469,6 @@ export function CalendarWeek({
                   const openMin = openMinutesIn(selection);
                   const touchesOpen = openMin > 0;
                   const touchesBlocked = openMin < selection.endMin - selection.startMin;
-                  const initial = dragInitial(selection, services, spaces, windowsByDay[days.indexOf(selection.date)] ?? []);
                   return (
                     <div
                       data-cal-popover
@@ -475,7 +481,7 @@ export function CalendarWeek({
                       <span className="px-1.5 text-xs tabular-nums text-muted-foreground">
                         {minToTime(selection.startMin)}–{minToTime(selection.endMin)}
                       </span>
-                      {initial ? (
+                      {dragPrefill ? (
                         <Button size="sm" className="h-7" onClick={() => setCreateOpen(true)}>
                           New booking
                         </Button>
@@ -533,7 +539,7 @@ export function CalendarWeek({
           staff={staff}
           defaultStaffId={defaultStaffId}
           timeZone={timeZone}
-          initial={dragInitial(selection, services, spaces, windowsByDay[days.indexOf(selection.date)] ?? []) ?? undefined}
+          initial={dragPrefill ?? undefined}
         />
       ) : null}
     </div>
