@@ -4,8 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
-import type { RangeMode } from "@/features/rentals/range";
 import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
+import { hourlyGrid, type OfferingOption } from "@/features/rentals/offering-option";
 import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
 import { durationOptions, formatDurationLabel } from "@/features/rentals/hourly";
 import { dateInZone } from "@/features/scheduling/slots";
@@ -39,27 +39,7 @@ const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text
 // hourly-booking-flow.tsx's own threshold for pills vs a <select>.
 const MAX_PILL_OPTIONS = 8;
 
-// The offering `<select>`'s own row shape — deliberately NOT the full
-// PublicOffering/OfferingRow: the timeline (this dialog's original caller)
-// only ever hands over `{id, name}`, and the hours-grid fields stay optional
-// so that keeps compiling unchanged. The week-calendar caller (H2) passes a
-// real OfferingRow, whose extra fields structurally satisfy this.
-export type OfferingOption = {
-  id: string;
-  name: string;
-  rangeMode?: RangeMode;
-  slotIncrementMin?: number | null;
-  minDurationMin?: number | null;
-  maxDurationMin?: number | null;
-};
-
-type HourGrid = { minDurationMin: number; maxDurationMin: number; slotIncrementMin: number };
-function hourlyGrid(o: OfferingOption): HourGrid | null {
-  if (o.rangeMode !== "hours" || o.minDurationMin == null || o.maxDurationMin == null || o.slotIncrementMin == null) {
-    return null;
-  }
-  return { minDurationMin: o.minDurationMin, maxDurationMin: o.maxDurationMin, slotIncrementMin: o.slotIncrementMin };
-}
+export type { OfferingOption };
 
 type HourlySlot = { startsAt: string; unitIds: string[] };
 

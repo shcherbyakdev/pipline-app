@@ -33,6 +33,12 @@ export const SPACES = {
   unitsEmpty: "No units yet — the space won't appear on your booking page until it has an active unit.",
   /** Label of the walk-in dialog's picker when only spaces are listed. */
   field: "Space",
+  /** The New-booking picker's label when both services and spaces are listed. */
+  pickerBoth: "Service or space",
+  /** Kind badge on list rows, client history and the week grid (sr-only). */
+  badge: "Space",
+  /** Toolbar chip when a staff lens hides space bookings from the week. */
+  hidden: (n: number) => `${n} space booking${n === 1 ? "" : "s"} hidden`,
   /** Bookings-page walk-in button + its dialog title. Slice U2 (Bookings hub) renames both to the neutral "New booking" once the dialog covers services too. */
   walkIn: "New space booking",
   /** ⌘K action. */
@@ -48,6 +54,8 @@ export const SPACES = {
 export const APPOINTMENTS = {
   settings: { label: "Appointments", blurb: "Services booked as time slots with your team." },
   add: "Add a service",
+  /** The New-booking picker's label when only services are listed. */
+  field: "Service",
 } as const;
 
 /** The hosted page's fallback meta description, per channel mix. */

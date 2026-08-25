@@ -65,5 +65,10 @@ describe("admin vocabulary (admin IA spec §1)", () => {
       blurb: "Services booked as time slots with your team.",
     });
     expect(APPOINTMENTS.add).toBe("Add a service");
+    expect(SPACES.pickerBoth).toBe("Service or space");
+    expect(SPACES.badge).toBe("Space");
+    expect(SPACES.hidden(1)).toBe("1 space booking hidden");
+    expect(SPACES.hidden(3)).toBe("3 space bookings hidden");
+    expect(APPOINTMENTS.field).toBe("Service");
   });
 });
