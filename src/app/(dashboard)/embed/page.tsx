@@ -3,7 +3,10 @@ import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/quer
 import { WidgetAppearance } from "@/features/orgs/components/widget-appearance";
 import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
-import { toPreviewServices } from "@/features/scheduling/preview-services";
+import { listOfferings } from "@/features/rentals/queries";
+import { effectiveMode, modeOf } from "@/features/orgs/mode";
+import { toPreviewCatalog } from "@/lib/booking/preview-catalog";
+import { requireOrg } from "@/lib/auth/session";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { createClient } from "@/lib/supabase/server";
 import { getEntitlements } from "@/lib/billing/queries";
@@ -29,11 +32,16 @@ async function badgeToggleEnabled(orgId: string): Promise<boolean> {
 /* Website embed: the second booking channel — the widget on the org's own
    site. Style it against a live preview, then copy the snippet. */
 export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
-  const [settings, schedulingSettings, services, staff] = await Promise.all([
+  // The preview shows the channels the public widget shows (listPublicCatalog's
+  // rules): declared mode ∩ the rentals kill switch, same as /bookings.
+  const { org } = await requireOrg();
+  const mode = effectiveMode(await getDashboardFlags(org.id), modeOf(org));
+  const [settings, schedulingSettings, services, staff, offerings] = await Promise.all([
     getBrandingSettings(),
     getSchedulingSettings(),
     listServices(),
     listStaff(),
+    mode.offersRentals ? listOfferings() : [],
   ]);
   if (!settings || !schedulingSettings) notFound();
 
@@ -44,7 +52,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   // server-side regardless (badgeVisible / emailBadgeUrl).
   const canHideBadge = await badgeToggleEnabled(settings.orgId);
 
-  const previewServices = toPreviewServices(services);
+  const catalog = toPreviewCatalog({ mode, services, offerings });
   // Solo orgs get no "Book with" choice at all (there is only one answer);
   // the Team page's "Embed…" link lands here with ?staff=<slug> preselected.
   const activeStaff = staff.filter((s) => s.active);
@@ -68,7 +76,9 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         handle={schedulingSettings.handle}
         currency={schedulingSettings.currency}
         appUrl={env.NEXT_PUBLIC_APP_URL}
-        previewServices={previewServices}
+        previewServices={catalog.services}
+        previewOfferings={catalog.offerings}
+        mode={mode}
         staffOptions={staffOptions}
         initialStaffSlug={initialStaffSlug}
         canHideBadge={canHideBadge}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import type { BrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
 import { updateWidgetTheme } from "@/features/orgs/actions";
-import type { PublicService, PublicStaff } from "@/lib/booking/public";
+import type { PublicOffering, PublicService, PublicStaff } from "@/lib/booking/public";
 import type { PlanLimits } from "@/lib/billing/plans";
 import { effectiveContrast, parseWidgetTheme, type WidgetThemeConfig } from "@/lib/widget-theme";
 import { WidgetTheme } from "@/components/widget-theme";
@@ -32,10 +32,10 @@ type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSet
    a visitor will see it on the right — the same PageRenderer + WidgetTheme
    composition as /[handle], fed by the draft and the unsaved settings. */
 export function BookingPageBuilder({
-  branding, scheduling, appUrl, supabaseUrl, previewServices, staff, initialPage, pageSections,
+  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections,
 }: {
   branding: BrandingSettings; scheduling: SchedulingSettings; appUrl: string; supabaseUrl: string;
-  previewServices: PublicService[]; staff: PublicStaff[];
+  previewServices: PublicService[]; previewOfferings: PublicOffering[]; staff: PublicStaff[];
   initialPage: { draft: PageDocument; published: PageDocument | null };
   pageSections: PlanLimits["pageSections"];
 }) {
@@ -102,7 +102,7 @@ export function BookingPageBuilder({
     },
     branding: { accentColor: accent, logoUrl: branding.logoUrl },
     theme: previewTheme,
-    services: previewServices, staff, offerings: [], lockedStaff: null,
+    services: previewServices, staff, offerings: previewOfferings, lockedStaff: null,
     supabaseUrl, mode: "preview", previewSlots: PREVIEW_SLOTS,
   };
   const selected = draft.doc.sections.find((s) => s.id === selectedId) ?? null;

@@ -9,7 +9,8 @@ import { effectiveContrast, WIDGET_THEME_OPTIONS, type WidgetThemeConfig } from 
 import { badgeShows } from "@/lib/billing/entitlements";
 import { EmbedPreviewFrame } from "./embed-preview-frame";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
-import type { PublicService } from "@/lib/booking/public";
+import type { PublicOffering, PublicService } from "@/lib/booking/public";
+import type { OrgMode } from "@/features/orgs/mode";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SettingsCard, SettingsRow } from "@/components/settings-row";
@@ -39,6 +40,8 @@ export function WidgetAppearance({
   currency,
   appUrl,
   previewServices,
+  previewOfferings,
+  mode,
   staffOptions = [],
   initialStaffSlug = null,
   canHideBadge = true,
@@ -46,12 +49,15 @@ export function WidgetAppearance({
   initial: WidgetThemeConfig;
   accentColor: string | null;
   handle: string | null;
-  /** The preview never renders rentals (no `offerings` passed below), but
-      BookingWidget takes the prop regardless — getSchedulingSettings
-      already returns it. */
   currency: string;
   appUrl: string;
+  /** The org's preview catalogue (toPreviewCatalog): real active rows per
+      channel the org sells, canned stand-ins where it has none yet. */
   previewServices: PublicService[];
+  previewOfferings: PublicOffering[];
+  /** Effective mode — names the iframe (embedTitle) so a space owner's site
+      doesn't announce "Book an appointment". */
+  mode: OrgMode;
   // Only passed when the org has more than one active team member — a solo
   // provider never sees a "Book with" choice they can't make.
   staffOptions?: Array<{ slug: string; name: string }>;
@@ -66,7 +72,7 @@ export function WidgetAppearance({
   const [pending, startTransition] = React.useTransition();
   // "" = the whole team (the org-wide flow, byte-identical to the old snippet).
   const [staffSlug, setStaffSlug] = React.useState<string>(initialStaffSlug ?? "");
-  const snippet = handle ? snippetFor(appUrl, handle, staffSlug || null) : "";
+  const snippet = handle ? snippetFor(appUrl, handle, staffSlug || null, mode) : "";
 
   // Show/guard the ratio as soon as EITHER side is overridden — a lone
   // override still gets checked against the theme's default for the other
@@ -286,6 +292,7 @@ export function WidgetAppearance({
               orgTimeZone="UTC"
               currency={currency}
               services={previewServices}
+              offerings={previewOfferings}
               preview={{ slots: PREVIEW_SLOTS }}
             />
           </EmbedPreviewFrame>

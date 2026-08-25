@@ -41,3 +41,25 @@ describe("snippetFor with a staff slug", () => {
     expect(plain).not.toContain("?staff=");
   });
 });
+
+describe("snippetFor iframe title follows the org's channels", () => {
+  const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
+  const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
+  const BOTH = { offersAppointments: true, offersRentals: true };
+
+  it("appointments-only keeps the historical title", () => {
+    expect(snippetFor("https://app.example.com", "acme", null, APPTS_ONLY)).toContain('title="Book an appointment"');
+  });
+
+  it("rentals-only says space, not appointment", () => {
+    expect(snippetFor("https://app.example.com", "acme", null, RENTALS_ONLY)).toContain('title="Book a space"');
+  });
+
+  it("both channels use the neutral title", () => {
+    expect(snippetFor("https://app.example.com", "acme", null, BOTH)).toContain('title="Book online"');
+  });
+
+  it("no mode given ⇒ the historical title (existing callers/tests unchanged)", () => {
+    expect(snippetFor("https://app.example.com", "acme")).toContain('title="Book an appointment"');
+  });
+});

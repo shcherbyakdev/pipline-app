@@ -1,0 +1,93 @@
+import type { OrgMode } from "@/features/orgs/mode";
+import type { OfferingRow } from "@/features/rentals/queries";
+import { toPreviewServices } from "@/features/scheduling/preview-services";
+import type { PublicOffering, PublicService } from "@/lib/booking/public";
+
+/* What the admin's live previews (Booking page, Website embed) hand the
+   widget. Mirrors listPublicCatalog's mode rules so a preview never shows a
+   channel the public page hides: a rentals-only org sees no services (not
+   even the canned stand-in), an appointments-only org sees no rentals. Real
+   active rows where they exist; a canned stand-in per channel when the org
+   has nothing yet, so appearance can be judged before the first one. The
+   preview itself never fetches — rental cards render but stay inert. */
+
+type ServiceRow = PublicService & { active: boolean };
+
+// Far-future, unpriced-deposit stand-in; the id is the "is this canned"
+// marker (preview-services.ts's `preview-service` precedent).
+const CANNED_PREVIEW_OFFERING: PublicOffering = {
+  id: "preview-offering",
+  name: "Studio A",
+  description: null,
+  rangeMode: "nights",
+  startTime: "15:00",
+  endTime: "11:00",
+  minStay: 1,
+  maxStay: null,
+  turnoverDays: 0,
+  minNoticeDays: 0,
+  bookingWindowDays: 180,
+  unitSelection: "auto",
+  slotIncrementMin: null,
+  minDurationMin: null,
+  maxDurationMin: null,
+  turnoverMin: 0,
+  minNoticeMin: 0,
+  priceCents: 20000,
+  pricingMode: "per_unit",
+  depositType: "none",
+  depositValue: null,
+  cancelWindowMin: 0,
+  termsText: null,
+};
+
+// The public projection of an admin row — listed field by field so an
+// admin-only column (active, sortOrder, unitCount) can't ride into the
+// widget by structural accident.
+function toPublicOffering(o: OfferingRow): PublicOffering {
+  return {
+    id: o.id,
+    name: o.name,
+    description: o.description,
+    rangeMode: o.rangeMode,
+    startTime: o.startTime,
+    endTime: o.endTime,
+    minStay: o.minStay,
+    maxStay: o.maxStay,
+    turnoverDays: o.turnoverDays,
+    minNoticeDays: o.minNoticeDays,
+    bookingWindowDays: o.bookingWindowDays,
+    unitSelection: o.unitSelection,
+    slotIncrementMin: o.slotIncrementMin,
+    minDurationMin: o.minDurationMin,
+    maxDurationMin: o.maxDurationMin,
+    turnoverMin: o.turnoverMin,
+    minNoticeMin: o.minNoticeMin,
+    priceCents: o.priceCents,
+    pricingMode: o.pricingMode,
+    depositType: o.depositType,
+    depositValue: o.depositValue,
+    cancelWindowMin: o.cancelWindowMin,
+    termsText: o.termsText,
+  };
+}
+
+function toPreviewOfferings(offerings: OfferingRow[]): PublicOffering[] {
+  const active = offerings.filter((o) => o.active).map(toPublicOffering);
+  return active.length > 0 ? active : [CANNED_PREVIEW_OFFERING];
+}
+
+export function toPreviewCatalog({
+  mode,
+  services,
+  offerings,
+}: {
+  mode: OrgMode;
+  services: ServiceRow[];
+  offerings: OfferingRow[];
+}): { services: PublicService[]; offerings: PublicOffering[] } {
+  return {
+    services: mode.offersAppointments ? toPreviewServices(services) : [],
+    offerings: mode.offersRentals ? toPreviewOfferings(offerings) : [],
+  };
+}
