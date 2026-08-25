@@ -11,8 +11,8 @@ import {
 import { listActiveStaff, type StaffRow } from "@/features/scheduling/staff-queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listOfferings, listTimelineData } from "@/features/rentals/queries";
-import { walkInOfferings } from "@/features/rentals/walk-in";
-import { RentalWalkInButton } from "@/features/rentals/components/rental-walk-in-button";
+import { NewBookingButton } from "@/features/scheduling/components/new-booking-button";
+import { canCreateWalkIn } from "@/features/scheduling/booking-kinds";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { defaultBookingsView, effectiveMode, modeOf } from "@/features/orgs/mode";
@@ -122,17 +122,31 @@ export default async function BookingsPage({
       />
     ) : null;
 
-  // Task 3 swaps this for the unified New-booking button.
-  const rentalWalkIn = walkInOfferings(orgOfferings);
-  const newBooking =
-    rentalWalkIn.length > 0 ? <RentalWalkInButton offerings={rentalWalkIn} timeZone={timeZone} /> : null;
+  // One entry for every kind of walk-in (spec §2, ruling 5). On the
+  // "everyone" week a walk-in defaults to the first active member; the week
+  // branch below overrides that for a one-person lens.
+  const newBookingFor = (defaultStaffId: string) =>
+    canCreateWalkIn(activeServices, spaces) ? (
+      <NewBookingButton
+        services={activeServices}
+        spaces={spaces}
+        staff={activeStaff}
+        defaultStaffId={defaultStaffId}
+        timeZone={timeZone}
+      />
+    ) : null;
 
   // One toolbar shape for every view: primary action on the left, view
   // controls on the right (admin IA spec §2). `right` is the per-view slot
   // before the switcher (the week's Today link, the lens chip).
-  const toolbar = (current: BookingsView, right: ReactNode = null, staffQuery?: string) => (
+  const toolbar = (
+    current: BookingsView,
+    defaultStaffId: string,
+    right: ReactNode = null,
+    staffQuery?: string,
+  ) => (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div>{newBooking}</div>
+      <div>{newBookingFor(defaultStaffId)}</div>
       <div className="flex items-center gap-2">
         {right}
         <ViewSwitcher current={current} showTimeline={showTimeline} staffQuery={staffQuery} />
@@ -149,7 +163,7 @@ export default async function BookingsPage({
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         {welcome}
-        {toolbar("timeline")}
+        {toolbar("timeline", activeStaff[0]?.id ?? "")}
         <Timeline
           fromDate={fromDate}
           timeZone={timeZone}
@@ -169,7 +183,7 @@ export default async function BookingsPage({
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
         {welcome}
-        {toolbar("list")}
+        {toolbar("list", activeStaff[0]?.id ?? "")}
         <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} staff={activeStaff} mode={eff} />
       </div>
     );
@@ -238,6 +252,10 @@ export default async function BookingsPage({
       </Link>
     ) : null;
 
+  // A walk-in drawn on a one-person week belongs to that person; on the
+  // "everyone" week it defaults to the first active member.
+  const defaultStaffId = (selectedStaffIds.length === 1 ? selectedStaffIds[0] : activeStaff[0]?.id) ?? "";
+
   return (
     // flex-1 + min-h-0: the calendar fills main's leftover viewport height
     // (week arrows live inside the grid header; see CalendarWeek).
@@ -245,6 +263,7 @@ export default async function BookingsPage({
       {welcome}
       {toolbar(
         "week",
+        defaultStaffId,
         <>
           {hiddenChip}
           <Link href={todayHref} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
@@ -258,9 +277,7 @@ export default async function BookingsPage({
         timeZone={timeZone}
         staff={activeStaff}
         selectedStaffIds={selectedStaffIds}
-        // A walk-in drawn on a one-person week belongs to that person;
-        // on the "everyone" week it defaults to the first active member.
-        defaultStaffId={(selectedStaffIds.length === 1 ? selectedStaffIds[0] : activeStaff[0]?.id) ?? ""}
+        defaultStaffId={defaultStaffId}
         bookings={bookings}
         rules={rules}
         exceptions={weekExceptions}
