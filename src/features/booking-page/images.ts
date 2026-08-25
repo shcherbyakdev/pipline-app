@@ -52,6 +52,8 @@ export function sectionImagePaths(section: Section): string[] {
       return section.photoPath ? [section.photoPath] : [];
     case "gallery":
       return section.images.map((i) => i.path);
+    case "spaces":
+      return section.photos.map((p) => p.path);
     default:
       return [];
   }

@@ -16,7 +16,7 @@ describe("templates", () => {
     }
   });
   it("applyTemplate strips sample copy and images, assigns fresh ids, keeps live-section titles", () => {
-    const ctx = { serviceCount: 1, staffCount: 1 };
+    const ctx = { serviceCount: 1, staffCount: 1, offeringCount: 1 };
     for (const t of TEMPLATES) {
       const applied = applyTemplate(t);
       expect(imagePathsIn(applied)).toEqual([]);

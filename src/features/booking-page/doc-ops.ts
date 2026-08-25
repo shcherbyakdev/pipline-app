@@ -4,7 +4,7 @@
 import { PAGE_LIMITS, SINGLE_INSTANCE_TYPES, type PageDocument, type Section, type SectionType } from "./schema";
 import { newSection, SECTION_META } from "./defaults";
 
-export type EmptyContext = { serviceCount: number; staffCount: number };
+export type EmptyContext = { serviceCount: number; staffCount: number; offeringCount: number };
 
 /** Nothing to show: every text/image prop blank, or (live sections) no data. */
 export function isSectionEmpty(section: Section, ctx: EmptyContext): boolean {
@@ -20,6 +20,8 @@ export function isSectionEmpty(section: Section, ctx: EmptyContext): boolean {
       return ctx.serviceCount === 0;
     case "staff":
       return ctx.staffCount < 2;
+    case "spaces":
+      return ctx.offeringCount === 0;
     case "gallery":
       return section.images.length === 0;
     case "testimonials":
@@ -99,6 +101,7 @@ export function sectionSummary(section: Section): string {
     case "about": return one(section.title, one(section.body.split("\n")[0] ?? "", "Nothing written yet"));
     case "services": return section.style === "cards" ? "Cards" : "List";
     case "staff": return "Bookable team members";
+    case "spaces": return section.style === "cards" ? "Cards" : "List";
     case "gallery": return n(section.images.length, "image");
     case "testimonials": return n(section.items.filter((i) => i.quote.trim()).length, "quote");
     case "faq": return n(section.items.filter((i) => i.q.trim()).length, "question");

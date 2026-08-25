@@ -133,7 +133,7 @@ export function BookingPageBuilder({
             draft={draft}
             selectedId={selectedId}
             onSelect={setSelectedId}
-            emptyContext={{ serviceCount: previewServices.length, staffCount: staff.length }}
+            emptyContext={{ serviceCount: previewServices.length, staffCount: staff.length, offeringCount: previewOfferings.length }}
             liveUrl={scheduling.handle ? bookingUrl(appUrl, scheduling.handle) : null}
             pageSections={pageSections}
             templatePicker={<TemplatePicker doc={draft.doc} ctx={ctx} onApply={onApplyTemplate} />}

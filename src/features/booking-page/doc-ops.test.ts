@@ -6,7 +6,7 @@ import {
 import { DEFAULT_PAGE, newSection } from "./defaults";
 import { pageDocumentSchema, type Section } from "./schema";
 
-const ctx = { serviceCount: 2, staffCount: 1 };
+const ctx = { serviceCount: 2, staffCount: 1, offeringCount: 1 };
 const header = DEFAULT_PAGE.sections[0]!;
 const booking = DEFAULT_PAGE.sections[1]!;
 
@@ -30,9 +30,16 @@ describe("isSectionEmpty", () => {
     expect(isSectionEmpty({ ...links, items: [{ label: "IG", url: "https://x", icon: "instagram" }] }, ctx)).toBe(false);
   });
   it("live sections depend on the org", () => {
-    expect(isSectionEmpty(newSection("services"), { serviceCount: 0, staffCount: 1 })).toBe(true);
-    expect(isSectionEmpty(newSection("staff"), { serviceCount: 1, staffCount: 1 })).toBe(true);
-    expect(isSectionEmpty(newSection("staff"), { serviceCount: 1, staffCount: 2 })).toBe(false);
+    expect(isSectionEmpty(newSection("services"), { serviceCount: 0, staffCount: 1, offeringCount: 1 })).toBe(true);
+    expect(isSectionEmpty(newSection("staff"), { serviceCount: 1, staffCount: 1, offeringCount: 1 })).toBe(true);
+    expect(isSectionEmpty(newSection("staff"), { serviceCount: 1, staffCount: 2, offeringCount: 1 })).toBe(false);
+  });
+  it("spaces is empty only when the org has no active offering", () => {
+    const spaces = newSection("spaces");
+    expect(isSectionEmpty(spaces, ctx)).toBe(false);
+    expect(isSectionEmpty(spaces, { ...ctx, offeringCount: 0 })).toBe(true);
+    expect(sectionSummary({ ...(spaces as Extract<Section, { type: "spaces" }>), style: "list" })).toBe("List");
+    expect(sectionSummary(spaces)).toBe("Cards");
   });
 });
 

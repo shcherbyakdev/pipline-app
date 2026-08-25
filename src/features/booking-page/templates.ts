@@ -132,6 +132,7 @@ export function stripSample(section: Section): Section {
     case "location": return { ...base, address: "", mapsUrl: "" };
     case "services":
     case "staff":
+    case "spaces":
     case "booking":
       return base;
   }

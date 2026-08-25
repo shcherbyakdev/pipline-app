@@ -50,7 +50,7 @@ const DOCKED = "@3xl:col-start-2 @3xl:row-start-1 @3xl:row-end-[-1] @3xl:sticky 
 export function PageRenderer({ doc, ctx, initialServiceId = null }: { doc: PageDocument; ctx: RenderContext; initialServiceId?: string | null }) {
   const sections =
     ctx.mode === "public"
-      ? publicSections(doc, { serviceCount: ctx.services.length, staffCount: ctx.lockedStaff ? 0 : ctx.staff.length })
+      ? publicSections(doc, { serviceCount: ctx.services.length, staffCount: ctx.lockedStaff ? 0 : ctx.staff.length, offeringCount: ctx.offerings.length })
       : doc.sections;
   const split = doc.layout === "split";
   const others = sections.filter((s) => s.type !== "booking").length;

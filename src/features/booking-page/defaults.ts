@@ -1,3 +1,4 @@
+import { SPACES } from "@/features/orgs/vocab";
 import type { PageDocument, Section, SectionType } from "./schema";
 
 export const SECTION_META: Record<SectionType, { label: string; description: string }> = {
@@ -6,6 +7,7 @@ export const SECTION_META: Record<SectionType, { label: string; description: str
   about: { label: "About", description: "Who you are, with a photo." },
   services: { label: "Services", description: "What you offer, from your service list." },
   staff: { label: "Team", description: "Your bookable team members." },
+  spaces: SPACES.section,
   gallery: { label: "Gallery", description: "A grid of photos." },
   testimonials: { label: "Testimonials", description: "Quotes from happy clients." },
   faq: { label: "FAQ", description: "Common questions, answered." },
@@ -17,7 +19,7 @@ export const SECTION_META: Record<SectionType, { label: string; description: str
 /** What the palette offers. `booking` is seeded and can't be removed;
     `header` is seeded too but may be re-added after deletion. */
 export const ADDABLE_TYPES: readonly SectionType[] = [
-  "header", "hero", "about", "services", "staff", "gallery", "testimonials", "faq", "links", "location",
+  "header", "hero", "about", "services", "staff", "spaces", "gallery", "testimonials", "faq", "links", "location",
 ];
 
 const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -35,6 +37,7 @@ export function newSection(type: SectionType, id: string = newSectionId()): Sect
     case "about": return { ...base, type, title: "", body: "" };
     case "services": return { ...base, type, title: "Services", style: "list", showPrices: true, showDurations: true };
     case "staff": return { ...base, type, title: "Team" };
+    case "spaces": return { ...base, type, title: "Spaces", style: "cards", showPrices: true, showStay: true, photos: [] };
     case "gallery": return { ...base, type, images: [], columns: 3 };
     case "testimonials": return { ...base, type, items: [{ quote: "", author: "" }] };
     case "faq": return { ...base, type, items: [{ q: "", a: "" }] };
