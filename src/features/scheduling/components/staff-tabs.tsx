@@ -16,8 +16,9 @@ export function segmentedItemClass(active: boolean): string {
 
 /* Whose week am I looking at? A segmented row of links — navigation, not
    state, so the selected person survives a refresh and can be shared as a
-   URL. Used by the Bookings week header; the Availability page has its own
-   OwnerTabs (people AND hourly spaces).
+   URL. Currently unused — kept only as the home of the segmented classes
+   above; the Availability page has its own OwnerTabs (people AND hourly
+   spaces).
 
    Solo rule: with one active member there is nothing to choose, so the caller
    renders nothing at all and the page looks exactly as it did before the team

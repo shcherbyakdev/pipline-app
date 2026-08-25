@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { House01Icon } from "@hugeicons/core-free-icons";
 import { getAvailabilityAdmin, getOfferingAvailabilityAdmin } from "@/features/scheduling/queries";
 import { listActiveStaff } from "@/features/scheduling/staff-queries";
 import { listOfferings } from "@/features/rentals/queries";
@@ -16,7 +18,10 @@ import { dateInZone } from "@/features/scheduling/slots";
 /* One Availability page for people AND hourly spaces (admin IA spec §3,
    ruling 4). Nightly/daily spaces have no weekly hours — their check-in and
    check-out times live on the space — so they are never an owner here, and
-   a nights/days-only org gets an explanation instead of a redirect. */
+   a nights/days-only org gets an explanation instead of a redirect. A
+   `?staff=`/`?space=` naming a deactivated or foreign owner is shape-valid
+   but unresolved: resolveOwner falls through to the first available owner
+   silently, by design — never a 404. */
 export default async function AvailabilityPage({
   searchParams,
 }: {
@@ -57,9 +62,11 @@ export default async function AvailabilityPage({
         ) : (
           <p className="text-muted-foreground text-sm">
             {SPACES.hoursNightsOnly}{" "}
-            <Link href="/rentals" className="hover:text-foreground underline underline-offset-3">
-              Open {SPACES.nav} →
-            </Link>
+            {eff.offersRentals ? (
+              <Link href="/rentals" className="hover:text-foreground underline underline-offset-3">
+                Open {SPACES.nav} →
+              </Link>
+            ) : null}
           </p>
         )}
       </div>
@@ -88,8 +95,16 @@ export default async function AvailabilityPage({
           <p className="text-muted-foreground text-sm">{SPACES.hoursNote}</p>
         ) : null}
         {/* Solo rule: one owner in total ⇒ no switcher (OwnerTabs renders
-            nothing) and the page is identical to the pre-team one. */}
-        <OwnerTabs people={people} spaces={hourlySpaces} current={owner} />
+            nothing) and the page is identical to the pre-team one — except a
+            sole space still needs naming (a sole person is "you"). */}
+        {owner.kind === "space" && people.length + hourlySpaces.length < 2 ? (
+          <h2 className="flex items-center gap-1.5 text-sm font-medium">
+            <HugeiconsIcon icon={House01Icon} size={14} className="shrink-0" aria-hidden />
+            {owner.name}
+          </h2>
+        ) : (
+          <OwnerTabs people={people} spaces={hourlySpaces} current={owner} />
+        )}
       </div>
       <WeeklyHours owner={editorOwner} rules={rules} />
       <DateOverrides owner={editorOwner} timeZone={timezone} rules={rules} exceptions={exceptions} />

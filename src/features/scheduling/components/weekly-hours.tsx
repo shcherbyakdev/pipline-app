@@ -42,10 +42,10 @@ const WEEKDAY_LABELS_SHORT = ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "S
 
 type Conflict = { ruleId: string; message: string } | null;
 
-// `owner` is whose week this is: a staff member (the page's `?staff=` tab,
-// or the sole active member for a solo org) XOR an hours rental offering
-// (H2). Rules are already scoped to that owner by the query; the id travels
-// with every write that creates or re-keys a row.
+// `owner` is whose week this is: a staff member (the page's `?staff=` /
+// `?space=` tab, or the sole active member for a solo org) XOR an hourly
+// space (H2/U3). Rules are already scoped to that owner by the query; the id
+// travels with every write that creates or re-keys a row.
 export function WeeklyHours({ owner, rules }: { owner: AvailabilityOwner; rules: RuleRow[] }) {
   return (
     <div className="rounded-lg border border-border">
