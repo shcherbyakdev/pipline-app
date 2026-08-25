@@ -18,7 +18,7 @@ const H = ROWS * CELL + (ROWS - 1) * GAP; // 4.84
 const LIT = new Set(["0,0", "0,1", "0,2", "0,3", "1,1", "2,1", "2,2", "1,3", "2,3"]);
 const ACCENT = "2,2";
 
-export function PixelB({ className, accent = "var(--primary)" }: { className?: string; accent?: string }) {
+export function PixelB({ className, accent = "var(--highlight)" }: { className?: string; accent?: string }) {
   const cells = [];
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++) {
