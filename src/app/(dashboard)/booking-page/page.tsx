@@ -50,6 +50,7 @@ export default async function BookingPagePage() {
         staff={staff.filter((s) => s.active).map(({ id, name, slug, color }) => ({ id, name, slug, color }))}
         initialPage={{ draft: page.draft, published: page.published }}
         pageSections={pageSections}
+        mode={mode}
       />
     </div>
   );

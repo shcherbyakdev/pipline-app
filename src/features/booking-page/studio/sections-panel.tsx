@@ -5,6 +5,7 @@ import {
   DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import type { OrgMode } from "@/features/orgs/mode";
 import type { PlanLimits } from "@/lib/billing/plans";
 import { DEFAULT_PAGE, SECTION_META } from "../defaults";
 import {
@@ -19,10 +20,10 @@ import { SectionRow } from "./section-row";
 import type { PageDraft } from "./use-page-draft";
 
 export function SectionsPanel({
-  draft, selectedId, onSelect, emptyContext, liveUrl, pageSections, templatePicker,
+  draft, selectedId, onSelect, emptyContext, liveUrl, pageSections, mode, templatePicker,
 }: {
   draft: PageDraft; selectedId: string | null; onSelect: (id: string | null) => void;
-  emptyContext: EmptyContext; liveUrl: string | null; pageSections: PlanLimits["pageSections"];
+  emptyContext: EmptyContext; liveUrl: string | null; pageSections: PlanLimits["pageSections"]; mode: OrgMode;
   /** "Start from a template" (Task 16); null until then. */
   templatePicker: React.ReactNode;
 }) {
@@ -93,7 +94,7 @@ export function SectionsPanel({
           </ul>
         </SortableContext>
       </DndContext>
-      <AddSectionPopover doc={doc} pageSections={pageSections} onAdd={add} />
+      <AddSectionPopover doc={doc} pageSections={pageSections} mode={mode} onAdd={add} />
       <ConfirmDialog
         open={confirm === "discard"}
         title="Discard changes?"
