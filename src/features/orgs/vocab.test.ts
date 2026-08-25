@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SPACES, bookingDescription } from "./vocab";
+import { SPACES, APPOINTMENTS, bookingDescription } from "./vocab";
 
 const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
 const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
@@ -25,5 +25,43 @@ describe("bookingDescription", () => {
   });
   it("both channels use the neutral sentence", () => {
     expect(bookingDescription(BOTH, "Demo")).toBe("Book with Demo.");
+  });
+});
+
+describe("admin vocabulary (admin IA spec §1)", () => {
+  const flatten = (v: unknown): string[] =>
+    typeof v === "string" ? [v] : v && typeof v === "object" ? Object.values(v).flatMap(flatten) : [];
+
+  it("never says rental or offering to a provider", () => {
+    const corpus = [...flatten(SPACES), ...flatten(APPOINTMENTS)].join("\n").toLowerCase();
+    for (const word of ["rental", "offering"]) {
+      expect(corpus, `vocab mentions "${word}"`).not.toContain(word);
+    }
+  });
+
+  it("names every admin surface this slice touches", () => {
+    expect(SPACES.one).toBe("space");
+    expect(SPACES.newButton).toBe("New space");
+    expect(SPACES.dialogTitle).toEqual({ new: "New space", edit: "Edit space" });
+    expect(SPACES.back).toBe("← Spaces");
+    expect(SPACES.empty).toBe(
+      "No spaces yet — a space is a room, studio or item clients book by the hour, night or day. Add one, then add its units.",
+    );
+    expect(SPACES.unitsHint).toBe("Units are the individual rooms or items a client is assigned — one per room.");
+    expect(SPACES.unitsEmpty).toBe(
+      "No units yet — the space won't appear on your booking page until it has an active unit.",
+    );
+    expect(SPACES.field).toBe("Space");
+    expect(SPACES.command).toBe("New space");
+    expect(SPACES.settings).toEqual({
+      label: "Spaces",
+      blurb: "Rooms, studios and gear, booked by the hour, night or day.",
+    });
+    expect(SPACES.add).toBe("Add a space");
+    expect(APPOINTMENTS.settings).toEqual({
+      label: "Appointments",
+      blurb: "Services booked as time slots with your team.",
+    });
+    expect(APPOINTMENTS.add).toBe("Add a service");
   });
 });
