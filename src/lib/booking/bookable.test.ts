@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bookableAdminServices, chooseStaffForBooking, filterBookableServices, limitPublicOffering } from "./bookable";
+import { bookableAdminServices, chooseStaffForBooking, filterBookableServices, limitPublicOffering, limitPublicResources } from "./bookable";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 
 const anna = { id: "a" };
@@ -174,5 +174,50 @@ describe("chooseStaffForBooking", () => {
         freeStaffIdsAtSlot: [],
       }),
     ).toEqual({ staffId: null, candidates: ["a", "b"] });
+  });
+});
+
+describe("limitPublicResources (H5b: one budget, people first, then units)", () => {
+  const BOTH = { offersAppointments: true, offersRentals: true };
+  const APPTS = { offersAppointments: true, offersRentals: false };
+  const SPACES = { offersAppointments: false, offersRentals: true };
+  const people = [{ id: "a" }, { id: "b" }];
+  const units = [
+    { id: "u1", offeringId: "o1" },
+    { id: "u2", offeringId: "o1" },
+    { id: "u3", offeringId: "o2" },
+  ];
+  const free = entitlementsFor(null, now);
+  const pro = entitlementsFor(
+    { plan: "pro", status: "active", interval: "month", seats: 1, currentPeriodEnd: null, cancelAtPeriodEnd: false },
+    now,
+  );
+  const unlimited = { ...free, bookableResources: Number.MAX_SAFE_INTEGER };
+
+  it("people fill the slots first, then units in the order given", () => {
+    const r = limitPublicResources(people, units, BOTH, pro); // cap 3
+    expect(r.staff.map((s) => s.id)).toEqual(["a", "b"]);
+    expect(r.units.map((u) => u.id)).toEqual(["u1"]);
+  });
+  it("both-mode on Free: the person takes the one slot and every unit is hidden", () => {
+    const r = limitPublicResources(people, units, BOTH, free);
+    expect(r.staff.map((s) => s.id)).toEqual(["a"]);
+    expect(r.units).toEqual([]);
+  });
+  it("spaces-only: the backfilled staff row neither shows nor spends a slot", () => {
+    const r = limitPublicResources(people, units, SPACES, free);
+    expect(r.staff).toEqual([]);
+    expect(r.units.map((u) => u.id)).toEqual(["u1"]);
+  });
+  it("appointments-only: units neither show nor spend a slot", () => {
+    const r = limitPublicResources(people, units, APPTS, pro);
+    expect(r.staff.map((s) => s.id)).toEqual(["a", "b"]);
+    expect(r.units).toEqual([]);
+  });
+  it("an uncapped plan keeps everything, identity preserved", () => {
+    const r = limitPublicResources(people, units, BOTH, unlimited);
+    expect(r.staff).toHaveLength(2);
+    expect(r.units).toHaveLength(3);
+    expect(r.staff[0]).toBe(people[0]);
   });
 });

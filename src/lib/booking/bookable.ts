@@ -12,6 +12,7 @@
 // unit-tested — same reasoning as booking-errors.ts.
 
 import type { Entitlements } from "@/lib/billing/entitlements";
+import type { OrgMode } from "@/features/orgs/mode";
 
 export function filterBookableServices<T extends { id: string }>(
   services: T[],
@@ -45,6 +46,31 @@ export function bookableAdminServices<T extends { id: string; active: boolean; s
   return filterBookableServices(services.filter((s) => s.active), map, staff.filter((s) => s.active));
 }
 
+/** A unit and the space that owns it — all the allocator needs to know. */
+export type UnitRef = { id: string; offeringId: string };
+
+// H5b: which people and units the plan lets the public page book. One
+// budget (`bookableResources`) filled PEOPLE FIRST in `staff` order, then
+// units in `units` order — the order listPublicUnitsForOrg returns (offering
+// sort_order → name, unit sort_order → created_at), which is also the order
+// the RPCs auto-pick in, so "the first N" means one thing everywhere.
+// People first because a both-mode org on Pro with one person and three
+// units should lose its fourth unit, never a whole channel (spec ruling 4).
+// A channel the org does not sell contributes nothing and consumes nothing:
+// every org has a backfilled staff row, and a spaces-only org must not spend
+// its Free slot on it (ruling 5). Callers pass the EFFECTIVE mode.
+export function limitPublicResources<T extends { id: string }>(
+  staff: T[],
+  units: UnitRef[],
+  mode: OrgMode,
+  ent: Entitlements,
+): { staff: T[]; units: UnitRef[] } {
+  const keptStaff = mode.offersAppointments ? staff.slice(0, ent.bookableResources) : [];
+  const left = Math.max(0, ent.bookableResources - keptStaff.length);
+  const keptUnits = mode.offersRentals ? units.slice(0, left) : [];
+  return { staff: keptStaff, units: keptUnits };
+}
+
 // Plan limits shape the PUBLIC offering, never the data (spec §4.2): the
 // first `bookableResources` active people by sort order stay bookable,
 // services narrow to what those people offer, then cap at `publicServices`.
@@ -55,10 +81,10 @@ export function limitPublicOffering<S extends { id: string }, T extends { id: st
   serviceStaffIds: Record<string, string[]>,
   ent: Entitlements,
 ): { services: S[]; staff: T[] } {
-  const bookableResources = staff.slice(0, ent.bookableResources);
-  const offered = filterBookableServices(services, serviceStaffIds, bookableResources);
+  const keptStaff = staff.slice(0, ent.bookableResources);
+  const offered = filterBookableServices(services, serviceStaffIds, keptStaff);
   const capped = ent.publicServices === null ? offered : offered.slice(0, ent.publicServices);
-  return { services: capped, staff: bookableResources };
+  return { services: capped, staff: keptStaff };
 }
 
 // What `create_booking` is told about staff. Two fields (0052):
