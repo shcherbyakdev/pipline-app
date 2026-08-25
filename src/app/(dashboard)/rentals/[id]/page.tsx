@@ -11,6 +11,7 @@ import { getSchedulingSettings } from "@/features/orgs/queries";
 import { WeeklyHours } from "@/features/scheduling/components/weekly-hours";
 import { DateOverrides } from "@/features/scheduling/components/date-overrides";
 import { dateInZone } from "@/features/scheduling/slots";
+import { SPACES } from "@/features/orgs/vocab";
 
 export default async function RentalDetailPage({ params }: PageProps<"/rentals/[id]">) {
   const { id } = await params;
@@ -45,7 +46,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
         <Link href="/rentals" className="text-muted-foreground w-fit text-xs hover:underline">
-          ← Rentals
+          {SPACES.back}
         </Link>
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1">

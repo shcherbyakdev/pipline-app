@@ -16,6 +16,7 @@ import {
   deleteBlackout,
 } from "@/features/rentals/actions";
 import type { UnitRow, BlackoutRow } from "@/features/rentals/queries";
+import { SPACES } from "@/features/orgs/vocab";
 
 type UnitWithBlackouts = UnitRow & { blackouts: BlackoutRow[] };
 
@@ -43,19 +44,13 @@ export function UnitsEditor({
     <section className="flex flex-col gap-4">
       <div>
         <h2 className="text-sm font-semibold">Units</h2>
-        <p className="text-muted-foreground text-xs">
-          The individual things a client books — flat 1, flat 2, car #3. Clients see the rental;
-          this is what actually gets reserved.
-        </p>
+        <p className="text-muted-foreground text-xs">{SPACES.unitsHint}</p>
       </div>
 
       <AddUnitForm offeringId={offeringId} />
 
       {units.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          No units yet — the offering won&apos;t appear on your booking page until it has an active
-          unit.
-        </p>
+        <p className="text-muted-foreground text-sm">{SPACES.unitsEmpty}</p>
       ) : (
         <ol className="flex flex-col gap-3">
           {units.map((unit) => (
