@@ -218,10 +218,6 @@ export const WELCOME = {
   subBoth: "Add what you offer, set hours, publish — then share your link.",
   setHours: "Set hours",
   publish: "Publish your page",
-  // Still referenced by welcome-banner.tsx until Task 6 rewrites it; Task 6
-  // deletes these two lines.
-  addService: "Add a service",
-  addOffering: "Add a rental offering",
   copyLink: "Copy link",
   copied: "Copied",
   noHandle: "Your workspace is ready.",
