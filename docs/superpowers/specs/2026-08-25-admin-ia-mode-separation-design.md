@@ -155,6 +155,8 @@ Consumers and the strings they replace:
 | `command-menu.tsx` | "New rental offering" | `SPACES.command` |
 | `business-settings.tsx` rows | "Rentals — Units booked by the night or day." / "Appointments — Services booked as time slots on your calendar." | `SPACES.settings` / `APPOINTMENTS.settings` |
 | walk-in select label | "Offering" | "Service or space" (both) · "Service" · `SPACES.field` (§2) |
+| walk-in button (week toolbar + timeline) and its dialog title | "New rental booking" | `SPACES.walkIn` "New space booking" until §2 folds both into "New booking" |
+| `timeline.tsx` empty state | "No rentals yet — add an offering and units under Rentals." | `SPACES.timelineEmpty` + link `SPACES.nav` (missed by the original audit; caught in U1's final review) |
 | `team/page.tsx` intro | "Everyone who can be booked. Each person has…" | "Your bookable people. Each has their own hours, services and booking link." |
 | `scheduling-settings-form.tsx` currency hint | "Shown on rental prices and deposits." | "Shown on prices and deposits." |
 | `bookings-list.tsx` empty state | "…add a rental offering and its units…" | §2 |
