@@ -209,15 +209,18 @@ export const ONBOARDING = {
   justTaken: "That name was just taken — pick another.",
 } as const;
 
-/** First screen after onboarding (/bookings?welcome=1). */
+/** First screen after onboarding (/bookings?welcome=1). One subtitle per
+    mode; the checklist labels below are the chips' text (setup-checklist.ts). */
 export const WELCOME = {
   owned: (url: string) => `${url} is yours.`,
   sub: "Add a service and set your hours to go live.",
+  subRentals: "Add a space and its units to go live.",
+  subBoth: "Add what you offer, set hours, publish — then share your link.",
+  setHours: "Set hours",
+  publish: "Publish your page",
+  // Still referenced by welcome-banner.tsx until Task 6 rewrites it; Task 6
+  // deletes these two lines.
   addService: "Add a service",
-  // Rentals-only orgs (no `offersAppointments`): the calendar-oriented CTA
-  // above dead-ends them at a channel they don't sell, so they get their own
-  // primary action and subtitle instead.
-  subRentals: "Add an offering and its units to go live.",
   addOffering: "Add a rental offering",
   copyLink: "Copy link",
   copied: "Copied",
