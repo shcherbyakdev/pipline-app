@@ -129,10 +129,6 @@ export type UnitRef = { id: string; offeringId: string };
 export function limitPublicResources<T extends { id: string }>(
   staff: T[], units: UnitRef[], mode: OrgMode, ent: Entitlements,
 ): { staff: T[]; allowedUnitIds: ReadonlySet<string> };
-
-/** Explicit pick for a capped space: the allowed free units in engine order,
-    for the create action to try one by one. */
-export function unitsToTry(freeUnitIds: string[], allowedUnitIds: ReadonlySet<string>): string[];
 ```
 
 `limitPublicOffering` keeps its signature and semantics; it is fed the staff
@@ -150,14 +146,20 @@ people offer, then caps at `publicServices`.
   path (billing off, fail-open) and never queries units there; with billing
   on it runs `limitPublicResources` over the roster and
   `listPublicUnitsForOrg`. `UNLIMITED.bookableResources` stays
-  `Number.MAX_SAFE_INTEGER`.
+  `Number.MAX_SAFE_INTEGER`. It also gains **`allowedSpaceIds: ReadonlySet<string>
+  | null`**, derived from the kept units' `offeringId`s in the same pass, so
+  `catalog.ts` filters spaces directly off `allowedSpaceIds` and needs no
+  separate unit→space lookup.
 - The loader needs the org mode and its three callers pass only an id
   (`catalog.ts`, `scheduling/public-actions.ts`, the staff-slug page), so
   the signature stays `loadPublicOffering(orgId)`. `public.ts` gains a
   per-request memoised `getOrgModeAdmin(orgId): Promise<OrgMode>` (admin
   client, `offers_appointments, offers_rentals` by id) that joins the units
   read inside the billing-on branch only — the flag-off path runs the same
-  three reads it runs today.
+  three reads it runs today. `listPublicStaff` is also wrapped in the same
+  per-request `cache()` — now that `loadPublicResources` and
+  `loadPublicOffering` both want the roster, memoising avoids a duplicate
+  read.
 
 ### 2.3 Catalogue and deep links — `src/lib/booking/catalog.ts`
 
@@ -191,11 +193,14 @@ Both the availability reads (`getRangeAvailability`,
 
 ### 2.5 Creation gates — `src/lib/billing/gates.ts`
 
-- `evaluateStaffGate` → **`evaluateResourceGate(orgId, client)`**: one read
-  of the org mode + active staff count + active unit count, then
+- `evaluateStaffGate` → **`evaluateResourceGate(orgId, client, flags)`**: one
+  read of the org mode + active staff count + active unit count, then
   `canAddResource(countResources(usage, mode), ent)`; refusal copy
-  `planLimitResourceError(ent.bookableResources)`. Failure still refuses
-  conservatively with `GENERIC_WRITE_ERROR` (spec §7.10).
+  `planLimitResourceError(ent.bookableResources)`. `flags` is the org's
+  resolved flags, passed in by the caller (which already needed them for the
+  `billingOn` check) so `effectiveMode` can apply the rentals kill-switch
+  before counting. Failure still refuses conservatively with
+  `GENERIC_WRITE_ERROR` (spec §7.10).
 - `assertCanAddStaff` keeps its name and its two call sites
   (`createStaff`, `setStaffActive(active=true)`) and now delegates to the
   resource gate. New `assertCanAddUnit` guards `createUnit` and
@@ -263,7 +268,7 @@ Pure, `.test.ts` (house pattern — vitest node env, no component tests):
 - `bookable.test.ts` — `limitPublicResources`: mode × cap matrix (appointments
   / spaces / both × 1 / 3 / unlimited), people-first order, unit order
   preserved, both-on-Free hides every unit, spaces-only ignores the staff
-  row, `unitsToTry` keeps engine order and drops hidden ids.
+  row.
 - `entitlements.test.ts` — `countResources` per mode, `canAddResource`,
   Team `seats` still lifts `bookableResources`.
 - `plans.test.ts` — caps 1 / 3 / 10, `TEAM_INCLUDED_RESOURCES`,
@@ -306,3 +311,31 @@ provider notice and the new reminder/cancel wording.
 - `stripe` / `payment` leaving `FORBIDDEN_COPY` — H4.
 - Rental self-reschedule; slugged short links; everything already on the
   admin-IA and H5a deferred lists.
+- Token-authenticated space reschedule (`rentals/manage-actions.ts`, R2/H2
+  flows) stays uncapped until the billing flip: a client can move an
+  existing stay onto a plan-hidden unit. Bounded (needs an existing booking,
+  replaces rather than adds); revisit when billing goes live — run the
+  manage contexts through the same cap and name the first allowed free unit.
+- The gate and the billing meter count units of inactive spaces; the public
+  allocator does not (it lists only active spaces' units). Conservative,
+  never a leak; follow-up: filter by the owning space's `active` or cascade
+  `active` on archive.
+
+## Amendments (2026-08-26, at execution)
+
+- §2.1: `unitsToTry` was NOT implemented (controller Ruling 1) — the create
+  actions pass `stay.unitIds` / `match.unitIds` directly because the engine
+  only ever saw allowed units, so the helper would have been an identity
+  call. Its signature is dropped from the §2.1 code block and its mention
+  is dropped from §5's `bookable.test.ts` bullet.
+- §2.5: the gate is `evaluateResourceGate(orgId, client, flags)` — the
+  callers pass the org's flags so `effectiveMode` can apply the rentals
+  kill-switch; `assertCanAddUnit` runs only when the unit is (or becomes)
+  active.
+- §2.2: `PlanLimitedOffering` also carries `allowedSpaceIds` (derived from
+  the kept units) so `catalog.ts` needs no unit→space lookup;
+  `listPublicStaff` is per-request memoised.
+- §6 gains two deferred items found in the whole-branch final review:
+  token-authenticated space reschedule stays uncapped until the billing
+  flip, and the gate/meter count units of inactive spaces while the public
+  allocator does not.
