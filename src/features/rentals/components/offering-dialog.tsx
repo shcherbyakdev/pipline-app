@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { SPACES } from "@/features/orgs/vocab";
 
 // create-booking-dialog.tsx's native-<select> idiom.
 const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
@@ -155,14 +156,14 @@ export function OfferingDialog({
             </Button>
           ) : (
             <Button size="sm">
-              <Plus className="size-4" /> New rental
+              <Plus className="size-4" /> {SPACES.newButton}
             </Button>
           )
         }
       />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit rental" : "New rental"}</DialogTitle>
+          <DialogTitle>{isEdit ? SPACES.dialogTitle.edit : SPACES.dialogTitle.new}</DialogTitle>
         </DialogHeader>
         {/* More fields than the service dialog, so the body scrolls rather
             than pushing the popup past the viewport. */}
@@ -296,7 +297,9 @@ export function OfferingDialog({
               defaultValue={offering?.termsText ?? ""}
             />
           </div>
-          <SectionHeading>Stay</SectionHeading>
+          {/* "Stay" is a hotel word; an hourly room is a session. `rangeMode`
+              is the dialog's own live state (the select just below). */}
+          <SectionHeading>{rangeMode === "hours" ? "Session" : "Stay"}</SectionHeading>
           <div className="flex flex-col gap-2">
             <Label htmlFor="offering-range-mode">Booked by</Label>
             <select

@@ -151,7 +151,7 @@ export function SchedulingSettingsForm({
       <SettingsRow
         label="Currency"
         htmlFor="scheduling-currency"
-        hint="Shown on rental prices and deposits."
+        hint="Shown on prices and deposits."
       >
         <select
           id="scheduling-currency"

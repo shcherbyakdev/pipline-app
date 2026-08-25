@@ -20,6 +20,7 @@ import { NewRentalBookingDialog } from "./new-rental-booking-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { SPACES } from "@/features/orgs/vocab";
 
 const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 // [unit name rail][21 day columns]. Shared by the header row, the offering
@@ -126,9 +127,9 @@ export function Timeline({
   if (offerings.length === 0) {
     return (
       <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-        No rentals yet — add an offering and units under{" "}
+        {SPACES.timelineEmpty}{" "}
         <Link href="/rentals" className="underline">
-          Rentals
+          {SPACES.nav}
         </Link>
         .
       </div>
@@ -139,7 +140,7 @@ export function Timeline({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-end">
         <Button variant="outline" size="sm" onClick={() => setNewStay({})}>
-          New rental booking
+          {SPACES.walkIn}
         </Button>
       </div>
       <div className="overflow-x-auto">

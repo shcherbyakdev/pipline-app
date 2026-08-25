@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/command";
 import type { NavItem } from "@/components/shell/nav";
 import type { OrgMode } from "@/features/orgs/mode";
+import { SPACES } from "@/features/orgs/vocab";
 
 /** Dispatched on `window` by the top bar's search button; the menu toggles on it
     just like ⌘K. */
@@ -71,7 +72,7 @@ export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }
           )}
           {mode.offersRentals && (
             <CommandItem onSelect={() => go("/rentals?new=1")}>
-              <Plus className="size-4" /> New rental offering
+              <Plus className="size-4" /> {SPACES.command}
             </CommandItem>
           )}
         </CommandGroup>

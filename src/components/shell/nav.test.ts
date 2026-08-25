@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { navItemsFor, titleForPath } from "./nav";
+import { navItemsFor, titleForPath, NAV_SECTIONS, NAV_SECTION_LABELS } from "./nav";
 import { FLAG_DEFAULTS } from "@/lib/flags";
 import { BOTH } from "@/features/orgs/mode";
 
@@ -10,24 +10,37 @@ const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
 const FLAGS = { ...FLAG_DEFAULTS, rentals: true };
 const hrefs = (flags: typeof FLAGS, mode: typeof BOTH) => navItemsFor(flags, mode).map((i) => i.href);
 
-describe("navItemsFor (flags × mode)", () => {
-  it("both channels: appointment items and Rentals are all present", () => {
-    const h = hrefs(FLAGS, BOTH);
-    for (const x of ["/bookings", "/clients", "/services", "/team", "/availability", "/rentals", "/booking-page", "/embed", "/settings"]) {
-      expect(h).toContain(x);
-    }
+describe("navItemsFor (flags × mode) — spec §1 table, fixed order", () => {
+  it("both channels: every row, in the spec's order", () => {
+    expect(hrefs(FLAGS, BOTH)).toEqual([
+      "/bookings", "/clients",
+      "/services", "/rentals", "/team", "/availability",
+      "/booking-page", "/embed",
+      "/settings",
+    ]);
   });
-  it("rentals-only: hides Services, Team and Availability", () => {
-    const h = hrefs(FLAGS, RENTALS_ONLY);
-    expect(h).not.toContain("/services");
-    expect(h).not.toContain("/team");
-    expect(h).not.toContain("/availability");
-    expect(h).toContain("/rentals");
+  it("rentals-only: keeps Availability (it covers spaces from U3), hides Services and Team", () => {
+    expect(hrefs(FLAGS, RENTALS_ONLY)).toEqual([
+      "/bookings", "/clients", "/rentals", "/availability", "/booking-page", "/embed", "/settings",
+    ]);
   });
-  it("appointments-only: hides Rentals", () => {
-    const h = hrefs(FLAGS, APPTS_ONLY);
-    expect(h).not.toContain("/rentals");
-    expect(h).toContain("/services");
+  it("appointments-only: hides Spaces, keeps the rest in order", () => {
+    expect(hrefs(FLAGS, APPTS_ONLY)).toEqual([
+      "/bookings", "/clients", "/services", "/team", "/availability", "/booking-page", "/embed", "/settings",
+    ]);
+  });
+  it("sections: Offer holds the catalogue nouns, Share the channels, account the rest", () => {
+    const all = navItemsFor({ ...FLAGS, billing: true, overview: true }, BOTH);
+    const by = (s: (typeof NAV_SECTIONS)[number]) => all.filter((i) => i.section === s).map((i) => i.href);
+    expect(by("main")).toEqual(["/overview", "/bookings", "/clients"]);
+    expect(by("offer")).toEqual(["/services", "/rentals", "/team", "/availability"]);
+    expect(by("share")).toEqual(["/booking-page", "/embed"]);
+    expect(by("account")).toEqual(["/billing", "/settings"]);
+    for (const i of all) expect(NAV_SECTIONS).toContain(i.section);
+  });
+  it("section labels: Offer and Share are labelled, main and account are not", () => {
+    expect(NAV_SECTIONS).toEqual(["main", "offer", "share", "account"]);
+    expect(NAV_SECTION_LABELS).toEqual({ main: null, offer: "Offer", share: "Share", account: null });
   });
   it("the /rentals item is labelled Spaces (H5a vocabulary), and titles its page", () => {
     const item = navItemsFor(FLAGS, BOTH).find((i) => i.href === "/rentals");

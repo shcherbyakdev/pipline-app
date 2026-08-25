@@ -5,6 +5,7 @@ import {
   listExceptionsBetween,
   listServices,
   getAvailabilityAdmin,
+  countHoursOwners,
 } from "@/features/scheduling/queries";
 import { listActiveStaff, type StaffRow } from "@/features/scheduling/staff-queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
@@ -24,6 +25,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import { WelcomeBanner } from "@/features/scheduling/components/welcome-banner";
+import { getPageDraftState } from "@/features/booking-page/queries";
+import { setupChecklist, type ChecklistItem } from "@/features/scheduling/setup-checklist";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -77,9 +80,32 @@ export default async function BookingsPage({
   const hasHourly = orgOfferings.some((o) => o.active && o.rangeMode === "hours");
   const hasRangeOfferings = orgOfferings.some((o) => o.active && o.rangeMode !== "hours");
   const view = params.view ?? (rentals ? defaultBookingsView(eff, hasHourly) : "week");
+  // Welcome checklist: three cheap reads, only on the one request that
+  // carries ?welcome=1 (nothing is persisted — spec §4 ruling 8).
+  // `orgOfferings` was already fetched above when the org sells spaces.
+  let checklist: ChecklistItem[] = [];
+  if (params.welcome === "1") {
+    const [services, ownersWithHours, page] = await Promise.all([
+      eff.offersAppointments ? listServices() : Promise.resolve([]),
+      countHoursOwners(),
+      getPageDraftState(org.id),
+    ]);
+    checklist = setupChecklist({
+      mode: eff,
+      serviceCount: services.filter((s) => s.active).length,
+      spaceCount: orgOfferings.filter((o) => o.active).length,
+      ownersWithHours,
+      published: page.published !== null,
+    });
+  }
   const welcome =
     params.welcome === "1" ? (
-      <WelcomeBanner handle={settings?.handle ?? null} appUrl={env.NEXT_PUBLIC_APP_URL} mode={eff} />
+      <WelcomeBanner
+        handle={settings?.handle ?? null}
+        appUrl={env.NEXT_PUBLIC_APP_URL}
+        mode={eff}
+        checklist={checklist}
+      />
     ) : null;
 
   // Rentals are on by default since H1; the org's `rentals` flag is a kill

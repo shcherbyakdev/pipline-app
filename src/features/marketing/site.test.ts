@@ -117,9 +117,10 @@ describe("site config", () => {
   // exist, or the banner's mode branch could collapse to one string and the
   // dead-end would come right back.
   it("WELCOME has rentals-specific copy distinct from the appointments copy", () => {
-    expect(WELCOME.addOffering).not.toBe(WELCOME.addService);
     expect(WELCOME.subRentals).not.toBe(WELCOME.sub);
-    expect(WELCOME.addOffering.length).toBeGreaterThan(0);
+    expect(WELCOME.subBoth).not.toBe(WELCOME.sub);
+    expect(WELCOME.subBoth).not.toBe(WELCOME.subRentals);
     expect(WELCOME.subRentals.length).toBeGreaterThan(0);
+    expect(WELCOME.subBoth.length).toBeGreaterThan(0);
   });
 });

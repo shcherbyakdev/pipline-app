@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { SPACES } from "@/features/orgs/vocab";
 
 // See move-rental-dialog.tsx: 62 rendered days + the longest turnover tail.
 const WINDOW_DAYS = 93;
@@ -336,13 +337,13 @@ export function NewRentalBookingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>New rental booking</DialogTitle>
+          <DialogTitle>{SPACES.walkIn}</DialogTitle>
           <DialogDescription>
             Recorded on your behalf — notice and booking-window limits don’t apply.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="new-rental-offering">Offering</Label>
+          <Label htmlFor="new-rental-offering">{SPACES.field}</Label>
           <select
             id="new-rental-offering"
             className={selectClass}

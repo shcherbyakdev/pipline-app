@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Logout03Icon, Search01Icon } from "@hugeicons/core-free-icons";
-import { navItemsFor, NAV_SECTION_LABELS } from "./nav";
+import { navItemsFor, NAV_SECTIONS, NAV_SECTION_LABELS } from "./nav";
 import type { Flags } from "@/lib/flags";
 import type { OrgMode } from "@/features/orgs/mode";
 import { signOut } from "@/features/auth/actions";
@@ -34,7 +34,7 @@ export function SidebarBody({
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const initial = (org.trim()[0] ?? userEmail[0] ?? "?").toUpperCase();
-  const sections = ["main", "configure"] as const;
+  const sections = NAV_SECTIONS;
   const navItems = navItemsFor(flags, mode);
 
   return (

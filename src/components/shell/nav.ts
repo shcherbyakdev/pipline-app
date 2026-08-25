@@ -18,16 +18,32 @@ import { SPACES } from "@/features/orgs/vocab";
 
 // Post-pivot nav (S5): Bookings leads and stays the post-login surface (S2
 // user ruling). The command menu derives from this list. `section` splits
-// the sidebar Linear-style: day-to-day views on top, then a labelled
-// "Configure" group for the things you set up once. The two booking channels
-// (hosted Booking page, Website embed) are first-class here, Calendly-style;
-// Settings holds only admin-panel preferences (user ruling 2026-08-17). Icons are Hugeicons
+// the sidebar Linear-style (admin IA spec 2026-08-25 §1): day-to-day views
+// on top, then "Offer" (what the org sells — Services, Spaces, Team,
+// Availability), then "Share" (where clients book — the two channels), then
+// an unlabelled account group (Billing, Settings). The order is fixed
+// regardless of mode: a single-mode org loses rows, it never reorders.
+// Settings holds only admin-panel preferences plus the org's "what you
+// offer" group (R3 relaxation of the 2026-08-17 ruling). Icons are Hugeicons
 // stroke-rounded (free set) — render with <HugeiconsIcon icon={…} />.
+export type NavSection = "main" | "offer" | "share" | "account";
+
+/** Sidebar render order. The sidebar iterates this, so a section added here
+    cannot be forgotten there. */
+export const NAV_SECTIONS: readonly NavSection[] = ["main", "offer", "share", "account"];
+
+export const NAV_SECTION_LABELS: Record<NavSection, string | null> = {
+  main: null,
+  offer: "Offer",
+  share: "Share",
+  account: null,
+};
+
 export type NavItem = {
   href: string;
   label: string;
   icon: IconSvgElement;
-  section: "main" | "configure";
+  section: NavSection;
   /** Set when the item belongs to one booking channel; omitted = always
       shown. navItemsFor filters on it. */
   channel?: Channel;
@@ -38,18 +54,20 @@ const ALL_NAV_ITEMS: readonly NavItem[] = [
   { href: "/overview", label: "Overview", icon: DashboardSquare01Icon, section: "main" },
   { href: "/bookings", label: "Bookings", icon: Calendar03Icon, section: "main" },
   { href: "/clients", label: "Clients", icon: UserMultipleIcon, section: "main" },
-  { href: "/services", label: "Services", icon: Briefcase01Icon, section: "configure", channel: "appointments" },
+  { href: "/services", label: "Services", icon: Briefcase01Icon, section: "offer", channel: "appointments" },
+  { href: "/rentals", label: SPACES.nav, icon: House01Icon, section: "offer", channel: "rentals" },
   // Always present, solo or not: a solo provider sees one row (themselves).
-  { href: "/team", label: "Team", icon: UserGroupIcon, section: "configure", channel: "appointments" },
-  { href: "/availability", label: "Availability", icon: Clock01Icon, section: "configure", channel: "appointments" },
-  { href: "/rentals", label: SPACES.nav, icon: House01Icon, section: "configure", channel: "rentals" },
-  { href: "/booking-page", label: "Booking page", icon: Globe02Icon, section: "configure" },
-  { href: "/embed", label: "Website embed", icon: SourceCodeIcon, section: "configure" },
-  // Org-level, so it sits in Configure next to the other org nouns — Settings
-  // stays per-user (IA ruling 2026-08-17). Shown only when the org's `billing`
-  // flag resolves true; the route 404s in the same world.
-  { href: "/billing", label: "Billing", icon: CreditCardIcon, section: "configure" },
-  { href: "/settings", label: "Settings", icon: Settings01Icon, section: "configure" },
+  { href: "/team", label: "Team", icon: UserGroupIcon, section: "offer", channel: "appointments" },
+  // No channel: it stays for every mode. U3 makes it edit hours for people
+  // AND hourly spaces and adds the nights-only empty state; until then a
+  // rentals-only org sees its owner's staff hours here.
+  { href: "/availability", label: "Availability", icon: Clock01Icon, section: "offer" },
+  { href: "/booking-page", label: "Booking page", icon: Globe02Icon, section: "share" },
+  { href: "/embed", label: "Website embed", icon: SourceCodeIcon, section: "share" },
+  // Shown only when the org's `billing` flag resolves true; the route 404s
+  // in the same world.
+  { href: "/billing", label: "Billing", icon: CreditCardIcon, section: "account" },
+  { href: "/settings", label: "Settings", icon: Settings01Icon, section: "account" },
 ];
 
 /** What the sidebar and the command menu render for an org. One list, one
@@ -65,8 +83,6 @@ export function navItemsFor(flags: Pick<Flags, "billing" | "overview" | "rentals
     return true;
   });
 }
-
-export const NAV_SECTION_LABELS = { main: null, configure: "Configure" } as const;
 
 /** Title for the top bar: the matching nav label, else the first path
     segment capitalised (e.g. /rentals → "Rentals"). */

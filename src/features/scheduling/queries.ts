@@ -155,6 +155,24 @@ export async function getOfferingAvailabilityAdmin(
   };
 }
 
+/** How many owners — team members or hourly spaces — have at least one weekly
+    rule. Drives the welcome checklist's "Set hours" tick. RLS scopes the
+    read to the caller's org; rows carry exactly one of staff_id /
+    rental_offering_id (0056 XOR check), so the owner key is whichever is set. */
+export async function countHoursOwners(): Promise<number> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("availability_rules")
+    .select("staff_id, rental_offering_id");
+  if (error) throw error;
+  const owners = new Set<string>();
+  for (const r of data ?? []) {
+    const key = r.staff_id ?? r.rental_offering_id;
+    if (key) owners.add(key);
+  }
+  return owners.size;
+}
+
 export type AdminBooking = {
   id: string;
   // Rentals R1 (0037): a booking is EITHER an appointment (serviceId) or a

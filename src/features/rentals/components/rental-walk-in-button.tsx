@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { NewRentalBookingDialog, type OfferingOption } from "./new-rental-booking-dialog";
+import { SPACES } from "@/features/orgs/vocab";
 
 // The week-calendar's own entry point into the walk-in dialog: the timeline
 // mounts NewRentalBookingDialog straight off a clicked empty cell, but the
@@ -25,7 +26,7 @@ export function RentalWalkInButton({
   return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        New rental booking
+        {SPACES.walkIn}
       </Button>
       {open ? (
         <NewRentalBookingDialog open onOpenChange={setOpen} offerings={offerings} timeZone={timeZone} />

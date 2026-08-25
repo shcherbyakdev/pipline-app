@@ -1,6 +1,7 @@
 import { listOfferings, getOrgCurrency } from "@/features/rentals/queries";
 import { OfferingsList } from "@/features/rentals/components/offerings-list";
 import { OfferingDialog } from "@/features/rentals/components/offering-dialog";
+import { SPACES } from "@/features/orgs/vocab";
 
 export default async function RentalsPage() {
   const offerings = await listOfferings();
@@ -11,10 +12,7 @@ export default async function RentalsPage() {
         <OfferingDialog currency={currency} />
       </div>
       {offerings.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          No rentals yet — a rental is a unit type clients book by night, day or hour (a flat, a
-          car class, a room). Add one, then add its units.
-        </p>
+        <p className="text-muted-foreground text-sm">{SPACES.empty}</p>
       ) : (
         <OfferingsList offerings={offerings} currency={currency} />
       )}
