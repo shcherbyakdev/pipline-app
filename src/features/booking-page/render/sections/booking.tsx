@@ -28,7 +28,8 @@ export function BookingSection({ section, ctx }: { section: SectionOf<"booking">
           staff={preview ? [] : ctx.staff}
           serviceStaffIds={preview ? undefined : ctx.serviceStaffIds}
           lockedStaff={preview ? null : ctx.lockedStaff}
-          requestedService={requested}
+          requestedService={requested?.kind === "service" ? requested : null}
+          requestedOffering={requested?.kind === "offering" ? requested : null}
           preview={preview && ctx.previewSlots ? { slots: ctx.previewSlots } : undefined}
         />
       </WidgetTheme>

@@ -3,6 +3,7 @@
 // this exists so flows, admin and emails can render the same numbers.
 import { formatMoney } from "@/lib/money";
 import { stayLength, type RangeMode } from "./range";
+import { formatDurationLabel } from "./hourly";
 
 export type PricingMode = "per_unit" | "flat";
 export type DepositType = "none" | "fixed" | "percent" | "full";
@@ -69,4 +70,22 @@ export function moneyInfoLines(i: {
   if (lines.length > 0) lines.push("Payment: pay at the venue");
   if (i.cancelWindowMin > 0) lines.push(`Free cancellation until ${formatCancelWindow(i.cancelWindowMin)} before start`);
   return lines;
+}
+
+/** The "how much" hint beside a rental's price: hourly → its duration range,
+    nights/days → the minimum stay when it is more than one, else nothing.
+    Shared by the widget's offering cards and the page-builder Spaces section
+    so the two never drift. */
+export function stayHint(o: {
+  rangeMode: RangeMode;
+  minStay: number;
+  minDurationMin: number | null;
+  maxDurationMin: number | null;
+}): string | null {
+  if (o.rangeMode === "hours") {
+    return o.minDurationMin !== null && o.maxDurationMin !== null
+      ? `${formatDurationLabel(o.minDurationMin)}–${formatDurationLabel(o.maxDurationMin)}`
+      : null;
+  }
+  return o.minStay > 1 ? `min ${o.minStay} ${o.rangeMode}` : null;
 }

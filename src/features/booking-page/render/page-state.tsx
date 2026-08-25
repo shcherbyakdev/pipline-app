@@ -1,18 +1,18 @@
 "use client";
 
 import * as React from "react";
+import { initialRequest, nextRequest, type PageRequest } from "./page-request";
 
-type Request = { id: string; key: number } | null;
-type PageState = { requested: Request; selectService: (id: string) => void };
+type PageState = { requested: PageRequest; selectService: (id: string) => void; selectOffering: (id: string) => void };
 
-const Ctx = React.createContext<PageState>({ requested: null, selectService: () => {} });
+const Ctx = React.createContext<PageState>({ requested: null, selectService: () => {}, selectOffering: () => {} });
 
-/* Services section → booking widget hand-off. The key makes every request
-   distinct, so picking the same service twice (after "change") still lands. */
+/* Services / Spaces section → booking widget hand-off (see page-request.ts). */
 export function PageStateProvider({ initialServiceId, children }: { initialServiceId: string | null; children: React.ReactNode }) {
-  const [requested, setRequested] = React.useState<Request>(initialServiceId ? { id: initialServiceId, key: 1 } : null);
-  const selectService = React.useCallback((id: string) => setRequested((prev) => ({ id, key: (prev?.key ?? 0) + 1 })), []);
-  const value = React.useMemo(() => ({ requested, selectService }), [requested, selectService]);
+  const [requested, setRequested] = React.useState<PageRequest>(() => initialRequest(initialServiceId));
+  const selectService = React.useCallback((id: string) => setRequested((prev) => nextRequest(prev, "service", id)), []);
+  const selectOffering = React.useCallback((id: string) => setRequested((prev) => nextRequest(prev, "offering", id)), []);
+  const value = React.useMemo(() => ({ requested, selectService, selectOffering }), [requested, selectService, selectOffering]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

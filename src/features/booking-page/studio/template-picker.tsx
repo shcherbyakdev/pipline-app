@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { WidgetTheme } from "@/components/widget-theme";
+import type { OrgMode } from "@/features/orgs/mode";
 import type { WidgetThemeConfig } from "@/lib/widget-theme";
 import { cn } from "@/lib/utils";
 import { DEFAULT_PAGE } from "../defaults";
@@ -12,7 +13,7 @@ import { deepEqual } from "../doc-ops";
 import type { PageDocument } from "../schema";
 import type { RenderContext } from "../render/context";
 import { PageRenderer, pageContainerClass } from "../render/page-renderer";
-import { TEMPLATES, applyTemplate, templatePreview, type Template, type TemplateSkin } from "../templates";
+import { applyTemplate, templatePreview, templatesFor, type Template, type TemplateSkin } from "../templates";
 import { ConfirmDialog } from "./confirm-dialog";
 
 /* Live thumbnails: the real PageRenderer, scaled, with the org's own
@@ -20,7 +21,7 @@ import { ConfirmDialog } from "./confirm-dialog";
    widget inside from taking focus or clicks. The skin layers over the org's
    theme exactly as applySkin does — colour overrides included — so the
    thumbnail is what you'd actually get. */
-function TemplateThumb({ template, ctx }: { template: Template; ctx: RenderContext }) {
+function TemplateThumb({ template, ctx, mode }: { template: Template; ctx: RenderContext; mode: OrgMode }) {
   const base: WidgetThemeConfig = template.skin ? { ...ctx.theme, ...template.skin } : ctx.theme;
   const scheme = base.theme === "auto" ? "light" : base.theme;
   const theme: WidgetThemeConfig = { ...base, theme: scheme };
@@ -29,7 +30,7 @@ function TemplateThumb({ template, ctx }: { template: Template; ctx: RenderConte
       <div className={cn("pointer-events-none absolute top-0 left-0 w-[900px] origin-top-left scale-[0.3] p-8", scheme, "bg-background text-foreground")}>
         <WidgetTheme config={theme} accentColor={ctx.branding.accentColor} transparent>
           <div className={cn("mx-auto", pageContainerClass(template.layout))}>
-            <PageRenderer doc={templatePreview(template)} ctx={{ ...ctx, theme, mode: "preview" }} />
+            <PageRenderer doc={templatePreview(template, mode)} ctx={{ ...ctx, theme, mode: "preview" }} />
           </div>
         </WidgetTheme>
       </div>
@@ -38,9 +39,9 @@ function TemplateThumb({ template, ctx }: { template: Template; ctx: RenderConte
 }
 
 export function TemplatePicker({
-  doc, ctx, onApply,
+  doc, ctx, mode, onApply,
 }: {
-  doc: PageDocument; ctx: RenderContext;
+  doc: PageDocument; ctx: RenderContext; mode: OrgMode;
   onApply: (next: PageDocument, skin: TemplateSkin | null) => void;
 }) {
   const [open, setOpen] = React.useState(false);
@@ -51,7 +52,7 @@ export function TemplatePicker({
   const dirty = !deepEqual(doc, DEFAULT_PAGE);
 
   const commit = (t: Template) => {
-    onApply(applyTemplate(t), applySkin && t.skin ? t.skin : null);
+    onApply(applyTemplate(t, mode), applySkin && t.skin ? t.skin : null);
     setPending(null);
     setOpen(false);
   };
@@ -76,7 +77,7 @@ export function TemplatePicker({
             </span>
           </label>
           <ul className="grid max-h-[60vh] grid-cols-1 gap-3 overflow-y-auto p-0.5 sm:grid-cols-3">
-            {TEMPLATES.map((t) => (
+            {templatesFor(mode).map((t) => (
               <li key={t.id}>
                 {/* Click anywhere on the card selects; the name/description is a
                     real <button>, so Enter/Space come for free and bubble to the
@@ -86,7 +87,7 @@ export function TemplatePicker({
                   onClick={() => choose(t)}
                   className="hover:border-primary has-[button:focus-visible]:ring-ring/50 flex w-full cursor-pointer flex-col gap-2 rounded-lg border p-2 has-[button:focus-visible]:ring-2"
                 >
-                  <TemplateThumb template={t} ctx={ctx} />
+                  <TemplateThumb template={t} ctx={ctx} mode={mode} />
                   <button type="button" className="flex flex-col items-start gap-0.5 text-left outline-none" aria-label={`Use the ${t.name} template`}>
                     <span className="text-sm font-medium">{t.name}</span>
                     <span className="text-muted-foreground text-xs">{t.description}</span>
