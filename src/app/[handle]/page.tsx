@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import { getPublishedPage } from "@/features/booking-page/queries";
 import { pageMetadata } from "@/features/booking-page/metadata";
-import { resolveInitialService } from "@/features/booking-page/initial-service";
+import { resolveInitialOffering, resolveInitialService } from "@/features/booking-page/initial-service";
+import { applyChannel, resolveChannelParam } from "@/lib/booking/channel";
 import type { RenderContext } from "@/features/booking-page/render/context";
 import { PageRenderer, pageContainerClass } from "@/features/booking-page/render/page-renderer";
 
@@ -51,14 +52,26 @@ export default async function BookPage({ params, searchParams }: PageProps<"/[ha
     // The org's published composition; the default page when none.
     getPublishedPage(org.orgId),
   ]);
-  const { services, staff, serviceStaffIds } = offering;
-  if (services.length === 0 && offerings.length === 0) notFound();
+  if (offering.services.length === 0 && offerings.length === 0) notFound();
   const theme = parseWidgetTheme(branding.themeRaw);
-  const initialServiceId = resolveInitialService(services, (await searchParams).service);
+  const sp = await searchParams;
+  // `?channel=services|spaces` (spec §5, ruling 7): one channel of the gated
+  // catalogue — applied here, before the widget, its headings and the
+  // builder's Services / Spaces / Staff sections read it, so they all agree
+  // (publicSections drops the emptied sections). A channel with nothing in
+  // it degrades to the whole catalogue.
+  const cat = applyChannel(
+    { services: offering.services, staff: offering.staff, serviceStaffIds: offering.serviceStaffIds, offerings },
+    resolveChannelParam(sp.channel),
+  );
+  const { services, staff, serviceStaffIds } = cat;
+  // `?service=` / `?space=`: resolved against what this link shows.
+  const initialServiceId = resolveInitialService(services, sp.service);
+  const initialOfferingId = resolveInitialOffering(cat.offerings, sp.space);
   const ctx: RenderContext = {
     org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency },
     branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
-    theme, services, staff, serviceStaffIds, offerings, lockedStaff: null,
+    theme, services, staff, serviceStaffIds, offerings: cat.offerings, lockedStaff: null,
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public",
   };
   return (
@@ -71,7 +84,7 @@ export default async function BookPage({ params, searchParams }: PageProps<"/[ha
           section nests its own WidgetTheme for the widget's surface. */}
       <WidgetTheme config={theme} accentColor={branding.accentColor} transparent className="flex flex-1 flex-col">
         <main className={cn("mx-auto flex w-full flex-col gap-6 p-6", pageContainerClass(doc.layout))}>
-          <PageRenderer doc={doc} ctx={ctx} initialServiceId={initialServiceId} />
+          <PageRenderer doc={doc} ctx={ctx} initialServiceId={initialServiceId} initialOfferingId={initialOfferingId} />
           {/* Same rule as the embed: the badge shows unless the org both asked
               to hide it and is on a plan that may (spec §5). */}
           {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}
