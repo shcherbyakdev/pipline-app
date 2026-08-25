@@ -7,12 +7,22 @@ import { deleteOffering } from "@/features/rentals/actions";
 import type { OfferingRow } from "@/features/rentals/queries";
 import { formatDurationLabel } from "@/features/rentals/hourly";
 import { formatOfferingPrice } from "@/features/rentals/pricing";
+import { bookingLink } from "@/lib/booking/url";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { CopyLinkButton, type LinkBase } from "@/components/copy-link-button";
 import { cn } from "@/lib/utils";
 import { OfferingDialog } from "./offering-dialog";
 
-function Row({ offering, currency }: { offering: OfferingRow; currency: string }) {
+function Row({
+  offering,
+  currency,
+  linkBase,
+}: {
+  offering: OfferingRow;
+  currency: string;
+  linkBase: LinkBase | null;
+}) {
   const [pending, startTransition] = React.useTransition();
   const hourly = offering.rangeMode === "hours";
   const nightly = offering.rangeMode === "nights";
@@ -55,6 +65,9 @@ function Row({ offering, currency }: { offering: OfferingRow; currency: string }
         {priceLabel ? <p className="text-muted-foreground text-xs">{priceLabel}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        {linkBase && offering.active ? (
+          <CopyLinkButton url={bookingLink(linkBase.appUrl, linkBase.handle, { space: offering.id })} />
+        ) : null}
         {/*
           A plain styled Link, not <Button render={<Link .../>}>: base-ui's
           Button enforces button semantics on whatever it renders, and its own
@@ -79,14 +92,16 @@ function Row({ offering, currency }: { offering: OfferingRow; currency: string }
 export function OfferingsList({
   offerings,
   currency,
+  linkBase,
 }: {
   offerings: OfferingRow[];
   currency: string;
+  linkBase: LinkBase | null;
 }) {
   return (
     <ol className="flex flex-col gap-2">
       {offerings.map((offering) => (
-        <Row key={offering.id} offering={offering} currency={currency} />
+        <Row key={offering.id} offering={offering} currency={currency} linkBase={linkBase} />
       ))}
     </ol>
   );

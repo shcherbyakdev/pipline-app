@@ -5,8 +5,10 @@ import { toast } from "sonner";
 import { deleteService } from "@/features/scheduling/actions";
 import type { ServiceRow } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
+import { bookingLink } from "@/lib/booking/url";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CopyLinkButton, type LinkBase } from "@/components/copy-link-button";
 import { ServiceDialog } from "./service-dialog";
 
 // Solo rule: one active person means the count is always "1 of 1" — noise, so
@@ -18,7 +20,15 @@ function teamLabel(service: ServiceRow, activeStaff: StaffRow[]): string | null 
   return `${assigned} of ${activeStaff.length} team members`;
 }
 
-function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
+function Row({
+  service,
+  staff,
+  linkBase,
+}: {
+  service: ServiceRow;
+  staff: StaffRow[];
+  linkBase: LinkBase | null;
+}) {
   const [pending, startTransition] = React.useTransition();
   // Delete is irreversible (a service with bookings is refused server-side,
   // one without simply vanishes), so it takes two clicks — the same inline
@@ -54,6 +64,11 @@ function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        {/* Only a live service is worth a link — an inactive one would just
+            degrade to the org flow. No handle ⇒ no button anywhere. */}
+        {linkBase && service.active ? (
+          <CopyLinkButton url={bookingLink(linkBase.appUrl, linkBase.handle, { service: service.id })} />
+        ) : null}
         <ServiceDialog service={service} staff={staff} />
         {confirming ? (
           <>
@@ -83,14 +98,16 @@ function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
 export function ServicesList({
   services,
   staff,
+  linkBase,
 }: {
   services: ServiceRow[];
   staff: StaffRow[];
+  linkBase: LinkBase | null;
 }) {
   return (
     <ol className="flex flex-col gap-2">
       {services.map((service) => (
-        <Row key={service.id} service={service} staff={staff} />
+        <Row key={service.id} service={service} staff={staff} linkBase={linkBase} />
       ))}
     </ol>
   );
