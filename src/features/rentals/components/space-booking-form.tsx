@@ -31,8 +31,6 @@ const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text
 // hourly-booking-flow.tsx's own threshold for pills vs a <select>.
 const MAX_PILL_OPTIONS = 8;
 
-export type { OfferingOption };
-
 type HourlySlot = { startsAt: string; unitIds: string[] };
 
 /* The space half of the New-booking dialog (admin IA spec §2). The shell

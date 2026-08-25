@@ -53,7 +53,6 @@ describe("admin vocabulary (admin IA spec §1)", () => {
       "No units yet — the space won't appear on your booking page until it has an active unit.",
     );
     expect(SPACES.field).toBe("Space");
-    expect(SPACES.walkIn).toBe("New space booking");
     expect(SPACES.command).toBe("New space");
     expect(SPACES.settings).toEqual({
       label: "Spaces",

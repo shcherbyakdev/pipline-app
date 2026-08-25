@@ -39,8 +39,6 @@ export const SPACES = {
   badge: "Space",
   /** Toolbar chip when a staff lens hides space bookings from the week. */
   hidden: (n: number) => `${n} space booking${n === 1 ? "" : "s"} hidden`,
-  /** Bookings-page walk-in button + its dialog title. Slice U2 (Bookings hub) renames both to the neutral "New booking" once the dialog covers services too. */
-  walkIn: "New space booking",
   /** ⌘K action. */
   command: "New space",
   /** Settings › Business row. */

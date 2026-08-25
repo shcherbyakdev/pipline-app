@@ -11,8 +11,6 @@ export const SURFACES = [
   "src/app/(dashboard)/rentals/[id]/page.tsx",
   "src/features/rentals/components/offering-dialog.tsx",
   "src/features/rentals/components/units-editor.tsx",
-  "src/features/rentals/components/new-rental-booking-dialog.tsx",
-  "src/features/rentals/components/rental-walk-in-button.tsx",
   "src/components/command-menu.tsx",
   "src/features/orgs/components/business-settings.tsx",
   "src/app/(dashboard)/team/page.tsx",
@@ -26,6 +24,7 @@ export const SURFACES = [
   "src/features/scheduling/components/new-booking-dialog.tsx",
   "src/features/scheduling/components/new-booking-button.tsx",
   "src/features/scheduling/components/calendar-week.tsx",
+  "src/app/(dashboard)/clients/[id]/page.tsx",
 ];
 
 /* The exact literals the audit found. Cheap, unambiguous, and the first thing
