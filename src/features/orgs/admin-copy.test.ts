@@ -19,6 +19,8 @@ export const SURFACES = [
   "src/features/scheduling/components/scheduling-settings-form.tsx",
   "src/features/scheduling/components/bookings-list.tsx",
   "src/features/rentals/components/timeline.tsx",
+  "src/features/scheduling/components/view-switcher.tsx",
+  "src/app/(dashboard)/bookings/page.tsx",
 ];
 
 /* The exact literals the audit found. Cheap, unambiguous, and the first thing
