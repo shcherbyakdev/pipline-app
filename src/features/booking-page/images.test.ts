@@ -55,6 +55,16 @@ describe("imagePathsIn / orphanPaths", () => {
     expect(orphanPaths(["o/page/a.png", "o/page/z.png", "o/page/c.png"], imagePathsIn(doc))).toEqual(["o/page/z.png"]);
     expect(orphanPaths([], ["o/page/a.png"])).toEqual([]);
   });
+  it("collects spaces photos too", () => {
+    const withSpaces = {
+      sections: [
+        ...doc.sections,
+        { id: "spaces01", type: "spaces" as const, hidden: false, title: "Spaces", style: "cards" as const, showPrices: true, showStay: true,
+          photos: [{ offeringId: "11111111-2222-4333-8444-555555555555", path: "o/page/d.png" }] },
+      ],
+    };
+    expect(imagePathsIn(withSpaces)).toEqual(["o/page/a.png", "o/page/b.png", "o/page/c.png", "o/page/a.png", "o/page/d.png"]);
+  });
 });
 
 describe("limits", () => {

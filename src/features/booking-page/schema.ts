@@ -4,12 +4,12 @@ import { PAGE_IMAGE_PATH_RE, imagePathsIn } from "./images";
 export const PAGE_LIMITS = { sections: 20, images: 24, bytes: 65_536 } as const;
 
 export const SECTION_TYPES = [
-  "header", "hero", "about", "services", "staff", "gallery", "testimonials", "faq", "links", "location", "booking",
+  "header", "hero", "about", "services", "staff", "spaces", "gallery", "testimonials", "faq", "links", "location", "booking",
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
 /** Types that make no sense twice on one page. */
-export const SINGLE_INSTANCE_TYPES: ReadonlySet<SectionType> = new Set<SectionType>(["header", "booking", "services", "staff"]);
+export const SINGLE_INSTANCE_TYPES: ReadonlySet<SectionType> = new Set<SectionType>(["header", "booking", "services", "staff", "spaces"]);
 
 export const LINK_ICONS = ["instagram", "facebook", "tiktok", "whatsapp", "website", "phone", "email", "other"] as const;
 export type LinkIcon = (typeof LINK_ICONS)[number];
@@ -41,6 +41,13 @@ export const servicesSection = z.object({
   ...base, type: z.literal("services"), title: text(60), style: z.enum(["list", "cards"]), showPrices: z.boolean(), showDurations: z.boolean(),
 });
 export const staffSection = z.object({ ...base, type: z.literal("staff"), title: text(60) });
+/** H5a: the org's rental offerings as cards. Photos live here, keyed by
+    offering id (no column on rental_offerings); the offerings themselves
+    come from RenderContext at render time. */
+export const spacesSection = z.object({
+  ...base, type: z.literal("spaces"), title: text(60), style: z.enum(["list", "cards"]), showPrices: z.boolean(), showStay: z.boolean(),
+  photos: z.array(z.object({ offeringId: z.string().uuid(), path: imagePath })).max(12),
+});
 export const gallerySection = z.object({
   ...base, type: z.literal("gallery"), images: z.array(z.object({ path: imagePath, alt: text(120) })).max(12),
   columns: z.union([z.literal(2), z.literal(3)]),
@@ -61,7 +68,7 @@ export const locationSection = z.object({
 export const bookingSection = z.object({ ...base, type: z.literal("booking"), title: text(60), hidden: z.literal(false) });
 
 export const sectionSchema = z.discriminatedUnion("type", [
-  headerSection, heroSection, aboutSection, servicesSection, staffSection, gallerySection, testimonialsSection,
+  headerSection, heroSection, aboutSection, servicesSection, staffSection, spacesSection, gallerySection, testimonialsSection,
   faqSection, linksSection, locationSection, bookingSection,
 ]);
 export type Section = z.infer<typeof sectionSchema>;
@@ -78,6 +85,11 @@ export const pageDocumentSchema = z
     if (count("booking") !== 1) ctx.addIssue({ code: "custom", path: ["sections"], message: "The page needs exactly one booking section." });
     for (const t of SINGLE_INSTANCE_TYPES) {
       if (count(t) > 1) ctx.addIssue({ code: "custom", path: ["sections"], message: `Only one ${t} section is allowed.` });
+    }
+    for (const s of doc.sections) {
+      if (s.type === "spaces" && new Set(s.photos.map((p) => p.offeringId)).size !== s.photos.length) {
+        ctx.addIssue({ code: "custom", path: ["sections"], message: "One photo per space." });
+      }
     }
     if (new Set(doc.sections.map((s) => s.id)).size !== doc.sections.length) {
       ctx.addIssue({ code: "custom", path: ["sections"], message: "Section ids must be unique." });

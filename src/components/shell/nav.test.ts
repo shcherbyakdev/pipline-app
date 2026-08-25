@@ -29,6 +29,11 @@ describe("navItemsFor (flags × mode)", () => {
     expect(h).not.toContain("/rentals");
     expect(h).toContain("/services");
   });
+  it("the /rentals item is labelled Spaces (H5a vocabulary), and titles its page", () => {
+    const item = navItemsFor(FLAGS, BOTH).find((i) => i.href === "/rentals");
+    expect(item?.label).toBe("Spaces");
+    expect(titleForPath("/rentals", navItemsFor(FLAGS, BOTH))).toBe("Spaces");
+  });
   it("the rentals kill-switch beats the mode", () => {
     expect(hrefs({ ...FLAGS, rentals: false }, BOTH)).not.toContain("/rentals");
   });

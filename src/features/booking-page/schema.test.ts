@@ -57,6 +57,29 @@ describe("pageDocumentSchema", () => {
   it("PAGE_LIMITS are the spec's numbers", () => {
     expect(PAGE_LIMITS).toEqual({ sections: 20, images: 24, bytes: 65_536 });
   });
+  it("spaces: a live section with per-offering photos, single-instance, one photo per space", () => {
+    const OFFERING = "11111111-2222-4333-8444-555555555555";
+    expect(newSection("spaces")).toMatchObject({ type: "spaces", title: "Spaces", style: "cards", showPrices: true, showStay: true, photos: [] });
+    const spaces = { ...newSection("spaces"), photos: [{ offeringId: OFFERING, path: IMG }] };
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, spaces, booking] }).success).toBe(true);
+    expect(ADDABLE_TYPES).toContain("spaces");
+    expect(SECTION_META.spaces.label).toBe("Spaces");
+    // one per page
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, spaces, { ...spaces, id: newSectionId() }, booking] }).success).toBe(false);
+    // offeringId must be a uuid (the canned preview offering never gets a photo row)
+    const bad = { ...spaces, photos: [{ offeringId: "preview-offering", path: IMG }] };
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, bad, booking] }).success).toBe(false);
+    // one photo per space
+    const dup = { ...spaces, photos: [{ offeringId: OFFERING, path: IMG }, { offeringId: OFFERING, path: IMG }] };
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, dup, booking] }).success).toBe(false);
+    // at most 12 photos, and they count toward the 24-image page cap
+    const many = (n: number) => Array.from({ length: n }, (_, i) => ({ offeringId: `11111111-2222-4333-8444-${String(i).padStart(12, "0")}`, path: IMG }));
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, { ...spaces, photos: many(13) }, booking] }).success).toBe(false);
+    const gallery = { ...newSection("gallery"), images: Array.from({ length: 12 }, () => ({ path: IMG, alt: "" })) };
+    const hero = { ...newSection("hero"), imagePath: IMG };
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, gallery, { ...spaces, photos: many(12) }, booking] }).success).toBe(true);
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, gallery, { ...spaces, photos: many(12) }, hero, booking] }).success).toBe(false);
+  });
 });
 
 describe("parsePageDocument", () => {
