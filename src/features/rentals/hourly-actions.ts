@@ -233,26 +233,47 @@ export async function createRentalBookingHours(
       return { ok: false, error: GENERIC_WRITE_ERROR };
     }
 
-    const tz = ctx.org.timeZone;
-    const ends = new Date(starts.getTime() + durationMin * 60_000);
-    const whenLine = formatHourlyWhenLine(starts, ends, tz);
-    const unitName = await getBookingUnitName(bookingId as string);
-    const serviceName = unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name;
-    // Best-effort like everything below: a null provider address only means
-    // the provider gets no copy of this booking.
-    const providerEmail = await getProviderEmail(ctx.org.orgId).catch((e) => {
-      console.error("[rentals] getProviderEmail:", e);
-      return null;
-    });
-    // H3: total / deposit / pay-at-venue / cancellation-policy lines, shared
-    // by the client confirmation and the provider's copy below.
-    const total = totalCents(ctx.offering, durationMin / 60);
-    const infoLines = moneyInfoLines({
-      totalCents: total,
-      depositCents: depositCents(ctx.offering, total),
-      currency: ctx.org.currency,
-      cancelWindowMin: ctx.offering.cancelWindowMin,
-    });
+    // Everything both mails share, computed once; nothing below may fail the
+    // committed booking, so the unit-name/provider-email reads swallow their
+    // own errors AND the whole block is wrapped below — a throw here (e.g.
+    // formatHourlyWhenLine, totalCents) must not report a committed booking
+    // as failed to the caller.
+    let prep: {
+      whenLine: string;
+      serviceName: string;
+      infoLines: string[];
+      providerEmail: string | null;
+    } | null = null;
+    try {
+      const tz = ctx.org.timeZone;
+      const ends = new Date(starts.getTime() + durationMin * 60_000);
+      const whenLine = formatHourlyWhenLine(starts, ends, tz);
+      const unitName = await getBookingUnitName(bookingId as string).catch((e) => {
+        console.error("[rentals] getBookingUnitName:", e);
+        return null;
+      });
+      const serviceName = unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name;
+      // Best-effort like everything below: a null provider address only means
+      // the provider gets no copy of this booking.
+      const providerEmail = await getProviderEmail(ctx.org.orgId).catch((e) => {
+        console.error("[rentals] getProviderEmail:", e);
+        return null;
+      });
+      // H3: total / deposit / pay-at-venue / cancellation-policy lines, shared
+      // by the client confirmation and the provider's copy below.
+      const total = totalCents(ctx.offering, durationMin / 60);
+      const infoLines = moneyInfoLines({
+        totalCents: total,
+        depositCents: depositCents(ctx.offering, total),
+        currency: ctx.org.currency,
+        cancelWindowMin: ctx.offering.cancelWindowMin,
+      });
+      prep = { whenLine, serviceName, infoLines, providerEmail };
+    } catch (error) {
+      console.error("[rentals] post-booking mail prep failed:", error);
+      return { ok: true, token };
+    }
+    const { whenLine, serviceName, infoLines, providerEmail } = prep;
 
     // Best-effort confirmation (the booking survives email failure).
     try {
@@ -280,8 +301,9 @@ export async function createRentalBookingHours(
     }
 
     // The provider's own copy — copied wholesale from createBooking
-    // (scheduling/public-actions.ts), reply-to wiring included. Nights/days
-    // rentals still lack this (deferred minor, noted in the PR description).
+    // (scheduling/public-actions.ts), reply-to wiring included. The
+    // nights/days twin lives in createRentalBooking (public-actions.ts) —
+    // the two actions mirror each other.
     // Its own try so a failed client mail can't skip it.
     if (providerEmail) {
       try {
