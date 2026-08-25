@@ -600,11 +600,14 @@ export default async function BookingsPage({
 
   // Fetched once, up front, for every view: the catalogue decides the
   // default view, the Timeline link and (Task 3) the New-booking picker;
-  // the roster drives the week's lens and the walk-in's staff picker.
+  // the roster drives the week's hours, its lens and the walk-in's staff
+  // picker. The roster is fetched for EVERY mode — every org has at least
+  // one staff row (0041 backfill + create_staff) and a rentals-only org's
+  // week still draws the owner's hours (final-review fix, U2).
   const [orgOfferings, services, activeStaff] = await Promise.all([
     rentals ? listOfferings() : Promise.resolve([]),
     eff.offersAppointments ? listServices() : Promise.resolve([]),
-    eff.offersAppointments ? listActiveStaff() : Promise.resolve([]),
+    listActiveStaff(),
   ]);
   const spaces = orgOfferings.filter((o) => o.active);
   const activeServices = services.filter((s) => s.active);
@@ -1140,7 +1143,8 @@ export function SpaceBookingForm({
 
    i.e. exactly the previous ternary, wrapped in one `div`. Rename the inner `const [offering, setOffering] = React.useState<PublicOffering | null>(null);` to `const [loaded, setLoaded] = React.useState<PublicOffering | null>(null);` and update its uses (`setOffering(result.offering)` → `setLoaded(result.offering)`, the `offering === null ?` branch → `loaded === null ?`, `validateStay(asEngineOffering(offering), …)` → `validateStay(asEngineOffering(loaded), …)`, `<RangePicker … offering={offering}` → `offering={loaded}`), so the prop and the fetched engine row cannot be confused.
 6. Imports: remove `Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription` and `SPACES`; add `import { hourlyGrid, type OfferingOption } from "@/features/rentals/offering-option";` (and delete the dialog's own `hourlyGrid`/`OfferingOption` import of Task 1 if you copied it).
-7. Keep `WINDOW_DAYS`, `HOUR_WINDOW_DAYS`, `selectClass`, `MAX_PILL_OPTIONS`, `HourlySlot`, both request-ordering refs, `load`, `loadHours`, `changeMonth`, `changeRange`, `changeDuration`, `navigateHours`, `pickSlot`, `backToTime`, `stay`/`freeUnitIds`/`effectiveUnitId`, the hourly equivalents, and `submit` — unchanged apart from edits 3–5.
+7. `hourFromDate` is seeded from the prefill too: `React.useState(() => initialStartDate ?? dateInZone(new Date(), timeZone))` — a drag on an hourly space must open the slot grid on the dragged day (spec §2; final-review fix, U2).
+8. Keep `WINDOW_DAYS`, `HOUR_WINDOW_DAYS`, `selectClass`, `MAX_PILL_OPTIONS`, `HourlySlot`, both request-ordering refs, `load`, `loadHours`, `changeMonth`, `changeRange`, `changeDuration`, `navigateHours`, `pickSlot`, `backToTime`, `stay`/`freeUnitIds`/`effectiveUnitId`, the hourly equivalents, and `submit` — unchanged apart from edits 3–5.
 
 Leave `new-rental-booking-dialog.tsx` in place for now (Task 5 stops using it; Task 6 deletes it).
 
