@@ -73,7 +73,6 @@ export function NewRentalBookingDialog({
   initialUnitId,
   initialStartDate,
   timeZone,
-  defaultMode,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -82,18 +81,10 @@ export function NewRentalBookingDialog({
   initialUnitId?: string | null;
   initialStartDate?: string;
   timeZone: string;
-  // H2: the week-calendar's walk-in trigger passes "hours" so the offering
-  // select only lists hourly offerings — the timeline mount omits this and
-  // keeps seeing every offering, unchanged.
-  defaultMode?: "hours";
 }) {
   const router = useRouter();
-  const visibleOfferings = React.useMemo(
-    () => (defaultMode === "hours" ? offerings.filter((o) => o.rangeMode === "hours") : offerings),
-    [offerings, defaultMode],
-  );
   const [offeringId, setOfferingId] = React.useState(
-    () => initialOfferingId ?? visibleOfferings[0]?.id ?? "",
+    () => initialOfferingId ?? offerings[0]?.id ?? "",
   );
   const selected = offerings.find((o) => o.id === offeringId) ?? null;
   const grid = selected ? hourlyGrid(selected) : null;
@@ -358,7 +349,7 @@ export function NewRentalBookingDialog({
             value={offeringId}
             onChange={(e) => changeOffering(e.target.value)}
           >
-            {visibleOfferings.map((o) => (
+            {offerings.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name}
               </option>

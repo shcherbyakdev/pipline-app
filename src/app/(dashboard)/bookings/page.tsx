@@ -9,7 +9,8 @@ import {
 import { listActiveStaff, type StaffRow } from "@/features/scheduling/staff-queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listOfferings, listTimelineData } from "@/features/rentals/queries";
-import { HourlyWalkInButton } from "@/features/rentals/components/hourly-walk-in-button";
+import { walkInOfferings } from "@/features/rentals/walk-in";
+import { RentalWalkInButton } from "@/features/rentals/components/rental-walk-in-button";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { defaultBookingsView, effectiveMode, modeOf } from "@/features/orgs/mode";
@@ -193,12 +194,13 @@ export default async function BookingsPage({
   // rule explicit rather than leaning on that null behaviour.
   const withRentals = staffFilter === undefined;
   const bookings = withRentals ? rawBookings : rawBookings.filter((b) => b.rentalUnitId === null);
-  // H2 (Task 10): the week-calendar's own walk-in entry point for hourly
-  // offerings only shows up once there's something hourly to book — the
-  // timeline is still where nights/days walk-ins happen. `orgOfferings` was
-  // already fetched up front (it also decided the default view and the
-  // Timeline link), so no second query here.
-  const hourlyOfferings = orgOfferings.filter((o) => o.active && o.rangeMode === "hours");
+  // The week-calendar's own walk-in entry point shows up once there's any
+  // active offering to book — nights/days included, not only hourly: a
+  // mixed org lands here, not on the timeline, and the dialog already
+  // branches per offering. `orgOfferings` was already fetched up front (it
+  // also decided the default view and the Timeline link), so no second
+  // query here.
+  const rentalWalkIn = walkInOfferings(orgOfferings);
   // One person ⇒ their rows go straight through (so the grid's block/unblock
   // and "Reopen day" keep working off real exceptions). Several ⇒ each
   // person's day is resolved on its own and the results unioned
@@ -234,8 +236,8 @@ export default async function BookingsPage({
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {welcome}
       <div className="flex items-center justify-end gap-2">
-        {hourlyOfferings.length > 0 ? (
-          <HourlyWalkInButton offerings={hourlyOfferings} timeZone={timeZone} />
+        {rentalWalkIn.length > 0 ? (
+          <RentalWalkInButton offerings={rentalWalkIn} timeZone={timeZone} />
         ) : null}
         <div className="flex items-center gap-2">
           <Link
