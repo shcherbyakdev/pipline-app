@@ -58,8 +58,9 @@ const ALL_NAV_ITEMS: readonly NavItem[] = [
   { href: "/rentals", label: SPACES.nav, icon: House01Icon, section: "offer", channel: "rentals" },
   // Always present, solo or not: a solo provider sees one row (themselves).
   { href: "/team", label: "Team", icon: UserGroupIcon, section: "offer", channel: "appointments" },
-  // No channel: from U3 it edits hours for people AND hourly spaces, so it
-  // stays for every mode (a nights-only org gets an explanatory empty state).
+  // No channel: it stays for every mode. U3 makes it edit hours for people
+  // AND hourly spaces and adds the nights-only empty state; until then a
+  // rentals-only org sees its owner's staff hours here.
   { href: "/availability", label: "Availability", icon: Clock01Icon, section: "offer" },
   { href: "/booking-page", label: "Booking page", icon: Globe02Icon, section: "share" },
   { href: "/embed", label: "Website embed", icon: SourceCodeIcon, section: "share" },

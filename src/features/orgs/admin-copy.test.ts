@@ -18,6 +18,7 @@ export const SURFACES = [
   "src/app/(dashboard)/team/page.tsx",
   "src/features/scheduling/components/scheduling-settings-form.tsx",
   "src/features/scheduling/components/bookings-list.tsx",
+  "src/features/rentals/components/timeline.tsx",
 ];
 
 /* The exact literals the audit found. Cheap, unambiguous, and the first thing
@@ -37,6 +38,7 @@ const FORBIDDEN_LITERALS = [
   "Everyone who can be booked",
   "Shown on rental prices",
   "a rental offering",
+  "add an offering and units under",
 ];
 
 /* JSX text between tags — `>text<` — that contains a forbidden word and no

@@ -47,6 +47,7 @@ describe("admin vocabulary (admin IA spec §1)", () => {
     expect(SPACES.empty).toBe(
       "No spaces yet — a space is a room, studio or item clients book by the hour, night or day. Add one, then add its units.",
     );
+    expect(SPACES.timelineEmpty).toBe("No spaces yet — add a space and its units under");
     expect(SPACES.unitsHint).toBe("Units are the individual rooms or items a client is assigned — one per room.");
     expect(SPACES.unitsEmpty).toBe(
       "No units yet — the space won't appear on your booking page until it has an active unit.",

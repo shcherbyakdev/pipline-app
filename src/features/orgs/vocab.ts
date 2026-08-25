@@ -26,6 +26,8 @@ export const SPACES = {
   /** /rentals list with nothing in it. */
   empty:
     "No spaces yet — a space is a room, studio or item clients book by the hour, night or day. Add one, then add its units.",
+  /** Timeline view with no spaces; followed by a link whose text is SPACES.nav. */
+  timelineEmpty: "No spaces yet — add a space and its units under",
   /** One muted line above the units editor. */
   unitsHint: "Units are the individual rooms or items a client is assigned — one per room.",
   unitsEmpty: "No units yet — the space won't appear on your booking page until it has an active unit.",
