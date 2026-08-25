@@ -132,6 +132,10 @@ describe("site config", () => {
     expect(WELCOME.subBoth.length).toBeGreaterThan(0);
   });
 
+  it("the onboarding picker lists Spaces first (H5b ruling 1)", () => {
+    expect(ONBOARDING.modes.map((m) => m.value)).toEqual(["rentals", "appointments", "both"]);
+  });
+
   it("FORBIDDEN_COPY retires the old channel words and keeps the H4 ones (H5b ruling 7)", () => {
     expect(FORBIDDEN_COPY).toEqual(["google", "calendar sync", "stripe", "payment", "offering", "rentals"]);
   });

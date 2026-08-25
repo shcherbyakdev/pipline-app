@@ -225,8 +225,8 @@ export const ONBOARDING = {
   modeLegend: "What are you booking?",
   modeError: "Pick what you're booking.",
   modes: [
-    { value: "appointments", title: "Appointments", blurb: "Time on your calendar: consultations, sessions, classes." },
     { value: "rentals", title: SPACES.pickerTitle, blurb: SPACES.pickerBlurb },
+    { value: "appointments", title: "Appointments", blurb: "Time on your calendar: consultations, sessions, classes." },
     { value: "both", title: "Both", blurb: SPACES.pickerBothBlurb },
   ],
   submit: "Claim my page",

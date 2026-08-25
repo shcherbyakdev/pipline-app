@@ -60,20 +60,20 @@ export function NewBookingDialog({
             value={selected ? selectionValue(selected) : ""}
             onChange={(e) => setSelected(parseSelection(e.target.value))}
           >
-            {services.length > 0 ? (
-              <optgroup label="Services">
-                {services.map((s) => (
-                  <option key={s.id} value={selectionValue({ kind: "service", id: s.id })}>
-                    {s.name} ({s.durationMin} min)
-                  </option>
-                ))}
-              </optgroup>
-            ) : null}
             {spaces.length > 0 ? (
               <optgroup label={SPACES.nav}>
                 {spaces.map((o) => (
                   <option key={o.id} value={selectionValue({ kind: "space", id: o.id })}>
                     {o.name}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+            {services.length > 0 ? (
+              <optgroup label="Services">
+                {services.map((s) => (
+                  <option key={s.id} value={selectionValue({ kind: "service", id: s.id })}>
+                    {s.name} ({s.durationMin} min)
                   </option>
                 ))}
               </optgroup>

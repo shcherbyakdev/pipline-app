@@ -10,11 +10,11 @@ const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
 const FLAGS = { ...FLAG_DEFAULTS, rentals: true };
 const hrefs = (flags: typeof FLAGS, mode: typeof BOTH) => navItemsFor(flags, mode).map((i) => i.href);
 
-describe("navItemsFor (flags × mode) — spec §1 table, fixed order", () => {
+describe("navItemsFor (flags × mode) — spec §1 table, fixed order, spaces first (H5b)", () => {
   it("both channels: every row, in the spec's order", () => {
     expect(hrefs(FLAGS, BOTH)).toEqual([
       "/bookings", "/clients",
-      "/services", "/rentals", "/team", "/availability",
+      "/rentals", "/services", "/team", "/availability",
       "/booking-page", "/embed",
       "/settings",
     ]);
@@ -33,7 +33,7 @@ describe("navItemsFor (flags × mode) — spec §1 table, fixed order", () => {
     const all = navItemsFor({ ...FLAGS, billing: true, overview: true }, BOTH);
     const by = (s: (typeof NAV_SECTIONS)[number]) => all.filter((i) => i.section === s).map((i) => i.href);
     expect(by("main")).toEqual(["/overview", "/bookings", "/clients"]);
-    expect(by("offer")).toEqual(["/services", "/rentals", "/team", "/availability"]);
+    expect(by("offer")).toEqual(["/rentals", "/services", "/team", "/availability"]);
     expect(by("share")).toEqual(["/booking-page", "/embed"]);
     expect(by("account")).toEqual(["/billing", "/settings"]);
     for (const i of all) expect(NAV_SECTIONS).toContain(i.section);

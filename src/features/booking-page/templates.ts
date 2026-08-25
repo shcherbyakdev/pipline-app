@@ -201,7 +201,6 @@ export function templatePreview(t: Template, mode: OrgMode): PageDocument {
 export function templatesFor(mode: OrgMode): Template[] {
   const venue = TEMPLATES.filter((t) => t.id === "venue");
   const rest = TEMPLATES.filter((t) => t.id !== "venue");
-  if (!mode.offersRentals) return rest;
-  if (!mode.offersAppointments) return [...venue, ...rest];
-  return [...TEMPLATES];
+  // H5b ruling 1: any org that sells spaces sees Venue first.
+  return mode.offersRentals ? [...venue, ...rest] : rest;
 }

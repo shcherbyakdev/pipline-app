@@ -95,9 +95,10 @@ describe("fitToMode", () => {
 });
 
 describe("templatesFor", () => {
-  it("rentals-only puts Venue first; both keeps source order; appointments-only hides Venue", () => {
+  it("any org with spaces puts Venue first; appointments-only hides it", () => {
     expect(templatesFor(RENTALS_ONLY)[0]?.id).toBe("venue");
-    expect(templatesFor(BOTH).map((t) => t.id)).toEqual(TEMPLATES.map((t) => t.id));
+    expect(templatesFor(BOTH)[0]?.id).toBe("venue");
+    expect(templatesFor(BOTH)).toHaveLength(TEMPLATES.length);
     expect(templatesFor(APPTS_ONLY).map((t) => t.id)).not.toContain("venue");
     expect(templatesFor(APPTS_ONLY)).toHaveLength(6);
   });
