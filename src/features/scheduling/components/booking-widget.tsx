@@ -11,8 +11,8 @@ import { ClientDetailsFields } from "@/features/scheduling/components/client-det
 import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
 import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
 import { HourlyBookingFlow } from "@/features/rentals/components/hourly-booking-flow";
-import { formatDurationLabel } from "@/features/rentals/hourly";
-import { formatOfferingPrice } from "@/features/rentals/pricing";
+import { formatOfferingPrice, stayHint } from "@/features/rentals/pricing";
+import { SPACES } from "@/features/orgs/vocab";
 
 // The VIEWER's local date (audit 2026-08-24: the UTC date sent a far-west
 // evening visitor one day ahead, hiding the rest of their own today with no
@@ -35,6 +35,7 @@ export function BookingWidget({
   lockedStaff = null,
   preview,
   requestedService = null,
+  requestedOffering = null,
 }: {
   handle: string;
   orgTimeZone: string;
@@ -54,6 +55,9 @@ export function BookingWidget({
   /** Booking-page hand-off (services section / `?service=`): each request
       carries a key so re-picking the same service after "change" still applies. */
   requestedService?: { id: string; key: number } | null;
+  /** A Spaces-section card asked for this offering (page-state.tsx). Same
+      once-per-key contract as requestedService. */
+  requestedOffering?: { id: string; key: number } | null;
 }) {
   // Who can take this service. Declared before the state below because the
   // lazy initialiser for `staffChoice` has to answer the same question for an
@@ -106,6 +110,19 @@ export function BookingWidget({
       setService(requested);
       setStaffChoice(resolveStaff(requested));
       setOffering(null);
+      setSlot(null);
+    }
+  }
+
+  // Same render-time apply as requestedService above — once per key, never loops.
+  const [appliedOfferingKey, setAppliedOfferingKey] = React.useState<number | null>(null);
+  if (requestedOffering && requestedOffering.key !== appliedOfferingKey) {
+    setAppliedOfferingKey(requestedOffering.key);
+    const found = offerings.find((o) => o.id === requestedOffering.id);
+    if (found) {
+      setOffering(found);
+      setService(null);
+      setStaffChoice(null);
       setSlot(null);
     }
   }
@@ -169,10 +186,18 @@ export function BookingWidget({
   // picked. Hourly offerings (H2) branch to their own flow: RentalBookingFlow
   // is nights/days-only (staySummary calls hhmm(startTime!), which is null
   // for hours) and must never see one.
-  if (offering) {
+  // Preview (admin live previews / template thumbnails) never mounts the
+  // rental flows — they fetch availability (PR #58's inert rule). A Spaces
+  // card click in preview still records the request; the list just stays.
+  // `key={offering.id}` is load-bearing: requestedOffering (Spaces card) can
+  // swap `offering` while a flow is already mounted, and without the key
+  // React would keep the old flow's state (range/unitId/termsAccepted/
+  // durationMin) across the swap — the key forces a fresh flow instead.
+  if (offering && !preview) {
     const onOfferingBack = services.length + offerings.length > 1 ? () => setOffering(null) : null;
     return offering.rangeMode === "hours" ? (
       <HourlyBookingFlow
+        key={offering.id}
         handle={handle}
         orgTimeZone={orgTimeZone}
         offering={offering}
@@ -181,6 +206,7 @@ export function BookingWidget({
       />
     ) : (
       <RentalBookingFlow
+        key={offering.id}
         handle={handle}
         orgTimeZone={orgTimeZone}
         offering={offering}
@@ -253,7 +279,7 @@ export function BookingWidget({
           {offerings.length > 0 ? (
             <div className="flex flex-col gap-2">
               {services.length > 0 ? (
-                <h2 className="text-muted-foreground text-sm font-medium">Stays &amp; rentals</h2>
+                <h2 className="text-muted-foreground text-sm font-medium">{SPACES.widgetGroup}</h2>
               ) : null}
               <ul className="flex flex-col gap-2">
                 {offerings.map((o) => (
@@ -278,18 +304,7 @@ export function BookingWidget({
                         ) : null}
                       </span>
                       <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                        {[
-                          formatOfferingPrice(o, currency),
-                          o.rangeMode === "hours"
-                            ? // H2: hourly offerings have no min-stay concept — the
-                              // duration range is the equivalent "how much" hint.
-                              `${formatDurationLabel(o.minDurationMin!)}–${formatDurationLabel(o.maxDurationMin!)}`
-                            : o.minStay > 1
-                              ? `min ${o.minStay} ${o.rangeMode}`
-                              : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
+                        {[formatOfferingPrice(o, currency), stayHint(o)].filter(Boolean).join(" · ")}
                       </span>
                     </button>
                   </li>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sectionAllowed, gatedVisibleSections, BASIC_SECTION_TYPES } from "./gating";
+import { sectionAllowed, gatedVisibleSections, BASIC_SECTION_TYPES, addableTypes } from "./gating";
 import { DEFAULT_PAGE, newSection, ADDABLE_TYPES } from "./defaults";
 import type { PageDocument, SectionOf } from "./schema";
 import { PLANS } from "@/lib/billing/plans";
@@ -20,5 +20,26 @@ describe("pageSections gating", () => {
   });
   it("every plan allows everything in v1", () => {
     for (const plan of Object.values(PLANS)) expect(plan.limits.pageSections).toBe("all");
+  });
+});
+
+describe("addableTypes (palette by org mode)", () => {
+  const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
+  const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
+  const BOTH = { offersAppointments: true, offersRentals: true };
+  it("appointments-only never offers Spaces", () => {
+    const t = addableTypes(APPTS_ONLY);
+    expect(t).not.toContain("spaces");
+    expect(t).toContain("services");
+    expect(t).toContain("staff");
+  });
+  it("rentals-only offers Spaces and hides Services and Team", () => {
+    const t = addableTypes(RENTALS_ONLY);
+    expect(t).toContain("spaces");
+    expect(t).not.toContain("services");
+    expect(t).not.toContain("staff");
+  });
+  it("both channels: the full palette, in ADDABLE_TYPES order", () => {
+    expect(addableTypes(BOTH)).toEqual([...ADDABLE_TYPES]);
   });
 });

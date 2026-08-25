@@ -3,6 +3,7 @@
 
 import { FLAG_DEFAULTS } from "@/lib/flags";
 import { FOUNDER_PRICE_FACTOR, formatUsd, PLANS, type PlanId } from "@/lib/billing/plans";
+import { SPACES } from "@/features/orgs/vocab";
 
 const BILLING_ON = FLAG_DEFAULTS.billing; // no org on the marketing site: the environment default, by design
 
@@ -200,8 +201,8 @@ export const ONBOARDING = {
   modeError: "Pick what you're booking.",
   modes: [
     { value: "appointments", title: "Appointments", blurb: "Time on your calendar: consultations, sessions, classes." },
-    { value: "rentals", title: "Rentals", blurb: "Things people book by the night or day: rooms, cars, equipment." },
-    { value: "both", title: "Both", blurb: "You sell appointments and rentals." },
+    { value: "rentals", title: SPACES.pickerTitle, blurb: SPACES.pickerBlurb },
+    { value: "both", title: "Both", blurb: SPACES.pickerBothBlurb },
   ],
   submit: "Claim my page",
   submitting: "Claiming…",

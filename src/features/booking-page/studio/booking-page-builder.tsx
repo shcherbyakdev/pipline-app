@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import type { BrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
 import { updateWidgetTheme } from "@/features/orgs/actions";
+import type { OrgMode } from "@/features/orgs/mode";
 import type { PublicOffering, PublicService, PublicStaff } from "@/lib/booking/public";
 import type { PlanLimits } from "@/lib/billing/plans";
 import { effectiveContrast, parseWidgetTheme, type WidgetThemeConfig } from "@/lib/widget-theme";
@@ -32,12 +33,12 @@ type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSet
    a visitor will see it on the right — the same PageRenderer + WidgetTheme
    composition as /[handle], fed by the draft and the unsaved settings. */
 export function BookingPageBuilder({
-  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections,
+  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections, mode,
 }: {
   branding: BrandingSettings; scheduling: SchedulingSettings; appUrl: string; supabaseUrl: string;
   previewServices: PublicService[]; previewOfferings: PublicOffering[]; staff: PublicStaff[];
   initialPage: { draft: PageDocument; published: PageDocument | null };
-  pageSections: PlanLimits["pageSections"];
+  pageSections: PlanLimits["pageSections"]; mode: OrgMode;
 }) {
   const draft = usePageDraft(initialPage);
   const [tab, setTab] = React.useState<StudioTab>("sections");
@@ -125,6 +126,7 @@ export function BookingPageBuilder({
             section={selected}
             issues={draft.issues[selected.id] ?? {}}
             supabaseUrl={supabaseUrl}
+            offerings={previewOfferings}
             onChange={(next) => draft.update((d) => replaceSection(d, next))}
             onBack={() => setSelectedId(null)}
           />
@@ -133,10 +135,11 @@ export function BookingPageBuilder({
             draft={draft}
             selectedId={selectedId}
             onSelect={setSelectedId}
-            emptyContext={{ serviceCount: previewServices.length, staffCount: staff.length }}
+            emptyContext={{ serviceCount: previewServices.length, staffCount: staff.length, offeringCount: previewOfferings.length }}
             liveUrl={scheduling.handle ? bookingUrl(appUrl, scheduling.handle) : null}
             pageSections={pageSections}
-            templatePicker={<TemplatePicker doc={draft.doc} ctx={ctx} onApply={onApplyTemplate} />}
+            mode={mode}
+            templatePicker={<TemplatePicker doc={draft.doc} ctx={ctx} mode={mode} onApply={onApplyTemplate} />}
           />
         )}
       </div>

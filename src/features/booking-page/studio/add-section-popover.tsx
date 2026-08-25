@@ -5,16 +5,17 @@ import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { OrgMode } from "@/features/orgs/mode";
 import type { PlanLimits } from "@/lib/billing/plans";
-import { ADDABLE_TYPES, SECTION_META } from "../defaults";
+import { SECTION_META } from "../defaults";
 import { canAddSection } from "../doc-ops";
-import { sectionAllowed } from "../gating";
+import { addableTypes, sectionAllowed } from "../gating";
 import type { PageDocument, SectionType } from "../schema";
 
 export function AddSectionPopover({
-  doc, pageSections, onAdd,
+  doc, pageSections, mode, onAdd,
 }: {
-  doc: PageDocument; pageSections: PlanLimits["pageSections"]; onAdd: (type: SectionType) => void;
+  doc: PageDocument; pageSections: PlanLimits["pageSections"]; mode: OrgMode; onAdd: (type: SectionType) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   return (
@@ -28,7 +29,7 @@ export function AddSectionPopover({
       />
       <PopoverContent align="start" className="w-80 p-2">
         <ul className="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
-          {ADDABLE_TYPES.map((type) => {
+          {addableTypes(mode).map((type) => {
             const can = canAddSection(doc, type);
             const allowed = sectionAllowed(type, { pageSections });
             const disabled = !can.ok || !allowed;

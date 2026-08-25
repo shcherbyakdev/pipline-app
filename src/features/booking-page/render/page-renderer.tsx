@@ -9,6 +9,7 @@ import { HeroSection } from "./sections/hero";
 import { AboutSection } from "./sections/about";
 import { ServicesSection } from "./sections/services";
 import { StaffSection } from "./sections/staff";
+import { SpacesSection } from "./sections/spaces";
 import { GallerySection } from "./sections/gallery";
 import { TestimonialsSection } from "./sections/testimonials";
 import { FaqSection } from "./sections/faq";
@@ -28,6 +29,7 @@ function renderSection(section: Section, ctx: RenderContext) {
     case "about": return <AboutSection section={section} ctx={ctx} />;
     case "services": return <ServicesSection section={section} ctx={ctx} />;
     case "staff": return <StaffSection section={section} ctx={ctx} />;
+    case "spaces": return <SpacesSection section={section} ctx={ctx} />;
     case "gallery": return <GallerySection section={section} ctx={ctx} />;
     case "testimonials": return <TestimonialsSection section={section} ctx={ctx} />;
     case "faq": return <FaqSection section={section} ctx={ctx} />;
@@ -50,7 +52,7 @@ const DOCKED = "@3xl:col-start-2 @3xl:row-start-1 @3xl:row-end-[-1] @3xl:sticky 
 export function PageRenderer({ doc, ctx, initialServiceId = null }: { doc: PageDocument; ctx: RenderContext; initialServiceId?: string | null }) {
   const sections =
     ctx.mode === "public"
-      ? publicSections(doc, { serviceCount: ctx.services.length, staffCount: ctx.lockedStaff ? 0 : ctx.staff.length })
+      ? publicSections(doc, { serviceCount: ctx.services.length, staffCount: ctx.lockedStaff ? 0 : ctx.staff.length, offeringCount: ctx.offerings.length })
       : doc.sections;
   const split = doc.layout === "split";
   const others = sections.filter((s) => s.type !== "booking").length;

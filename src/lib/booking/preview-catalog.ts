@@ -13,10 +13,14 @@ import type { PublicOffering, PublicService } from "@/lib/booking/public";
 
 type ServiceRow = PublicService & { active: boolean };
 
+/** The stand-in's id — callers that must not treat it as a real offering
+    (the Spaces inspector's photo rows) filter on this. */
+export const PREVIEW_OFFERING_ID = "preview-offering";
+
 // Far-future, unpriced-deposit stand-in; the id is the "is this canned"
 // marker (preview-services.ts's `preview-service` precedent).
 const CANNED_PREVIEW_OFFERING: PublicOffering = {
-  id: "preview-offering",
+  id: PREVIEW_OFFERING_ID,
   name: "Studio A",
   description: null,
   rangeMode: "nights",

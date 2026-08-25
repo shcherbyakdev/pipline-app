@@ -2,6 +2,7 @@
 // live thumbnails; applyTemplate strips it so nobody publishes "Hair & colour
 // by Anna" by accident. Thumbnails never carry images (no storage paths to
 // maintain) — the ghost boxes read fine at thumbnail scale.
+import type { OrgMode } from "@/features/orgs/mode";
 import type { WidgetThemeConfig } from "@/lib/widget-theme";
 import { newSection, newSectionId } from "./defaults";
 import type { PageDocument, Section, SectionOf, SectionType } from "./schema";
@@ -62,6 +63,24 @@ export const TEMPLATES: readonly Template[] = [
       s("location", "tplloc003", { address: "ul. Józefa 12\n31-056 Kraków", mapsUrl: "https://maps.app.goo.gl/example" }),
     ],
     skin: { theme: "dark", radius: "subtle", font: "space-grotesk" },
+  },
+  {
+    id: "venue",
+    name: "Venue",
+    description: "Photo-led cover, your spaces with prices, a gallery and where to find you.",
+    layout: "column",
+    sections: [
+      s("hero", "tplhero07", { headline: "Rooms by the hour in Podgórze", subheadline: "Rehearsal, recording and workshop space. Pick a room, choose your hours, book online.", align: "center" }),
+      s("spaces", "tplspc007", { style: "cards" }),
+      s("gallery", "tplgal007", { columns: 3 }),
+      s("location", "tplloc007", { address: "ul. Józefa 12\n31-056 Kraków", mapsUrl: "https://maps.app.goo.gl/example" }),
+      s("booking", "tplbook07", { title: "Book a space" }),
+      s("faq", "tplfaq007", { items: [
+        { q: "Can I cancel?", a: "Yes — see the cancellation window on each space." },
+        { q: "What's included?", a: "The room, the listed gear, and the door code by email." },
+      ] }),
+    ],
+    skin: { theme: "light", radius: "subtle", font: "system" },
   },
   {
     id: "split",
@@ -132,16 +151,57 @@ export function stripSample(section: Section): Section {
     case "location": return { ...base, address: "", mapsUrl: "" };
     case "services":
     case "staff":
+    case "spaces":
     case "booking":
       return base;
   }
 }
 
-export function applyTemplate(t: Template): PageDocument {
-  return { version: 1, layout: t.layout, sections: t.sections.map(stripSample) };
+function spacesFrom(services: SectionOf<"services">, id: string): Section {
+  return { ...newSection("spaces", id), style: services.style, title: "Spaces" } as SectionOf<"spaces">;
 }
 
-/** The thumbnail document: sample copy intact. */
-export function templatePreview(t: Template): PageDocument {
-  return { version: 1, layout: t.layout, sections: t.sections };
+/** Make a template's sections fit what the org sells: a rentals-only org
+    gets Spaces where the template had Services (and no Team); a mixed org
+    gets Spaces right after Services; an appointments-only org never sees
+    Spaces. `idFor` names the sections this creates — fresh for applying,
+    derived-and-stable for thumbnails. */
+export function fitToMode(sections: Section[], mode: OrgMode, idFor: (source: Section) => string): Section[] {
+  // A template should never author both `services` and `spaces`, but if one
+  // ever did, the both-mode insert below must not add a second spaces section.
+  const hasSpaces = sections.some((s) => s.type === "spaces");
+  const out: Section[] = [];
+  for (const section of sections) {
+    if (section.type === "services") {
+      if (mode.offersAppointments) {
+        out.push(section);
+        if (mode.offersRentals && !hasSpaces) out.push({ ...newSection("spaces", idFor(section)), style: "cards" } as SectionOf<"spaces">);
+      } else if (mode.offersRentals) {
+        out.push(spacesFrom(section, idFor(section)));
+      }
+      continue;
+    }
+    if (section.type === "staff" && !mode.offersAppointments) continue;
+    if (section.type === "spaces" && !mode.offersRentals) continue;
+    out.push(section);
+  }
+  return out;
+}
+
+export function applyTemplate(t: Template, mode: OrgMode): PageDocument {
+  return { version: 1, layout: t.layout, sections: fitToMode(t.sections, mode, () => newSectionId()).map(stripSample) };
+}
+
+/** The thumbnail document: sample copy intact, ids stable across renders. */
+export function templatePreview(t: Template, mode: OrgMode): PageDocument {
+  return { version: 1, layout: t.layout, sections: fitToMode(t.sections, mode, (s) => ("sp" + s.id).slice(0, 12)) };
+}
+
+/** Picker order per mode: Venue leads for space owners, hides for appointment-only orgs. */
+export function templatesFor(mode: OrgMode): Template[] {
+  const venue = TEMPLATES.filter((t) => t.id === "venue");
+  const rest = TEMPLATES.filter((t) => t.id !== "venue");
+  if (!mode.offersRentals) return rest;
+  if (!mode.offersAppointments) return [...venue, ...rest];
+  return [...TEMPLATES];
 }
