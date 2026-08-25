@@ -21,9 +21,10 @@ export function BookingSection({ section, ctx }: { section: SectionOf<"booking">
           orgTimeZone={ctx.org.timeZone}
           currency={ctx.org.currency}
           services={ctx.services}
-          // Preview mode stays exactly what the old studio rendered: no staff
-          // step, no rentals, canned slots, never a network call.
-          offerings={preview ? [] : ctx.offerings}
+          // Preview mode: no staff step, canned slots, never a network call.
+          // Rentals DO render (the builder hands in the org's preview
+          // catalogue) — the widget keeps their cards inert in preview.
+          offerings={ctx.offerings}
           staff={preview ? [] : ctx.staff}
           serviceStaffIds={preview ? undefined : ctx.serviceStaffIds}
           lockedStaff={preview ? null : ctx.lockedStaff}

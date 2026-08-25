@@ -2,7 +2,11 @@ import { notFound } from "next/navigation";
 import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
 import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
-import { toPreviewServices } from "@/features/scheduling/preview-services";
+import { listOfferings } from "@/features/rentals/queries";
+import { effectiveMode, modeOf } from "@/features/orgs/mode";
+import { toPreviewCatalog } from "@/lib/booking/preview-catalog";
+import { requireOrg } from "@/lib/auth/session";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 import { getPageDraftState, getPageSectionsEntitlement } from "@/features/booking-page/queries";
 import { BookingPageBuilder } from "@/features/booking-page/studio/booking-page-builder";
 import { PageIntro } from "@/components/shell/page-header";
@@ -12,13 +16,19 @@ import { env } from "@/env";
    branding, edited against a live preview of the page itself and published
    explicitly. (Branding's accent and theme are shared with the website embed.) */
 export default async function BookingPagePage() {
-  const [branding, scheduling, services, staff] = await Promise.all([
+  // The preview shows the channels the public page shows (listPublicCatalog's
+  // rules): declared mode ∩ the rentals kill switch, same as /bookings.
+  const { org } = await requireOrg();
+  const mode = effectiveMode(await getDashboardFlags(org.id), modeOf(org));
+  const [branding, scheduling, services, staff, offerings] = await Promise.all([
     getBrandingSettings(),
     getSchedulingSettings(),
     listServices(),
     listStaff(),
+    mode.offersRentals ? listOfferings() : [],
   ]);
   if (!branding || !scheduling) notFound();
+  const catalog = toPreviewCatalog({ mode, services, offerings });
   const [page, pageSections] = await Promise.all([
     getPageDraftState(branding.orgId),
     getPageSectionsEntitlement(branding.orgId),
@@ -34,7 +44,8 @@ export default async function BookingPagePage() {
         scheduling={scheduling}
         appUrl={env.NEXT_PUBLIC_APP_URL}
         supabaseUrl={env.NEXT_PUBLIC_SUPABASE_URL}
-        previewServices={toPreviewServices(services)}
+        previewServices={catalog.services}
+        previewOfferings={catalog.offerings}
         // The preview's Team section shows the real active roster (public shape: never email).
         staff={staff.filter((s) => s.active).map(({ id, name, slug, color }) => ({ id, name, slug, color }))}
         initialPage={{ draft: page.draft, published: page.published }}

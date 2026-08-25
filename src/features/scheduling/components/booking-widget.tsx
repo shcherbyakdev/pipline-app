@@ -75,8 +75,10 @@ export function BookingWidget({
   const [staffChoice, setStaffChoice] = React.useState<string | "any" | null>(() =>
     lockedStaff ? lockedStaff.id : autoService ? resolveStaff(autoService) : null,
   );
+  // Never in preview: a lone offering would auto-open its date flow, which
+  // fetches availability — the admin previews are contractually offline.
   const [offering, setOffering] = React.useState<PublicOffering | null>(
-    services.length === 0 && offerings.length === 1 ? offerings[0] : null,
+    !preview && services.length === 0 && offerings.length === 1 ? offerings[0] : null,
   );
   // Preview mode (settings live preview) has its slots up front — seed them
   // so date navigation never passes through a loading state (which flashed
@@ -258,7 +260,13 @@ export function BookingWidget({
                   <li key={o.id}>
                     <button
                       type="button"
-                      onClick={() => setOffering(o)}
+                      // Preview (admin live previews): the card renders so its
+                      // surface/theme can be judged, but stays inert — the
+                      // rental flows fetch availability, and preview never
+                      // touches the network (service cards keep their canned
+                      // slots instead).
+                      onClick={preview ? undefined : () => setOffering(o)}
+                      aria-disabled={preview ? true : undefined}
                       className="wt-surface flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
                     >
                       <span>
