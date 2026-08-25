@@ -337,7 +337,7 @@ export function NewRentalBookingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>New booking</DialogTitle>
+          <DialogTitle>{SPACES.walkIn}</DialogTitle>
           <DialogDescription>
             Recorded on your behalf — notice and booking-window limits don’t apply.
           </DialogDescription>

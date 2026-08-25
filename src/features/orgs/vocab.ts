@@ -31,6 +31,8 @@ export const SPACES = {
   unitsEmpty: "No units yet — the space won't appear on your booking page until it has an active unit.",
   /** Label of the walk-in dialog's picker when only spaces are listed. */
   field: "Space",
+  /** Bookings-page walk-in button + its dialog title (U2 folds both into "New booking"). */
+  walkIn: "New space booking",
   /** ⌘K action. */
   command: "New space",
   /** Settings › Business row. */
