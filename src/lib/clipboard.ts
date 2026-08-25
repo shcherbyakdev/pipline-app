@@ -10,3 +10,5 @@ export async function copyText(text: string): Promise<boolean> {
     return false;
   }
 }
+
+export const COPY_REFUSED = "Couldn't copy — select the link text and copy manually.";

@@ -3,12 +3,11 @@
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { COPY_REFUSED } from "@/components/copy-link-button";
 import type { OrgMode } from "@/features/orgs/mode";
 import { linkRows } from "@/features/orgs/link-rows";
 import { embedSnippet } from "@/features/orgs/components/widget-embed-snippet";
 import { bookingLink } from "@/lib/booking/url";
-import { copyText } from "@/lib/clipboard";
+import { COPY_REFUSED, copyText } from "@/lib/clipboard";
 
 /* Links & embeds (admin IA spec §5): every place a client can be sent —
    the whole page, one channel, one person, one service, one space — as a
@@ -55,16 +54,24 @@ export function LinksTable({
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right">
-                  <Button variant="ghost" size="xs" onClick={() => copy(bookingLink(appUrl, handle, row.target), "Link")}>
-                    Copy link
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => copy(embedSnippet(appUrl, handle, row.target, mode), "Embed")}
-                  >
-                    Copy embed
-                  </Button>
+                  <span className="inline-flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => copy(bookingLink(appUrl, handle, row.target), "Link")}
+                      aria-label={`Copy link — ${row.label}`}
+                    >
+                      Copy link
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => copy(embedSnippet(appUrl, handle, row.target, mode), "Embed")}
+                      aria-label={`Copy embed — ${row.label}`}
+                    >
+                      Copy embed
+                    </Button>
+                  </span>
                 </td>
               </tr>
             ))}

@@ -47,7 +47,7 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
     resolveChannelParam(sp.channel),
   );
   const { services: orgServices, staff, serviceStaffIds } = cat;
-  // `?staff=` pins the embed to one team member. Unlike /[handle]/[slug]
+  // `?staff=` pins the embed to one team member. Unlike /[handle]/[staffSlug]
   // this never 404s: the snippet lives on someone else's site, so a staff
   // member who left (or a mistyped slug) must degrade to the org-wide flow
   // rather than break the host page. Resolved from the plan's roster, so a
@@ -65,12 +65,20 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
     : [];
   const lockedStaff = pinnedServices.length > 0 ? pinnedStaff : null;
   const services = lockedStaff ? pinnedServices : orgServices;
+  // A person's embed is appointments only — same as their own page
+  // (/[handle]/[staffSlug] never lists spaces). While the lock holds, spaces
+  // are org-level and have no place here; they only come back once the lock
+  // drops (pinnedServices empty ⇒ lockedStaff null ⇒ the org flow, spaces
+  // included).
+  const embedOfferings = lockedStaff ? [] : cat.offerings;
   // `?service=` / `?space=` (spec §5): the pinned roster wins — a service the
-  // pinned person doesn't offer is ignored. The widget applies a request once
-  // per key; key 1 lands on first render, exactly like the hosted page.
+  // pinned person doesn't offer is ignored. `?space=` resolves against
+  // embedOfferings so a locked embed can never seed a space it doesn't show.
+  // The widget applies a request once per key; key 1 lands on first render,
+  // exactly like the hosted page.
   const requested = initialRequest(
     resolveInitialService(services, sp.service),
-    resolveInitialOffering(cat.offerings, sp.space),
+    resolveInitialOffering(embedOfferings, sp.space),
   );
   const theme = parseWidgetTheme(branding.themeRaw);
   return (
@@ -100,7 +108,7 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
         orgTimeZone={org.timeZone}
         currency={org.currency}
         services={services}
-        offerings={cat.offerings}
+        offerings={embedOfferings}
         staff={staff}
         serviceStaffIds={serviceStaffIds}
         lockedStaff={lockedStaff}

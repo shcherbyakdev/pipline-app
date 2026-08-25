@@ -5,6 +5,7 @@ import { LinksTable } from "@/features/orgs/components/links-table";
 import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { listOfferings } from "@/features/rentals/queries";
+import { bookableAdminServices } from "@/lib/booking/bookable";
 import { effectiveMode, modeOf } from "@/features/orgs/mode";
 import { toPreviewCatalog } from "@/lib/booking/preview-catalog";
 import { requireOrg } from "@/lib/auth/session";
@@ -90,7 +91,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
           handle={schedulingSettings.handle}
           mode={mode}
           staff={staffOptions}
-          services={services.filter((s) => s.active).map((s) => ({ id: s.id, name: s.name }))}
+          services={bookableAdminServices(services, staff).map((s) => ({ id: s.id, name: s.name }))}
           spaces={offerings.filter((o) => o.active).map((o) => ({ id: o.id, name: o.name }))}
         />
       ) : null}

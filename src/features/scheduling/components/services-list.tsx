@@ -6,6 +6,7 @@ import { deleteService } from "@/features/scheduling/actions";
 import type { ServiceRow } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { bookingLink } from "@/lib/booking/url";
+import { bookableAdminServices } from "@/lib/booking/bookable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CopyLinkButton, type LinkBase } from "@/components/copy-link-button";
@@ -24,10 +25,12 @@ function Row({
   service,
   staff,
   linkBase,
+  canLink,
 }: {
   service: ServiceRow;
   staff: StaffRow[];
   linkBase: LinkBase | null;
+  canLink: boolean;
 }) {
   const [pending, startTransition] = React.useTransition();
   // Delete is irreversible (a service with bookings is refused server-side,
@@ -64,10 +67,14 @@ function Row({
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {/* Only a live service is worth a link — an inactive one would just
-            degrade to the org flow. No handle ⇒ no button anywhere. */}
-        {linkBase && service.active ? (
-          <CopyLinkButton url={bookingLink(linkBase.appUrl, linkBase.handle, { service: service.id })} />
+        {/* Only a service a client can actually book gets a link — active and
+            offered by an active person; an unlinked one would just degrade to
+            the org flow. */}
+        {canLink && linkBase ? (
+          <CopyLinkButton
+            url={bookingLink(linkBase.appUrl, linkBase.handle, { service: service.id })}
+            name={service.name}
+          />
         ) : null}
         <ServiceDialog service={service} staff={staff} />
         {confirming ? (
@@ -104,10 +111,17 @@ export function ServicesList({
   staff: StaffRow[];
   linkBase: LinkBase | null;
 }) {
+  const bookable = new Set(bookableAdminServices(services, staff).map((s) => s.id));
   return (
     <ol className="flex flex-col gap-2">
       {services.map((service) => (
-        <Row key={service.id} service={service} staff={staff} linkBase={linkBase} />
+        <Row
+          key={service.id}
+          service={service}
+          staff={staff}
+          linkBase={linkBase}
+          canLink={linkBase !== null && bookable.has(service.id)}
+        />
       ))}
     </ol>
   );

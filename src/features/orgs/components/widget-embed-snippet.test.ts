@@ -55,3 +55,21 @@ describe("embedSnippet iframe title", () => {
     expect(embedSnippet(APP, "acme", { channel: "services" }, RENTALS_ONLY)).toContain('title="Book an appointment"');
   });
 });
+
+describe("embedSnippet trailing-slash appUrl", () => {
+  it("no double slash in either src, whatever appUrl's trailing slashes", () => {
+    const s = embedSnippet("https://app.example.com/", "acme");
+    expect(s).toContain('src="https://app.example.com/embed/acme"');
+    expect(s).toContain('src="https://app.example.com/embed.js"');
+    expect(s).not.toContain("//embed");
+  });
+});
+
+describe("embedSnippet attribute safety", () => {
+  it("a 40-char handle and a long staff slug yield exactly two src= and eight quote characters", () => {
+    const handle = "a".repeat(40);
+    const s = embedSnippet(APP, handle, { staff: "a-very-long-slug-with-dashes-1234567890" });
+    expect(s.match(/src="/g)).toHaveLength(2);
+    expect(s.match(/"/g)).toHaveLength(8);
+  });
+});

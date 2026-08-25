@@ -66,7 +66,10 @@ function Row({
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {linkBase && offering.active ? (
-          <CopyLinkButton url={bookingLink(linkBase.appUrl, linkBase.handle, { space: offering.id })} />
+          <CopyLinkButton
+            url={bookingLink(linkBase.appUrl, linkBase.handle, { space: offering.id })}
+            name={offering.name}
+          />
         ) : null}
         {/*
           A plain styled Link, not <Button render={<Link .../>}>: base-ui's
