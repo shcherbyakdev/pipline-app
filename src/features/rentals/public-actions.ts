@@ -12,6 +12,7 @@ import {
   loadOrgRangeContext,
   type PublicUnit,
 } from "@/lib/booking/public";
+import { loadPublicResources } from "@/lib/booking/public-offering";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
@@ -44,6 +45,25 @@ async function limited(): Promise<boolean> {
   return !publicBookingLimiter.allow(key);
 }
 
+type RangeCtx = NonNullable<Awaited<ReturnType<typeof loadOrgRangeContext>>>;
+
+// H5b: narrow the engine's units to what the plan lets the public page book
+// (null = no cap — billing off, byte-identical to before). `capped` says this
+// space has at least one hidden unit, which is when a public create must name
+// the unit itself rather than let the RPC auto-pick from every active unit.
+async function capRangeUnits(orgId: string, ctx: RangeCtx): Promise<RangeCtx & { capped: boolean }> {
+  const resources = await loadPublicResources(orgId);
+  if (!resources) return { ...ctx, capped: false };
+  const allowed = resources.allowedUnitIds;
+  const rangeUnits = ctx.rangeUnits.filter((u) => allowed.has(u.id));
+  return {
+    ...ctx,
+    units: ctx.units.filter((u) => allowed.has(u.id)),
+    rangeUnits,
+    capped: rangeUnits.length < ctx.rangeUnits.length,
+  };
+}
+
 // Shared by both actions: org + everything the range engine needs.
 async function loadRangeContext(handle: string, offeringId: string, fromDate: string, days: number) {
   const org = await getBookingOrg(handle);
@@ -56,7 +76,7 @@ async function loadRangeContext(handle: string, offeringId: string, fromDate: st
   if (!org.offersRentals) return null;
   const ctx = await loadOrgRangeContext(org.orgId, offeringId, fromDate, days);
   if (!ctx) return null;
-  return { org, ...ctx };
+  return { org, ...(await capRangeUnits(org.orgId, ctx)) };
 }
 
 export async function getRangeAvailability(
@@ -122,8 +142,9 @@ export async function createRentalBooking(
       Math.min(stayLength(asEngineOffering(offering).rangeMode, startDate, endDate), offering.bookingWindowDays) +
       offering.turnoverDays +
       2;
-    const ctx = await loadOrgRangeContext(org.orgId, offeringId, startDate, span);
-    if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const raw = await loadOrgRangeContext(org.orgId, offeringId, startDate, span);
+    if (!raw) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const ctx = await capRangeUnits(org.orgId, raw);
 
     // The RPC rejects a stay whose check-in has already passed (a booking that
     // starts in the past can never be cancelled). Say so here rather than let
@@ -166,11 +187,11 @@ export async function createRentalBooking(
     // this action is the only entry. service_role calls it; the token stays
     // the credential.
     const admin = createAdminClient();
-    const call = () =>
+    const call = (pUnitId: string | null) =>
       admin.rpc("create_rental_booking", {
         p_handle: handle,
         p_offering_id: offeringId,
-        p_unit_id: unitId,
+        p_unit_id: pUnitId,
         p_start_date: startDate,
         p_end_date: endDate,
         p_name: name,
@@ -179,10 +200,25 @@ export async function createRentalBooking(
         p_token_hash: tokenHash,
       });
 
-    let { data: bookingId, error } = await call();
-    // Auto-assignment: a lost race means "some other unit may still be
-    // free", so one retry re-picks. An explicit unit has nothing to re-pick.
-    if (error && isTaken(error) && unitId === null) ({ data: bookingId, error } = await call());
+    // What to hand the RPC, in order:
+    //   a client-picked unit          → that unit, once;
+    //   auto-assign, no cap           → null twice: the DB picks the first free
+    //                                   active unit, one retry on a lost race
+    //                                   ("some other unit may still be free");
+    //   auto-assign, plan hides units → H5b: the DB must not pick a hidden
+    //                                   unit, so name the engine's allowed free
+    //                                   units one after another until one
+    //                                   sticks (stay.unitIds is already the
+    //                                   allowed free set — the engine only
+    //                                   ever saw allowed units).
+    const attempts: (string | null)[] =
+      unitId !== null ? [unitId] : ctx.capped ? stay.unitIds : [null, null];
+    if (attempts.length === 0) return { ok: false, error: DATES_TAKEN, datesTaken: true };
+    let result = await call(attempts[0]);
+    for (let i = 1; i < attempts.length && result.error && isTaken(result.error); i++) {
+      result = await call(attempts[i]);
+    }
+    const { data: bookingId, error } = result;
     if (error) {
       if (isTaken(error)) return { ok: false, error: DATES_TAKEN, datesTaken: true };
       console.error("[rentals] createRentalBooking:", error.code || "rpc error");

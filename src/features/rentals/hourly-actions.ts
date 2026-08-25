@@ -6,6 +6,7 @@ import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter, publicSlotsLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext, type PublicUnit } from "@/lib/booking/public";
+import { loadPublicResources } from "@/lib/booking/public-offering";
 import { getProviderEmail } from "@/lib/booking/provider";
 import { selectTransport } from "@/lib/email/transport";
 import { emailBadgeUrl } from "@/lib/billing/queries";
@@ -65,7 +66,19 @@ async function loadHourlyContext(
   if (!org.offersRentals) return null;
   const ctx = await loadOrgHourlyContext(org.orgId, offeringId, org.timeZone, fromDate, days, opts);
   if (!ctx) return null;
-  return { org, ...ctx };
+  // H5b: see capRangeUnits in public-actions.ts — hidden units never reach
+  // the engine, the unit picker, or the RPC.
+  const resources = await loadPublicResources(org.orgId);
+  if (!resources) return { org, ...ctx, capped: false };
+  const allowed = resources.allowedUnitIds;
+  const perUnit = ctx.perUnit.filter((u) => allowed.has(u.unitId));
+  return {
+    org,
+    ...ctx,
+    units: ctx.units.filter((u) => allowed.has(u.id)),
+    perUnit,
+    capped: perUnit.length < ctx.perUnit.length,
+  };
 }
 
 // The engine runs once per unit; the client sees the union (a time is
@@ -188,11 +201,11 @@ export async function createRentalBookingHours(
     // engine's rules (opening hours, notice, window, grid) run here, not in
     // the RPC, so this action is the only entry.
     const admin = createAdminClient();
-    const call = () =>
+    const call = (pUnitId: string | null) =>
       admin.rpc("create_rental_booking_hours", {
         p_handle: handle,
         p_offering_id: offeringId,
-        p_unit_id: unitId,
+        p_unit_id: pUnitId,
         p_starts_at: starts.toISOString(),
         p_duration_min: durationMin,
         p_name: name,
@@ -201,10 +214,17 @@ export async function createRentalBookingHours(
         p_token_hash: tokenHash,
       });
 
-    let { data: bookingId, error } = await call();
-    // Auto-assignment: a lost race means "some other unit may still be
-    // free", so one retry re-picks. An explicit unit has nothing to re-pick.
-    if (error && isTaken(error) && unitId === null) ({ data: bookingId, error } = await call());
+    // Same ladder as createRentalBooking (public-actions.ts): explicit unit
+    // once; uncapped auto-assign = null + one retry; capped auto-assign names
+    // the allowed free units (match.unitIds — the engine only ever saw those).
+    const attempts: (string | null)[] =
+      unitId !== null ? [unitId] : ctx.capped ? match.unitIds : [null, null];
+    if (attempts.length === 0) return { ok: false, error: SLOT_TAKEN_HOURLY, slotTaken: true };
+    let result = await call(attempts[0]);
+    for (let i = 1; i < attempts.length && result.error && isTaken(result.error); i++) {
+      result = await call(attempts[i]);
+    }
+    const { data: bookingId, error } = result;
     if (error) {
       // Per-email hourly cap (0056).
       if (isRpcSentinel(error, "too_many")) return { ok: false, error: TOO_MANY_FOR_EMAIL };
