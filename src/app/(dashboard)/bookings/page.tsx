@@ -110,6 +110,7 @@ export default async function BookingsPage({
       mode: eff,
       serviceCount: activeServices.length,
       spaceCount: spaces.length,
+      hourlySpaceCount: spaces.filter((o) => o.rangeMode === "hours").length,
       ownersWithHours,
       published: page.published !== null,
     });

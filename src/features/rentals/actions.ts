@@ -99,6 +99,7 @@ export async function createOffering(input: unknown): Promise<ActionState> {
     .insert({ org_id: orgId, ...toOfferingRow(parsed.data) });
   if (error) return fail("createOffering", error);
   revalidatePath("/rentals");
+  revalidatePath("/availability");
   return { ok: true };
 }
 
@@ -120,6 +121,7 @@ export async function updateOffering(input: unknown): Promise<ActionState> {
   if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
   revalidatePath("/rentals");
   revalidatePath(`/rentals/${id}`);
+  revalidatePath("/availability");
   return { ok: true };
 }
 
@@ -139,6 +141,7 @@ export async function deleteOffering(input: unknown): Promise<ActionState> {
     return fail("deleteOffering", error);
   }
   revalidatePath("/rentals");
+  revalidatePath("/availability");
   return { ok: true };
 }
 

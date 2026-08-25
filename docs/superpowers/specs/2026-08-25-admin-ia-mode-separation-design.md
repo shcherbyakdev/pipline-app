@@ -308,7 +308,7 @@ Same segmented-link component, two clusters separated by a hairline:
 **People** (colour dot + name, as today) then **Spaces** (house icon + name).
 Renders when `staff.length + spaces.length ≥ 2`; `aria-label="Whose hours"`.
 Hrefs: `/availability?staff=<id>` / `/availability?space=<id>`.
-`StaffTabs` stays for the Bookings week header.
+With fewer than two owners nothing renders (the solo rule) — except that a sole *space* owner gets a one-line heading (house icon + name), so a one-room studio can see whose hours these are; a sole person stays nameless (it is you). A shape-valid `?staff=`/`?space=` that names nothing listed falls back silently by design (never a 404). `StaffTabs` itself has no callers (the Bookings week header uses `StaffFilter`, not `StaffTabs`); U3 keeps the file only as the home of the shared segmented classes — deleting it is a follow-up.
 
 ### Page (`app/(dashboard)/availability/page.tsx`)
 
@@ -323,7 +323,7 @@ Hrefs: `/availability?staff=<id>` / `/availability?space=<id>`.
   existing "Nobody on the team is active…" copy; otherwise (nights-only
   rentals org) → "Nightly and daily spaces use check-in and check-out times,
   set on each space. Hourly spaces and team members set their weekly hours
-  here." with a link to `/rentals`. **No redirect**: `availability/layout.tsx`
+  here." with a link to `/rentals` (the link only while the effective mode still sells spaces — under the rentals kill switch the copy renders without it). Space create/update/delete revalidate `/availability` too. **No redirect**: `availability/layout.tsx`
   drops its `!offersAppointments → /bookings` guard.
 - `nav.ts`: Availability has no `channel` (table in §1).
 

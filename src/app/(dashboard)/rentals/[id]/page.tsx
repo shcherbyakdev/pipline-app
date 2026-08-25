@@ -7,10 +7,8 @@ import { OfferingDialog } from "@/features/rentals/components/offering-dialog";
 import { UnitsEditor } from "@/features/rentals/components/units-editor";
 import { Badge } from "@/components/ui/badge";
 import { getOfferingAvailabilityAdmin } from "@/features/scheduling/queries";
-import { getSchedulingSettings } from "@/features/orgs/queries";
-import { WeeklyHours } from "@/features/scheduling/components/weekly-hours";
-import { DateOverrides } from "@/features/scheduling/components/date-overrides";
-import { dateInZone } from "@/features/scheduling/slots";
+import { summarizeWeekly } from "@/features/scheduling/hours-summary";
+import { ownerHref } from "@/features/scheduling/availability-owner";
 import { SPACES } from "@/features/orgs/vocab";
 
 export default async function RentalDetailPage({ params }: PageProps<"/rentals/[id]">) {
@@ -29,18 +27,10 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
   const hourly = offering.rangeMode === "hours";
   const nightly = offering.rangeMode === "nights";
 
-  // H2: hours offerings read opening hours from availability_rules
-  // (offering-owned rows, 0056) instead of the nights/days start/end times —
-  // same org-timezone idiom as /availability/page.tsx.
-  let timezone = "UTC";
-  let rules: Awaited<ReturnType<typeof getOfferingAvailabilityAdmin>>["rules"] = [];
-  let exceptions: Awaited<ReturnType<typeof getOfferingAvailabilityAdmin>>["exceptions"] = [];
-  if (hourly) {
-    const settings = await getSchedulingSettings();
-    timezone = settings?.timezone ?? "UTC";
-    const today = dateInZone(new Date(), timezone);
-    ({ rules, exceptions } = await getOfferingAvailabilityAdmin(offering.id, today));
-  }
+  // U3 (ruling 4): hours are edited on /availability; this page only
+  // summarises the weekly rules. Overrides are not shown here, so the
+  // exceptions half of the read is discarded and no timezone is needed.
+  const rules = hourly ? (await getOfferingAvailabilityAdmin(offering.id)).rules : [];
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
@@ -68,16 +58,30 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
       </div>
       <UnitsEditor offeringId={offering.id} units={units} />
       {hourly ? (
-        <div className="flex flex-col gap-4">
-          <h2 className="text-sm font-medium">Opening hours</h2>
-          <WeeklyHours owner={{ rentalOfferingId: offering.id }} rules={rules} />
-          <DateOverrides
-            owner={{ rentalOfferingId: offering.id }}
-            timeZone={timezone}
-            rules={rules}
-            exceptions={exceptions}
-          />
-        </div>
+        <section
+          aria-labelledby="opening-hours"
+          className="border-border flex items-start justify-between gap-4 rounded-lg border p-4"
+        >
+          <div className="flex min-w-0 flex-col gap-1">
+            <h2 id="opening-hours" className="text-sm font-medium">
+              Opening hours
+            </h2>
+            <p className="text-muted-foreground text-sm">{summarizeWeekly(rules)}</p>
+          </div>
+          {/* /availability lists ACTIVE hourly spaces only, so an inactive
+              one would silently land on another owner's hours — say so
+              instead of linking. */}
+          {offering.active ? (
+            <Link
+              href={ownerHref({ kind: "space", id: offering.id })}
+              className="hover:text-foreground shrink-0 text-sm underline underline-offset-3"
+            >
+              Edit hours →
+            </Link>
+          ) : (
+            <span className="text-muted-foreground shrink-0 text-sm">Reactivate to edit hours</span>
+          )}
+        </section>
       ) : null}
     </div>
   );
