@@ -139,7 +139,7 @@ export function BookingPageBuilder({
             liveUrl={scheduling.handle ? bookingUrl(appUrl, scheduling.handle) : null}
             pageSections={pageSections}
             mode={mode}
-            templatePicker={<TemplatePicker doc={draft.doc} ctx={ctx} onApply={onApplyTemplate} />}
+            templatePicker={<TemplatePicker doc={draft.doc} ctx={ctx} mode={mode} onApply={onApplyTemplate} />}
           />
         )}
       </div>
