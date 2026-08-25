@@ -151,6 +151,21 @@ describe("H5b resource cap: Free spaces-only org, two units, billing on", () => 
     expect(rows).toHaveLength(1);
     expect(rows![0].rental_unit_id).toBe(capped.unitA);
   });
+
+  it("a nights booking sends the provider their own copy (H3 gap closed)", async () => {
+    const { data: rows } = await admin
+      .from("bookings")
+      .select("id, client_email")
+      .eq("org_id", capped.orgId)
+      .eq("status", "confirmed");
+    const bookingId = rows![0].id as string;
+    const notice = mail.sent.find((m) => m.idempotencyKey === `booking/${bookingId}/provider-new`);
+    expect(notice).toBeDefined();
+    expect(notice!.to).toBe(capped.ownerEmail);
+    expect(notice!.replyTo).toBe(rows![0].client_email);
+    expect(String(notice!.subject)).toContain("New booking — Cabin · Cabin 1");
+    expect(String(notice!.text)).toContain("Cap Client booked with you.");
+  });
 });
 
 describe("H5b resource cap: the same org shape without the billing flag is uncapped", () => {

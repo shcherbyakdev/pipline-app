@@ -111,7 +111,9 @@ export function DateOverrides({
       <div>
         <h2 className="text-sm font-semibold">Date overrides</h2>
         <p className="text-muted-foreground text-xs">
-          Days when your availability differs from your weekly hours.
+          {owner.rentalOfferingId !== undefined
+            ? "Days when this space's availability differs from its weekly hours."
+            : "Days when your availability differs from your weekly hours."}
         </p>
       </div>
       {groups.length > 0 ? (

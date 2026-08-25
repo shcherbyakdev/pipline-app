@@ -16,11 +16,14 @@ import { loadPublicResources } from "@/lib/booking/public-offering";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
+import { getProviderEmail } from "@/lib/booking/provider";
 import { wallTimeToUtc } from "@/features/scheduling/slots";
 import {
   bookingConfirmationEmail,
   bookingIdempotencyKey,
+  bookingLifecycleKey,
   formatRangeWhenLine,
+  providerNewBookingEmail,
 } from "@/features/scheduling/templates";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
@@ -225,27 +228,39 @@ export async function createRentalBooking(
       return { ok: false, error: GENERIC_WRITE_ERROR };
     }
 
+    // Everything both mails share, computed once; nothing below may fail the
+    // committed booking, so the unit-name read swallows its own error.
+    const tz = org.timeZone;
+    // Nights/days-only flow (as above) — both are set (0056 CHECK).
+    const starts = wallTimeToUtc(startDate, ctx.offering.startTime!, tz);
+    const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
+    const whenLine = formatRangeWhenLine(starts, ends, tz);
+    const unitName = await getBookingUnitName(bookingId as string).catch((e) => {
+      console.error("[rentals] getBookingUnitName:", e);
+      return null;
+    });
+    const serviceName = unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name;
+    const total = totalCents(
+      ctx.offering,
+      stayUnits(ctx.offering.rangeMode as "nights" | "days", startDate, endDate),
+    );
+    const infoLines = moneyInfoLines({
+      totalCents: total,
+      depositCents: depositCents(ctx.offering, total),
+      currency: org.currency,
+      cancelWindowMin: ctx.offering.cancelWindowMin,
+    });
+    const providerEmail = await getProviderEmail(org.orgId).catch((e) => {
+      console.error("[rentals] getProviderEmail:", e);
+      return null;
+    });
+
     // Best-effort confirmation (the booking survives email failure).
     try {
-      const tz = org.timeZone;
-      // Nights/days-only flow (as above) — both are set (0056 CHECK).
-      const starts = wallTimeToUtc(startDate, ctx.offering.startTime!, tz);
-      const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
-      const unitName = await getBookingUnitName(bookingId as string);
-      const total = totalCents(
-        ctx.offering,
-        stayUnits(ctx.offering.rangeMode as "nights" | "days", startDate, endDate),
-      );
-      const infoLines = moneyInfoLines({
-        totalCents: total,
-        depositCents: depositCents(ctx.offering, total),
-        currency: org.currency,
-        cancelWindowMin: ctx.offering.cancelWindowMin,
-      });
       const msg = bookingConfirmationEmail({
         orgName: org.orgName,
-        serviceName: unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name,
-        whenLine: formatRangeWhenLine(starts, ends, tz),
+        serviceName,
+        whenLine,
         manageUrl: buildBookingManageUrl(token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
         infoLines,
@@ -259,6 +274,32 @@ export async function createRentalBooking(
       });
     } catch (mailError) {
       console.error("[rentals] confirmation email failed:", mailError);
+    }
+
+    // The provider's own copy — the nights/days twin of the notice
+    // createRentalBookingHours sends (H5b closes the gap H3 and H5a noted).
+    // Its own try so a failed client mail can't skip it.
+    if (providerEmail) {
+      try {
+        const notice = providerNewBookingEmail({
+          serviceName,
+          clientName: name,
+          clientEmail: email,
+          whenLine,
+          note: note ?? null,
+          infoLines,
+        });
+        await selectTransport().send({
+          to: providerEmail,
+          subject: notice.subject,
+          html: notice.html,
+          text: notice.text,
+          replyTo: email,
+          idempotencyKey: bookingLifecycleKey(bookingId as string, "provider-new"),
+        });
+      } catch (mailError) {
+        console.error("[rentals] provider notice failed:", mailError);
+      }
     }
 
     return { ok: true, token };

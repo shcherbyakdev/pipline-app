@@ -214,6 +214,27 @@ describe("booking lifecycle templates", () => {
     expect(whenLineFor({ ...b, isRental: true, rangeMode: "nights" }, "Europe/Berlin")).toContain("→");
     expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin")).toContain("→");
   });
+
+  it("client and provider copy never says appointment or slot (H5b: spaces book too)", () => {
+    const base = { orgName: "Studio", serviceName: "Loft · 2B", whenLine: "Mon, 05 Apr → Thu, 08 Apr" };
+    const mails = [
+      bookingReminderEmail(base),
+      bookingCancelledEmail({ ...base, cancelledBy: "client" }),
+      bookingCancelledEmail({ ...base, cancelledBy: "provider" }),
+      providerCancelledEmail({ serviceName: "Loft", whenLine: "Mon", clientName: "A" }),
+    ];
+    for (const m of mails) {
+      expect(m.text.toLowerCase()).not.toMatch(/appointment|\bslot\b/);
+      expect(m.html.toLowerCase()).not.toMatch(/appointment|\bslot\b/);
+    }
+    expect(bookingReminderEmail(base).text).toContain("A reminder about your upcoming booking.");
+    expect(bookingCancelledEmail({ ...base, cancelledBy: "client" }).html).toContain(
+      "Want to rebook? You can book again any time on the booking page.",
+    );
+    expect(providerCancelledEmail({ serviceName: "Loft", whenLine: "Mon", clientName: "A" }).text).toContain(
+      "The time is open again.",
+    );
+  });
 });
 
 // "Powered by Booklo" (spec §5): the growth loop rides along on every
