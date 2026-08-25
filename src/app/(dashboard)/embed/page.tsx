@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
 import { WidgetAppearance } from "@/features/orgs/components/widget-appearance";
+import { LinksTable } from "@/features/orgs/components/links-table";
 import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { listOfferings } from "@/features/rentals/queries";
+import { bookableAdminServices } from "@/lib/booking/bookable";
 import { effectiveMode, modeOf } from "@/features/orgs/mode";
 import { toPreviewCatalog } from "@/lib/booking/preview-catalog";
 import { requireOrg } from "@/lib/auth/session";
@@ -83,6 +85,16 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         initialStaffSlug={initialStaffSlug}
         canHideBadge={canHideBadge}
       />
+      {schedulingSettings.handle ? (
+        <LinksTable
+          appUrl={env.NEXT_PUBLIC_APP_URL}
+          handle={schedulingSettings.handle}
+          mode={mode}
+          staff={staffOptions}
+          services={bookableAdminServices(services, staff).map((s) => ({ id: s.id, name: s.name }))}
+          spaces={offerings.filter((o) => o.active).map((o) => ({ id: o.id, name: o.name }))}
+        />
+      ) : null}
     </div>
   );
 }

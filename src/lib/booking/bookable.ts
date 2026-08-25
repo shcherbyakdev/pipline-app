@@ -32,6 +32,19 @@ export function filterBookableServices<T extends { id: string }>(
   });
 }
 
+/** Admin-side twin of filterBookableServices for rows that carry their own
+    `staffIds` (ServiceRow) and a full roster with `active`: the services a
+    Copy-link / Links & embeds row may point at — active, and linked to at
+    least one active person. Plan caps (public service limits) are NOT
+    applied here; a capped service's link degrades to the org flow. */
+export function bookableAdminServices<T extends { id: string; active: boolean; staffIds: string[] }>(
+  services: T[],
+  staff: readonly { id: string; active: boolean }[],
+): T[] {
+  const map = Object.fromEntries(services.map((s) => [s.id, s.staffIds]));
+  return filterBookableServices(services.filter((s) => s.active), map, staff.filter((s) => s.active));
+}
+
 // Plan limits shape the PUBLIC offering, never the data (spec §4.2): the
 // first `bookableStaff` active people by sort order stay bookable, services
 // narrow to what those people offer, then cap at `publicServices`. Order in

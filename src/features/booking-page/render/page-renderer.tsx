@@ -49,7 +49,17 @@ const DOCKED = "@3xl:col-start-2 @3xl:row-start-1 @3xl:row-end-[-1] @3xl:sticky 
 /* One renderer for /book/[handle], staff pages, the studio preview and
    template thumbnails. Public mode drops hidden and empty sections; preview
    mode shows everything (hidden ones dimmed) so each can be selected. */
-export function PageRenderer({ doc, ctx, initialServiceId = null }: { doc: PageDocument; ctx: RenderContext; initialServiceId?: string | null }) {
+export function PageRenderer({
+  doc,
+  ctx,
+  initialServiceId = null,
+  initialOfferingId = null,
+}: {
+  doc: PageDocument;
+  ctx: RenderContext;
+  initialServiceId?: string | null;
+  initialOfferingId?: string | null;
+}) {
   const sections =
     ctx.mode === "public"
       ? publicSections(doc, { serviceCount: ctx.services.length, staffCount: ctx.lockedStaff ? 0 : ctx.staff.length, offeringCount: ctx.offerings.length })
@@ -57,7 +67,7 @@ export function PageRenderer({ doc, ctx, initialServiceId = null }: { doc: PageD
   const split = doc.layout === "split";
   const others = sections.filter((s) => s.type !== "booking").length;
   return (
-    <PageStateProvider initialServiceId={initialServiceId}>
+    <PageStateProvider initialServiceId={initialServiceId} initialOfferingId={initialOfferingId}>
       {/* Container queries resolve against an ancestor, never the element
           that declares containment — so the @container lives on this plain
           wrapper and the @3xl: variants on the layout div inside it. */}

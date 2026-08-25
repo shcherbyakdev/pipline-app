@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { chooseStaffForBooking, filterBookableServices, limitPublicOffering } from "./bookable";
+import { bookableAdminServices, chooseStaffForBooking, filterBookableServices, limitPublicOffering } from "./bookable";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 
 const anna = { id: "a" };
@@ -44,6 +44,37 @@ describe("filterBookableServices", () => {
     const out = filterBookableServices(services, { cut: ["a"], colour: ["a"] }, [anna]);
     expect(out).toEqual([colour, cut]);
     expect(out[0]).toBe(colour);
+  });
+});
+
+describe("bookableAdminServices (admin twin of filterBookableServices)", () => {
+  const annaActive = { id: "a", active: true };
+  const benInactive = { id: "b", active: false };
+
+  it("keeps an active service linked to an active person", () => {
+    const cut2 = { id: "cut", active: true, staffIds: ["a"] };
+    expect(bookableAdminServices([cut2], [annaActive])).toEqual([cut2]);
+  });
+
+  it("drops an inactive service", () => {
+    const cut2 = { id: "cut", active: false, staffIds: ["a"] };
+    expect(bookableAdminServices([cut2], [annaActive])).toEqual([]);
+  });
+
+  it("drops an active service whose only linked person is inactive", () => {
+    const cut2 = { id: "cut", active: true, staffIds: ["b"] };
+    expect(bookableAdminServices([cut2], [annaActive, benInactive])).toEqual([]);
+  });
+
+  it("drops an active service with no links", () => {
+    const cut2 = { id: "cut", active: true, staffIds: [] };
+    expect(bookableAdminServices([cut2], [annaActive])).toEqual([]);
+  });
+
+  it("preserves input order", () => {
+    const colour2 = { id: "colour", active: true, staffIds: ["a"] };
+    const cut2 = { id: "cut", active: true, staffIds: ["a"] };
+    expect(bookableAdminServices([colour2, cut2], [annaActive]).map((s) => s.id)).toEqual(["colour", "cut"]);
   });
 });
 

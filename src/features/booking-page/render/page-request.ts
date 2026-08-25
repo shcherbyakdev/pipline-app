@@ -5,8 +5,10 @@
 export type RequestKind = "service" | "offering";
 export type PageRequest = { kind: RequestKind; id: string; key: number } | null;
 
-export function initialRequest(serviceId: string | null): PageRequest {
-  return serviceId ? { kind: "service", id: serviceId, key: 1 } : null;
+export function initialRequest(serviceId: string | null, offeringId: string | null = null): PageRequest {
+  if (serviceId) return { kind: "service", id: serviceId, key: 1 };
+  if (offeringId) return { kind: "offering", id: offeringId, key: 1 };
+  return null;
 }
 
 export function nextRequest(prev: PageRequest, kind: RequestKind, id: string): PageRequest {

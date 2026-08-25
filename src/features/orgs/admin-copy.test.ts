@@ -27,6 +27,8 @@ export const SURFACES = [
   "src/app/(dashboard)/clients/[id]/page.tsx",
   "src/app/(dashboard)/availability/page.tsx",
   "src/features/scheduling/components/owner-tabs.tsx",
+  "src/features/orgs/components/links-table.tsx",
+  "src/components/copy-link-button.tsx",
 ];
 
 /* The exact literals the audit found. Cheap, unambiguous, and the first thing

@@ -1,4 +1,5 @@
 import type { OrgMode } from "@/features/orgs/mode";
+import { embedSrc, type LinkTarget } from "@/lib/booking/url";
 
 // Pure string builder, split out of widget-appearance.tsx so it's
 // unit-testable without pulling in that "use client" component's React /
@@ -10,29 +11,31 @@ import type { OrgMode } from "@/features/orgs/mode";
 // iframes via `iframe[data-rollout-embed]` — and `async` on the script tag
 // keeps the pasted snippet from parser-blocking the customer's page.
 //
-// `staffSlug` pins the embed to one team member (`/embed/<handle>?staff=…`);
-// omitting it keeps the whole-team flow, and the string is byte-identical to
-// what solo orgs have always pasted.
+// The `target` (admin IA spec §5) pins the embed to one person, one
+// service, one space or one channel — `embedSrc` builds the query. A null
+// target is the whole-catalogue embed, byte-identical to what solo orgs
+// have always pasted.
 //
-// The iframe `title` is the widget's accessible name on the host page — it
-// follows the org's channels (embedTitle) so a space owner's site doesn't
-// announce "Book an appointment". Omitting `mode` keeps the historical
+// The iframe `title` is the widget's accessible name on the host page. With
+// a target it names that target's channel; without one it follows the org's
+// channels (embedTitle), and omitting `mode` keeps the historical
 // appointments title.
 export function embedTitle(mode?: OrgMode): string {
   if (!mode || (mode.offersAppointments && !mode.offersRentals)) return "Book an appointment";
   return mode.offersRentals && !mode.offersAppointments ? "Book a space" : "Book online";
 }
 
-export function snippetFor(
-  appUrl: string,
-  handle: string,
-  staffSlug?: string | null,
-  mode?: OrgMode,
-): string {
-  const src = staffSlug ? `${appUrl}/embed/${handle}?staff=${staffSlug}` : `${appUrl}/embed/${handle}`;
+function snippetTitle(target: LinkTarget | undefined, mode: OrgMode | undefined): string {
+  if (target && ("space" in target || ("channel" in target && target.channel === "spaces"))) return "Book a space";
+  if (target) return "Book an appointment";
+  return embedTitle(mode);
+}
+
+export function embedSnippet(appUrl: string, handle: string, target?: LinkTarget, mode?: OrgMode): string {
+  const scriptBase = appUrl.replace(/\/+$/, "");
   return (
-    `<iframe data-rollout-embed src="${src}" `
-    + `style="width:100%;border:0" title="${embedTitle(mode)}"></iframe>\n`
-    + `<script src="${appUrl}/embed.js" async></script>`
+    `<iframe data-rollout-embed src="${embedSrc(appUrl, handle, target)}" `
+    + `style="width:100%;border:0" title="${snippetTitle(target, mode)}"></iframe>\n`
+    + `<script src="${scriptBase}/embed.js" async></script>`
   );
 }

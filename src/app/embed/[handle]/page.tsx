@@ -5,6 +5,9 @@ import { listPublicCatalog } from "@/lib/booking/catalog";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
+import { resolveInitialOffering, resolveInitialService } from "@/features/booking-page/initial-service";
+import { initialRequest } from "@/features/booking-page/render/page-request";
+import { applyChannel, resolveChannelParam } from "@/lib/booking/channel";
 import { badgeVisible } from "@/lib/billing/entitlements";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
@@ -13,16 +16,16 @@ import { EmbedResizeReporter } from "@/features/scheduling/components/embed-resi
 import { PoweredBy } from "@/components/powered-by";
 
 export default async function EmbedPage({ params, searchParams }: PageProps<"/embed/[handle]">) {
-  const { handle: requested } = await params;
-  if (!HANDLE_RE.test(requested)) notFound();
+  const { handle: requestedHandle } = await params;
+  if (!HANDLE_RE.test(requestedHandle)) notFound();
   // A snippet pasted on a customer's website carries the handle the org had
   // at the time; after a rename (0052 org_handle_history) it must keep
   // serving the same org. The widget is handed the CURRENT handle — its
   // server actions resolve by handle, and only the current one resolves.
-  let handle = requested;
+  let handle = requestedHandle;
   let org = await getBookingOrg(handle);
   if (!org) {
-    const current = await resolveHandleAlias(requested);
+    const current = await resolveHandleAlias(requestedHandle);
     if (current) {
       handle = current;
       org = await getBookingOrg(current);
@@ -34,15 +37,23 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
     listPublicCatalog(org),
     getOrgBranding(org.orgId),
   ]);
-  const { services: orgServices, staff, serviceStaffIds } = offering;
-  if (orgServices.length === 0 && offerings.length === 0) notFound();
-  // `?staff=` pins the embed to one team member. Unlike /book/[handle]/[slug]
+  if (offering.services.length === 0 && offerings.length === 0) notFound();
+  const sp = await searchParams;
+  // `?channel=` first (spec §5): the pin below only sees the channel this
+  // snippet shows, so `?channel=spaces&staff=anna` is a spaces widget with
+  // no lock. A channel with nothing in it degrades to the whole catalogue.
+  const cat = applyChannel(
+    { services: offering.services, staff: offering.staff, serviceStaffIds: offering.serviceStaffIds, offerings },
+    resolveChannelParam(sp.channel),
+  );
+  const { services: orgServices, staff, serviceStaffIds } = cat;
+  // `?staff=` pins the embed to one team member. Unlike /[handle]/[staffSlug]
   // this never 404s: the snippet lives on someone else's site, so a staff
   // member who left (or a mistyped slug) must degrade to the org-wide flow
   // rather than break the host page. Resolved from the plan's roster, so a
   // person the plan no longer offers degrades the same way. Shape-checked
   // before it is used at all.
-  const staffParam = (await searchParams).staff;
+  const staffParam = sp.staff;
   const staffSlug = typeof staffParam === "string" && STAFF_SLUG_RE.test(staffParam) ? staffParam : null;
   const pinnedStaff = staffSlug ? staff.find((s) => s.slug === staffSlug) ?? null : null;
   // Same reasoning one level down: a pinned person who offers nothing (every
@@ -54,6 +65,21 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
     : [];
   const lockedStaff = pinnedServices.length > 0 ? pinnedStaff : null;
   const services = lockedStaff ? pinnedServices : orgServices;
+  // A person's embed is appointments only — same as their own page
+  // (/[handle]/[staffSlug] never lists spaces). While the lock holds, spaces
+  // are org-level and have no place here; they only come back once the lock
+  // drops (pinnedServices empty ⇒ lockedStaff null ⇒ the org flow, spaces
+  // included).
+  const embedOfferings = lockedStaff ? [] : cat.offerings;
+  // `?service=` / `?space=` (spec §5): the pinned roster wins — a service the
+  // pinned person doesn't offer is ignored. `?space=` resolves against
+  // embedOfferings so a locked embed can never seed a space it doesn't show.
+  // The widget applies a request once per key; key 1 lands on first render,
+  // exactly like the hosted page.
+  const requested = initialRequest(
+    resolveInitialService(services, sp.service),
+    resolveInitialOffering(embedOfferings, sp.space),
+  );
   const theme = parseWidgetTheme(branding.themeRaw);
   return (
     // No min-h-dvh here: `dvh` resolves against the IFRAME's own viewport,
@@ -82,10 +108,12 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
         orgTimeZone={org.timeZone}
         currency={org.currency}
         services={services}
-        offerings={offerings}
+        offerings={embedOfferings}
         staff={staff}
         serviceStaffIds={serviceStaffIds}
         lockedStaff={lockedStaff}
+        requestedService={requested?.kind === "service" ? requested : null}
+        requestedOffering={requested?.kind === "offering" ? requested : null}
       />
       {/* Hiding the badge is a paid perk now: the org's toggle only takes
           effect on a plan that allows it (spec §5). */}

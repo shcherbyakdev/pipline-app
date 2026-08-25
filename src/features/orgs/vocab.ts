@@ -52,6 +52,8 @@ export const SPACES = {
   /** The page with nothing to edit (a nights/days-only org); followed by a link whose text is SPACES.nav. */
   hoursNightsOnly:
     "Nightly and daily spaces use check-in and check-out times, set on each space. Hourly spaces and team members set their weekly hours here.",
+  /** Links & embeds row: the widget restricted to this channel (?channel=spaces). */
+  only: "Spaces only",
 } as const;
 
 /** The appointments channel's few provider-facing words that sit next to
@@ -61,6 +63,8 @@ export const APPOINTMENTS = {
   add: "Add a service",
   /** The New-booking picker's label when only services are listed. */
   field: "Service",
+  /** Links & embeds row: the widget restricted to this channel (?channel=services). */
+  only: "Appointments only",
 } as const;
 
 /** The hosted page's fallback meta description, per channel mix. */

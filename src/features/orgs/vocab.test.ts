@@ -22,6 +22,10 @@ describe("SPACES vocabulary", () => {
       "Nightly and daily spaces use check-in and check-out times, set on each space. Hourly spaces and team members set their weekly hours here.",
     );
   });
+  it("names the per-channel link rows (spec §5)", () => {
+    expect(SPACES.only).toBe("Spaces only");
+    expect(APPOINTMENTS.only).toBe("Appointments only");
+  });
 });
 
 describe("bookingDescription", () => {

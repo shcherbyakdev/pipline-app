@@ -7,9 +7,19 @@ type PageState = { requested: PageRequest; selectService: (id: string) => void; 
 
 const Ctx = React.createContext<PageState>({ requested: null, selectService: () => {}, selectOffering: () => {} });
 
-/* Services / Spaces section → booking widget hand-off (see page-request.ts). */
-export function PageStateProvider({ initialServiceId, children }: { initialServiceId: string | null; children: React.ReactNode }) {
-  const [requested, setRequested] = React.useState<PageRequest>(() => initialRequest(initialServiceId));
+/* Services / Spaces section → booking widget hand-off (see page-request.ts).
+   `initialServiceId` / `initialOfferingId` are the `?service=` / `?space=`
+   deep links, already resolved against the catalogue by the page. */
+export function PageStateProvider({
+  initialServiceId,
+  initialOfferingId = null,
+  children,
+}: {
+  initialServiceId: string | null;
+  initialOfferingId?: string | null;
+  children: React.ReactNode;
+}) {
+  const [requested, setRequested] = React.useState<PageRequest>(() => initialRequest(initialServiceId, initialOfferingId));
   const selectService = React.useCallback((id: string) => setRequested((prev) => nextRequest(prev, "service", id)), []);
   const selectOffering = React.useCallback((id: string) => setRequested((prev) => nextRequest(prev, "offering", id)), []);
   const value = React.useMemo(() => ({ requested, selectService, selectOffering }), [requested, selectService, selectOffering]);
