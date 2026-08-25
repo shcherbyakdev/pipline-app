@@ -2,7 +2,7 @@
 
 import type { PublicUnit } from "@/lib/booking/public";
 
-// create-booking-dialog.tsx's native-<select> idiom.
+// The native-<select> idiom shared by the booking forms.
 const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
 
 // Which unit a stay lands on. "" is auto — the RPC keeps the current unit

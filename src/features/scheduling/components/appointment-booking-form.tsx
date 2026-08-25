@@ -42,7 +42,7 @@ export function AppointmentBookingForm({
   const service = services.find((s) => s.id === serviceId);
 
   // Date + start are editable; the drag seeds them. `new Date()` inside the
-  // useState initializer is the new-rental-booking-dialog precedent — it runs
+  // useState initializer is the booking forms' seeded-now idiom — it runs
   // once, not on every render.
   const [date, setDate] = React.useState(() => drag?.date ?? dateInZone(new Date(), timeZone));
   const [startTime, setStartTime] = React.useState(() =>

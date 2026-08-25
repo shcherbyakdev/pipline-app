@@ -31,7 +31,7 @@ export const SPACES = {
   /** One muted line above the units editor. */
   unitsHint: "Units are the individual rooms or items a client is assigned — one per room.",
   unitsEmpty: "No units yet — the space won't appear on your booking page until it has an active unit.",
-  /** Label of the walk-in dialog's picker when only spaces are listed. */
+  /** The New-booking picker's label when only spaces are listed. */
   field: "Space",
   /** The New-booking picker's label when both services and spaces are listed. */
   pickerBoth: "Service or space",

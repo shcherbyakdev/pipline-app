@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 // These rows server-render, so "now" is seeded after mount (the
-// create-booking-dialog idiom): a render-time Date.now() would both trip
+// booking forms' seeded-now idiom): a render-time Date.now() would both trip
 // react-hooks/purity and risk a hydration mismatch. Until seeded, nothing is
 // treated as started — the worst case is one click that the action refuses.
 function useNowMs(): number | null {

@@ -4,7 +4,7 @@ import type { RangeMode } from "@/features/rentals/range";
    deliberately NOT the full OfferingRow: the timeline hands over
    `{id, name, rangeMode}` and the hourly fields stay optional so that keeps
    compiling; the Bookings page passes real OfferingRows, whose extra fields
-   structurally satisfy this. (Moved from new-rental-booking-dialog.tsx.) */
+   structurally satisfy this. (Moved out of the space form it used to live in.) */
 export type OfferingOption = {
   id: string;
   name: string;

@@ -26,7 +26,7 @@ import { Label } from "@/components/ui/label";
 const WINDOW_DAYS = 93;
 // A week at a time, TimeSlotGrid's own page size (hourly-booking-flow.tsx).
 const HOUR_WINDOW_DAYS = 7;
-// create-booking-dialog.tsx's native-<select> idiom.
+// The native-<select> idiom shared by the booking forms.
 const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
 // hourly-booking-flow.tsx's own threshold for pills vs a <select>.
 const MAX_PILL_OPTIONS = 8;
