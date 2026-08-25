@@ -25,6 +25,7 @@ export const SURFACES = [
   "src/features/rentals/components/space-booking-form.tsx",
   "src/features/scheduling/components/new-booking-dialog.tsx",
   "src/features/scheduling/components/new-booking-button.tsx",
+  "src/features/scheduling/components/calendar-week.tsx",
 ];
 
 /* The exact literals the audit found. Cheap, unambiguous, and the first thing

@@ -282,6 +282,7 @@ export default async function BookingsPage({
         rules={rules}
         exceptions={weekExceptions}
         services={activeServices}
+        spaces={spaces}
         prevHref={`/bookings?week=${addDaysISO(weekStart, -7)}${staffSuffix}`}
         nextHref={`/bookings?week=${addDaysISO(weekStart, 7)}${staffSuffix}`}
       />
