@@ -158,7 +158,7 @@ export function stripSample(section: Section): Section {
 }
 
 function spacesFrom(services: SectionOf<"services">, id: string): Section {
-  return { ...newSection("spaces", id), style: services.style, title: "Spaces" } as Section;
+  return { ...newSection("spaces", id), style: services.style, title: "Spaces" } as SectionOf<"spaces">;
 }
 
 /** Make a template's sections fit what the org sells: a rentals-only org
@@ -167,12 +167,15 @@ function spacesFrom(services: SectionOf<"services">, id: string): Section {
     Spaces. `idFor` names the sections this creates — fresh for applying,
     derived-and-stable for thumbnails. */
 export function fitToMode(sections: Section[], mode: OrgMode, idFor: (source: Section) => string): Section[] {
+  // A template should never author both `services` and `spaces`, but if one
+  // ever did, the both-mode insert below must not add a second spaces section.
+  const hasSpaces = sections.some((s) => s.type === "spaces");
   const out: Section[] = [];
   for (const section of sections) {
     if (section.type === "services") {
       if (mode.offersAppointments) {
         out.push(section);
-        if (mode.offersRentals) out.push({ ...newSection("spaces", idFor(section)), style: "cards" } as Section);
+        if (mode.offersRentals && !hasSpaces) out.push({ ...newSection("spaces", idFor(section)), style: "cards" } as SectionOf<"spaces">);
       } else if (mode.offersRentals) {
         out.push(spacesFrom(section, idFor(section)));
       }

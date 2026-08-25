@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- Supabase public URLs (BrandedHeader precedent) */
 
 import { cn } from "@/lib/utils";
 import { formatOfferingPrice, stayHint } from "@/features/rentals/pricing";
@@ -42,10 +43,11 @@ export function SpacesSection({ section, ctx }: { section: SectionOf<"spaces">; 
                 )}
               >
                 {photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={pageImageUrl(ctx.supabaseUrl, photo)}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className={cn("shrink-0 rounded-[var(--widget-radius)] object-cover", cards ? "aspect-[4/3] w-full" : "size-16")}
                   />
                 ) : null}

@@ -27,6 +27,10 @@ export function pageMetadata(
   supabaseUrl: string,
 ): Metadata {
   const image = heroImagePath(doc);
+  // Declared mode, not effectiveMode: generateMetadata has no flags in scope,
+  // and a rentals-only org with the rentals kill-switch off already 404s at
+  // the page — so the only divergence (both-mode + flag off → "Book with"
+  // instead of "Book an appointment with") is harmless.
   const mode: OrgMode = modeOf(org);
   return {
     title: org.orgName,

@@ -59,6 +59,7 @@ describe("pageDocumentSchema", () => {
   });
   it("spaces: a live section with per-offering photos, single-instance, one photo per space", () => {
     const OFFERING = "11111111-2222-4333-8444-555555555555";
+    expect(newSection("spaces")).toMatchObject({ type: "spaces", title: "Spaces", style: "cards", showPrices: true, showStay: true, photos: [] });
     const spaces = { ...newSection("spaces"), photos: [{ offeringId: OFFERING, path: IMG }] };
     expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, spaces, booking] }).success).toBe(true);
     expect(ADDABLE_TYPES).toContain("spaces");

@@ -4,6 +4,7 @@ import type { PublicOffering } from "@/lib/booking/public";
 import { PREVIEW_OFFERING_ID } from "@/lib/booking/preview-catalog";
 import { CheckboxField, FieldError, SelectField, TextField } from "../fields";
 import { ImageField } from "../image-field";
+import { photosAfterEdit } from "./spaces-photos";
 import { patch, type FormProps } from "./types";
 
 /* Spaces: presentation toggles plus one photo per offering. The offerings
@@ -16,8 +17,7 @@ export function SpacesForm({ section, issues, supabaseUrl, offerings, onChange }
   const setPhoto = (offeringId: string, path: string | undefined) => {
     // Rebuilt from the live catalogue on every edit: a photo for a space
     // that no longer exists is dropped here rather than failing anywhere.
-    const kept = section.photos.filter((p) => p.offeringId !== offeringId && real.some((o) => o.id === p.offeringId));
-    onChange(patch(section, { photos: path ? [...kept, { offeringId, path }] : kept }));
+    onChange(patch(section, { photos: photosAfterEdit(section.photos, real.map((o) => o.id), offeringId, path) }));
   };
   return (
     <>
@@ -30,9 +30,14 @@ export function SpacesForm({ section, issues, supabaseUrl, offerings, onChange }
           Add a space first — <Link href="/rentals" className="underline underline-offset-3">Manage spaces</Link>.
         </p>
       ) : (
-        real.map((o) => (
-          <ImageField key={o.id} id={`sec-spaces-photo-${o.id}`} label={o.name} path={photoFor(o.id)} supabaseUrl={supabaseUrl} onChange={(p) => setPhoto(o.id, p)} shape="wide" />
-        ))
+        <>
+          {real.map((o) => (
+            <ImageField key={o.id} id={`sec-spaces-photo-${o.id}`} label={o.name} path={photoFor(o.id)} supabaseUrl={supabaseUrl} onChange={(p) => setPhoto(o.id, p)} shape="wide" />
+          ))}
+          <p className="text-muted-foreground px-4 py-3 text-xs">
+            Spaces themselves are edited on <Link href="/rentals" className="underline underline-offset-3">Manage spaces</Link>.
+          </p>
+        </>
       )}
       <FieldError message={issues.photos} />
     </>

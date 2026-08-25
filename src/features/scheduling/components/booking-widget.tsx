@@ -114,6 +114,7 @@ export function BookingWidget({
     }
   }
 
+  // Same render-time apply as requestedService above — once per key, never loops.
   const [appliedOfferingKey, setAppliedOfferingKey] = React.useState<number | null>(null);
   if (requestedOffering && requestedOffering.key !== appliedOfferingKey) {
     setAppliedOfferingKey(requestedOffering.key);
@@ -188,10 +189,15 @@ export function BookingWidget({
   // Preview (admin live previews / template thumbnails) never mounts the
   // rental flows — they fetch availability (PR #58's inert rule). A Spaces
   // card click in preview still records the request; the list just stays.
+  // `key={offering.id}` is load-bearing: requestedOffering (Spaces card) can
+  // swap `offering` while a flow is already mounted, and without the key
+  // React would keep the old flow's state (range/unitId/termsAccepted/
+  // durationMin) across the swap — the key forces a fresh flow instead.
   if (offering && !preview) {
     const onOfferingBack = services.length + offerings.length > 1 ? () => setOffering(null) : null;
     return offering.rangeMode === "hours" ? (
       <HourlyBookingFlow
+        key={offering.id}
         handle={handle}
         orgTimeZone={orgTimeZone}
         offering={offering}
@@ -200,6 +206,7 @@ export function BookingWidget({
       />
     ) : (
       <RentalBookingFlow
+        key={offering.id}
         handle={handle}
         orgTimeZone={orgTimeZone}
         offering={offering}

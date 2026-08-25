@@ -3,6 +3,7 @@ import { TEMPLATES, applyTemplate, templatePreview, stripSample, fitToMode, temp
 import { pageDocumentSchema } from "./schema";
 import { imagePathsIn } from "./images";
 import { isSectionEmpty } from "./doc-ops";
+import { newSection } from "./defaults";
 
 const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
 const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
@@ -49,6 +50,10 @@ describe("templates", () => {
   it("classic is the default page shape, applied", () => {
     expect(applyTemplate(TEMPLATES[0]!, BOTH).sections.map((s) => s.type)).toEqual(["header", "booking"]);
   });
+  it("stripSample on a spaces section only changes the id — a live section, not sample copy", () => {
+    const sp = newSection("spaces");
+    expect(stripSample(sp)).toEqual({ ...sp, id: expect.stringMatching(/^[a-z0-9]{6,12}$/) });
+  });
 });
 
 describe("fitToMode", () => {
@@ -68,6 +73,10 @@ describe("fitToMode", () => {
   });
   it("both: spaces is inserted right after services", () => {
     expect(types(fitToMode(studio.sections, BOTH, stable))).toEqual(["hero", "services", "spaces", "gallery", "testimonials", "booking", "location"]);
+  });
+  it("both: a template that already authored spaces never gets a second one inserted", () => {
+    const sections = [newSection("services"), newSection("spaces"), newSection("booking")];
+    expect(types(fitToMode(sections, BOTH, stable))).toEqual(["services", "spaces", "booking"]);
   });
   it("appointments-only: spaces sections are dropped", () => {
     expect(types(fitToMode(venue.sections, APPTS_ONLY, stable))).not.toContain("spaces");
