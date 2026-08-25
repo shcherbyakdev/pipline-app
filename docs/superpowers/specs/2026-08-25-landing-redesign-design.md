@@ -31,12 +31,19 @@ copy outside, mono/badge labels, announcement strip, a dark ending. What made ou
 
 1. **Announcement strip** — early-access / no card; both references open with one.
 2. **Hero** — headline (line 2 cobalt), claim bar (idle note ↔ format hint), dotted connector
-   down to a **tab pill (Appointments / Spaces)** on the stage's top edge that flips the mockup;
-   textured tint stage (cobalt + warm glow, dot grid); two floating satellites (New booking,
-   Reminder scheduled). The mockup itself was rebuilt: minimal chrome (three quiet dots + the
-   address pill the claim bar mirrors into), provider header, Services *or* Spaces list with
-   blurbs and mono meta (`by the hour · 1–4 h`, `per night · min 2 nights`), circular day
-   picker, then a slot with a split "10:30 | Confirm" pill or an hourly window strip.
+   down to a **tab pill (Appointments / Spaces)** on the stage's top edge that flips the widget.
+   The stage is a multi-hue wash (cobalt, blush, sky, apricot) over tint, a fading dot grid and
+   four tall pill shapes half-hidden behind the card — Calendly's environment, our tokens.
+   **The widget** (`booking-widget.tsx`, modelled on Calendly's hero card after a second round
+   of feedback that the page-in-a-browser mock "looks old"): one fully visible rounded card —
+   provider header with the address chip the claim bar mirrors into; Services *or* Spaces
+   list with blurbs and mono meta (`by the hour · 1–4 h`, `per night · min 2 nights`); a month
+   of tinted circle days with the chosen day filled; a "Friday / October 17, 2026" column of
+   tinted time buttons (or hourly windows / night stays); footer line + "Powered by Booklo".
+   It plays a **scripted loop** per mode (three clients on different days): the chosen option
+   gets a ring → flips to a cobalt "✓ Booked" (pop) → the provider's "New booking" card and
+   the "Reminder scheduled" chip float in beside the card → everything leaves and the next
+   client arrives. Reduced motion parks on the booked state and never loops.
 3. **Who it's for** — sand band: heading + wrap of audience pills (consultants … courts, gear
    rental) + the three things the page removes.
 4. **How it works** — three cards on one dotted line, each with a fragment in a sand header.
