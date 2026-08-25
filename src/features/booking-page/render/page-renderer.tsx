@@ -9,6 +9,7 @@ import { HeroSection } from "./sections/hero";
 import { AboutSection } from "./sections/about";
 import { ServicesSection } from "./sections/services";
 import { StaffSection } from "./sections/staff";
+import { SpacesSection } from "./sections/spaces";
 import { GallerySection } from "./sections/gallery";
 import { TestimonialsSection } from "./sections/testimonials";
 import { FaqSection } from "./sections/faq";
@@ -28,6 +29,7 @@ function renderSection(section: Section, ctx: RenderContext) {
     case "about": return <AboutSection section={section} ctx={ctx} />;
     case "services": return <ServicesSection section={section} ctx={ctx} />;
     case "staff": return <StaffSection section={section} ctx={ctx} />;
+    case "spaces": return <SpacesSection section={section} ctx={ctx} />;
     case "gallery": return <GallerySection section={section} ctx={ctx} />;
     case "testimonials": return <TestimonialsSection section={section} ctx={ctx} />;
     case "faq": return <FaqSection section={section} ctx={ctx} />;
