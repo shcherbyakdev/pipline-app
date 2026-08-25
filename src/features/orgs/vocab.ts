@@ -31,7 +31,7 @@ export const SPACES = {
   unitsEmpty: "No units yet — the space won't appear on your booking page until it has an active unit.",
   /** Label of the walk-in dialog's picker when only spaces are listed. */
   field: "Space",
-  /** Bookings-page walk-in button + its dialog title (U2 folds both into "New booking"). */
+  /** Bookings-page walk-in button + its dialog title. Slice U2 (Bookings hub) renames both to the neutral "New booking" once the dialog covers services too. */
   walkIn: "New space booking",
   /** ⌘K action. */
   command: "New space",
