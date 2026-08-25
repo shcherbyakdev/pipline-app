@@ -35,6 +35,11 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
     <div
       className={`${instrumentSans.variable} ${geistMono.variable} marketing bg-background text-foreground flex min-h-full flex-1 flex-col font-sans antialiased`}
     >
+      {/* Scroll-revealed blocks start at opacity 0 and rely on JS to show
+          them; without JS they must simply be visible. */}
+      <noscript>
+        <style>{`.marketing .reveal{opacity:1;transform:none}`}</style>
+      </noscript>
       {children}
     </div>
   );

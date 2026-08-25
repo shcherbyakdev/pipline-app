@@ -13,6 +13,9 @@ import {
   ONBOARDING,
   WELCOME,
   FINAL_CTA,
+  ANNOUNCEMENT,
+  AUDIENCE,
+  HERO_TABS,
   FORBIDDEN_COPY,
   PRICING,
   anchorId,
@@ -69,10 +72,10 @@ describe("site config", () => {
     }
   });
 
-  it("has three numbered steps, six unique features, ≥5 FAQ items", () => {
+  it("has three numbered steps, seven unique features, ≥5 FAQ items", () => {
     expect(STEPS.map((s) => s.number)).toEqual(["01", "02", "03"]);
-    expect(FEATURES).toHaveLength(6);
-    expect(new Set(FEATURES.map((f) => f.title)).size).toBe(6);
+    expect(FEATURES).toHaveLength(7);
+    expect(new Set(FEATURES.map((f) => f.title)).size).toBe(7);
     expect(FAQ.length).toBeGreaterThanOrEqual(5);
     expect(new Set(FAQ.map((f) => f.question)).size).toBe(FAQ.length);
   });
@@ -87,7 +90,6 @@ describe("site config", () => {
         s.heading,
         s.eyebrow,
         "sub" in s ? s.sub : "",
-        ...("points" in s ? s.points : []),
       ]),
       ...Object.values(CTA),
       PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder, PRICING.moreComing,
@@ -104,6 +106,9 @@ describe("site config", () => {
       }),
       ...Object.values(WELCOME).map((v) => (typeof v === "function" ? v("x") : v)),
       FINAL_CTA.heading, FINAL_CTA.sub,
+      ...Object.values(ANNOUNCEMENT),
+      AUDIENCE.eyebrow, AUDIENCE.heading, AUDIENCE.sub, ...AUDIENCE.groups, ...AUDIENCE.proofs,
+      ...HERO_TABS.map((t) => t.label),
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);
   });

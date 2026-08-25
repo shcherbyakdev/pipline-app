@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight, Copy, Lock, PanelLeft, Plus, RotateCw, Share } from "lucide-react";
+import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* Renders children at a fixed design width and scales the whole block down
@@ -49,30 +49,21 @@ export function ScaledFrame({
   );
 }
 
-/* Light browser chrome: traffic lights, nav icons, a URL pill, actions. */
+/* Minimal browser chrome: three quiet dots and the address pill — just
+   enough to say "this is a page at your address" without the traffic-light
+   cliché. The pill is what the claim bar mirrors into. */
 export function BrowserFrame({ url, children }: { url: string; children: React.ReactNode }) {
   return (
     <div className="bg-card ring-border overflow-hidden rounded-t-2xl text-left shadow-[0_24px_64px_-24px_rgb(26_34_56/0.35)] ring-1">
-      <div className="bg-secondary border-border flex items-center gap-3 border-b px-4 py-2.5">
+      <div className="bg-secondary/70 border-border grid grid-cols-[1fr_auto_1fr] items-center border-b px-5 py-2.5">
         <div className="flex items-center gap-1.5">
-          <span className="size-2.5 rounded-full bg-[#ff5f57]" />
-          <span className="size-2.5 rounded-full bg-[#febc2e]" />
-          <span className="size-2.5 rounded-full bg-[#28c840]" />
+          <span className="bg-border size-2.5 rounded-full" />
+          <span className="bg-border size-2.5 rounded-full" />
+          <span className="bg-border size-2.5 rounded-full" />
         </div>
-        <div className="text-foreground/30 flex items-center gap-2">
-          <PanelLeft className="size-3.5" aria-hidden="true" />
-          <ChevronLeft className="size-3.5" aria-hidden="true" />
-          <ChevronRight className="size-3.5 opacity-60" aria-hidden="true" />
-        </div>
-        <div className="bg-card text-foreground/60 mx-auto flex items-center gap-1.5 rounded-md px-6 py-1 font-mono text-[10px]">
+        <div className="bg-card ring-border text-muted-foreground flex items-center gap-1.5 rounded-full px-4 py-1 font-mono text-[11px] ring-1">
           <Lock className="size-3" aria-hidden="true" />
           <span>{url}</span>
-        </div>
-        <div className="text-foreground/30 flex items-center gap-2">
-          <RotateCw className="size-3.5" aria-hidden="true" />
-          <Share className="size-3.5" aria-hidden="true" />
-          <Plus className="size-3.5" aria-hidden="true" />
-          <Copy className="size-3.5" aria-hidden="true" />
         </div>
       </div>
       {children}

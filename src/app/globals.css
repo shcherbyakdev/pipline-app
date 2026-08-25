@@ -236,13 +236,8 @@
   /* Cobalt ≈ #3556f0. The headline's second line, eyebrows, focus rings, the
      mockups' selected state, the wordmark's lit cell — nothing else. */
   --highlight: oklch(0.53 0.23 268);
-  /* Pale cobalt: the stage panels behind product UI (hero, week calendar). */
+  /* Pale cobalt: the stage panel behind the hero mockup, the announcement strip. */
   --tint: oklch(0.955 0.025 268);
-  /* Hero-calendar accent: the landing's cobalt, with a deeper stop for its
-     gradient. Only mocks/hero-calendar.* may use these. */
-  --hero-accent: var(--highlight);
-  --hero-accent-deep: oklch(0.44 0.22 270);
-  --hero-accent-foreground: oklch(1 0 0);
 }
 /* Ink slab (final CTA + footer): the ground and text tokens flipped so copy
    and hairlines read on ink. --card / --primary are left alone, so the claim
@@ -276,8 +271,26 @@
 .animate-fade-up { animation: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-fade-down { animation: fade-down 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-hero-rise { animation: hero-rise 1.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+/* Satellite cards drifting over the hero stage. */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float { animation: float 7s ease-in-out infinite; }
+.animate-float-slow { animation: float 9s ease-in-out 1.2s infinite; }
+/* Scroll reveal: components/reveal.tsx sets `data-in` once the element
+   enters the viewport; JS-off is handled by the <noscript> in the
+   (marketing) layout. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal[data-in] { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-up, .animate-fade-down, .animate-hero-rise { animation: none; }
+  .animate-fade-up, .animate-fade-down, .animate-hero-rise, .animate-float, .animate-float-slow { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
 }
 
 @layer base {

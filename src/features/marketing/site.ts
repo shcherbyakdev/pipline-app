@@ -9,12 +9,12 @@ const BILLING_ON = FLAG_DEFAULTS.billing; // no org on the marketing site: the e
 
 export const SITE = {
   name: "Booklo",
-  tagline: "Booking page & widget for solo providers",
+  tagline: "Booking page & widget for appointments and spaces",
   description:
-    "Booklo gives freelancers and small businesses a hosted booking page and an embeddable widget. Clients book without an account; confirmations, reminders and rescheduling are handled for you.",
+    "Booklo gives solo providers and small businesses a hosted booking page and an embeddable widget — for appointments, and for spaces like rooms, studios and gear booked by the hour or night. Clients book without an account; confirmations, reminders and rescheduling are handled for you.",
   // Two staggered lines; the second (the promise) is set in the accent.
   headline: ["Your booking page.", "Claimed in a minute."],
-  subheadline: "Clients pick a time, you both get the email. No accounts, no double bookings.",
+  subheadline: "Appointments and spaces on one page. Clients pick a time, you both get the email — no accounts, no double bookings.",
   // Flag-conditional (lib/flags.ts): while billing is off there IS no paid
   // ladder to contrast a "Free plan" with, and /pricing 404s — so the note
   // says what is actually true today. Flipping the flag flips the copy.
@@ -40,16 +40,6 @@ export const SECTIONS = {
     eyebrow: "Features",
     heading: "Everything a booking page should do",
     sub: "Nothing you have to configure twice.",
-  },
-  product: {
-    eyebrow: "Your week",
-    heading: "Your week, at a glance",
-    sub: "One calendar for everything that’s booked, blocked or free.",
-    points: [
-      "See every booking for the week at a glance",
-      "Block time off with a drag — clients never see it",
-      "Add walk-in or phone bookings in seconds",
-    ],
   },
   faq: { eyebrow: "FAQ", heading: "Questions, answered" },
 } as const;
@@ -80,6 +70,30 @@ export const FINAL_CTA = {
   sub: "Pick a name, add a service, set your hours — you're bookable.",
 } as const;
 
+/** The hero's tab pill: which channel the mockup previews. Labels come from
+    the product's own vocabulary where it has one. */
+export const HERO_TABS = [
+  { id: "appointments", label: "Appointments" },
+  { id: "spaces", label: SPACES.pickerTitle },
+] as const satisfies ReadonlyArray<{ id: "appointments" | "spaces"; label: string }>;
+
+/** Strip above the nav. Same flag rule as SITE.heroNote. */
+export const ANNOUNCEMENT = {
+  label: "Early access",
+  text: BILLING_ON ? "Free plan for solo providers — no credit card." : "Free while we build — no credit card.",
+  cta: "Claim your page",
+} as const;
+
+/** "Who it's for" band under the hero: a wrap of pills and the three things
+    the page removes. */
+export const AUDIENCE = {
+  eyebrow: "Who it's for",
+  heading: "Built for people who sell their time — or their space.",
+  sub: "Consultants and coaches, but also studios, rooms and gear that clients book by the hour or night. One page, one calendar.",
+  groups: ["Consultants", "Coaches", "Therapists", "Tutors", "Photographers", "Studios", "Coworking", "Rehearsal rooms", "Courts", "Gear rental"],
+  proofs: ["No back-and-forth emails", "No double bookings", "No client accounts"],
+} as const;
+
 export type NavLink = { label: string; href: string };
 
 export const NAV_LINKS: NavLink[] = [
@@ -94,21 +108,23 @@ export const NAV_LINKS: NavLink[] = [
 export type Step = { number: "01" | "02" | "03"; title: string; body: string };
 
 export const STEPS: Step[] = [
-  { number: "01", title: "Set your services and hours", body: "What you offer, how long it takes, when you're free." },
+  { number: "01", title: "Add what you offer and when", body: "Services or spaces — how long they take, when you're open, how many units you have." },
   { number: "02", title: "Share your link or embed the widget", body: "Every account gets a page at its own address. One line embeds it on your site." },
   { number: "03", title: "Clients book; you both get confirmations", body: "They see only real openings. Confirmations and reminders go out on their own." },
 ];
 
 /** Which product fragment illustrates a feature (components/mocks/feature-mocks.tsx). */
-export type FeatureVisual = "page" | "embed" | "slot-guard" | "manage" | "reminder" | "brand";
+export type FeatureVisual = "page" | "spaces" | "slot-guard" | "manage" | "embed" | "reminder" | "brand";
 export type Feature = { visual: FeatureVisual; title: string; body: string };
 
+/** Order is layout order: the bento in features.tsx spans by `visual`. */
 export const FEATURES: Feature[] = [
   { visual: "page", title: "Hosted booking page", body: "A clean, mobile-first page at your own address. Nothing to install, nothing to host." },
-  { visual: "embed", title: "Embed on any site", body: "One script tag. The widget sits inside your page and grows with its content." },
-  { visual: "slot-guard", title: "Double-booking impossible", body: "Slots are guarded in the database — two people can never take the same time." },
+  { visual: "spaces", title: "Spaces by the hour or night", body: "Rooms, studios and gear on the same page. Clients pick a window or a stay; units never double up." },
+  { visual: "slot-guard", title: "Double-booking impossible", body: "Slots and units are guarded in the database — two people can never take the same time." },
   { visual: "manage", title: "Self-serve cancel & reschedule", body: "Clients manage their booking from a secure link in the email. No back-and-forth." },
-  { visual: "reminder", title: "Automatic reminders", body: "A reminder goes out before every appointment, so fewer no-shows." },
+  { visual: "embed", title: "Embed on any site", body: "One script tag. The widget sits inside your page and grows with its content." },
+  { visual: "reminder", title: "Automatic reminders", body: "A reminder goes out before every booking, so fewer no-shows." },
   { visual: "brand", title: "Your brand", body: "Logo, brand colour and a welcome message — the page looks like yours, not ours." },
 ];
 
@@ -117,6 +133,7 @@ export type FaqItem = { question: string; answer: string };
 export const FAQ: FaqItem[] = [
   { question: "Do my clients need an account?", answer: "No. They pick a time, enter a name and email, and they're booked. Everything else happens through links in their confirmation email." },
   { question: "Can I embed it on my own website?", answer: "Yes. Copy one script tag from your dashboard and paste it into any page. The widget adjusts its height automatically." },
+  { question: "Can I rent out a room, a studio or gear?", answer: "Yes. Next to appointments, Booklo books spaces — rooms, studios and gear — by the hour, night or day, from the same page. Each space has units, so two clients can never get the same room." },
   { question: "What happens if two people pick the same slot?", answer: "Only one booking can win. The other person sees that the slot was just taken and is offered fresh times — never a silent double booking." },
   { question: "How do clients cancel or reschedule?", answer: "Their confirmation email contains a secure manage link. From there they can cancel or pick another slot; you get notified either way." },
   { question: "What data do you store about my clients?", answer: "Name, email and an optional note — nothing else. No documents, no card numbers, no accounts." },

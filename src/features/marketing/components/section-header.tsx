@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Reveal } from "./reveal";
 
 /* Small uppercase mono label that opens every section — the one place the
    accent appears in running text. */
@@ -8,7 +9,8 @@ export function Eyebrow({ children, className }: { children: React.ReactNode; cl
 
 /* Eyebrow → heading on the left, the sub-line on the right at lg+ (the two
    columns share a baseline), stacked below. Sections that don't need a
-   sub-line just omit it and the grid collapses to one column. */
+   sub-line just omit it and the grid collapses to one column. Fades up on
+   scroll. */
 export function SectionHeader({
   id,
   eyebrow,
@@ -23,7 +25,7 @@ export function SectionHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-end lg:gap-12", className)}>
+    <Reveal className={cn("grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-end lg:gap-12", className)}>
       <div>
         <Eyebrow>{eyebrow}</Eyebrow>
         <h2
@@ -34,6 +36,6 @@ export function SectionHeader({
         </h2>
       </div>
       {sub ? <p className="text-muted-foreground max-w-md text-base leading-relaxed lg:pb-1.5 lg:text-[17px]">{sub}</p> : null}
-    </div>
+    </Reveal>
   );
 }
