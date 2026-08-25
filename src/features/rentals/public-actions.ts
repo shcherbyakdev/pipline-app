@@ -229,31 +229,47 @@ export async function createRentalBooking(
     }
 
     // Everything both mails share, computed once; nothing below may fail the
-    // committed booking, so the unit-name read swallows its own error.
-    const tz = org.timeZone;
-    // Nights/days-only flow (as above) — both are set (0056 CHECK).
-    const starts = wallTimeToUtc(startDate, ctx.offering.startTime!, tz);
-    const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
-    const whenLine = formatRangeWhenLine(starts, ends, tz);
-    const unitName = await getBookingUnitName(bookingId as string).catch((e) => {
-      console.error("[rentals] getBookingUnitName:", e);
-      return null;
-    });
-    const serviceName = unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name;
-    const total = totalCents(
-      ctx.offering,
-      stayUnits(ctx.offering.rangeMode as "nights" | "days", startDate, endDate),
-    );
-    const infoLines = moneyInfoLines({
-      totalCents: total,
-      depositCents: depositCents(ctx.offering, total),
-      currency: org.currency,
-      cancelWindowMin: ctx.offering.cancelWindowMin,
-    });
-    const providerEmail = await getProviderEmail(org.orgId).catch((e) => {
-      console.error("[rentals] getProviderEmail:", e);
-      return null;
-    });
+    // committed booking, so the unit-name/provider-email reads swallow their
+    // own errors AND the whole block is wrapped below — a throw here (e.g.
+    // formatRangeWhenLine, totalCents) must not report a committed booking
+    // as failed to the caller.
+    let prep: {
+      whenLine: string;
+      serviceName: string;
+      infoLines: string[];
+      providerEmail: string | null;
+    } | null = null;
+    try {
+      const tz = org.timeZone;
+      // Nights/days-only flow (as above) — both are set (0056 CHECK).
+      const starts = wallTimeToUtc(startDate, ctx.offering.startTime!, tz);
+      const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
+      const whenLine = formatRangeWhenLine(starts, ends, tz);
+      const unitName = await getBookingUnitName(bookingId as string).catch((e) => {
+        console.error("[rentals] getBookingUnitName:", e);
+        return null;
+      });
+      const serviceName = unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name;
+      const total = totalCents(
+        ctx.offering,
+        stayUnits(ctx.offering.rangeMode as "nights" | "days", startDate, endDate),
+      );
+      const infoLines = moneyInfoLines({
+        totalCents: total,
+        depositCents: depositCents(ctx.offering, total),
+        currency: org.currency,
+        cancelWindowMin: ctx.offering.cancelWindowMin,
+      });
+      const providerEmail = await getProviderEmail(org.orgId).catch((e) => {
+        console.error("[rentals] getProviderEmail:", e);
+        return null;
+      });
+      prep = { whenLine, serviceName, infoLines, providerEmail };
+    } catch (error) {
+      console.error("[rentals] post-booking mail prep failed:", error);
+      return { ok: true, token };
+    }
+    const { whenLine, serviceName, infoLines, providerEmail } = prep;
 
     // Best-effort confirmation (the booking survives email failure).
     try {
