@@ -19,6 +19,9 @@ export const orgs = pgTable("orgs", {
   // IANA zone for availability wall-times. Validated against
   // pg_timezone_names inside update_org_scheduling.
   timezone: text("timezone").default("UTC").notNull(),
+  // H3: one settlement currency per org (H4 Stripe constraint). Whitelist
+  // CHECK in 0058; written ONLY via update_org_scheduling.
+  currency: text("currency").default("PLN").notNull(),
   // Widget appearance (S3). Written ONLY via update_org_widget_theme
   // (same select-only-orgs discipline as branding). Null = all defaults.
   widgetTheme: jsonb("widget_theme"),

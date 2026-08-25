@@ -192,6 +192,15 @@ export const bookings = pgTable(
     // returned once from create_booking's caller and never stored.
     cancelTokenHash: text("cancel_token_hash").notNull(),
     note: text("note"),
+    // H3 money snapshot, computed inside the rental RPCs at (re)booking
+    // time. NULL for appointments and pre-H3 rows; historical record —
+    // later offering/currency edits never rewrite it.
+    priceCents: integer("price_cents"),
+    currency: text("currency"),
+    depositCents: integer("deposit_cents"),
+    // Stamped by the public create RPCs iff the offering had terms_text;
+    // carried forward across reschedules.
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     // Self-FK deferred to 0026 (drizzle self-reference needs AnyPgColumn
     // gymnastics; the deferred-FK idiom from access_tokens.chase_id is
     // simpler and established).

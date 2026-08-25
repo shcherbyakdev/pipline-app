@@ -84,7 +84,7 @@ describe("create_booking_admin", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
-      p_timezone: "UTC",
+      p_timezone: "UTC", p_currency: "PLN",
     });
     if (e2) throw e2;
     // 0041: create_org seeds one staff row — the calendar owner.

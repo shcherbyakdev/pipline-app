@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { getOffering, listUnitsWithBlackouts } from "@/features/rentals/queries";
+import { getOffering, listUnitsWithBlackouts, getOrgCurrency } from "@/features/rentals/queries";
 import { formatDurationLabel } from "@/features/rentals/hourly";
 import { OfferingDialog } from "@/features/rentals/components/offering-dialog";
 import { UnitsEditor } from "@/features/rentals/components/units-editor";
@@ -23,6 +23,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
   // which is exactly the 404 we want.
   if (!offering) notFound();
   const units = await listUnitsWithBlackouts(id);
+  const currency = await getOrgCurrency();
 
   const hourly = offering.rangeMode === "hours";
   const nightly = offering.rangeMode === "nights";
@@ -59,10 +60,9 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
                 : nightly
                   ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
                   : `pickup ${offering.startTime} · return ${offering.endTime}`}
-              {offering.priceLabel ? ` · ${offering.priceLabel}` : ""}
             </p>
           </div>
-          <OfferingDialog offering={offering} />
+          <OfferingDialog offering={offering} currency={currency} />
         </div>
       </div>
       <UnitsEditor offeringId={offering.id} units={units} />

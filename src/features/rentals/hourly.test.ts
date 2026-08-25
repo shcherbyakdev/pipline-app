@@ -18,7 +18,6 @@ function offering(over: Partial<PublicOffering> = {}): PublicOffering {
     id: "off-1",
     name: "Tennis court",
     description: null,
-    priceLabel: null,
     rangeMode: "hours",
     startTime: null,
     endTime: null,
@@ -33,6 +32,12 @@ function offering(over: Partial<PublicOffering> = {}): PublicOffering {
     maxDurationMin: 240,
     turnoverMin: 15,
     minNoticeMin: 60,
+    priceCents: null,
+    pricingMode: "per_unit",
+    depositType: "none",
+    depositValue: null,
+    cancelWindowMin: 0,
+    termsText: null,
     ...over,
   };
 }

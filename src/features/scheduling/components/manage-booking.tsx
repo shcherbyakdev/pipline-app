@@ -11,6 +11,7 @@ import {
 } from "@/features/scheduling/manage-actions";
 import { RentalReschedulePanel } from "@/features/rentals/components/rental-reschedule-panel";
 import { HourlyReschedulePanel } from "@/features/rentals/components/hourly-reschedule-panel";
+import { CANCEL_WINDOW_PASSED } from "@/features/rentals/schema";
 import { Button } from "@/components/ui/button";
 
 // The viewer's local date (booking-widget's rule; getManageSlots pads its
@@ -33,6 +34,7 @@ export function ManageBooking({
   token,
   timeZone,
   canReschedule,
+  canCancel,
   kind,
   rangeMode,
 }: {
@@ -40,6 +42,11 @@ export function ManageBooking({
   timeZone: string;
   // Whether self-serve rescheduling is offered at all (cancel is always).
   canReschedule: boolean;
+  // H3: false once a rental's free-cancellation window has elapsed — hides
+  // the cancel button and shows CANCEL_WINDOW_PASSED instead. Always true for
+  // appointments and rentals with no cancel window (page.tsx computes it).
+  // Reschedule is unaffected either way.
+  canCancel: boolean;
   // Rentals R2: a stay picks a date RANGE, not a slot — the same
   // Reschedule button opens a range picker instead of the slot grid.
   kind: "appointment" | "rental";
@@ -189,7 +196,9 @@ export function ManageBooking({
           </p>
         </div>
       )}
-      {confirmingCancel ? (
+      {!canCancel ? (
+        <p className="text-muted-foreground text-xs">{CANCEL_WINDOW_PASSED}</p>
+      ) : confirmingCancel ? (
         <div className="flex items-center gap-2">
           <Button variant="destructive" onClick={doCancel} disabled={pending}>
             Yes, cancel this booking

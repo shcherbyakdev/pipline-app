@@ -24,8 +24,19 @@ export const rentalOfferings = pgTable(
       .references(() => orgs.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     description: text("description"),
-    // Free text, no payments at MVP (services.price_label idiom).
-    priceLabel: text("price_label"),
+    // H3 money + policy (CHECKs in 0058). NULL price = unpriced offering —
+    // every money surface collapses to the pre-H3 rendering.
+    priceCents: integer("price_cents"),
+    // 'per_unit' | 'flat' — per_unit reads hour/night/day from range_mode.
+    pricingMode: text("pricing_mode").default("per_unit").notNull(),
+    // 'none' | 'fixed' | 'percent' | 'full'.
+    depositType: text("deposit_type").default("none").notNull(),
+    // Cents (fixed) or whole percent 1–100 (percent); NULL otherwise.
+    depositValue: integer("deposit_value"),
+    // 0 = self-cancel until start. Stored minutes (min_notice_min idiom).
+    cancelWindowMin: integer("cancel_window_min").default(0).notNull(),
+    // House rules; public flows require a checkbox iff set.
+    termsText: text("terms_text"),
     // 'nights' | 'days' — CHECK in 0037.
     rangeMode: text("range_mode").notNull(),
     // Org-local "HH:MM": check-in/check-out (nights) or pickup/return (days).

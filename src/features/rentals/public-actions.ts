@@ -29,12 +29,14 @@ import {
   validateStay,
   type RangeAvailability,
 } from "./range";
+import { moneyInfoLines, totalCents, depositCents, stayUnits } from "./pricing";
 import {
   getRangeAvailabilityInput,
   createRentalBookingInput,
   CHECK_IN_PASSED,
   DATES_TAKEN,
   GENERIC_WRITE_ERROR,
+  TERMS_REQUIRED,
 } from "./schema";
 
 async function limited(): Promise<boolean> {
@@ -99,7 +101,7 @@ export async function createRentalBooking(
   if (await limited()) return { ok: false, error: "Too many requests — slow down." };
   const parsed = createRentalBookingInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
-  const { handle, offeringId, unitId, startDate, endDate, name, email, note } = parsed.data;
+  const { handle, offeringId, unitId, startDate, endDate, name, email, note, termsAccepted } = parsed.data;
 
   try {
     const org = await getBookingOrg(handle);
@@ -107,6 +109,11 @@ export async function createRentalBooking(
     if (!(await getOrgFlagsAdmin(org.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
     const offering = await getPublicOfferingById(org.orgId, offeringId);
     if (!offering) return { ok: false, error: GENERIC_WRITE_ERROR };
+    // H3: the RPC stamps terms_accepted_at on its own whenever the offering
+    // carries terms_text — this is the actual enforcement in front of it.
+    if (offering.termsText !== null && !termsAccepted) {
+      return { ok: false, error: TERMS_REQUIRED };
+    }
     // The span the stay occupies plus its turnover tail — capped at the
     // booking window, since validateStay rejects anything past it ("window")
     // before it ever consults the day map, and an unbounded endDate would
@@ -189,12 +196,23 @@ export async function createRentalBooking(
       const starts = wallTimeToUtc(startDate, ctx.offering.startTime!, tz);
       const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
       const unitName = await getBookingUnitName(bookingId as string);
+      const total = totalCents(
+        ctx.offering,
+        stayUnits(ctx.offering.rangeMode as "nights" | "days", startDate, endDate),
+      );
+      const infoLines = moneyInfoLines({
+        totalCents: total,
+        depositCents: depositCents(ctx.offering, total),
+        currency: org.currency,
+        cancelWindowMin: ctx.offering.cancelWindowMin,
+      });
       const msg = bookingConfirmationEmail({
         orgName: org.orgName,
         serviceName: unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name,
         whenLine: formatRangeWhenLine(starts, ends, tz),
         manageUrl: buildBookingManageUrl(token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+        infoLines,
       });
       await selectTransport().send({
         to: email,

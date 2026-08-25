@@ -1,13 +1,14 @@
-import { listOfferings } from "@/features/rentals/queries";
+import { listOfferings, getOrgCurrency } from "@/features/rentals/queries";
 import { OfferingsList } from "@/features/rentals/components/offerings-list";
 import { OfferingDialog } from "@/features/rentals/components/offering-dialog";
 
 export default async function RentalsPage() {
   const offerings = await listOfferings();
+  const currency = await getOrgCurrency();
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
       <div className="flex items-center justify-end">
-        <OfferingDialog />
+        <OfferingDialog currency={currency} />
       </div>
       {offerings.length === 0 ? (
         <p className="text-muted-foreground text-sm">
@@ -15,7 +16,7 @@ export default async function RentalsPage() {
           car class, a room). Add one, then add its units.
         </p>
       ) : (
-        <OfferingsList offerings={offerings} />
+        <OfferingsList offerings={offerings} currency={currency} />
       )}
     </div>
   );

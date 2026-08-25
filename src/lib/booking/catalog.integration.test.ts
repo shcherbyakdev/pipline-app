@@ -51,7 +51,7 @@ const { listPublicCatalog } = await import("./catalog");
 async function bookingOrgFromDb(handle: string): Promise<BookingOrg> {
   const { data, error } = await admin
     .from("orgs")
-    .select("id, name, timezone, offers_appointments, offers_rentals")
+    .select("id, name, timezone, offers_appointments, offers_rentals, currency")
     .eq("handle", handle)
     .single();
   if (error) throw error;
@@ -61,6 +61,7 @@ async function bookingOrgFromDb(handle: string): Promise<BookingOrg> {
     timeZone: data.timezone,
     offersAppointments: data.offers_appointments,
     offersRentals: data.offers_rentals,
+    currency: data.currency,
   };
 }
 
@@ -75,7 +76,7 @@ describe("listPublicCatalog gating (H1)", () => {
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
-      p_org_id: orgId, p_handle: HANDLE, p_timezone: "Europe/Berlin",
+      p_org_id: orgId, p_handle: HANDLE, p_timezone: "Europe/Berlin", p_currency: "PLN",
     });
     if (e2) throw e2;
     // A service is only public through the people linked to it

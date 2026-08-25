@@ -400,6 +400,20 @@
       "when": 1787572164249,
       "tag": "0056_hourly_security",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1787608795795,
+      "tag": "0057_light_ma_gnuci",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1787608796795,
+      "tag": "0058_prices_terms",
+      "breakpoints": true
     }
   ]
 }

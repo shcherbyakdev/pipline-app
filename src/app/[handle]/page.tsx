@@ -56,7 +56,7 @@ export default async function BookPage({ params, searchParams }: PageProps<"/[ha
   const theme = parseWidgetTheme(branding.themeRaw);
   const initialServiceId = resolveInitialService(services, (await searchParams).service);
   const ctx: RenderContext = {
-    org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone },
+    org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency },
     branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
     theme, services, staff, serviceStaffIds, offerings, lockedStaff: null,
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public",

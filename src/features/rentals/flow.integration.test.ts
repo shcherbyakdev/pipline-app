@@ -35,7 +35,7 @@ const rentalManage = await import("./manage-actions");
 const manageActions = await import("@/features/scheduling/manage-actions");
 const { resolveBookingToken } = await import("@/lib/tokens/booking");
 const { addDaysISO, dateInZone } = await import("@/features/scheduling/slots");
-const { GENERIC_WRITE_ERROR } = await import("./schema");
+const { GENERIC_WRITE_ERROR, TERMS_REQUIRED } = await import("./schema");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -99,7 +99,7 @@ describe("rental flow e2e (action layer)", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
     // turnover 0 so a cancelled stay frees its own dates with nothing left
@@ -233,6 +233,14 @@ describe("rental flow e2e (action layer)", () => {
     expect(fresh.booking.status).toBe("confirmed");
     expect(dateInZone(fresh.booking.startsAt, TZ)).toBe(moveTo);
     expect(dateInZone(fresh.booking.endsAt, TZ)).toBe(moveToEnd);
+    // H3: the resolver's four money/cancel-window columns are wired through —
+    // this fixture's offering has no price/deposit set (null) and the
+    // column's own default cancel window (0), so the manage page's gate
+    // reads canCancel === true for it.
+    expect(fresh.booking.priceCents).toBeNull();
+    expect(fresh.booking.currency).toBeNull();
+    expect(fresh.booking.depositCents).toBeNull();
+    expect(fresh.booking.cancelWindowMin).toBe(0);
 
     // …and the old one is dead: it still resolves (the manage page says so)
     // but only as a rescheduled row.
@@ -318,7 +326,7 @@ describe("hourly offering rejected by the date-range action layer", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: hourlyOrgId,
       p_handle: HOURLY_HANDLE,
-      p_timezone: TZ,
+      p_timezone: TZ, p_currency: "PLN",
     });
     if (e2) throw e2;
     const { data: offering, error: e3 } = await owner
@@ -346,5 +354,137 @@ describe("hourly offering rejected by the date-range action layer", () => {
       days: 5,
     });
     expect(result).toEqual({ ok: false, error: GENERIC_WRITE_ERROR });
+  });
+});
+
+// H3 (task 6): the create action refuses a termed offering unless the
+// caller checked the box — the RPC stamps terms_accepted_at on its own
+// regardless of the action's decision, so this is the actual enforcement,
+// proved at the action layer rather than just against the schema.
+describe("terms acceptance gate (date-range action layer)", () => {
+  const TERMS_HANDLE = `rentflow-terms-${Date.now()}`;
+  let termsOrgId: string;
+  let termedOfferingId: string;
+  let plainOfferingId: string;
+
+  beforeAll(async () => {
+    const owner = await signedInUser("rentflow_terms_owner");
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowTermsCo" });
+    if (e1) throw e1;
+    termsOrgId = (org as { id: string }).id;
+    const { error: eFlag } = await admin
+      .from("org_feature_flags")
+      .insert({ org_id: termsOrgId, flag: "rentals", enabled: true, updated_by: "flow-test" });
+    if (eFlag) throw eFlag;
+    const { error: e2 } = await owner.rpc("update_org_scheduling", {
+      p_org_id: termsOrgId,
+      p_handle: TERMS_HANDLE,
+      p_timezone: TZ, p_currency: "PLN",
+    });
+    if (e2) throw e2;
+    const { data: termed, error: e3 } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: termsOrgId,
+        name: "Termed Loft",
+        range_mode: "nights",
+        start_time: "15:00",
+        end_time: "11:00",
+        min_stay: 1,
+        max_stay: 14,
+        turnover_days: 0,
+        booking_window_days: 365,
+        terms_text: "No smoking. No pets.",
+      })
+      .select("id")
+      .single();
+    if (e3) throw e3;
+    termedOfferingId = termed!.id as string;
+    const { error: e4 } = await owner
+      .from("rental_units")
+      .insert({ org_id: termsOrgId, offering_id: termedOfferingId, name: "Unit A", sort_order: 0 });
+    if (e4) throw e4;
+
+    const { data: plain, error: e5 } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: termsOrgId,
+        name: "Plain Loft",
+        range_mode: "nights",
+        start_time: "15:00",
+        end_time: "11:00",
+        min_stay: 1,
+        max_stay: 14,
+        turnover_days: 0,
+        booking_window_days: 365,
+      })
+      .select("id")
+      .single();
+    if (e5) throw e5;
+    plainOfferingId = plain!.id as string;
+    const { error: e6 } = await owner
+      .from("rental_units")
+      .insert({ org_id: termsOrgId, offering_id: plainOfferingId, name: "Unit A", sort_order: 0 });
+    if (e6) throw e6;
+  });
+
+  it("(a) refuses a termed offering when termsAccepted is omitted, and creates no row", async () => {
+    net.clientIp = "203.0.113.31";
+    const email = `terms-a-${Date.now()}@example.com`;
+    const result = await publicActions.createRentalBooking({
+      handle: TERMS_HANDLE,
+      offeringId: termedOfferingId,
+      unitId: null,
+      startDate: d(50),
+      endDate: d(52),
+      name: "Terms Client",
+      email,
+    });
+    expect(result).toEqual({ ok: false, error: TERMS_REQUIRED });
+    const { data: rows } = await admin
+      .from("bookings")
+      .select("id")
+      .eq("org_id", termsOrgId)
+      .eq("client_email", email);
+    expect(rows).toHaveLength(0);
+  });
+
+  it("(b) books a termed offering when termsAccepted is true, and stamps terms_accepted_at", async () => {
+    net.clientIp = "203.0.113.32";
+    const email = `terms-b-${Date.now()}@example.com`;
+    const result = await publicActions.createRentalBooking({
+      handle: TERMS_HANDLE,
+      offeringId: termedOfferingId,
+      unitId: null,
+      startDate: d(55),
+      endDate: d(57),
+      name: "Terms Client",
+      email,
+      termsAccepted: true,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const { data: rows } = await admin
+      .from("bookings")
+      .select("terms_accepted_at")
+      .eq("org_id", termsOrgId)
+      .eq("client_email", email);
+    expect(rows).toHaveLength(1);
+    expect(rows![0].terms_accepted_at).not.toBeNull();
+  });
+
+  it("(c) books an offering with no terms when termsAccepted is omitted (no regression)", async () => {
+    net.clientIp = "203.0.113.33";
+    const email = `terms-c-${Date.now()}@example.com`;
+    const result = await publicActions.createRentalBooking({
+      handle: TERMS_HANDLE,
+      offeringId: plainOfferingId,
+      unitId: null,
+      startDate: d(60),
+      endDate: d(62),
+      name: "No Terms Client",
+      email,
+    });
+    expect(result.ok).toBe(true);
   });
 });

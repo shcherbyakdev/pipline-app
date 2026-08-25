@@ -54,7 +54,7 @@ describe("create_booking RPC", () => {
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
-      p_timezone: "Europe/Berlin",
+      p_timezone: "Europe/Berlin", p_currency: "PLN",
     });
     if (e2) throw e2;
     // 0041: create_org seeds one staff row — the calendar owner every
@@ -101,13 +101,13 @@ describe("create_booking RPC", () => {
     const { error: tz } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: HANDLE,
-      p_timezone: "Mars/Olympus",
+      p_timezone: "Mars/Olympus", p_currency: "PLN",
     });
     expect(tz).not.toBeNull();
     const { error: h } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
       p_handle: "Bad Handle!",
-      p_timezone: "Europe/Berlin",
+      p_timezone: "Europe/Berlin", p_currency: "PLN",
     });
     expect(h).not.toBeNull();
   });

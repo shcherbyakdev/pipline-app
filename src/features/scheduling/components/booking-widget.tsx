@@ -12,6 +12,7 @@ import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
 import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
 import { HourlyBookingFlow } from "@/features/rentals/components/hourly-booking-flow";
 import { formatDurationLabel } from "@/features/rentals/hourly";
+import { formatOfferingPrice } from "@/features/rentals/pricing";
 
 // The VIEWER's local date (audit 2026-08-24: the UTC date sent a far-west
 // evening visitor one day ahead, hiding the rest of their own today with no
@@ -26,6 +27,7 @@ function todayISO(): string {
 export function BookingWidget({
   handle,
   orgTimeZone,
+  currency,
   services,
   offerings = [],
   staff = [],
@@ -36,6 +38,10 @@ export function BookingWidget({
 }: {
   handle: string;
   orgTimeZone: string;
+  /** Formats offering prices (formatOfferingPrice) — only ever rendered
+      when `offerings` is non-empty, but every caller carries it regardless
+      (getBookingOrg / getSchedulingSettings both return it). */
+  currency: string;
   services: PublicService[];
   offerings?: PublicOffering[];
   /** Active staff of the org, unfiltered. Empty only in preview mode. */
@@ -168,6 +174,7 @@ export function BookingWidget({
         handle={handle}
         orgTimeZone={orgTimeZone}
         offering={offering}
+        currency={currency}
         onBack={onOfferingBack}
       />
     ) : (
@@ -175,6 +182,7 @@ export function BookingWidget({
         handle={handle}
         orgTimeZone={orgTimeZone}
         offering={offering}
+        currency={currency}
         onBack={onOfferingBack}
       />
     );
@@ -263,7 +271,7 @@ export function BookingWidget({
                       </span>
                       <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                         {[
-                          o.priceLabel,
+                          formatOfferingPrice(o, currency),
                           o.rangeMode === "hours"
                             ? // H2: hourly offerings have no min-stay concept — the
                               // duration range is the equivalent "how much" hint.

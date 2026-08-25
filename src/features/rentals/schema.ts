@@ -6,14 +6,21 @@ export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const RANGE_MODES = ["nights", "days", "hours"] as const;
 export const UNIT_SELECTIONS = ["auto", "client_picks"] as const;
+export const PRICING_MODES = ["per_unit", "flat"] as const;
+export const DEPOSIT_TYPES = ["none", "fixed", "percent", "full"] as const;
 
 const offeringCommon = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),
-  priceLabel: z.string().trim().max(100).optional(),
   bookingWindowDays: z.number().int().min(1).max(730).default(180),
   unitSelection: z.enum(UNIT_SELECTIONS).default("auto"),
   active: z.boolean().default(true),
+  priceCents: z.number().int().min(0).max(100_000_000).nullable().default(null),
+  pricingMode: z.enum(PRICING_MODES).default("per_unit"),
+  depositType: z.enum(DEPOSIT_TYPES).default("none"),
+  depositValue: z.number().int().min(0).max(100_000_000).nullable().default(null),
+  cancelWindowMin: z.number().int().min(0).max(527040).default(0),
+  termsText: z.string().trim().max(10000).optional(),
 });
 const rangeFields = z.object({
   rangeMode: z.enum(["nights", "days"]),
@@ -40,18 +47,47 @@ const hoursGrid = (o: z.infer<typeof hoursFields>) =>
   o.minDurationMin % o.slotIncrementMin === 0 &&
   o.maxDurationMin % o.slotIncrementMin === 0;
 
+export const DEPOSIT_VALUE_MSG =
+  "fixed needs an amount, percent needs 1–100, none/full take no value";
+export const DEPOSIT_NEEDS_PRICE_MSG = "percent/full deposits need a price";
+
+const depositRules = (o: {
+  depositType: "none" | "fixed" | "percent" | "full";
+  depositValue: number | null;
+}) => {
+  switch (o.depositType) {
+    case "fixed": return o.depositValue !== null;
+    case "percent": return o.depositValue !== null && o.depositValue >= 1 && o.depositValue <= 100;
+    default: return o.depositValue === null;
+  }
+};
+const depositNeedsPrice = (o: {
+  depositType: "none" | "fixed" | "percent" | "full";
+  priceCents: number | null;
+}) => !["percent", "full"].includes(o.depositType) || o.priceCents !== null;
+
 // `strict()` on each branch so hours fields on a nights offering (and vice
-// versa) are rejected rather than silently dropped.
+// versa) are rejected rather than silently dropped. The deposit refinements
+// don't survive `.extend`, so they're chained onto each of the four
+// branches individually rather than shared on `offeringCommon`.
 const rangeOffering = offeringCommon.extend(rangeFields.shape).strict()
-  .refine(stayOrder, { message: "max stay must be ≥ min stay" });
+  .refine(stayOrder, { message: "max stay must be ≥ min stay" })
+  .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
+  .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG });
 const hoursOffering = offeringCommon.extend(hoursFields.shape).strict()
-  .refine(hoursGrid, { message: HOURS_GRID_MSG });
+  .refine(hoursGrid, { message: HOURS_GRID_MSG })
+  .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
+  .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG });
 export const offeringInput = z.union([rangeOffering, hoursOffering]);
 export const updateOfferingInput = z.union([
   offeringCommon.extend(rangeFields.shape).extend({ id: z.uuid() }).strict()
-    .refine(stayOrder, { message: "max stay must be ≥ min stay" }),
+    .refine(stayOrder, { message: "max stay must be ≥ min stay" })
+    .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
+    .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
   offeringCommon.extend(hoursFields.shape).extend({ id: z.uuid() }).strict()
-    .refine(hoursGrid, { message: HOURS_GRID_MSG }),
+    .refine(hoursGrid, { message: HOURS_GRID_MSG })
+    .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
+    .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
 ]);
 export const offeringIdInput = z.object({ id: z.uuid() });
 
@@ -109,7 +145,13 @@ export const createRentalBookingInput = z.object({
   name: z.string().trim().min(1).max(200),
   email: z.email().max(320),
   note: z.string().trim().max(2000).optional(),
+  termsAccepted: z.boolean().default(false),
 });
+
+// H3: an offering with terms_text set refuses a create action whose caller
+// didn't check the box — the RPC stamps terms_accepted_at on its own
+// regardless, so this guard is the actual enforcement.
+export const TERMS_REQUIRED = "Please accept the terms to book.";
 
 // ---------- Reschedule (R2), client + admin. Same reasons as DATES_TAKEN:
 // a "use server" module may only export async functions, so the shared copy
@@ -198,6 +240,7 @@ export const createRentalBookingHoursInput = z.object({
   name: z.string().trim().min(1).max(200),
   email: z.email().max(320),
   note: z.string().trim().max(2000).optional(),
+  termsAccepted: z.boolean().default(false),
 });
 export const SLOT_TAKEN_HOURLY = "That time was just taken — please pick another.";
 
@@ -235,3 +278,9 @@ export const rescheduleRentalHoursAdminInput = z.object({
 // A booking that has begun is immovable — STAY_STARTED's hourly twin
 // (0056's reschedule_rental_hours_apply raises the same 'started' sentinel).
 export const SESSION_STARTED = "This booking has already started.";
+
+// H3: cancel_booking raises this sentinel once the offering's free-cancel
+// window has elapsed — the manage page also gates the cancel button on the
+// same deadline client-side, but the RPC is the actual enforcement.
+export const CANCEL_WINDOW_PASSED =
+  "The free-cancellation window has passed — contact the venue to cancel.";

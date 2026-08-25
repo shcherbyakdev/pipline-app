@@ -19,6 +19,7 @@ export function BookingSection({ section, ctx }: { section: SectionOf<"booking">
         <BookingWidget
           handle={preview ? "preview" : ctx.org.handle}
           orgTimeZone={ctx.org.timeZone}
+          currency={ctx.org.currency}
           services={ctx.services}
           // Preview mode stays exactly what the old studio rendered: no staff
           // step, no rentals, canned slots, never a network call.

@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
 import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
+import { formatOfferingPrice, stayUnits } from "@/features/rentals/pricing";
 import { getRangeAvailability, createRentalBooking } from "@/features/rentals/public-actions";
 import { RangePicker, staySummary, type RangeValue } from "./range-picker";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
+import { BookingMoneySummary } from "./booking-money-summary";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -25,11 +27,13 @@ export function RentalBookingFlow({
   handle,
   orgTimeZone,
   offering,
+  currency,
   onBack,
 }: {
   handle: string;
   orgTimeZone: string;
   offering: PublicOffering;
+  currency: string;
   onBack: (() => void) | null;
 }) {
   const [month, setMonth] = React.useState(() => monthOf(todayISO()));
@@ -37,6 +41,7 @@ export function RentalBookingFlow({
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
   const [range, setRange] = React.useState<RangeValue>({ start: null, end: null });
   const [unitId, setUnitId] = React.useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = React.useState(false);
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
@@ -84,6 +89,7 @@ export function RentalBookingFlow({
   function changeRange(next: RangeValue) {
     setError(null);
     setUnitId(null);
+    setTermsAccepted(false);
     setRange(next);
   }
 
@@ -108,6 +114,7 @@ export function RentalBookingFlow({
         name: String(formData.get("name") ?? ""),
         email: String(formData.get("email") ?? ""),
         note: String(formData.get("note") ?? "") || undefined,
+        termsAccepted,
       });
       if (result.ok) {
         setDoneToken(result.token);
@@ -117,6 +124,7 @@ export function RentalBookingFlow({
       if (result.datesTaken) {
         setRange({ start: null, end: null });
         setUnitId(null);
+        setTermsAccepted(false);
         load(month);
       }
     });
@@ -124,6 +132,11 @@ export function RentalBookingFlow({
 
   const summary =
     range.start && range.end ? staySummary(offering, range.start, range.end, orgTimeZone) : null;
+  const stayUnitCount =
+    range.start && range.end
+      ? stayUnits(offering.rangeMode as "nights" | "days", range.start, range.end)
+      : null;
+  const priceLabel = formatOfferingPrice(offering, currency);
 
   if (doneToken) {
     return (
@@ -147,8 +160,8 @@ export function RentalBookingFlow({
             </button>
           ) : null}
         </p>
-        {offering.priceLabel ? (
-          <span className="text-muted-foreground shrink-0 text-xs">{offering.priceLabel}</span>
+        {priceLabel ? (
+          <span className="text-muted-foreground shrink-0 text-xs">{priceLabel}</span>
         ) : null}
       </div>
 
@@ -226,6 +239,14 @@ export function RentalBookingFlow({
             </p>
           ) : null}
           <ClientDetailsFields idPrefix="rental-" />
+          <BookingMoneySummary
+            offering={offering}
+            currency={currency}
+            units={stayUnitCount}
+            termsAccepted={termsAccepted}
+            onTermsChange={setTermsAccepted}
+            idPrefix="rental-"
+          />
           <Button type="submit" className="wt-primary" disabled={pending}>
             {pending ? "Booking…" : "Confirm booking"}
           </Button>

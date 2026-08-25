@@ -409,6 +409,7 @@ async function ensureDemoScheduling(client: SupabaseClient, orgId: string): Prom
       p_org_id: orgId,
       p_handle: DEMO_HANDLE,
       p_timezone: DEMO_TIMEZONE,
+      p_currency: "PLN",
     });
     if (error) throw error;
     console.log(`seed: set booking handle "${DEMO_HANDLE}" (${DEMO_TIMEZONE})`);
@@ -550,6 +551,12 @@ async function ensureDemoHourlyOffering(client: SupabaseClient, orgId: string): 
         turnover_min: 15,
         min_notice_min: 60,
         booking_window_days: 60,
+        price_cents: 12000,
+        pricing_mode: "per_unit",
+        deposit_type: "percent",
+        deposit_value: 20,
+        cancel_window_min: 1440,
+        terms_text: "No smoking. Leave the room as you found it. Damages are billed at cost.",
       })
       .select("id")
       .single();

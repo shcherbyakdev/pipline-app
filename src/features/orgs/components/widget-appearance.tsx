@@ -36,6 +36,7 @@ export function WidgetAppearance({
   initial,
   accentColor,
   handle,
+  currency,
   appUrl,
   previewServices,
   staffOptions = [],
@@ -45,6 +46,10 @@ export function WidgetAppearance({
   initial: WidgetThemeConfig;
   accentColor: string | null;
   handle: string | null;
+  /** The preview never renders rentals (no `offerings` passed below), but
+      BookingWidget takes the prop regardless — getSchedulingSettings
+      already returns it. */
+  currency: string;
   appUrl: string;
   previewServices: PublicService[];
   // Only passed when the org has more than one active team member — a solo
@@ -279,6 +284,7 @@ export function WidgetAppearance({
             <BookingWidget
               handle="preview"
               orgTimeZone="UTC"
+              currency={currency}
               services={previewServices}
               preview={{ slots: PREVIEW_SLOTS }}
             />

@@ -45,11 +45,16 @@ function toOfferingRow(d: import("zod").infer<typeof offeringInput>) {
   const common = {
     name: d.name,
     description: d.description ?? null,
-    price_label: d.priceLabel ?? null,
     range_mode: d.rangeMode,
     booking_window_days: d.bookingWindowDays,
     unit_selection: d.unitSelection,
     active: d.active,
+    price_cents: d.priceCents,
+    pricing_mode: d.pricingMode,
+    deposit_type: d.depositType,
+    deposit_value: d.depositValue,
+    cancel_window_min: d.cancelWindowMin,
+    terms_text: d.termsText ?? null,
   };
   if (d.rangeMode === "hours") {
     return {

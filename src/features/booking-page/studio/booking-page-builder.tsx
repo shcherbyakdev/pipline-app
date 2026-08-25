@@ -93,7 +93,13 @@ export function BookingPageBuilder({
   const previewHandle = handle.trim() || "your-handle";
   const url = `${host}${bookingPath(previewHandle)}`;
   const ctx: RenderContext = {
-    org: { orgId: branding.orgId, orgName: branding.orgName, handle: previewHandle, timeZone: scheduling.timezone },
+    org: {
+      orgId: branding.orgId,
+      orgName: branding.orgName,
+      handle: previewHandle,
+      timeZone: scheduling.timezone,
+      currency: scheduling.currency,
+    },
     branding: { accentColor: accent, logoUrl: branding.logoUrl },
     theme: previewTheme,
     services: previewServices, staff, offerings: [], lockedStaff: null,
