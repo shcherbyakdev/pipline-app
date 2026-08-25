@@ -25,8 +25,9 @@ import {
 import type { RuleRow } from "@/features/scheduling/queries";
 import { TimeCombobox } from "./time-combobox";
 
-// Local to this file — the old editor's copies of these arrays are deleted
-// alongside it in Task 8, so nothing else in the app owns weekday labels.
+// Local to this file (the old editor's copies went with it). The only
+// other weekday labels are hours-summary.ts's three-letter set for the
+// space detail card's one-line summary.
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 const WEEKDAY_LABELS_FULL = [
   "Sunday",

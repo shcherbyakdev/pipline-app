@@ -45,6 +45,13 @@ export const SPACES = {
   settings: { label: "Spaces", blurb: "Rooms, studios and gear, booked by the hour, night or day." },
   /** Welcome checklist item + Bookings empty state. */
   add: "Add a space",
+  // ---- /availability (admin IA spec §3, ruling 4: hours are edited in one
+  // place for people and hourly spaces; nightly/daily spaces have none).
+  /** Second intro line when a space's hours are on screen and the org also has nightly/daily spaces. */
+  hoursNote: "Nightly and daily spaces use check-in and check-out times instead — set those on the space.",
+  /** The page with nothing to edit (a nights/days-only org); followed by a link whose text is SPACES.nav. */
+  hoursNightsOnly:
+    "Nightly and daily spaces use check-in and check-out times, set on each space. Hourly spaces and team members set their weekly hours here.",
 } as const;
 
 /** The appointments channel's few provider-facing words that sit next to

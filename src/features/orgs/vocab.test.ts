@@ -14,6 +14,14 @@ describe("SPACES vocabulary", () => {
     expect(SPACES.pickerBlurb).toBe("Rooms, studios and gear, booked by the hour, night or day.");
     expect(SPACES.pickerBothBlurb).toBe("You book people and spaces.");
   });
+  it("explains hours for nightly/daily spaces on the Availability page (spec §3)", () => {
+    expect(SPACES.hoursNote).toBe(
+      "Nightly and daily spaces use check-in and check-out times instead — set those on the space.",
+    );
+    expect(SPACES.hoursNightsOnly).toBe(
+      "Nightly and daily spaces use check-in and check-out times, set on each space. Hourly spaces and team members set their weekly hours here.",
+    );
+  });
 });
 
 describe("bookingDescription", () => {
