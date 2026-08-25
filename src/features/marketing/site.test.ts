@@ -60,6 +60,7 @@ describe("site config", () => {
   it("each section derives its id from SITE.anchors", () => {
     const files: Record<string, keyof typeof SITE.anchors> = {
       "how-it-works.tsx": "how",
+      "features.tsx": "features",
       "faq.tsx": "faq",
     };
     for (const [file, key] of Object.entries(files)) {
@@ -84,9 +85,9 @@ describe("site config", () => {
       ...FAQ.flatMap((f) => [f.question, f.answer]),
       ...Object.values(SECTIONS).flatMap((s) => [
         s.heading,
+        s.eyebrow,
         "sub" in s ? s.sub : "",
         ...("points" in s ? s.points : []),
-        ...("paragraphs" in s ? s.paragraphs : []),
       ]),
       ...Object.values(CTA),
       PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder, PRICING.moreComing,
@@ -102,7 +103,7 @@ describe("site config", () => {
         return v;
       }),
       ...Object.values(WELCOME).map((v) => (typeof v === "function" ? v("x") : v)),
-      FINAL_CTA.heading,
+      FINAL_CTA.heading, FINAL_CTA.sub,
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);
   });

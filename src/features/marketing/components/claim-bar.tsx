@@ -15,6 +15,7 @@ export function ClaimBar({
   handle,
   onHandleChange,
   host,
+  idleNote,
   size = "lg",
   autoFocus = false,
   className,
@@ -22,6 +23,9 @@ export function ClaimBar({
   handle: string;
   onHandleChange: (next: string) => void;
   host: string;
+  /** Shown under the bar while it's idle (empty and unfocused); the format
+      hint takes its place once the person is typing. */
+  idleNote?: string;
   size?: "lg" | "md";
   autoFocus?: boolean;
   className?: string;
@@ -30,6 +34,7 @@ export function ClaimBar({
   const id = React.useId();
   const [pending, startTransition] = React.useTransition();
   const [result, setResult] = React.useState<HandleCheck | null>(null);
+  const [focused, setFocused] = React.useState(false);
   const url = `${host}/${handle}`;
   const complete = HANDLE_RE.test(handle) && !isReservedHandle(handle);
 
@@ -53,7 +58,7 @@ export function ClaimBar({
     });
   };
 
-  let status: React.ReactNode = CLAIM.hint;
+  let status: React.ReactNode = focused || handle ? CLAIM.hint : (idleNote ?? CLAIM.hint);
   let tone = "text-muted-foreground";
   if (result?.status === "invalid") {
     status = handle && isReservedHandle(handle) ? CLAIM.unavailable : CLAIM.hint;
@@ -94,11 +99,13 @@ export function ClaimBar({
     <form onSubmit={submit} className={cn("w-full", className)} noValidate>
       <div
         className={cn(
-          "bg-card ring-border focus-within:ring-highlight flex items-center gap-2 rounded-full shadow-sm ring-1 focus-within:ring-2",
+          "bg-card ring-border focus-within:ring-highlight flex items-center gap-2 rounded-full shadow-[0_1px_2px_rgb(26_34_56/0.05),0_12px_32px_-16px_rgb(26_34_56/0.25)] ring-1 focus-within:ring-2",
           tall ? "py-1.5 pr-1.5 pl-5" : "py-1 pr-1 pl-4",
         )}
       >
-        <label htmlFor={id} className="text-foreground shrink-0 font-mono text-sm sm:text-base">
+        {/* card-foreground, not foreground: the bar is a white card and must
+            keep ink text even inside the `.ink` slab, where --foreground flips. */}
+        <label htmlFor={id} className="text-card-foreground shrink-0 font-mono text-sm sm:text-base">
           {host}/
         </label>
         <input
@@ -115,10 +122,12 @@ export function ClaimBar({
           inputMode="url"
           maxLength={50}
           autoFocus={autoFocus}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           aria-label="Your page name"
           aria-describedby={`${id}-status`}
           aria-invalid={result?.status === "invalid" || result?.status === "taken" || undefined}
-          className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent py-2 font-mono text-sm outline-none sm:text-base"
+          className="text-card-foreground placeholder:text-card-foreground/40 min-w-0 flex-1 bg-transparent py-2 font-mono text-sm outline-none sm:text-base"
         />
         <button
           type="submit"

@@ -52,7 +52,7 @@ export function ScaledFrame({
 /* Light browser chrome: traffic lights, nav icons, a URL pill, actions. */
 export function BrowserFrame({ url, children }: { url: string; children: React.ReactNode }) {
   return (
-    <div className="bg-card ring-border overflow-hidden rounded-t-2xl text-left shadow-[0_-20px_80px_rgb(0_0_0/0.12)] ring-1">
+    <div className="bg-card ring-border overflow-hidden rounded-t-2xl text-left shadow-[0_24px_64px_-24px_rgb(26_34_56/0.35)] ring-1">
       <div className="bg-secondary border-border flex items-center gap-3 border-b px-4 py-2.5">
         <div className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-full bg-[#ff5f57]" />

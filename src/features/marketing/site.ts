@@ -12,7 +12,7 @@ export const SITE = {
   tagline: "Booking page & widget for solo providers",
   description:
     "Booklo gives freelancers and small businesses a hosted booking page and an embeddable widget. Clients book without an account; confirmations, reminders and rescheduling are handled for you.",
-  // Two staggered lines; the last word of the second carries the highlight.
+  // Two staggered lines; the second (the promise) is set in the accent.
   headline: ["Your booking page.", "Claimed in a minute."],
   subheadline: "Clients pick a time, you both get the email. No accounts, no double bookings.",
   // Flag-conditional (lib/flags.ts): while billing is off there IS no paid
@@ -20,7 +20,7 @@ export const SITE = {
   // says what is actually true today. Flipping the flag flips the copy.
   heroNote: BILLING_ON ? "Free plan · No credit card" : "Free during early access · No credit card",
   links: { home: "/", login: "/login", signup: "/signup", pricing: "/pricing" },
-  anchors: { how: "#how-it-works", faq: "#faq" },
+  anchors: { how: "#how-it-works", features: "#features", faq: "#faq" },
 } as const;
 
 /** `#features` → `features`, so a section's `id` and the nav href that targets it share one source. */
@@ -32,14 +32,17 @@ export function anchorId(anchor: string): string {
 /** Section headings, sub-lines and body copy. Components stay presentational. */
 export const SECTIONS = {
   how: {
-    heading: "How it works",
-    sub: "Three steps from your name to your first booking.",
+    eyebrow: "How it works",
+    heading: "From your name to your first booking",
+    sub: "Three steps. Nothing to install, no setup call.",
   },
   features: {
+    eyebrow: "Features",
     heading: "Everything a booking page should do",
     sub: "Nothing you have to configure twice.",
   },
   product: {
+    eyebrow: "Your week",
     heading: "Your week, at a glance",
     sub: "One calendar for everything that’s booked, blocked or free.",
     points: [
@@ -48,14 +51,7 @@ export const SECTIONS = {
       "Add walk-in or phone bookings in seconds",
     ],
   },
-  embed: {
-    heading: "Paste one line. The widget resizes itself.",
-    paragraphs: [
-      "Drop the snippet into any website builder or plain HTML page. The booking widget loads inside your page, adjusts its own height as clients move through the steps, and never asks them to leave your site.",
-      "Prefer a link? The same page works standalone at your own handle — share it in email, on social, or in your bio.",
-    ],
-  },
-  faq: { heading: "Questions, answered" },
+  faq: { eyebrow: "FAQ", heading: "Questions, answered" },
 } as const;
 
 /** Call-to-action button labels. */
@@ -79,12 +75,16 @@ export const CLAIM = {
   checkFailed: "Couldn't check right now — you can still continue.",
 } as const;
 
-export const FINAL_CTA = { heading: "Claim your page." } as const;
+export const FINAL_CTA = {
+  heading: "Claim your page.",
+  sub: "Pick a name, add a service, set your hours — you're bookable.",
+} as const;
 
 export type NavLink = { label: string; href: string };
 
 export const NAV_LINKS: NavLink[] = [
   { label: "How it works", href: SITE.anchors.how },
+  { label: "Features", href: SITE.anchors.features },
   // Only listed once billing is live (lib/flags.ts) — while off, /pricing 404s
   // and nothing should link to it from the nav.
   ...(BILLING_ON ? [{ label: "Pricing", href: SITE.links.pricing }] : []),
@@ -99,16 +99,17 @@ export const STEPS: Step[] = [
   { number: "03", title: "Clients book; you both get confirmations", body: "They see only real openings. Confirmations and reminders go out on their own." },
 ];
 
-export type FeatureIcon = "globe" | "code" | "calendar-check" | "refresh" | "bell" | "palette";
-export type Feature = { icon: FeatureIcon; title: string; body: string };
+/** Which product fragment illustrates a feature (components/mocks/feature-mocks.tsx). */
+export type FeatureVisual = "page" | "embed" | "slot-guard" | "manage" | "reminder" | "brand";
+export type Feature = { visual: FeatureVisual; title: string; body: string };
 
 export const FEATURES: Feature[] = [
-  { icon: "globe", title: "Hosted booking page", body: "A clean, mobile-first page at your own handle. Nothing to install." },
-  { icon: "code", title: "Embed on any site", body: "One script tag. The widget fits into your page and grows with its content." },
-  { icon: "calendar-check", title: "Double-booking impossible", body: "Slots are guarded at the database level — two people can never take the same time." },
-  { icon: "refresh", title: "Self-serve cancel & reschedule", body: "Clients manage their booking from a secure link in the email. No back-and-forth." },
-  { icon: "bell", title: "Automatic reminders", body: "A reminder goes out before every appointment, so fewer no-shows." },
-  { icon: "palette", title: "Your brand", body: "Logo, brand color and a welcome message — the page looks like yours, not ours." },
+  { visual: "page", title: "Hosted booking page", body: "A clean, mobile-first page at your own address. Nothing to install, nothing to host." },
+  { visual: "embed", title: "Embed on any site", body: "One script tag. The widget sits inside your page and grows with its content." },
+  { visual: "slot-guard", title: "Double-booking impossible", body: "Slots are guarded in the database — two people can never take the same time." },
+  { visual: "manage", title: "Self-serve cancel & reschedule", body: "Clients manage their booking from a secure link in the email. No back-and-forth." },
+  { visual: "reminder", title: "Automatic reminders", body: "A reminder goes out before every appointment, so fewer no-shows." },
+  { visual: "brand", title: "Your brand", body: "Logo, brand colour and a welcome message — the page looks like yours, not ours." },
 ];
 
 export type FaqItem = { question: string; answer: string };

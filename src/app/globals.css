@@ -46,6 +46,7 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
   --color-highlight: var(--highlight);
+  --color-tint: var(--tint);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -203,43 +204,60 @@
   }
 }
 
-/* Marketing landing palette — light and minimal (spec 2026-08-23-landing-claim):
-   off-white ground, near-black type, greys for secondary text, hairlines at
-   low alpha. One accent, --highlight (indigo #4f46e5 — the same value
-   create_org seeds as the first staff colour, so the landing and a fresh
-   booking page agree). --primary is the near-black button. Applied on the
-   (marketing) layout wrapper so these win over the app's `.dark` tokens on
-   <html>. Landing components use tokens only — this block is the single
-   place the landing's colours live. */
+/* Marketing landing palette — warm paper ground, ink-navy type, hairlines at
+   low alpha, one accent (--highlight, cobalt) and a pale tint of it
+   (--tint) for the panels that hold product UI. --primary is the ink button.
+   The cobalt sits a few degrees bluer than the indigo create_org seeds as the
+   first staff colour (#4f46e5), so a fresh booking page still reads as the
+   same family as the mockups. Applied on the (marketing) layout wrapper so
+   these win over the app's `.dark` tokens on <html>. Landing components use
+   tokens only — this block is the single place the landing's colours live. */
 .marketing {
   color-scheme: light;
-  --background: oklch(0.985 0 0); /* #fafafa */
-  --foreground: oklch(0.17 0 0); /* #111111 */
+  --background: oklch(0.987 0.004 90); /* paper #fcfbf8 */
+  --foreground: oklch(0.22 0.03 262); /* ink #1a2238 */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.17 0 0);
+  --card-foreground: oklch(0.22 0.03 262);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.17 0 0);
-  --primary: oklch(0.17 0 0);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.96 0 0); /* #f4f4f5 */
-  --secondary-foreground: oklch(0.17 0 0);
-  --muted: oklch(0.96 0 0);
-  /* gray-500 #6b7280: 4.6:1 on the ground — AA for body text. */
-  --muted-foreground: oklch(0.551 0.023 264);
-  --accent: oklch(0 0 0 / 4%);
-  --accent-foreground: oklch(0.17 0 0);
+  --popover-foreground: oklch(0.22 0.03 262);
+  --primary: oklch(0.22 0.03 262);
+  --primary-foreground: oklch(0.987 0.004 90);
+  --secondary: oklch(0.965 0.006 85); /* sand #f4f2ed */
+  --secondary-foreground: oklch(0.22 0.03 262);
+  --muted: oklch(0.965 0.006 85);
+  /* ≈ #5b647a: 5.7:1 on paper — AA for body text. */
+  --muted-foreground: oklch(0.5 0.03 262);
+  --accent: oklch(0.22 0.03 262 / 5%);
+  --accent-foreground: oklch(0.22 0.03 262);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0 0 0 / 8%);
-  --input: oklch(0 0 0 / 12%);
+  --border: oklch(0.22 0.03 262 / 9%);
+  --input: oklch(0.22 0.03 262 / 14%);
   --ring: var(--highlight);
-  /* Indigo #4f46e5. Headline highlight, focus rings, the mockup's selected
-     day, the wash under the mockup — nothing else. */
-  --highlight: oklch(0.511 0.262 276.966);
-  /* Hero-calendar accent: the landing's indigo, with a deeper stop for its
+  /* Cobalt ≈ #3556f0. The headline's second line, eyebrows, focus rings, the
+     mockups' selected state, the wordmark's lit cell — nothing else. */
+  --highlight: oklch(0.53 0.23 268);
+  /* Pale cobalt: the stage panels behind product UI (hero, week calendar). */
+  --tint: oklch(0.955 0.025 268);
+  /* Hero-calendar accent: the landing's cobalt, with a deeper stop for its
      gradient. Only mocks/hero-calendar.* may use these. */
   --hero-accent: var(--highlight);
-  --hero-accent-deep: oklch(0.42 0.24 277);
+  --hero-accent-deep: oklch(0.44 0.22 270);
   --hero-accent-foreground: oklch(1 0 0);
+}
+/* Ink slab (final CTA + footer): the ground and text tokens flipped so copy
+   and hairlines read on ink. --card / --primary are left alone, so the claim
+   bar inside stays a white bar with an ink button. */
+.marketing .ink {
+  color-scheme: dark;
+  --background: oklch(0.22 0.03 262);
+  --foreground: oklch(0.987 0.004 90);
+  --muted-foreground: oklch(0.74 0.02 262);
+  --accent: oklch(1 0 0 / 6%);
+  --accent-foreground: oklch(0.987 0.004 90);
+  --secondary: oklch(1 0 0 / 6%);
+  --secondary-foreground: oklch(0.987 0.004 90);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 18%);
 }
 
 /* Landing motion (spec §3.8). Delays are arbitrary values on the element. */
