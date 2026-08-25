@@ -15,6 +15,8 @@ import type {
   RangeBooking,
 } from "@/features/rentals/range";
 import { blackoutBusy } from "@/features/rentals/hourly";
+import type { OrgMode } from "@/features/orgs/mode";
+import type { UnitRef } from "./bookable";
 
 // Admin-client reads for the anonymous booking page (getOrgBranding
 // precedent: the public surface stays off the anon SQL grant surface;
@@ -238,7 +240,9 @@ export const resolveHandleAlias = cache(async (handle: string): Promise<string |
 export type PublicStaff = { id: string; name: string; slug: string; color: string };
 const STAFF_COLS = "id, name, slug, color, sort_order";
 
-export async function listPublicStaff(orgId: string, serviceId?: string): Promise<PublicStaff[]> {
+// Per-request memoised (H5b): loadPublicOffering and loadPublicResources
+// both want the roster inside one request.
+export const listPublicStaff = cache(async (orgId: string, serviceId?: string): Promise<PublicStaff[]> => {
   const admin = createAdminClient();
   let ids: string[] | null = null;
   if (serviceId) {
@@ -262,7 +266,7 @@ export async function listPublicStaff(orgId: string, serviceId?: string): Promis
   const { data, error } = await q;
   if (error) throw error;
   return (data ?? []).map((s) => ({ id: s.id, name: s.name, slug: s.slug, color: s.color }));
-}
+});
 
 // serviceId → eligible staff ids, in one query. The booking pages need the
 // whole map up front (the widget filters the staff step per service without a
@@ -518,6 +522,53 @@ export async function listPublicUnits(offeringId: string): Promise<PublicUnit[]>
   if (error) throw error;
   return (data ?? []).map((u) => ({ id: u.id, name: u.name, description: u.description, active: true }));
 }
+
+// H5b: every active unit of an active offering, in the order the plan cap
+// counts them (offering sort_order → name, then unit sort_order → created_at)
+// — the same order listPublicOfferings lists spaces and the RPCs auto-pick
+// units in, so "the first N resources" means one thing everywhere.
+export async function listPublicUnitsForOrg(orgId: string): Promise<UnitRef[]> {
+  const admin = createAdminClient();
+  const { data: offerings, error } = await admin
+    .from("rental_offerings")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("active", true)
+    .order("sort_order")
+    .order("name");
+  if (error) throw error;
+  if (!offerings || offerings.length === 0) return [];
+  const { data: units, error: unitsError } = await admin
+    .from("rental_units")
+    .select("id, offering_id")
+    .eq("org_id", orgId)
+    .eq("active", true)
+    .in(
+      "offering_id",
+      offerings.map((o) => o.id),
+    )
+    .order("sort_order")
+    .order("created_at");
+  if (unitsError) throw unitsError;
+  const rank = new Map(offerings.map((o, i) => [o.id as string, i]));
+  // Stable sort: units keep their own order inside each space.
+  return (units ?? [])
+    .map((u) => ({ id: u.id as string, offeringId: u.offering_id as string }))
+    .sort((a, b) => rank.get(a.offeringId)! - rank.get(b.offeringId)!);
+}
+
+// H5b: the org's declared channels by id, for callers that hold only an
+// orgId (loadPublicOffering). Per-request memoised like getBookingOrg.
+export const getOrgModeAdmin = cache(async (orgId: string): Promise<OrgMode | null> => {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("orgs")
+    .select("offers_appointments, offers_rentals")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? { offersAppointments: data.offers_appointments, offersRentals: data.offers_rentals } : null;
+});
 
 // Everything the range engine needs for one org+offering. The window is
 // padded by turnover (+1 day) on both edges: a stay just outside the
