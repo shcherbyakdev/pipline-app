@@ -53,9 +53,12 @@ function ownerEq<T>(q: T, o: Owner): T {
     ? filterable.eq("staff_id", o.staffId)
     : filterable.eq("rental_offering_id", o.rentalOfferingId!);
 }
+// Hours for both owners are edited on /availability (admin IA U3); a
+// space's detail page only summarises them, but that summary must not go
+// stale either.
 function revalidateOwner(o: Owner) {
-  if (o.staffId) revalidatePath("/availability");
-  else revalidatePath(`/rentals/${o.rentalOfferingId}`);
+  revalidatePath("/availability");
+  if (o.rentalOfferingId) revalidatePath(`/rentals/${o.rentalOfferingId}`);
 }
 
 // Defence-in-depth for the offering path, mirroring the staff org scope
