@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { SPACES } from "@/features/orgs/vocab";
 
-// create-booking-dialog.tsx's native-<select> idiom.
+// The native-<select> idiom shared by the booking forms.
 const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
 
 const INCREMENT_OPTIONS = [15, 30, 60];

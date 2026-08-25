@@ -3,6 +3,8 @@ import { getClient, listClientBookings } from "@/features/clients/queries";
 import { ClientHeader } from "@/features/clients/components/client-header";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { whenLineFor, STATUS_LABEL } from "@/features/scheduling/templates";
+import { requireOrg } from "@/lib/auth/session";
+import { SPACES } from "@/features/orgs/vocab";
 import { Badge } from "@/components/ui/badge";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -12,10 +14,11 @@ export default async function ClientDetailPage({ params }: PageProps<"/clients/[
   // Shape-guard before querying: a malformed id would surface as a Postgres
   // cast error (500), not the 404 it actually is.
   if (!UUID_RE.test(id)) notFound();
-  const [client, bookings, settings] = await Promise.all([
+  const [client, bookings, settings, { org }] = await Promise.all([
     getClient(id),
     listClientBookings(id),
     getSchedulingSettings(),
+    requireOrg(),
   ]);
   // RLS returns nothing for foreign orgs' clients — the 404 we want.
   if (!client) notFound();
@@ -40,7 +43,12 @@ export default async function ClientDetailPage({ params }: PageProps<"/clients/[
             {bookings.map((b) => (
               <li key={b.id} className="flex flex-col gap-1 rounded-md border p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-medium">{b.serviceName}</p>
+                  <p className="flex items-center gap-2 font-medium">
+                    {b.serviceName}
+                    {org.offersAppointments && b.rentalUnitId !== null ? (
+                      <Badge variant="outline">{SPACES.badge}</Badge>
+                    ) : null}
+                  </p>
                   <Badge variant="secondary">{STATUS_LABEL[b.status] ?? b.status}</Badge>
                 </div>
                 <p>

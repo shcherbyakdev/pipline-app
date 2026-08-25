@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 // These rows server-render, so "now" is seeded after mount (the
-// create-booking-dialog idiom): a render-time Date.now() would both trip
+// booking forms' seeded-now idiom): a render-time Date.now() would both trip
 // react-hooks/purity and risk a hydration mismatch. Until seeded, nothing is
 // treated as started — the worst case is one click that the action refuses.
 function useNowMs(): number | null {
@@ -32,11 +32,13 @@ function Row({
   timeZone,
   staff,
   actionable,
+  showKind,
 }: {
   booking: AdminBooking;
   timeZone: string;
   staff: StaffRow[];
   actionable: boolean;
+  showKind: boolean;
 }) {
   const [pending, startTransition] = React.useTransition();
   const [confirming, setConfirming] = React.useState(false);
@@ -75,7 +77,10 @@ function Row({
   return (
     <li className="flex flex-col gap-2 rounded-md border p-3 text-sm">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-medium">{booking.serviceName}</p>
+        <p className="flex items-center gap-2 font-medium">
+          {booking.serviceName}
+          {showKind && booking.rentalUnitId !== null ? <Badge variant="outline">{SPACES.badge}</Badge> : null}
+        </p>
         {actionable ? null : (
           <Badge variant="secondary">{STATUS_LABEL[booking.status] ?? booking.status}</Badge>
         )}
@@ -182,7 +187,14 @@ export function BookingsList({
         ) : (
           <ol className="flex flex-col gap-2">
             {upcoming.map((b) => (
-              <Row key={b.id} booking={b} timeZone={timeZone} staff={staff} actionable />
+              <Row
+                key={b.id}
+                booking={b}
+                timeZone={timeZone}
+                staff={staff}
+                actionable
+                showKind={mode.offersAppointments}
+              />
             ))}
           </ol>
         )}
@@ -194,7 +206,14 @@ export function BookingsList({
         ) : (
           <ol className="flex flex-col gap-2">
             {past.map((b) => (
-              <Row key={b.id} booking={b} timeZone={timeZone} staff={staff} actionable={false} />
+              <Row
+                key={b.id}
+                booking={b}
+                timeZone={timeZone}
+                staff={staff}
+                actionable={false}
+                showKind={mode.offersAppointments}
+              />
             ))}
           </ol>
         )}

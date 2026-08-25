@@ -17,7 +17,12 @@ import { blockTimeRange, unblockTimeRange, reopenDay } from "@/features/scheduli
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BookingDetailDialog } from "./booking-detail-dialog";
-import { CreateBookingDialog } from "./create-booking-dialog";
+import { NewBookingDialog } from "./new-booking-dialog";
+import { dragInitial } from "@/features/scheduling/booking-kinds";
+import type { OfferingOption } from "@/features/rentals/offering-option";
+import { SPACES } from "@/features/orgs/vocab";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { House01Icon } from "@hugeicons/core-free-icons";
 import { StaffFilter } from "./staff-filter";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -32,7 +37,7 @@ const GRID_COLS = "grid-cols-[2.5rem_repeat(7,minmax(0,1fr))_3.5rem]";
 
 export function CalendarWeek({
   weekStart, timeZone, staff, selectedStaffIds, defaultStaffId,
-  bookings, rules, exceptions, services, prevHref, nextHref,
+  bookings, rules, exceptions, services, spaces, prevHref, nextHref,
 }: {
   weekStart: string;
   timeZone: string;
@@ -50,6 +55,8 @@ export function CalendarWeek({
   rules: RuleRow[];
   exceptions: ExceptionRow[];
   services: ServiceRow[];
+  // Active spaces — a drag on an org without services pre-fills the first hourly one.
+  spaces: OfferingOption[];
   prevHref: string;
   nextHref: string;
 }) {
@@ -206,6 +213,13 @@ export function CalendarWeek({
         zonedParts(new Date(b.startsAt), timeZone).date <= date &&
         date <= zonedParts(new Date(b.endsAt), timeZone).date,
     );
+
+  // What a selection would prefill into New booking — computed once and
+  // shared by the popover's gate and the dialog's mount (same inputs both
+  // places; no reason to run dragInitial twice).
+  const dragPrefill = selection
+    ? dragInitial(selection, services, spaces, windowsByDay[days.indexOf(selection.date)] ?? [])
+    : null;
 
   return (
     // The grid fills whatever height `main` gives the page (the page root
@@ -383,6 +397,7 @@ export function CalendarWeek({
               // defensive clamp) mirror that same clip.
               const endMin = e.date === d ? Math.min(e.minutes, endHour * 60) : endHour * 60;
               const compact = endMin - s.minutes < 30;
+              const isSpace = b.rentalUnitId !== null;
               return (
                 <button
                   key={b.id}
@@ -394,8 +409,9 @@ export function CalendarWeek({
                     height: `${Math.max(pct(endMin) - pct(s.minutes), 1.5)}%`,
                     // A team reads its calendar by person first, so the accent
                     // becomes theirs; a solo org keeps the per-service hue it
-                    // has always had.
-                    borderLeft: `3px solid ${
+                    // has always had. Colour alone never carries the
+                    // space/appointment distinction — dashed vs. solid does.
+                    borderLeft: `3px ${isSpace ? "dashed" : "solid"} ${
                       (isTeam ? b.staffColor : null) ??
                       serviceAccent(b.serviceId ?? b.rentalOfferingId ?? "")
                     }`,
@@ -412,10 +428,26 @@ export function CalendarWeek({
                       >
                         {initials(b.staffName)}
                       </span>
-                      <span className="truncate font-medium">{b.serviceName}</span>
+                      <span className="truncate font-medium">
+                        {isSpace ? (
+                          <>
+                            <HugeiconsIcon icon={House01Icon} size={12} className="inline-block shrink-0 align-[-1px]" aria-hidden />
+                            <span className="sr-only">{SPACES.badge} · </span>{" "}
+                          </>
+                        ) : null}
+                        {b.serviceName}
+                      </span>
                     </span>
                   ) : (
-                    <span className="font-medium">{b.serviceName}</span>
+                    <span className="font-medium">
+                      {isSpace ? (
+                        <>
+                          <HugeiconsIcon icon={House01Icon} size={12} className="inline-block shrink-0 align-[-1px]" aria-hidden />
+                          <span className="sr-only">{SPACES.badge} · </span>{" "}
+                        </>
+                      ) : null}
+                      {b.serviceName}
+                    </span>
                   )}
                   {compact ? null : (
                     <>
@@ -449,9 +481,11 @@ export function CalendarWeek({
                       <span className="px-1.5 text-xs tabular-nums text-muted-foreground">
                         {minToTime(selection.startMin)}–{minToTime(selection.endMin)}
                       </span>
-                      <Button size="sm" className="h-7" onClick={() => setCreateOpen(true)}>
-                        New booking
-                      </Button>
+                      {dragPrefill ? (
+                        <Button size="sm" className="h-7" onClick={() => setCreateOpen(true)}>
+                          New booking
+                        </Button>
+                      ) : null}
                       {touchesOpen ? (
                         <Button size="sm" variant="ghost" className="h-7" onClick={blockSelected} disabled={busy}>
                           Block
@@ -496,18 +530,16 @@ export function CalendarWeek({
         open={selected !== null}
         onOpenChange={(o) => { if (!o) setSelected(null); }}
       />
-      {selection ? (
-        <CreateBookingDialog
-          open={createOpen}
+      {selection && createOpen ? (
+        <NewBookingDialog
+          open
           onOpenChange={(o) => { setCreateOpen(o); if (!o) setSelection(null); }}
-          date={selection.date}
-          startMin={selection.startMin}
-          dragEndMin={selection.endMin}
-          timeZone={timeZone}
           services={services}
+          spaces={spaces}
           staff={staff}
           defaultStaffId={defaultStaffId}
-          windows={windowsByDay[days.indexOf(selection.date)] ?? []}
+          timeZone={timeZone}
+          initial={dragPrefill ?? undefined}
         />
       ) : null}
     </div>

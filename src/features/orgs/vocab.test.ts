@@ -53,7 +53,6 @@ describe("admin vocabulary (admin IA spec §1)", () => {
       "No units yet — the space won't appear on your booking page until it has an active unit.",
     );
     expect(SPACES.field).toBe("Space");
-    expect(SPACES.walkIn).toBe("New space booking");
     expect(SPACES.command).toBe("New space");
     expect(SPACES.settings).toEqual({
       label: "Spaces",
@@ -65,5 +64,10 @@ describe("admin vocabulary (admin IA spec §1)", () => {
       blurb: "Services booked as time slots with your team.",
     });
     expect(APPOINTMENTS.add).toBe("Add a service");
+    expect(SPACES.pickerBoth).toBe("Service or space");
+    expect(SPACES.badge).toBe("Space");
+    expect(SPACES.hidden(1)).toBe("1 space booking hidden");
+    expect(SPACES.hidden(3)).toBe("3 space bookings hidden");
+    expect(APPOINTMENTS.field).toBe("Service");
   });
 });

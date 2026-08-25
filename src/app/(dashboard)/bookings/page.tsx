@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   listBookings,
@@ -10,23 +11,27 @@ import {
 import { listActiveStaff, type StaffRow } from "@/features/scheduling/staff-queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listOfferings, listTimelineData } from "@/features/rentals/queries";
-import { walkInOfferings } from "@/features/rentals/walk-in";
-import { RentalWalkInButton } from "@/features/rentals/components/rental-walk-in-button";
+import { NewBookingButton } from "@/features/scheduling/components/new-booking-button";
+import { canCreateWalkIn } from "@/features/scheduling/booking-kinds";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { defaultBookingsView, effectiveMode, modeOf } from "@/features/orgs/mode";
+import { SPACES } from "@/features/orgs/vocab";
 import { TIMELINE_DAYS, timelineDefaultStart } from "@/features/rentals/timeline-geometry";
 import { BookingsList } from "@/features/scheduling/components/bookings-list";
 import { CalendarWeek } from "@/features/scheduling/components/calendar-week";
+import { ViewSwitcher } from "@/features/scheduling/components/view-switcher";
+import { applyStaffLens } from "@/features/scheduling/staff-lens";
+import type { BookingsView } from "@/features/scheduling/bookings-views";
 import { mondayOf } from "@/features/scheduling/calendar-geometry";
 import { unionWindows, weekdayOf } from "@/features/scheduling/day-windows";
 import { wallTimeToUtc, addDaysISO, dateInZone } from "@/features/scheduling/slots";
+import { getPageDraftState } from "@/features/booking-page/queries";
+import { setupChecklist, type ChecklistItem } from "@/features/scheduling/setup-checklist";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import { WelcomeBanner } from "@/features/scheduling/components/welcome-banner";
-import { getPageDraftState } from "@/features/booking-page/queries";
-import { setupChecklist, type ChecklistItem } from "@/features/scheduling/setup-checklist";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -56,6 +61,10 @@ function validDate(param: string | undefined, fallback: string): string {
     : fallback;
 }
 
+function asView(param: string | undefined, fallback: BookingsView): BookingsView {
+  return param === "week" || param === "timeline" || param === "list" ? param : fallback;
+}
+
 export default async function BookingsPage({
   searchParams,
 }: {
@@ -70,30 +79,37 @@ export default async function BookingsPage({
   const mode = modeOf(org);
   const eff = effectiveMode(flags, mode);
   const rentals = eff.offersRentals;
-  // H2: fetched once, up front, and threaded through every branch below —
-  // it decides the default view (a rentals-only org that sells by the hour
-  // lands on week, not the timeline) and whether the Timeline link even
-  // makes sense (nothing to show there without a nights/days offering).
-  // The week-view branch further down reuses this array instead of asking
-  // again.
-  const orgOfferings = rentals ? await listOfferings() : [];
-  const hasHourly = orgOfferings.some((o) => o.active && o.rangeMode === "hours");
-  const hasRangeOfferings = orgOfferings.some((o) => o.active && o.rangeMode !== "hours");
-  const view = params.view ?? (rentals ? defaultBookingsView(eff, hasHourly) : "week");
+
+  // Fetched once, up front, for every view: the catalogue decides the
+  // default view, the Timeline link and (Task 3) the New-booking picker;
+  // the roster is fetched unconditionally (every org has at least one
+  // staff row — 0041 backfill + create_staff) and drives the week's
+  // lens and the walk-in's staff picker even for rentals-only orgs.
+  const [orgOfferings, services, activeStaff] = await Promise.all([
+    rentals ? listOfferings() : Promise.resolve([]),
+    eff.offersAppointments ? listServices() : Promise.resolve([]),
+    listActiveStaff(),
+  ]);
+  const spaces = orgOfferings.filter((o) => o.active);
+  const activeServices = services.filter((s) => s.active);
+  const hasHourly = spaces.some((o) => o.rangeMode === "hours");
+  const hasRangeOfferings = spaces.some((o) => o.rangeMode !== "hours");
+  const view = asView(params.view, rentals ? defaultBookingsView(eff, hasHourly) : "week");
+  // The switcher's Timeline item only makes sense once the org sells spaces
+  // AND has a nights/days one to show there (hourly bookings live on the
+  // week grid). The branch itself still answers an explicit ?view=timeline
+  // (and the nights-only default) with the Timeline's own empty state.
+  const showTimeline = rentals && hasRangeOfferings;
+
   // Welcome checklist: three cheap reads, only on the one request that
   // carries ?welcome=1 (nothing is persisted — spec §4 ruling 8).
-  // `orgOfferings` was already fetched above when the org sells spaces.
   let checklist: ChecklistItem[] = [];
   if (params.welcome === "1") {
-    const [services, ownersWithHours, page] = await Promise.all([
-      eff.offersAppointments ? listServices() : Promise.resolve([]),
-      countHoursOwners(),
-      getPageDraftState(org.id),
-    ]);
+    const [ownersWithHours, page] = await Promise.all([countHoursOwners(), getPageDraftState(org.id)]);
     checklist = setupChecklist({
       mode: eff,
-      serviceCount: services.filter((s) => s.active).length,
-      spaceCount: orgOfferings.filter((o) => o.active).length,
+      serviceCount: activeServices.length,
+      spaceCount: spaces.length,
       ownersWithHours,
       published: page.published !== null,
     });
@@ -108,40 +124,48 @@ export default async function BookingsPage({
       />
     ) : null;
 
-  // Rentals are on by default since H1; the org's `rentals` flag is a kill
-  // switch and the org-mode gate (offersRentals) decides what the org
-  // sells: the timeline view falls back to the week calendar and its link
-  // never renders unless both say yes.
+  // One entry for every kind of walk-in (spec §2, ruling 5). On the
+  // "everyone" week a walk-in defaults to the first active member; the week
+  // branch below overrides that for a one-person lens.
+  const newBookingFor = (defaultStaffId: string) =>
+    canCreateWalkIn(activeServices, spaces) ? (
+      <NewBookingButton
+        services={activeServices}
+        spaces={spaces}
+        staff={activeStaff}
+        defaultStaffId={defaultStaffId}
+        timeZone={timeZone}
+      />
+    ) : null;
+
+  // One toolbar shape for every view: primary action on the left, view
+  // controls on the right (admin IA spec §2). `right` is the per-view slot
+  // before the switcher (the week's Today link, the lens chip).
+  const toolbar = (
+    current: BookingsView,
+    defaultStaffId: string,
+    right: ReactNode = null,
+    staffQuery?: string,
+  ) => (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div>{newBookingFor(defaultStaffId)}</div>
+      <div className="flex items-center gap-2">
+        {right}
+        <ViewSwitcher current={current} showTimeline={showTimeline} staffQuery={staffQuery} />
+      </div>
+    </div>
+  );
+
   if (rentals && view === "timeline") {
     // The timeline (a client component) is only pulled in when this branch
     // actually renders it.
     const { Timeline } = await import("@/features/rentals/components/timeline");
     const fromDate = validDate(params.from, timelineDefaultStart(today));
-    const { offerings, blackouts, bookings } = await listTimelineData(
-      fromDate,
-      timeZone,
-      TIMELINE_DAYS,
-    );
+    const { offerings, blackouts, bookings } = await listTimelineData(fromDate, timeZone, TIMELINE_DAYS);
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         {welcome}
-        <div className="flex items-center justify-end gap-2">
-          {/* view switchers only — date navigation (‹ Today ›) lives in the
-              timeline's own header row, next to the window it moves. */}
-          <div className="flex items-center gap-2">
-            {mode.offersAppointments ? (
-              <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-                Week
-              </Link>
-            ) : null}
-            <Link
-              href="/bookings?view=list"
-              className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-            >
-              List
-            </Link>
-          </div>
-        </div>
+        {toolbar("timeline", activeStaff[0]?.id ?? "")}
         <Timeline
           fromDate={fromDate}
           timeZone={timeZone}
@@ -156,34 +180,12 @@ export default async function BookingsPage({
     );
   }
 
-  // The Timeline link only makes sense once the org's declared mode sells
-  // rentals AND has at least one nights/days offering to show there —
-  // appointment-only orgs never see it, and neither does an hourly-only
-  // rentals org (hourly bookings don't appear on the timeline at all).
-  const hasRentals = rentals && hasRangeOfferings;
-  const timelineLink = hasRentals ? (
-    <Link
-      href="/bookings?view=timeline"
-      className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-    >
-      Timeline
-    </Link>
-  ) : null;
-
   if (view === "list") {
-    const [{ upcoming, past }, activeStaff] = await Promise.all([
-      listBookings(),
-      listActiveStaff(),
-    ]);
+    const { upcoming, past } = await listBookings();
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
         {welcome}
-        <div className="flex items-center justify-end gap-2">
-          {timelineLink}
-          <Link href="/bookings" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-            Calendar view
-          </Link>
-        </div>
+        {toolbar("list", activeStaff[0]?.id ?? "")}
         <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} staff={activeStaff} mode={eff} />
       </div>
     );
@@ -194,39 +196,22 @@ export default async function BookingsPage({
   const fromIso = wallTimeToUtc(weekStart, "00:00", timeZone).toISOString();
   const toIso = wallTimeToUtc(addDaysISO(weekStart, 7), "00:00", timeZone).toISOString();
 
-  // Availability is per staff now (Team slice), so the week is drawn for the
-  // selected people: one selected ⇒ exactly their hours (and the solo org is
-  // always this case, unchanged from before the slice); several ⇒ the union,
-  // where an open tile means "someone is open".
-  const activeStaff = await listActiveStaff();
+  // Availability is per staff (Team slice), so the week is drawn for the
+  // selected people: one selected ⇒ exactly their hours (the solo org is
+  // always this case); several ⇒ the union, where an open tile means
+  // "someone is open".
   const selectedStaffIds = parseStaffParam(params.staff, activeStaff);
-  // Only a real narrowing filters the bookings: rental stays have no staff, so
-  // handing `.in("staff_id", …)` every active id would drop them from a week
-  // nobody asked to narrow.
+  // Only a real narrowing is a lens; the "everyone" week shows spaces too.
   const staffFilter =
     selectedStaffIds.length < activeStaff.length ? selectedStaffIds : undefined;
-  const [rawBookings, exceptions, services, availability] = await Promise.all([
-    listConfirmedBookingsBetween(fromIso, toIso, staffFilter),
-    selectedStaffIds.length > 0
-      ? listExceptionsBetween(weekStart, weekEnd, selectedStaffIds)
-      : [],
-    listServices(),
+  const [rawBookings, exceptions, availability] = await Promise.all([
+    // Fetched UNFILTERED and narrowed in memory (one org-week of rows) — that
+    // is what yields the hidden-spaces count for the chip below.
+    listConfirmedBookingsBetween(fromIso, toIso),
+    selectedStaffIds.length > 0 ? listExceptionsBetween(weekStart, weekEnd, selectedStaffIds) : [],
     Promise.all(selectedStaffIds.map((id) => getAvailabilityAdmin(id, today))),
   ]);
-  // H2: a narrowing staff filter is a lens on a person's work — a room
-  // isn't anybody's work, so rentals drop out whenever it's on. Off (the
-  // "everyone" week), rentals stay. `.in("staff_id", …)` above already
-  // excludes them (staff_id is null on every rental), but this makes the
-  // rule explicit rather than leaning on that null behaviour.
-  const withRentals = staffFilter === undefined;
-  const bookings = withRentals ? rawBookings : rawBookings.filter((b) => b.rentalUnitId === null);
-  // The week-calendar's own walk-in entry point shows up once there's any
-  // active offering to book — nights/days included, not only hourly: a
-  // mixed org lands here, not on the timeline, and the dialog already
-  // branches per offering. `orgOfferings` was already fetched up front (it
-  // also decided the default view and the Timeline link), so no second
-  // query here.
-  const rentalWalkIn = walkInOfferings(orgOfferings);
+  const { visible: bookings, hiddenSpaces } = applyStaffLens(rawBookings, staffFilter);
   // One person ⇒ their rows go straight through (so the grid's block/unblock
   // and "Reopen day" keep working off real exceptions). Several ⇒ each
   // person's day is resolved on its own and the results unioned
@@ -254,49 +239,54 @@ export default async function BookingsPage({
       );
   const weekExceptions = solo ? exceptions : [];
   // The week arrows are plain links — they have to carry the lens with them.
-  const staffQuery = staffFilter ? `&staff=${staffFilter.join(",")}` : "";
+  const staffQuery = staffFilter ? `staff=${staffFilter.join(",")}` : "";
+  const staffSuffix = staffQuery ? `&${staffQuery}` : "";
+  const todayHref = staffQuery ? `/bookings?${staffQuery}` : "/bookings";
+  // The lens hides space bookings (a room is nobody's work) — say so, with
+  // the way out, instead of silently dropping rows (spec §2, ruling 6).
+  const hiddenChip =
+    staffFilter && hiddenSpaces > 0 ? (
+      <Link
+        href={`/bookings?week=${weekStart}`}
+        className="text-muted-foreground hover:text-foreground rounded-md border border-dashed px-2 py-1 text-xs"
+      >
+        {SPACES.hidden(hiddenSpaces)} · Show everyone
+      </Link>
+    ) : null;
+
+  // A walk-in drawn on a one-person week belongs to that person; on the
+  // "everyone" week it defaults to the first active member.
+  const defaultStaffId = (selectedStaffIds.length === 1 ? selectedStaffIds[0] : activeStaff[0]?.id) ?? "";
 
   return (
     // flex-1 + min-h-0: the calendar fills main's leftover viewport height
     // (week arrows live inside the grid header; see CalendarWeek).
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {welcome}
-      <div className="flex items-center justify-end gap-2">
-        {rentalWalkIn.length > 0 ? (
-          <RentalWalkInButton offerings={rentalWalkIn} timeZone={timeZone} />
-        ) : null}
-        <div className="flex items-center gap-2">
-          <Link
-            href={staffQuery ? `/bookings?${staffQuery.slice(1)}` : "/bookings"}
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-          >
+      {toolbar(
+        "week",
+        defaultStaffId,
+        <>
+          {hiddenChip}
+          <Link href={todayHref} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
             Today
           </Link>
-          {timelineLink}
-          <Link
-            href="/bookings?view=list"
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-          >
-            List view
-          </Link>
-        </div>
-      </div>
+        </>,
+        staffQuery,
+      )}
       <CalendarWeek
         weekStart={weekStart}
         timeZone={timeZone}
         staff={activeStaff}
         selectedStaffIds={selectedStaffIds}
-        // A walk-in drawn on a one-person week belongs to that person;
-        // on the "everyone" week it defaults to the first active member.
-        defaultStaffId={
-          (selectedStaffIds.length === 1 ? selectedStaffIds[0] : activeStaff[0]?.id) ?? ""
-        }
+        defaultStaffId={defaultStaffId}
         bookings={bookings}
         rules={rules}
         exceptions={weekExceptions}
-        services={services.filter((s) => s.active)}
-        prevHref={`/bookings?week=${addDaysISO(weekStart, -7)}${staffQuery}`}
-        nextHref={`/bookings?week=${addDaysISO(weekStart, 7)}${staffQuery}`}
+        services={activeServices}
+        spaces={spaces}
+        prevHref={`/bookings?week=${addDaysISO(weekStart, -7)}${staffSuffix}`}
+        nextHref={`/bookings?week=${addDaysISO(weekStart, 7)}${staffSuffix}`}
       />
     </div>
   );
