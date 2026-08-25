@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { bookingPath, bookingUrl, hostLabel } from "./url";
+import { bookingLink, bookingPath, bookingUrl, embedSrc, hostLabel, targetQuery } from "./url";
 
 describe("booking URLs", () => {
   it("builds root paths, with an optional staff segment", () => {
@@ -15,6 +15,27 @@ describe("booking URLs", () => {
   it("hostLabel strips the scheme and trailing slash", () => {
     expect(hostLabel("https://booklo.co/")).toBe("booklo.co");
     expect(hostLabel("http://localhost:3000")).toBe("localhost:3000");
+  });
+  it("targetQuery renders the three query targets, nothing for staff/none", () => {
+    expect(targetQuery({ service: "s1" })).toBe("?service=s1");
+    expect(targetQuery({ space: "o1" })).toBe("?space=o1");
+    expect(targetQuery({ channel: "spaces" })).toBe("?channel=spaces");
+    expect(targetQuery({ staff: "anna" })).toBe("");
+    expect(targetQuery(null)).toBe("");
+    expect(targetQuery()).toBe("");
+  });
+  it("bookingLink: a staff target is a path segment, everything else a query on the page", () => {
+    expect(bookingLink("https://booklo.co", "anna")).toBe("https://booklo.co/anna");
+    expect(bookingLink("https://booklo.co/", "anna", { staff: "maria" })).toBe("https://booklo.co/anna/maria");
+    expect(bookingLink("https://booklo.co", "anna", { service: "s1" })).toBe("https://booklo.co/anna?service=s1");
+    expect(bookingLink("https://booklo.co", "anna", { space: "o1" })).toBe("https://booklo.co/anna?space=o1");
+    expect(bookingLink("https://booklo.co", "anna", { channel: "services" })).toBe("https://booklo.co/anna?channel=services");
+  });
+  it("embedSrc: every target is a query on the embed route", () => {
+    expect(embedSrc("https://booklo.co", "anna")).toBe("https://booklo.co/embed/anna");
+    expect(embedSrc("https://booklo.co/", "anna", { staff: "maria" })).toBe("https://booklo.co/embed/anna?staff=maria");
+    expect(embedSrc("https://booklo.co", "anna", { space: "o1" })).toBe("https://booklo.co/embed/anna?space=o1");
+    expect(embedSrc("https://booklo.co", "anna", { channel: "spaces" })).toBe("https://booklo.co/embed/anna?channel=spaces");
   });
 });
 

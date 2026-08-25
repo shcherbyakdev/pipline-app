@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SettingsCard, SettingsRow } from "@/components/settings-row";
 import { cn } from "@/lib/utils";
-import { snippetFor } from "./widget-embed-snippet";
+import { embedSnippet } from "./widget-embed-snippet";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 
 const RADIUS_OPTIONS: Array<{ value: WidgetThemeConfig["radius"]; label: string }> = [
@@ -72,7 +72,7 @@ export function WidgetAppearance({
   const [pending, startTransition] = React.useTransition();
   // "" = the whole team (the org-wide flow, byte-identical to the old snippet).
   const [staffSlug, setStaffSlug] = React.useState<string>(initialStaffSlug ?? "");
-  const snippet = handle ? snippetFor(appUrl, handle, staffSlug || null, mode) : "";
+  const snippet = handle ? embedSnippet(appUrl, handle, staffSlug ? { staff: staffSlug } : null, mode) : "";
 
   // Show/guard the ratio as soon as EITHER side is overridden — a lone
   // override still gets checked against the theme's default for the other

@@ -1,65 +1,57 @@
 import { describe, it, expect } from "vitest";
-import { snippetFor } from "./widget-embed-snippet";
+import { embedSnippet } from "./widget-embed-snippet";
 
-describe("snippetFor", () => {
-  const snippet = snippetFor("https://app.example.com", "acme-studio");
+const APP = "https://app.example.com";
+const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
+const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
+const BOTH = { offersAppointments: true, offersRentals: true };
+
+describe("embedSnippet", () => {
+  const snippet = embedSnippet(APP, "acme-studio");
 
   it("interpolates appUrl and handle into the iframe src", () => {
     expect(snippet).toContain('src="https://app.example.com/embed/acme-studio"');
   });
-
   it("interpolates appUrl into the script src", () => {
     expect(snippet).toContain('src="https://app.example.com/embed.js"');
   });
-
   it("carries the data-rollout-embed attribute embed.js selects iframes by", () => {
     expect(snippet).toContain("data-rollout-embed");
   });
-
   it("marks the script async so the pasted snippet doesn't parser-block the host page", () => {
     expect(snippet).toMatch(/<script src="[^"]+" async><\/script>/);
   });
-});
-
-describe("snippetFor with a staff slug", () => {
-  it("appends ?staff=<slug> to the iframe src", () => {
-    expect(snippetFor("https://app.example.com", "acme-studio", "anna")).toContain(
-      'src="https://app.example.com/embed/acme-studio?staff=anna"',
-    );
-  });
-
-  it("leaves the script src alone", () => {
-    expect(snippetFor("https://app.example.com", "acme-studio", "anna")).toContain(
-      'src="https://app.example.com/embed.js"',
-    );
-  });
-
-  it("is unchanged when the slug is null/undefined (whole-team embed)", () => {
-    const plain = snippetFor("https://app.example.com", "acme-studio");
-    expect(snippetFor("https://app.example.com", "acme-studio", null)).toBe(plain);
-    expect(plain).toContain('src="https://app.example.com/embed/acme-studio"');
-    expect(plain).not.toContain("?staff=");
+  it("is byte-identical for a null target (whole-team embed)", () => {
+    expect(embedSnippet(APP, "acme-studio", null)).toBe(snippet);
+    expect(snippet).not.toContain("?");
   });
 });
 
-describe("snippetFor iframe title follows the org's channels", () => {
-  const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
-  const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
-  const BOTH = { offersAppointments: true, offersRentals: true };
-
-  it("appointments-only keeps the historical title", () => {
-    expect(snippetFor("https://app.example.com", "acme", null, APPTS_ONLY)).toContain('title="Book an appointment"');
+describe("embedSnippet targets (spec §5)", () => {
+  it("staff pins the embed via ?staff=<slug> and leaves the script src alone", () => {
+    const s = embedSnippet(APP, "acme-studio", { staff: "anna" });
+    expect(s).toContain('src="https://app.example.com/embed/acme-studio?staff=anna"');
+    expect(s).toContain('src="https://app.example.com/embed.js"');
   });
-
-  it("rentals-only says space, not appointment", () => {
-    expect(snippetFor("https://app.example.com", "acme", null, RENTALS_ONLY)).toContain('title="Book a space"');
+  it("service, space and channel become the matching query", () => {
+    expect(embedSnippet(APP, "acme", { service: "s1" })).toContain('src="https://app.example.com/embed/acme?service=s1"');
+    expect(embedSnippet(APP, "acme", { space: "o1" })).toContain('src="https://app.example.com/embed/acme?space=o1"');
+    expect(embedSnippet(APP, "acme", { channel: "services" })).toContain('src="https://app.example.com/embed/acme?channel=services"');
   });
+});
 
-  it("both channels use the neutral title", () => {
-    expect(snippetFor("https://app.example.com", "acme", null, BOTH)).toContain('title="Book online"');
+describe("embedSnippet iframe title", () => {
+  it("no target: follows the org's channels, historical default without a mode", () => {
+    expect(embedSnippet(APP, "acme", null, APPTS_ONLY)).toContain('title="Book an appointment"');
+    expect(embedSnippet(APP, "acme", null, RENTALS_ONLY)).toContain('title="Book a space"');
+    expect(embedSnippet(APP, "acme", null, BOTH)).toContain('title="Book online"');
+    expect(embedSnippet(APP, "acme")).toContain('title="Book an appointment"');
   });
-
-  it("no mode given ⇒ the historical title (existing callers/tests unchanged)", () => {
-    expect(snippetFor("https://app.example.com", "acme")).toContain('title="Book an appointment"');
+  it("a target names its own channel, whatever the org's mode", () => {
+    expect(embedSnippet(APP, "acme", { space: "o1" }, BOTH)).toContain('title="Book a space"');
+    expect(embedSnippet(APP, "acme", { channel: "spaces" }, BOTH)).toContain('title="Book a space"');
+    expect(embedSnippet(APP, "acme", { service: "s1" }, BOTH)).toContain('title="Book an appointment"');
+    expect(embedSnippet(APP, "acme", { staff: "anna" }, BOTH)).toContain('title="Book an appointment"');
+    expect(embedSnippet(APP, "acme", { channel: "services" }, RENTALS_ONLY)).toContain('title="Book an appointment"');
   });
 });
