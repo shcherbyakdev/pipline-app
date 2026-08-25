@@ -35,6 +35,7 @@ export function BookingWidget({
   lockedStaff = null,
   preview,
   requestedService = null,
+  requestedOffering = null,
 }: {
   handle: string;
   orgTimeZone: string;
@@ -54,6 +55,9 @@ export function BookingWidget({
   /** Booking-page hand-off (services section / `?service=`): each request
       carries a key so re-picking the same service after "change" still applies. */
   requestedService?: { id: string; key: number } | null;
+  /** A Spaces-section card asked for this offering (page-state.tsx). Same
+      once-per-key contract as requestedService. */
+  requestedOffering?: { id: string; key: number } | null;
 }) {
   // Who can take this service. Declared before the state below because the
   // lazy initialiser for `staffChoice` has to answer the same question for an
@@ -106,6 +110,18 @@ export function BookingWidget({
       setService(requested);
       setStaffChoice(resolveStaff(requested));
       setOffering(null);
+      setSlot(null);
+    }
+  }
+
+  const [appliedOfferingKey, setAppliedOfferingKey] = React.useState<number | null>(null);
+  if (requestedOffering && requestedOffering.key !== appliedOfferingKey) {
+    setAppliedOfferingKey(requestedOffering.key);
+    const found = offerings.find((o) => o.id === requestedOffering.id);
+    if (found) {
+      setOffering(found);
+      setService(null);
+      setStaffChoice(null);
       setSlot(null);
     }
   }
@@ -169,7 +185,10 @@ export function BookingWidget({
   // picked. Hourly offerings (H2) branch to their own flow: RentalBookingFlow
   // is nights/days-only (staySummary calls hhmm(startTime!), which is null
   // for hours) and must never see one.
-  if (offering) {
+  // Preview (admin live previews / template thumbnails) never mounts the
+  // rental flows — they fetch availability (PR #58's inert rule). A Spaces
+  // card click in preview still records the request; the list just stays.
+  if (offering && !preview) {
     const onOfferingBack = services.length + offerings.length > 1 ? () => setOffering(null) : null;
     return offering.rangeMode === "hours" ? (
       <HourlyBookingFlow
