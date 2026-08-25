@@ -52,9 +52,10 @@ SimplyBook, Skedda, Booqable, Cal.com and Calendly (Aug 2026).
    rows visible as a count with a one-click way out. Space lanes on the week
    grid are deferred.
 7. **Deep links are query params** — `?service=<id>` (exists on the hosted
-   page; the embed only knows `?staff=` today) and `?space=<offeringId>`
-   (new), both on the hosted page and the embed. Slugged short links need a
-   migration and stay deferred.
+   page; the embed only knows `?staff=` today), `?space=<offeringId>` (new)
+   and `?channel=services|spaces` (new, one channel only), all on the hosted
+   page and the embed. Slugged short links need a migration and stay
+   deferred.
 8. **First-run checklist persists nothing.** It rides the existing
    `?welcome=1` banner and derives every tick from data that already exists.
 9. **Settings › Business stays** (R3 relaxed the "Settings = per-user only"
@@ -384,10 +385,21 @@ persisted (ruling 8).
   `initialServiceId`; the booking section maps it to the widget's
   `requestedOffering` (H5a prop). Embed: passed straight to
   `<BookingWidget requestedOffering={{ id, key: 0 }}>`.
+- **Per-channel widget** (user request 2026-08-25): `?channel=services` /
+  `?channel=spaces` restricts the widget's catalogue to one channel on both
+  the hosted page and the embed — `listPublicCatalog` output is filtered
+  after the mode gate, so an org that doesn't sell the requested channel
+  degrades to its full catalogue (never a 404, never an empty widget). With
+  one group the widget drops its group heading. Builder sections on the
+  hosted page are unaffected (they are authored per page, not per link).
+  `resolveChannelParam(mode, param)` is pure and tested like
+  `resolveInitialService`.
 - `lib/booking/url.ts`:
 
 ```ts
-export type LinkTarget = { service: string } | { space: string } | { staff: string } | null;
+export type LinkTarget =
+  | { service: string } | { space: string } | { staff: string }
+  | { channel: "services" | "spaces" } | null;
 export function bookingLink(appUrl: string, handle: string, target?: LinkTarget): string;
 export function embedSnippet(appUrl: string, handle: string, target?: LinkTarget): string;
 ```
@@ -404,6 +416,7 @@ Under the snippet, a **Links & embeds** table (client component
 | row | link | embed |
 |---|---|---|
 | Whole booking page | copy | copy |
+| Appointments only · Spaces only (both-mode orgs) | copy | copy |
 | each team member (when > 1, with slug) | copy | copy |
 | each bookable service | copy | copy |
 | each active space | copy | copy |
