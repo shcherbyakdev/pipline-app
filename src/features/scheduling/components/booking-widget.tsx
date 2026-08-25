@@ -11,8 +11,7 @@ import { ClientDetailsFields } from "@/features/scheduling/components/client-det
 import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
 import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
 import { HourlyBookingFlow } from "@/features/rentals/components/hourly-booking-flow";
-import { formatDurationLabel } from "@/features/rentals/hourly";
-import { formatOfferingPrice } from "@/features/rentals/pricing";
+import { formatOfferingPrice, stayHint } from "@/features/rentals/pricing";
 import { SPACES } from "@/features/orgs/vocab";
 
 // The VIEWER's local date (audit 2026-08-24: the UTC date sent a far-west
@@ -279,18 +278,7 @@ export function BookingWidget({
                         ) : null}
                       </span>
                       <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                        {[
-                          formatOfferingPrice(o, currency),
-                          o.rangeMode === "hours"
-                            ? // H2: hourly offerings have no min-stay concept — the
-                              // duration range is the equivalent "how much" hint.
-                              `${formatDurationLabel(o.minDurationMin!)}–${formatDurationLabel(o.maxDurationMin!)}`
-                            : o.minStay > 1
-                              ? `min ${o.minStay} ${o.rangeMode}`
-                              : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
+                        {[formatOfferingPrice(o, currency), stayHint(o)].filter(Boolean).join(" · ")}
                       </span>
                     </button>
                   </li>

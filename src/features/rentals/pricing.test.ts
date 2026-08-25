@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   stayUnits, totalCents, depositCents, formatOfferingPrice,
-  formatCancelWindow, moneyInfoLines, type MoneyFields,
+  formatCancelWindow, moneyInfoLines, stayHint, type MoneyFields,
 } from "./pricing";
 
 const base: MoneyFields = { priceCents: 10000, pricingMode: "per_unit", depositType: "none", depositValue: null };
@@ -73,4 +73,19 @@ describe("moneyInfoLines", () => {
       .toEqual(["Free cancellation until 2 hours before start"]));
   it("nothing set → empty", () =>
     expect(moneyInfoLines({ totalCents: null, depositCents: null, currency: null, cancelWindowMin: 0 })).toEqual([]));
+});
+
+describe("stayHint", () => {
+  it("hourly: the duration range", () => {
+    expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: 60, maxDurationMin: 240 })).toBe("1 h–4 h");
+    expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: 90, maxDurationMin: 150 })).toBe("1 h 30 min–2 h 30 min");
+  });
+  it("nights/days: the minimum stay when it is more than one", () => {
+    expect(stayHint({ rangeMode: "nights", minStay: 2, minDurationMin: null, maxDurationMin: null })).toBe("min 2 nights");
+    expect(stayHint({ rangeMode: "days", minStay: 3, minDurationMin: null, maxDurationMin: null })).toBe("min 3 days");
+  });
+  it("nothing to say: one-night minimum, or an hourly row missing its grid", () => {
+    expect(stayHint({ rangeMode: "nights", minStay: 1, minDurationMin: null, maxDurationMin: null })).toBeNull();
+    expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: null, maxDurationMin: null })).toBeNull();
+  });
 });
