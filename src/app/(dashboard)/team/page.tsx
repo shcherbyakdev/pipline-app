@@ -25,7 +25,7 @@ export default async function TeamPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
       <PageIntro>
-        Everyone who can be booked. Each person has their own hours, services and booking link.
+        Your bookable people. Each has their own hours, services and booking link.
       </PageIntro>
       <div className="flex items-center justify-end">
         <StaffDialog

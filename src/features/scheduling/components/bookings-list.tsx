@@ -8,6 +8,7 @@ import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/book
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { OrgMode } from "@/features/orgs/mode";
+import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { RESEND_STARTED_HINT } from "./booking-detail-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -167,20 +168,16 @@ export function BookingsList({
         {upcoming.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             No upcoming bookings.{" "}
-            {mode.offersAppointments && (
-              <>
-                <Link href="/services" className="underline">Set up a service</Link>
-                {mode.offersRentals ? " or " : " "}
-              </>
-            )}
-            {mode.offersRentals && (
-              <>
-                <Link href="/rentals" className="underline">
-                  {mode.offersAppointments ? "add" : "Add"} a rental offering and its units
-                </Link>{" "}
-              </>
-            )}
-            to start taking bookings, then share your booking page.
+            {mode.offersAppointments ? (
+              <Link href="/services" className="underline">{APPOINTMENTS.add}</Link>
+            ) : null}
+            {mode.offersAppointments && mode.offersRentals ? " or " : null}
+            {mode.offersRentals ? (
+              <Link href="/rentals" className="underline">
+                {mode.offersAppointments ? SPACES.add.toLowerCase() : SPACES.add}
+              </Link>
+            ) : null}
+            , then share your booking page.
           </p>
         ) : (
           <ol className="flex flex-col gap-2">

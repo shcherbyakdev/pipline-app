@@ -7,10 +7,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { updateOrgModes } from "@/features/orgs/actions";
 import type { OrgMode } from "@/features/orgs/mode";
+import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 
 const ROWS = [
-  { key: "offersAppointments", label: "Appointments", blurb: "Services booked as time slots on your calendar." },
-  { key: "offersRentals", label: "Rentals", blurb: "Units booked by the night or day." },
+  { key: "offersAppointments", ...APPOINTMENTS.settings },
+  { key: "offersRentals", ...SPACES.settings },
 ] as const;
 
 /* Org-level "what you offer" (Settings → Business). Optimistic: the box flips
