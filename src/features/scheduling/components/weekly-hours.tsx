@@ -10,10 +10,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   addAvailabilityRule,
+  applyDefaultHours,
   updateAvailabilityRule,
   deleteAvailabilityRule,
   copyDayHours,
 } from "@/features/scheduling/actions";
+import { DEFAULT_WEEK_LABEL } from "@/features/scheduling/default-hours";
 import { OVERLAP_ERROR, type AvailabilityOwner } from "@/features/scheduling/schema";
 import {
   TIME_OPTIONS,
@@ -48,16 +50,45 @@ type Conflict = { ruleId: string; message: string } | null;
 // travels with every write that creates or re-keys a row.
 export function WeeklyHours({ owner, rules }: { owner: AvailabilityOwner; rules: RuleRow[] }) {
   return (
-    <div className="rounded-lg border border-border">
-      {WEEKDAY_ORDER.map((weekday, i) => (
-        <DayRow
-          key={weekday}
-          owner={owner}
-          weekday={weekday}
-          rules={rules.filter((r) => r.weekday === weekday)}
-          isLast={i === WEEKDAY_ORDER.length - 1}
-        />
-      ))}
+    <div className="flex flex-col gap-3">
+      {/* A week with nothing in it is the state a new owner used to start in
+          and the one anyone who clears their week lands back in. Filling it
+          day by day is seven "+" clicks; this is one. */}
+      {rules.length === 0 ? <DefaultHoursPrompt owner={owner} /> : null}
+      <div className="rounded-lg border border-border">
+        {WEEKDAY_ORDER.map((weekday, i) => (
+          <DayRow
+            key={weekday}
+            owner={owner}
+            weekday={weekday}
+            rules={rules.filter((r) => r.weekday === weekday)}
+            isLast={i === WEEKDAY_ORDER.length - 1}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DefaultHoursPrompt({ owner }: { owner: AvailabilityOwner }) {
+  const [pending, startTransition] = React.useTransition();
+
+  function onApply() {
+    startTransition(async () => {
+      const result = await applyDefaultHours(owner);
+      if (!result.ok) toast.error(result.error);
+    });
+  }
+
+  return (
+    <div className="bg-card flex flex-wrap items-center gap-3 rounded-lg border p-3">
+      <div className="mr-auto">
+        <p className="text-sm font-medium">No hours set — nothing can be booked yet.</p>
+        <p className="text-muted-foreground text-xs">Start with {DEFAULT_WEEK_LABEL} and adjust from there.</p>
+      </div>
+      <Button type="button" size="sm" disabled={pending} onClick={onApply}>
+        {pending ? "Setting hours…" : "Use default hours"}
+      </Button>
     </div>
   );
 }

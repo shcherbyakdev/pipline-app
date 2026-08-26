@@ -64,6 +64,13 @@ export const availabilityRuleInput = z
   .refine(oneOwner, { message: ONE_OWNER_MESSAGE });
 export const ruleIdInput = z.object({ id: z.uuid() });
 
+/** Owner-only: the editor's "use default hours" button names whose empty
+    week to fill, and nothing else (default-hours.ts decides the shape). */
+export const availabilityOwnerInput = z
+  .object({})
+  .extend(ownerFields)
+  .refine(oneOwner, { message: ONE_OWNER_MESSAGE });
+
 // Calendar-only surface (block/unblock a time range) — stays staff-only,
 // unlike the rest of the availability inputs above: rental offerings have
 // no calendar-block UI (spec, task 6).

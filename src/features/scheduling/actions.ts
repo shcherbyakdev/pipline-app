@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { assertCanAddService } from "@/lib/billing/gates";
+import { seedDefaultHours } from "./default-hours";
 import {
+  availabilityOwnerInput,
   serviceInput,
   updateServiceInput,
   serviceIdInput,
@@ -377,6 +379,31 @@ export async function addAvailabilityRule(input: unknown): Promise<ActionState> 
   if (error) {
     if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
     return fail("addAvailabilityRule", error);
+  }
+  revalidateOwner(parsed.data);
+  revalidatePath("/bookings");
+  return { ok: true };
+}
+
+// The one-click way out of a week with no hours at all: the editor shows
+// the button only when every day is "Unavailable" (weekly-hours.tsx), and
+// this runs the same insert the creation paths do (default-hours.ts). It is
+// the recovery path for owners who predate the seeding, whose seed failed,
+// or who cleared their week — a race that lands hours between render and
+// click hits 0035's EXCLUDE guard and gets the shared overlap copy.
+export async function applyDefaultHours(input: unknown): Promise<ActionState> {
+  const parsed = availabilityOwnerInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  const error = await seedDefaultHours(supabase, orgId, parsed.data);
+  if (error) {
+    if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    return fail("applyDefaultHours", error);
   }
   revalidateOwner(parsed.data);
   revalidatePath("/bookings");

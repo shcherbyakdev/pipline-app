@@ -9,6 +9,7 @@ import { uploadBrandingObject, deleteBrandingObject } from "@/lib/storage/brandi
 import { effectiveContrast } from "@/lib/widget-theme";
 import { ONBOARDING } from "@/features/marketing/site";
 import { getCurrentOrg } from "@/lib/auth/session";
+import { seedDefaultHours } from "@/features/scheduling/default-hours";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
   createOrgWithPageSchema,
@@ -55,7 +56,7 @@ export async function createOrgWithPage(
   if (await getCurrentOrg()) redirect("/bookings");
 
   const flags = modeToFlags(parsed.data.mode);
-  const { error } = await supabase.rpc("create_org_with_page", {
+  const { data: org, error } = await supabase.rpc("create_org_with_page", {
     p_name: parsed.data.name,
     p_handle: parsed.data.handle,
     p_timezone: parsed.data.timezone,
@@ -71,9 +72,44 @@ export async function createOrgWithPage(
     console.error("[orgs] create_org_with_page:", error.message);
     return { error: GENERIC_WRITE_ERROR };
   }
+  // A new account is bookable on day one. create_org mints the first team
+  // member; this gives them the default week so /availability does not open
+  // on seven "Unavailable" days (features/scheduling/default-hours.ts).
+  // Spaces-only orgs are skipped on purpose: their staff row is not bookable
+  // and never surfaces on /availability, so hours there would be invisible
+  // ones that still tick the setup checklist's "Set hours" chip — the
+  // honest-tick rule. Onboarding never fails over this: the org exists
+  // either way and the editor offers the same week in one click.
+  if (flags.offersAppointments) await seedFirstMemberHours(supabase, org);
   // The welcome banner shows itself on /bookings until setup is done
   // (setup-checklist.ts showWelcome) — no flag in the URL.
   redirect("/bookings");
+}
+
+// create_org_with_page returns the org row; the staff row it mints is read
+// back rather than guessed. Every failure here is logged and swallowed —
+// see the call site.
+async function seedFirstMemberHours(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  org: unknown,
+): Promise<void> {
+  const orgId = (org as { id?: unknown } | null)?.id;
+  if (typeof orgId !== "string") {
+    console.error("[orgs] seedFirstMemberHours: create_org_with_page returned no org row");
+    return;
+  }
+  const { data, error } = await supabase
+    .from("staff")
+    .select("id")
+    .eq("org_id", orgId)
+    .limit(1)
+    .maybeSingle();
+  if (error || typeof data?.id !== "string") {
+    console.error("[orgs] seedFirstMemberHours: no staff row for", orgId, error?.message ?? "");
+    return;
+  }
+  const seedError = await seedDefaultHours(supabase, orgId, { staffId: data.id });
+  if (seedError) console.error("[orgs] seedFirstMemberHours:", seedError.message);
 }
 
 type OrgBrandingRow = { id: string; accent_color: string | null; logo_path: string | null };
