@@ -11,6 +11,7 @@ import { bookingLink } from "@/lib/booking/url";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CopyLinkButton, type LinkBase } from "@/components/copy-link-button";
+import { SPACES } from "@/features/orgs/vocab";
 import { cn } from "@/lib/utils";
 import { OfferingDialog } from "./offering-dialog";
 
@@ -51,6 +52,11 @@ function Row({
           </Link>
           <Badge variant="outline">{hourly ? "Hourly" : nightly ? "Nightly" : "Daily"}</Badge>
           {!offering.active ? <Badge variant="outline">Inactive</Badge> : null}
+          {/* An active space with no active unit is invisible on the public
+              page (listPublicOfferings) — say so where the owner is looking. */}
+          {offering.active && offering.activeUnitCount === 0 ? (
+            <Badge variant="outline">{SPACES.notBookable}</Badge>
+          ) : null}
         </div>
         <p className="text-muted-foreground text-xs">
           {offering.unitCount} {offering.unitCount === 1 ? "unit" : "units"}

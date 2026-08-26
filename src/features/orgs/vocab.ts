@@ -23,6 +23,9 @@ export const SPACES = {
   dialogTitle: { new: "New space", edit: "Edit space" },
   /** Back link on the space detail page. */
   back: "← Spaces",
+  /** Welcome-checklist chip when a space exists but none has an active unit
+      (setup-checklist.ts): the public page lists a space only once it has one. */
+  addUnit: "Add a unit to your space",
   /** /rentals list with nothing in it. */
   empty:
     "No spaces yet — a space is a room, studio or item clients book by the hour, night or day. Add one, then add its units.",
@@ -43,6 +46,12 @@ export const SPACES = {
   settings: { label: "Spaces", blurb: "Rooms, studios and gear, booked by the hour, night or day." },
   /** Welcome checklist item + Bookings empty state. */
   add: "Add a space",
+  /** createOffering saved the space but its first unit did not land (plan gates
+      return their own message instead). The space page is where units live. */
+  unitNotCreated: "Saved the space, but couldn't add its first unit — add one on the space's page.",
+  /** /rentals list badge on an active space with no active unit: the public
+      page lists a space only once it has one (listPublicOfferings). */
+  notBookable: "Not bookable — add a unit",
   // ---- /availability (admin IA spec §3, ruling 4: hours are edited in one
   // place for people and hourly spaces; nightly/daily spaces have none).
   /** Second intro line when a space's hours are on screen and the org also has nightly/daily spaces. */

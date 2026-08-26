@@ -35,6 +35,10 @@ export type OfferingRow = {
   active: boolean;
   sortOrder: number;
   unitCount: number;
+  // Of those, active. The public page lists a space only once this is > 0
+  // (lib/booking/public.ts listPublicOfferings); the admin list badge and
+  // the welcome checklist judge "bookable" by the same number.
+  activeUnitCount: number;
   priceCents: number | null;
   pricingMode: "per_unit" | "flat";
   depositType: "none" | "fixed" | "percent" | "full";
@@ -45,9 +49,12 @@ export type OfferingRow = {
 
 // Exported for the queries.integration.test.ts probe: the count embed's
 // shape (`rental_units(count)` → `[{count: n}]`) is asserted against the
-// live PostgREST instance rather than assumed.
+// live PostgREST instance rather than assumed. `active_units` is the same
+// table embedded a second time under an alias; every query that selects
+// these columns must add `.eq("active_units.active", true)` (the filter
+// lives on the query, not in the select string) — see offeringsQuery.
 export const OFFERING_COLUMNS =
-  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, sort_order, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text, rental_units(count)";
+  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, sort_order, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text, rental_units(count), active_units:rental_units(count)";
 
 type OfferingDb = {
   id: string;
@@ -76,6 +83,7 @@ type OfferingDb = {
   cancel_window_min: number;
   terms_text: string | null;
   rental_units: Array<{ count: number }> | null;
+  active_units: Array<{ count: number }> | null;
 };
 
 function toOffering(o: OfferingDb): OfferingRow {
@@ -100,6 +108,7 @@ function toOffering(o: OfferingDb): OfferingRow {
     active: o.active,
     sortOrder: o.sort_order,
     unitCount: o.rental_units?.[0]?.count ?? 0,
+    activeUnitCount: o.active_units?.[0]?.count ?? 0,
     priceCents: o.price_cents,
     pricingMode: o.pricing_mode,
     depositType: o.deposit_type,
@@ -109,11 +118,16 @@ function toOffering(o: OfferingDb): OfferingRow {
   };
 }
 
+// OFFERING_COLUMNS with the predicate its `active_units` alias needs: a
+// filter on an embedded resource is written against the alias on the query.
+// Without it the alias counts every unit and equals `rental_units`.
+function offeringsQuery(supabase: Awaited<ReturnType<typeof createClient>>) {
+  return supabase.from("rental_offerings").select(OFFERING_COLUMNS).eq("active_units.active", true);
+}
+
 export async function listOfferings(): Promise<OfferingRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("rental_offerings")
-    .select(OFFERING_COLUMNS)
+  const { data, error } = await offeringsQuery(supabase)
     .order("sort_order")
     .order("name");
   if (error) throw error;
@@ -122,9 +136,7 @@ export async function listOfferings(): Promise<OfferingRow[]> {
 
 export async function getOffering(id: string): Promise<OfferingRow | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("rental_offerings")
-    .select(OFFERING_COLUMNS)
+  const { data, error } = await offeringsQuery(supabase)
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;

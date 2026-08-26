@@ -141,6 +141,10 @@ export default async function BookingsPage({
       mode: eff,
       serviceCount: activeServices.length,
       spaceCount: spaces.length,
+      // Bookable = has an active unit: the measure the public page uses
+      // (listPublicOfferings), so the chip cannot tick while /[handle] 404s.
+      bookableSpaceCount: spaces.filter((o) => o.activeUnitCount > 0).length,
+      unitlessSpaceId: spaces.find((o) => o.activeUnitCount === 0)?.id ?? null,
       hourlySpaceCount: spaces.filter((o) => o.rangeMode === "hours").length,
       ownersWithHours,
       published: page.published !== null,

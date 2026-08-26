@@ -9,6 +9,8 @@ export type ChecklistInput = {
   mode: OrgMode;
   serviceCount: number;      // active services
   spaceCount: number;        // active spaces (rental offerings)
+  bookableSpaceCount: number; // of those, with ≥1 active unit — the only ones the public page lists (listPublicOfferings)
+  unitlessSpaceId: string | null; // first active space with no active unit — where the chip sends the owner
   hourlySpaceCount: number;  // of those, booked by the hour — they set weekly hours on /availability (U3)
   ownersWithHours: number;   // team members or hourly spaces with ≥1 weekly rule
   published: boolean;        // booking page has a published document
@@ -24,7 +26,17 @@ export type ChecklistItem = {
 export function setupChecklist(i: ChecklistInput): ChecklistItem[] {
   const items: ChecklistItem[] = [];
   if (i.mode.offersRentals) {
-    items.push({ id: "space", label: SPACES.add, href: "/rentals?new=1", done: i.spaceCount > 0 });
+    // A space counts once it is bookable: the public page (D9) 404s until
+    // some space has an active unit, so ticking on the offering alone told
+    // the owner they were live while their address was a 404.
+    const bookable = i.bookableSpaceCount > 0;
+    const needsUnit = !bookable && i.unitlessSpaceId !== null;
+    items.push({
+      id: "space",
+      label: needsUnit ? SPACES.addUnit : SPACES.add,
+      href: needsUnit ? `/rentals/${i.unitlessSpaceId}` : "/rentals?new=1",
+      done: bookable,
+    });
   }
   if (i.mode.offersAppointments) {
     items.push({ id: "service", label: APPOINTMENTS.add, href: "/services?new=1", done: i.serviceCount > 0 });

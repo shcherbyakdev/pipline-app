@@ -142,7 +142,11 @@ export function OfferingDialog({
         return;
       }
       onOpenChange(false);
-      toast.success("Saved");
+      // A notice means the space saved but its first unit did not (plan cap
+      // or a failed insert): the space is not bookable yet — a warning, not
+      // "Saved", so the owner knows to visit the space's page.
+      if (result.notice) toast.warning(result.notice);
+      else toast.success("Saved");
     });
   };
 
