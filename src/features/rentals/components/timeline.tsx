@@ -15,7 +15,7 @@ import {
   type Conflict,
   type Zoom,
 } from "@/features/rentals/timeline-layout";
-import { dateInZone } from "@/features/scheduling/slots";
+import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import { zonedParts } from "@/features/scheduling/calendar-geometry";
 import { BookingDetailDialog } from "@/features/scheduling/components/booking-detail-dialog";
 import { NewBookingDialog } from "@/features/scheduling/components/new-booking-dialog";
@@ -25,8 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SPACES } from "@/features/orgs/vocab";
-import { TimelineLane, MODE_LABEL, RAIL_PX, isWeekend, zoomInHref, type NewStay } from "./timeline-lane";
-import { usePanScroll } from "./use-pan-scroll";
+import { TimelineLane, MODE_LABEL, RAIL_PX, RAIL_PAN_CLASS, isWeekend, zoomInHref, type NewStay } from "./timeline-lane";
+import { usePanChart } from "./use-pan-chart";
 
 /* The tape chart: every space, one lane per unit, one column per day.
    Reads top to bottom the way a front desk reads its board — a month strip
@@ -49,6 +49,7 @@ export function Timeline({
   blackouts,
   bookings,
   scopeSuffix,
+  hrefBase,
 }: {
   fromDate: string;
   days: Zoom;
@@ -58,11 +59,11 @@ export function Timeline({
   bookings: AdminBooking[];
   /** "&show=…" or "" — the links the chart builds keep the page's scope. */
   scopeSuffix: string;
+  /** "/bookings?view=timeline…" with zoom and scope, without `from` — a
+      drag through time appends the day it lands on. */
+  hrefBase: string;
 }) {
   const router = useRouter();
-  // Grab the chart and drag it to scroll (use-pan-scroll.ts).
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const pan = usePanScroll(scrollRef);
   const dayList = React.useMemo(() => windowDays(fromDate, days), [fromDate, days]);
   const bands = React.useMemo(() => monthBands(dayList), [dayList]);
   const columns = `${RAIL_PX}px repeat(${days}, minmax(0, 1fr))`;
@@ -83,7 +84,8 @@ export function Timeline({
   const todayIdx = today === null ? -1 : dayList.indexOf(today);
   const nowFrac = now === null ? 0 : zonedParts(now, timeZone).minutes / 1440;
 
-  // How wide a day column really is decides what a bar can say.
+  // How wide a day column really is decides what a bar can say — and how
+  // many days a drag has moved.
   const gridRef = React.useRef<HTMLDivElement>(null);
   const [cellPx, setCellPx] = React.useState(MIN_CELL_PX[days]);
   React.useEffect(() => {
@@ -96,6 +98,19 @@ export function Timeline({
     ro.observe(el);
     return () => ro.disconnect();
   }, [days]);
+
+  // Grab the chart and drag it through time (use-pan-chart.ts): on release
+  // the window shifts by the days dragged; the translate clears once the
+  // new window is on screen.
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const pan = usePanChart(scrollRef, {
+    cellPx,
+    onShift: (shift) => router.replace(`${hrefBase}&from=${addDaysISO(fromDate, shift)}`, { scroll: false }),
+  });
+  const resetPan = pan.reset;
+  React.useEffect(() => {
+    resetPan();
+  }, [fromDate, resetPan]);
 
   const [selected, setSelected] = React.useState<AdminBooking | null>(null);
   // null = closed. Opening always mounts a fresh dialog, which is how the
@@ -208,8 +223,10 @@ export function Timeline({
             sticks to the nearest scroll container — which an overflow-x
             wrapper already is. Bounding it is what lets the month strip
             stay put over a long list of lanes while the rail stays put
-            on the left. Dragging it (mouse) pans; while a drag is on, the
-            hand closes and nothing can be selected. */}
+            on the left. Dragging it (mouse) moves through time: the grid
+            translates by `--pan` while the hand is down (the rail cells
+            counter-translate and stay put), and the release shifts the
+            window. */}
         <div
           ref={scrollRef}
           {...pan.handlers}
@@ -218,12 +235,16 @@ export function Timeline({
             pan.dragging && "cursor-grabbing select-none **:cursor-grabbing",
           )}
         >
-          <div ref={gridRef} style={{ minWidth: RAIL_PX + days * MIN_CELL_PX[days] }}>
+          <div
+            ref={gridRef}
+            className="[transform:translateX(var(--pan,0px))]"
+            style={{ minWidth: RAIL_PX + days * MIN_CELL_PX[days] }}
+          >
             {/* header: the month strip, then one cell per day. Sticky so the
                 dates stay put while the lanes scroll under them. */}
             <div className="bg-background sticky top-0 z-30">
               <div className="grid" style={{ gridTemplateColumns: columns }}>
-                <div className="bg-background sticky left-0 z-30" />
+                <div className={cn("bg-background sticky left-0 z-30", RAIL_PAN_CLASS)} />
                 {bands.map((band) => (
                   <div
                     key={band.label}
@@ -235,7 +256,7 @@ export function Timeline({
                 ))}
               </div>
               <div className="border-border grid border-b" style={{ gridTemplateColumns: columns }}>
-                <div className="bg-background sticky left-0 z-30" />
+                <div className={cn("bg-background sticky left-0 z-30", RAIL_PAN_CLASS)} />
                 {dayList.map((d) => {
                   const isToday = today === d;
                   // A narrow column (the 4- and 8-week zooms) keeps the
@@ -292,7 +313,7 @@ export function Timeline({
                       {/* padding inside the sticky box, so the rail backs the
                           whole row and the today line never shows through
                           the gaps above and below the space's name */}
-                      <div className="bg-background sticky left-0 z-20 flex w-fit items-center gap-2 pt-3 pr-3 pb-1">
+                      <div className={cn("bg-background sticky left-0 z-20 flex w-fit items-center gap-2 pt-3 pr-3 pb-1", RAIL_PAN_CLASS)}>
                         <span className="text-sm font-medium">{offering.name}</span>
                         <Badge variant="outline">{MODE_LABEL[offering.rangeMode]}</Badge>
                         <span className="text-muted-foreground text-xs">

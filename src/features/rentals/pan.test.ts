@@ -1,5 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { panStep, PAN_THRESHOLD_PX } from "./pan";
+import { panStep, panDays, PAN_THRESHOLD_PX } from "./pan";
+
+describe("panDays (a release moves the window by the whole days dragged)", () => {
+  it("dragging left (negative dx) moves forward in time, to the nearest day", () => {
+    expect(panDays(-100, 32)).toBe(3);
+    expect(panDays(-15, 32)).toBe(0);
+    expect(panDays(-16, 32)).toBe(1);
+    expect(panDays(200, 56)).toBe(-4);
+  });
+  it("an unmeasured column is no movement", () => {
+    expect(panDays(-100, 0)).toBe(0);
+  });
+});
 
 const start = { x: 100, y: 50, left: 300, top: 40 };
 

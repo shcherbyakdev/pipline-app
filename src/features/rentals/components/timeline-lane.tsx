@@ -35,6 +35,10 @@ import { cn } from "@/lib/utils";
    occupied day), amber for a turnover tail running into a check-in. */
 
 export const RAIL_PX = 208;
+/* The rail cells sit inside the grid that a drag translates by `--pan`
+   (use-pan-chart.ts); they translate back by the same amount so the unit
+   names stay put while the days move under the hand. */
+export const RAIL_PAN_CLASS = "[transform:translateX(calc(var(--pan,0px)*-1))]";
 const ROW_PX = 44;
 const CHIP_PX = 22;
 const HATCH: React.CSSProperties = {
@@ -143,7 +147,7 @@ export function TimelineLane({
       {/* rail: z-20 + the track's `isolate`: the name must paint over any
           bar that scrolls under it horizontally. */}
       <div
-        className="bg-background border-border/60 sticky left-0 z-20 flex items-center gap-2 border-b pr-3 pl-6"
+        className={cn("bg-background border-border/60 sticky left-0 z-20 flex items-center gap-2 border-b pr-3 pl-6", RAIL_PAN_CLASS)}
         style={{ minHeight: laneHeight }}
       >
         <span className="truncate text-sm">{unit.name}</span>

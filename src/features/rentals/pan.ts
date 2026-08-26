@@ -1,8 +1,18 @@
-// Pure maths for dragging the timeline chart to scroll it (use-pan-scroll.ts
-// owns the pointer events). A press only becomes a drag once the pointer
-// has moved this far — a click that jitters a pixel or two still lands on
-// the cell or bar under it.
+// Pure maths for dragging the timeline chart (use-pan-chart.ts owns the
+// pointer events): sideways the chart moves through TIME — on release the
+// window shifts by the whole days dragged — and vertically it scrolls its
+// lanes. A press only becomes a drag once the pointer has moved this far,
+// so a click that jitters a pixel or two still lands on the cell or bar
+// under it.
 export const PAN_THRESHOLD_PX = 4;
+
+/** How many days a horizontal drag of `dx` pixels moves the window, to the
+    nearest day column: dragging left reveals later dates, so negative dx
+    is forward in time. An unmeasured column (0) moves nothing. */
+export function panDays(dx: number, cellPx: number): number {
+  if (cellPx <= 0) return 0;
+  return Math.round(-dx / cellPx);
+}
 
 export type PanStart = { x: number; y: number; left: number; top: number };
 

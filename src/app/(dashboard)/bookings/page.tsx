@@ -247,6 +247,7 @@ export default async function BookingsPage({
           blackouts={blackouts}
           bookings={bookings}
           scopeSuffix={scopeSuffix}
+          hrefBase={base}
         />
       </div>
     );
