@@ -17,6 +17,7 @@ export const SURFACES = [
   "src/features/scheduling/components/scheduling-settings-form.tsx",
   "src/features/scheduling/components/bookings-list.tsx",
   "src/features/rentals/components/timeline.tsx",
+  "src/features/rentals/components/timeline-lane.tsx",
   "src/features/scheduling/components/view-switcher.tsx",
   "src/app/(dashboard)/bookings/page.tsx",
   "src/features/scheduling/components/appointment-booking-form.tsx",

@@ -8,13 +8,13 @@ describe("viewSwitcherItems (spec §2 — the same three words from every view)"
     expect(items.map((i) => i.href)).toEqual(["/bookings", "/bookings?view=timeline", "/bookings?view=list"]);
     expect(items.map((i) => i.current)).toEqual([false, true, false]);
   });
-  it("drops Timeline when the org has no nights/days space", () => {
+  it("drops Timeline when the org has no space at all", () => {
     expect(viewSwitcherItems({ current: "list", showTimeline: false }).map((i) => i.label)).toEqual(["Week", "List"]);
   });
-  it("week and list carry the scope; the timeline (spaces by nature) drops it", () => {
+  it("every view carries the scope — the timeline too, now that hourly rooms live there", () => {
     const items = viewSwitcherItems({ current: "week", showTimeline: true, scopeQuery: "show=spaces" });
     expect(items[0].href).toBe("/bookings?show=spaces");
-    expect(items[1].href).toBe("/bookings?view=timeline");
+    expect(items[1].href).toBe("/bookings?view=timeline&show=spaces");
     expect(items[2].href).toBe("/bookings?view=list&show=spaces");
   });
 });

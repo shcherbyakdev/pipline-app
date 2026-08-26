@@ -5,7 +5,9 @@ import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import { daysBetween } from "./range";
 import type { RangeMode } from "./range";
 
-export const TIMELINE_DAYS = 21;
+// The query's default window when a caller passes none — the page always
+// passes its zoom (timeline-layout.ts ZOOMS), of which this is the default.
+export const TIMELINE_DAYS = 28;
 
 export type BarSpan = {
   colStart: number; // 0-based day index
@@ -93,8 +95,4 @@ export function blackoutSpan(
 
 export function windowDays(windowStart: string, days: number): string[] {
   return Array.from({ length: days }, (_, i) => addDaysISO(windowStart, i));
-}
-
-export function timelineDefaultStart(todayISO: string): string {
-  return addDaysISO(todayISO, -2);
 }

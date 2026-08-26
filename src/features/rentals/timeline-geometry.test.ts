@@ -1,5 +1,5 @@
 import { it, expect } from "vitest";
-import { barSpan, turnoverSpan, blackoutSpan, windowDays, timelineDefaultStart } from "./timeline-geometry";
+import { barSpan, turnoverSpan, blackoutSpan, windowDays } from "./timeline-geometry";
 
 const TZ = "Europe/Berlin";
 
@@ -37,9 +37,8 @@ it("blackoutSpan clips inclusive dates", () => {
   expect(blackoutSpan("2027-05-20", "2027-05-30", "2027-05-01", 21)).toEqual({ colStart: 19, colSpan: 2 });
   expect(blackoutSpan("2027-06-01", "2027-06-02", "2027-05-01", 21)).toBeNull();
 });
-it("windowDays / timelineDefaultStart", () => {
+it("windowDays", () => {
   expect(windowDays("2027-05-01", 3)).toEqual(["2027-05-01", "2027-05-02", "2027-05-03"]);
-  expect(timelineDefaultStart("2027-05-10")).toBe("2027-05-08");
 });
 it("DST: a stay across 2027-10-31 keeps whole-day columns", () => {
   expect(barSpan({ startsAt: new Date("2027-10-30T13:00:00Z"), endsAt: new Date("2027-11-02T10:00:00Z") }, "nights", TZ, "2027-10-25", 21))
