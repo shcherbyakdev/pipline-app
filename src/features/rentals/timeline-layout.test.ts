@@ -1,0 +1,214 @@
+import { describe, it, expect } from "vitest";
+import {
+  laneLayout,
+  stayInterval,
+  occupiedRange,
+  detectConflicts,
+  conflictSummary,
+  labelDensity,
+  continuationLabels,
+  stayPhase,
+  stayLengthLabel,
+  hourlyByDay,
+  monthBands,
+  windowLabel,
+  parseDays,
+  shiftDays,
+  timelineStart,
+} from "./timeline-layout";
+import { windowDays } from "./timeline-geometry";
+
+const TZ = "Europe/Berlin";
+const W = "2027-05-01"; // window start (a Saturday)
+// CEST: 15:00 local = 13:00Z, 11:00 local = 09:00Z
+const at = (date: string, hhmm: string) => new Date(`${date}T${hhmm}:00+02:00`);
+const stay = (id: string, from: string, to: string, name = id) => ({
+  id, clientName: name, startsAt: at(from, "15:00"), endsAt: at(to, "11:00"),
+});
+const dayStay = (id: string, from: string, to: string, name = id) => ({
+  id, clientName: name, startsAt: at(from, "09:00"), endsAt: at(to, "18:00"),
+});
+const hourly = (id: string, date: string, from: string, to: string, name = id) => ({
+  id, clientName: name, startsAt: at(date, from), endsAt: at(date, to),
+});
+
+describe("stayInterval (half-open column intervals; nights hand over mid-cell)", () => {
+  it("nights: check-in afternoon to check-out morning", () => {
+    expect(stayInterval(stay("a", "2027-05-03", "2027-05-06"), "nights", TZ, W)).toEqual({ from: 2.5, to: 5.5 });
+  });
+  it("days: whole cells, return day included", () => {
+    expect(stayInterval(dayStay("a", "2027-05-03", "2027-05-05"), "days", TZ, W)).toEqual({ from: 2, to: 5 });
+  });
+  it("hours: the fraction of the day", () => {
+    expect(stayInterval(hourly("a", "2027-05-03", "12:00", "18:00"), "hours", TZ, W)).toEqual({ from: 2.5, to: 2.75 });
+  });
+  it("a stay before the window has negative columns — the layout does not care", () => {
+    expect(stayInterval(stay("a", "2027-04-28", "2027-05-02"), "nights", TZ, W)).toEqual({ from: -2.5, to: 1.5 });
+  });
+});
+
+describe("laneLayout (greedy sub-rows for whatever overlaps)", () => {
+  it("nothing overlapping ⇒ one row", () => {
+    const { rows, rowCount } = laneLayout([
+      { id: "a", from: 0.5, to: 2.5 },
+      { id: "b", from: 2.5, to: 4.5 }, // back-to-back nights share the cell, not the row
+      { id: "c", from: 6, to: 8 },
+    ]);
+    expect([...rows.entries()]).toEqual([["a", 0], ["b", 0], ["c", 0]]);
+    expect(rowCount).toBe(1);
+  });
+  it("overlaps stack, earliest first, lowest free row wins", () => {
+    const { rows, rowCount } = laneLayout([
+      { id: "late", from: 3, to: 5 },
+      { id: "a", from: 0.5, to: 4 },
+      { id: "b", from: 1, to: 2 },
+      { id: "c", from: 4.5, to: 6 },
+    ]);
+    expect(rows.get("a")).toBe(0);
+    expect(rows.get("b")).toBe(1);
+    expect(rows.get("late")).toBe(1); // b ended at 2, so row 1 is free again
+    expect(rows.get("c")).toBe(0);
+    expect(rowCount).toBe(2);
+  });
+  it("empty lane ⇒ one empty row", () => {
+    expect(laneLayout([])).toEqual({ rows: new Map(), rowCount: 1 });
+  });
+});
+
+describe("occupiedRange (inclusive org-local dates a stay holds)", () => {
+  it("nights end the day before checkout; days include the return; hours are their date", () => {
+    expect(occupiedRange(stay("a", "2027-05-03", "2027-05-06"), "nights", TZ)).toEqual({ start: "2027-05-03", end: "2027-05-05" });
+    expect(occupiedRange(dayStay("a", "2027-05-03", "2027-05-05"), "days", TZ)).toEqual({ start: "2027-05-03", end: "2027-05-05" });
+    expect(occupiedRange(hourly("a", "2027-05-03", "12:00", "18:00"), "hours", TZ)).toEqual({ start: "2027-05-03", end: "2027-05-03" });
+  });
+});
+
+describe("detectConflicts (what the DB guard cannot refuse after the fact)", () => {
+  const bo = (id: string, startDate: string, endDate: string, reason: string | null = null) => ({ id, startDate, endDate, reason });
+
+  it("back-to-back nights are not a conflict", () => {
+    const m = detectConflicts([stay("a", "2027-05-03", "2027-05-06"), stay("b", "2027-05-06", "2027-05-08")], [], "nights", 0, TZ);
+    expect(m.size).toBe(0);
+  });
+  it("a blackout over an occupied day flags the stay, naming the blackout", () => {
+    const m = detectConflicts([stay("a", "2027-05-03", "2027-05-06", "Anna")], [bo("x", "2027-05-05", "2027-05-07", "Painting")], "nights", 0, TZ);
+    expect(m.get("a")).toEqual([{ kind: "blackout", blackoutId: "x", startDate: "2027-05-05", endDate: "2027-05-07", reason: "Painting" }]);
+  });
+  it("a blackout that only touches the checkout day (nights) is not a conflict", () => {
+    const m = detectConflicts([stay("a", "2027-05-03", "2027-05-06")], [bo("x", "2027-05-06", "2027-05-06")], "nights", 0, TZ);
+    expect(m.size).toBe(0);
+  });
+  it("a turnover tail running into the next check-in flags the LATER stay, naming the earlier guest", () => {
+    // a checks out 05-06 (tail = 05-06..05-07 with turnover 2); b checks in 05-07
+    const m = detectConflicts([stay("a", "2027-05-03", "2027-05-06", "Anna"), stay("b", "2027-05-07", "2027-05-09", "Ben")], [], "nights", 2, TZ);
+    expect(m.get("a")).toBeUndefined();
+    expect(m.get("b")).toEqual([{ kind: "turnover", withId: "a", withName: "Anna" }]);
+    // with turnover 1 the tail is just 05-06 — b is clear
+    expect(detectConflicts([stay("a", "2027-05-03", "2027-05-06"), stay("b", "2027-05-07", "2027-05-09")], [], "nights", 1, TZ).size).toBe(0);
+  });
+  it("days: the tail starts after the return day", () => {
+    const m = detectConflicts([dayStay("a", "2027-05-03", "2027-05-05", "Anna"), dayStay("b", "2027-05-06", "2027-05-06", "Ben")], [], "days", 1, TZ);
+    expect(m.get("b")).toEqual([{ kind: "turnover", withId: "a", withName: "Anna" }]);
+  });
+  it("two stays holding the same day are an overlap on both", () => {
+    const m = detectConflicts([stay("a", "2027-05-03", "2027-05-06", "Anna"), stay("b", "2027-05-05", "2027-05-08", "Ben")], [], "nights", 0, TZ);
+    expect(m.get("a")).toEqual([{ kind: "overlap", withId: "b", withName: "Ben" }]);
+    expect(m.get("b")).toEqual([{ kind: "overlap", withId: "a", withName: "Anna" }]);
+  });
+  it("hours: overlap is by clock time, adjacency is fine, a blackout day flags", () => {
+    const m = detectConflicts(
+      [hourly("a", "2027-05-03", "10:00", "12:00", "Anna"), hourly("b", "2027-05-03", "11:00", "13:00", "Ben"), hourly("c", "2027-05-03", "13:00", "14:00", "Cy")],
+      [bo("x", "2027-05-03", "2027-05-03", "Closed")],
+      "hours", 0, TZ,
+    );
+    expect(m.get("a")).toEqual([{ kind: "overlap", withId: "b", withName: "Ben" }, { kind: "blackout", blackoutId: "x", startDate: "2027-05-03", endDate: "2027-05-03", reason: "Closed" }]);
+    expect(m.get("c")).toEqual([{ kind: "blackout", blackoutId: "x", startDate: "2027-05-03", endDate: "2027-05-03", reason: "Closed" }]);
+  });
+  it("conflictSummary counts stays with any conflict and points at the earliest", () => {
+    const m = detectConflicts([stay("b", "2027-05-10", "2027-05-12"), stay("a", "2027-05-03", "2027-05-06")], [bo("x", "2027-05-04", "2027-05-04"), bo("y", "2027-05-11", "2027-05-11")], "nights", 0, TZ);
+    expect(conflictSummary(m, [stay("b", "2027-05-10", "2027-05-12"), stay("a", "2027-05-03", "2027-05-06")])).toEqual({ count: 2, firstId: "a" });
+    expect(conflictSummary(new Map(), [])).toEqual({ count: 0, firstId: null });
+  });
+});
+
+describe("labelDensity (what fits in the bar)", () => {
+  it("wide ⇒ name + dates, medium ⇒ name, narrow ⇒ initials", () => {
+    expect(labelDensity(200)).toBe("full");
+    expect(labelDensity(120)).toBe("full");
+    expect(labelDensity(119)).toBe("name");
+    expect(labelDensity(48)).toBe("name");
+    expect(labelDensity(47)).toBe("initials");
+  });
+});
+
+describe("continuationLabels (a bar the window cuts says where it goes)", () => {
+  it("names the real check-in / check-out beyond the edge", () => {
+    const b = stay("a", "2027-04-20", "2027-06-15");
+    expect(continuationLabels(b, TZ, { clippedLeft: true, clippedRight: true })).toEqual({ left: "from 20 Apr", right: "to 15 Jun" });
+    expect(continuationLabels(b, TZ, { clippedLeft: false, clippedRight: false })).toEqual({ left: null, right: null });
+  });
+});
+
+describe("stayPhase", () => {
+  const b = stay("a", "2027-05-03", "2027-05-06");
+  it("past / current / upcoming by the clock", () => {
+    expect(stayPhase(b, at("2027-05-06", "12:00"))).toBe("past");
+    expect(stayPhase(b, at("2027-05-04", "12:00"))).toBe("current");
+    expect(stayPhase(b, at("2027-05-01", "12:00"))).toBe("upcoming");
+  });
+});
+
+describe("stayLengthLabel", () => {
+  it("nights, days, hours", () => {
+    expect(stayLengthLabel(stay("a", "2027-05-03", "2027-05-04"), "nights", TZ)).toBe("1 night");
+    expect(stayLengthLabel(stay("a", "2027-05-03", "2027-05-06"), "nights", TZ)).toBe("3 nights");
+    expect(stayLengthLabel(dayStay("a", "2027-05-03", "2027-05-03"), "days", TZ)).toBe("1 day");
+    expect(stayLengthLabel(dayStay("a", "2027-05-03", "2027-05-05"), "days", TZ)).toBe("3 days");
+    expect(stayLengthLabel(hourly("a", "2027-05-03", "10:00", "11:30"), "hours", TZ)).toBe("1 h 30 min");
+  });
+});
+
+describe("hourlyByDay (chips per window column, in start order)", () => {
+  it("groups by org-local day index, drops bookings outside the window", () => {
+    const m = hourlyByDay(
+      [hourly("late", "2027-05-03", "14:00", "15:00"), hourly("early", "2027-05-03", "09:00", "10:00"), hourly("out", "2027-06-03", "09:00", "10:00"), hourly("b", "2027-05-10", "09:00", "10:00")],
+      TZ, W, 28,
+    );
+    expect([...m.keys()]).toEqual([2, 9]);
+    expect(m.get(2)!.map((b) => b.id)).toEqual(["early", "late"]);
+  });
+});
+
+describe("monthBands (the reference's month strip over the day columns)", () => {
+  it("one band per month with its span", () => {
+    expect(monthBands(windowDays("2027-04-26", 14))).toEqual([
+      { label: "April 2027", colStart: 0, colSpan: 5 },
+      { label: "May 2027", colStart: 5, colSpan: 9 },
+    ]);
+    expect(monthBands(windowDays("2027-05-01", 14))).toEqual([{ label: "May 2027", colStart: 0, colSpan: 14 }]);
+  });
+});
+
+describe("windowLabel", () => {
+  it("day-month – day-month year; the year twice only across a year boundary", () => {
+    expect(windowLabel("2027-05-01", 28)).toBe("1 May – 28 May 2027");
+    expect(windowLabel("2027-12-20", 28)).toBe("20 Dec 2027 – 16 Jan 2028");
+  });
+});
+
+describe("zoom", () => {
+  it("parseDays accepts the three zooms and defaults to four weeks", () => {
+    expect(parseDays("14")).toBe(14);
+    expect(parseDays("28")).toBe(28);
+    expect(parseDays("56")).toBe(56);
+    expect(parseDays("21")).toBe(28);
+    expect(parseDays(undefined)).toBe(28);
+  });
+  it("arrows shift by half a window; the window opens a little before today", () => {
+    expect(shiftDays(14)).toBe(7);
+    expect(shiftDays(28)).toBe(14);
+    expect(timelineStart("2027-05-10", 14)).toBe("2027-05-08");
+    expect(timelineStart("2027-05-10", 28)).toBe("2027-05-03");
+    expect(timelineStart("2027-05-10", 56)).toBe("2027-05-03");
+  });
+});
