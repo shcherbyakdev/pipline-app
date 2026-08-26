@@ -358,9 +358,10 @@ pause
 # ── 8 ─────────────────────────────────────────────────────────────────────
 stage "Vercel — first production deploy (from this laptop)"
 say "vercel deploy --prod  (source upload; Vercel builds in its cloud)"
-note "NOT the prebuilt flow from deploy.yml: this team stores every env var as"
-note "Sensitive (write-only), so 'vercel pull' returns placeholders and a local"
-note "'vercel build' fails env validation. Cloud builds see the real values."
+note "Cloud build, like .github/workflows/deploy.yml: this team stores every env"
+note "var as Sensitive (write-only), so 'vercel pull' returns placeholders and a"
+note "local 'vercel build' fails env validation. Cloud builds see the real values."
+note "After this first deploy, every merge to main redeploys itself (CI → Deploy)."
 note ".vercelignore keeps .claude/worktrees, docs, graphify-out etc. out of the upload."
 if confirm "Deploy now? (takes a few minutes)"; then
   if vercel deploy --prod --yes; then
