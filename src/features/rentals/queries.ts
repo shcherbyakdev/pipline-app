@@ -200,6 +200,11 @@ export type TimelineOffering = {
   name: string;
   rangeMode: RangeMode;
   turnoverDays: number;
+  // The hourly trio (null for nights/days) — what tells the New-booking
+  // dialog an hourly room from a nightly one (offering-option.ts hourlyGrid).
+  slotIncrementMin: number | null;
+  minDurationMin: number | null;
+  maxDurationMin: number | null;
   units: Array<{ id: string; name: string; active: boolean }>;
 };
 export type TimelineBlackout = {
@@ -215,6 +220,9 @@ type TimelineOfferingDb = {
   name: string;
   range_mode: RangeMode;
   turnover_days: number;
+  slot_increment_min: number | null;
+  min_duration_min: number | null;
+  max_duration_min: number | null;
   active: boolean;
   rental_units: Array<{ id: string; name: string; active: boolean; sort_order: number }> | null;
 };
@@ -243,7 +251,9 @@ export async function listTimelineData(
 
   const { data: offeringRows, error: offeringsError } = await supabase
     .from("rental_offerings")
-    .select("id, name, range_mode, turnover_days, active, rental_units(id, name, active, sort_order)")
+    .select(
+      "id, name, range_mode, turnover_days, slot_increment_min, min_duration_min, max_duration_min, active, rental_units(id, name, active, sort_order)",
+    )
     .order("sort_order")
     .order("name");
   if (offeringsError) throw offeringsError;
@@ -297,6 +307,9 @@ export async function listTimelineData(
       name: o.name,
       rangeMode: o.range_mode,
       turnoverDays: o.turnover_days,
+      slotIncrementMin: o.slot_increment_min,
+      minDurationMin: o.min_duration_min,
+      maxDurationMin: o.max_duration_min,
       units: (o.rental_units ?? [])
         .filter((u) => u.active || bookedUnitIds.has(u.id))
         .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))

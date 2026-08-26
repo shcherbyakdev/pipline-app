@@ -17,7 +17,9 @@ import { canCreateWalkIn } from "@/features/scheduling/booking-kinds";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { defaultBookingsView, effectiveMode, modeOf } from "@/features/orgs/mode";
-import { TIMELINE_DAYS, timelineDefaultStart } from "@/features/rentals/timeline-geometry";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ZOOMS, parseDays, shiftDays, timelineStart, windowLabel } from "@/features/rentals/timeline-layout";
+import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/features/scheduling/components/staff-tabs";
 import { BookingsList } from "@/features/scheduling/components/bookings-list";
 import { CalendarWeek } from "@/features/scheduling/components/calendar-week";
 import { ViewSwitcher } from "@/features/scheduling/components/view-switcher";
@@ -68,6 +70,7 @@ export default async function BookingsPage({
     view?: string;
     week?: string;
     from?: string;
+    days?: string;
     show?: string;
     staff?: string;
     welcome?: string;
@@ -96,13 +99,12 @@ export default async function BookingsPage({
   const spaces = orgOfferings.filter((o) => o.active);
   const activeServices = services.filter((s) => s.active);
   const hasHourly = spaces.some((o) => o.rangeMode === "hours");
-  const hasRangeOfferings = spaces.some((o) => o.rangeMode !== "hours");
   const view = asView(params.view, rentals ? defaultBookingsView(eff, hasHourly) : "week");
-  // The switcher's Timeline item only makes sense once the org sells spaces
-  // AND has a nights/days one to show there (hourly bookings live on the
-  // week grid). The branch itself still answers an explicit ?view=timeline
-  // (and the nights-only default) with the Timeline's own empty state.
-  const showTimeline = rentals && hasRangeOfferings;
+  // The switcher's Timeline item makes sense once the org sells spaces and
+  // has one to show — every space is a lane there now, hourly rooms
+  // included. The branch itself still answers an explicit ?view=timeline
+  // with the Timeline's own empty state.
+  const showTimeline = rentals && spaces.length > 0;
 
   // What the page is looking at (bookings-scope.ts): one `?show=` param,
   // one grouped, multi-select selector. People are on the menu only when
@@ -113,6 +115,8 @@ export default async function BookingsPage({
   const scope = parseScope({ show: params.show, staff: params.staff }, people, spaces);
   const scopeGroups = scopeItems(people, spaces);
   const scopeQs = scopeQuery(scope, people, spaces);
+  // Plain links (week arrows, Today, the timeline's window) carry the scope.
+  const scopeSuffix = scopeQs ? `&${scopeQs}` : "";
   const sides = scopeSides(scope, people, spaces);
   const scopeMenu = scopeGroups ? (
     <ScopeMenu
@@ -168,46 +172,80 @@ export default async function BookingsPage({
 
   // One toolbar shape for every view: primary action on the left, view
   // controls on the right (admin IA spec §2) — the scope selector, then
-  // the per-view slot (`right`: the week's Today link), then the switcher.
-  // The Timeline is spaces by nature: no selector, and its switcher links
-  // carry no scope.
-  const toolbar = (current: BookingsView, defaultStaffId: string, right: ReactNode = null) => {
-    const scoped = current !== "timeline";
-    return (
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>{newBookingFor(defaultStaffId)}</div>
-        <div className="flex items-center gap-2">
-          {scoped ? scopeMenu : null}
-          {right}
-          <ViewSwitcher
-            current={current}
-            showTimeline={showTimeline}
-            scopeQuery={scoped ? scopeQs : undefined}
-          />
-        </div>
+  // the per-view slot (`right`: the week's Today link, the timeline's
+  // window and zoom), then the switcher. Every view reads the scope; the
+  // timeline takes its spaces side and ignores people.
+  const toolbar = (current: BookingsView, defaultStaffId: string, right: ReactNode = null) => (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div>{newBookingFor(defaultStaffId)}</div>
+      <div className="flex flex-wrap items-center gap-2">
+        {scopeMenu}
+        {right}
+        <ViewSwitcher current={current} showTimeline={showTimeline} scopeQuery={scopeQs} />
       </div>
-    );
-  };
+    </div>
+  );
 
   if (rentals && view === "timeline") {
     // The timeline (a client component) is only pulled in when this branch
     // actually renders it.
     const { Timeline } = await import("@/features/rentals/components/timeline");
-    const fromDate = validDate(params.from, timelineDefaultStart(today));
-    const { offerings, blackouts, bookings } = await listTimelineData(fromDate, timeZone, TIMELINE_DAYS);
+    const days = parseDays(params.days);
+    const fromDate = validDate(params.from, timelineStart(today, days));
+    const data = await listTimelineData(fromDate, timeZone, days);
+    // The scope's spaces side narrows the lanes. A people-only scope shows
+    // every space — a timeline of nobody is no lens.
+    const offerings =
+      scope.kind === "some" && sides.spaces
+        ? data.offerings.filter((o) => scope.spaces === "all" || scope.spaces.includes(o.id))
+        : data.offerings;
+    const unitIds = new Set(offerings.flatMap((o) => o.units.map((u) => u.id)));
+    const blackouts = data.blackouts.filter((b) => unitIds.has(b.unitId));
+    const bookings = data.bookings.filter((b) => b.rentalUnitId !== null && unitIds.has(b.rentalUnitId));
+    // The default zoom writes no param, so the plain Timeline link stays clean.
+    const zoomQs = (d: number) => (d === 28 ? "" : `&days=${d}`);
+    const base = `/bookings?view=timeline${zoomQs(days)}${scopeSuffix}`;
+    const shift = shiftDays(days);
+    const arrow = cn(buttonVariants({ variant: "outline", size: "sm" }), "size-7 p-0");
+    const nav = (
+      <>
+        <nav aria-label="Timeline window" className="flex items-center gap-1">
+          <Link href={`${base}&from=${addDaysISO(fromDate, -shift)}`} aria-label={`Back ${shift} days`} className={arrow}>
+            <ChevronLeft className="size-4" />
+          </Link>
+          <span className="text-muted-foreground px-1 text-sm tabular-nums">{windowLabel(fromDate, days)}</span>
+          <Link href={`${base}&from=${addDaysISO(fromDate, shift)}`} aria-label={`Forward ${shift} days`} className={arrow}>
+            <ChevronRight className="size-4" />
+          </Link>
+        </nav>
+        <Link href={base} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+          Today
+        </Link>
+        <nav aria-label="Timeline zoom" className={SEGMENTED_NAV_CLASS}>
+          {ZOOMS.map((z) => (
+            <Link
+              key={z}
+              href={`/bookings?view=timeline${zoomQs(z)}${scopeSuffix}&from=${fromDate}`}
+              aria-current={z === days ? "page" : undefined}
+              className={segmentedItemClass(z === days)}
+            >
+              {z / 7} wk
+            </Link>
+          ))}
+        </nav>
+      </>
+    );
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         {welcome}
-        {toolbar("timeline", activeStaff[0]?.id ?? "")}
+        {toolbar("timeline", activeStaff[0]?.id ?? "", nav)}
         <Timeline
           fromDate={fromDate}
+          days={days}
           timeZone={timeZone}
           offerings={offerings}
           blackouts={blackouts}
           bookings={bookings}
-          prevHref={`/bookings?view=timeline&from=${addDaysISO(fromDate, -7)}`}
-          nextHref={`/bookings?view=timeline&from=${addDaysISO(fromDate, 7)}`}
-          todayHref="/bookings?view=timeline"
         />
       </div>
     );
@@ -292,8 +330,6 @@ export default async function BookingsPage({
   // a space is on the week, even where that week falls back to drawing the
   // members' hours (a nights/days-only scope).
   const blockable = !sides.spaces || scope.kind === "all";
-  // The week arrows and Today are plain links — they have to carry the scope.
-  const scopeSuffix = scopeQs ? `&${scopeQs}` : "";
   const todayHref = scopeQs ? `/bookings?${scopeQs}` : "/bookings";
 
   // A walk-in drawn on a one-person week belongs to that person; on any

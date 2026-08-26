@@ -239,5 +239,10 @@ describe("listTimelineData turnover padding", () => {
     expect(room_?.rangeMode).toBe("hours");
     expect(room_?.units.map((u) => u.id)).toEqual([room!.id]);
     expect(bookings.some((b) => b.id === hourlyBooking!.id)).toBe(true);
+    // The New-booking dialog tells hourly from nightly by the slot trio
+    // (offering-option.ts hourlyGrid) — without it the room would be sent
+    // to the nights/days engine.
+    expect(room_).toMatchObject({ slotIncrementMin: 30, minDurationMin: 60, maxDurationMin: 120 });
+    expect(offerings.find((o) => o.id === offeringId)).toMatchObject({ slotIncrementMin: null, minDurationMin: null, maxDurationMin: null });
   });
 });
