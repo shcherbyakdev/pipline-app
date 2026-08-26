@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SPACES } from "@/features/orgs/vocab";
 import { TimelineLane, MODE_LABEL, RAIL_PX, isWeekend, zoomInHref, type NewStay } from "./timeline-lane";
+import { usePanScroll } from "./use-pan-scroll";
 
 /* The tape chart: every space, one lane per unit, one column per day.
    Reads top to bottom the way a front desk reads its board — a month strip
@@ -59,6 +60,9 @@ export function Timeline({
   scopeSuffix: string;
 }) {
   const router = useRouter();
+  // Grab the chart and drag it to scroll (use-pan-scroll.ts).
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const pan = usePanScroll(scrollRef);
   const dayList = React.useMemo(() => windowDays(fromDate, days), [fromDate, days]);
   const bands = React.useMemo(() => monthBands(dayList), [dayList]);
   const columns = `${RAIL_PX}px repeat(${days}, minmax(0, 1fr))`;
@@ -204,8 +208,16 @@ export function Timeline({
             sticks to the nearest scroll container — which an overflow-x
             wrapper already is. Bounding it is what lets the month strip
             stay put over a long list of lanes while the rail stays put
-            on the left. */}
-        <div className="max-h-[calc(100dvh-14rem)] min-h-[20rem] overflow-auto">
+            on the left. Dragging it (mouse) pans; while a drag is on, the
+            hand closes and nothing can be selected. */}
+        <div
+          ref={scrollRef}
+          {...pan.handlers}
+          className={cn(
+            "max-h-[calc(100dvh-14rem)] min-h-[20rem] overflow-auto",
+            pan.dragging && "cursor-grabbing select-none **:cursor-grabbing",
+          )}
+        >
           <div ref={gridRef} style={{ minWidth: RAIL_PX + days * MIN_CELL_PX[days] }}>
             {/* header: the month strip, then one cell per day. Sticky so the
                 dates stay put while the lanes scroll under them. */}
