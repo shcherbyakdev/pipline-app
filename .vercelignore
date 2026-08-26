@@ -1,0 +1,15 @@
+# Upload filter for `vercel deploy` (source/cloud builds). The Vercel CLI does
+# NOT read .gitignore: without this file it uploaded 17k files — mostly
+# .claude/worktrees — and hit the 15 000-file cap. Nothing here is needed by
+# `next build`.
+.claude
+.playwright-mcp
+.superpowers
+.agents
+graphify-out
+docs
+workers
+.github
+/*.jpeg
+/*.png
+tsconfig.tsbuildinfo

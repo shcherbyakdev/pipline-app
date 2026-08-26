@@ -419,8 +419,18 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 project_id = "fkxtjtgwzwhwugxchuxo"
 
 [remotes.production.auth]
-site_url = "https://booklo.co"
-additional_redirect_urls = ["https://booklo.co", "https://booklo.co/auth/confirm"]
+# TEST-ENV PHASE (2026-08-26): the auth email templates build their links
+# from {{ .SiteURL }}, so while the app is served from Vercel's default
+# domain this must point there or every signup/reset link is dead. Flip
+# site_url back to https://booklo.co at launch; the booklo.co entries below
+# are kept so that flip is a one-line change.
+site_url = "https://booklo-five.vercel.app"
+additional_redirect_urls = [
+  "https://booklo-five.vercel.app",
+  "https://booklo-five.vercel.app/auth/confirm",
+  "https://booklo.co",
+  "https://booklo.co/auth/confirm",
+]
 
 # The base config sets email_sent = 2 for local development. Pushed as-is,
 # the THIRD signup in any hour would silently never receive its confirmation.
