@@ -29,7 +29,7 @@ import {
   scopeItems,
   scopeLabel,
   scopeQuery,
-  scopeValue,
+  scopeSides,
   scopedSpace,
 } from "@/features/scheduling/bookings-scope";
 import type { BookingsView } from "@/features/scheduling/bookings-views";
@@ -105,25 +105,28 @@ export default async function BookingsPage({
   const showTimeline = rentals && hasRangeOfferings;
 
   // What the page is looking at (bookings-scope.ts): one `?show=` param,
-  // one grouped selector. People are on the menu only when the org sells
-  // appointments (every org has a backfilled staff row), and the selector
-  // renders only when there is something to choose — the solo rule, so a
-  // one-person org without spaces keeps the exact page it had.
+  // one grouped, multi-select selector. People are on the menu only when
+  // the org sells appointments (every org has a backfilled staff row), and
+  // the selector renders only when there is something to choose — the solo
+  // rule, so a one-person org without spaces keeps the exact page it had.
   const people = eff.offersAppointments ? activeStaff : [];
   const scope = parseScope({ show: params.show, staff: params.staff }, people, spaces);
   const scopeGroups = scopeItems(people, spaces);
-  const scopeQs = scopeQuery(scope);
+  const scopeQs = scopeQuery(scope, people, spaces);
+  const sides = scopeSides(scope, people, spaces);
   const scopeMenu = scopeGroups ? (
     <ScopeMenu
       groups={scopeGroups}
-      value={scopeValue(scope) || "all"}
+      scope={scope}
+      people={people.map((p) => ({ id: p.id, name: p.name, color: p.color }))}
+      spaces={spaces.map((s) => ({ id: s.id, name: s.name, rangeMode: s.rangeMode }))}
       label={scopeLabel(scope, people, spaces)}
     />
   ) : null;
-  // A space scope's space is what New booking starts on — toolbar and drag
-  // alike. The dialog still lists the whole catalogue: scope sets the
-  // default, not the choice.
-  const preferSpace = scopedSpace(scope, spaces);
+  // When only spaces show, their space is what New booking starts on —
+  // toolbar and drag alike. The dialog still lists the whole catalogue:
+  // scope sets the default, not the choice.
+  const preferSpace = scopedSpace(scope, people, spaces);
 
   // Welcome checklist: three cheap reads, only on the one request that
   // carries ?welcome=1 (nothing is persisted — spec §4 ruling 8).
@@ -223,7 +226,8 @@ export default async function BookingsPage({
           timeZone={timeZone}
           staff={activeStaff}
           mode={eff}
-          scope={scope}
+          // The "Space" badge tells kinds apart — only where there are two to tell.
+          showKind={eff.offersAppointments && sides.people}
           scopeLabel={scope.kind === "all" ? null : scopeLabel(scope, people, spaces)}
         />
       </div>
@@ -285,10 +289,10 @@ export default async function BookingsPage({
           })),
         );
   const weekExceptions = soloStaffId !== null ? perOwner[0].exceptions : [];
-  // Block / Unblock / Reopen are a person's actions: off the popover on a
-  // space's week, even where that week falls back to drawing the members'
-  // hours (a nights/days-only scope).
-  const blockable = scope.kind !== "spaces";
+  // Block / Unblock / Reopen are a person's actions: off the popover once
+  // a space is on the week, even where that week falls back to drawing the
+  // members' hours (a nights/days-only scope).
+  const blockable = !sides.spaces || scope.kind === "all";
   // The week arrows and Today are plain links — they have to carry the scope.
   const scopeSuffix = scopeQs ? `&${scopeQs}` : "";
   const todayHref = scopeQs ? `/bookings?${scopeQs}` : "/bookings";

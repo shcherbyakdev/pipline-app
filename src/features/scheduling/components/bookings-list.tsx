@@ -8,7 +8,6 @@ import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/book
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { OrgMode } from "@/features/orgs/mode";
-import type { Scope } from "@/features/scheduling/bookings-scope";
 import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { RESEND_STARTED_HINT } from "./booking-detail-dialog";
@@ -160,7 +159,7 @@ export function BookingsList({
   timeZone,
   staff,
   mode,
-  scope,
+  showKind,
   scopeLabel,
 }: {
   upcoming: AdminBooking[];
@@ -168,14 +167,13 @@ export function BookingsList({
   timeZone: string;
   staff: StaffRow[]; // active members (Team slice); one ⇒ nothing changes
   mode: OrgMode;
-  // What the rows were narrowed to (bookings-scope.ts); the label is null
-  // for everything, else the words the toolbar's trigger reads.
-  scope: Scope;
+  // The "Space" badge on rows — the page turns it off where every row is a
+  // space anyway (a spaces-only scope, a rentals-only org).
+  showKind: boolean;
+  // What the rows were narrowed to (bookings-scope.ts): null for
+  // everything, else the words the toolbar's trigger reads.
   scopeLabel: string | null;
 }) {
-  // The "Space" badge tells kinds apart — only where there are two to tell:
-  // an org with appointments, and a scope that isn't spaces alone.
-  const showKind = mode.offersAppointments && scope.kind !== "spaces";
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
