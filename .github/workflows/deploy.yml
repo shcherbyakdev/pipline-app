@@ -1,36 +1,45 @@
 name: Deploy
 
-# ─── DEPLOYS DISABLED until cutover step 14 ───────────────────────────────────
-# The automatic trigger below is commented out, so this workflow never fires on
-# its own. Manual `workflow_dispatch` is how the first deploy is performed.
+# ─── How production deploys (enabled 2026-08-26) ──────────────────────────────
+# Every merge to main: CI runs, and when it is green this workflow builds the
+# verified commit on Vercel, migrates the database, then promotes the build.
+# Manual `workflow_dispatch` (from main only) runs the same steps.
 #
-# To enable automatic deploys (spec 2026-08-19-launch-infrastructure §11):
-#   1. Set these as REPOSITORY secrets (not environment secrets: GitHub
-#      environments are public-repo-only on the Free plan, and this repo is
-#      private):
-#        DATABASE_URL       Supabase SESSION pooler, ...pooler.supabase.com:5432
-#                           NOT the direct connection (db.<ref>.supabase.co) —
-#                           that is IPv6-only and GitHub runners are IPv4-only.
-#                           NOT the transaction pooler (:6543) — that is the
-#                           Vercel runtime's value and cannot run DDL reliably.
-#        VERCEL_TOKEN
-#        VERCEL_ORG_ID      from .vercel/project.json, written by `vercel link`
-#        VERCEL_PROJECT_ID  same
-#   2. The Vercel project must NOT be connected to Git. This workflow uses
-#      Vercel's token + `--prebuilt` CI flow, which needs no Git connection;
-#      connecting one would race this workflow's migration step.
-#   3. Uncomment the `workflow_run` block below. This is its own one-line PR,
-#      done LAST — before the environment exists it would deploy into nothing.
+# Repository secrets (not environment secrets: GitHub environments are
+# public-repo-only on the Free plan, and this repo is private):
+#   DATABASE_URL       Supabase SESSION pooler, ...pooler.supabase.com:5432
+#                      NOT the direct connection (db.<ref>.supabase.co) —
+#                      that is IPv6-only and GitHub runners are IPv4-only.
+#                      NOT the transaction pooler (:6543) — that is the
+#                      Vercel runtime's value and cannot run DDL reliably.
+#   VERCEL_TOKEN       Vercel → Account Settings → Tokens (team scope)
+#   VERCEL_ORG_ID      from .vercel/project.json, written by `vercel link`
+#   VERCEL_PROJECT_ID  same
+# Repository variable:
+#   APP_URL            the production origin the smoke test hits — the
+#                      project's vercel.app domain until booklo.co is live.
+#
+# Why a cloud build and not `vercel pull` → `vercel build` → `--prebuilt`:
+# this Vercel team stores every environment variable as Sensitive
+# (write-only). `vercel pull` returns placeholders for them, so a build on
+# the runner fails env validation (src/env.ts parses at module load).
+# `vercel deploy --skip-domain` builds on Vercel, where the real values are,
+# and returns a production-target deployment that is NOT yet the live one;
+# `vercel promote` makes it live after the migration. The ordering guarantee
+# is the same as the prebuilt flow's: build → migrate → promote.
+#
+# The Vercel project must NOT be connected to Git: a Git-triggered build
+# would race this workflow's migration step.
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Triggered by CI finishing, not by the push itself — so a green CI run is a
 # structural precondition of this workflow starting, rather than a step inside
 # it that could be skipped or reordered.
 on:
-  # workflow_run:
-  #   workflows: [CI]
-  #   branches: [main]
-  #   types: [completed]
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -53,7 +62,7 @@ jobs:
     # The `deploy-production` concurrency lock is held for the job's full
     # duration, so an unbounded hang would block every subsequent deploy for up
     # to GitHub's default 6-hour job timeout. 20 minutes comfortably covers a
-    # normal run (npm ci + vercel pull/build + migrate + deploy) with headroom.
+    # normal run (npm ci + cloud build + migrate + promote) with headroom.
     timeout-minutes: 20
     # Secrets reach scripts through env, never `${{ secrets.X }}` inside a
     # `run:` body: that form pastes the value into the shell source verbatim,
@@ -62,6 +71,7 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      APP_URL: ${{ vars.APP_URL }}
     steps:
       # workflow_run defaults to the tip of main, which may have moved past the
       # commit CI actually verified. Check out the verified SHA.
@@ -88,6 +98,15 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
+      # The smoke test below would otherwise curl an empty string and "pass"
+      # on a confusing error. Catch a missing variable before any build spend.
+      - name: Assert APP_URL is set
+        run: |
+          case "$APP_URL" in
+            https://*) ;;
+            *) echo "::error::Repository variable APP_URL must be the production origin (https://…)"; exit 1;;
+          esac
+
       # Pinned to a major version: this CLI builds and promotes production, so
       # it must not change under us with zero diff in this repo the way
       # `@latest` would allow. Patch/minor fixes still arrive automatically;
@@ -97,17 +116,28 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@^58.0.0
 
-      - name: Pull Vercel environment
-        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-
       # Build BEFORE migrating: a build failure then leaves production exactly
       # as it was. The other order would leave the schema ahead of code that
       # never ships, with nothing to roll it back.
-      - name: Build
-        run: vercel build --prod --token="$VERCEL_TOKEN"
+      #
+      # --prod: production target (production env, production settings).
+      # --skip-domain: do not alias the production domain yet — the build
+      # exists, reachable on its own URL, but the live site is unchanged.
+      # The CLI prints that URL on stdout; progress goes to stderr.
+      # .vercelignore keeps the upload to what `next build` needs.
+      - name: Build on Vercel (not promoted)
+        id: build
+        run: |
+          url="$(vercel deploy --prod --skip-domain --yes --token="$VERCEL_TOKEN")"
+          case "$url" in
+            https://*) ;;
+            *) echo "::error::vercel deploy did not return a deployment URL: $url"; exit 1;;
+          esac
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Built $url"
 
       # Migrate BEFORE promoting, so the schema is always at or ahead of the
-      # code. Between this step and the deploy below, the currently-live code
+      # code. Between this step and the promote below, the currently-live code
       # runs against the new schema — migrations must be backward compatible.
       #
       # ALLOW_REMOTE_DB: drizzle.config.ts refuses any non-loopback host unless
@@ -120,18 +150,26 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ALLOW_REMOTE_DB: "1"
 
-      - name: Deploy
-        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+      # Point the production domain at the build from above. Waits for the
+      # alias to settle (3 min default) before returning.
+      - name: Promote
+        run: vercel promote "$BUILD_URL" --yes --token="$VERCEL_TOKEN"
+        env:
+          BUILD_URL: ${{ steps.build.outputs.url }}
 
-      # A zero exit from `vercel deploy` only proves Vercel accepted the
-      # build. Prove the promoted site answers, and that the drain route still
+      # A zero exit from `vercel promote` only proves Vercel accepted the
+      # alias. Prove the promoted site answers, and that the drain route still
       # turns away an unauthenticated call — 401, not 503, also proves
       # SCHEDULING_DRAIN_SECRET survived the deploy (the route answers 503
-      # when the secret is unset).
+      # when the secret is unset). A few retries cover alias propagation.
       - name: Smoke test production
         run: |
-          curl -fsS https://booklo.co/ >/dev/null
-          status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST https://booklo.co/api/scheduling/drain)"
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS "$APP_URL/" >/dev/null; then break; fi
+            if [ "$attempt" = 5 ]; then echo "::error::$APP_URL/ did not answer 200"; exit 1; fi
+            sleep 5
+          done
+          status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$APP_URL/api/scheduling/drain")"
           if [ "$status" != "401" ]; then
             echo "::error::POST /api/scheduling/drain without auth returned $status, expected 401"
             exit 1

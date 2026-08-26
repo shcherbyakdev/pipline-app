@@ -10,6 +10,33 @@ cutover). It does not walk through creating them.
 
 ---
 
+## 0. How a deploy happens
+
+Every merge to `main` deploys itself: CI runs, and when it is green
+`.github/workflows/deploy.yml` (a) builds the verified commit **on Vercel**
+without promoting it (`vercel deploy --prod --skip-domain`), (b) runs
+`drizzle-kit migrate` against the session pooler, (c) promotes that build
+(`vercel promote`), and (d) smoke-tests the origin in the repository
+variable `APP_URL`. A manual run is **Actions → Deploy → Run workflow** on
+`main`. The Vercel project is deliberately **not** connected to Git — a
+Git-triggered build would race step (b).
+
+Why the build is not done on the runner (the spec's original `vercel pull` →
+`vercel build` → `--prebuilt` flow): this Vercel team stores every
+environment variable as *Sensitive*, which is write-only — `vercel pull`
+returns placeholders, and `src/env.ts` fails validation at module load. The
+cloud build sees the real values. The ordering guarantee is unchanged:
+build → migrate → promote, so a failed build leaves production untouched and
+the schema is always at or ahead of the running code.
+
+Secrets/variables the workflow needs: `VERCEL_TOKEN`, `VERCEL_ORG_ID`,
+`VERCEL_PROJECT_ID`, `DATABASE_URL` (session pooler) and the variable
+`APP_URL` (`https://booklo-five.vercel.app` during the test phase;
+`https://booklo.co` at launch, together with the `site_url` flip in
+`supabase/config.toml`).
+
+---
+
 ## 1. Run the readiness check
 
 `scripts/setup-production.ts` is the gate at every stage of cutover and the
