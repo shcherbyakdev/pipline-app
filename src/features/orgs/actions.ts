@@ -71,7 +71,9 @@ export async function createOrgWithPage(
     console.error("[orgs] create_org_with_page:", error.message);
     return { error: GENERIC_WRITE_ERROR };
   }
-  redirect("/bookings?welcome=1");
+  // The welcome banner shows itself on /bookings until setup is done
+  // (setup-checklist.ts showWelcome) — no flag in the URL.
+  redirect("/bookings");
 }
 
 type OrgBrandingRow = { id: string; accent_color: string | null; logo_path: string | null };

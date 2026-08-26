@@ -3,8 +3,10 @@ import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 import { WELCOME } from "@/features/marketing/site";
 
 /* The welcome banner's setup chips (admin IA spec §4). Pure: the Bookings
-   page gathers the counts only under ?welcome=1 and nothing is persisted —
-   every tick is derived from data that already exists. */
+   page gathers the counts on every load until the list is done, and every
+   tick is derived from data that already exists. Nothing about progress is
+   persisted; the one thing that is — a dismissal — lives in a cookie
+   (SETUP_DISMISSED_COOKIE), not the database. */
 export type ChecklistInput = {
   mode: OrgMode;
   serviceCount: number;      // active services
@@ -48,4 +50,25 @@ export function setupChecklist(i: ChecklistInput): ChecklistItem[] {
   }
   items.push({ id: "publish", label: WELCOME.publish, href: "/booking-page", done: i.published });
   return items;
+}
+
+/** Dismissal cookie (setup-actions.ts writes it, the Bookings page reads
+    it). Value = the org id, so a jar left over from another org's session
+    on the same browser does not hide a fresh org's banner. A cookie rather
+    than a column: `orgs` is select-only for authenticated (0004), so a
+    persisted flag would mean a migration plus a definer RPC for a hint
+    that hides itself the moment setup is finished. */
+export const SETUP_DISMISSED_COOKIE = "booklo_setup_dismissed";
+export const SETUP_DISMISSED_MAX_AGE = 365 * 24 * 60 * 60;
+
+/** Whether the Bookings page shows the welcome banner. It used to ride
+    ?welcome=1 and vanished on the first click of any chip (every chip
+    navigates away, and the week arrows rebuild the URL without it); now
+    it stays until the checklist is complete or the owner dismisses it. A
+    handle-less org (pre-0051) has no chips but still needs the "pick an
+    address" prompt. */
+export function showWelcome(i: { dismissed: boolean; handle: string | null; checklist: ChecklistItem[] }): boolean {
+  if (i.dismissed) return false;
+  if (i.handle === null) return true;
+  return i.checklist.some((item) => !item.done);
 }

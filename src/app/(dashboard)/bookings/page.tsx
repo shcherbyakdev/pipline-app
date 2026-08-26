@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import {
   listBookings,
   listConfirmedBookingsBetween,
@@ -40,7 +41,7 @@ import { mondayOf } from "@/features/scheduling/calendar-geometry";
 import { unionWindows, weekdayOf } from "@/features/scheduling/day-windows";
 import { wallTimeToUtc, addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import { getPageDraftState } from "@/features/booking-page/queries";
-import { setupChecklist, type ChecklistItem } from "@/features/scheduling/setup-checklist";
+import { SETUP_DISMISSED_COOKIE, setupChecklist, showWelcome, type ChecklistItem } from "@/features/scheduling/setup-checklist";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
@@ -74,7 +75,6 @@ export default async function BookingsPage({
     days?: string;
     show?: string;
     staff?: string;
-    welcome?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -132,10 +132,14 @@ export default async function BookingsPage({
   // scope sets the default, not the choice.
   const preferSpace = scopedSpace(scope, people, spaces);
 
-  // Welcome checklist: three cheap reads, only on the one request that
-  // carries ?welcome=1 (nothing is persisted — spec §4 ruling 8).
+  // Welcome checklist: two cheap reads on every load until the list is
+  // done or the owner dismisses it (setup-checklist.ts showWelcome). It
+  // used to ride ?welcome=1 and vanished on the first click — every chip
+  // navigates away. Progress is still derived, never persisted (spec §4
+  // ruling 8, amended); the dismissal is a cookie keyed by org id.
+  const dismissed = (await cookies()).get(SETUP_DISMISSED_COOKIE)?.value === org.id;
   let checklist: ChecklistItem[] = [];
-  if (params.welcome === "1") {
+  if (!dismissed) {
     const [ownersWithHours, page] = await Promise.all([countHoursOwners(), getPageDraftState(org.id)]);
     checklist = setupChecklist({
       mode: eff,
@@ -150,15 +154,10 @@ export default async function BookingsPage({
       published: page.published !== null,
     });
   }
-  const welcome =
-    params.welcome === "1" ? (
-      <WelcomeBanner
-        handle={settings?.handle ?? null}
-        appUrl={env.NEXT_PUBLIC_APP_URL}
-        mode={eff}
-        checklist={checklist}
-      />
-    ) : null;
+  const handle = settings?.handle ?? null;
+  const welcome = showWelcome({ dismissed, handle, checklist }) ? (
+    <WelcomeBanner handle={handle} appUrl={env.NEXT_PUBLIC_APP_URL} mode={eff} checklist={checklist} />
+  ) : null;
 
   // One entry for every kind of walk-in (spec §2, ruling 5). On the
   // "everyone" week a walk-in defaults to the first active member; the week

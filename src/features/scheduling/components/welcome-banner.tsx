@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, CheckmarkCircle01Icon, CircleIcon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
@@ -12,12 +11,15 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { ChecklistItem } from "@/features/scheduling/setup-checklist";
+import { dismissWelcome } from "@/features/scheduling/setup-actions";
 
-// Shown once, driven by ?welcome=1 (nothing persisted). The public page 404s
-// until something is bookable, so the promise is "yours", not "live". `mode`
-// is the EFFECTIVE mode (features/orgs/mode.ts effectiveMode — the caller
-// composes it with the rentals kill switch). The checklist is computed by the
-// page (setup-checklist.ts) from data that already exists.
+// Shown on every Bookings load until the checklist is done or the owner
+// dismisses it (setup-checklist.ts showWelcome; the dismissal is a cookie).
+// The public page 404s until something is bookable, so the promise is
+// "yours", not "live". `mode` is the EFFECTIVE mode (features/orgs/mode.ts
+// effectiveMode — the caller composes it with the rentals kill switch). The
+// checklist is computed by the page (setup-checklist.ts) from data that
+// already exists.
 export function WelcomeBanner({
   handle,
   appUrl,
@@ -29,8 +31,11 @@ export function WelcomeBanner({
   mode: OrgMode;
   checklist: ChecklistItem[];
 }) {
-  const router = useRouter();
   const [copied, setCopied] = React.useState(false);
+  // Optimistic: the banner goes at once; the action's cookie write
+  // re-renders the page so it stays gone on the next load.
+  const [dismissed, setDismissed] = React.useState(false);
+  const [, startTransition] = React.useTransition();
   const url = handle ? bookingUrl(appUrl, handle) : null;
   const sub =
     mode.offersAppointments && mode.offersRentals
@@ -52,6 +57,19 @@ export function WelcomeBanner({
     }
   };
 
+  const dismiss = () => {
+    setDismissed(true);
+    startTransition(async () => {
+      try {
+        await dismissWelcome();
+      } catch {
+        setDismissed(false);
+        toast.error("Couldn't dismiss — try again.");
+      }
+    });
+  };
+
+  if (dismissed) return null;
   return (
     <div role="status" className="bg-card flex flex-col gap-3 rounded-xl border px-4 py-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -71,7 +89,7 @@ export function WelcomeBanner({
             {WELCOME.setUpPage}
           </Link>
         )}
-        <Button size="sm" variant="ghost" aria-label={WELCOME.dismiss} onClick={() => router.replace("/bookings")}>
+        <Button size="sm" variant="ghost" aria-label={WELCOME.dismiss} onClick={dismiss}>
           <HugeiconsIcon icon={Cancel01Icon} size={14} />
         </Button>
       </div>
