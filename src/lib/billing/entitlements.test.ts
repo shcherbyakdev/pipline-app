@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  effectivePlan, entitlementsFor, monthWindow, canAddStaff, canAddService,
+  effectivePlan, entitlementsFor, monthWindow, canAddResource, canAddService, countResources,
   badgeShows, badgeVisible, reminderQuotaExceeded, type OrgSubscriptionRow,
 } from "./entitlements";
 
@@ -28,14 +28,14 @@ describe("entitlementsFor", () => {
   it("free defaults", () => {
     const e = entitlementsFor(null, now);
     expect(e.plan).toBe("free");
-    expect(e.bookableStaff).toBe(1);
+    expect(e.bookableResources).toBe(1);
     expect(e.publicServices).toBe(3);
     expect(e.hideBadge).toBe(false);
   });
-  it("team uses seats for bookableStaff", () => {
+  it("team uses seats for bookableResources", () => {
     const e = entitlementsFor(row({ plan: "team", seats: 7 }), now);
     expect(e.plan).toBe("team");
-    expect(e.bookableStaff).toBe(7);
+    expect(e.bookableResources).toBe(7);
     expect(e.publicServices).toBeNull();
     expect(e.hideBadge).toBe(true);
   });
@@ -54,14 +54,29 @@ describe("monthWindow", () => {
   });
 });
 
+describe("countResources (H5b ruling 5)", () => {
+  const BOTH = { offersAppointments: true, offersRentals: true };
+  const APPTS = { offersAppointments: true, offersRentals: false };
+  const SPACES = { offersAppointments: false, offersRentals: true };
+  it("people and units share one budget in a both-mode org", () => {
+    expect(countResources({ activeStaff: 2, activeUnits: 3 }, BOTH)).toBe(5);
+  });
+  it("a spaces-only org's backfilled staff row counts for nothing", () => {
+    expect(countResources({ activeStaff: 1, activeUnits: 3 }, SPACES)).toBe(3);
+  });
+  it("an appointments-only org's units count for nothing", () => {
+    expect(countResources({ activeStaff: 2, activeUnits: 3 }, APPTS)).toBe(2);
+  });
+});
+
 describe("gates", () => {
   const free = entitlementsFor(null, now);
   const team = entitlementsFor(row({ plan: "team", seats: 5 }), now);
-  it("canAddStaff", () => {
-    expect(canAddStaff(1, free)).toBe(false);
-    expect(canAddStaff(0, free)).toBe(true);
-    expect(canAddStaff(4, team)).toBe(true);
-    expect(canAddStaff(5, team)).toBe(false);
+  it("canAddResource", () => {
+    expect(canAddResource(1, free)).toBe(false);
+    expect(canAddResource(0, free)).toBe(true);
+    expect(canAddResource(4, team)).toBe(true);
+    expect(canAddResource(5, team)).toBe(false);
   });
   it("canAddService", () => {
     expect(canAddService(2, free)).toBe(true);

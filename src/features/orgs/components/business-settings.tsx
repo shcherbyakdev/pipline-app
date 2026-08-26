@@ -10,8 +10,8 @@ import type { OrgMode } from "@/features/orgs/mode";
 import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 
 const ROWS = [
-  { key: "offersAppointments", ...APPOINTMENTS.settings },
   { key: "offersRentals", ...SPACES.settings },
+  { key: "offersAppointments", ...APPOINTMENTS.settings },
 ] as const;
 
 /* Org-level "what you offer" (Settings → Business). Optimistic: the box flips

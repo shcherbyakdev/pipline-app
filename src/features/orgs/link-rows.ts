@@ -18,15 +18,15 @@ export function linkRows(input: {
   const { mode } = input;
   const rows: LinkRow[] = [{ key: "page", label: "Whole booking page", badge: null, target: null }];
   if (mode.offersAppointments && mode.offersRentals) {
-    rows.push({ key: "channel:services", label: APPOINTMENTS.only, badge: null, target: { channel: "services" } });
     rows.push({ key: "channel:spaces", label: SPACES.only, badge: null, target: { channel: "spaces" } });
+    rows.push({ key: "channel:services", label: APPOINTMENTS.only, badge: null, target: { channel: "services" } });
+  }
+  if (mode.offersRentals) {
+    for (const o of input.spaces) rows.push({ key: `space:${o.id}`, label: o.name, badge: SPACES.badge, target: { space: o.id } });
   }
   if (mode.offersAppointments) {
     for (const p of input.staff) rows.push({ key: `staff:${p.slug}`, label: p.name, badge: "Team", target: { staff: p.slug } });
     for (const s of input.services) rows.push({ key: `service:${s.id}`, label: s.name, badge: "Service", target: { service: s.id } });
-  }
-  if (mode.offersRentals) {
-    for (const o of input.spaces) rows.push({ key: `space:${o.id}`, label: o.name, badge: SPACES.badge, target: { space: o.id } });
   }
   return rows;
 }

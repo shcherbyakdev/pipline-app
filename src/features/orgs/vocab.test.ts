@@ -12,7 +12,7 @@ describe("SPACES vocabulary", () => {
     expect(SPACES.section).toEqual({ label: "Spaces", description: "Your rooms, studios and gear, with photos and prices." });
     expect(SPACES.pickerTitle).toBe("Spaces");
     expect(SPACES.pickerBlurb).toBe("Rooms, studios and gear, booked by the hour, night or day.");
-    expect(SPACES.pickerBothBlurb).toBe("You book people and spaces.");
+    expect(SPACES.pickerBothBlurb).toBe("You book spaces and people.");
   });
   it("explains hours for nightly/daily spaces on the Availability page (spec §3)", () => {
     expect(SPACES.hoursNote).toBe(
@@ -76,7 +76,7 @@ describe("admin vocabulary (admin IA spec §1)", () => {
       blurb: "Services booked as time slots with your team.",
     });
     expect(APPOINTMENTS.add).toBe("Add a service");
-    expect(SPACES.pickerBoth).toBe("Service or space");
+    expect(SPACES.pickerBoth).toBe("Space or service");
     expect(SPACES.badge).toBe("Space");
     expect(SPACES.hidden(1)).toBe("1 space booking hidden");
     expect(SPACES.hidden(3)).toBe("3 space bookings hidden");

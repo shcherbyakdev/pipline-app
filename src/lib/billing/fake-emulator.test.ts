@@ -1,7 +1,7 @@
 // Pure emulator core — no env, no I/O. See task-1-brief.md for the exact
 // interfaces/semantics this file locks down.
 import { describe, it, expect } from "vitest";
-import { TEAM_INCLUDED_SEATS } from "./plans";
+import { TEAM_INCLUDED_RESOURCES } from "./plans";
 import {
   classifyTestCard,
   addInterval,
@@ -120,7 +120,7 @@ describe("checkoutEvents", () => {
 
   it("gives Team the included seat count", () => {
     const [ev] = checkoutEvents({ orgId: "org-1", plan: "team", interval: "year", now: NOW });
-    expect(ev.subscription?.seats).toBe(TEAM_INCLUDED_SEATS);
+    expect(ev.subscription?.seats).toBe(TEAM_INCLUDED_RESOURCES);
     expect(ev.subscription?.currentPeriodEnd).toBe(addInterval(NOW, "year").toISOString());
   });
 
@@ -175,7 +175,7 @@ describe("actionEvents", () => {
   });
 
   it("switch_pro switches plan and seats down to 1", () => {
-    const [ev] = actionEvents("switch_pro", row({ plan: "team", seats: TEAM_INCLUDED_SEATS }), ORG_ID, NOW);
+    const [ev] = actionEvents("switch_pro", row({ plan: "team", seats: TEAM_INCLUDED_RESOURCES }), ORG_ID, NOW);
     expect(ev.type).toBe("subscription_updated");
     expect(ev.subscription?.plan).toBe("pro");
     expect(ev.subscription?.seats).toBe(1);
@@ -187,7 +187,7 @@ describe("actionEvents", () => {
   it("switch_team switches plan and seats up to the included count", () => {
     const [ev] = actionEvents("switch_team", row({ plan: "pro", seats: 1 }), ORG_ID, NOW);
     expect(ev.subscription?.plan).toBe("team");
-    expect(ev.subscription?.seats).toBe(TEAM_INCLUDED_SEATS);
+    expect(ev.subscription?.seats).toBe(TEAM_INCLUDED_RESOURCES);
   });
 
   it("switch_month resets the period from now", () => {

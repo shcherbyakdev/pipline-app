@@ -244,7 +244,7 @@ export function bookingCancelledEmail(input: {
   <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
-    Need a new appointment? Book again any time on the booking page.
+    Want to rebook? You can book again any time on the booking page.
   </p>${badgeHtmlLine(input.badgeUrl)}
 </div>`.trim();
   const text = [
@@ -317,7 +317,7 @@ export function bookingReminderEmail(input: {
   const html = `
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
-  <p style="margin: 0 0 8px;">A reminder about your upcoming appointment.</p>
+  <p style="margin: 0 0 8px;">A reminder about your upcoming booking.</p>
   <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
@@ -327,7 +327,7 @@ export function bookingReminderEmail(input: {
   const text = [
     input.orgName,
     "",
-    "A reminder about your upcoming appointment.",
+    "A reminder about your upcoming booking.",
     input.serviceName,
     ...staffTextLine(input.staffName),
     input.whenLine,
@@ -422,14 +422,14 @@ export function providerCancelledEmail(input: {
   <p style="margin: 0 0 8px;"><strong>${esc(input.clientName)}</strong> cancelled their booking.</p>
   <p style="margin: 0 0 4px;">${esc(input.serviceName)}</p>
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
-  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">The slot is open again.</p>
+  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">The time is open again.</p>
 </div>`.trim();
   const text = [
     `${input.clientName} cancelled their booking.`,
     input.serviceName,
     input.whenLine,
     "",
-    "The slot is open again.",
+    "The time is open again.",
   ].join("\n");
   return { subject, html, text };
 }

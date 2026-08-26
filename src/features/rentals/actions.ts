@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardFlags } from "@/lib/flags/resolve";
+import { assertCanAddUnit } from "@/lib/billing/gates";
 import {
   offeringInput,
   updateOfferingInput,
@@ -151,6 +152,11 @@ export async function createUnit(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
+  // H5b: a unit spends the plan's resource budget like a person does.
+  if (parsed.data.active) {
+    const refused = await assertCanAddUnit(orgId, supabase);
+    if (refused) return { ok: false, error: refused };
+  }
   const { error } = await supabase.from("rental_units").insert({
     org_id: orgId,
     offering_id: parsed.data.offeringId,
@@ -171,6 +177,22 @@ export async function updateUnit(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
+  // H5b: only a false → true flip spends a resource; editing an already
+  // active unit's name at the cap must keep working. Mirrors setStaffActive.
+  if (parsed.data.active) {
+    const { data: current, error: readError } = await supabase
+      .from("rental_units")
+      .select("active")
+      .eq("id", parsed.data.id)
+      .eq("org_id", orgId)
+      .maybeSingle();
+    if (readError) return fail("updateUnit", readError);
+    if (!current) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!current.active) {
+      const refused = await assertCanAddUnit(orgId, supabase);
+      if (refused) return { ok: false, error: refused };
+    }
+  }
   const { data, error } = await supabase
     .from("rental_units")
     .update({

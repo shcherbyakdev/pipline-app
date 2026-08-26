@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  PLANS, PAID_PLANS, TEAM_INCLUDED_SEATS, pricePerMonth,
+  PLANS, PAID_PLANS, TEAM_INCLUDED_RESOURCES, pricePerMonth,
   FOUNDER_PRICE_FACTOR, formatUsd, yearlySaving,
 } from "./plans";
 
@@ -15,12 +15,20 @@ describe("PLANS", () => {
   it("yearly is cheaper than 12× monthly for paid plans", () => {
     for (const id of PAID_PLANS) expect(PLANS[id].yearly).toBeLessThan(PLANS[id].monthly * 12);
   });
-  it("free limits match the spec", () => {
+  it("limits match the H5b spec: resources 1 / 3 / 10, services 3 / ∞ / ∞", () => {
     expect(PLANS.free.limits).toMatchObject({
-      bookableStaff: 1, publicServices: 3, reminderBookingsPerMonth: 30, hideBadge: false,
+      bookableResources: 1, publicServices: 3, reminderBookingsPerMonth: 30, hideBadge: false,
     });
+    expect(PLANS.pro.limits.bookableResources).toBe(3);
     expect(PLANS.pro.limits.publicServices).toBeNull();
-    expect(PLANS.team.limits.bookableStaff).toBe(TEAM_INCLUDED_SEATS);
+    expect(TEAM_INCLUDED_RESOURCES).toBe(10);
+    expect(PLANS.team.limits.bookableResources).toBe(TEAM_INCLUDED_RESOURCES);
+  });
+  it("blurbs speak of people and units, never seats or team members", () => {
+    for (const p of Object.values(PLANS)) {
+      expect(p.blurb.toLowerCase()).not.toMatch(/seat|team member/);
+    }
+    expect(PLANS.free.blurb).toBe("Everything one person — or one room — needs to take bookings.");
   });
   it("pricePerMonth divides yearly by 12", () => {
     expect(pricePerMonth("pro", "month")).toBe(12);

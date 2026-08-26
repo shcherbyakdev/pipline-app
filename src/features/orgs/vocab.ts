@@ -14,7 +14,7 @@ export const SPACES = {
   /** Onboarding mode picker. */
   pickerTitle: "Spaces",
   pickerBlurb: "Rooms, studios and gear, booked by the hour, night or day.",
-  pickerBothBlurb: "You book people and spaces.",
+  pickerBothBlurb: "You book spaces and people.",
 
   // ---- admin surfaces (admin IA spec 2026-08-25 §1). "Offering" and
   // "rental" never reach a provider's eyes; the code keeps its identifiers.
@@ -34,7 +34,7 @@ export const SPACES = {
   /** The New-booking picker's label when only spaces are listed. */
   field: "Space",
   /** The New-booking picker's label when both services and spaces are listed. */
-  pickerBoth: "Service or space",
+  pickerBoth: "Space or service",
   /** Kind badge on list rows, client history and the week grid (sr-only). */
   badge: "Space",
   /** Toolbar chip when a staff lens hides space bookings from the week. */

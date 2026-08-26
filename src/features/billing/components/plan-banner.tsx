@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { Entitlements } from "@/lib/billing/entitlements";
+import type { OrgMode } from "@/features/orgs/mode";
+import { resourceBannerText, resourceMeter } from "../resource-usage";
 import { getBillingOverview, type BillingOverview } from "../queries";
 
 /** How close to the free reminder cap before we say something. */
@@ -8,25 +10,20 @@ const REMINDER_WARN_AT = 24;
 type Usage = BillingOverview["usage"];
 
 /* The nudges in the shell (the spec's sidebar pill was folded into these —
-   ruling 2026-08-18). Both can be true at once — an over-limit roster and a
+   ruling 2026-08-18). Both can be true at once — hidden resources and a
    nearly-spent reminder quota are different problems with different fixes —
-   so both render, staff first: that one is silent, because the people it
-   names simply aren't bookable publicly. */
-export function PlanBanner({ ent, usage }: { ent: Entitlements; usage: Usage }) {
-  const hidden = usage.activeStaff - ent.bookableStaff;
+   so both render, hidden resources first: that one is silent, because the
+   people and units it names simply aren't bookable publicly. */
+export function PlanBanner({ ent, mode, usage }: { ent: Entitlements; mode: OrgMode; usage: Usage }) {
+  const { hidden } = resourceMeter(usage, mode, ent);
   const cap = ent.reminderBookingsPerMonth;
-  const overStaff = hidden > 0;
+  const overResources = hidden > 0;
   const nearQuota = cap !== null && usage.bookingsThisMonth >= REMINDER_WARN_AT;
-  if (!overStaff && !nearQuota) return null;
+  if (!overResources && !nearQuota) return null;
 
   return (
     <div className="mb-4 flex flex-col gap-2">
-      {overStaff ? (
-        <Notice cta="Manage plan">
-          Your plan allows {ent.bookableStaff} bookable team member{ent.bookableStaff === 1 ? "" : "s"}; {hidden}{" "}
-          {hidden === 1 ? "person isn't" : "people aren't"} bookable publicly.
-        </Notice>
-      ) : null}
+      {overResources ? <Notice cta="Manage plan">{resourceBannerText(hidden, ent.bookableResources)}</Notice> : null}
       {nearQuota && cap !== null ? (
         <Notice cta="Upgrade">
           {usage.bookingsThisMonth >= cap
@@ -60,7 +57,7 @@ function Notice({ children, cta }: { children: React.ReactNode; cta: string }) {
 export async function PlanBannerSlot() {
   const overview = await overviewOrNull();
   if (!overview) return null;
-  return <PlanBanner ent={overview.entitlements} usage={overview.usage} />;
+  return <PlanBanner ent={overview.entitlements} mode={overview.mode} usage={overview.usage} />;
 }
 
 // Separate from the component: JSX must not be constructed inside a try/catch

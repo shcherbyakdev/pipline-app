@@ -142,7 +142,7 @@ export const FAQ: FaqItem[] = [
   {
     question: "What does it cost?",
     answer: BILLING_ON
-      ? "Free for solo providers — one bookable person, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and a team; see Pricing."
+      ? "Free for one person or one room — one bookable resource, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and more bookable people and units; see Pricing."
       : "Booklo is free during early access. We'll announce pricing well before anything changes, and early users will hear first.",
   },
 ];
@@ -182,10 +182,17 @@ const FOUNDER_MONTHLY = formatUsd(PLANS.pro.monthly * FOUNDER_PRICE_FACTOR);
     (lib/billing/plans.ts) directly so a number never lives in two places. */
 export const PRICING = {
   heading: "Simple pricing",
-  sub: "Free for solo providers. Pay when you need your brand, unlimited services or a team.",
+  sub: "Free for one person or one room. Pay when you need your brand, unlimited services or more bookable resources.",
   note: "Prices in USD. Taxes are handled at checkout.",
   rows: [
-    { label: "Publicly bookable team members", free: "1", pro: "1", team: "5" },
+    // H5b: the one row that IS a limit reads it from PLANS so the number can
+    // never drift from what the code enforces.
+    {
+      label: "Bookable resources — people and units",
+      free: String(PLANS.free.limits.bookableResources),
+      pro: String(PLANS.pro.limits.bookableResources),
+      team: String(PLANS.team.limits.bookableResources),
+    },
     { label: "Services on your booking page", free: "3", pro: "Unlimited", team: "Unlimited" },
     { label: "Reminder emails", free: "First 30 bookings a month", pro: "Every booking", team: "Every booking" },
     { label: "Hosted page + website embed", free: "✓", pro: "✓", team: "✓" },
@@ -218,8 +225,8 @@ export const ONBOARDING = {
   modeLegend: "What are you booking?",
   modeError: "Pick what you're booking.",
   modes: [
-    { value: "appointments", title: "Appointments", blurb: "Time on your calendar: consultations, sessions, classes." },
     { value: "rentals", title: SPACES.pickerTitle, blurb: SPACES.pickerBlurb },
+    { value: "appointments", title: "Appointments", blurb: "Time on your calendar: consultations, sessions, classes." },
     { value: "both", title: "Both", blurb: SPACES.pickerBothBlurb },
   ],
   submit: "Claim my page",
@@ -244,8 +251,11 @@ export const WELCOME = {
   dismiss: "Dismiss",
 } as const;
 
-/** Words that must not appear in marketing copy: features not shipped yet. */
-export const FORBIDDEN_COPY = ["google", "calendar sync", "stripe", "payment"] as const;
+/** Words that must not appear in marketing copy: features not shipped yet
+    (google / calendar sync / stripe / payment — the last two leave after H4)
+    and the retired channel words (H5b: "Spaces" is the word; "rentals" plural
+    is the old channel, "Gear rental" the business type stays legal). */
+export const FORBIDDEN_COPY = ["google", "calendar sync", "stripe", "payment", "offering", "rentals"] as const;
 
 /** Every internal href on the page (for route/anchor guard tests). `#` alone is a placeholder and skipped. */
 export function allInternalHrefs(): string[] {

@@ -10,6 +10,8 @@ import {
   type Entitlements,
   type OrgSubscriptionRow,
 } from "@/lib/billing/entitlements";
+import { effectiveMode, modeOf, type OrgMode } from "@/features/orgs/mode";
+import { getDashboardFlags } from "@/lib/flags/resolve";
 import { isFounderEligible } from "./founder";
 
 export type BillingOverview = {
@@ -17,7 +19,10 @@ export type BillingOverview = {
   subscription: OrgSubscriptionRow | null;
   override: PlanOverride | null;
   entitlements: Entitlements;
-  usage: { bookingsThisMonth: number; activeStaff: number; services: number };
+  /** The org's channels with the rentals kill-switch applied — what
+      countResources should count (H5b ruling 5). */
+  mode: OrgMode;
+  usage: { bookingsThisMonth: number; activeStaff: number; activeUnits: number; services: number };
   founderEligible: boolean;
 };
 
@@ -35,18 +40,20 @@ export type BillingOverview = {
 export const getBillingOverview = cache(async (now = new Date()): Promise<BillingOverview> => {
   const { org } = await requireOrg();
   const supabase = await createClient();
-  const [settings, subscription, override, staffRes, svcRes, orgRow] = await Promise.all([
+  const [settings, subscription, override, flags, staffRes, unitRes, svcRes, orgRow] = await Promise.all([
     getSchedulingSettings(),
     getRawOrgSubscription(org.id, supabase),
     getPlanOverride(org.id, supabase),
+    getDashboardFlags(org.id),
     supabase.from("staff").select("id", { count: "exact", head: true }).eq("org_id", org.id).eq("active", true),
+    supabase.from("rental_units").select("id", { count: "exact", head: true }).eq("org_id", org.id).eq("active", true),
     supabase.from("services").select("id", { count: "exact", head: true }).eq("org_id", org.id),
     supabase.from("orgs").select("created_at").eq("id", org.id).maybeSingle(),
   ]);
   // A failed count would render a meter that quietly reads 0 of 3; throw
   // instead. The layout's banner slot catches it (a billing read must never
   // take the dashboard down, spec §7.10); on /billing the failure surfaces.
-  const failed = staffRes.error ?? svcRes.error ?? orgRow.error;
+  const failed = staffRes.error ?? unitRes.error ?? svcRes.error ?? orgRow.error;
   if (failed) throw failed;
   // Needs the org timezone, so it can't join the batch above.
   const bookingsThisMonth = await monthlyBookingUsage(
@@ -62,9 +69,11 @@ export const getBillingOverview = cache(async (now = new Date()): Promise<Billin
     override,
     // A live comp beats the provider row (lib/billing/queries.ts#getOrgSubscription).
     entitlements: entitlementsFor(activeOverrideRow(override, now) ?? subscription, now),
+    mode: effectiveMode(flags, modeOf(org)),
     usage: {
       bookingsThisMonth,
       activeStaff: staffRes.count ?? 0,
+      activeUnits: unitRes.count ?? 0,
       services: svcRes.count ?? 0,
     },
     founderEligible: isFounderEligible(orgRow.data?.created_at),

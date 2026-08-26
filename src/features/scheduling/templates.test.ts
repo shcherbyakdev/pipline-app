@@ -214,6 +214,43 @@ describe("booking lifecycle templates", () => {
     expect(whenLineFor({ ...b, isRental: true, rangeMode: "nights" }, "Europe/Berlin")).toContain("→");
     expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin")).toContain("→");
   });
+
+  it("client and provider copy never says appointment or slot (H5b: spaces book too)", () => {
+    const base = { orgName: "Studio", serviceName: "Loft · 2B", whenLine: "Mon, 05 Apr → Thu, 08 Apr" };
+    const manageUrl = "https://app/booking/tok";
+    const icsUrl = "https://app/booking/tok/calendar.ics";
+    // Every exported template body — not just the client/provider four the
+    // original loop covered — so a future edit that leaks "appointment" or
+    // "slot" into any of them is caught here.
+    const mails = [
+      bookingConfirmationEmail({ ...base, manageUrl, icsUrl }),
+      bookingManageLinkEmail({ ...base, manageUrl, icsUrl }), // default canReschedule
+      bookingCancelledEmail({ ...base, cancelledBy: "client" }),
+      bookingCancelledEmail({ ...base, cancelledBy: "provider" }),
+      bookingRescheduledEmail({ ...base, oldWhenLine: "Mon, 05 Apr → Thu, 08 Apr", manageUrl, icsUrl }),
+      bookingReminderEmail(base),
+      staffNewBookingEmail({ staffName: "Anna", clientName: "A", ...base }),
+      providerNewBookingEmail({
+        serviceName: base.serviceName,
+        clientName: "A",
+        clientEmail: "a@example.com",
+        whenLine: base.whenLine,
+      }),
+      providerCancelledEmail({ serviceName: "Loft", whenLine: "Mon", clientName: "A" }),
+      providerRescheduledEmail({ serviceName: "Loft", oldWhenLine: "Mon", whenLine: "Tue", clientName: "A" }),
+    ];
+    for (const m of mails) {
+      expect(m.text.toLowerCase()).not.toMatch(/appointment|\bslot\b/);
+      expect(m.html.toLowerCase()).not.toMatch(/appointment|\bslot\b/);
+    }
+    expect(bookingReminderEmail(base).text).toContain("A reminder about your upcoming booking.");
+    expect(bookingCancelledEmail({ ...base, cancelledBy: "client" }).html).toContain(
+      "Want to rebook? You can book again any time on the booking page.",
+    );
+    expect(providerCancelledEmail({ serviceName: "Loft", whenLine: "Mon", clientName: "A" }).text).toContain(
+      "The time is open again.",
+    );
+  });
 });
 
 // "Powered by Booklo" (spec §5): the growth loop rides along on every

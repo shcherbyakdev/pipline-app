@@ -4,6 +4,7 @@
 // restates it and says so.
 import { PLANS, type Interval, type PaidPlanId, type PlanId, type PlanLimits } from "./plans";
 import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
+import type { OrgMode } from "@/features/orgs/mode";
 
 export type SubscriptionStatus = "active" | "past_due" | "cancelled" | "expired";
 
@@ -30,7 +31,7 @@ export function effectivePlan(row: OrgSubscriptionRow | null, now: Date): PlanId
 export function entitlementsFor(row: OrgSubscriptionRow | null, now: Date): Entitlements {
   const plan = effectivePlan(row, now);
   const limits = { ...PLANS[plan].limits };
-  if (plan === "team" && row) limits.bookableStaff = Math.max(1, row.seats);
+  if (plan === "team" && row) limits.bookableResources = Math.max(1, row.seats);
   return { plan, ...limits };
 }
 
@@ -47,8 +48,19 @@ export function monthWindow(now: Date, timeZone: string): { fromIso: string; toI
   };
 }
 
-export function canAddStaff(activeCount: number, ent: Entitlements): boolean {
-  return activeCount < ent.bookableStaff;
+/** What the plan's resource budget counts (H5b). */
+export type ResourceUsage = { activeStaff: number; activeUnits: number };
+
+/** The one counting rule (spec ruling 5): a person counts only when the org
+    offers appointments, a unit only when it offers spaces. Every org has a
+    backfilled staff row (0054), so a spaces-only org must not spend its Free
+    slot on it. Callers pass the EFFECTIVE mode (rentals flag applied). */
+export function countResources(u: ResourceUsage, mode: OrgMode): number {
+  return (mode.offersAppointments ? u.activeStaff : 0) + (mode.offersRentals ? u.activeUnits : 0);
+}
+
+export function canAddResource(count: number, ent: Entitlements): boolean {
+  return count < ent.bookableResources;
 }
 
 export function canAddService(serviceCount: number, ent: Entitlements): boolean {

@@ -6,6 +6,7 @@ import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter, publicSlotsLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext, type PublicUnit } from "@/lib/booking/public";
+import { loadPublicResources } from "@/lib/booking/public-offering";
 import { getProviderEmail } from "@/lib/booking/provider";
 import { selectTransport } from "@/lib/email/transport";
 import { emailBadgeUrl } from "@/lib/billing/queries";
@@ -65,7 +66,19 @@ async function loadHourlyContext(
   if (!org.offersRentals) return null;
   const ctx = await loadOrgHourlyContext(org.orgId, offeringId, org.timeZone, fromDate, days, opts);
   if (!ctx) return null;
-  return { org, ...ctx };
+  // H5b: see capRangeUnits in public-actions.ts — hidden units never reach
+  // the engine, the unit picker, or the RPC.
+  const resources = await loadPublicResources(org.orgId);
+  if (!resources) return { org, ...ctx, capped: false };
+  const allowed = resources.allowedUnitIds;
+  const perUnit = ctx.perUnit.filter((u) => allowed.has(u.unitId));
+  return {
+    org,
+    ...ctx,
+    units: ctx.units.filter((u) => allowed.has(u.id)),
+    perUnit,
+    capped: perUnit.length < ctx.perUnit.length,
+  };
 }
 
 // The engine runs once per unit; the client sees the union (a time is
@@ -188,11 +201,11 @@ export async function createRentalBookingHours(
     // engine's rules (opening hours, notice, window, grid) run here, not in
     // the RPC, so this action is the only entry.
     const admin = createAdminClient();
-    const call = () =>
+    const call = (pUnitId: string | null) =>
       admin.rpc("create_rental_booking_hours", {
         p_handle: handle,
         p_offering_id: offeringId,
-        p_unit_id: unitId,
+        p_unit_id: pUnitId,
         p_starts_at: starts.toISOString(),
         p_duration_min: durationMin,
         p_name: name,
@@ -201,10 +214,17 @@ export async function createRentalBookingHours(
         p_token_hash: tokenHash,
       });
 
-    let { data: bookingId, error } = await call();
-    // Auto-assignment: a lost race means "some other unit may still be
-    // free", so one retry re-picks. An explicit unit has nothing to re-pick.
-    if (error && isTaken(error) && unitId === null) ({ data: bookingId, error } = await call());
+    // Same ladder as createRentalBooking (public-actions.ts): explicit unit
+    // once; uncapped auto-assign = null + one retry; capped auto-assign names
+    // the allowed free units (match.unitIds — the engine only ever saw those).
+    const attempts: (string | null)[] =
+      unitId !== null ? [unitId] : ctx.capped ? match.unitIds : [null, null];
+    if (attempts.length === 0) return { ok: false, error: SLOT_TAKEN_HOURLY, slotTaken: true };
+    let result = await call(attempts[0]);
+    for (let i = 1; i < attempts.length && result.error && isTaken(result.error); i++) {
+      result = await call(attempts[i]);
+    }
+    const { data: bookingId, error } = result;
     if (error) {
       // Per-email hourly cap (0056).
       if (isRpcSentinel(error, "too_many")) return { ok: false, error: TOO_MANY_FOR_EMAIL };
@@ -213,26 +233,47 @@ export async function createRentalBookingHours(
       return { ok: false, error: GENERIC_WRITE_ERROR };
     }
 
-    const tz = ctx.org.timeZone;
-    const ends = new Date(starts.getTime() + durationMin * 60_000);
-    const whenLine = formatHourlyWhenLine(starts, ends, tz);
-    const unitName = await getBookingUnitName(bookingId as string);
-    const serviceName = unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name;
-    // Best-effort like everything below: a null provider address only means
-    // the provider gets no copy of this booking.
-    const providerEmail = await getProviderEmail(ctx.org.orgId).catch((e) => {
-      console.error("[rentals] getProviderEmail:", e);
-      return null;
-    });
-    // H3: total / deposit / pay-at-venue / cancellation-policy lines, shared
-    // by the client confirmation and the provider's copy below.
-    const total = totalCents(ctx.offering, durationMin / 60);
-    const infoLines = moneyInfoLines({
-      totalCents: total,
-      depositCents: depositCents(ctx.offering, total),
-      currency: ctx.org.currency,
-      cancelWindowMin: ctx.offering.cancelWindowMin,
-    });
+    // Everything both mails share, computed once; nothing below may fail the
+    // committed booking, so the unit-name/provider-email reads swallow their
+    // own errors AND the whole block is wrapped below — a throw here (e.g.
+    // formatHourlyWhenLine, totalCents) must not report a committed booking
+    // as failed to the caller.
+    let prep: {
+      whenLine: string;
+      serviceName: string;
+      infoLines: string[];
+      providerEmail: string | null;
+    } | null = null;
+    try {
+      const tz = ctx.org.timeZone;
+      const ends = new Date(starts.getTime() + durationMin * 60_000);
+      const whenLine = formatHourlyWhenLine(starts, ends, tz);
+      const unitName = await getBookingUnitName(bookingId as string).catch((e) => {
+        console.error("[rentals] getBookingUnitName:", e);
+        return null;
+      });
+      const serviceName = unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name;
+      // Best-effort like everything below: a null provider address only means
+      // the provider gets no copy of this booking.
+      const providerEmail = await getProviderEmail(ctx.org.orgId).catch((e) => {
+        console.error("[rentals] getProviderEmail:", e);
+        return null;
+      });
+      // H3: total / deposit / pay-at-venue / cancellation-policy lines, shared
+      // by the client confirmation and the provider's copy below.
+      const total = totalCents(ctx.offering, durationMin / 60);
+      const infoLines = moneyInfoLines({
+        totalCents: total,
+        depositCents: depositCents(ctx.offering, total),
+        currency: ctx.org.currency,
+        cancelWindowMin: ctx.offering.cancelWindowMin,
+      });
+      prep = { whenLine, serviceName, infoLines, providerEmail };
+    } catch (error) {
+      console.error("[rentals] post-booking mail prep failed:", error);
+      return { ok: true, token };
+    }
+    const { whenLine, serviceName, infoLines, providerEmail } = prep;
 
     // Best-effort confirmation (the booking survives email failure).
     try {
@@ -260,8 +301,9 @@ export async function createRentalBookingHours(
     }
 
     // The provider's own copy — copied wholesale from createBooking
-    // (scheduling/public-actions.ts), reply-to wiring included. Nights/days
-    // rentals still lack this (deferred minor, noted in the PR description).
+    // (scheduling/public-actions.ts), reply-to wiring included. The
+    // nights/days twin lives in createRentalBooking (public-actions.ts) —
+    // the two actions mirror each other.
     // Its own try so a failed client mail can't skip it.
     if (providerEmail) {
       try {

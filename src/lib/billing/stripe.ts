@@ -1,7 +1,7 @@
 import "server-only";
 import Stripe from "stripe";
 import { env } from "@/env";
-import { TEAM_INCLUDED_SEATS, type Interval, type PaidPlanId } from "./plans";
+import { TEAM_INCLUDED_RESOURCES, type Interval, type PaidPlanId } from "./plans";
 import type { SubscriptionStatus } from "./entitlements";
 import type { BillingEvent, BillingProvider, BillingSubscription, CheckoutInput, CheckoutSession } from "./provider";
 
@@ -82,7 +82,7 @@ function subscriptionFrom(sub: SubLike, priceMap: PriceMap, forceExpired: boolea
     plan: mapped.plan,
     interval: mapped.interval,
     // Team is a fixed-size plan in this slice; quantity → seats is spec §8 item 3.
-    seats: mapped.plan === "team" ? TEAM_INCLUDED_SEATS : 1,
+    seats: mapped.plan === "team" ? TEAM_INCLUDED_RESOURCES : 1,
     status: forceExpired ? "expired" : mapStripeStatus(sub.status),
     currentPeriodEnd: item.current_period_end ? new Date(item.current_period_end * 1000).toISOString() : null,
     cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end),

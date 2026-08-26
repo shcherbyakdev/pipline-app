@@ -23,11 +23,11 @@ export type ChecklistItem = {
 
 export function setupChecklist(i: ChecklistInput): ChecklistItem[] {
   const items: ChecklistItem[] = [];
-  if (i.mode.offersAppointments) {
-    items.push({ id: "service", label: APPOINTMENTS.add, href: "/services?new=1", done: i.serviceCount > 0 });
-  }
   if (i.mode.offersRentals) {
     items.push({ id: "space", label: SPACES.add, href: "/rentals?new=1", done: i.spaceCount > 0 });
+  }
+  if (i.mode.offersAppointments) {
+    items.push({ id: "service", label: APPOINTMENTS.add, href: "/services?new=1", done: i.serviceCount > 0 });
   }
   // Hours exist for team members and hourly spaces (spec §3, ruling 4);
   // a nights/days-only org sets check-in/out times on the space instead.

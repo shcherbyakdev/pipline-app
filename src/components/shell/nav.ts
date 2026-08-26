@@ -19,13 +19,14 @@ import { SPACES } from "@/features/orgs/vocab";
 // Post-pivot nav (S5): Bookings leads and stays the post-login surface (S2
 // user ruling). The command menu derives from this list. `section` splits
 // the sidebar Linear-style (admin IA spec 2026-08-25 §1): day-to-day views
-// on top, then "Offer" (what the org sells — Services, Spaces, Team,
+// on top, then "Offer" (what the org sells — Spaces, Services, Team,
 // Availability), then "Share" (where clients book — the two channels), then
 // an unlabelled account group (Billing, Settings). The order is fixed
-// regardless of mode: a single-mode org loses rows, it never reorders.
-// Settings holds only admin-panel preferences plus the org's "what you
-// offer" group (R3 relaxation of the 2026-08-17 ruling). Icons are Hugeicons
-// stroke-rounded (free set) — render with <HugeiconsIcon icon={…} />.
+// regardless of mode, spaces first (H5b ruling 1): a single-mode org loses
+// rows, it never reorders. Settings holds only admin-panel preferences plus
+// the org's "what you offer" group (R3 relaxation of the 2026-08-17 ruling).
+// Icons are Hugeicons stroke-rounded (free set) — render with
+// <HugeiconsIcon icon={…} />.
 export type NavSection = "main" | "offer" | "share" | "account";
 
 /** Sidebar render order. The sidebar iterates this, so a section added here
@@ -54,8 +55,8 @@ const ALL_NAV_ITEMS: readonly NavItem[] = [
   { href: "/overview", label: "Overview", icon: DashboardSquare01Icon, section: "main" },
   { href: "/bookings", label: "Bookings", icon: Calendar03Icon, section: "main" },
   { href: "/clients", label: "Clients", icon: UserMultipleIcon, section: "main" },
-  { href: "/services", label: "Services", icon: Briefcase01Icon, section: "offer", channel: "appointments" },
   { href: "/rentals", label: SPACES.nav, icon: House01Icon, section: "offer", channel: "rentals" },
+  { href: "/services", label: "Services", icon: Briefcase01Icon, section: "offer", channel: "appointments" },
   // Always present, solo or not: a solo provider sees one row (themselves).
   { href: "/team", label: "Team", icon: UserGroupIcon, section: "offer", channel: "appointments" },
   // No channel: it stays for every mode — hours for people AND hourly

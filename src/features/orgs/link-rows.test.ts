@@ -9,12 +9,12 @@ const services = [{ id: "s1", name: "Massage" }];
 const spaces = [{ id: "o1", name: "Room A" }];
 
 describe("linkRows (spec §5 — the Links & embeds table)", () => {
-  it("both modes: page, the two channel rows, people, services, spaces — in that order", () => {
+  it("both modes: page, the two channel rows, spaces, people, services — in that order", () => {
     const rows = linkRows({ mode: BOTH, staff, services, spaces });
-    expect(rows.map((r) => r.label)).toEqual(["Whole booking page", "Appointments only", "Spaces only", "Anna", "Ben", "Massage", "Room A"]);
-    expect(rows.map((r) => r.badge)).toEqual([null, null, null, "Team", "Team", "Service", "Space"]);
+    expect(rows.map((r) => r.label)).toEqual(["Whole booking page", "Spaces only", "Appointments only", "Room A", "Anna", "Ben", "Massage"]);
+    expect(rows.map((r) => r.badge)).toEqual([null, null, null, "Space", "Team", "Team", "Service"]);
     expect(rows.map((r) => r.target)).toEqual([
-      null, { channel: "services" }, { channel: "spaces" }, { staff: "anna" }, { staff: "ben" }, { service: "s1" }, { space: "o1" },
+      null, { channel: "spaces" }, { channel: "services" }, { space: "o1" }, { staff: "anna" }, { staff: "ben" }, { service: "s1" },
     ]);
     expect(new Set(rows.map((r) => r.key)).size).toBe(rows.length);
   });
@@ -24,7 +24,7 @@ describe("linkRows (spec §5 — the Links & embeds table)", () => {
   });
   it("a solo team lists no people (the caller passes [] then); nothing else changes", () => {
     expect(linkRows({ mode: BOTH, staff: [], services, spaces }).map((r) => r.label)).toEqual([
-      "Whole booking page", "Appointments only", "Spaces only", "Massage", "Room A",
+      "Whole booking page", "Spaces only", "Appointments only", "Room A", "Massage",
     ]);
   });
 });

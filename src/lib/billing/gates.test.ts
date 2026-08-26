@@ -10,11 +10,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { entitlementsFor, type OrgSubscriptionRow } from "./entitlements";
 import {
   GENERIC_WRITE_ERROR,
-  planLimitStaffError,
+  planLimitResourceError,
   PLAN_LIMIT_SERVICES_ERROR,
-  PLAN_LIMIT_STAFF_ERROR,
 } from "@/features/scheduling/schema";
-const { staffGateMessage, serviceGateMessage, evaluateStaffGate, evaluateServiceGate } = await import("./gates");
+const { resourceGateMessage, serviceGateMessage, evaluateResourceGate, evaluateServiceGate } = await import("./gates");
 
 const now = new Date("2026-08-18T12:00:00Z");
 const row = (o: Partial<OrgSubscriptionRow>): OrgSubscriptionRow => ({
@@ -26,25 +25,34 @@ const free = entitlementsFor(null, now);
 const pro = entitlementsFor(row({ plan: "pro" }), now);
 const team5 = entitlementsFor(row({ plan: "team", seats: 5 }), now);
 
-describe("staffGateMessage", () => {
-  it("Free at 1 active staff → message", () => {
-    expect(staffGateMessage(1, free)).toBe(PLAN_LIMIT_STAFF_ERROR);
+const BOTH = { offersAppointments: true, offersRentals: true };
+const SPACES = { offersAppointments: false, offersRentals: true };
+
+describe("resourceGateMessage", () => {
+  it("Free, both-mode, one person → the one-resource copy (no room for a unit)", () => {
+    expect(resourceGateMessage({ activeStaff: 1, activeUnits: 0 }, BOTH, free)).toBe(planLimitResourceError(1));
   });
-  it("Team (5 seats) at 4 active staff → null", () => {
-    expect(staffGateMessage(4, team5)).toBeNull();
+  it("Free, spaces-only, the backfilled person and no unit → allowed", () => {
+    expect(resourceGateMessage({ activeStaff: 1, activeUnits: 0 }, SPACES, free)).toBeNull();
   });
-  it("Team (5 seats) at 5 active staff → the seat-cap copy, not the Team-plan pitch", () => {
-    const message = staffGateMessage(5, team5);
-    expect(message).toBe(planLimitStaffError(5));
-    expect(message).toContain("allows 5 team members");
-    expect(message).not.toBe(PLAN_LIMIT_STAFF_ERROR);
+  it("Team (5 seats), 2 people + 3 units → the cap copy", () => {
+    const message = resourceGateMessage({ activeStaff: 2, activeUnits: 3 }, BOTH, team5);
+    expect(message).toBe(planLimitResourceError(5));
+    expect(message).toContain("allows 5 bookable resources");
+  });
+  it("Team (5 seats), 2 people + 2 units → allowed", () => {
+    expect(resourceGateMessage({ activeStaff: 2, activeUnits: 2 }, BOTH, team5)).toBeNull();
   });
 });
 
-describe("planLimitStaffError", () => {
-  it("one seat keeps the upgrade pitch; more than one names the cap", () => {
-    expect(planLimitStaffError(1)).toBe(PLAN_LIMIT_STAFF_ERROR);
-    expect(planLimitStaffError(5)).toBe("Your plan allows 5 team members. Upgrade in Billing to add more.");
+describe("planLimitResourceError", () => {
+  it("one resource explains the budget; more than one names the cap", () => {
+    expect(planLimitResourceError(1)).toBe(
+      "Free includes 1 bookable resource — one person or one unit. Upgrade in Billing to add more.",
+    );
+    expect(planLimitResourceError(5)).toBe(
+      "Your plan allows 5 bookable resources — people and units together. Upgrade in Billing to add more.",
+    );
   });
 });
 
@@ -82,34 +90,74 @@ const orgSubRow = (o: Partial<{ plan: string; status: string; billing_interval: 
   current_period_end: "2026-09-18T12:00:00Z", cancel_at_period_end: false, ...o,
 });
 
-describe("evaluateStaffGate", () => {
-  it("Free org at 1 active staff (limit) → refusal", async () => {
+const orgModeRow = (offersAppointments: boolean, offersRentals: boolean) => ({
+  offers_appointments: offersAppointments, offers_rentals: offersRentals,
+});
+const FLAGS_ON = { rentals: true };
+
+describe("evaluateResourceGate", () => {
+  it("Free both-mode org at 1 person + 0 units → refusal", async () => {
     const client = stubClient({
       org_subscriptions: { data: null, error: null },
+      orgs: { data: orgModeRow(true, true), error: null },
       staff: { count: 1, error: null },
+      rental_units: { count: 0, error: null },
     });
-    await expect(evaluateStaffGate("org-1", client)).resolves.toBe(PLAN_LIMIT_STAFF_ERROR);
+    await expect(evaluateResourceGate("org-1", client, FLAGS_ON)).resolves.toBe(planLimitResourceError(1));
   });
-  it("Team org (5 seats) at 4 active staff → allowed (null)", async () => {
+  it("Free spaces-only org at 1 (backfilled) person + 0 units → allowed", async () => {
+    const client = stubClient({
+      org_subscriptions: { data: null, error: null },
+      orgs: { data: orgModeRow(false, true), error: null },
+      staff: { count: 1, error: null },
+      rental_units: { count: 0, error: null },
+    });
+    await expect(evaluateResourceGate("org-1", client, FLAGS_ON)).resolves.toBeNull();
+  });
+  it("the rentals kill-switch stops units from counting", async () => {
+    const client = stubClient({
+      org_subscriptions: { data: null, error: null },
+      orgs: { data: orgModeRow(false, true), error: null },
+      staff: { count: 1, error: null },
+      rental_units: { count: 9, error: null },
+    });
+    await expect(evaluateResourceGate("org-1", client, { rentals: false })).resolves.toBeNull();
+  });
+  it("Team org (5 seats) at 2 people + 2 units → allowed (null)", async () => {
     const client = stubClient({
       org_subscriptions: { data: orgSubRow({ plan: "team", seats: 5 }), error: null },
-      staff: { count: 4, error: null },
+      orgs: { data: orgModeRow(true, true), error: null },
+      staff: { count: 2, error: null },
+      rental_units: { count: 2, error: null },
     });
-    await expect(evaluateStaffGate("org-1", client)).resolves.toBeNull();
+    await expect(evaluateResourceGate("org-1", client, FLAGS_ON)).resolves.toBeNull();
   });
   it("a failed count lookup refuses conservatively with the generic write error", async () => {
     const client = stubClient({
       org_subscriptions: { data: null, error: null },
+      orgs: { data: orgModeRow(true, true), error: null },
       staff: { count: null, error: new Error("connection reset") },
+      rental_units: { count: 0, error: null },
     });
-    await expect(evaluateStaffGate("org-1", client)).resolves.toBe(GENERIC_WRITE_ERROR);
+    await expect(evaluateResourceGate("org-1", client, FLAGS_ON)).resolves.toBe(GENERIC_WRITE_ERROR);
+  });
+  it("a missing org row refuses conservatively too", async () => {
+    const client = stubClient({
+      org_subscriptions: { data: null, error: null },
+      orgs: { data: null, error: null },
+      staff: { count: 0, error: null },
+      rental_units: { count: 0, error: null },
+    });
+    await expect(evaluateResourceGate("org-1", client, FLAGS_ON)).resolves.toBe(GENERIC_WRITE_ERROR);
   });
   it("a failed entitlements lookup refuses conservatively with the generic write error", async () => {
     const client = stubClient({
       org_subscriptions: { data: null, error: new Error("connection reset") },
+      orgs: { data: orgModeRow(true, true), error: null },
       staff: { count: 0, error: null },
+      rental_units: { count: 0, error: null },
     });
-    await expect(evaluateStaffGate("org-1", client)).resolves.toBe(GENERIC_WRITE_ERROR);
+    await expect(evaluateResourceGate("org-1", client, FLAGS_ON)).resolves.toBe(GENERIC_WRITE_ERROR);
   });
 });
 

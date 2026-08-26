@@ -14,6 +14,7 @@ import Stripe from "stripe";
 const { mapStripeStatus, planFromPriceId, normalizeStripeEvent, orgIdFromMetadata, isDiscountRejection, withOptionalDiscount } =
   await import("./stripe");
 import type { PriceMap } from "./stripe";
+import { TEAM_INCLUDED_RESOURCES } from "./plans";
 
 // A real UUID: apply_billing_event takes org_id as `uuid`, and the adapter
 // now drops anything else (orgIdFromMetadata) — so the fixtures must carry
@@ -56,7 +57,7 @@ describe("normalizeStripeEvent", () => {
     expect(e.orgId).toBe(ORG);
     expect(e.providerEventId).toBe("evt_1");
     expect(e.occurredAt).toBe(new Date(1_787_000_000 * 1000).toISOString());
-    expect(e.subscription).toMatchObject({ plan: "team", interval: "month", seats: 5, status: "active",
+    expect(e.subscription).toMatchObject({ plan: "team", interval: "month", seats: TEAM_INCLUDED_RESOURCES, status: "active",
       providerCustomerId: "cus_1", providerSubscriptionId: "sub_1", currentPeriodEnd: new Date(1_790_000_000 * 1000).toISOString() });
   });
   it("customer.subscription.deleted → subscription_expired regardless of status", () => {
@@ -150,7 +151,7 @@ describe("normalizeStripeEvent", () => {
     const e = normalizeStripeEvent(fixture as never, priceMap)!;
     expect(e.type).toBe("subscription_updated");
     expect(e.orgId).toBe(ORG);
-    expect(e.subscription).toMatchObject({ plan: "team", interval: "month", seats: 5, status: "active" });
+    expect(e.subscription).toMatchObject({ plan: "team", interval: "month", seats: TEAM_INCLUDED_RESOURCES, status: "active" });
   });
 });
 
