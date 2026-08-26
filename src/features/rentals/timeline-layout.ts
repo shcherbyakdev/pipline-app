@@ -6,6 +6,7 @@
 import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import { zonedParts } from "@/features/scheduling/calendar-geometry";
 import { formatDurationLabel } from "@/features/rentals/hourly";
+import { barSpan, turnoverSpan } from "./timeline-geometry";
 import { daysBetween } from "./range";
 import type { RangeMode } from "./range";
 
@@ -141,15 +142,38 @@ export function detectConflicts(
 }
 
 /** How many stays carry a conflict, and the earliest one (the banner's
-    "Show" target). */
+    "Show" target; ties by id so Show is deterministic). */
 export function conflictSummary(
   conflicts: ReadonlyMap<string, Conflict[]>,
   stays: readonly { id: string; startsAt: Date }[],
 ): { count: number; firstId: string | null } {
   const flagged = stays
     .filter((s) => conflicts.has(s.id))
-    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id));
   return { count: conflicts.size, firstId: flagged[0]?.id ?? null };
+}
+
+/** Whether the chart draws anything for a stay in this window — a bar or
+    a turnover tail (nights/days), the day itself (hours). The bookings
+    fetch reaches back by the widest turnover so tails can be drawn, and
+    detectConflicts needs those earlier stays too; but only what is on the
+    chart may be counted "in this window" or offered to Show. */
+export function stayInWindow(
+  b: { startsAt: Date; endsAt: Date },
+  mode: RangeMode,
+  timeZone: string,
+  turnoverDays: number,
+  windowStart: string,
+  days: number,
+): boolean {
+  if (mode === "hours") {
+    const idx = daysBetween(windowStart, dateInZone(b.startsAt, timeZone));
+    return idx >= 0 && idx < days;
+  }
+  return (
+    barSpan(b, mode, timeZone, windowStart, days) !== null ||
+    turnoverSpan(b, mode, timeZone, turnoverDays, windowStart, days) !== null
+  );
 }
 
 // ---------- what a bar can say

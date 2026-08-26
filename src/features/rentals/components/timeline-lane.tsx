@@ -7,6 +7,7 @@ import type { AdminBooking } from "@/features/scheduling/queries";
 import type { TimelineOffering, TimelineBlackout } from "@/features/rentals/queries";
 import { barSpan, blackoutSpan, turnoverSpan } from "@/features/rentals/timeline-geometry";
 import {
+  continuationLabels,
   dayMonth,
   hourlyByDay,
   labelDensity,
@@ -65,6 +66,12 @@ const isHard = (cs: readonly Conflict[]) => cs.some((c) => c.kind !== "turnover"
 
 export type NewStay = { offeringId: string; unitId: string; date: string };
 
+/** The two-week zoom around a day, scope kept — the count pill's click and
+    the banner's Show when its target is folded into a pill. */
+export function zoomInHref(date: string, scopeSuffix: string): string {
+  return `/bookings?view=timeline&days=14&from=${date}${scopeSuffix}`;
+}
+
 export function TimelineLane({
   offering,
   unit,
@@ -80,6 +87,7 @@ export function TimelineLane({
   conflicts,
   spotlightId,
   onSpotlightEnd,
+  scopeSuffix,
   onSelect,
   onNew,
 }: {
@@ -99,6 +107,8 @@ export function TimelineLane({
   /** The booking whose card the banner's Show opened, if any. */
   spotlightId: string | null;
   onSpotlightEnd: () => void;
+  /** "&show=…" or "" — every link the chart builds carries the scope. */
+  scopeSuffix: string;
   onSelect: (b: AdminBooking) => void;
   onNew: (n: NewStay) => void;
 }) {
@@ -106,19 +116,20 @@ export function TimelineLane({
   const pct = (cols: number) => `${(cols / days) * 100}%`;
 
   // ---- vertical layout: bars stack in sub-rows, chips stack under their day.
-  const dated = stays.map((b) => ({ b, startsAt: new Date(b.startsAt), endsAt: new Date(b.endsAt) }));
+  const dated = React.useMemo(
+    () => stays.map((b) => ({ b, startsAt: new Date(b.startsAt), endsAt: new Date(b.endsAt) })),
+    [stays],
+  );
   const layout = React.useMemo(
     () =>
       mode === "hours"
         ? null
         : laneLayout(dated.map(({ b, startsAt, endsAt }) => ({ id: b.id, ...stayInterval({ startsAt, endsAt }, mode, timeZone, fromDate) }))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `dated` is derived from `stays`
-    [stays, mode, timeZone, fromDate],
+    [dated, mode, timeZone, fromDate],
   );
   const byDay = React.useMemo(
     () => (mode === "hours" ? hourlyByDay(dated, timeZone, fromDate, days) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `dated` is derived from `stays`
-    [stays, mode, timeZone, fromDate, days],
+    [dated, mode, timeZone, fromDate, days],
   );
   const compact = days === 56;
   const maxPerDay = byDay ? Math.max(1, ...[...byDay.values()].map((l) => l.length)) : 1;
@@ -221,7 +232,9 @@ export function TimelineLane({
               // A bar clipped by the window's left edge starts flush.
               const halfStart = bar !== null && mode === "nights" && !bar.clippedLeft ? 0.5 : 0;
               const halfEnd = bar?.halfEnd ? 0.5 : 0;
-              const widthCols = bar ? bar.colSpan - halfStart - halfEnd : 0;
+              // Never thinner than half a cell — a legacy same-day row
+              // would otherwise vanish into a zero-width bar.
+              const widthCols = bar ? Math.max(0.5, bar.colSpan - halfStart - halfEnd) : 0;
               return (
                 <React.Fragment key={b.id}>
                   {tail === null ? null : (
@@ -271,6 +284,7 @@ export function TimelineLane({
                   unitName={unit.name}
                   timeZone={timeZone}
                   conflicts={conflicts}
+                  scopeSuffix={scopeSuffix}
                   style={{ left: pct(idx), width: pct(1) }}
                 />
               ) : (
@@ -343,8 +357,11 @@ function StayBar({
 }) {
   const mode = offering.rangeMode;
   const accent = serviceAccent(b.rentalOfferingId ?? "");
-  const density = chip ? (widthPx >= 72 ? "name" : "initials") : labelDensity(widthPx);
+  // Bars adapt by measured width; chips have their own thresholds below.
+  const density = labelDensity(widthPx);
   const phase = now ? stayPhase({ startsAt, endsAt }, now) : "upcoming";
+  // Where the window cuts a bar, the glyph gets words for screen readers.
+  const cont = continuationLabels({ startsAt, endsAt }, timeZone, { clippedLeft, clippedRight });
   const length = stayLengthLabel({ startsAt, endsAt }, mode, timeZone);
   const startDate = dateInZone(startsAt, timeZone);
   const endDate = dateInZone(endsAt, timeZone);
@@ -405,12 +422,22 @@ function StayBar({
               <>
                 <span className="flex min-w-0 items-center gap-1.5">
                   {flagged ? <Flag hard={hard} /> : null}
-                  {clippedLeft ? <span aria-hidden className="opacity-60">←</span> : null}
+                  {cont.left ? (
+                    <span className="opacity-60" title={cont.left}>
+                      <span aria-hidden>←</span>
+                      <span className="sr-only">{cont.left}</span>
+                    </span>
+                  ) : null}
                   <span className="truncate font-medium">{density === "initials" ? initials(b.clientName) : b.clientName}</span>
                   {phase === "current" && density === "full" ? (
                     <span className="bg-primary text-primary-foreground shrink-0 rounded px-1 text-[10px] leading-4">In house</span>
                   ) : null}
-                  {clippedRight ? <span aria-hidden className="ml-auto opacity-60">→</span> : null}
+                  {cont.right ? (
+                    <span className="ml-auto opacity-60" title={cont.right}>
+                      <span aria-hidden>→</span>
+                      <span className="sr-only">{cont.right}</span>
+                    </span>
+                  ) : null}
                 </span>
                 {density === "full" ? (
                   <span className="text-muted-foreground truncate text-[11px]">
@@ -455,6 +482,7 @@ function CountPill({
   unitName,
   timeZone,
   conflicts,
+  scopeSuffix,
   style,
 }: {
   date: string;
@@ -463,6 +491,7 @@ function CountPill({
   unitName: string;
   timeZone: string;
   conflicts: ReadonlyMap<string, Conflict[]>;
+  scopeSuffix: string;
   style: React.CSSProperties;
 }) {
   const flagged = list.some(({ b }) => conflicts.has(b.id));
@@ -472,7 +501,7 @@ function CountPill({
       <TooltipTrigger
         render={
           <Link
-            href={`/bookings?view=timeline&days=14&from=${date}`}
+            href={zoomInHref(date, scopeSuffix)}
             aria-label={`${list.length} booking${list.length === 1 ? "" : "s"} on ${cellDateLabel(date)}, ${unitName} — zoom in`}
             className={cn(
               "bg-card absolute top-1/2 z-10 flex -translate-y-1/2 items-center justify-center gap-0.5 rounded-full border px-1 text-[11px] font-medium tabular-nums shadow-sm hover:shadow-md",

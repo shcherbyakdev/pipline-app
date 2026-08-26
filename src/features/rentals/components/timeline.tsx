@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { TriangleAlert } from "lucide-react";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { TimelineOffering, TimelineBlackout } from "@/features/rentals/queries";
@@ -10,6 +11,7 @@ import {
   conflictSummary,
   detectConflicts,
   monthBands,
+  stayInWindow,
   type Conflict,
   type Zoom,
 } from "@/features/rentals/timeline-layout";
@@ -23,7 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SPACES } from "@/features/orgs/vocab";
-import { TimelineLane, MODE_LABEL, RAIL_PX, isWeekend, type NewStay } from "./timeline-lane";
+import { TimelineLane, MODE_LABEL, RAIL_PX, isWeekend, zoomInHref, type NewStay } from "./timeline-lane";
 
 /* The tape chart: every space, one lane per unit, one column per day.
    Reads top to bottom the way a front desk reads its board — a month strip
@@ -45,6 +47,7 @@ export function Timeline({
   offerings,
   blackouts,
   bookings,
+  scopeSuffix,
 }: {
   fromDate: string;
   days: Zoom;
@@ -52,7 +55,10 @@ export function Timeline({
   offerings: TimelineOffering[];
   blackouts: TimelineBlackout[];
   bookings: AdminBooking[];
+  /** "&show=…" or "" — the links the chart builds keep the page's scope. */
+  scopeSuffix: string;
 }) {
+  const router = useRouter();
   const dayList = React.useMemo(() => windowDays(fromDate, days), [fromDate, days]);
   const bands = React.useMemo(() => monthBands(dayList), [dayList]);
   const columns = `${RAIL_PX}px repeat(${days}, minmax(0, 1fr))`;
@@ -112,8 +118,10 @@ export function Timeline({
     [bookings],
   );
 
-  // Conflicts are a per-unit question; the merged map feeds the banner and
-  // the group headers.
+  // Conflicts are a per-unit question, detected over every stay the fetch
+  // returned (a turnover clash needs the earlier stay even when it checked
+  // out before the window) but counted only for stays the chart draws —
+  // the banner says "in this window" and Show must have something to show.
   const { conflicts, perOffering } = React.useMemo(() => {
     const merged = new Map<string, Conflict[]>();
     const perOffering = new Map<string, number>();
@@ -127,13 +135,17 @@ export function Timeline({
           endsAt: new Date(b.endsAt),
         }));
         const found = detectConflicts(stays, blackoutsByUnit.get(u.id) ?? [], o.rangeMode, o.turnoverDays, timeZone);
-        for (const [id, list] of found) merged.set(id, list);
-        count += found.size;
+        for (const s of stays) {
+          const list = found.get(s.id);
+          if (!list || !stayInWindow(s, o.rangeMode, timeZone, o.turnoverDays, fromDate, days)) continue;
+          merged.set(s.id, list);
+          count += 1;
+        }
       }
       perOffering.set(o.id, count);
     }
     return { conflicts: merged, perOffering };
-  }, [offerings, staysByUnit, blackoutsByUnit, timeZone]);
+  }, [offerings, staysByUnit, blackoutsByUnit, timeZone, fromDate, days]);
   const summary = React.useMemo(
     () => conflictSummary(conflicts, bookings.map((b) => ({ id: b.id, startsAt: new Date(b.startsAt) }))),
     [conflicts, bookings],
@@ -141,12 +153,19 @@ export function Timeline({
   // The banner's Show: scroll the first conflict into view and open its
   // card. A tooltip only opens itself on keyboard focus, so the bar is
   // remounted with the card open (spotlight) and forgets it once the card
-  // closes.
+  // closes. At the eight-week zoom an hourly conflict is folded into a
+  // count pill with no bar of its own — then Show zooms into that week.
   const [spotlightId, setSpotlightId] = React.useState<string | null>(null);
   const showFirstConflict = () => {
     if (!summary.firstId) return;
-    document.getElementById(`tl-stay-${summary.firstId}`)?.scrollIntoView({ block: "center", inline: "nearest" });
-    setSpotlightId(summary.firstId);
+    const el = document.getElementById(`tl-stay-${summary.firstId}`);
+    if (el) {
+      el.scrollIntoView({ block: "center", inline: "center" });
+      setSpotlightId(summary.firstId);
+      return;
+    }
+    const first = bookings.find((b) => b.id === summary.firstId);
+    if (first) router.push(zoomInHref(dateInZone(new Date(first.startsAt), timeZone), scopeSuffix));
   };
 
   if (offerings.length === 0) {
@@ -179,7 +198,14 @@ export function Timeline({
           </div>
         ) : null}
 
-        <div className="overflow-x-auto">
+        {/* The chart is its own scroller, both ways, capped at the viewport
+            minus the page chrome: the shell's main grows with its content
+            (min-h-full, the document scrolls), and a sticky header only
+            sticks to the nearest scroll container — which an overflow-x
+            wrapper already is. Bounding it is what lets the month strip
+            stay put over a long list of lanes while the rail stays put
+            on the left. */}
+        <div className="max-h-[calc(100dvh-14rem)] min-h-[20rem] overflow-auto">
           <div ref={gridRef} style={{ minWidth: RAIL_PX + days * MIN_CELL_PX[days] }}>
             {/* header: the month strip, then one cell per day. Sticky so the
                 dates stay put while the lanes scroll under them. */}
@@ -285,6 +311,7 @@ export function Timeline({
                         conflicts={conflicts}
                         spotlightId={spotlightId}
                         onSpotlightEnd={() => setSpotlightId(null)}
+                        scopeSuffix={scopeSuffix}
                         onSelect={setSelected}
                         onNew={setNewStay}
                       />

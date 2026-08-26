@@ -9,6 +9,7 @@ import {
   continuationLabels,
   stayPhase,
   stayLengthLabel,
+  stayInWindow,
   hourlyByDay,
   monthBands,
   windowLabel,
@@ -193,6 +194,23 @@ describe("windowLabel", () => {
   it("day-month – day-month year; the year twice only across a year boundary", () => {
     expect(windowLabel("2027-05-01", 28)).toBe("1 May – 28 May 2027");
     expect(windowLabel("2027-12-20", 28)).toBe("20 Dec 2027 – 16 Jan 2028");
+  });
+});
+
+describe("stayInWindow (what the banner may count: only what the chart draws)", () => {
+  it("nights/days: a bar or a turnover tail inside the window; hours: the day itself", () => {
+    // checked out the day before the window, turnover 2 ⇒ the tail's second day is in
+    expect(stayInWindow(stay("a", "2027-04-27", "2027-04-30"), "nights", TZ, 2, W, 28)).toBe(true);
+    // checked out two days before with turnover 1 ⇒ nothing drawn
+    expect(stayInWindow(stay("a", "2027-04-27", "2027-04-29"), "nights", TZ, 1, W, 28)).toBe(false);
+    expect(stayInWindow(stay("a", "2027-05-03", "2027-05-06"), "nights", TZ, 0, W, 28)).toBe(true);
+    expect(stayInWindow(dayStay("a", "2027-06-01", "2027-06-02"), "days", TZ, 0, W, 28)).toBe(false);
+    expect(stayInWindow(hourly("a", "2027-05-03", "10:00", "11:00"), "hours", TZ, 0, W, 28)).toBe(true);
+    expect(stayInWindow(hourly("a", "2027-04-30", "10:00", "11:00"), "hours", TZ, 0, W, 28)).toBe(false);
+  });
+  it("conflictSummary breaks a start-time tie by id, so Show is deterministic", () => {
+    const m = new Map([["b", []], ["a", []]]) as Map<string, never[]>;
+    expect(conflictSummary(m, [stay("b", "2027-05-03", "2027-05-06"), stay("a", "2027-05-03", "2027-05-06")]).firstId).toBe("a");
   });
 });
 
