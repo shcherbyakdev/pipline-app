@@ -235,11 +235,14 @@ export function Timeline({
             </div>
 
             <div className="relative">
-              {/* the today line: through every lane, at the hour it is now */}
+              {/* the today line: through every lane, at the hour it is now.
+                  z-[5]: above the lanes' bars, below the sticky rail (z-20)
+                  so it disappears under the unit names when the chart
+                  scrolls sideways. */}
               {todayIdx >= 0 ? (
                 <div
                   aria-hidden
-                  className="bg-primary pointer-events-none absolute inset-y-0 z-20 w-0.5"
+                  className="bg-primary pointer-events-none absolute inset-y-0 z-[5] w-0.5"
                   style={{ left: `calc(${RAIL_PX}px + (100% - ${RAIL_PX}px) * ${(todayIdx + nowFrac) / days})` }}
                 />
               ) : null}
