@@ -11,10 +11,10 @@ describe("viewSwitcherItems (spec §2 — the same three words from every view)"
   it("drops Timeline when the org has no nights/days space", () => {
     expect(viewSwitcherItems({ current: "list", showTimeline: false }).map((i) => i.label)).toEqual(["Week", "List"]);
   });
-  it("only the week link carries the staff lens", () => {
-    const items = viewSwitcherItems({ current: "week", showTimeline: true, staffQuery: "staff=a,b" });
-    expect(items[0].href).toBe("/bookings?staff=a,b");
+  it("week and list carry the scope; the timeline (spaces by nature) drops it", () => {
+    const items = viewSwitcherItems({ current: "week", showTimeline: true, scopeQuery: "show=spaces" });
+    expect(items[0].href).toBe("/bookings?show=spaces");
     expect(items[1].href).toBe("/bookings?view=timeline");
-    expect(items[2].href).toBe("/bookings?view=list");
+    expect(items[2].href).toBe("/bookings?view=list&show=spaces");
   });
 });
