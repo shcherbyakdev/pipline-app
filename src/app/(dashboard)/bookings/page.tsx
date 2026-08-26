@@ -19,6 +19,7 @@ import { getDashboardFlags } from "@/lib/flags/resolve";
 import { defaultBookingsView, effectiveMode, modeOf } from "@/features/orgs/mode";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ZOOMS, parseDays, shiftDays, timelineStart, windowLabel } from "@/features/rentals/timeline-layout";
+import { bufferWindow } from "@/features/rentals/pan";
 import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/features/scheduling/components/staff-tabs";
 import { BookingsList } from "@/features/scheduling/components/bookings-list";
 import { CalendarWeek } from "@/features/scheduling/components/calendar-week";
@@ -192,7 +193,10 @@ export default async function BookingsPage({
     const { Timeline } = await import("@/features/rentals/components/timeline");
     const days = parseDays(params.days);
     const fromDate = validDate(params.from, timelineStart(today, days));
-    const data = await listTimelineData(fromDate, timeZone, days);
+    // A window either side of the visible one rides along, so dragging the
+    // chart always has real days under the hand (pan.ts bufferWindow).
+    const { bufferFrom, cols } = bufferWindow(fromDate, days);
+    const data = await listTimelineData(bufferFrom, timeZone, cols);
     // The scope's spaces side narrows the lanes. A people-only scope shows
     // every space — a timeline of nobody is no lens.
     const offerings =
@@ -241,6 +245,7 @@ export default async function BookingsPage({
         {toolbar("timeline", activeStaff[0]?.id ?? "", nav)}
         <Timeline
           fromDate={fromDate}
+          bufferFrom={bufferFrom}
           days={days}
           timeZone={timeZone}
           offerings={offerings}

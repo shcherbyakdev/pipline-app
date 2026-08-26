@@ -35,10 +35,13 @@ import { cn } from "@/lib/utils";
    occupied day), amber for a turnover tail running into a check-in. */
 
 export const RAIL_PX = 208;
-/* The rail cells sit inside the grid that a drag translates by `--pan`
-   (use-pan-chart.ts); they translate back by the same amount so the unit
-   names stay put while the days move under the hand. */
-export const RAIL_PAN_CLASS = "[transform:translateX(calc(var(--pan,0px)*-1))]";
+/* The rail cells sit inside the grid that is translated to put the visible
+   window in view (`--base`, set by the chart) and that a drag moves under
+   the hand (`--pan`, use-pan-chart.ts); they translate back by the same
+   amount so the unit names stay put while the days move. */
+export const RAIL_PAN_STYLE: React.CSSProperties = {
+  transform: "translateX(calc(-1 * (var(--base, 0px) + var(--pan, 0px))))",
+};
 const ROW_PX = 44;
 const CHIP_PX = 22;
 const HATCH: React.CSSProperties = {
@@ -81,6 +84,7 @@ export function TimelineLane({
   unit,
   dayList,
   days,
+  zoom,
   fromDate,
   timeZone,
   cellPx,
@@ -97,8 +101,12 @@ export function TimelineLane({
 }: {
   offering: TimelineOffering;
   unit: TimelineOffering["units"][number];
+  /** Every rendered column — the buffer around the visible window. */
   dayList: string[];
-  days: Zoom;
+  days: number;
+  /** The visible window's zoom, which decides chips vs count pills. */
+  zoom: Zoom;
+  /** The first rendered column's date. */
   fromDate: string;
   timeZone: string;
   /** Measured width of one day column, for what a bar can say. */
@@ -135,7 +143,7 @@ export function TimelineLane({
     () => (mode === "hours" ? hourlyByDay(dated, timeZone, fromDate, days) : null),
     [dated, mode, timeZone, fromDate, days],
   );
-  const compact = days === 56;
+  const compact = zoom === 56;
   const maxPerDay = byDay ? Math.max(1, ...[...byDay.values()].map((l) => l.length)) : 1;
   const laneHeight =
     mode === "hours"
@@ -147,8 +155,8 @@ export function TimelineLane({
       {/* rail: z-20 + the track's `isolate`: the name must paint over any
           bar that scrolls under it horizontally. */}
       <div
-        className={cn("bg-background border-border/60 sticky left-0 z-20 flex items-center gap-2 border-b pr-3 pl-6", RAIL_PAN_CLASS)}
-        style={{ minHeight: laneHeight }}
+        className="bg-background border-border/60 sticky left-0 z-20 flex items-center gap-2 border-b pr-3 pl-6"
+        style={{ ...RAIL_PAN_STYLE, minHeight: laneHeight }}
       >
         <span className="truncate text-sm">{unit.name}</span>
         {unit.active ? null : (

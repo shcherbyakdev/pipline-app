@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { panStep, panDays, PAN_THRESHOLD_PX } from "./pan";
+import { panStep, panDays, bufferWindow, visibleOffset, PAN_THRESHOLD_PX } from "./pan";
+
+describe("bufferWindow (a window before and after the visible one, so dragging always has real days under the hand)", () => {
+  it("starts one window early and spans three", () => {
+    expect(bufferWindow("2027-05-15", 14)).toEqual({ bufferFrom: "2027-05-01", cols: 42 });
+    expect(bufferWindow("2027-01-03", 28)).toEqual({ bufferFrom: "2026-12-06", cols: 84 });
+  });
+  it("visibleOffset is where the visible window starts inside the buffer, in columns", () => {
+    expect(visibleOffset("2027-05-01", "2027-05-15")).toBe(14);
+    // after a client-side shift the visible start moves inside the buffer
+    expect(visibleOffset("2027-05-01", "2027-05-18")).toBe(17);
+    expect(visibleOffset("2027-05-01", "2027-04-28")).toBe(-3);
+  });
+});
 
 describe("panDays (a release moves the window by the whole days dragged)", () => {
   it("dragging left (negative dx) moves forward in time, to the nearest day", () => {

@@ -7,10 +7,9 @@ import { PAN_THRESHOLD_PX, panDays, panStep, type PanStart } from "@/features/re
    chart follows the hand (a translate driven by the `--pan` CSS variable
    on the scroller — the sticky rail counter-translates so unit names stay
    put) and on release the window shifts by the whole days dragged
-   (pan.ts panDays → `onShift`); the translate is cleared once the new
-   window has rendered (`reset`, called by the chart when `fromDate`
-   changes — plus a timeout in case the shift landed on the same window).
-   Vertically it just scrolls the lanes.
+   (pan.ts panDays → `onShift`); the chart clears the translate itself in
+   a layout effect the moment the shifted window paints (`reset`), so the
+   days under the hand never jump. Vertically it just scrolls the lanes.
 
    Mouse (and pen) only — touch already scrolls natively, and handling it
    twice would fight the browser. A press is not a drag until the pointer
@@ -27,14 +26,9 @@ export function usePanChart<T extends HTMLElement>(
   // Whether the press in progress (or just released) turned into a drag —
   // read by the click suppressor, reset by the next press.
   const draggedRef = React.useRef(false);
-  const resetTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [dragging, setDragging] = React.useState(false);
 
   const reset = React.useCallback(() => {
-    if (resetTimer.current) {
-      clearTimeout(resetTimer.current);
-      resetTimer.current = null;
-    }
     ref.current?.style.setProperty("--pan", "0px");
   }, [ref]);
 
@@ -79,14 +73,8 @@ export function usePanChart<T extends HTMLElement>(
       // Already released.
     }
     const days = panDays(start.lastX - start.x, cellPx);
-    if (days === 0) {
-      reset();
-      return;
-    }
-    onShift(days);
-    // The chart resets when the new window renders; if the shift landed on
-    // the same window (a clamped date), this stops the chart hanging mid-air.
-    resetTimer.current = setTimeout(reset, 2000);
+    if (days === 0) reset();
+    else onShift(days);
   };
 
   // The click that follows a drag's release must not book a cell, open a

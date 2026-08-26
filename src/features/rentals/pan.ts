@@ -4,6 +4,9 @@
 // lanes. A press only becomes a drag once the pointer has moved this far,
 // so a click that jitters a pixel or two still lands on the cell or bar
 // under it.
+import { addDaysISO } from "@/features/scheduling/slots";
+import { daysBetween } from "./range";
+
 export const PAN_THRESHOLD_PX = 4;
 
 /** How many days a horizontal drag of `dx` pixels moves the window, to the
@@ -12,6 +15,21 @@ export const PAN_THRESHOLD_PX = 4;
 export function panDays(dx: number, cellPx: number): number {
   if (cellPx <= 0) return 0;
   return Math.round(-dx / cellPx);
+}
+
+/** What the page fetches and the chart renders: the visible window with a
+    whole window before and after it, so a drag always has real days under
+    the hand and a release within a window's reach needs no server before
+    it can show the new window. */
+export function bufferWindow(from: string, days: number): { bufferFrom: string; cols: number } {
+  return { bufferFrom: addDaysISO(from, -days), cols: days * 3 };
+}
+
+/** Where the visible window starts inside the buffer, in columns — `days`
+    when the buffer is centred, drifting as client-side shifts move the
+    visible start before the server recentres the buffer. */
+export function visibleOffset(bufferFrom: string, from: string): number {
+  return daysBetween(bufferFrom, from);
 }
 
 export type PanStart = { x: number; y: number; left: number; top: number };

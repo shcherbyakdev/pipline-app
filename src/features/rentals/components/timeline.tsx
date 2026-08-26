@@ -15,6 +15,7 @@ import {
   type Conflict,
   type Zoom,
 } from "@/features/rentals/timeline-layout";
+import { visibleOffset } from "@/features/rentals/pan";
 import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import { zonedParts } from "@/features/scheduling/calendar-geometry";
 import { BookingDetailDialog } from "@/features/scheduling/components/booking-detail-dialog";
@@ -25,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SPACES } from "@/features/orgs/vocab";
-import { TimelineLane, MODE_LABEL, RAIL_PX, RAIL_PAN_CLASS, isWeekend, zoomInHref, type NewStay } from "./timeline-lane";
+import { TimelineLane, MODE_LABEL, RAIL_PX, RAIL_PAN_STYLE, isWeekend, zoomInHref, type NewStay } from "./timeline-lane";
 import { usePanChart } from "./use-pan-chart";
 
 /* The tape chart: every space, one lane per unit, one column per day.
@@ -34,15 +35,24 @@ import { usePanChart } from "./use-pan-chart";
    hotel handover baked in, hourly rooms as chips, and anything in conflict
    ringed and counted at the top. The window and zoom live on the URL; the
    page's toolbar owns the arrows, Today and the zoom, this component owns
-   everything under them. */
+   everything under them.
+
+   It moves like a map. The page sends three windows' worth of days (the
+   buffer — pan.ts bufferWindow); the chart renders them all and translates
+   the grid so the visible window sits in view (`--base`). A drag adds
+   `--pan` under the hand, so real days scroll in from either side, and the
+   release shifts the visible start in CLIENT state at once — the URL and
+   the server follow in a transition, and when the server's answer lands
+   it is the same window recentred in a fresh buffer, so nothing jumps. */
 
 const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-// The narrowest a day column may get per zoom — below it the chart scrolls
-// sideways rather than squeezing bars into unreadable slivers.
-const MIN_CELL_PX: Record<Zoom, number> = { 14: 56, 28: 32, 56: 16 };
+// A day column never gets narrower than this; below it the visible window
+// overflows (clipped) rather than turning into unreadable slivers.
+const MIN_CELL_PX = 14;
 
 export function Timeline({
   fromDate,
+  bufferFrom,
   days,
   timeZone,
   offerings,
@@ -51,7 +61,10 @@ export function Timeline({
   scopeSuffix,
   hrefBase,
 }: {
+  /** The visible window's start, from the URL. */
   fromDate: string;
+  /** The first day the page fetched — one window before `fromDate`. */
+  bufferFrom: string;
   days: Zoom;
   timeZone: string;
   offerings: TimelineOffering[];
@@ -64,9 +77,23 @@ export function Timeline({
   hrefBase: string;
 }) {
   const router = useRouter();
-  const dayList = React.useMemo(() => windowDays(fromDate, days), [fromDate, days]);
-  const bands = React.useMemo(() => monthBands(dayList), [dayList]);
-  const columns = `${RAIL_PX}px repeat(${days}, minmax(0, 1fr))`;
+  const [, startTransition] = React.useTransition();
+
+  // The visible start is client state so a drag can move it at once; it
+  // resyncs whenever the server sends a new one (arrows, Today, zoom, or
+  // the recentring that follows a drag).
+  const [from, setFrom] = React.useState(fromDate);
+  const [seenFromDate, setSeenFromDate] = React.useState(fromDate);
+  if (fromDate !== seenFromDate) {
+    setSeenFromDate(fromDate);
+    setFrom(fromDate);
+  }
+
+  const cols = days * 3;
+  const bufferDays = React.useMemo(() => windowDays(bufferFrom, cols), [bufferFrom, cols]);
+  const bands = React.useMemo(() => monthBands(bufferDays), [bufferDays]);
+  const visIdx = visibleOffset(bufferFrom, from);
+  const columns = `${RAIL_PX}px repeat(${cols}, minmax(0, 1fr))`;
 
   // The clock, seeded in an effect so the server and first client render
   // agree (CalendarWeek idiom); re-read every minute for the today line.
@@ -81,36 +108,40 @@ export function Timeline({
     };
   }, []);
   const today = now === null ? null : dateInZone(now, timeZone);
-  const todayIdx = today === null ? -1 : dayList.indexOf(today);
+  const todayIdx = today === null ? -1 : bufferDays.indexOf(today);
   const nowFrac = now === null ? 0 : zonedParts(now, timeZone).minutes / 1440;
 
-  // How wide a day column really is decides what a bar can say — and how
-  // many days a drag has moved.
-  const gridRef = React.useRef<HTMLDivElement>(null);
-  const [cellPx, setCellPx] = React.useState(MIN_CELL_PX[days]);
+  // A day column is the visible width over the zoom — it decides what a bar
+  // can say and how many days a drag has moved.
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [cellPx, setCellPx] = React.useState(40);
   React.useEffect(() => {
-    const el = gridRef.current;
+    const el = scrollRef.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? 0;
-      if (width > 0) setCellPx((width - RAIL_PX) / days);
+      if (width > 0) setCellPx(Math.max(MIN_CELL_PX, (width - RAIL_PX) / days));
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, [days]);
+  const gridWidth = RAIL_PX + cols * cellPx;
 
-  // Grab the chart and drag it through time (use-pan-chart.ts): on release
-  // the window shifts by the days dragged; the translate clears once the
-  // new window is on screen.
-  const scrollRef = React.useRef<HTMLDivElement>(null);
+  // Grab the chart and drag it through time (use-pan-chart.ts).
   const pan = usePanChart(scrollRef, {
     cellPx,
-    onShift: (shift) => router.replace(`${hrefBase}&from=${addDaysISO(fromDate, shift)}`, { scroll: false }),
+    onShift: (shift) => {
+      const next = addDaysISO(from, shift);
+      setFrom(next);
+      startTransition(() => router.replace(`${hrefBase}&from=${next}`, { scroll: false }));
+    },
   });
+  // The shifted window paints with a new `--base`; the drag's `--pan` goes
+  // in the same frame, so the days under the hand stay exactly where they are.
   const resetPan = pan.reset;
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     resetPan();
-  }, [fromDate, resetPan]);
+  }, [from, resetPan]);
 
   const [selected, setSelected] = React.useState<AdminBooking | null>(null);
   // null = closed. Opening always mounts a fresh dialog, which is how the
@@ -139,8 +170,9 @@ export function Timeline({
 
   // Conflicts are a per-unit question, detected over every stay the fetch
   // returned (a turnover clash needs the earlier stay even when it checked
-  // out before the window) but counted only for stays the chart draws —
-  // the banner says "in this window" and Show must have something to show.
+  // out before the window) but counted only for stays the VISIBLE window
+  // draws — the banner says "in this window" and Show must have something
+  // to show.
   const { conflicts, perOffering } = React.useMemo(() => {
     const merged = new Map<string, Conflict[]>();
     const perOffering = new Map<string, number>();
@@ -156,7 +188,7 @@ export function Timeline({
         const found = detectConflicts(stays, blackoutsByUnit.get(u.id) ?? [], o.rangeMode, o.turnoverDays, timeZone);
         for (const s of stays) {
           const list = found.get(s.id);
-          if (!list || !stayInWindow(s, o.rangeMode, timeZone, o.turnoverDays, fromDate, days)) continue;
+          if (!list || !stayInWindow(s, o.rangeMode, timeZone, o.turnoverDays, from, days)) continue;
           merged.set(s.id, list);
           count += 1;
         }
@@ -164,22 +196,25 @@ export function Timeline({
       perOffering.set(o.id, count);
     }
     return { conflicts: merged, perOffering };
-  }, [offerings, staysByUnit, blackoutsByUnit, timeZone, fromDate, days]);
+  }, [offerings, staysByUnit, blackoutsByUnit, timeZone, from, days]);
   const summary = React.useMemo(
     () => conflictSummary(conflicts, bookings.map((b) => ({ id: b.id, startsAt: new Date(b.startsAt) }))),
     [conflicts, bookings],
   );
-  // The banner's Show: scroll the first conflict into view and open its
+  // The banner's Show: bring the first conflict into view and open its
   // card. A tooltip only opens itself on keyboard focus, so the bar is
   // remounted with the card open (spotlight) and forgets it once the card
-  // closes. At the eight-week zoom an hourly conflict is folded into a
-  // count pill with no bar of its own — then Show zooms into that week.
+  // closes. Vertical scroll only — the chart's horizontal position is the
+  // translate, and the bar is in the visible window by construction. At
+  // the eight-week zoom an hourly conflict is folded into a count pill with
+  // no bar of its own — then Show zooms into that week.
   const [spotlightId, setSpotlightId] = React.useState<string | null>(null);
   const showFirstConflict = () => {
     if (!summary.firstId) return;
     const el = document.getElementById(`tl-stay-${summary.firstId}`);
-    if (el) {
-      el.scrollIntoView({ block: "center", inline: "center" });
+    const box = scrollRef.current;
+    if (el && box) {
+      box.scrollTop += el.getBoundingClientRect().top - box.getBoundingClientRect().top - box.clientHeight / 2;
       setSpotlightId(summary.firstId);
       return;
     }
@@ -217,34 +252,33 @@ export function Timeline({
           </div>
         ) : null}
 
-        {/* The chart is its own scroller, both ways, capped at the viewport
-            minus the page chrome: the shell's main grows with its content
-            (min-h-full, the document scrolls), and a sticky header only
-            sticks to the nearest scroll container — which an overflow-x
-            wrapper already is. Bounding it is what lets the month strip
-            stay put over a long list of lanes while the rail stays put
-            on the left. Dragging it (mouse) moves through time: the grid
-            translates by `--pan` while the hand is down (the rail cells
-            counter-translate and stay put), and the release shifts the
-            window. */}
+        {/* The chart is its own scroller, vertically, capped at the viewport
+            minus the page chrome (the shell's main grows with its content,
+            so a sticky header needs a bounded scroll container of its own);
+            sideways it is clipped — the position is the translate, never a
+            scrollbar. `--base` puts the visible window in view; `--pan` is
+            the drag in progress; the rail cells undo both and stay put. */}
         <div
           ref={scrollRef}
           {...pan.handlers}
+          style={{ "--base": `${-visIdx * cellPx}px` } as React.CSSProperties}
           className={cn(
-            "max-h-[calc(100dvh-14rem)] min-h-[20rem] overflow-auto",
-            pan.dragging && "cursor-grabbing select-none **:cursor-grabbing",
+            "max-h-[calc(100dvh-14rem)] min-h-[20rem] overflow-x-hidden overflow-y-auto",
+            // While dragging: closed hand, no selection, and nothing under
+            // the moving pointer reacts (no hover cards popping mid-drag —
+            // the container itself still gets the captured events).
+            pan.dragging && "cursor-grabbing select-none **:pointer-events-none **:cursor-grabbing",
           )}
         >
           <div
-            ref={gridRef}
-            className="[transform:translateX(var(--pan,0px))]"
-            style={{ minWidth: RAIL_PX + days * MIN_CELL_PX[days] }}
+            className="will-change-transform"
+            style={{ width: gridWidth, transform: "translateX(calc(var(--base, 0px) + var(--pan, 0px)))" }}
           >
             {/* header: the month strip, then one cell per day. Sticky so the
                 dates stay put while the lanes scroll under them. */}
             <div className="bg-background sticky top-0 z-30">
               <div className="grid" style={{ gridTemplateColumns: columns }}>
-                <div className={cn("bg-background sticky left-0 z-30", RAIL_PAN_CLASS)} />
+                <div className="bg-background sticky left-0 z-30" style={RAIL_PAN_STYLE} />
                 {bands.map((band) => (
                   <div
                     key={band.label}
@@ -256,13 +290,13 @@ export function Timeline({
                 ))}
               </div>
               <div className="border-border grid border-b" style={{ gridTemplateColumns: columns }}>
-                <div className={cn("bg-background sticky left-0 z-30", RAIL_PAN_CLASS)} />
-                {dayList.map((d) => {
+                <div className="bg-background sticky left-0 z-30" style={RAIL_PAN_STYLE} />
+                {bufferDays.map((d) => {
                   const isToday = today === d;
                   // A narrow column (the 4- and 8-week zooms) keeps the
                   // number and drops the weekday; weekends stay legible by
                   // their tint. min-w-0 + overflow-hidden so a label can
-                  // never widen the chart into a scrollbar.
+                  // never widen the chart.
                   const showWeekday = cellPx >= 44;
                   return (
                     <div key={d} className="flex min-w-0 items-end justify-center overflow-hidden pb-1">
@@ -295,14 +329,12 @@ export function Timeline({
 
             <div className="relative">
               {/* the today line: through every lane, at the hour it is now.
-                  z-[5]: above the lanes' bars, below the sticky rail (z-20)
-                  so it disappears under the unit names when the chart
-                  scrolls sideways. */}
+                  z-[5]: above the lanes' bars, below the sticky rail (z-20). */}
               {todayIdx >= 0 ? (
                 <div
                   aria-hidden
                   className="bg-primary pointer-events-none absolute inset-y-0 z-[5] w-0.5"
-                  style={{ left: `calc(${RAIL_PX}px + (100% - ${RAIL_PX}px) * ${(todayIdx + nowFrac) / days})` }}
+                  style={{ left: `calc(${RAIL_PX}px + (100% - ${RAIL_PX}px) * ${(todayIdx + nowFrac) / cols})` }}
                 />
               ) : null}
               {offerings.map((offering) => {
@@ -313,7 +345,10 @@ export function Timeline({
                       {/* padding inside the sticky box, so the rail backs the
                           whole row and the today line never shows through
                           the gaps above and below the space's name */}
-                      <div className={cn("bg-background sticky left-0 z-20 flex w-fit items-center gap-2 pt-3 pr-3 pb-1", RAIL_PAN_CLASS)}>
+                      <div
+                        className="bg-background sticky left-0 z-20 flex w-fit items-center gap-2 pt-3 pr-3 pb-1"
+                        style={RAIL_PAN_STYLE}
+                      >
                         <span className="text-sm font-medium">{offering.name}</span>
                         <Badge variant="outline">{MODE_LABEL[offering.rangeMode]}</Badge>
                         <span className="text-muted-foreground text-xs">
@@ -332,9 +367,10 @@ export function Timeline({
                         key={unit.id}
                         offering={offering}
                         unit={unit}
-                        dayList={dayList}
-                        days={days}
-                        fromDate={fromDate}
+                        dayList={bufferDays}
+                        days={cols}
+                        zoom={days}
+                        fromDate={bufferFrom}
                         timeZone={timeZone}
                         cellPx={cellPx}
                         today={today}
