@@ -120,7 +120,6 @@ export default async function BookingsPage({
       scope={scope}
       people={people.map((p) => ({ id: p.id, name: p.name, color: p.color }))}
       spaces={spaces.map((s) => ({ id: s.id, name: s.name, rangeMode: s.rangeMode }))}
-      label={scopeLabel(scope, people, spaces)}
     />
   ) : null;
   // When only spaces show, their space is what New booking starts on —
@@ -244,7 +243,7 @@ export default async function BookingsPage({
   // (scopeHoursOwners): one ⇒ exactly their hours (the solo org is always
   // this case); several ⇒ the union, where an open tile means "someone is
   // open".
-  const owners = scopeHoursOwners(scope, activeStaff, spaces);
+  const owners = scopeHoursOwners(scope, activeStaff, people, spaces);
   const [rawBookings, exceptions, availability] = await Promise.all([
     // Fetched UNFILTERED and narrowed in memory — one org-week of rows.
     listConfirmedBookingsBetween(fromIso, toIso),

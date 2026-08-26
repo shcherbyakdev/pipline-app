@@ -251,23 +251,23 @@ describe("applyScope (one org-week of rows, narrowed in memory)", () => {
 describe("scopeHoursOwners (whose hours hatch the week)", () => {
   const staff = [anna, ben];
   it("all and every-person scopes ⇒ every active member, as today", () => {
-    expect(scopeHoursOwners(ALL, staff, spaces)).toEqual([{ staffId: anna.id }, { staffId: ben.id }]);
-    expect(scopeHoursOwners(some("all", []), staff, spaces)).toEqual([{ staffId: anna.id }, { staffId: ben.id }]);
+    expect(scopeHoursOwners(ALL, staff, staff, spaces)).toEqual([{ staffId: anna.id }, { staffId: ben.id }]);
+    expect(scopeHoursOwners(some("all", []), staff, staff, spaces)).toEqual([{ staffId: anna.id }, { staffId: ben.id }]);
   });
   it("some people ⇒ just them; with spaces ⇒ them plus the hourly spaces", () => {
-    expect(scopeHoursOwners(some([ben.id], []), staff, spaces)).toEqual([{ staffId: ben.id }]);
-    expect(scopeHoursOwners(some([ben.id], "all"), staff, spaces)).toEqual([
+    expect(scopeHoursOwners(some([ben.id], []), staff, staff, spaces)).toEqual([{ staffId: ben.id }]);
+    expect(scopeHoursOwners(some([ben.id], "all"), staff, staff, spaces)).toEqual([
       { staffId: ben.id },
       { rentalOfferingId: studio.id },
     ]);
   });
   it("spaces alone ⇒ the hourly ones; one hourly space ⇒ it alone", () => {
-    expect(scopeHoursOwners(some([], "all"), staff, spaces)).toEqual([{ rentalOfferingId: studio.id }]);
-    expect(scopeHoursOwners(some([], [studio.id]), staff, spaces)).toEqual([{ rentalOfferingId: studio.id }]);
+    expect(scopeHoursOwners(some([], "all"), staff, staff, spaces)).toEqual([{ rentalOfferingId: studio.id }]);
+    expect(scopeHoursOwners(some([], [studio.id]), staff, staff, spaces)).toEqual([{ rentalOfferingId: studio.id }]);
   });
   it("a nights/days-only scope has no clock hours ⇒ the members' hours, as a rentals-only week draws today", () => {
-    expect(scopeHoursOwners(some([], [flat.id]), staff, spaces)).toEqual([{ staffId: anna.id }, { staffId: ben.id }]);
-    expect(scopeHoursOwners(some([], "all"), staff, [flat])).toEqual([{ staffId: anna.id }, { staffId: ben.id }]);
+    expect(scopeHoursOwners(some([], [flat.id]), staff, staff, spaces)).toEqual([{ staffId: anna.id }, { staffId: ben.id }]);
+    expect(scopeHoursOwners(some([], "all"), staff, staff, [flat])).toEqual([{ staffId: anna.id }, { staffId: ben.id }]);
   });
 });
 
@@ -285,5 +285,34 @@ describe("scopedSpace (what New booking starts on when only spaces show)", () =>
     expect(scopedSpace(ALL, people, spaces)).toBeNull();
     expect(scopedSpace(some("all", []), people, spaces)).toBeNull();
     expect(scopedSpace(some([anna.id], [studio.id]), people, spaces)).toBeNull();
+  });
+});
+
+describe("review follow-ups (shapes the demo org cannot exercise)", () => {
+  it("a rentals-only org's hourly-space scope draws the room's hours, not the hidden staff row's too", () => {
+    // people = [] (the org sells no appointments) makes the people side vacuously "all"
+    const scope = parseScope({ show: `space:${studio.id}` }, [], spaces);
+    expect(scope).toEqual(some("all", [studio.id]));
+    expect(scopeHoursOwners(scope, [anna], [], spaces)).toEqual([{ rentalOfferingId: studio.id }]);
+    // a nights-only pick there still falls back to the members' hours
+    expect(scopeHoursOwners(some("all", [flat.id]), [anna], [], spaces)).toEqual([{ staffId: anna.id }]);
+  });
+  it("a sole space reads by its name on the trigger, as it does on the menu", () => {
+    const scope = parseScope({ show: `space:${studio.id}` }, [anna], [studio]);
+    expect(scope).toEqual(some([], "all"));
+    expect(scopeLabel(scope, [anna], [studio])).toBe("Studio A");
+    // people deliberately stay the kind (U3: the sole person stays nameless)
+    expect(scopeLabel(some("all", []), [anna], [studio])).toBe("Appointments");
+  });
+  it("an item naming nobody listed changes nothing", () => {
+    const stray = { key: "staff:zzz", label: "Zed", kind: "staff" as const, id: "zzz" };
+    expect(toggleScopeItem(ALL, stray, [anna], spaces)).toEqual(ALL);
+    expect(toggleScopeItem(some([anna.id], []), stray, people, spaces)).toEqual(some([anna.id], []));
+  });
+  it("tokens are trimmed", () => {
+    expect(parseScope({ show: "appointments, spaces" }, people, spaces)).toEqual(ALL);
+    expect(parseScope({ show: ` staff:${anna.id} , space:${flat.id} ` }, people, spaces)).toEqual(
+      some([anna.id], [flat.id]),
+    );
   });
 });

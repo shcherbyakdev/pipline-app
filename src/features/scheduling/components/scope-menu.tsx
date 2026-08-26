@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, CheckIcon } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { House01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
@@ -11,13 +11,13 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   scopeItemChecked,
+  scopeLabel,
   scopeValue,
   toggleScopeItem,
   type PersonLike,
@@ -31,51 +31,58 @@ import {
    grouped by kind (Acuity's "All calendars", Fresha's "Team"), replacing
    the people-only chip row, and it multi-selects: tick any mix of people
    and spaces, the menu stays open (Base UI checkbox items), the week
-   behind it updates live. "All bookings" is the one plain item — it resets
-   and closes. Writes `?show=` — navigation, not component state, so the
-   lens survives a refresh, a week arrow and a share.
+   behind it updates live. "All bookings" is the one item that closes — it
+   resets. Writes `?show=` — navigation, not component state, so the lens
+   survives a refresh, a week arrow and a share.
+
+   The ticks are optimistic (useOptimistic over the server's `scope`): a
+   tick shows at once and the next tick builds on it, so two quick ticks
+   are two ticks, not the second replacing the first while the first's
+   navigation is still in flight. When the navigation commits, the
+   server's scope takes over again — same value, by construction.
 
    `router.replace`, not `push`: narrowing the calendar is a view setting,
    not a place in history — Back should leave the page, not walk through
-   every tick the provider made. The page renders this only when the org
-   has something to choose (bookings-scope.ts scopeItems). */
+   every tick the provider made; `scroll: false` for the same reason. The
+   page renders this only when the org has something to choose
+   (bookings-scope.ts scopeItems). */
 export function ScopeMenu({
   groups,
   scope,
   people,
   spaces,
-  label,
 }: {
   groups: ScopeGroup[];
   scope: Scope;
   people: PersonLike[];
   spaces: SpaceLike[];
-  /** What the trigger reads — scopeLabel. */
-  label: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [shown, setShown] = React.useOptimistic(scope);
+  const [, startTransition] = React.useTransition();
   const items = groups.flatMap((g) => g.items);
+  const label = scopeLabel(shown, people, spaces);
   // One named thing ticked ⇒ its mark on the trigger; a group or several ⇒ none.
-  const ticked = items.filter((i) => i.kind !== "all" && scopeItemChecked(scope, i));
+  const ticked = items.filter((i) => i.kind !== "all" && scopeItemChecked(shown, i));
   const mark = ticked.length === 1 ? ticked[0] : undefined;
 
-  const go = React.useCallback(
-    (next: Scope) => {
-      const qs = new URLSearchParams(searchParams);
-      // Everything else on the URL (`week`, `view`) is someone else's
-      // setting; the pre-selector `staff=` is superseded by `show=`.
-      qs.delete("staff");
-      const value = scopeValue(next, people, spaces);
-      if (value) qs.set("show", value);
-      else qs.delete("show");
-      const s = qs.toString();
-      router.replace(s ? `${pathname}?${s}` : pathname);
-    },
-    [pathname, router, searchParams, people, spaces],
-  );
-  const toggle = (item: ScopeItem) => go(toggleScopeItem(scope, item, people, spaces));
+  const toggle = (item: ScopeItem) => {
+    const next = toggleScopeItem(shown, item, people, spaces);
+    const qs = new URLSearchParams(searchParams);
+    // Everything else on the URL (`week`, `view`) is someone else's
+    // setting; the pre-selector `staff=` is superseded by `show=`.
+    qs.delete("staff");
+    const value = scopeValue(next, people, spaces);
+    if (value) qs.set("show", value);
+    else qs.delete("show");
+    const s = qs.toString();
+    startTransition(() => {
+      setShown(next);
+      router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
+    });
+  };
 
   return (
     <DropdownMenu>
@@ -95,25 +102,19 @@ export function ScopeMenu({
             {gi > 0 ? <DropdownMenuSeparator /> : null}
             <DropdownMenuGroup>
               {group.label ? <DropdownMenuLabel>{group.label}</DropdownMenuLabel> : null}
-              {group.items.map((item) =>
-                item.kind === "all" ? (
-                  <DropdownMenuItem key={item.key} onClick={() => toggle(item)} className="pr-8">
-                    {item.label}
-                    {scope.kind === "all" ? (
-                      <CheckIcon className="pointer-events-none absolute right-2" aria-hidden />
-                    ) : null}
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuCheckboxItem
-                    key={item.key}
-                    checked={scopeItemChecked(scope, item)}
-                    onCheckedChange={() => toggle(item)}
-                  >
-                    <Mark item={item} />
-                    {item.label}
-                  </DropdownMenuCheckboxItem>
-                ),
-              )}
+              {group.items.map((item) => (
+                <DropdownMenuCheckboxItem
+                  key={item.key}
+                  checked={scopeItemChecked(shown, item)}
+                  onCheckedChange={() => toggle(item)}
+                  // "All bookings" is the reset: it always ends checked, and
+                  // it is the one tick that closes the menu.
+                  closeOnClick={item.kind === "all"}
+                >
+                  <Mark item={item} />
+                  {item.label}
+                </DropdownMenuCheckboxItem>
+              ))}
             </DropdownMenuGroup>
           </React.Fragment>
         ))}

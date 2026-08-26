@@ -35,11 +35,16 @@ function normalise(
   people: readonly { id: string }[],
   spaces: readonly { id: string }[],
 ): Scope {
-  if (peopleSel.size === 0 && spacesSel.size === 0) return ALL;
-  const side = (sel: ReadonlySet<string>, listed: readonly { id: string }[]): "all" | string[] =>
-    sel.size === listed.length ? "all" : listed.filter((x) => sel.has(x.id)).map((x) => x.id);
+  // Only listed ids count, in the list's order — the seam never trusts an id
+  // it was not handed (a stray token, an item for someone since deactivated).
+  const side = (sel: ReadonlySet<string>, listed: readonly { id: string }[]): "all" | string[] => {
+    const ids = listed.filter((x) => sel.has(x.id)).map((x) => x.id);
+    return ids.length === listed.length ? "all" : ids;
+  };
   const p = side(peopleSel, people);
   const s = side(spacesSel, spaces);
+  const empty = (x: "all" | string[], listed: readonly unknown[]) => (x === "all" ? listed.length === 0 : x.length === 0);
+  if (empty(p, people) && empty(s, spaces)) return ALL;
   return p === "all" && s === "all" ? ALL : { kind: "some", people: p, spaces: s };
 }
 
@@ -59,7 +64,7 @@ export function parseScope(
   const person = (id: string) => people.some((p) => p.id === id);
   const space = (id: string) => spaces.some((s) => s.id === id);
   if (params.show) {
-    for (const token of params.show.split(",")) {
+    for (const token of params.show.split(",").map((t) => t.trim())) {
       if (token === "appointments") people.forEach((p) => peopleSel.add(p.id));
       else if (token === "spaces") spaces.forEach((s) => spacesSel.add(s.id));
       else if (token.startsWith("staff:") && person(token.slice(6))) peopleSel.add(token.slice(6));
@@ -114,7 +119,9 @@ export function scopeSides(
   return { people: has(scope.people, people), spaces: has(scope.spaces, spaces) };
 }
 
-/** The names a scope selects — a whole group is one name. */
+/** The names a scope selects — a whole group is one name, except that a
+    sole space keeps its own (it is listed by name on the menu); a sole
+    person stays the kind (U3: the sole person stays nameless). */
 function scopeNames(scope: Scope, people: readonly PersonLike[], spaces: readonly SpaceLike[]): string[] {
   if (scope.kind === "all") return [];
   const names: string[] = [];
@@ -122,7 +129,8 @@ function scopeNames(scope: Scope, people: readonly PersonLike[], spaces: readonl
     if (people.length > 0) names.push(APPOINTMENTS.scope.group);
   } else names.push(...people.filter((p) => scope.people.includes(p.id)).map((p) => p.name));
   if (scope.spaces === "all") {
-    if (spaces.length > 0) names.push(SPACES.scope.group);
+    if (spaces.length === 1) names.push(spaces[0].name);
+    else if (spaces.length > 1) names.push(SPACES.scope.group);
   } else names.push(...spaces.filter((s) => scope.spaces.includes(s.id)).map((s) => s.name));
   return names;
 }
@@ -139,19 +147,22 @@ export function scopeLabel(
   return `${names.length} selected`;
 }
 
-export type ScopeItem = {
+type ScopeItemBase = {
   /** Stable key for React and the tests. */
   key: string;
   label: string;
-  /** What ticking it does: reset, tick a whole group, or one member. */
-  kind: "all" | "appointments" | "spaces" | "staff" | "space";
-  /** The member's id for "staff" / "space". */
-  id?: string;
   /** A person's colour dot. */
   color?: string;
   /** Marked with the house icon. */
   space?: true;
 };
+/** What ticking an item does: reset, tick a whole group, or one member.
+    One member per group kind so `kind` narrows all the way to the id. */
+export type ScopeItem =
+  | (ScopeItemBase & { kind: "all"; id?: undefined })
+  | (ScopeItemBase & { kind: "appointments"; id?: undefined })
+  | (ScopeItemBase & { kind: "spaces"; id?: undefined })
+  | (ScopeItemBase & { kind: "staff" | "space"; id: string });
 export type ScopeGroup = { label: string | null; items: ScopeItem[] };
 
 /** The menu, per org shape (the solo rule, generalised): a group's
@@ -195,9 +206,10 @@ export function scopeItems(
 export function scopeItemChecked(scope: Scope, item: ScopeItem): boolean {
   if (item.kind === "all") return scope.kind === "all";
   if (scope.kind === "all") return false;
-  const side = item.kind === "appointments" || item.kind === "staff" ? scope.people : scope.spaces;
-  if (item.kind === "appointments" || item.kind === "spaces") return side === "all";
-  return side === "all" || side.includes(item.id!);
+  if (item.kind === "appointments") return scope.people === "all";
+  if (item.kind === "spaces") return scope.spaces === "all";
+  const side = item.kind === "staff" ? scope.people : scope.spaces;
+  return side === "all" || side.includes(item.id);
 }
 
 /** The scope after ticking an item. "All bookings" resets; a group entry
@@ -216,14 +228,15 @@ export function toggleScopeItem(
     new Set(side === "all" ? listed.map((x) => x.id) : side);
   const peopleSel = scope.kind === "all" ? new Set<string>() : expand(scope.people, people);
   const spacesSel = scope.kind === "all" ? new Set<string>() : expand(scope.spaces, spaces);
-  const onPeople = item.kind === "appointments" || item.kind === "staff";
-  const sel = onPeople ? peopleSel : spacesSel;
-  const listed = onPeople ? people : spaces;
   if (item.kind === "appointments" || item.kind === "spaces") {
+    const sel = item.kind === "appointments" ? peopleSel : spacesSel;
     if (scopeItemChecked(scope, item)) sel.clear();
-    else listed.forEach((x) => sel.add(x.id));
-  } else if (sel.has(item.id!)) sel.delete(item.id!);
-  else sel.add(item.id!);
+    else (item.kind === "appointments" ? people : spaces).forEach((x) => sel.add(x.id));
+  } else {
+    const sel = item.kind === "staff" ? peopleSel : spacesSel;
+    if (sel.has(item.id)) sel.delete(item.id);
+    else sel.add(item.id);
+  }
   return normalise(peopleSel, spacesSel, people, spaces);
 }
 
@@ -246,16 +259,23 @@ const isHourly = (s: SpaceLike) => s.rangeMode === "hours";
     for `all`, as today) plus its HOURLY spaces — a nights/days stay has no
     clock hours, so a scope with no owner at all falls back to the members'
     hours, which is what a rentals-only week has always drawn. `staff` is
-    every active member, whatever the org sells. */
+    every active member, whatever the org sells; `people` only those on the
+    menu, so a rentals-only org's vacuous people side adds nobody and its
+    room's week is hatched by the room alone. */
 export function scopeHoursOwners(
   scope: Scope,
   staff: readonly { id: string }[],
+  people: readonly { id: string }[],
   spaces: readonly SpaceLike[],
 ): AvailabilityOwner[] {
   const everyone = (): AvailabilityOwner[] => staff.map((s) => ({ staffId: s.id }));
   if (scope.kind === "all") return everyone();
   const owners: AvailabilityOwner[] =
-    scope.people === "all" ? everyone() : scope.people.map((staffId) => ({ staffId }));
+    scope.people === "all"
+      ? people.length > 0
+        ? everyone()
+        : []
+      : scope.people.map((staffId) => ({ staffId }));
   for (const s of spaces) {
     if (isHourly(s) && (scope.spaces === "all" || scope.spaces.includes(s.id))) {
       owners.push({ rentalOfferingId: s.id });

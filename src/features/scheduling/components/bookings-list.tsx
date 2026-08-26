@@ -217,7 +217,9 @@ export function BookingsList({
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">Past &amp; cancelled</h2>
         {past.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nothing here yet.</p>
+          <p className="text-muted-foreground text-sm">
+            {scopeLabel !== null ? `Nothing here yet for ${scopeLabel}.` : "Nothing here yet."}
+          </p>
         ) : (
           <ol className="flex flex-col gap-2">
             {past.map((b) => (
