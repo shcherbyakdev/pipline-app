@@ -247,13 +247,11 @@ export async function listTimelineData(
     .order("sort_order")
     .order("name");
   if (offeringsError) throw offeringsError;
-  // Timeline: hourly offerings do not appear (spec) — it's a date-range grid
-  // (Gantt-style, one column per day), and an hourly offering has no bar to
-  // draw there. Filtered out here, before maxTurnover/allUnitIds are
-  // derived, so its units drop out of the blackout fetch too.
-  const offeringDb = ((offeringRows ?? []) as unknown as TimelineOfferingDb[]).filter(
-    (o) => o.range_mode !== "hours",
-  );
+  // Timeline v2: every space is on the tape chart. Nights/days offerings
+  // draw bars; an hourly offering is a lane whose days carry chips
+  // (timeline-layout.ts hourlyByDay) — the R2 "hourly never on the
+  // timeline" exclusion is lifted.
+  const offeringDb = (offeringRows ?? []) as unknown as TimelineOfferingDb[];
 
   // A stay's turnover tail (post-checkout cleaning/prep) can hang into the
   // window even when the stay itself checked out before `fromDate` — the

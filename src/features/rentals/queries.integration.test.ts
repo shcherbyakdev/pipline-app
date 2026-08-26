@@ -194,9 +194,10 @@ describe("listTimelineData turnover padding", () => {
     expect(bookings.some((b) => b.id === tooEarlyId)).toBe(false);
   });
 
-  // Spec: "Timeline: hourly offerings do not appear" — it's a date-range
-  // grid, an hourly offering has no bar to draw there.
-  it("excludes hours-mode offerings (and their units) from the returned offerings", async () => {
+  // Timeline v2: every space is on the tape chart — an hourly room is a
+  // lane whose days carry chips, so hours-mode offerings, their units and
+  // their bookings all come back (the R2 exclusion is lifted).
+  it("includes hours-mode offerings, their units and their bookings", async () => {
     const { data: hoursOffering, error: e1 } = await owner
       .from("rental_offerings")
       .insert({
@@ -210,12 +211,33 @@ describe("listTimelineData turnover padding", () => {
       .select("id")
       .single();
     if (e1) throw e1;
-    const { error: e2 } = await owner
+    const { data: room, error: e2 } = await owner
       .from("rental_units")
-      .insert({ org_id: orgId, offering_id: hoursOffering!.id, name: "Room A" });
+      .insert({ org_id: orgId, offering_id: hoursOffering!.id, name: "Room A" })
+      .select("id")
+      .single();
     if (e2) throw e2;
+    const { data: hourlyBooking, error: e3 } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        rental_offering_id: hoursOffering!.id,
+        rental_unit_id: room!.id,
+        client_name: "Sam Hour",
+        client_email: "sam@example.com",
+        starts_at: wallTimeToUtc(addDaysISO(FROM_DATE, 2), "10:00", TZ).toISOString(),
+        ends_at: wallTimeToUtc(addDaysISO(FROM_DATE, 2), "12:00", TZ).toISOString(),
+        status: "confirmed",
+        cancel_token_hash: generateAccessToken().tokenHash,
+      })
+      .select("id")
+      .single();
+    if (e3) throw e3;
 
-    const { offerings } = await listTimelineData(FROM_DATE, TZ);
-    expect(offerings.some((o) => o.id === hoursOffering!.id)).toBe(false);
+    const { offerings, bookings } = await listTimelineData(FROM_DATE, TZ);
+    const room_ = offerings.find((o) => o.id === hoursOffering!.id);
+    expect(room_?.rangeMode).toBe("hours");
+    expect(room_?.units.map((u) => u.id)).toEqual([room!.id]);
+    expect(bookings.some((b) => b.id === hourlyBooking!.id)).toBe(true);
   });
 });
