@@ -250,8 +250,11 @@ export function Timeline({
                 const conflictCount = perOffering.get(offering.id) ?? 0;
                 return (
                   <div key={offering.id} className="grid" style={{ gridTemplateColumns: columns }}>
-                    <div className="col-span-full pt-3 pb-1">
-                      <div className="bg-background sticky left-0 z-20 flex w-fit items-center gap-2 pr-3">
+                    <div className="col-span-full">
+                      {/* padding inside the sticky box, so the rail backs the
+                          whole row and the today line never shows through
+                          the gaps above and below the space's name */}
+                      <div className="bg-background sticky left-0 z-20 flex w-fit items-center gap-2 pt-3 pr-3 pb-1">
                         <span className="text-sm font-medium">{offering.name}</span>
                         <Badge variant="outline">{MODE_LABEL[offering.rangeMode]}</Badge>
                         <span className="text-muted-foreground text-xs">
