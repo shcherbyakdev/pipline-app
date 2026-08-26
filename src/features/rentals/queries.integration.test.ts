@@ -34,7 +34,7 @@ vi.mock("@/lib/supabase/server", () => ({
 // Dynamic, not static: queries.ts pulls in @/lib/supabase/server → @/env,
 // which parses process.env eagerly at module load. A static import would
 // resolve (and fail) before the loadEnvFile() call above ever runs.
-const { OFFERING_COLUMNS, listTimelineData } = await import("./queries");
+const { OFFERING_COLUMNS, listOfferings, listTimelineData } = await import("./queries");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -103,6 +103,62 @@ describe("queries OFFERING_COLUMNS count embed", () => {
     const row = data as unknown as { rental_units: Array<{ count: number }> };
     expect(row.rental_units).toBeInstanceOf(Array);
     expect(row.rental_units[0].count).toBe(2);
+  });
+});
+
+// A space is listed publicly only once it has an ACTIVE unit
+// (lib/booking/public.ts listPublicOfferings). The admin list and the welcome
+// checklist judge "bookable" by the same measure, so listOfferings carries an
+// active-unit count next to the plain one — asserted against live PostgREST
+// (a filtered, aliased second embed of the same table).
+describe("listOfferings activeUnitCount", () => {
+  let alice: SupabaseClient;
+  let orgId: string;
+
+  beforeAll(async () => {
+    alice = await signedInUser("rentq_active");
+    const { data: org, error: e1 } = await alice.rpc("create_org", { p_name: "RentQActive" });
+    if (e1) throw e1;
+    orgId = (org as { id: string }).id;
+    actingClient.current = alice;
+  });
+
+  async function seedSpace(name: string, units: Array<{ name: string; active?: boolean }>): Promise<string> {
+    const { data: off, error } = await alice
+      .from("rental_offerings")
+      .insert({ org_id: orgId, name, range_mode: "nights", start_time: "15:00", end_time: "11:00" })
+      .select("id")
+      .single();
+    if (error) throw error;
+    if (units.length) {
+      const { error: e } = await alice
+        .from("rental_units")
+        // Bulk inserts send null for keys a row lacks; spell `active` out.
+        .insert(units.map((u) => ({ org_id: orgId, offering_id: off!.id, name: u.name, active: u.active ?? true })));
+      if (e) throw e;
+    }
+    return off!.id;
+  }
+
+  it("counts all units and active units separately", async () => {
+    const id = await seedSpace("Loft", [{ name: "Live" }, { name: "Parked", active: false }]);
+    const row = (await listOfferings()).find((o) => o.id === id)!;
+    expect(row.unitCount).toBe(2);
+    expect(row.activeUnitCount).toBe(1);
+  });
+
+  it("a space whose only unit is inactive has zero active units — not bookable", async () => {
+    const id = await seedSpace("Shed", [{ name: "Only", active: false }]);
+    const row = (await listOfferings()).find((o) => o.id === id)!;
+    expect(row.unitCount).toBe(1);
+    expect(row.activeUnitCount).toBe(0);
+  });
+
+  it("a space with no units at all has zero of both", async () => {
+    const id = await seedSpace("Bare", []);
+    const row = (await listOfferings()).find((o) => o.id === id)!;
+    expect(row.unitCount).toBe(0);
+    expect(row.activeUnitCount).toBe(0);
   });
 });
 

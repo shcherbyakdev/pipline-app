@@ -19,7 +19,7 @@ function offering(id: string, active = true): OfferingRow {
     id, name: id, description: null, rangeMode: "nights", startTime: "15:00", endTime: "11:00",
     minStay: 1, maxStay: null, turnoverDays: 0, minNoticeDays: 0, bookingWindowDays: 180,
     unitSelection: "auto", slotIncrementMin: null, minDurationMin: null, maxDurationMin: null,
-    turnoverMin: 0, minNoticeMin: 0, active, sortOrder: 0, unitCount: 1,
+    turnoverMin: 0, minNoticeMin: 0, active, sortOrder: 0, unitCount: 1, activeUnitCount: 1,
     priceCents: 20000, pricingMode: "per_unit", depositType: "none", depositValue: null,
     cancelWindowMin: 0, termsText: null,
   };

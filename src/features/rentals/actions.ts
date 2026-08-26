@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { assertCanAddUnit } from "@/lib/billing/gates";
+import { SPACES } from "@/features/orgs/vocab";
 import {
   offeringInput,
   updateOfferingInput,
@@ -95,13 +96,38 @@ export async function createOffering(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("rental_offerings")
-    .insert({ org_id: orgId, ...toOfferingRow(parsed.data) });
+    .insert({ org_id: orgId, ...toOfferingRow(parsed.data) })
+    .select("id")
+    .single();
   if (error) return fail("createOffering", error);
+  // A space reaches the public page only once it has an active unit
+  // (lib/booking/public.ts listPublicOfferings) — and the page 404s until
+  // something is bookable (landing-claim D9). Most spaces are one bookable
+  // thing, so the space starts with one unit named after itself; the units
+  // editor still serves multi-unit spaces. Same plan gate as createUnit: if
+  // the plan refuses, the space is still saved and the owner told why.
+  let notice: string | undefined;
+  const refused = await assertCanAddUnit(orgId, supabase);
+  if (refused) {
+    notice = refused;
+  } else {
+    const { error: unitError } = await supabase.from("rental_units").insert({
+      org_id: orgId,
+      offering_id: data.id,
+      name: parsed.data.name,
+      description: null,
+      active: true,
+    });
+    if (unitError) {
+      console.error("[rentals] createOffering first unit:", unitError);
+      notice = SPACES.unitNotCreated;
+    }
+  }
   revalidatePath("/rentals");
   revalidatePath("/availability");
-  return { ok: true };
+  return notice ? { ok: true, notice } : { ok: true };
 }
 
 export async function updateOffering(input: unknown): Promise<ActionState> {
