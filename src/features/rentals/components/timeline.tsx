@@ -252,10 +252,12 @@ export function Timeline({
           </div>
         ) : null}
 
-        {/* The chart is its own scroller, vertically, capped at the viewport
-            minus the page chrome (the shell's main grows with its content,
-            so a sticky header needs a bounded scroll container of its own);
-            sideways it is clipped — the position is the translate, never a
+        {/* The chart fills the viewport under the page chrome, like the week
+            grid — a fixed height, because the shell's main grows with its
+            content and a sticky header needs a bounded scroll container of
+            its own. Vertically it scrolls; lanes stretch to share the
+            height when there are few (minmax(auto, 1fr) rows below).
+            Sideways it is clipped — the position is the translate, never a
             scrollbar. `--base` puts the visible window in view; `--pan` is
             the drag in progress; the rail cells undo both and stay put. */}
         <div
@@ -263,7 +265,8 @@ export function Timeline({
           {...pan.handlers}
           style={{ "--base": `${-visIdx * cellPx}px` } as React.CSSProperties}
           className={cn(
-            "max-h-[calc(100dvh-14rem)] min-h-[20rem] overflow-x-hidden overflow-y-auto",
+            "min-h-[20rem] overflow-x-hidden overflow-y-auto",
+            summary.count > 0 ? "h-[calc(100dvh-17.5rem)]" : "h-[calc(100dvh-14rem)]",
             // While dragging: closed hand, no selection, and nothing under
             // the moving pointer reacts (no hover cards popping mid-drag —
             // the container itself still gets the captured events).
@@ -271,23 +274,32 @@ export function Timeline({
           )}
         >
           <div
-            className="will-change-transform"
+            className="flex min-h-full flex-col will-change-transform"
             style={{ width: gridWidth, transform: "translateX(calc(var(--base, 0px) + var(--pan, 0px)))" }}
           >
             {/* header: the month strip, then one cell per day. Sticky so the
                 dates stay put while the lanes scroll under them. */}
-            <div className="bg-background sticky top-0 z-30">
+            <div className="bg-background sticky top-0 z-30 shrink-0">
               <div className="grid" style={{ gridTemplateColumns: columns }}>
                 <div className="bg-background sticky left-0 z-30" style={RAIL_PAN_STYLE} />
-                {bands.map((band) => (
-                  <div
-                    key={band.label}
-                    className="border-border/60 border-l pb-1 pl-2 text-sm font-semibold first:border-l-0"
-                    style={{ gridColumn: `${band.colStart + 2} / span ${band.colSpan}` }}
-                  >
-                    {band.label}
-                  </div>
-                ))}
+                {bands.map((band) => {
+                  // A band that began inside the hidden buffer keeps its label
+                  // at the visible window's edge rather than off-screen.
+                  const hiddenCols = Math.max(0, visIdx - band.colStart);
+                  return (
+                    <div
+                      key={band.label}
+                      className="border-border/60 border-l pb-1 text-sm font-semibold first:border-l-0"
+                      style={{ gridColumn: `${band.colStart + 2} / span ${band.colSpan}` }}
+                    >
+                      {hiddenCols < band.colSpan ? (
+                        <span className="inline-block pl-2" style={{ marginLeft: hiddenCols * cellPx }}>
+                          {band.label}
+                        </span>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
               <div className="border-border grid border-b" style={{ gridTemplateColumns: columns }}>
                 <div className="bg-background sticky left-0 z-30" style={RAIL_PAN_STYLE} />
@@ -327,7 +339,10 @@ export function Timeline({
               </div>
             </div>
 
-            <div className="relative">
+            {/* body: a column of one grid per space, sharing the leftover
+                height in proportion to their unit counts, so a short board
+                fills the screen and a long one scrolls. */}
+            <div className="relative flex flex-1 flex-col">
               {/* the today line: through every lane, at the hour it is now.
                   z-[5]: above the lanes' bars, below the sticky rail (z-20). */}
               {todayIdx >= 0 ? (
@@ -340,7 +355,18 @@ export function Timeline({
               {offerings.map((offering) => {
                 const conflictCount = perOffering.get(offering.id) ?? 0;
                 return (
-                  <div key={offering.id} className="grid" style={{ gridTemplateColumns: columns }}>
+                  <div
+                    key={offering.id}
+                    className="grid"
+                    style={{
+                      gridTemplateColumns: columns,
+                      // header row as tall as its content; every lane row at
+                      // least its content, then an equal share of the rest
+                      gridTemplateRows: "auto",
+                      gridAutoRows: "minmax(auto, 1fr)",
+                      flex: `${offering.units.length} 1 auto`,
+                    }}
+                  >
                     <div className="col-span-full">
                       {/* padding inside the sticky box, so the rail backs the
                           whole row and the today line never shows through

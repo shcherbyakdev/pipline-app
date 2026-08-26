@@ -238,7 +238,11 @@ export function TimelineLane({
               const tail = turnoverSpan({ endsAt }, mode, timeZone, offering.turnoverDays, fromDate, days);
               if (bar === null && tail === null) return null;
               const row = layout?.rows.get(b.id) ?? 0;
-              const top = row * ROW_PX;
+              const rowCount = layout?.rowCount ?? 1;
+              // The lane may be taller than its content when the board is
+              // short and rows stretch to fill the screen: every bar sits
+              // centred in its sub-row, whatever the row's height.
+              const rowMid = `(${row} + 0.5) * 100% / ${rowCount}`;
               // Hotel handover: a nightly stay owns the check-in cell only
               // from mid-afternoon and the checkout cell only until morning.
               // A bar clipped by the window's left edge starts flush.
@@ -256,7 +260,12 @@ export function TimelineLane({
                     <div
                       title={`Turnover after ${b.clientName}`}
                       className="border-muted-foreground/40 bg-muted/40 absolute z-[2] rounded-r-md border border-l-0 border-dashed"
-                      style={{ top: top + 6, height: ROW_PX - 12, left: pct(tail.colStart), width: pct(tail.colSpan) }}
+                      style={{
+                        top: `calc(${rowMid} - ${ROW_PX / 2 - 6}px)`,
+                        height: ROW_PX - 12,
+                        left: pct(tail.colStart),
+                        width: pct(tail.colSpan),
+                      }}
                     />
                   )}
                   {bar === null ? null : (
@@ -275,7 +284,7 @@ export function TimelineLane({
                       spotlight={spotlightId === b.id}
                       onSpotlightEnd={onSpotlightEnd}
                       style={{
-                        top: top + 4,
+                        top: `calc(${rowMid} - ${ROW_PX / 2 - 4}px)`,
                         height: ROW_PX - 8,
                         left: pct(bar.colStart + halfStart),
                         width: pct(widthCols),
@@ -317,7 +326,14 @@ export function TimelineLane({
                     spotlight={spotlightId === b.id}
                     onSpotlightEnd={onSpotlightEnd}
                     chip
-                    style={{ top: 4 + i * CHIP_PX, height: CHIP_PX - 3, left: `calc(${pct(idx)} + 2px)`, width: `calc(${pct(1)} - 4px)` }}
+                    // the day's stack sits centred in the lane, however tall
+                    // the lane is stretched
+                    style={{
+                      top: `calc(50% - ${(list.length * CHIP_PX) / 2}px + ${i * CHIP_PX}px)`,
+                      height: CHIP_PX - 3,
+                      left: `calc(${pct(idx)} + 2px)`,
+                      width: `calc(${pct(1)} - 4px)`,
+                    }}
                     onSelect={onSelect}
                   />
                 ))
