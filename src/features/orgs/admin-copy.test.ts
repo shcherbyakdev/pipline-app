@@ -24,6 +24,7 @@ export const SURFACES = [
   "src/features/scheduling/components/new-booking-dialog.tsx",
   "src/features/scheduling/components/new-booking-button.tsx",
   "src/features/scheduling/components/calendar-week.tsx",
+  "src/features/scheduling/components/scope-menu.tsx",
   "src/app/(dashboard)/clients/[id]/page.tsx",
   "src/app/(dashboard)/availability/page.tsx",
   "src/features/scheduling/components/owner-tabs.tsx",

@@ -23,7 +23,6 @@ import type { OfferingOption } from "@/features/rentals/offering-option";
 import { SPACES } from "@/features/orgs/vocab";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { House01Icon } from "@hugeicons/core-free-icons";
-import { StaffFilter } from "./staff-filter";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HATCH: React.CSSProperties = {
@@ -36,19 +35,25 @@ const HATCH: React.CSSProperties = {
 const GRID_COLS = "grid-cols-[2.5rem_repeat(7,minmax(0,1fr))_3.5rem]";
 
 export function CalendarWeek({
-  weekStart, timeZone, staff, selectedStaffIds, defaultStaffId,
+  weekStart, timeZone, staff, editStaffId, blockable, preferSpace, defaultStaffId,
   bookings, rules, exceptions, services, spaces, prevHref, nextHref,
 }: {
   weekStart: string;
   timeZone: string;
   // Team (multi-staff): the org's ACTIVE members. One of them (the solo case)
-  // ⇒ no filter, no colours, no initials — this is the pre-team calendar.
+  // ⇒ no colours, no initials — this is the pre-team calendar.
   staff: StaffRow[];
-  // Who the week is filtered to (page-parsed `?staff=`; all active members
-  // when the filter is off). `rules`/`exceptions` are already theirs — the
-  // union of them when more than one is selected, so an open tile means
-  // "someone is open".
-  selectedStaffIds: string[];
+  // The one person whose real hours the week draws (the solo org, or a
+  // one-person scope) — hours and overrides belong to ONE person, so
+  // blocking is only meaningful then. Null on an "everyone" or a space
+  // week: `rules` are then the scope's union and `exceptions` empty.
+  editStaffId: string | null;
+  // False on a space scope: Block / Unblock / Reopen are a person's actions
+  // and stay off the popover rather than toasting a hint about team members.
+  blockable: boolean;
+  // A space scope's space — a drag on its week books it (bookings-scope.ts
+  // scopedSpace); null lets dragInitial's own order apply.
+  preferSpace: string | null;
   // Who a walk-in created from this grid belongs to by default.
   defaultStaffId: string;
   bookings: AdminBooking[];
@@ -60,10 +65,6 @@ export function CalendarWeek({
   prevHref: string;
   nextHref: string;
 }) {
-  // Hours and overrides belong to ONE person, so blocking is only meaningful
-  // when the week shows exactly one. In solo that is always true and nothing
-  // about the grid changes.
-  const editStaffId = selectedStaffIds.length === 1 ? selectedStaffIds[0] : null;
   const isTeam = staff.length > 1;
   const requireOneStaff = () => {
     toast.info("Pick one team member to block time.");
@@ -218,7 +219,7 @@ export function CalendarWeek({
   // shared by the popover's gate and the dialog's mount (same inputs both
   // places; no reason to run dragInitial twice).
   const dragPrefill = selection
-    ? dragInitial(selection, services, spaces, windowsByDay[days.indexOf(selection.date)] ?? [])
+    ? dragInitial(selection, services, spaces, windowsByDay[days.indexOf(selection.date)] ?? [], preferSpace)
     : null;
 
   return (
@@ -228,13 +229,6 @@ export function CalendarWeek({
     // the reference. min-h is the graceful floor: below it the page
     // scrolls rather than crushing the rows.
     <div className="flex min-h-[520px] flex-1 flex-col overflow-x-auto">
-      {/* Solo rule: StaffFilter renders nothing below two members, so the
-          grid keeps its exact pre-team spacing. */}
-      {isTeam ? (
-        <div className="shrink-0 pb-3">
-          <StaffFilter staff={staff} selected={selectedStaffIds} />
-        </div>
-      ) : null}
       <div className="flex min-h-0 min-w-[840px] flex-1 flex-col">
         {/* header row: week arrows live inside the grid, like the reference */}
         <div className={cn("grid shrink-0 pb-2", GRID_COLS)}>
@@ -486,17 +480,17 @@ export function CalendarWeek({
                           New booking
                         </Button>
                       ) : null}
-                      {touchesOpen ? (
+                      {blockable && touchesOpen ? (
                         <Button size="sm" variant="ghost" className="h-7" onClick={blockSelected} disabled={busy}>
                           Block
                         </Button>
                       ) : null}
-                      {touchesBlocked ? (
+                      {blockable && touchesBlocked ? (
                         <Button size="sm" variant="ghost" className="h-7" onClick={unblockSelected} disabled={busy}>
                           Unblock
                         </Button>
                       ) : null}
-                      {dayHasExceptions(d) ? (
+                      {blockable && dayHasExceptions(d) ? (
                         <Button size="sm" variant="ghost" className="h-7" onClick={() => reopenSelected(d)} disabled={busy}>
                           Reopen day
                         </Button>

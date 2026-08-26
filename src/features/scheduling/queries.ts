@@ -299,25 +299,31 @@ export async function listConfirmedBookingsBetween(
   return ((data ?? []) as unknown as BookingRow[]).map(toAdminBooking);
 }
 
-/** Overrides in a date window. `staffIds` narrows to those people's rows —
-    omit it only where every staff member's overrides are wanted at once.
-    Each row says whose it is: a multi-person week resolves availability per
-    member (day-windows.ts unionWindows), so the rows must stay attributable. */
+/** Overrides in a date window — every owner's at once (one org-week of
+    rows), each saying whose it is: a person's or an hourly space's (H2).
+    The week resolves availability per owner (day-windows.ts unionWindows)
+    and picks its owners in memory (bookings-scope.ts scopeHoursOwners), so
+    the rows must stay attributable. */
 export async function listExceptionsBetween(
   fromDate: string,
   toDate: string,
-  staffIds?: string[],
-): Promise<Array<ExceptionRow & { staffId: string }>> {
+): Promise<Array<ExceptionRow & { staffId: string | null; rentalOfferingId: string | null }>> {
   const supabase = await createClient();
-  const base = supabase
+  const { data, error } = await supabase
     .from("availability_exceptions")
-    .select("id, staff_id, date, closed, start_time, end_time")
+    .select("id, staff_id, rental_offering_id, date, closed, start_time, end_time")
     .gte("date", fromDate)
-    .lte("date", toDate);
-  const { data, error } = await (staffIds ? base.in("staff_id", staffIds) : base).order("date");
+    .lte("date", toDate)
+    .order("date");
   if (error) throw error;
   return (data ?? []).map((e) => ({
-    id: e.id, staffId: e.staff_id, date: e.date, closed: e.closed, startTime: e.start_time, endTime: e.end_time,
+    id: e.id,
+    staffId: e.staff_id,
+    rentalOfferingId: e.rental_offering_id,
+    date: e.date,
+    closed: e.closed,
+    startTime: e.start_time,
+    endTime: e.end_time,
   }));
 }
 

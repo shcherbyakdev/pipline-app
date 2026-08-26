@@ -78,8 +78,8 @@ describe("admin vocabulary (admin IA spec §1)", () => {
     expect(APPOINTMENTS.add).toBe("Add a service");
     expect(SPACES.pickerBoth).toBe("Space or service");
     expect(SPACES.badge).toBe("Space");
-    expect(SPACES.hidden(1)).toBe("1 space booking hidden");
-    expect(SPACES.hidden(3)).toBe("3 space bookings hidden");
+    expect(SPACES.scope).toEqual({ group: "Spaces", all: "All spaces" });
+    expect(APPOINTMENTS.scope).toEqual({ group: "Appointments", all: "All appointments" });
     expect(APPOINTMENTS.field).toBe("Service");
   });
 });

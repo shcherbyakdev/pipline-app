@@ -37,8 +37,6 @@ export const SPACES = {
   pickerBoth: "Space or service",
   /** Kind badge on list rows, client history and the week grid (sr-only). */
   badge: "Space",
-  /** Toolbar chip when a staff lens hides space bookings from the week. */
-  hidden: (n: number) => `${n} space booking${n === 1 ? "" : "s"} hidden`,
   /** ⌘K action. */
   command: "New space",
   /** Settings › Business row. */

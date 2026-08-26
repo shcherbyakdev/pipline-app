@@ -8,6 +8,7 @@ import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/book
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { OrgMode } from "@/features/orgs/mode";
+import type { Scope } from "@/features/scheduling/bookings-scope";
 import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { RESEND_STARTED_HINT } from "./booking-detail-dialog";
@@ -159,18 +160,34 @@ export function BookingsList({
   timeZone,
   staff,
   mode,
+  scope,
+  scopeLabel,
 }: {
   upcoming: AdminBooking[];
   past: AdminBooking[];
   timeZone: string;
   staff: StaffRow[]; // active members (Team slice); one ⇒ nothing changes
   mode: OrgMode;
+  // What the rows were narrowed to (bookings-scope.ts); the label is null
+  // for everything, else the words the toolbar's trigger reads.
+  scope: Scope;
+  scopeLabel: string | null;
 }) {
+  // The "Space" badge tells kinds apart — only where there are two to tell:
+  // an org with appointments, and a scope that isn't spaces alone.
+  const showKind = mode.offersAppointments && scope.kind !== "spaces";
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">Upcoming</h2>
-        {upcoming.length === 0 ? (
+        {upcoming.length === 0 && scopeLabel !== null ? (
+          <p className="text-muted-foreground text-sm">
+            No upcoming bookings for {scopeLabel}.{" "}
+            <Link href="/bookings?view=list" className="underline">
+              Show all bookings
+            </Link>
+          </p>
+        ) : upcoming.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             No upcoming bookings.{" "}
             {mode.offersAppointments ? (
@@ -193,7 +210,7 @@ export function BookingsList({
                 timeZone={timeZone}
                 staff={staff}
                 actionable
-                showKind={mode.offersAppointments}
+                showKind={showKind}
               />
             ))}
           </ol>
@@ -212,7 +229,7 @@ export function BookingsList({
                 timeZone={timeZone}
                 staff={staff}
                 actionable={false}
-                showKind={mode.offersAppointments}
+                showKind={showKind}
               />
             ))}
           </ol>

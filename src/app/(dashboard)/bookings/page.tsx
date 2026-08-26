@@ -6,9 +6,10 @@ import {
   listExceptionsBetween,
   listServices,
   getAvailabilityAdmin,
+  getOfferingAvailabilityAdmin,
   countHoursOwners,
 } from "@/features/scheduling/queries";
-import { listActiveStaff, type StaffRow } from "@/features/scheduling/staff-queries";
+import { listActiveStaff } from "@/features/scheduling/staff-queries";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listOfferings, listTimelineData } from "@/features/rentals/queries";
 import { NewBookingButton } from "@/features/scheduling/components/new-booking-button";
@@ -16,12 +17,21 @@ import { canCreateWalkIn } from "@/features/scheduling/booking-kinds";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { defaultBookingsView, effectiveMode, modeOf } from "@/features/orgs/mode";
-import { SPACES } from "@/features/orgs/vocab";
 import { TIMELINE_DAYS, timelineDefaultStart } from "@/features/rentals/timeline-geometry";
 import { BookingsList } from "@/features/scheduling/components/bookings-list";
 import { CalendarWeek } from "@/features/scheduling/components/calendar-week";
 import { ViewSwitcher } from "@/features/scheduling/components/view-switcher";
-import { applyStaffLens } from "@/features/scheduling/staff-lens";
+import { ScopeMenu } from "@/features/scheduling/components/scope-menu";
+import {
+  applyScope,
+  parseScope,
+  scopeHoursOwners,
+  scopeItems,
+  scopeLabel,
+  scopeQuery,
+  scopeValue,
+  scopedSpace,
+} from "@/features/scheduling/bookings-scope";
 import type { BookingsView } from "@/features/scheduling/bookings-views";
 import { mondayOf } from "@/features/scheduling/calendar-geometry";
 import { unionWindows, weekdayOf } from "@/features/scheduling/day-windows";
@@ -34,20 +44,6 @@ import { env } from "@/env";
 import { WelcomeBanner } from "@/features/scheduling/components/welcome-banner";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-// Team (multi-staff): `?staff=a,b` narrows the week to those people. Only ids
-// that name an active member count — a stale link, another org's id or plain
-// junk quietly falls back to "everyone", the same forgiving rule the
-// availability page applies to its own `?staff=`.
-function parseStaffParam(param: string | undefined, active: StaffRow[]): string[] {
-  const wanted = (param ?? "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter((id) => UUID_RE.test(id));
-  const picked = active.filter((s) => wanted.includes(s.id));
-  return picked.length > 0 ? picked.map((s) => s.id) : active.map((s) => s.id);
-}
 
 // A well-shaped date param (DATE_RE) can still be calendrically invalid
 // (e.g. "2027-13-45") — `new Date(...)` on it yields NaN, which would blow
@@ -68,7 +64,14 @@ function asView(param: string | undefined, fallback: BookingsView): BookingsView
 export default async function BookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; week?: string; from?: string; staff?: string; welcome?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    week?: string;
+    from?: string;
+    show?: string;
+    staff?: string;
+    welcome?: string;
+  }>;
 }) {
   const params = await searchParams;
   const settings = await getSchedulingSettings();
@@ -84,7 +87,7 @@ export default async function BookingsPage({
   // default view, the Timeline link and (Task 3) the New-booking picker;
   // the roster is fetched unconditionally (every org has at least one
   // staff row — 0041 backfill + create_staff) and drives the week's
-  // lens and the walk-in's staff picker even for rentals-only orgs.
+  // hours and the walk-in's staff picker even for rentals-only orgs.
   const [orgOfferings, services, activeStaff] = await Promise.all([
     rentals ? listOfferings() : Promise.resolve([]),
     eff.offersAppointments ? listServices() : Promise.resolve([]),
@@ -100,6 +103,27 @@ export default async function BookingsPage({
   // week grid). The branch itself still answers an explicit ?view=timeline
   // (and the nights-only default) with the Timeline's own empty state.
   const showTimeline = rentals && hasRangeOfferings;
+
+  // What the page is looking at (bookings-scope.ts): one `?show=` param,
+  // one grouped selector. People are on the menu only when the org sells
+  // appointments (every org has a backfilled staff row), and the selector
+  // renders only when there is something to choose — the solo rule, so a
+  // one-person org without spaces keeps the exact page it had.
+  const people = eff.offersAppointments ? activeStaff : [];
+  const scope = parseScope({ show: params.show, staff: params.staff }, people, spaces);
+  const scopeGroups = scopeItems(people, spaces);
+  const scopeQs = scopeQuery(scope);
+  const scopeMenu = scopeGroups ? (
+    <ScopeMenu
+      groups={scopeGroups}
+      value={scopeValue(scope) || "all"}
+      label={scopeLabel(scope, people, spaces)}
+    />
+  ) : null;
+  // A space scope's space is what New booking starts on — toolbar and drag
+  // alike. The dialog still lists the whole catalogue: scope sets the
+  // default, not the choice.
+  const preferSpace = scopedSpace(scope, spaces);
 
   // Welcome checklist: three cheap reads, only on the one request that
   // carries ?welcome=1 (nothing is persisted — spec §4 ruling 8).
@@ -127,7 +151,7 @@ export default async function BookingsPage({
 
   // One entry for every kind of walk-in (spec §2, ruling 5). On the
   // "everyone" week a walk-in defaults to the first active member; the week
-  // branch below overrides that for a one-person lens.
+  // branch below overrides that for a one-person scope.
   const newBookingFor = (defaultStaffId: string) =>
     canCreateWalkIn(activeServices, spaces) ? (
       <NewBookingButton
@@ -136,26 +160,32 @@ export default async function BookingsPage({
         staff={activeStaff}
         defaultStaffId={defaultStaffId}
         timeZone={timeZone}
+        initial={preferSpace ? { kind: "space", offeringId: preferSpace.id } : undefined}
       />
     ) : null;
 
   // One toolbar shape for every view: primary action on the left, view
-  // controls on the right (admin IA spec §2). `right` is the per-view slot
-  // before the switcher (the week's Today link, the lens chip).
-  const toolbar = (
-    current: BookingsView,
-    defaultStaffId: string,
-    right: ReactNode = null,
-    staffQuery?: string,
-  ) => (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div>{newBookingFor(defaultStaffId)}</div>
-      <div className="flex items-center gap-2">
-        {right}
-        <ViewSwitcher current={current} showTimeline={showTimeline} staffQuery={staffQuery} />
+  // controls on the right (admin IA spec §2) — the scope selector, then
+  // the per-view slot (`right`: the week's Today link), then the switcher.
+  // The Timeline is spaces by nature: no selector, and its switcher links
+  // carry no scope.
+  const toolbar = (current: BookingsView, defaultStaffId: string, right: ReactNode = null) => {
+    const scoped = current !== "timeline";
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>{newBookingFor(defaultStaffId)}</div>
+        <div className="flex items-center gap-2">
+          {scoped ? scopeMenu : null}
+          {right}
+          <ViewSwitcher
+            current={current}
+            showTimeline={showTimeline}
+            scopeQuery={scoped ? scopeQs : undefined}
+          />
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (rentals && view === "timeline") {
     // The timeline (a client component) is only pulled in when this branch
@@ -187,7 +217,15 @@ export default async function BookingsPage({
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
         {welcome}
         {toolbar("list", activeStaff[0]?.id ?? "")}
-        <BookingsList upcoming={upcoming} past={past} timeZone={timeZone} staff={activeStaff} mode={eff} />
+        <BookingsList
+          upcoming={applyScope(upcoming, scope)}
+          past={applyScope(past, scope)}
+          timeZone={timeZone}
+          staff={activeStaff}
+          mode={eff}
+          scope={scope}
+          scopeLabel={scope.kind === "all" ? null : scopeLabel(scope, people, spaces)}
+        />
       </div>
     );
   }
@@ -197,67 +235,67 @@ export default async function BookingsPage({
   const fromIso = wallTimeToUtc(weekStart, "00:00", timeZone).toISOString();
   const toIso = wallTimeToUtc(addDaysISO(weekStart, 7), "00:00", timeZone).toISOString();
 
-  // Availability is per staff (Team slice), so the week is drawn for the
-  // selected people: one selected ⇒ exactly their hours (the solo org is
-  // always this case); several ⇒ the union, where an open tile means
-  // "someone is open".
-  const selectedStaffIds = parseStaffParam(params.staff, activeStaff);
-  // Only a real narrowing is a lens; the "everyone" week shows spaces too.
-  const staffFilter =
-    selectedStaffIds.length < activeStaff.length ? selectedStaffIds : undefined;
+  // Availability is per owner — a person's (Team slice) or an hourly
+  // space's (H2) — so the week is drawn for the scope's owners
+  // (scopeHoursOwners): one ⇒ exactly their hours (the solo org is always
+  // this case); several ⇒ the union, where an open tile means "someone is
+  // open".
+  const owners = scopeHoursOwners(scope, activeStaff, spaces);
   const [rawBookings, exceptions, availability] = await Promise.all([
-    // Fetched UNFILTERED and narrowed in memory (one org-week of rows) — that
-    // is what yields the hidden-spaces count for the chip below.
+    // Fetched UNFILTERED and narrowed in memory — one org-week of rows.
     listConfirmedBookingsBetween(fromIso, toIso),
-    selectedStaffIds.length > 0 ? listExceptionsBetween(weekStart, weekEnd, selectedStaffIds) : [],
-    Promise.all(selectedStaffIds.map((id) => getAvailabilityAdmin(id, today))),
+    // Likewise every owner's overrides for the week, attributed per row.
+    listExceptionsBetween(weekStart, weekEnd),
+    Promise.all(
+      owners.map((o) =>
+        o.staffId !== undefined
+          ? getAvailabilityAdmin(o.staffId, today)
+          : getOfferingAvailabilityAdmin(o.rentalOfferingId, today),
+      ),
+    ),
   ]);
-  const { visible: bookings, hiddenSpaces } = applyStaffLens(rawBookings, staffFilter);
-  // One person ⇒ their rows go straight through (so the grid's block/unblock
-  // and "Reopen day" keep working off real exceptions). Several ⇒ each
-  // person's day is resolved on its own and the results unioned
-  // (unionWindows) — pooling everyone's rules AND exceptions into one call
-  // would let one member's closed day empty the whole column, and one open
-  // override replace everybody's hours. The union is handed to CalendarWeek
-  // as a week of synthetic rules (one per date's weekday + window, overrides
-  // already folded in, so no exceptions ride along): for seven consecutive
-  // dates the weekday is unique, so effectiveWindows reads them back verbatim.
-  const solo = selectedStaffIds.length === 1;
-  const perStaff = selectedStaffIds.map((id, i) => ({
+  const bookings = applyScope(rawBookings, scope);
+  const perOwner = owners.map((o, i) => ({
     rules: availability[i].rules,
-    exceptions: exceptions.filter((e) => e.staffId === id),
+    exceptions: exceptions.filter((e) =>
+      o.staffId !== undefined ? e.staffId === o.staffId : e.rentalOfferingId === o.rentalOfferingId,
+    ),
   }));
+  // One PERSON ⇒ their rows go straight through (so the grid's block/unblock
+  // and "Reopen day" keep working off real exceptions). Anything else —
+  // several people, or a space's hours — is resolved per owner and the
+  // results unioned (unionWindows): pooling every owner's rules AND
+  // exceptions into one call would let one closed day empty the whole
+  // column, and one open override replace everybody's hours. The union is
+  // handed to CalendarWeek as a week of synthetic rules (one per date's
+  // weekday + window, overrides already folded in, so no exceptions ride
+  // along): for seven consecutive dates the weekday is unique, so
+  // effectiveWindows reads them back verbatim.
+  const soloStaffId = owners.length === 1 && owners[0].staffId !== undefined ? owners[0].staffId : null;
   const weekDays = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
-  const rules = solo
-    ? availability[0].rules
-    : weekDays.flatMap((date) =>
-        unionWindows(date, perStaff).map((w, i) => ({
-          id: `union-${date}-${i}`,
-          weekday: weekdayOf(date),
-          startTime: w.startTime,
-          endTime: w.endTime,
-        })),
-      );
-  const weekExceptions = solo ? exceptions : [];
-  // The week arrows are plain links — they have to carry the lens with them.
-  const staffQuery = staffFilter ? `staff=${staffFilter.join(",")}` : "";
-  const staffSuffix = staffQuery ? `&${staffQuery}` : "";
-  const todayHref = staffQuery ? `/bookings?${staffQuery}` : "/bookings";
-  // The lens hides space bookings (a room is nobody's work) — say so, with
-  // the way out, instead of silently dropping rows (spec §2, ruling 6).
-  const hiddenChip =
-    staffFilter && hiddenSpaces > 0 ? (
-      <Link
-        href={`/bookings?week=${weekStart}`}
-        className="text-muted-foreground hover:text-foreground rounded-md border border-dashed px-2 py-1 text-xs"
-      >
-        {SPACES.hidden(hiddenSpaces)} · Show everyone
-      </Link>
-    ) : null;
+  const rules =
+    soloStaffId !== null
+      ? availability[0].rules
+      : weekDays.flatMap((date) =>
+          unionWindows(date, perOwner).map((w, i) => ({
+            id: `union-${date}-${i}`,
+            weekday: weekdayOf(date),
+            startTime: w.startTime,
+            endTime: w.endTime,
+          })),
+        );
+  const weekExceptions = soloStaffId !== null ? perOwner[0].exceptions : [];
+  // Block / Unblock / Reopen are a person's actions: off the popover on a
+  // space's week, even where that week falls back to drawing the members'
+  // hours (a nights/days-only scope).
+  const blockable = scope.kind !== "spaces";
+  // The week arrows and Today are plain links — they have to carry the scope.
+  const scopeSuffix = scopeQs ? `&${scopeQs}` : "";
+  const todayHref = scopeQs ? `/bookings?${scopeQs}` : "/bookings";
 
-  // A walk-in drawn on a one-person week belongs to that person; on the
-  // "everyone" week it defaults to the first active member.
-  const defaultStaffId = (selectedStaffIds.length === 1 ? selectedStaffIds[0] : activeStaff[0]?.id) ?? "";
+  // A walk-in drawn on a one-person week belongs to that person; on any
+  // other week it defaults to the first active member.
+  const defaultStaffId = (soloStaffId ?? activeStaff[0]?.id) ?? "";
 
   return (
     // flex-1 + min-h-0: the calendar fills main's leftover viewport height
@@ -267,27 +305,25 @@ export default async function BookingsPage({
       {toolbar(
         "week",
         defaultStaffId,
-        <>
-          {hiddenChip}
-          <Link href={todayHref} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-            Today
-          </Link>
-        </>,
-        staffQuery,
+        <Link href={todayHref} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+          Today
+        </Link>,
       )}
       <CalendarWeek
         weekStart={weekStart}
         timeZone={timeZone}
         staff={activeStaff}
-        selectedStaffIds={selectedStaffIds}
+        editStaffId={blockable ? soloStaffId : null}
+        blockable={blockable}
+        preferSpace={preferSpace?.id ?? null}
         defaultStaffId={defaultStaffId}
         bookings={bookings}
         rules={rules}
         exceptions={weekExceptions}
         services={activeServices}
         spaces={spaces}
-        prevHref={`/bookings?week=${addDaysISO(weekStart, -7)}${staffSuffix}`}
-        nextHref={`/bookings?week=${addDaysISO(weekStart, 7)}${staffSuffix}`}
+        prevHref={`/bookings?week=${addDaysISO(weekStart, -7)}${scopeSuffix}`}
+        nextHref={`/bookings?week=${addDaysISO(weekStart, 7)}${scopeSuffix}`}
       />
     </div>
   );
