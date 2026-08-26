@@ -37,8 +37,6 @@ export const SPACES = {
   pickerBoth: "Space or service",
   /** Kind badge on list rows, client history and the week grid (sr-only). */
   badge: "Space",
-  /** Toolbar chip when a staff lens hides space bookings from the week. */
-  hidden: (n: number) => `${n} space booking${n === 1 ? "" : "s"} hidden`,
   /** ⌘K action. */
   command: "New space",
   /** Settings › Business row. */
@@ -54,6 +52,8 @@ export const SPACES = {
     "Nightly and daily spaces use check-in and check-out times, set on each space. Hourly spaces and team members set their weekly hours here.",
   /** Links & embeds row: the widget restricted to this channel (?channel=spaces). */
   only: "Spaces only",
+  /** Bookings scope selector: the group heading and its every-space entry. */
+  scope: { group: "Spaces", all: "All spaces" },
 } as const;
 
 /** The appointments channel's few provider-facing words that sit next to
@@ -65,6 +65,8 @@ export const APPOINTMENTS = {
   field: "Service",
   /** Links & embeds row: the widget restricted to this channel (?channel=services). */
   only: "Appointments only",
+  /** Bookings scope selector: the group heading and its every-person entry. */
+  scope: { group: "Appointments", all: "All appointments" },
 } as const;
 
 /** The hosted page's fallback meta description, per channel mix. */

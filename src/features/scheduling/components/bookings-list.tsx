@@ -159,18 +159,33 @@ export function BookingsList({
   timeZone,
   staff,
   mode,
+  showKind,
+  scopeLabel,
 }: {
   upcoming: AdminBooking[];
   past: AdminBooking[];
   timeZone: string;
   staff: StaffRow[]; // active members (Team slice); one ⇒ nothing changes
   mode: OrgMode;
+  // The "Space" badge on rows — the page turns it off where every row is a
+  // space anyway (a spaces-only scope, a rentals-only org).
+  showKind: boolean;
+  // What the rows were narrowed to (bookings-scope.ts): null for
+  // everything, else the words the toolbar's trigger reads.
+  scopeLabel: string | null;
 }) {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">Upcoming</h2>
-        {upcoming.length === 0 ? (
+        {upcoming.length === 0 && scopeLabel !== null ? (
+          <p className="text-muted-foreground text-sm">
+            No upcoming bookings for {scopeLabel}.{" "}
+            <Link href="/bookings?view=list" className="underline">
+              Show all bookings
+            </Link>
+          </p>
+        ) : upcoming.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             No upcoming bookings.{" "}
             {mode.offersAppointments ? (
@@ -193,7 +208,7 @@ export function BookingsList({
                 timeZone={timeZone}
                 staff={staff}
                 actionable
-                showKind={mode.offersAppointments}
+                showKind={showKind}
               />
             ))}
           </ol>
@@ -202,7 +217,9 @@ export function BookingsList({
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">Past &amp; cancelled</h2>
         {past.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nothing here yet.</p>
+          <p className="text-muted-foreground text-sm">
+            {scopeLabel !== null ? `Nothing here yet for ${scopeLabel}.` : "Nothing here yet."}
+          </p>
         ) : (
           <ol className="flex flex-col gap-2">
             {past.map((b) => (
@@ -212,7 +229,7 @@ export function BookingsList({
                 timeZone={timeZone}
                 staff={staff}
                 actionable={false}
-                showKind={mode.offersAppointments}
+                showKind={showKind}
               />
             ))}
           </ol>

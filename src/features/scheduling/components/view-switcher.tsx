@@ -9,13 +9,14 @@ import { cn } from "@/lib/utils";
 export function ViewSwitcher({
   current,
   showTimeline,
-  staffQuery,
+  scopeQuery,
 }: {
   current: BookingsView;
   showTimeline: boolean;
-  staffQuery?: string;
+  /** "show=…" from bookings-scope.ts — Week and List carry it, Timeline drops it. */
+  scopeQuery?: string;
 }) {
-  const items = viewSwitcherItems({ current, showTimeline, staffQuery });
+  const items = viewSwitcherItems({ current, showTimeline, scopeQuery });
   return (
     <nav
       aria-label="Bookings view"

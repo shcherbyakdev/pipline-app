@@ -62,13 +62,17 @@ export function selectionValue(sel: KindSelection): string {
 
 /* Drag on the week grid: an appointment when the org sells any (the drag's
    date, start and length carry over); else the first hourly space with the
-   day prefilled; else nothing — the popover then shows no "New booking". */
+   day prefilled; else nothing — the popover then shows no "New booking".
+   `preferSpace` (the week's space scope — bookings-scope.ts scopedSpace)
+   wins outright: a drag on a space's week books that space. */
 export function dragInitial(
   sel: { date: string; startMin: number; endMin: number },
   services: readonly Row[],
   spaces: readonly OfferingOption[],
   windows: DayWindow[],
+  preferSpace?: string | null,
 ): Initial | null {
+  if (preferSpace) return { kind: "space", offeringId: preferSpace, date: sel.date };
   if (services.length > 0) {
     return { kind: "service", date: sel.date, startMin: sel.startMin, dragEndMin: sel.endMin, windows };
   }

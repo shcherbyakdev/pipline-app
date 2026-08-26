@@ -46,6 +46,9 @@ describe("dragInitial (spec §2 — drag on the week grid)", () => {
   it("nights-only, no services ⇒ nothing to create from a drag", () => {
     expect(dragInitial(sel, [], [nightly], [])).toBeNull();
   });
+  it("a preferred space (the week's space scope) wins over the org's services", () => {
+    expect(dragInitial(sel, services, [nightly, hourly], [], "n1")).toEqual({ kind: "space", offeringId: "n1", date: "2026-08-25" });
+  });
 });
 
 describe("canCreateWalkIn", () => {
