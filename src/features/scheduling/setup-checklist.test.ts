@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { setupChecklist } from "./setup-checklist";
+import { setupChecklist, showWelcome } from "./setup-checklist";
 
 const BOTH = { offersAppointments: true, offersRentals: true };
 const APPTS = { offersAppointments: true, offersRentals: false };
@@ -56,5 +56,30 @@ describe("setupChecklist (admin IA spec §4)", () => {
   it("two spaces, one bookable: done — the other's missing unit is the list's badge, not the checklist's job", () => {
     const items = setupChecklist({ mode: RENTALS, ...nothing, spaceCount: 2, bookableSpaceCount: 1, unitlessSpaceId: "off-2" });
     expect(items.find((i) => i.id === "space")!.done).toBe(true);
+  });
+});
+
+// The banner used to ride ?welcome=1 and vanished on the first click of any
+// chip (every chip navigates away). It now shows until the checklist is
+// done or the owner dismisses it — derived, not carried in the URL.
+describe("showWelcome", () => {
+  const todo = { id: "service" as const, label: "Add a service", href: "/services?new=1", done: false };
+  const done = { ...todo, done: true };
+
+  it("shows while any item is undone", () => {
+    expect(showWelcome({ dismissed: false, handle: "acme", checklist: [done, todo] })).toBe(true);
+  });
+  it("hides by itself once every item is done — no persistence needed", () => {
+    expect(showWelcome({ dismissed: false, handle: "acme", checklist: [done, done] })).toBe(false);
+  });
+  it("hides when dismissed, however much is left", () => {
+    expect(showWelcome({ dismissed: true, handle: "acme", checklist: [todo] })).toBe(false);
+  });
+  it("a handle-less org (legacy) still gets the 'pick an address' banner", () => {
+    expect(showWelcome({ dismissed: false, handle: null, checklist: [] })).toBe(true);
+    expect(showWelcome({ dismissed: true, handle: null, checklist: [] })).toBe(false);
+  });
+  it("an empty checklist with a handle means nothing to do", () => {
+    expect(showWelcome({ dismissed: false, handle: "acme", checklist: [] })).toBe(false);
   });
 });

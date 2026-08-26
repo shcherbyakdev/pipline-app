@@ -234,7 +234,7 @@ export const ONBOARDING = {
   justTaken: "That name was just taken — pick another.",
 } as const;
 
-/** First screen after onboarding (/bookings?welcome=1). One subtitle per
+/** First screen after onboarding (/bookings, until setup is done). One subtitle per
     mode; the checklist labels below are the chips' text (setup-checklist.ts). */
 export const WELCOME = {
   owned: (url: string) => `${url} is yours.`,

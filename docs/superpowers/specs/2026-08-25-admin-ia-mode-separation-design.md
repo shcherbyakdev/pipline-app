@@ -56,8 +56,13 @@ SimplyBook, Skedda, Booqable, Cal.com and Calendly (Aug 2026).
    and `?channel=services|spaces` (new, one channel only), all on the hosted
    page and the embed. Slugged short links need a migration and stay
    deferred.
-8. **First-run checklist persists nothing.** It rides the existing
-   `?welcome=1` banner and derives every tick from data that already exists.
+8. **First-run checklist persists nothing.** It derives every tick from
+   data that already exists. *Amended 2026-08-26:* it no longer rides
+   `?welcome=1` — every chip navigates away and the week arrows rebuild the
+   URL, so the banner vanished on the first click. It now shows on every
+   Bookings load until every item is done or the owner dismisses it; the
+   dismissal is an httpOnly cookie keyed by org id (`orgs` stays select-only,
+   no migration), not a column.
 9. **Settings › Business stays** (R3 relaxed the "Settings = per-user only"
    ruling for exactly this group); only its copy changes.
 
@@ -346,7 +351,8 @@ check-in/check-out sub-line in the header and get no card.
 ## 4. First run per mode (slice U1)
 
 `WelcomeBanner` gains a checklist row under its subtitle, computed on the
-server only when `?welcome=1` (the page already branches on it):
+server on every Bookings load until the list is done or dismissed (ruling 8,
+amended 2026-08-26 — it was `?welcome=1`-only at first):
 
 ```ts
 export function setupChecklist(input: {
@@ -368,8 +374,8 @@ appointments-only keeps "Add a service and set your hours to go live.";
 rentals-only "Add a space and its units to go live."; both "Add what you
 offer, set hours, publish — then share your link." Counts come from
 `listServices`, `listOfferings`, one `availability_rules` count grouped by
-owner, and the builder's `getPageDraftState` (published or not); nothing
-persisted (ruling 8).
+owner, and the builder's `getPageDraftState` (published or not); progress
+is never persisted, only a dismissal cookie (ruling 8).
 
 ## 5. Links & embeds (slice U4)
 
