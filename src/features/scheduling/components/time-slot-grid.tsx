@@ -4,6 +4,7 @@ import * as React from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
+import { PAGE_DAYS, shiftDays } from "@/features/scheduling/slot-paging";
 
 export function TimeSlotGrid({
   slots,
@@ -14,6 +15,8 @@ export function TimeSlotGrid({
   onNavigate,
   onPick,
   regionRef,
+  toolbar,
+  emptyHint,
   headerSlot,
 }: {
   slots: string[]; // ISO instants
@@ -24,6 +27,10 @@ export function TimeSlotGrid({
   onNavigate: (nextFromDate: string) => void;
   onPick: (iso: string) => void;
   regionRef?: React.Ref<HTMLDivElement>;
+  /** A row of its own between the header and the times — the person switch. */
+  toolbar?: React.ReactNode;
+  /** Replaces the default "No free times this week — try the next." */
+  emptyHint?: string;
   /** Rendered left of the nav buttons, in the original single-row layout
       (justify-between). Omit for a standalone nav row — a caller with no
       header content to place there gets today's layout either way, since
@@ -47,7 +54,7 @@ export function TimeSlotGrid({
   });
   // Only this page's seven viewer-local days: the server pads its window a
   // day each side so no day is missed across the org/viewer offset.
-  const lastDay = shiftDays(fromDate, 6);
+  const lastDay = shiftDays(fromDate, PAGE_DAYS - 1);
   const byDay = new Map<string, string[]>();
   for (const s of slots) {
     const day = viewerDayKey.format(new Date(s));
@@ -77,7 +84,7 @@ export function TimeSlotGrid({
             aria-label="Previous week"
             title="Previous week"
             disabled={fromDate <= todayISO}
-            onClick={() => onNavigate(shiftDays(fromDate, -7))}
+            onClick={() => onNavigate(shiftDays(fromDate, -PAGE_DAYS))}
           >
             <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
           </Button>
@@ -87,12 +94,13 @@ export function TimeSlotGrid({
             className="wt-surface"
             aria-label="Next week"
             title="Next week"
-            onClick={() => onNavigate(shiftDays(fromDate, 7))}
+            onClick={() => onNavigate(shiftDays(fromDate, PAGE_DAYS))}
           >
             <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
           </Button>
         </div>
       </div>
+      {toolbar}
       {/* While a new week loads, the previous list stays put (dimmed) so
           the region doesn't collapse and re-expand — no flash. */}
       <div
@@ -105,7 +113,7 @@ export function TimeSlotGrid({
         {pending && byDay.size === 0 ? (
           <p className="text-muted-foreground text-sm">Loading times…</p>
         ) : byDay.size === 0 ? (
-          <p className="text-muted-foreground text-sm">No free times this week — try the next.</p>
+          <p className="text-muted-foreground text-sm">{emptyHint ?? "No free times this week — try the next."}</p>
         ) : (
           [...byDay.entries()].map(([day, daySlots]) => (
             <div key={day} className="flex flex-col gap-2">
@@ -138,9 +146,4 @@ export function TimeSlotGrid({
       ) : null}
     </>
   );
-}
-
-function shiftDays(date: string, days: number): string {
-  const [y, m, d] = date.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d) + days * 86_400_000).toISOString().slice(0, 10);
 }
