@@ -9,6 +9,7 @@ type Row = Record<string, unknown>;
 const state = vi.hoisted(() => ({
   inserts: [] as Array<{ table: string; row: Row }>,
   unitInsertError: null as null | { message: string },
+  hoursInsertError: null as null | { message: string },
 }));
 const assertCanAddUnit = vi.hoisted(() => vi.fn(async () => null as string | null));
 
@@ -23,7 +24,9 @@ vi.mock("@/lib/supabase/server", () => ({
           ? { data: { id: "org-1" }, error: null }
           : table === "rental_offerings"
             ? { data: { id: "off-1" }, error: null }
-            : { data: null, error: state.unitInsertError };
+            : table === "availability_rules"
+              ? { data: null, error: state.hoursInsertError }
+              : { data: null, error: state.unitInsertError };
       const b: Record<string, unknown> = {
         select: () => b,
         limit: () => b,
@@ -33,6 +36,7 @@ vi.mock("@/lib/supabase/server", () => ({
           state.inserts.push({ table, row });
           return b;
         },
+        eq: () => b,
         then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
           Promise.resolve(result()).then(res, rej),
       };
@@ -57,6 +61,7 @@ const space = {
 beforeEach(() => {
   state.inserts = [];
   state.unitInsertError = null;
+  state.hoursInsertError = null;
   assertCanAddUnit.mockReset();
   assertCanAddUnit.mockResolvedValue(null);
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -91,5 +96,47 @@ describe("createOffering — a space is bookable the moment it exists", () => {
       notice: "Saved the space, but couldn't add its first unit — add one on the space's page.",
     });
     expect(state.inserts.map((i) => i.table)).toEqual(["rental_offerings", "rental_units"]);
+  });
+});
+
+/* An hourly space has no check-in/check-out times to fall back on: with no
+   weekly hours it offers nothing, exactly like a new team member did. */
+const hourlySpace = {
+  name: "Studio B",
+  rangeMode: "hours",
+  slotIncrementMin: 30,
+  minDurationMin: 60,
+  maxDurationMin: 120,
+  turnoverMin: 0,
+  minNoticeMin: 0,
+};
+
+describe("createOffering — an hourly space starts with the default week", () => {
+  it("seeds Mon–Fri 09:00–17:00 for the new space", async () => {
+    expect(await createOffering(hourlySpace)).toEqual({ ok: true });
+    const hours = state.inserts.filter((i) => i.table === "availability_rules");
+    expect(hours).toHaveLength(1);
+    const rows = hours[0].row as unknown as Array<Record<string, unknown>>;
+    expect(rows.map((r) => r.weekday)).toEqual([1, 2, 3, 4, 5]);
+    expect(rows[0]).toMatchObject({
+      org_id: "org-1",
+      rental_offering_id: "off-1",
+      staff_id: null,
+      start_time: "09:00",
+      end_time: "17:00",
+    });
+  });
+
+  it("leaves a nightly space alone — check-in and check-out live on the space", async () => {
+    await createOffering(space);
+    expect(state.inserts.map((i) => i.table)).not.toContain("availability_rules");
+  });
+
+  it("when the hours seed fails, the space still exists and the owner is pointed at Availability", async () => {
+    state.hoursInsertError = { message: "boom" };
+    expect(await createOffering(hourlySpace)).toEqual({
+      ok: true,
+      notice: "Saved the space, but couldn't set its default hours — set them on Availability.",
+    });
   });
 });

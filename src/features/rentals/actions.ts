@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { assertCanAddUnit } from "@/lib/billing/gates";
 import { SPACES } from "@/features/orgs/vocab";
+import { seedDefaultHours } from "@/features/scheduling/default-hours";
 import {
   offeringInput,
   updateOfferingInput,
@@ -123,6 +124,18 @@ export async function createOffering(input: unknown): Promise<ActionState> {
     if (unitError) {
       console.error("[rentals] createOffering first unit:", unitError);
       notice = SPACES.unitNotCreated;
+    }
+  }
+  // An hourly space has no check-in/check-out times to fall back on, so with
+  // no weekly hours it offers nothing — the same dead start a new team
+  // member used to get. Nights/days spaces have no weekly hours at all
+  // (admin IA ruling 4), so only "hours" gets a week. The unit notice wins
+  // if both fail: a space with no unit is the more blocking of the two.
+  if (parsed.data.rangeMode === "hours") {
+    const seedError = await seedDefaultHours(supabase, orgId, { rentalOfferingId: data.id });
+    if (seedError) {
+      console.error("[rentals] createOffering default hours:", seedError.message);
+      notice ??= SPACES.hoursNotSet;
     }
   }
   revalidatePath("/rentals");

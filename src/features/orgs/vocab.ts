@@ -49,6 +49,7 @@ export const SPACES = {
   /** createOffering saved the space but its first unit did not land (plan gates
       return their own message instead). The space page is where units live. */
   unitNotCreated: "Saved the space, but couldn't add its first unit — add one on the space's page.",
+  hoursNotSet: "Saved the space, but couldn't set its default hours — set them on Availability.",
   /** /rentals list badge on an active space with no active unit: the public
       page lists a space only once it has one (listPublicOfferings). */
   notBookable: "Not bookable — add a unit",
