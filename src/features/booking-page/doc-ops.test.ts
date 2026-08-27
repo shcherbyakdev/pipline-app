@@ -20,6 +20,8 @@ describe("isSectionEmpty", () => {
     expect(isSectionEmpty(hero, ctx)).toBe(true);
     expect(isSectionEmpty({ ...hero, headline: "  " }, ctx)).toBe(true);
     expect(isSectionEmpty({ ...hero, headline: "Hi" }, ctx)).toBe(false);
+    // The Book button is not content: a cover with only a button stays empty.
+    expect(isSectionEmpty({ ...hero, cta: "Book now" }, ctx)).toBe(true);
     expect(isSectionEmpty({ ...hero, imagePath: "o/page/a.png" }, ctx)).toBe(false);
     const faq = newSection("faq") as Extract<Section, { type: "faq" }>;
     expect(isSectionEmpty(faq, ctx)).toBe(true);

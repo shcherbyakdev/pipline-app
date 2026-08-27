@@ -2,6 +2,10 @@
 // live thumbnails; applyTemplate strips it so nobody publishes "Hair & colour
 // by Anna" by accident. Thumbnails never carry images (no storage paths to
 // maintain) — the ghost boxes read fine at thumbnail scale.
+// Order rule: the booking widget sits right after the catalogue (services /
+// spaces) — a card click lands on times without scrolling past the gallery,
+// quotes, FAQ and address — and every cover carries a Book button (`cta`) to
+// the widget, so the top of any page is one click from booking.
 import type { OrgMode } from "@/features/orgs/mode";
 import type { WidgetThemeConfig } from "@/lib/widget-theme";
 import { newSection, newSectionId } from "./defaults";
@@ -38,11 +42,11 @@ export const TEMPLATES: readonly Template[] = [
       s("header", "tplhdr002", { tagline: "Colour specialist · Kraków" }),
       s("about", "tplabt002", { title: "Hi, I'm Anna", body: "Fifteen years of colour, cuts and calm. Book a time below — first visits include a free consultation." }),
       s("services", "tplsvc002", { style: "list" }),
+      s("booking", "tplbook02", { title: "Book a time" }),
       s("links", "tpllnk002", { items: [
         { label: "Instagram", url: "https://instagram.com/anna.hair", icon: "instagram" },
         { label: "WhatsApp", url: "https://wa.me/48600000000", icon: "whatsapp" },
       ] }),
-      s("booking", "tplbook02", { title: "Book a time" }),
     ],
     skin: { theme: "light", radius: "round", font: "lora" },
   },
@@ -52,14 +56,14 @@ export const TEMPLATES: readonly Template[] = [
     description: "Cover, service cards with prices, gallery and testimonials.",
     layout: "column",
     sections: [
-      s("hero", "tplhero03", { headline: "Hair & colour by Anna", subheadline: "A small studio in Kazimierz. Balayage, precision cuts, colour correction.", align: "center" }),
+      s("hero", "tplhero03", { headline: "Hair & colour by Anna", subheadline: "A small studio in Kazimierz. Balayage, precision cuts, colour correction.", align: "center", cta: "Book now" }),
       s("services", "tplsvc003", { style: "cards" }),
+      s("booking", "tplbook03", { title: "Book a time" }),
       s("gallery", "tplgal003", { columns: 3 }),
       s("testimonials", "tpltst003", { items: [
         { quote: "The only person I trust with my colour.", author: "Marta K." },
         { quote: "Booked in two taps, walked out glowing.", author: "Ola W." },
       ] }),
-      s("booking", "tplbook03", { title: "Book a time" }),
       s("location", "tplloc003", { address: "ul. Józefa 12\n31-056 Kraków", mapsUrl: "https://maps.app.goo.gl/example" }),
     ],
     skin: { theme: "dark", radius: "subtle", font: "space-grotesk" },
@@ -70,11 +74,11 @@ export const TEMPLATES: readonly Template[] = [
     description: "Photo-led cover, your spaces with prices, a gallery and where to find you.",
     layout: "column",
     sections: [
-      s("hero", "tplhero07", { headline: "Rooms by the hour in Podgórze", subheadline: "Rehearsal, recording and workshop space. Pick a room, choose your hours, book online.", align: "center" }),
+      s("hero", "tplhero07", { headline: "Rooms by the hour in Podgórze", subheadline: "Rehearsal, recording and workshop space. Pick a room, choose your hours, book online.", align: "center", cta: "Book a space" }),
       s("spaces", "tplspc007", { style: "cards" }),
+      s("booking", "tplbook07", { title: "Book a space" }),
       s("gallery", "tplgal007", { columns: 3 }),
       s("location", "tplloc007", { address: "ul. Józefa 12\n31-056 Kraków", mapsUrl: "https://maps.app.goo.gl/example" }),
-      s("booking", "tplbook07", { title: "Book a space" }),
       s("faq", "tplfaq007", { items: [
         { q: "Can I cancel?", a: "Yes — see the cancellation window on each space." },
         { q: "What's included?", a: "The room, the listed gear, and the door code by email." },
@@ -88,15 +92,17 @@ export const TEMPLATES: readonly Template[] = [
     description: "Story on the left, booking pinned on the right.",
     layout: "split",
     sections: [
-      s("hero", "tplhero04", { headline: "Physiotherapy that gets you moving", subheadline: "One-to-one sessions, no waiting room." }),
+      s("hero", "tplhero04", { headline: "Physiotherapy that gets you moving", subheadline: "One-to-one sessions, no waiting room.", cta: "Book a session" }),
       s("about", "tplabt004", { title: "About the practice", body: "Sports rehab, posture and pain management.\n\nEvery plan starts with a full assessment." }),
       s("services", "tplsvc004", { style: "list" }),
+      // Docked beside the story at desktop; in DOM order below that, so it
+      // sits ahead of the FAQ and address on a phone.
+      s("booking", "tplbook04", { title: "Book a session" }),
       s("faq", "tplfaq004", { items: [
         { q: "Do I need a referral?", a: "No — book directly." },
         { q: "What should I bring?", a: "Comfortable clothes and any recent scans." },
       ] }),
       s("location", "tplloc004", { address: "Aleja Pokoju 5\n31-548 Kraków" }),
-      s("booking", "tplbook04", { title: "Book a session" }),
     ],
     skin: { theme: "light", radius: "subtle", font: "dm-sans" },
   },
@@ -120,7 +126,7 @@ export const TEMPLATES: readonly Template[] = [
     description: "A headline, the widget, your links. Nothing else.",
     layout: "column",
     sections: [
-      s("hero", "tplhero06", { headline: "Book a tutoring session", subheadline: "Maths & physics, online or in Kraków.", align: "center" }),
+      s("hero", "tplhero06", { headline: "Book a tutoring session", subheadline: "Maths & physics, online or in Kraków.", align: "center", cta: "Book now" }),
       s("booking", "tplbook06"),
       s("links", "tpllnk006", { items: [{ label: "Email me", url: "mailto:hello@example.com", icon: "email" }] }),
     ],

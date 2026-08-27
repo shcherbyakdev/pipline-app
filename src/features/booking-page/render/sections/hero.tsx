@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element -- Supabase public URLs (BrandedHeader precedent) */
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SectionOf } from "../../schema";
 import { pageImageUrl } from "../../images";
@@ -25,6 +26,22 @@ export function HeroSection({ section, ctx }: { section: SectionOf<"hero">; ctx:
           <p className="text-muted-foreground max-w-prose text-base text-pretty sm:text-lg">{section.subheadline}</p>
         ) : null}
       </div>
+      <BookButton label={section.cta} mode={ctx.mode} />
     </section>
+  );
+}
+
+// The one-click path to the widget: a plain anchor to the booking section's
+// `#book` (works before hydration; `scroll-mt-6` there keeps it clear of the
+// top edge). Preview mode renders the same pill inert — the studio preview
+// never scrolls, and the SectionFrame around it takes the click to select.
+function BookButton({ label, mode }: { label: string | undefined; mode: "public" | "preview" }) {
+  const text = label?.trim();
+  if (!text) return null;
+  const className = cn(buttonVariants({ size: "lg" }), "wt-primary rounded-[var(--widget-radius)] px-4");
+  return mode === "public" ? (
+    <a href="#book" className={className}>{text}</a>
+  ) : (
+    <span aria-disabled className={cn(className, "cursor-default")}>{text}</span>
   );
 }

@@ -18,6 +18,7 @@ export function HeroForm({ section, issues, supabaseUrl, onChange }: FormProps<"
       <TextField id="sec-hero-headline" label="Headline" value={section.headline} max={80} error={issues.headline} placeholder="Hair & colour by Anna" onChange={(v) => onChange(patch(section, { headline: v }))} />
       <TextField id="sec-hero-sub" label="Subheadline" value={section.subheadline} max={160} error={issues.subheadline} onChange={(v) => onChange(patch(section, { subheadline: v }))} />
       <SelectField id="sec-hero-align" label="Alignment" value={section.align} options={[{ value: "left", label: "Left" }, { value: "center", label: "Centered" }]} onChange={(align) => onChange(patch(section, { align }))} />
+      <TextField id="sec-hero-cta" label="Button" value={section.cta ?? ""} max={40} error={issues.cta} placeholder="Book now" hint="Jumps to the booking widget. Leave blank for no button." onChange={(v) => onChange(patch(section, { cta: v }))} />
     </>
   );
 }

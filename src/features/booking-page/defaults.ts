@@ -33,7 +33,7 @@ export function newSection(type: SectionType, id: string = newSectionId()): Sect
   const base = { id, hidden: false as const };
   switch (type) {
     case "header": return { ...base, type, tagline: "" };
-    case "hero": return { ...base, type, headline: "", subheadline: "", align: "left" };
+    case "hero": return { ...base, type, headline: "", subheadline: "", align: "left", cta: "Book now" };
     case "about": return { ...base, type, title: "", body: "" };
     case "services": return { ...base, type, title: "Services", style: "list", showPrices: true, showDurations: true };
     case "staff": return { ...base, type, title: "Team" };
