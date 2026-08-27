@@ -123,6 +123,12 @@ export function BookingWidget({
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
   const slotsRegionRef = React.useRef<HTMLDivElement>(null);
+  // Each fetch takes a ticket; a response whose ticket is no longer the
+  // latest is dropped. Without this the LAST response to arrive wins: a
+  // 28-day first look that lands after the 7-day page the visitor paged to
+  // would overwrite it and jump them off the page they chose (review of
+  // PR #74). use-handle-check.ts's `cancelled` flag is the same idea.
+  const requestRef = React.useRef(0);
 
   // A fresh look: back to the home page, first-look fetch re-armed.
   const restart = () => {
@@ -172,8 +178,10 @@ export function BookingWidget({
       // already in state (seeded above) — nothing to load.
       if (preview) return;
       startTransition(async () => {
+        const ticket = ++requestRef.current;
         setError(null);
         const result = await getSlots({ handle, serviceId: svc.id, fromDate: from, days: firstLook ? FIRST_LOOK_DAYS : PAGE_DAYS, staffId });
+        if (ticket !== requestRef.current) return;
         if (!result.ok) {
           setError(result.error);
           return;
