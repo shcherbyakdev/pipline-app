@@ -7,9 +7,13 @@ import type { PublicOffering, PublicService } from "@/lib/booking/public";
    widget. Mirrors listPublicCatalog's mode rules so a preview never shows a
    channel the public page hides: a rentals-only org sees no services (not
    even the canned stand-in), an appointments-only org sees no rentals. Real
-   active rows where they exist; a canned stand-in per channel when the org
+   bookable rows where they exist (a space needs an active unit to be listed,
+   exactly as on the public page); a canned stand-in per channel when the org
    has nothing yet, so appearance can be judged before the first one. The
-   preview itself never fetches — rental cards render but stay inert. */
+   pages feed this the PRESENT mode (presentMode: declared mode narrowed to
+   the channels with bookable data), so an org that declared spaces but has
+   none previews as the appointments page it actually is. The preview itself
+   never fetches — rental cards render but stay inert. */
 
 type ServiceRow = PublicService & { active: boolean };
 
@@ -76,9 +80,15 @@ function toPublicOffering(o: OfferingRow): PublicOffering {
   };
 }
 
+/** Listed on the public page: active, with at least one active unit
+    (listPublicOfferings; the setup checklist's "bookable" count). */
+export function isBookableOffering(o: Pick<OfferingRow, "active" | "activeUnitCount">): boolean {
+  return o.active && o.activeUnitCount > 0;
+}
+
 function toPreviewOfferings(offerings: OfferingRow[]): PublicOffering[] {
-  const active = offerings.filter((o) => o.active).map(toPublicOffering);
-  return active.length > 0 ? active : [CANNED_PREVIEW_OFFERING];
+  const bookable = offerings.filter(isBookableOffering).map(toPublicOffering);
+  return bookable.length > 0 ? bookable : [CANNED_PREVIEW_OFFERING];
 }
 
 export function toPreviewCatalog({

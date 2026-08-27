@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toPreviewCatalog } from "./preview-catalog";
+import { isBookableOffering, toPreviewCatalog } from "./preview-catalog";
 import type { OfferingRow } from "@/features/rentals/queries";
 import type { PublicService } from "@/lib/booking/public";
 
@@ -14,12 +14,12 @@ function service(id: string, active = true): ServiceRow {
     bufferBeforeMin: 0, bufferAfterMin: 0, minNoticeMin: 0, maxPerDay: null, bookingWindowDays: 30, active,
   };
 }
-function offering(id: string, active = true): OfferingRow {
+function offering(id: string, active = true, activeUnitCount = 1): OfferingRow {
   return {
     id, name: id, description: null, rangeMode: "nights", startTime: "15:00", endTime: "11:00",
     minStay: 1, maxStay: null, turnoverDays: 0, minNoticeDays: 0, bookingWindowDays: 180,
     unitSelection: "auto", slotIncrementMin: null, minDurationMin: null, maxDurationMin: null,
-    turnoverMin: 0, minNoticeMin: 0, active, sortOrder: 0, unitCount: 1, activeUnitCount: 1,
+    turnoverMin: 0, minNoticeMin: 0, active, sortOrder: 0, unitCount: 1, activeUnitCount,
     priceCents: 20000, pricingMode: "per_unit", depositType: "none", depositValue: null,
     cancelWindowMin: 0, termsText: null,
   };
@@ -61,6 +61,22 @@ describe("toPreviewCatalog", () => {
     const out = toPreviewCatalog({ mode: BOTH, services: [], offerings: [] });
     expect(ids(out.services)).toEqual(["preview-service"]);
     expect(ids(out.offerings)).toEqual(["preview-offering"]);
+  });
+
+  it("a space with no active unit is not listed — the public page won't list it either", () => {
+    const out = toPreviewCatalog({ mode: BOTH, services: [service("cut")], offerings: [offering("room"), offering("shell", true, 0)] });
+    expect(ids(out.offerings)).toEqual(["room"]);
+  });
+
+  it("only unit-less spaces: nothing bookable, so the canned stand-in shows as for an org with no space yet", () => {
+    const out = toPreviewCatalog({ mode: RENTALS_ONLY, services: [], offerings: [offering("shell", true, 0)] });
+    expect(ids(out.offerings)).toEqual(["preview-offering"]);
+  });
+
+  it("isBookableOffering: active with an active unit — the one rule the pages use to decide what a preview shows", () => {
+    expect(isBookableOffering(offering("room"))).toBe(true);
+    expect(isBookableOffering(offering("shell", true, 0))).toBe(false);
+    expect(isBookableOffering(offering("retired", false))).toBe(false);
   });
 
   it("the projection keeps the public shape only — no admin-only fields leak into the preview", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { channelsOf, defaultBookingsView, effectiveMode, modeOf, BOTH } from "./mode";
+import { channelsOf, defaultBookingsView, effectiveMode, modeOf, presentMode, BOTH } from "./mode";
 
 const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
 const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
@@ -49,5 +49,33 @@ describe("effectiveMode", () => {
     expect(effectiveMode({ rentals: true }, BOTH)).toEqual(BOTH);
     expect(effectiveMode({ rentals: true }, RENTALS_ONLY)).toEqual(RENTALS_ONLY);
     expect(effectiveMode({ rentals: true }, APPTS_ONLY)).toEqual(APPTS_ONLY);
+  });
+});
+
+describe("presentMode", () => {
+  const NONE = { services: false, spaces: false };
+
+  it("narrows a declared channel that has nothing bookable in it", () => {
+    expect(presentMode(BOTH, { services: true, spaces: false })).toEqual(APPTS_ONLY);
+    expect(presentMode(BOTH, { services: false, spaces: true })).toEqual(RENTALS_ONLY);
+    expect(presentMode(BOTH, { services: true, spaces: true })).toEqual(BOTH);
+  });
+
+  it("never widens: data in a channel the org turned off stays off", () => {
+    expect(presentMode(APPTS_ONLY, { services: true, spaces: true })).toEqual(APPTS_ONLY);
+    expect(presentMode(RENTALS_ONLY, { services: true, spaces: true })).toEqual(RENTALS_ONLY);
+  });
+
+  it("an org with nothing anywhere keeps its declared mode, so a preview still has something to show", () => {
+    expect(presentMode(BOTH, NONE)).toEqual(BOTH);
+    expect(presentMode(APPTS_ONLY, NONE)).toEqual(APPTS_ONLY);
+    expect(presentMode(RENTALS_ONLY, NONE)).toEqual(RENTALS_ONLY);
+  });
+
+  it("a declared channel with nothing falls back only when the other declared channel is empty too", () => {
+    // Appointments-only org that somehow has spaces data but no services:
+    // the spaces can't be shown (not declared) and there are no services —
+    // nothing bookable → declared mode.
+    expect(presentMode(APPTS_ONLY, { services: false, spaces: true })).toEqual(APPTS_ONLY);
   });
 });

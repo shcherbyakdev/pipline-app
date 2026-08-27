@@ -3,8 +3,8 @@ import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/quer
 import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { listOfferings } from "@/features/rentals/queries";
-import { effectiveMode, modeOf } from "@/features/orgs/mode";
-import { toPreviewCatalog } from "@/lib/booking/preview-catalog";
+import { effectiveMode, modeOf, presentMode } from "@/features/orgs/mode";
+import { isBookableOffering, toPreviewCatalog } from "@/lib/booking/preview-catalog";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { getPageDraftState, getPageSectionsEntitlement } from "@/features/booking-page/queries";
@@ -17,17 +17,24 @@ import { env } from "@/env";
    explicitly. (Branding's accent and theme are shared with the website embed.) */
 export default async function BookingPagePage() {
   // The preview shows the channels the public page shows (listPublicCatalog's
-  // rules): declared mode ∩ the rentals kill switch, same as /bookings.
+  // rules): declared mode ∩ the rentals kill switch, same as /bookings —
+  // then narrowed to what actually has something bookable (presentMode), so
+  // an org that declared spaces but only ever added services previews,
+  // templates and lists sections as the appointments page it is.
   const { org } = await requireOrg();
-  const mode = effectiveMode(await getDashboardFlags(org.id), modeOf(org));
+  const declared = effectiveMode(await getDashboardFlags(org.id), modeOf(org));
   const [branding, scheduling, services, staff, offerings] = await Promise.all([
     getBrandingSettings(),
     getSchedulingSettings(),
     listServices(),
     listStaff(),
-    mode.offersRentals ? listOfferings() : [],
+    declared.offersRentals ? listOfferings() : [],
   ]);
   if (!branding || !scheduling) notFound();
+  const mode = presentMode(declared, {
+    services: services.some((s) => s.active),
+    spaces: offerings.some(isBookableOffering),
+  });
   const catalog = toPreviewCatalog({ mode, services, offerings });
   const [page, pageSections] = await Promise.all([
     getPageDraftState(branding.orgId),
