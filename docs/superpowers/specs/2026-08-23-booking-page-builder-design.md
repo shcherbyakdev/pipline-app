@@ -143,6 +143,8 @@ The same renderer serves `/book/[handle]`, `/book/[handle]/[staffSlug]`, the stu
 
 `PageStateProvider` (client) wraps the rendered sections with `{ requested: { id, key } | null, selectService(id) }` — every request carries an incrementing key so re-picking the same service after "change" still lands. A service card calls `selectService(id)` and scrolls the booking section into view (`id="book"`); `BookingWidget` gains a `requestedService` prop fed from the context and applies it during render (no effect). `?service=<id>` on the URL seeds the provider (pairs with the existing `?staff=`); `resolveInitialService` (pure) accepts only a uuid naming a listed service. Unknown ids are ignored.
 
+**Amended 2026-08-27 — one picker per page.** A Services (or Spaces) section the public page shows *is* the picker for its channel: `pickersOnPage(doc, counts)` (`render/pickers.ts`, decided on the public-visible set so preview and thumbnails agree with the live page) tells the booking section, which passes `listServices={!pickers.services}` / `listOfferings={!pickers.spaces}` to the widget. The widget then lists nothing for that channel and waits ("Choose a service to see available times."); the card click above hands the pick over as before. Pages without a catalogue section (the default page, the embed) list in the widget as before. The cover's Book button (`cta`, below) targets `bookHref(pickers)`: `#services` → `#spaces` → `#book`.
+
 ### Metadata
 
 `generateMetadata` (both public routes) uses `pageMetadata(doc, org)`: `title` = org name; `description` = first present of hero headline, header tagline, first line of about, else today's default; `openGraph.images` = hero image URL if set, else omitted.
@@ -189,6 +191,8 @@ Selecting a section (from the list or by clicking it in the preview) drills the 
 
 In `mode: "preview"` each section wrapper carries `data-section-id`, a hover outline, and a click handler that selects the section; the selected section keeps an accent outline and a small type chip. Selecting from the list scrolls the preview wrapper into view. Empty text/image props render ghost placeholders ("Add a headline", dashed image box) in preview only. Links and service cards do not navigate in preview.
 
+**Amended 2026-08-27 — the preview follows the data.** `/booking-page` and `/embed` feed the builder `presentMode(effectiveMode(flags, modeOf(org)), { services, spaces })` (`mode.ts`): the declared mode narrowed to the channels with something bookable (an active service; an active space with an active unit — `isBookableOffering`), falling back to the declared mode only when nothing exists yet so a brand-new account keeps its canned stand-ins. `create_org` defaults both channels on, so without this an org that only ever added services previewed a "Studio A" space, got a Spaces section spliced into every template and saw Venue first. Admin nav and the public page keep the declared mode.
+
 ## Templates and skins
 
 `templates.ts`:
@@ -205,11 +209,13 @@ type Template = {
 | id | Layout | Sections (in order) | Skin |
 |---|---|---|---|
 | `classic` | column | header · booking | none |
-| `profile` | column | header · about (photo) · services (list) · links · booking | light · round · lora |
-| `studio` | column | hero · services (cards, prices) · gallery · testimonials · booking · location | dark · subtle · space-grotesk |
-| `split` | split | hero · about · services · faq · location · booking | light · subtle · dm-sans |
+| `profile` | column | header · about (photo) · services (list) · booking · links | light · round · lora |
+| `studio` | column | hero · services (cards, prices) · booking · gallery · testimonials · location | dark · subtle · space-grotesk |
+| `split` | split | hero · about · services · booking · faq · location | light · subtle · dm-sans |
 | `team` | column | header · staff · services · booking · location | light · subtle · inter |
 | `minimal` | column | hero (no image) · booking · links | light · none · system |
+
+**Amended 2026-08-27 — order rule and the Book button.** The booking section sits right after the catalogue (services / spaces) in every template, ahead of gallery, testimonials, FAQ and location — a card click lands on times without scrolling past them, and on a phone the Split widget no longer trails the page. The hero section gained `cta: text(40).optional()` (optional, never defaulted: a required field would fail to parse every stored page and reset it to `DEFAULT_PAGE`), rendered as an accent anchor to the page's picker (`bookHref`) and inert in preview; `newSection("hero")` and every template default it to "Book now" (Venue "Book a space", Split "Book a session"); `stripSample` keeps it (a label, not sample copy); a cover with only a button is still empty.
 
 - **Picker**: dialog with one card per template. Thumbnails are the real `PageRenderer` (`mode: "preview"`, sample copy, the org's real name/logo/services) in a scaled frame (`transform: scale(.35)`, fixed aspect box, `pointer-events: none`). No static images to maintain.
 - `applyTemplate(t): PageDocument` — deep-copies sections, assigns fresh ids, **strips sample copy** (text props → `""`, image paths → `undefined`, list items kept with empty fields for `faq`/`testimonials`/`links`, gallery images removed). Result is a valid document (tested for every template).
