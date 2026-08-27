@@ -9,7 +9,8 @@ const booking = DEFAULT_PAGE.sections[1]!;
 
 describe("pageDocumentSchema", () => {
   it("cover: the Book button label is optional, so pages stored before it existed still parse", () => {
-    const { cta: _cta, ...legacyHero } = { ...newSection("hero"), id: "hero0001" } as Extract<PageDocument["sections"][number], { type: "hero" }>;
+    const legacyHero: Record<string, unknown> = { ...newSection("hero"), id: "hero0001" };
+    delete legacyHero.cta;
     expect(legacyHero).not.toHaveProperty("cta");
     const parsed = parsePageDocument({ ...DEFAULT_PAGE, sections: [header, legacyHero, booking] }, ORG);
     expect(parsed).not.toBeNull();
