@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pageDocumentSchema, parsePageDocument, allowedLinkUrl, PAGE_LIMITS, type PageDocument } from "./schema";
+import { pageDocumentSchema, parsePageDocument, allowedLinkUrl, bookingChannel, PAGE_LIMITS, type PageDocument } from "./schema";
 import { DEFAULT_PAGE, newSection, newSectionId, ADDABLE_TYPES, SECTION_META } from "./defaults";
 
 const ORG = "123e4567-e89b-12d3-a456-426614174000";
@@ -27,12 +27,31 @@ describe("pageDocumentSchema", () => {
     const doc: PageDocument = { ...DEFAULT_PAGE, sections: [header, ...ADDABLE_TYPES.filter((t) => t !== "header").map((t) => newSection(t)), booking] };
     expect(pageDocumentSchema.safeParse(doc).success).toBe(true);
   });
-  it("requires exactly one booking section", () => {
+  it("requires a booking section", () => {
     expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header] }).success).toBe(false);
-    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, booking, { ...booking, id: "booking2" }] }).success).toBe(false);
   });
-  it("booking can never be hidden", () => {
+  it("booking: `channel` is optional (absent = the combined widget every stored page has)", () => {
+    expect(booking).not.toHaveProperty("channel");
+    expect(bookingChannel(booking as Extract<PageDocument["sections"][number], { type: "booking" }>)).toBe("all");
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, { ...booking, channel: "appointments" }] }).success).toBe(true);
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, { ...booking, channel: "nope" }] }).success).toBe(false);
+  });
+  it("two booking sections only as one per channel", () => {
+    const appts = { ...booking, id: "bookappt", channel: "appointments" };
+    const spaces = { ...booking, id: "bookspcs", channel: "spaces" };
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, appts, spaces] }).success).toBe(true);
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, spaces, appts] }).success).toBe(true);
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, booking, { ...booking, id: "booking2" }] }).success).toBe(false);
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, booking, spaces] }).success).toBe(false);
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, appts, { ...appts, id: "bookapp2" }] }).success).toBe(false);
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, appts, spaces, { ...booking, id: "booking3" }] }).success).toBe(false);
+  });
+  it("a booking section may hide only while another stays visible", () => {
     expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, { ...booking, hidden: true }] }).success).toBe(false);
+    const appts = { ...booking, id: "bookappt", channel: "appointments", hidden: true };
+    const spaces = { ...booking, id: "bookspcs", channel: "spaces" };
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, appts, spaces] }).success).toBe(true);
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, appts, { ...spaces, hidden: true }] }).success).toBe(false);
   });
   it("rejects duplicate single-instance types and duplicate ids", () => {
     expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, { ...header, id: "header02" }, booking] }).success).toBe(false);

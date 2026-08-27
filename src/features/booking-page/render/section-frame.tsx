@@ -2,17 +2,16 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { SECTION_META } from "../defaults";
-import type { SectionType } from "../schema";
 import { useSelection } from "./selection";
 
 /* Preview wrapper: hover outline, click-anywhere to select, accent outline +
    type chip when selected, dimmed when the section is hidden. Scrolls
    itself into view when selected from the list. */
 export function SectionFrame({
-  id, type, hidden, className, style, children,
+  id, label, hidden, className, style, children,
 }: {
-  id: string; type: SectionType; hidden: boolean; className?: string; style?: React.CSSProperties; children: React.ReactNode;
+  /** sectionLabel(section) — the chip's text. */
+  id: string; label: string; hidden: boolean; className?: string; style?: React.CSSProperties; children: React.ReactNode;
 }) {
   const { selectedId, select } = useSelection();
   const selected = selectedId === id;
@@ -20,7 +19,6 @@ export function SectionFrame({
   React.useEffect(() => {
     if (selected) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selected]);
-  const label = SECTION_META[type].label;
   return (
     // Click anywhere selects (builder convention). The wrapper carries no
     // role: it contains the section's own buttons, links and form fields,

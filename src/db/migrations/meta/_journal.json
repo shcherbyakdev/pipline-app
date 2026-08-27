@@ -414,6 +414,13 @@
       "when": 1787608796795,
       "tag": "0058_prices_terms",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1787608797795,
+      "tag": "0059_booking_pages_two_widgets",
+      "breakpoints": true
     }
   ]
 }

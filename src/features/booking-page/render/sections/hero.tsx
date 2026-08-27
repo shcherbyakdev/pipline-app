@@ -5,9 +5,9 @@ import type { SectionOf } from "../../schema";
 import { pageImageUrl } from "../../images";
 import type { RenderContext } from "../context";
 import { Ghost } from "../ghost";
-import { bookHref, type Pickers } from "../pickers";
 
-export function HeroSection({ section, ctx, pickers }: { section: SectionOf<"hero">; ctx: RenderContext; pickers: Pickers }) {
+/** `bookHref`: the page's first step of booking (pickers.ts bookHref). */
+export function HeroSection({ section, ctx, bookHref }: { section: SectionOf<"hero">; ctx: RenderContext; bookHref: string }) {
   const src = section.imagePath ? pageImageUrl(ctx.supabaseUrl, section.imagePath) : null;
   const center = section.align === "center";
   return (
@@ -27,7 +27,7 @@ export function HeroSection({ section, ctx, pickers }: { section: SectionOf<"her
           <p className="text-muted-foreground max-w-prose text-base text-pretty sm:text-lg">{section.subheadline}</p>
         ) : null}
       </div>
-      <BookButton label={section.cta} href={bookHref(pickers)} mode={ctx.mode} />
+      <BookButton label={section.cta} href={bookHref} mode={ctx.mode} />
     </section>
   );
 }
