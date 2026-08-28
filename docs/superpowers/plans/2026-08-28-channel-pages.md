@@ -1788,6 +1788,8 @@ Append to the spec an `## Amendments (2026-08-28, at execution)` section:
 - The 0060 backfill is verified at migration time (psql, plan Task 3 step 5) and by QA item 3, not by an integration test: the harness cannot re-run a migration against seeded rows. §6 reads accordingly.
 - `listPublicCatalog` is memoised per request (`react.cache`) so `generateMetadata` and the page resolve the channel from one read.
 - The orphan-image sweep (`cleanupOrphans`) reads every page of the org — draft and published, both channels — before deleting; a one-page sweep would have removed images only the other page references.
+- A `{ space }` link target (Links & embeds, the Spaces list) opens the SPACES page with the space preselected — `/<handle>/spaces?space=<id>` — because the root of a both-channel org is now the appointments page and no longer lists spaces; `{ service }` stays on the root, embeds keep `?space=`. §3.6 reads accordingly.
+- The cross-link placement rule lives in `render/cross-link-host.ts` (pure), the component in `render/cross-link.tsx`; the spec's `cross-link.ts` + `cross-link.tsx` pair cannot coexist (same basename resolves to `.ts`).
 ```
 
 - [ ] **Step 5: Commit and open the PR**
