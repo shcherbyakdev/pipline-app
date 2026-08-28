@@ -76,6 +76,7 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
     // `staff` (= [person]).
     staff: [person], offerings: [], lockedStaff: person,
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public",
+    crossLink: null, // final — a person's page is not a channel page
   };
   return (
     <div className={bookShellClass(theme.theme)}>

@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import type { PageDocument, Section } from "../schema";
 import { publicSections } from "../doc-ops";
 import type { RenderContext } from "./context";
+import { crossLinkHost } from "./cross-link";
 import { PageStateProvider } from "./page-state";
 import { pickersOnPage, type Pickers } from "./pickers";
 import { SectionFrame } from "./section-frame";
@@ -23,10 +24,10 @@ export function pageContainerClass(layout: PageDocument["layout"]): string {
   return layout === "split" ? "max-w-5xl" : "max-w-lg";
 }
 
-function renderSection(section: Section, ctx: RenderContext, pickers: Pickers) {
+function renderSection(section: Section, ctx: RenderContext, pickers: Pickers, crossLink: RenderContext["crossLink"]) {
   switch (section.type) {
-    case "header": return <HeaderSection section={section} ctx={ctx} />;
-    case "hero": return <HeroSection section={section} ctx={ctx} pickers={pickers} />;
+    case "header": return <HeaderSection section={section} ctx={ctx} crossLink={crossLink} />;
+    case "hero": return <HeroSection section={section} ctx={ctx} pickers={pickers} crossLink={crossLink} />;
     case "about": return <AboutSection section={section} ctx={ctx} />;
     case "services": return <ServicesSection section={section} ctx={ctx} />;
     case "staff": return <StaffSection section={section} ctx={ctx} />;
@@ -36,7 +37,7 @@ function renderSection(section: Section, ctx: RenderContext, pickers: Pickers) {
     case "faq": return <FaqSection section={section} ctx={ctx} />;
     case "links": return <LinksSection section={section} ctx={ctx} />;
     case "location": return <LocationSection section={section} ctx={ctx} />;
-    case "booking": return <BookingSection section={section} ctx={ctx} pickers={pickers} />;
+    case "booking": return <BookingSection section={section} ctx={ctx} pickers={pickers} crossLink={crossLink} />;
   }
 }
 
@@ -66,6 +67,9 @@ export function PageRenderer({
   // Which catalogue sections the PUBLIC page shows (even in preview, which
   // renders hidden ones dimmed): those are the pickers, the widget defers.
   const pickers = pickersOnPage(doc, counts);
+  // The sibling-channel link's host, decided on the public-visible list so
+  // preview and live agree (same doctrine as pickers). One section gets it.
+  const host = ctx.crossLink ? crossLinkHost(publicSections(doc, counts)) : null;
   const split = doc.layout === "split";
   const others = sections.filter((s) => s.type !== "booking").length;
   return (
@@ -80,7 +84,7 @@ export function PageRenderer({
         >
           {sections.map((section) => {
             const docked = split && section.type === "booking";
-            const inner = renderSection(section, ctx, pickers);
+            const inner = renderSection(section, ctx, pickers, host?.sectionId === section.id ? ctx.crossLink : null);
             return ctx.mode === "preview" ? (
               <SectionFrame key={section.id} id={section.id} type={section.type} hidden={section.hidden} className={cn(docked && DOCKED)}>
                 {inner}

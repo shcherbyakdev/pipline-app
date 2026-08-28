@@ -4,10 +4,11 @@ import { cn } from "@/lib/utils";
 import type { SectionOf } from "../../schema";
 import { pageImageUrl } from "../../images";
 import type { RenderContext } from "../context";
+import { CrossLink } from "../cross-link";
 import { Ghost } from "../ghost";
 import { bookHref, type Pickers } from "../pickers";
 
-export function HeroSection({ section, ctx, pickers }: { section: SectionOf<"hero">; ctx: RenderContext; pickers: Pickers }) {
+export function HeroSection({ section, ctx, pickers, crossLink }: { section: SectionOf<"hero">; ctx: RenderContext; pickers: Pickers; crossLink: RenderContext["crossLink"] }) {
   const src = section.imagePath ? pageImageUrl(ctx.supabaseUrl, section.imagePath) : null;
   const center = section.align === "center";
   return (
@@ -28,6 +29,7 @@ export function HeroSection({ section, ctx, pickers }: { section: SectionOf<"her
         ) : null}
       </div>
       <BookButton label={section.cta} href={bookHref(pickers)} mode={ctx.mode} />
+      <CrossLink link={crossLink} mode={ctx.mode} />
     </section>
   );
 }

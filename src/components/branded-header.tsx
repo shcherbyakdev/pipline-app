@@ -4,17 +4,21 @@
    it from getBrandingSettings but overrides the accent with the form's own
    client-regex-validated (not DB CHECK-validated) input while the user is
    typing an unsaved value. Either way the accent is expected to already be
-   a #rrggbb hex, safe for inline style. */
+   a #rrggbb hex, safe for inline style. `aside` is the booking page's link
+   to its sibling channel page (render/cross-link.tsx); /p and /portal never
+   pass it. */
 export function BrandedHeader({
   orgName,
   accentColor,
   logoUrl,
   subtitle,
+  aside,
 }: {
   orgName: string;
   accentColor: string | null;
   logoUrl: string | null;
   subtitle?: string;
+  aside?: React.ReactNode;
 }) {
   return (
     <div
@@ -29,6 +33,7 @@ export function BrandedHeader({
           <img src={logoUrl} alt={`${orgName} logo`} className="h-6 w-auto max-w-32 object-contain" />
         ) : null}
         <span className="text-sm font-semibold">{orgName}</span>
+        {aside ? <span className="ml-auto">{aside}</span> : null}
       </div>
       {subtitle ? <p className="text-muted-foreground text-xs">{subtitle}</p> : null}
     </div>

@@ -106,6 +106,7 @@ export function BookingPageBuilder({
     theme: previewTheme,
     services: previewServices, staff, offerings: previewOfferings, lockedStaff: null,
     supabaseUrl, mode: "preview", previewSlots: PREVIEW_SLOTS,
+    crossLink: null, // Task 8 computes it
   };
   const selected = draft.doc.sections.find((s) => s.id === selectedId) ?? null;
 

@@ -77,6 +77,7 @@ export default async function BookPage({ params, searchParams }: PageProps<"/[ha
     branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
     theme, services, staff, serviceStaffIds, offerings: cat.offerings, lockedStaff: null,
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public",
+    crossLink: null, // Task 6 computes it
   };
   return (
     // The whole page takes the org's widget theme (light / dark / auto), so
