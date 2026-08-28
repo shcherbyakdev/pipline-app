@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { slugifyStaffName, STAFF_SLUG_RE, nextStaffColor, STAFF_COLORS, initials } from "./staff-slug";
+import { slugifyStaffName, STAFF_SLUG_RE, nextStaffColor, STAFF_COLORS, initials, isReservedStaffSlug } from "./staff-slug";
 
 describe("slugifyStaffName", () => {
   it("lowercases, strips diacritics, hyphenates", () => expect(slugifyStaffName("Anna Müller")).toBe("anna-muller"));
@@ -9,6 +9,11 @@ describe("slugifyStaffName", () => {
     const s = slugifyStaffName("x".repeat(60) + "-");
     expect(s.length).toBeLessThanOrEqual(40);
     expect(STAFF_SLUG_RE.test(s)).toBe(true);
+  });
+  it("sidesteps the channel-page segments (spec 2026-08-28 §3.3)", () => {
+    expect(slugifyStaffName("Spaces")).toBe("spaces-1");
+    expect(slugifyStaffName("Appointments")).toBe("appointments-1");
+    expect(slugifyStaffName("Spaces Team")).toBe("spaces-team");
   });
 });
 
@@ -25,5 +30,14 @@ describe("nextStaffColor", () => {
     expect(nextStaffColor([])).toBe(STAFF_COLORS[0]);
     expect(nextStaffColor([STAFF_COLORS[0]])).toBe(STAFF_COLORS[1]);
     expect(nextStaffColor([...STAFF_COLORS])).toBe(STAFF_COLORS[0]);
+  });
+});
+
+describe("isReservedStaffSlug", () => {
+  it("only the two page segments", () => {
+    expect(isReservedStaffSlug("spaces")).toBe(true);
+    expect(isReservedStaffSlug("appointments")).toBe(true);
+    expect(isReservedStaffSlug("spaces-1")).toBe(false);
+    expect(isReservedStaffSlug("anna")).toBe(false);
   });
 });

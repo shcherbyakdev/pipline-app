@@ -21,6 +21,7 @@ import {
   staffInput,
   updateStaffInput,
   staffActiveInput,
+  STAFF_SLUG_RESERVED_ISSUE,
 } from "./schema";
 
 describe("serviceInput", () => {
@@ -453,6 +454,14 @@ describe("staffInput", () => {
 
   it("rejects a blank name", () => {
     expect(staffInput.safeParse({ ...base, name: "   " }).success).toBe(false);
+  });
+
+  it("staffInput refuses a reserved slug with the reserved issue (spec 2026-08-28 §3.3)", () => {
+    const base = { name: "X", slug: "spaces", color: "#4f46e5", serviceIds: [] };
+    const result = staffInput.safeParse(base);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues.some((i) => i.path[0] === "slug" && i.message === STAFF_SLUG_RESERVED_ISSUE)).toBe(true);
+    expect(staffInput.safeParse({ ...base, slug: "spaces-1" }).success).toBe(true);
   });
 });
 

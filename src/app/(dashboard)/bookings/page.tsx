@@ -40,7 +40,8 @@ import type { BookingsView } from "@/features/scheduling/bookings-views";
 import { mondayOf } from "@/features/scheduling/calendar-geometry";
 import { unionWindows, weekdayOf } from "@/features/scheduling/day-windows";
 import { wallTimeToUtc, addDaysISO, dateInZone } from "@/features/scheduling/slots";
-import { getPageDraftState } from "@/features/booking-page/queries";
+import { getPageStates } from "@/features/booking-page/queries";
+import { frontDoor } from "@/lib/booking/channel-pages";
 import { SETUP_DISMISSED_COOKIE, setupChecklist, showWelcome, type ChecklistItem } from "@/features/scheduling/setup-checklist";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -140,18 +141,23 @@ export default async function BookingsPage({
   const dismissed = (await cookies()).get(SETUP_DISMISSED_COOKIE)?.value === org.id;
   let checklist: ChecklistItem[] = [];
   if (!dismissed) {
-    const [ownersWithHours, page] = await Promise.all([countHoursOwners(), getPageDraftState(org.id)]);
+    const [ownersWithHours, pages] = await Promise.all([countHoursOwners(), getPageStates(org.id)]);
+    // Bookable = has an active unit: the measure the public page uses
+    // (listPublicOfferings), so the chip cannot tick while /[handle] 404s.
+    const bookableSpaceCount = spaces.filter((o) => o.activeUnitCount > 0).length;
+    // "Publish your page" tracks the page /<handle> resolves to (spec
+    // 2026-08-28 §4.4); before anything is bookable, the declared-first channel.
+    const door = frontDoor({ services: activeServices.length > 0, spaces: bookableSpaceCount > 0 })
+      ?? (eff.offersAppointments ? "appointments" : "spaces");
     checklist = setupChecklist({
       mode: eff,
       serviceCount: activeServices.length,
       spaceCount: spaces.length,
-      // Bookable = has an active unit: the measure the public page uses
-      // (listPublicOfferings), so the chip cannot tick while /[handle] 404s.
-      bookableSpaceCount: spaces.filter((o) => o.activeUnitCount > 0).length,
+      bookableSpaceCount,
       unitlessSpaceId: spaces.find((o) => o.activeUnitCount === 0)?.id ?? null,
       hourlySpaceCount: spaces.filter((o) => o.rangeMode === "hours").length,
       ownersWithHours,
-      published: page.published !== null,
+      published: (pages[door]?.published ?? null) !== null,
     });
   }
   const handle = settings?.handle ?? null;

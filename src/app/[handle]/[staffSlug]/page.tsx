@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: PageProps<"/[handle]/[staffSl
   if (!HANDLE_RE.test(handle) || !STAFF_SLUG_RE.test(staffSlug)) return {};
   const org = await getBookingOrg(handle);
   if (!org) return {};
-  return pageMetadata(await getPublishedPage(org.orgId), org, env.NEXT_PUBLIC_SUPABASE_URL);
+  return pageMetadata(await getPublishedPage(org.orgId, "appointments"), org, env.NEXT_PUBLIC_SUPABASE_URL, "appointments");
 }
 
 // One team member's own booking link: the org's published page with the
@@ -54,7 +54,7 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
   const [offering, branding, doc] = await Promise.all([
     loadPublicOffering(org.orgId),
     getOrgBranding(org.orgId),
-    getPublishedPage(org.orgId),
+    getPublishedPage(org.orgId, "appointments"),
   ]);
   // The roster is active-only AND plan-limited, so both a deactivated person
   // and one the plan no longer offers publicly 404 here — the link stays valid
@@ -76,6 +76,7 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
     // `staff` (= [person]).
     staff: [person], offerings: [], lockedStaff: person,
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public",
+    crossLink: null, // final — a person's page is not a channel page
   };
   return (
     <div className={bookShellClass(theme.theme)}>

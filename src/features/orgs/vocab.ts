@@ -62,6 +62,10 @@ export const SPACES = {
     "Nightly and daily spaces use check-in and check-out times, set on each space. Hourly spaces and team members set their weekly hours here.",
   /** Links & embeds row: the widget restricted to this channel (?channel=spaces). */
   only: "Spaces only",
+  /** The appointments page's link to the spaces page (render/cross-link.tsx). */
+  crossLink: "Looking for a room? Book a space →",
+  /** The builder's page switch (studio/page-switch.tsx) for a both-channel org. */
+  page: "Spaces page",
   /** Bookings scope selector: the group heading and its every-space entry. */
   scope: { group: "Spaces", all: "All spaces" },
 } as const;
@@ -75,6 +79,10 @@ export const APPOINTMENTS = {
   field: "Service",
   /** Links & embeds row: the widget restricted to this channel (?channel=services). */
   only: "Appointments only",
+  /** The spaces page's link to the appointments page (render/cross-link.tsx). */
+  crossLink: "Need an appointment? Book a time →",
+  /** The builder's page switch for a both-channel org. */
+  page: "Appointments page",
   /** Bookings scope selector: the group heading and its every-person entry. */
   scope: { group: "Appointments", all: "All appointments" },
 } as const;

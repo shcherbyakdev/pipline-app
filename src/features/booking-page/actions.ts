@@ -1,6 +1,7 @@
 "use server";
 
 import { createHash } from "node:crypto";
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -8,8 +9,9 @@ import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 import { matchesLogoMagicBytes } from "@/lib/storage/logo";
 import { BRANDING_BUCKET, uploadBrandingObject } from "@/lib/storage/branding";
-import { getPageDraftState, getPageSectionsEntitlement } from "./queries";
+import { getPageStates, getPageSectionsEntitlement } from "./queries";
 import { gatedVisibleSections } from "./gating";
+import { PAGE_CHANNELS, type PageChannel } from "./channel";
 import {
   parsePageDocument, PAGE_TOO_LARGE_ERROR, IMAGE_REJECTED_ERROR, IMAGE_LIMIT_ERROR, PAGE_GATED_ERROR, type PageDocument,
 } from "./schema";
@@ -31,9 +33,14 @@ async function currentOrgId(): Promise<string | null> {
   return data?.id ?? null;
 }
 
-async function saveDraft(orgId: string, doc: PageDocument): Promise<ActionState> {
+// Every write names its page. `doc` stays `unknown` here: parsePageDocument
+// owns the document's shape (and its org-scoped image-path check).
+const pageWriteInput = z.object({ channel: z.enum(PAGE_CHANNELS), doc: z.unknown() });
+const pageChannelInput = z.object({ channel: z.enum(PAGE_CHANNELS) });
+
+async function saveDraft(orgId: string, channel: PageChannel, doc: PageDocument): Promise<ActionState> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("save_booking_page_draft", { p_org_id: orgId, p_doc: doc });
+  const { error } = await supabase.rpc("save_booking_page_draft", { p_org_id: orgId, p_channel: channel, p_doc: doc });
   if (error) {
     if (isRpcSentinel(error, "too large")) return { ok: false, error: PAGE_TOO_LARGE_ERROR };
     return fail("saveDraft", error);
@@ -42,40 +49,46 @@ async function saveDraft(orgId: string, doc: PageDocument): Promise<ActionState>
 }
 
 export async function saveBookingPageDraft(input: unknown): Promise<ActionState> {
+  const parsed = pageWriteInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
-  const doc = parsePageDocument(input, orgId);
+  const doc = parsePageDocument(parsed.data.doc, orgId);
   if (!doc) return { ok: false, error: GENERIC_WRITE_ERROR };
-  return saveDraft(orgId, doc);
+  return saveDraft(orgId, parsed.data.channel, doc);
 }
 
 /** Saves, then publishes — never depends on a pending autosave or an existing row. */
 export async function publishBookingPage(input: unknown): Promise<ActionState> {
+  const parsed = pageWriteInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
-  const doc = parsePageDocument(input, orgId);
+  const doc = parsePageDocument(parsed.data.doc, orgId);
   if (!doc) return { ok: false, error: GENERIC_WRITE_ERROR };
   const pageSections = await getPageSectionsEntitlement(orgId);
   if (gatedVisibleSections(doc, { pageSections }).length > 0) return { ok: false, error: PAGE_GATED_ERROR };
-  const saved = await saveDraft(orgId, doc);
+  const saved = await saveDraft(orgId, parsed.data.channel, doc);
   if (!saved.ok) return saved;
   const supabase = await createClient();
-  const { error } = await supabase.rpc("publish_booking_page", { p_org_id: orgId });
+  const { error } = await supabase.rpc("publish_booking_page", { p_org_id: orgId, p_channel: parsed.data.channel });
   if (error) return fail("publishBookingPage", error);
-  // Published == draft now: anything else under the prefix is an orphan.
-  await cleanupOrphans(orgId, doc, doc);
+  await cleanupOrphans(orgId);
   revalidatePath("/booking-page");
   return { ok: true };
 }
 
-export async function discardBookingPageDraft(): Promise<ActionState> {
+export async function discardBookingPageDraft(input: unknown): Promise<ActionState> {
+  const parsed = pageChannelInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("discard_booking_page_draft", { p_org_id: orgId, p_fallback: DEFAULT_PAGE });
+  const { error } = await supabase.rpc("discard_booking_page_draft", {
+    p_org_id: orgId, p_channel: parsed.data.channel, p_fallback: DEFAULT_PAGE,
+  });
   if (error) return fail("discardBookingPageDraft", error);
-  const state = await getPageDraftState(orgId);
-  await cleanupOrphans(orgId, state.draft, state.published);
+  await cleanupOrphans(orgId);
   revalidatePath("/booking-page");
   return { ok: true };
 }
@@ -139,14 +152,17 @@ async function listPageObjects(orgId: string): Promise<string[] | null> {
   }
 }
 
-/** Best-effort: delete objects under the org's page prefix that neither
-    document references. Never throws, never fails the caller — the next
-    publish/discard retries (evidence.ts orphan doctrine). */
-async function cleanupOrphans(orgId: string, draft: PageDocument, published: PageDocument | null): Promise<void> {
+/** Best-effort: delete objects under the org's page prefix that no page —
+    any channel, draft or published — references. Reads the rows back after
+    the write so the sweep sees exactly what the DB holds. Never throws,
+    never fails the caller — the next publish/discard retries (evidence.ts
+    orphan doctrine). */
+async function cleanupOrphans(orgId: string): Promise<void> {
   try {
     const listed = await listPageObjects(orgId);
     if (listed === null) return;
-    const referenced = [...imagePathsIn(draft), ...(published ? imagePathsIn(published) : [])];
+    const states = Object.values(await getPageStates(orgId));
+    const referenced = states.flatMap((s) => [...imagePathsIn(s.draft), ...(s.published ? imagePathsIn(s.published) : [])]);
     const orphans = orphanPaths(listed, referenced);
     if (orphans.length === 0) return;
     const { error: removeError } = await createAdminClient().storage.from(BRANDING_BUCKET).remove(orphans);

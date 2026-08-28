@@ -30,7 +30,8 @@ function TemplateThumb({ template, ctx, mode }: { template: Template; ctx: Rende
       <div className={cn("pointer-events-none absolute top-0 left-0 w-[900px] origin-top-left scale-[0.3] p-8", scheme, "bg-background text-foreground")}>
         <WidgetTheme config={theme} accentColor={ctx.branding.accentColor} transparent>
           <div className={cn("mx-auto", pageContainerClass(template.layout))}>
-            <PageRenderer doc={templatePreview(template, mode)} ctx={{ ...ctx, theme, mode: "preview" }} />
+            {/* A thumbnail is a template, not a page — it never carries the sibling-channel link. */}
+            <PageRenderer doc={templatePreview(template, mode)} ctx={{ ...ctx, theme, mode: "preview", crossLink: null }} />
           </div>
         </WidgetTheme>
       </div>

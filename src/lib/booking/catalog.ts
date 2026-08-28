@@ -1,18 +1,21 @@
 import "server-only";
+import { cache } from "react";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { listPublicOfferings, type BookingOrg, type PublicOffering } from "@/lib/booking/public";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
+import type { Has } from "./channel-pages";
 
 /* The one gated read for the public catalogue (H1): a channel the org has
    turned off (Settings → Business) — or a rentals feature flag turned off —
    is simply absent, however many active rows it still has. /[handle],
    /[handle]/[staffSlug] and /embed/[handle] all come through here so they
    can't disagree. The create RPCs re-check the mode in SQL (0054) as the
-   hard gate. */
-export async function listPublicCatalog(org: BookingOrg): Promise<{
+   hard gate. Memoised per request: generateMetadata and the page both
+   resolve the channel from it. */
+export const listPublicCatalog = cache(async (org: BookingOrg): Promise<{
   offering: Awaited<ReturnType<typeof loadPublicOffering>>;
   offerings: PublicOffering[];
-}> {
+}> => {
   const [offering, allOfferings] = await Promise.all([
     loadPublicOffering(org.orgId),
     org.offersRentals
@@ -30,4 +33,9 @@ export async function listPublicCatalog(org: BookingOrg): Promise<{
     return { offering: { ...offering, services: [], staff: [], serviceStaffIds: {} }, offerings };
   }
   return { offering, offerings };
+});
+
+/** What the gated catalogue holds, as the routing rule reads it (spec 2026-08-28 §3.1). */
+export function catalogueHas(cat: Awaited<ReturnType<typeof listPublicCatalog>>): Has {
+  return { services: cat.offering.services.length > 0, spaces: cat.offerings.length > 0 };
 }

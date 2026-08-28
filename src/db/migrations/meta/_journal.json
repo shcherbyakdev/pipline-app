@@ -414,6 +414,20 @@
       "when": 1787608796795,
       "tag": "0058_prices_terms",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1787903856025,
+      "tag": "0059_wet_morlocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1787903884756,
+      "tag": "0060_booking_pages_channel_rpcs",
+      "breakpoints": true
     }
   ]
 }

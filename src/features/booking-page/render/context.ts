@@ -16,6 +16,9 @@ export type RenderContext = {
   /** NEXT_PUBLIC_SUPABASE_URL — image paths resolve with pageImageUrl. */
   supabaseUrl: string;
   mode: "public" | "preview";
+  /** The link to the org's other channel page, when one is bookable (spec
+      2026-08-28 §3.5); placed by crossLinkHost. `href` is "#" in preview. */
+  crossLink: { href: string; label: string } | null;
   /** Preview only: canned slots so the widget never fetches. */
   previewSlots?: string[];
 };

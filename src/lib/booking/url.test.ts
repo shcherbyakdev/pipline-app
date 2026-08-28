@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { bookingLink, bookingPath, bookingUrl, embedSrc, hostLabel, targetQuery } from "./url";
+import { bookingLink, bookingPath, bookingUrl, channelPath, channelUrl, embedSrc, hostLabel, targetQuery } from "./url";
 
 describe("booking URLs", () => {
   it("builds root paths, with an optional staff segment", () => {
@@ -28,8 +28,16 @@ describe("booking URLs", () => {
     expect(bookingLink("https://booklo.co", "anna")).toBe("https://booklo.co/anna");
     expect(bookingLink("https://booklo.co/", "anna", { staff: "maria" })).toBe("https://booklo.co/anna/maria");
     expect(bookingLink("https://booklo.co", "anna", { service: "s1" })).toBe("https://booklo.co/anna?service=s1");
-    expect(bookingLink("https://booklo.co", "anna", { space: "o1" })).toBe("https://booklo.co/anna?space=o1");
-    expect(bookingLink("https://booklo.co", "anna", { channel: "services" })).toBe("https://booklo.co/anna?channel=services");
+    expect(bookingLink("https://booklo.co", "anna", { space: "o1" })).toBe("https://booklo.co/anna/spaces?space=o1");
+  });
+  it("channelPath / channelUrl: appointments is the root, spaces is a segment", () => {
+    expect(channelPath("anna", "appointments")).toBe("/anna");
+    expect(channelPath("anna", "spaces")).toBe("/anna/spaces");
+    expect(channelUrl("https://booklo.co/", "anna", "spaces")).toBe("https://booklo.co/anna/spaces");
+  });
+  it("bookingLink: a channel target is that channel's PAGE, not a query (spec 2026-08-28 §3.6)", () => {
+    expect(bookingLink("https://booklo.co", "anna", { channel: "services" })).toBe("https://booklo.co/anna");
+    expect(bookingLink("https://booklo.co", "anna", { channel: "spaces" })).toBe("https://booklo.co/anna/spaces");
   });
   it("embedSrc: every target is a query on the embed route", () => {
     expect(embedSrc("https://booklo.co", "anna")).toBe("https://booklo.co/embed/anna");

@@ -10,6 +10,7 @@ import {
   staffActiveInput,
   LAST_ACTIVE_STAFF_ERROR,
   STAFF_SLUG_TAKEN_ERROR,
+  STAFF_SLUG_RESERVED_ISSUE,
   staffFutureBookingsError,
   GENERIC_WRITE_ERROR,
   type ActionState,
@@ -44,7 +45,11 @@ function revalidateStaff() {
 
 export async function createStaff(input: unknown): Promise<ActionState> {
   const parsed = staffInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) {
+    // A reserved link name reads as "taken" to the owner — it is, by the page.
+    const reserved = parsed.error.issues.some((i) => i.path[0] === "slug" && i.message === STAFF_SLUG_RESERVED_ISSUE);
+    return { ok: false, error: reserved ? STAFF_SLUG_TAKEN_ERROR : GENERIC_WRITE_ERROR };
+  }
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const { name, slug, email, color, serviceIds } = parsed.data;
@@ -71,7 +76,11 @@ export async function createStaff(input: unknown): Promise<ActionState> {
 
 export async function updateStaff(input: unknown): Promise<ActionState> {
   const parsed = updateStaffInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) {
+    // A reserved link name reads as "taken" to the owner — it is, by the page.
+    const reserved = parsed.error.issues.some((i) => i.path[0] === "slug" && i.message === STAFF_SLUG_RESERVED_ISSUE);
+    return { ok: false, error: reserved ? STAFF_SLUG_TAKEN_ERROR : GENERIC_WRITE_ERROR };
+  }
   const orgId = await currentOrgId();
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const { id, name, slug, email, color, serviceIds } = parsed.data;
