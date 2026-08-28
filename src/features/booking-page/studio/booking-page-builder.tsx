@@ -13,7 +13,7 @@ import { WidgetTheme } from "@/components/widget-theme";
 import { LivePreview, PreviewNotice, SchemeToggle, type Scheme } from "@/components/live-preview";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 import { cn } from "@/lib/utils";
-import { bookingPath, bookingUrl, hostLabel } from "@/lib/booking/url";
+import { channelPath, channelUrl, hostLabel } from "@/lib/booking/url";
 import type { PageDocument } from "../schema";
 import { replaceSection } from "../doc-ops";
 import type { PageChannel } from "../channel";
@@ -34,12 +34,12 @@ type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSet
    a visitor will see it on the right — the same PageRenderer + WidgetTheme
    composition as /[handle], fed by the draft and the unsaved settings. */
 export function BookingPageBuilder({
-  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections, mode, channel,
+  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections, mode, channel, crossLink,
 }: {
   branding: BrandingSettings; scheduling: SchedulingSettings; appUrl: string; supabaseUrl: string;
   previewServices: PublicService[]; previewOfferings: PublicOffering[]; staff: PublicStaff[];
   initialPage: { draft: PageDocument; published: PageDocument | null };
-  pageSections: PlanLimits["pageSections"]; mode: OrgMode; channel: PageChannel;
+  pageSections: PlanLimits["pageSections"]; mode: OrgMode; channel: PageChannel; crossLink: RenderContext["crossLink"];
 }) {
   const draft = usePageDraft(initialPage, channel);
   const [tab, setTab] = React.useState<StudioTab>("sections");
@@ -93,7 +93,7 @@ export function BookingPageBuilder({
 
   const host = hostLabel(appUrl);
   const previewHandle = handle.trim() || "your-handle";
-  const url = `${host}${bookingPath(previewHandle)}`;
+  const url = `${host}${channelPath(previewHandle, channel)}`;
   const ctx: RenderContext = {
     org: {
       orgId: branding.orgId,
@@ -106,7 +106,7 @@ export function BookingPageBuilder({
     theme: previewTheme,
     services: previewServices, staff, offerings: previewOfferings, lockedStaff: null,
     supabaseUrl, mode: "preview", previewSlots: PREVIEW_SLOTS,
-    crossLink: null, // Task 8 computes it
+    crossLink,
   };
   const selected = draft.doc.sections.find((s) => s.id === selectedId) ?? null;
 
@@ -138,7 +138,7 @@ export function BookingPageBuilder({
             selectedId={selectedId}
             onSelect={setSelectedId}
             emptyContext={{ serviceCount: previewServices.length, staffCount: staff.length, offeringCount: previewOfferings.length }}
-            liveUrl={scheduling.handle ? bookingUrl(appUrl, scheduling.handle) : null}
+            liveUrl={scheduling.handle ? channelUrl(appUrl, scheduling.handle, channel) : null}
             pageSections={pageSections}
             mode={mode}
             templatePicker={<TemplatePicker doc={draft.doc} ctx={ctx} mode={mode} onApply={onApplyTemplate} />}
