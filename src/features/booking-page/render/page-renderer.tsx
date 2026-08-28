@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import type { PageDocument, Section } from "../schema";
 import { publicSections } from "../doc-ops";
 import type { RenderContext } from "./context";
-import { crossLinkHost } from "./cross-link";
+import { crossLinkHost } from "./cross-link-host";
 import { PageStateProvider } from "./page-state";
 import { pickersOnPage, type Pickers } from "./pickers";
 import { SectionFrame } from "./section-frame";

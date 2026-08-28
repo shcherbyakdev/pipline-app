@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { crossLinkHost } from "./cross-link";
+import { crossLinkHost } from "./cross-link-host";
 import { DEFAULT_PAGE, newSection } from "../defaults";
 import type { Section } from "../schema";
 
