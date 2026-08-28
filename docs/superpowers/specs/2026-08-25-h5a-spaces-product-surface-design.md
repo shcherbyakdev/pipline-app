@@ -125,6 +125,15 @@ in the builder — the existing empty-services behaviour, extended.
 `BookingPageBuilder` receives `mode: OrgMode` and threads it to the sections
 panel, the template picker and the inspector.
 
+**Amended 2026-08-27:** the mode the builder (and the Website embed preview)
+receives is `presentMode(effective, { services, spaces })` — the declared
+mode narrowed to channels with something bookable, unchanged only when the
+org has nothing anywhere yet. An org that declared spaces but has none
+(every pre-mode-picker org, `create_org` defaults both on) previews,
+templates and adds sections as the appointments page it is; add the first
+bookable space and Spaces appears everywhere at once. The public page keeps
+`listPublicCatalog`'s declared-mode gate — it only lists real rows anyway.
+
 ### Palette
 
 ```ts
@@ -183,7 +192,9 @@ faq       [{ q: "Can I cancel?", a: "Yes — see the cancellation window on each
 `templatesFor(mode)` (pure): rentals-only → Venue first, then the rest;
 both → existing order with Venue after Studio; appointments-only → Venue
 omitted. Thumbnails render `templatePreview(t, mode)` with the preview
-catalogue (#58).
+catalogue (#58). *2026-08-27:* `mode` here is the present mode (above);
+Venue's booking section now follows its Spaces section directly, and its
+cover carries a "Book a space" button (builder spec, Templates amendment).
 
 ## Vocabulary — "Spaces"
 

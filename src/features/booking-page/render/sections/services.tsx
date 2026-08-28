@@ -16,7 +16,9 @@ export function ServicesSection({ section, ctx }: { section: SectionOf<"services
   };
   const cards = section.style === "cards";
   return (
-    <section className="flex flex-col gap-3">
+    // `id`: the cover's Book button lands here when this section is the
+    // page's picker (pickers.ts).
+    <section id="services" className="flex scroll-mt-6 flex-col gap-3">
       {section.title.trim() ? <h2 className="text-xl font-semibold tracking-tight">{section.title}</h2> : null}
       <ul className={cn(cards ? "grid gap-3 sm:grid-cols-2" : "flex flex-col divide-y rounded-[var(--widget-radius)] border")}>
         {ctx.services.map((s) => {

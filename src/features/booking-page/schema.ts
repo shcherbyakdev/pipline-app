@@ -32,9 +32,12 @@ const imagePath = z.string().regex(PAGE_IMAGE_PATH_RE);
 const base = { id, hidden: z.boolean() };
 
 export const headerSection = z.object({ ...base, type: z.literal("header"), tagline: text(120) });
+// `cta`: the Book button's label — a link to the widget (#book). Optional,
+// not defaulted: pages stored before it existed must keep parsing, and a
+// failed parse silently reverts a published page to DEFAULT_PAGE.
 export const heroSection = z.object({
   ...base, type: z.literal("hero"), imagePath: imagePath.optional(), headline: text(80), subheadline: text(160),
-  align: z.enum(["left", "center"]),
+  align: z.enum(["left", "center"]), cta: text(40).optional(),
 });
 export const aboutSection = z.object({ ...base, type: z.literal("about"), title: text(60), body: text(2000), photoPath: imagePath.optional() });
 export const servicesSection = z.object({

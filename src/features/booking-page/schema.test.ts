@@ -8,6 +8,20 @@ const header = DEFAULT_PAGE.sections[0]!;
 const booking = DEFAULT_PAGE.sections[1]!;
 
 describe("pageDocumentSchema", () => {
+  it("cover: the Book button label is optional, so pages stored before it existed still parse", () => {
+    const legacyHero: Record<string, unknown> = { ...newSection("hero"), id: "hero0001" };
+    delete legacyHero.cta;
+    expect(legacyHero).not.toHaveProperty("cta");
+    const parsed = parsePageDocument({ ...DEFAULT_PAGE, sections: [header, legacyHero, booking] }, ORG);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.sections[1]).not.toHaveProperty("cta");
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, { ...legacyHero, cta: "Book now" }, booking] }).success).toBe(true);
+    expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, { ...legacyHero, cta: "x".repeat(41) }, booking] }).success).toBe(false);
+  });
+  it("a cover added from the palette starts with a Book button", () => {
+    const hero = newSection("hero");
+    expect(hero.type === "hero" && hero.cta).toBe("Book now");
+  });
   it("accepts DEFAULT_PAGE and a new section of every addable type", () => {
     expect(pageDocumentSchema.safeParse(DEFAULT_PAGE).success).toBe(true);
     const doc: PageDocument = { ...DEFAULT_PAGE, sections: [header, ...ADDABLE_TYPES.filter((t) => t !== "header").map((t) => newSection(t)), booking] };

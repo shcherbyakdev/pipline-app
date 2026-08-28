@@ -47,6 +47,28 @@ describe("templates", () => {
     const strippedLinks = stripSample(links);
     expect(strippedLinks.type === "links" && strippedLinks.items.map((i) => i.icon)).toEqual(links.type === "links" ? links.items.map((i) => i.icon) : []);
   });
+  it("the widget follows the catalogue: booking sits right after services/spaces, ahead of gallery, quotes, FAQ and address", () => {
+    const order = (id: string) => TEMPLATES.find((t) => t.id === id)!.sections.map((s) => s.type);
+    expect(order("studio")).toEqual(["hero", "services", "booking", "gallery", "testimonials", "location"]);
+    expect(order("venue")).toEqual(["hero", "spaces", "booking", "gallery", "location", "faq"]);
+    expect(order("profile")).toEqual(["header", "about", "services", "booking", "links"]);
+    // Split docks the widget at desktop; below that it is in DOM order, so it
+    // must not trail the FAQ and address on a phone.
+    expect(order("split")).toEqual(["hero", "about", "services", "booking", "faq", "location"]);
+    expect(order("team")).toEqual(["header", "staff", "services", "booking", "location"]);
+    expect(order("minimal")).toEqual(["hero", "booking", "links"]);
+  });
+  it("every cover carries a Book button label, and applying keeps it — a label, not sample copy", () => {
+    for (const t of TEMPLATES) {
+      const hero = t.sections.find((s) => s.type === "hero");
+      if (!hero) continue;
+      expect(hero.type === "hero" && hero.cta?.trim(), `${t.id} cover has no button`).toBeTruthy();
+      const applied = applyTemplate(t, BOTH).sections.find((s) => s.type === "hero");
+      expect(applied?.type === "hero" && applied.cta).toBe(hero.type === "hero" ? hero.cta : undefined);
+    }
+    const venue = TEMPLATES.find((t) => t.id === "venue")!.sections.find((s) => s.type === "hero");
+    expect(venue?.type === "hero" && venue.cta).toBe("Book a space");
+  });
   it("classic is the default page shape, applied", () => {
     expect(applyTemplate(TEMPLATES[0]!, BOTH).sections.map((s) => s.type)).toEqual(["header", "booking"]);
   });
@@ -65,14 +87,14 @@ describe("fitToMode", () => {
 
   it("rentals-only: services becomes spaces (style kept), staff is dropped", () => {
     const out = fitToMode(studio.sections, RENTALS_ONLY, stable);
-    expect(types(out)).toEqual(["hero", "spaces", "gallery", "testimonials", "booking", "location"]);
+    expect(types(out)).toEqual(["hero", "spaces", "booking", "gallery", "testimonials", "location"]);
     const spaces = out.find((s) => s.type === "spaces");
     expect(spaces?.type === "spaces" && spaces.style).toBe("cards");
     expect(spaces?.type === "spaces" && spaces.title).toBe("Spaces");
     expect(types(fitToMode(team.sections, RENTALS_ONLY, stable))).toEqual(["header", "spaces", "booking", "location"]);
   });
   it("both: spaces is inserted right after services", () => {
-    expect(types(fitToMode(studio.sections, BOTH, stable))).toEqual(["hero", "services", "spaces", "gallery", "testimonials", "booking", "location"]);
+    expect(types(fitToMode(studio.sections, BOTH, stable))).toEqual(["hero", "services", "spaces", "booking", "gallery", "testimonials", "location"]);
   });
   it("both: a template that already authored spaces never gets a second one inserted", () => {
     const sections = [newSection("services"), newSection("spaces"), newSection("booking")];

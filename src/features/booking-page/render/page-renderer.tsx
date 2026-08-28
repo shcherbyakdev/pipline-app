@@ -3,6 +3,7 @@ import type { PageDocument, Section } from "../schema";
 import { publicSections } from "../doc-ops";
 import type { RenderContext } from "./context";
 import { PageStateProvider } from "./page-state";
+import { pickersOnPage, type Pickers } from "./pickers";
 import { SectionFrame } from "./section-frame";
 import { HeaderSection } from "./sections/header";
 import { HeroSection } from "./sections/hero";
@@ -22,10 +23,10 @@ export function pageContainerClass(layout: PageDocument["layout"]): string {
   return layout === "split" ? "max-w-5xl" : "max-w-lg";
 }
 
-function renderSection(section: Section, ctx: RenderContext) {
+function renderSection(section: Section, ctx: RenderContext, pickers: Pickers) {
   switch (section.type) {
     case "header": return <HeaderSection section={section} ctx={ctx} />;
-    case "hero": return <HeroSection section={section} ctx={ctx} />;
+    case "hero": return <HeroSection section={section} ctx={ctx} pickers={pickers} />;
     case "about": return <AboutSection section={section} ctx={ctx} />;
     case "services": return <ServicesSection section={section} ctx={ctx} />;
     case "staff": return <StaffSection section={section} ctx={ctx} />;
@@ -35,7 +36,7 @@ function renderSection(section: Section, ctx: RenderContext) {
     case "faq": return <FaqSection section={section} ctx={ctx} />;
     case "links": return <LinksSection section={section} ctx={ctx} />;
     case "location": return <LocationSection section={section} ctx={ctx} />;
-    case "booking": return <BookingSection section={section} ctx={ctx} />;
+    case "booking": return <BookingSection section={section} ctx={ctx} pickers={pickers} />;
   }
 }
 
@@ -60,10 +61,11 @@ export function PageRenderer({
   initialServiceId?: string | null;
   initialOfferingId?: string | null;
 }) {
-  const sections =
-    ctx.mode === "public"
-      ? publicSections(doc, { serviceCount: ctx.services.length, staffCount: ctx.lockedStaff ? 0 : ctx.staff.length, offeringCount: ctx.offerings.length })
-      : doc.sections;
+  const counts = { serviceCount: ctx.services.length, staffCount: ctx.lockedStaff ? 0 : ctx.staff.length, offeringCount: ctx.offerings.length };
+  const sections = ctx.mode === "public" ? publicSections(doc, counts) : doc.sections;
+  // Which catalogue sections the PUBLIC page shows (even in preview, which
+  // renders hidden ones dimmed): those are the pickers, the widget defers.
+  const pickers = pickersOnPage(doc, counts);
   const split = doc.layout === "split";
   const others = sections.filter((s) => s.type !== "booking").length;
   return (
@@ -78,7 +80,7 @@ export function PageRenderer({
         >
           {sections.map((section) => {
             const docked = split && section.type === "booking";
-            const inner = renderSection(section, ctx);
+            const inner = renderSection(section, ctx, pickers);
             return ctx.mode === "preview" ? (
               <SectionFrame key={section.id} id={section.id} type={section.type} hidden={section.hidden} className={cn(docked && DOCKED)}>
                 {inner}

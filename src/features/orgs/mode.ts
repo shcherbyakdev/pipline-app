@@ -36,3 +36,17 @@ export function modeOf(org: { offersAppointments: boolean; offersRentals: boolea
 export function effectiveMode(flags: { rentals: boolean }, mode: OrgMode): OrgMode {
   return { ...mode, offersRentals: flags.rentals && mode.offersRentals };
 }
+
+/** The mode a preview should SHOW: the declared mode narrowed to the
+    channels that have something bookable in them (an active service; an
+    active space with an active unit — listPublicOfferings' rule), because
+    that is all the public page lists. An org with nothing anywhere yet keeps
+    its declared mode, so the previews can still hand the widget a canned
+    stand-in per channel (preview-catalog.ts). Never widens. */
+export function presentMode(mode: OrgMode, has: { services: boolean; spaces: boolean }): OrgMode {
+  const narrowed: OrgMode = {
+    offersAppointments: mode.offersAppointments && has.services,
+    offersRentals: mode.offersRentals && has.spaces,
+  };
+  return narrowed.offersAppointments || narrowed.offersRentals ? narrowed : mode;
+}

@@ -5,8 +5,9 @@ import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import type { SectionOf } from "../../schema";
 import type { RenderContext } from "../context";
 import { usePageState } from "../page-state";
+import type { Pickers } from "../pickers";
 
-export function BookingSection({ section, ctx }: { section: SectionOf<"booking">; ctx: RenderContext }) {
+export function BookingSection({ section, ctx, pickers }: { section: SectionOf<"booking">; ctx: RenderContext; pickers: Pickers }) {
   const { requested } = usePageState();
   const preview = ctx.mode === "preview";
   return (
@@ -25,6 +26,10 @@ export function BookingSection({ section, ctx }: { section: SectionOf<"booking">
           // Rentals DO render (the builder hands in the org's preview
           // catalogue) — the widget keeps their cards inert in preview.
           offerings={ctx.offerings}
+          // One picker per page (pickers.ts): a Services / Spaces section on
+          // the page lists the channel; the widget then only takes the pick.
+          listServices={!pickers.services}
+          listOfferings={!pickers.spaces}
           staff={preview ? [] : ctx.staff}
           serviceStaffIds={preview ? undefined : ctx.serviceStaffIds}
           lockedStaff={preview ? null : ctx.lockedStaff}
