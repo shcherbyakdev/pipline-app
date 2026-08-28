@@ -30,6 +30,7 @@ export const STARTER = {
     submit: "Add space",
   },
   back: "Back",
+  leave: "Leave for now",
   picker: {
     trigger: "Start from a template",
     title: "Start from a template",

@@ -48,6 +48,9 @@ export function BookingPageBuilder({
   starter: { fresh: boolean; needsFirstItem: boolean; anyPublished: boolean };
 }) {
   const draft = usePageDraft(initialPage, channel);
+  // Where focus lands once the starter closes (M4): the left panel itself,
+  // not wherever the trap happened to leave it.
+  const panelRef = React.useRef<HTMLDivElement>(null);
   const [tab, setTab] = React.useState<StudioTab>("sections");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [accent, setAccent] = React.useState<string | null>(branding.accentColor);
@@ -136,9 +139,10 @@ export function BookingPageBuilder({
           applyLookDefault={skinDefault(starter.anyPublished)}
           currency={scheduling.currency}
           onApply={onApplyTemplate}
+          finalFocus={panelRef}
         />
       ) : null}
-      <div className="flex flex-col gap-4">
+      <div ref={panelRef} tabIndex={-1} className="flex flex-col gap-4">
         <StudioTabs value={tab} onChange={setTab} />
         {tab === "settings" ? (
           <SettingsTab branding={branding} scheduling={scheduling} appUrl={appUrl} theme={theme} onTheme={setTheme} onPreviewAccent={setAccent} onHandleInput={setHandle} />

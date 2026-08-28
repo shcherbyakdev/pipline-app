@@ -49,11 +49,12 @@ function TypeThumb({ template, ctx, mode }: { template: Template; ctx: RenderCon
    template" dialog it replaces — one component, one reducer
    (starter-state.ts). Starter: opens itself on a fresh page and cannot be
    dismissed (Base UI 1.7 has no `dismissible`, so `open` is controlled and
-   every `onOpenChange(false)` is ignored; the admin sidebar is the way
-   out — ruling 2). Picker: a trigger button, dismissable, and the old
-   "replace your draft?" confirm when the draft is not the default. */
+   every `onOpenChange(false)` is ignored; a Leave link returns to Bookings —
+   ruling 2's exit, reachable inside the focus trap). Picker: a trigger
+   button, dismissable, and the old "replace your draft?" confirm when the
+   draft is not the default. */
 export function StarterDialog({
-  variant, channel, doc, ctx, mode, needsFirstItem, applyLookDefault, currency, onApply,
+  variant, channel, doc, ctx, mode, needsFirstItem, applyLookDefault, currency, onApply, finalFocus,
 }: {
   variant: "starter" | "picker";
   channel: PageChannel;
@@ -64,6 +65,7 @@ export function StarterDialog({
   applyLookDefault: boolean;
   currency: string;
   onApply: (next: PageDocument, skin: TemplateSkin | null) => void;
+  finalFocus?: React.RefObject<HTMLElement | null>;
 }) {
   const router = useRouter();
   const starter = variant === "starter";
@@ -92,10 +94,12 @@ export function StarterDialog({
     else dispatch({ kind: "choose", type: t, needsFirstItem });
   };
   const onCreated = () => {
-    // The route re-renders with the real service/space in the preview
-    // catalogue; the draft hook is seeded once, so this never resets the draft.
-    router.refresh();
+    // Close first — the route re-renders with the real service/space in the
+    // preview catalogue, and the draft hook is seeded once, so refreshing
+    // never resets the draft. Dispatching first keeps the close off the
+    // server round trip.
     dispatch({ kind: "created" });
+    router.refresh();
   };
   const onOpenChange = (next: boolean) => {
     if (starter && !next) return;
@@ -111,7 +115,7 @@ export function StarterDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         {starter ? null : <DialogTrigger render={<Button variant="outline" size="sm">{STARTER.picker.trigger}</Button>} />}
-        <DialogContent className="sm:max-w-3xl" showCloseButton={!starter}>
+        <DialogContent className="sm:max-w-3xl" showCloseButton={!starter} finalFocus={finalFocus}>
           {state.step === "firstItem" && state.type ? (
             <>
               <DialogHeader>
@@ -133,7 +137,7 @@ export function StarterDialog({
               {/* Off unless the org-wide look is unclaimed (skinDefault): unlike
                   the sections, the look saves straight to the live page and embed. */}
               <label className="flex items-start gap-2 text-sm">
-                <Checkbox className="mt-0.5" checked={state.applyLook} onCheckedChange={(c) => dispatch({ kind: "toggleLook", value: c === true })} />
+                <Checkbox className="mt-0.5" checked={state.applyLook} onCheckedChange={(c) => dispatch({ kind: "toggleLook", value: c })} />
                 <span>
                   {STARTER.look}
                   <span className="text-muted-foreground block text-xs">{STARTER.lookHint}</span>
@@ -161,6 +165,12 @@ export function StarterDialog({
               </ul>
             </>
           )}
+          {starter ? (
+            // Ruling 2's exit, reachable from inside the focus trap: leave the page, never the step.
+            <div className="flex justify-start">
+              <Button variant="ghost" size="sm" onClick={() => router.push("/bookings")}>{STARTER.leave}</Button>
+            </div>
+          ) : null}
         </DialogContent>
       </Dialog>
       <ConfirmDialog
