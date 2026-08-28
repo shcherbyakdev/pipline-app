@@ -289,3 +289,13 @@ Order matters: the starter filters types by the page's channel and applies a tem
 
 - Migration 0059 is taken by this spec (the stranded #75 also used 0059 on its own branch — that branch is never rebased). **H4 → 0061.**
 - `feat/booking-sections-split` and the post-#74 commits on `feat/booking-page-smart-preview` are reference only.
+
+## Amendments (2026-08-28, at execution)
+
+- `channelPath` / `channelUrl` live in `lib/booking/url.ts`, not `channel-pages.ts` — `bookingLink` needs them and `channel-pages.ts` imports `url.ts` (a cycle otherwise). §3.1 / §3.6 read accordingly.
+- The `channel` column keeps its `default 'appointments'` (schema and DB agree; only the RPCs write, and they always name the channel). §2 step 3 ("drop the column default") is withdrawn — dropping it would drift from the Drizzle schema on the next generate.
+- The 0060 backfill is verified at migration time (psql, plan Task 3 step 5) and by QA item 3, not by an integration test: the harness cannot re-run a migration against seeded rows. §6 reads accordingly.
+- `listPublicCatalog` is memoised per request (`react.cache`) so `generateMetadata` and the page resolve the channel from one read.
+- The orphan-image sweep (`cleanupOrphans`) reads every page of the org — draft and published, both channels — before deleting; a one-page sweep would have removed images only the other page references.
+- A `{ space }` link target (Links & embeds, the Spaces list) opens the SPACES page with the space preselected — `/<handle>/spaces?space=<id>` — because the root of a both-channel org is now the appointments page and no longer lists spaces; `{ service }` stays on the root, embeds keep `?space=`. §3.6 reads accordingly.
+- The cross-link placement rule lives in `render/cross-link-host.ts` (pure), the component in `render/cross-link.tsx`; the spec's `cross-link.ts` + `cross-link.tsx` pair cannot coexist (same basename resolves to `.ts`).
