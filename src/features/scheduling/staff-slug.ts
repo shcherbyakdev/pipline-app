@@ -1,6 +1,15 @@
 // 2–40 chars, matches the DB CHECK on staff.slug.
 export const STAFF_SLUG_RE = /^(?:[a-z0-9]{2}|[a-z0-9][a-z0-9-]{0,38}[a-z0-9])$/;
 
+// The channel pages live at /<handle>/spaces (and /appointments is kept
+// free for symmetry): Next matches those static segments before
+// /[handle]/[staffSlug], so a person slugged the same would be unreachable.
+export const RESERVED_STAFF_SLUGS = ["spaces", "appointments"] as const;
+const RESERVED = new Set<string>(RESERVED_STAFF_SLUGS);
+export function isReservedStaffSlug(slug: string): boolean {
+  return RESERVED.has(slug);
+}
+
 export const STAFF_COLORS = [
   "#4f46e5",
   "#0891b2",
@@ -25,6 +34,7 @@ export function slugifyStaffName(name: string): string {
     .slice(0, 40)
     .replace(/-+$/g, "");
   if (s === "") return "team-member";
+  if (isReservedStaffSlug(s)) return `${s}-1`;
   if (s.length < 2) s = `${s}-1`;
   return s;
 }

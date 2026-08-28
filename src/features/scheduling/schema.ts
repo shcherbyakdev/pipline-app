@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { STAFF_SLUG_RE } from "./staff-slug";
+import { STAFF_SLUG_RE, isReservedStaffSlug } from "./staff-slug";
 import { HANDLE_RE, isReservedHandle } from "./handle";
 import { CURRENCIES } from "@/lib/money";
 
@@ -109,13 +109,15 @@ export const schedulingSettingsInput = z.object({
   currency: z.enum(CURRENCIES),
 });
 
+export const STAFF_SLUG_RESERVED_ISSUE = "reserved";
+
 // Team (multi-staff), admin side. `slug` is the person's booking-link name —
 // same regex as the DB CHECK on staff.slug (0041). `email` is optional and
 // normalised to lowercase here because that CHECK requires it (create_staff
 // lowers it server-side; the plain UPDATE in updateStaff does not).
 export const staffInput = z.object({
   name: z.string().trim().min(1).max(80),
-  slug: z.string().regex(STAFF_SLUG_RE),
+  slug: z.string().regex(STAFF_SLUG_RE).refine((s) => !isReservedStaffSlug(s), { message: STAFF_SLUG_RESERVED_ISSUE }),
   email: z.preprocess(
     (v) => (typeof v === "string" ? emptyToUndefined(v.toLowerCase()) : v),
     z.email().max(320).optional(),
