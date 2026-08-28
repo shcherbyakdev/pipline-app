@@ -6,6 +6,7 @@ import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createOffering, updateOffering } from "@/features/rentals/actions";
 import type { OfferingRow } from "@/features/rentals/queries";
+import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
 import type { RangeMode } from "@/features/rentals/range";
 import type { DepositType } from "@/features/rentals/pricing";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ export function OfferingDialog({
   // Drives the min/max duration inputs' `step` so it tracks the increment
   // select live, not just at mount.
   const [slotIncrementMin, setSlotIncrementMin] = React.useState<number>(
-    offering?.slotIncrementMin ?? 30,
+    offering?.slotIncrementMin ?? OFFERING_DEFAULTS.hours.slotIncrementMin,
   );
   // Controlled so the deposit-value input's semantics (amount vs. percent)
   // and its very presence (none/full take no value) track the select live.
@@ -360,7 +361,7 @@ export function OfferingDialog({
                     required
                     max={1440}
                     step={slotIncrementMin}
-                    defaultValue={offering?.minDurationMin ?? 60}
+                    defaultValue={offering?.minDurationMin ?? OFFERING_DEFAULTS.hours.minDurationMin}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -372,7 +373,7 @@ export function OfferingDialog({
                     required
                     max={1440}
                     step={slotIncrementMin}
-                    defaultValue={offering?.maxDurationMin ?? 240}
+                    defaultValue={offering?.maxDurationMin ?? OFFERING_DEFAULTS.hours.maxDurationMin}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -399,7 +400,7 @@ export function OfferingDialog({
                     type="time"
                     step={900}
                     required
-                    defaultValue={offering?.startTime ?? "15:00"}
+                    defaultValue={offering?.startTime ?? OFFERING_DEFAULTS.stay.startTime}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -410,7 +411,7 @@ export function OfferingDialog({
                     type="time"
                     step={900}
                     required
-                    defaultValue={offering?.endTime ?? "11:00"}
+                    defaultValue={offering?.endTime ?? OFFERING_DEFAULTS.stay.endTime}
                   />
                 </div>
               </div>
@@ -424,7 +425,7 @@ export function OfferingDialog({
                     required
                     min={1}
                     max={365}
-                    defaultValue={offering?.minStay ?? 1}
+                    defaultValue={offering?.minStay ?? OFFERING_DEFAULTS.stay.minStay}
                   />
                 </div>
                 <div className="flex flex-col gap-2">

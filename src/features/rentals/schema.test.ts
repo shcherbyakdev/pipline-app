@@ -10,6 +10,7 @@ import {
   createRentalAdminInput,
   manageRangeAvailabilityInput,
   rescheduleRentalInput,
+  OFFERING_DEFAULTS,
 } from "./schema";
 
 const base = { name: "Studio", rangeMode: "nights", startTime: "15:00", endTime: "11:00" };
@@ -23,6 +24,15 @@ describe("offeringInput", () => {
     expect(offeringInput.safeParse({ ...base, minStay: 3, maxStay: 2 }).success).toBe(false);
     expect(offeringInput.safeParse({ ...base, rangeMode: "weeks" }).success).toBe(false);
     expect(offeringInput.safeParse({ ...base, startTime: "25:00" }).success).toBe(false);
+  });
+  it("accepts the starter's minimal payloads built from OFFERING_DEFAULTS (spec §5.3)", () => {
+    const hours = offeringInput.safeParse({ name: "Room A", rangeMode: "hours", ...OFFERING_DEFAULTS.hours, priceCents: 5000 });
+    expect(hours.success).toBe(true);
+    if (hours.success) expect(hours.data).toMatchObject({ slotIncrementMin: 30, minDurationMin: 60, maxDurationMin: 240, turnoverMin: 0, minNoticeMin: 0, bookingWindowDays: 180 });
+    const nights = offeringInput.safeParse({ name: "Cabin", rangeMode: "nights", ...OFFERING_DEFAULTS.stay, priceCents: null });
+    expect(nights.success).toBe(true);
+    if (nights.success) expect(nights.data).toMatchObject({ startTime: "15:00", endTime: "11:00", minStay: 1, maxStay: null });
+    expect(offeringInput.safeParse({ name: "Cabin", rangeMode: "days", ...OFFERING_DEFAULTS.stay, priceCents: null }).success).toBe(true);
   });
 });
 describe("unitInput / blackoutInput", () => {
