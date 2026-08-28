@@ -19,8 +19,11 @@ export function SpacesSection({ section, ctx }: { section: SectionOf<"spaces">; 
   const photoFor = new Map(section.photos.map((p) => [p.offeringId, p.path] as const));
   const pick = (id: string) => {
     selectOffering(id);
-    // The preview sits inside the admin page: no scrolling there.
-    if (ctx.mode === "public") document.getElementById("book")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // The preview sits inside the admin page: no scrolling there. The spaces
+    // widget when the page has one (split booking), else the combined one.
+    if (ctx.mode === "public") {
+      (document.getElementById("book-spaces") ?? document.getElementById("book"))?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
   const cards = section.style === "cards";
   return (

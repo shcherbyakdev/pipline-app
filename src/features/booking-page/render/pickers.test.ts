@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_PAGE, newSection } from "../defaults";
+import { DEFAULT_PAGE, newBookingSection, newSection } from "../defaults";
 import type { PageDocument } from "../schema";
 import { bookHref, pickersOnPage } from "./pickers";
 
@@ -28,9 +28,19 @@ describe("pickersOnPage", () => {
 
 describe("bookHref", () => {
   it("the cover's Book button goes to the first step of booking: the catalogue section when there is one, else the widget", () => {
-    expect(bookHref({ services: true, spaces: false })).toBe("#services");
-    expect(bookHref({ services: true, spaces: true })).toBe("#services");
-    expect(bookHref({ services: false, spaces: true })).toBe("#spaces");
-    expect(bookHref({ services: false, spaces: false })).toBe("#book");
+    expect(bookHref({ services: true, spaces: false }, DEFAULT_PAGE)).toBe("#services");
+    expect(bookHref({ services: true, spaces: true }, DEFAULT_PAGE)).toBe("#services");
+    expect(bookHref({ services: false, spaces: true }, DEFAULT_PAGE)).toBe("#spaces");
+    expect(bookHref({ services: false, spaces: false }, DEFAULT_PAGE)).toBe("#book");
+  });
+  it("with per-channel widgets and no catalogue section, the first visible widget is the target", () => {
+    const none = { services: false, spaces: false };
+    const appts = newBookingSection("appointments", "bookappt");
+    const spaces = newBookingSection("spaces", "bookspcs");
+    const raw = (...s: PageDocument["sections"]): PageDocument => ({ ...DEFAULT_PAGE, sections: [header, ...s] });
+    expect(bookHref(none, raw(appts, spaces))).toBe("#book");
+    expect(bookHref(none, raw(spaces, appts))).toBe("#book-spaces");
+    expect(bookHref(none, raw({ ...appts, hidden: true }, spaces))).toBe("#book-spaces");
+    expect(bookHref(none, { ...DEFAULT_PAGE, sections: [header, spaces] })).toBe("#book-spaces");
   });
 });

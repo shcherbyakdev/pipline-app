@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { sectionAllowed, gatedVisibleSections, BASIC_SECTION_TYPES, addableTypes } from "./gating";
-import { DEFAULT_PAGE, newSection, ADDABLE_TYPES } from "./defaults";
+import { sectionAllowed, gatedVisibleSections, BASIC_SECTION_TYPES, addableTypes, addableEntries } from "./gating";
+import { DEFAULT_PAGE, newSection, newBookingSection, ADDABLE_TYPES } from "./defaults";
 import type { PageDocument, SectionOf } from "./schema";
 import { PLANS } from "@/lib/billing/plans";
 
@@ -41,5 +41,27 @@ describe("addableTypes (palette by org mode)", () => {
   });
   it("both channels: the full palette, in ADDABLE_TYPES order", () => {
     expect(addableTypes(BOTH)).toEqual([...ADDABLE_TYPES]);
+  });
+});
+
+describe("addableEntries (palette rows)", () => {
+  const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
+  const BOTH = { offersAppointments: true, offersRentals: true };
+  it("one channel: the plain types, no per-channel widgets", () => {
+    const rows = addableEntries(DEFAULT_PAGE, APPTS_ONLY);
+    expect(rows.map((r) => r.type)).toEqual(addableTypes(APPTS_ONLY));
+    expect(rows.every((r) => r.channel === undefined)).toBe(true);
+  });
+  it("both channels: Book appointments / Book spaces rows after the types, each with its own add verdict", () => {
+    const rows = addableEntries(DEFAULT_PAGE, BOTH);
+    expect(rows.slice(-2).map((r) => ({ type: r.type, channel: r.channel, label: r.label }))).toEqual([
+      { type: "booking", channel: "appointments", label: "Book appointments" },
+      { type: "booking", channel: "spaces", label: "Book spaces" },
+    ]);
+    expect(rows.slice(-2).every((r) => !r.can.ok)).toBe(true);
+    const apptsOnlyWidget = { ...DEFAULT_PAGE, sections: [DEFAULT_PAGE.sections[0]!, newBookingSection("appointments", "bookappt")] };
+    const rows2 = addableEntries(apptsOnlyWidget, BOTH);
+    expect(rows2.find((r) => r.channel === "spaces")?.can.ok).toBe(true);
+    expect(rows2.find((r) => r.channel === "appointments")?.can.ok).toBe(false);
   });
 });

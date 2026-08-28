@@ -67,12 +67,18 @@ describe("save_booking_page_draft", () => {
     const { data: d2 } = await admin.from("booking_pages").select("draft").eq("org_id", orgId).single();
     expect(d2!.draft).toEqual(withHero);
   });
-  it("rejects a non-member, a wrong version, no booking section, two booking sections, a non-object", async () => {
+  it("accepts two booking sections — one per channel (0059)", async () => {
+    const split = { ...DEFAULT_PAGE, sections: [header, { ...booking, channel: "appointments" }, { ...booking, id: "bookspcs", channel: "spaces" }] };
+    expect((await owner.rpc("save_booking_page_draft", { p_org_id: orgId, p_doc: split })).error).toBeNull();
+    // Leave the draft as the tests below expect it.
+    expect((await owner.rpc("save_booking_page_draft", { p_org_id: orgId, p_doc: withHero })).error).toBeNull();
+  });
+  it("rejects a non-member, a wrong version, no booking section, three booking sections, a non-object", async () => {
     expect((await stranger.rpc("save_booking_page_draft", { p_org_id: orgId, p_doc: DEFAULT_PAGE })).error).not.toBeNull();
     for (const bad of [
       { ...DEFAULT_PAGE, version: 2 },
       { ...DEFAULT_PAGE, sections: [header] },
-      { ...DEFAULT_PAGE, sections: [header, booking, { ...booking, id: "booking2" }] },
+      { ...DEFAULT_PAGE, sections: [header, booking, { ...booking, id: "booking2" }, { ...booking, id: "booking3" }] },
       [],
     ]) {
       const { error } = await owner.rpc("save_booking_page_draft", { p_org_id: orgId, p_doc: bad });

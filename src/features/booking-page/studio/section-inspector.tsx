@@ -4,8 +4,9 @@ import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SettingsCard } from "@/components/settings-row";
 import type { PublicOffering } from "@/lib/booking/public";
-import { SECTION_META } from "../defaults";
-import type { Section } from "../schema";
+import type { OrgMode } from "@/features/orgs/mode";
+import { SECTION_META, bookingMeta } from "../defaults";
+import { bookingChannel, type Section } from "../schema";
 import { HeaderForm } from "./forms/header";
 import { HeroForm } from "./forms/hero";
 import { AboutForm } from "./forms/about";
@@ -22,12 +23,20 @@ import { BookingForm } from "./forms/booking";
 /* The drilled-in left panel: one section's form. `onChange` receives the
    whole next section (replaceSection swaps it by id). */
 export function SectionInspector({
-  section, issues, supabaseUrl, offerings, onChange, onBack,
+  section, issues, supabaseUrl, offerings, mode, singleBooking, onChange, onSplit, onBack,
 }: {
   section: Section; issues: Record<string, string>; supabaseUrl: string; offerings: PublicOffering[];
-  onChange: (next: Section) => void; onBack: () => void;
+  /** The present mode: the booking form offers a channel choice only when both are sold. */
+  mode: OrgMode;
+  /** Exactly one booking widget on the page (so its channel may change freely). */
+  singleBooking: boolean;
+  onChange: (next: Section) => void;
+  /** Replace the combined widget with one per channel (splitBookingSection). */
+  onSplit: () => void;
+  onBack: () => void;
 }) {
   const common = { issues, supabaseUrl, onChange };
+  const meta = section.type === "booking" ? bookingMeta(bookingChannel(section)) : SECTION_META[section.type];
   const form = (() => {
     switch (section.type) {
       case "header": return <HeaderForm section={section} {...common} />;
@@ -41,7 +50,7 @@ export function SectionInspector({
       case "faq": return <FaqForm section={section} {...common} />;
       case "links": return <LinksForm section={section} {...common} />;
       case "location": return <LocationForm section={section} {...common} />;
-      case "booking": return <BookingForm section={section} {...common} />;
+      case "booking": return <BookingForm section={section} mode={mode} single={singleBooking} onSplit={onSplit} {...common} />;
     }
   })();
   return (
@@ -49,7 +58,7 @@ export function SectionInspector({
       <Button size="xs" variant="ghost" className="w-fit" onClick={onBack}>
         <ChevronLeft className="size-3.5" /> Sections
       </Button>
-      <SettingsCard title={SECTION_META[section.type].label} description={SECTION_META[section.type].description}>
+      <SettingsCard title={meta.label} description={meta.description}>
         {form}
       </SettingsCard>
     </div>

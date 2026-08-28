@@ -1,5 +1,5 @@
-import { SPACES } from "@/features/orgs/vocab";
-import type { PageDocument, Section, SectionType } from "./schema";
+import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
+import { bookingChannel, type BookingChannel, type PageDocument, type Section, type SectionOf, type SectionType } from "./schema";
 
 export const SECTION_META: Record<SectionType, { label: string; description: string }> = {
   header: { label: "Header", description: "Your logo, name and an optional tagline." },
@@ -45,6 +45,22 @@ export function newSection(type: SectionType, id: string = newSectionId()): Sect
     case "location": return { ...base, type, address: "", mapsUrl: "" };
     case "booking": return { ...base, type, title: "" };
   }
+}
+
+/** A per-channel booking widget ("all" gives the plain combined one). */
+export function newBookingSection(channel: BookingChannel, id: string = newSectionId()): SectionOf<"booking"> {
+  return { id, hidden: false, type: "booking", title: "", ...(channel === "all" ? {} : { channel }) };
+}
+
+/** Label + one-liner for a booking widget by what it books. */
+export function bookingMeta(channel: BookingChannel): { label: string; description: string } {
+  return channel === "appointments" ? APPOINTMENTS.bookSection : channel === "spaces" ? SPACES.bookSection : SECTION_META.booking;
+}
+
+/** The name a section goes by in the list, the preview chip and the
+    palette — SECTION_META's, except a per-channel booking widget. */
+export function sectionLabel(section: Section): string {
+  return section.type === "booking" ? bookingMeta(bookingChannel(section)).label : SECTION_META[section.type].label;
 }
 
 /** Today's page: header + widget. Stable ids so two fresh orgs produce equal documents. */

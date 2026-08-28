@@ -8,8 +8,14 @@ export const SECTION_TYPES = [
 ] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
-/** Types that make no sense twice on one page. */
-export const SINGLE_INSTANCE_TYPES: ReadonlySet<SectionType> = new Set<SectionType>(["header", "booking", "services", "staff", "spaces"]);
+/** Types that make no sense twice on one page. `booking` has its own rule
+    below: one combined widget, or one per channel. */
+export const SINGLE_INSTANCE_TYPES: ReadonlySet<SectionType> = new Set<SectionType>(["header", "services", "staff", "spaces"]);
+
+/** What a booking widget books. Absent = "all", the combined widget every
+    page stored before the split had — so those pages keep parsing. */
+export const BOOKING_CHANNELS = ["all", "appointments", "spaces"] as const;
+export type BookingChannel = (typeof BOOKING_CHANNELS)[number];
 
 export const LINK_ICONS = ["instagram", "facebook", "tiktok", "whatsapp", "website", "phone", "email", "other"] as const;
 export type LinkIcon = (typeof LINK_ICONS)[number];
@@ -67,8 +73,9 @@ export const locationSection = z.object({
   ...base, type: z.literal("location"), address: text(300),
   mapsUrl: z.string().max(500).refine((u) => u === "" || HTTPS_RE.test(u), { message: "Use an https:// link." }),
 });
-// `hidden: false` literal: the widget is always on the page.
-export const bookingSection = z.object({ ...base, type: z.literal("booking"), title: text(60), hidden: z.literal(false) });
+// A page may hide a per-channel widget, but never its last visible one
+// (pageDocumentSchema below); `channel` optional, see BOOKING_CHANNELS.
+export const bookingSection = z.object({ ...base, type: z.literal("booking"), title: text(60), channel: z.enum(BOOKING_CHANNELS).optional() });
 
 export const sectionSchema = z.discriminatedUnion("type", [
   headerSection, heroSection, aboutSection, servicesSection, staffSection, spacesSection, gallerySection, testimonialsSection,
@@ -76,6 +83,10 @@ export const sectionSchema = z.discriminatedUnion("type", [
 ]);
 export type Section = z.infer<typeof sectionSchema>;
 export type SectionOf<T extends SectionType> = Extract<Section, { type: T }>;
+
+export function bookingChannel(section: SectionOf<"booking">): BookingChannel {
+  return section.channel ?? "all";
+}
 
 export const pageDocumentSchema = z
   .object({
@@ -85,7 +96,17 @@ export const pageDocumentSchema = z
   })
   .superRefine((doc, ctx) => {
     const count = (t: SectionType) => doc.sections.filter((s) => s.type === t).length;
-    if (count("booking") !== 1) ctx.addIssue({ code: "custom", path: ["sections"], message: "The page needs exactly one booking section." });
+    // One combined widget, or one per channel (appointments + spaces) — and
+    // whichever it is, at least one of them shows.
+    const bookings = doc.sections.filter((s): s is SectionOf<"booking"> => s.type === "booking");
+    if (bookings.length === 0 || bookings.length > 2) {
+      ctx.addIssue({ code: "custom", path: ["sections"], message: "The page needs a booking section — one, or one per channel." });
+    } else if (bookings.length === 2 && bookings.map(bookingChannel).sort().join(",") !== "appointments,spaces") {
+      ctx.addIssue({ code: "custom", path: ["sections"], message: "Two booking sections must be one for appointments and one for spaces." });
+    }
+    if (bookings.length > 0 && !bookings.some((b) => !b.hidden)) {
+      ctx.addIssue({ code: "custom", path: ["sections"], message: "At least one booking section must be visible." });
+    }
     for (const t of SINGLE_INSTANCE_TYPES) {
       if (count(t) > 1) ctx.addIssue({ code: "custom", path: ["sections"], message: `Only one ${t} section is allowed.` });
     }

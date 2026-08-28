@@ -7,11 +7,12 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { PlanLimits } from "@/lib/billing/plans";
-import { DEFAULT_PAGE, SECTION_META } from "../defaults";
+import { DEFAULT_PAGE, sectionLabel } from "../defaults";
 import {
-  deepEqual, emptyVisibleSections, insertSection, moveSection, removeSection, setSectionHidden, type EmptyContext,
+  canHideSection, canRemoveSection, deepEqual, emptyVisibleSections, insertSection, moveSection, removeSection, setSectionHidden,
+  type EmptyContext,
 } from "../doc-ops";
-import type { SectionType } from "../schema";
+import type { BookingChannel, SectionType } from "../schema";
 import { AddSectionPopover } from "./add-section-popover";
 import { ConfirmDialog } from "./confirm-dialog";
 import { LayoutToggle } from "./layout-toggle";
@@ -42,10 +43,10 @@ export function SectionsPanel({
     if (!over || over.id === e.active.id) return;
     update((d) => moveSection(d, String(e.active.id), String(over.id)));
   };
-  const add = (type: SectionType) => {
+  const add = (type: SectionType, channel?: BookingChannel) => {
     let newId = "";
     update((d) => {
-      const inserted = insertSection(d, type, selectedId);
+      const inserted = insertSection(d, type, selectedId, undefined, channel);
       newId = inserted.id;
       return inserted.doc;
     });
@@ -83,6 +84,8 @@ export function SectionsPanel({
                 section={s}
                 selected={s.id === selectedId}
                 issueCount={Object.keys(issues[s.id] ?? {}).length}
+                canHide={canHideSection(doc, s.id)}
+                canRemove={canRemoveSection(doc, s.id)}
                 onSelect={() => onSelect(s.id)}
                 onToggleHidden={() => update((d) => setSectionHidden(d, s.id, !s.hidden))}
                 onRemove={() => {
@@ -107,7 +110,7 @@ export function SectionsPanel({
       <ConfirmDialog
         open={confirm === "publish"}
         title={`${empties.length} ${empties.length === 1 ? "section is" : "sections are"} empty`}
-        description={`${empties.map((s) => SECTION_META[s.type].label).join(", ")} won't show on the published page. Publish anyway?`}
+        description={`${empties.map(sectionLabel).join(", ")} won't show on the published page. Publish anyway?`}
         confirmLabel="Publish"
         onConfirm={() => { setConfirm(null); publish(); }}
         onClose={() => setConfirm(null)}

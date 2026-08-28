@@ -15,7 +15,7 @@ import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 import { cn } from "@/lib/utils";
 import { bookingPath, bookingUrl, hostLabel } from "@/lib/booking/url";
 import type { PageDocument } from "../schema";
-import { replaceSection } from "../doc-ops";
+import { replaceSection, splitBookingSection } from "../doc-ops";
 import type { RenderContext } from "../render/context";
 import { PageRenderer, pageContainerClass } from "../render/page-renderer";
 import { SelectionProvider } from "../render/selection";
@@ -127,7 +127,11 @@ export function BookingPageBuilder({
             issues={draft.issues[selected.id] ?? {}}
             supabaseUrl={supabaseUrl}
             offerings={previewOfferings}
+            mode={mode}
+            singleBooking={draft.doc.sections.filter((s) => s.type === "booking").length === 1}
             onChange={(next) => draft.update((d) => replaceSection(d, next))}
+            // Appointments keeps this section's id, so the inspector stays on it.
+            onSplit={() => draft.update((d) => splitBookingSection(d, selected.id))}
             onBack={() => setSelectedId(null)}
           />
         ) : (

@@ -64,6 +64,8 @@ export const SPACES = {
   only: "Spaces only",
   /** Bookings scope selector: the group heading and its every-space entry. */
   scope: { group: "Spaces", all: "All spaces" },
+  /** The per-channel booking widget section (page builder), once the combined one is split. */
+  bookSection: { label: "Book spaces", description: "The booking widget for your spaces." },
 } as const;
 
 /** The appointments channel's few provider-facing words that sit next to
@@ -77,6 +79,8 @@ export const APPOINTMENTS = {
   only: "Appointments only",
   /** Bookings scope selector: the group heading and its every-person entry. */
   scope: { group: "Appointments", all: "All appointments" },
+  /** The per-channel booking widget section (page builder), once the combined one is split. */
+  bookSection: { label: "Book appointments", description: "The booking widget for your services and times." },
 } as const;
 
 /** The hosted page's fallback meta description, per channel mix. */
