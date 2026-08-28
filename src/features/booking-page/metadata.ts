@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import type { PageDocument } from "./schema";
 import { pageImageUrl } from "./images";
-import { modeOf, type OrgMode } from "@/features/orgs/mode";
 import { bookingDescription } from "@/features/orgs/vocab";
+import { pageChannelMode, type PageChannel } from "./channel";
 
 /** Spec precedence: hero headline → header tagline → first line of about → fallback. Hidden sections never leak. */
 export function pageDescription(doc: PageDocument, fallback: string): string {
@@ -23,18 +23,16 @@ export function heroImagePath(doc: PageDocument): string | null {
 
 export function pageMetadata(
   doc: PageDocument,
-  org: { orgName: string } & Parameters<typeof modeOf>[0],
+  org: { orgName: string },
   supabaseUrl: string,
+  channel: PageChannel,
 ): Metadata {
   const image = heroImagePath(doc);
-  // Declared mode, not effectiveMode: generateMetadata has no flags in scope,
-  // and a rentals-only org with the rentals kill-switch off already 404s at
-  // the page — so the only divergence (both-mode + flag off → "Book with"
-  // instead of "Book an appointment with") is harmless.
-  const mode: OrgMode = modeOf(org);
+  // The page's own channel (spec 2026-08-28 §3.6): a spaces page says
+  // "Book a space at X" whatever else the org sells.
   return {
     title: org.orgName,
-    description: pageDescription(doc, bookingDescription(mode, org.orgName)),
+    description: pageDescription(doc, bookingDescription(pageChannelMode(channel), org.orgName)),
     ...(image ? { openGraph: { images: [pageImageUrl(supabaseUrl, image)] } } : {}),
   };
 }

@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: PageProps<"/[handle]/[staffSl
   if (!HANDLE_RE.test(handle) || !STAFF_SLUG_RE.test(staffSlug)) return {};
   const org = await getBookingOrg(handle);
   if (!org) return {};
-  return pageMetadata(await getPublishedPage(org.orgId, "appointments"), org, env.NEXT_PUBLIC_SUPABASE_URL);
+  return pageMetadata(await getPublishedPage(org.orgId, "appointments"), org, env.NEXT_PUBLIC_SUPABASE_URL, "appointments");
 }
 
 // One team member's own booking link: the org's published page with the
