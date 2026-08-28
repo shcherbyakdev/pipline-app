@@ -24,7 +24,7 @@ export function SectionsPanel({
 }: {
   draft: PageDraft; selectedId: string | null; onSelect: (id: string | null) => void;
   emptyContext: EmptyContext; liveUrl: string | null; pageSections: PlanLimits["pageSections"]; mode: OrgMode;
-  /** "Start from a template" (Task 16); null until then. */
+  /** The picker-mode StarterDialog (spec 2026-08-28 §5.4). */
   templatePicker: React.ReactNode;
 }) {
   const { doc, update, status, issues, busy, retry, publish, discard, unpublished, published } = draft;
