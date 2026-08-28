@@ -1007,6 +1007,7 @@ Append to the existing `## Amendments (2026-08-28, at execution)` list (byte-for
 - Slice 2: `OFFERING_DEFAULTS` follows the space dialog — hours increment **30** (not 60), 60–240 min; stays 15:00 → 11:00, min stay 1 — so the starter builds the same space the dialog would.
 - Slice 2: `templatesFor` is gone; `typesFor(channel)` (business-types.ts) is the card order. The starter and the picker are one component, `StarterDialog`, driven by `starterReducer`; "Back" from the first-item step returns to the cards (it is not a skip — the builder still only opens once something is bookable).
 - Slice 2: `router.refresh()` after the first item lands re-renders the route with the real service/space in the preview catalogue; `usePageDraft` seeds from its props once, so the draft is untouched.
+- Slice 2, §5.1 corrected: the starter is a modal (focus trapped, outside pointer disabled), so "the admin sidebar stays usable" was never true at runtime. The exit is explicit and inside the dialog — **"Leave for now"** (`STARTER.leave`) returns to `/bookings` from either step. It is not a skip: the builder still opens only once the channel has something bookable (ruling 2). Focus returns to the sections panel when the starter closes (`finalFocus`).
 ```
 
 - [ ] **Step 3: Commit, push, open the PR against `feat/channel-pages`**
