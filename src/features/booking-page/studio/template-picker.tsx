@@ -13,7 +13,7 @@ import { deepEqual } from "../doc-ops";
 import type { PageDocument } from "../schema";
 import type { RenderContext } from "../render/context";
 import { PageRenderer, pageContainerClass } from "../render/page-renderer";
-import { applyTemplate, templatePreview, templatesFor, type Template, type TemplateSkin } from "../templates";
+import { TEMPLATES, applyTemplate, templatePreview, type Template, type TemplateSkin } from "../templates";
 import { ConfirmDialog } from "./confirm-dialog";
 
 /* Live thumbnails: the real PageRenderer, scaled, with the org's own
@@ -78,7 +78,7 @@ export function TemplatePicker({
             </span>
           </label>
           <ul className="grid max-h-[60vh] grid-cols-1 gap-3 overflow-y-auto p-0.5 sm:grid-cols-3">
-            {templatesFor(mode).map((t) => (
+            {TEMPLATES.filter((t) => t.id !== "venue" || mode.offersRentals).map((t) => (
               <li key={t.id}>
                 {/* Click anywhere on the card selects; the name/description is a
                     real <button>, so Enter/Space come for free and bubble to the
