@@ -9,6 +9,15 @@ export const UNIT_SELECTIONS = ["auto", "client_picks"] as const;
 export const PRICING_MODES = ["per_unit", "flat"] as const;
 export const DEPOSIT_TYPES = ["none", "fixed", "percent", "full"] as const;
 
+/** The space dialog's defaults, in one place so the booking-page starter's
+    minimal form builds the same space the dialog would (spec 2026-08-28
+    §5.3). `hours` fills the hoursFields branch, `stay` the rangeFields one;
+    everything else is a schema default. */
+export const OFFERING_DEFAULTS = {
+  hours: { slotIncrementMin: 30, minDurationMin: 60, maxDurationMin: 240 },
+  stay: { startTime: "15:00", endTime: "11:00", minStay: 1 },
+} as const;
+
 const offeringCommon = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),

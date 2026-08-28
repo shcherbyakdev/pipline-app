@@ -202,11 +202,3 @@ export function applyTemplate(t: Template, mode: OrgMode): PageDocument {
 export function templatePreview(t: Template, mode: OrgMode): PageDocument {
   return { version: 1, layout: t.layout, sections: fitToMode(t.sections, mode, (s) => ("sp" + s.id).slice(0, 12)) };
 }
-
-/** Picker order per mode: Venue leads for space owners, hides for appointment-only orgs. */
-export function templatesFor(mode: OrgMode): Template[] {
-  const venue = TEMPLATES.filter((t) => t.id === "venue");
-  const rest = TEMPLATES.filter((t) => t.id !== "venue");
-  // H5b ruling 1: any org that sells spaces sees Venue first.
-  return mode.offersRentals ? [...venue, ...rest] : rest;
-}

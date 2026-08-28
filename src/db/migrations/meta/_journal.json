@@ -428,6 +428,13 @@
       "when": 1787903884756,
       "tag": "0060_booking_pages_channel_rpcs",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1787918959144,
+      "tag": "0061_reserved_staff_slugs",
+      "breakpoints": true
     }
   ]
 }

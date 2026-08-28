@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TEMPLATES, applyTemplate, templatePreview, stripSample, fitToMode, templatesFor } from "./templates";
+import { TEMPLATES, applyTemplate, templatePreview, stripSample, fitToMode } from "./templates";
 import { pageDocumentSchema } from "./schema";
 import { imagePathsIn } from "./images";
 import { isSectionEmpty } from "./doc-ops";
@@ -113,15 +113,5 @@ describe("fitToMode", () => {
   it("applyTemplate assigns fresh ids even to the sections fitToMode created", () => {
     const applied = applyTemplate(studio, BOTH);
     for (const s of applied.sections) expect(studio.sections.some((o) => o.id === s.id || stable(o) === s.id)).toBe(false);
-  });
-});
-
-describe("templatesFor", () => {
-  it("any org with spaces puts Venue first; appointments-only hides it", () => {
-    expect(templatesFor(RENTALS_ONLY)[0]?.id).toBe("venue");
-    expect(templatesFor(BOTH)[0]?.id).toBe("venue");
-    expect(templatesFor(BOTH)).toHaveLength(TEMPLATES.length);
-    expect(templatesFor(APPTS_ONLY).map((t) => t.id)).not.toContain("venue");
-    expect(templatesFor(APPTS_ONLY)).toHaveLength(6);
   });
 });

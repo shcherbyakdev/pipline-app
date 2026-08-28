@@ -10,7 +10,8 @@ import { frontDoor } from "@/lib/booking/channel-pages";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { pageChannelMode, parsePageChannel, type PageChannel } from "@/features/booking-page/channel";
-import { EMPTY_PAGE_STATE, getPageStates, getPageSectionsEntitlement } from "@/features/booking-page/queries";
+import { EMPTY_PAGE_STATE, getPageStates, getPageSectionsEntitlement, type PageDraftState } from "@/features/booking-page/queries";
+import { isFreshPage } from "@/features/booking-page/studio/starter-state";
 import { BookingPageBuilder } from "@/features/booking-page/studio/booking-page-builder";
 import { PageSwitch } from "@/features/booking-page/studio/page-switch";
 import { PageIntro } from "@/components/shell/page-header";
@@ -64,6 +65,14 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
     getPageSectionsEntitlement(branding.orgId),
   ]);
   const page = pages[channel] ?? EMPTY_PAGE_STATE;
+  // The starter (spec §5): a page nobody touched opens it; the channel with
+  // nothing bookable makes it ask for the first service/space; the look
+  // checkbox defaults on only while nothing is published anywhere.
+  const starter = {
+    fresh: isFreshPage(page),
+    needsFirstItem: channel === "appointments" ? !has.services : !has.spaces,
+    anyPublished: Object.values(pages).some((p: PageDraftState) => p.published !== null),
+  };
   const switchable = declared.offersAppointments && declared.offersRentals;
 
   return (
@@ -77,6 +86,7 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
         key={channel}
         channel={channel}
         publicReachable={publicReachable}
+        starter={starter}
         crossLink={crossLink}
         branding={branding}
         scheduling={scheduling}

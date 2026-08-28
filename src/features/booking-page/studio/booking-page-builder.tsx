@@ -21,12 +21,14 @@ import type { RenderContext } from "../render/context";
 import { PageRenderer, pageContainerClass } from "../render/page-renderer";
 import { SelectionProvider } from "../render/selection";
 import type { TemplateSkin } from "../templates";
+import { STARTER } from "../copy";
 import { usePageDraft } from "./use-page-draft";
 import { StudioTabs, type StudioTab } from "./studio-tabs";
 import { SectionsPanel } from "./sections-panel";
 import { SectionInspector } from "./section-inspector";
 import { SettingsTab } from "./settings-tab";
-import { TemplatePicker } from "./template-picker";
+import { StarterDialog } from "./starter-dialog";
+import { skinDefault } from "./starter-state";
 
 type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSettings>>>;
 
@@ -34,14 +36,21 @@ type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSet
    a visitor will see it on the right — the same PageRenderer + WidgetTheme
    composition as /[handle], fed by the draft and the unsaved settings. */
 export function BookingPageBuilder({
-  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections, mode, channel, publicReachable, crossLink,
+  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections, mode, channel, publicReachable, crossLink, starter,
 }: {
   branding: BrandingSettings; scheduling: SchedulingSettings; appUrl: string; supabaseUrl: string;
   previewServices: PublicService[]; previewOfferings: PublicOffering[]; staff: PublicStaff[];
   initialPage: { draft: PageDocument; published: PageDocument | null };
   pageSections: PlanLimits["pageSections"]; mode: OrgMode; channel: PageChannel; publicReachable: boolean; crossLink: RenderContext["crossLink"];
+  /** The starter (spec §5): opens on a fresh page; `needsFirstItem` when the
+      page's channel has nothing bookable yet; `anyPublished` decides the
+      look checkbox's default. */
+  starter: { fresh: boolean; needsFirstItem: boolean; anyPublished: boolean };
 }) {
   const draft = usePageDraft(initialPage, channel);
+  // Where focus lands once the starter closes (M4): the left panel itself,
+  // not wherever the trap happened to leave it.
+  const panelRef = React.useRef<HTMLDivElement>(null);
   const [tab, setTab] = React.useState<StudioTab>("sections");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [accent, setAccent] = React.useState<string | null>(branding.accentColor);
@@ -88,7 +97,7 @@ export function BookingPageBuilder({
     draft.update(next);
     setSelectedId(null);
     if (skin) applySkin(skin);
-    toast.success("Template applied");
+    toast.success(STARTER.applied);
   };
 
   const host = hostLabel(appUrl);
@@ -119,7 +128,21 @@ export function BookingPageBuilder({
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-      <div className="flex flex-col gap-4">
+      {starter.fresh ? (
+        <StarterDialog
+          variant="starter"
+          channel={channel}
+          doc={draft.doc}
+          ctx={ctx}
+          mode={mode}
+          needsFirstItem={starter.needsFirstItem}
+          applyLookDefault={skinDefault(starter.anyPublished)}
+          currency={scheduling.currency}
+          onApply={onApplyTemplate}
+          finalFocus={panelRef}
+        />
+      ) : null}
+      <div ref={panelRef} tabIndex={-1} className="flex flex-col gap-4">
         <StudioTabs value={tab} onChange={setTab} />
         {tab === "settings" ? (
           <SettingsTab branding={branding} scheduling={scheduling} appUrl={appUrl} theme={theme} onTheme={setTheme} onPreviewAccent={setAccent} onHandleInput={setHandle} />
@@ -141,7 +164,19 @@ export function BookingPageBuilder({
             liveUrl={scheduling.handle && publicReachable ? channelUrl(appUrl, scheduling.handle, channel) : null}
             pageSections={pageSections}
             mode={mode}
-            templatePicker={<TemplatePicker doc={draft.doc} ctx={ctx} mode={mode} onApply={onApplyTemplate} />}
+            templatePicker={
+              <StarterDialog
+                variant="picker"
+                channel={channel}
+                doc={draft.doc}
+                ctx={ctx}
+                mode={mode}
+                needsFirstItem={starter.needsFirstItem}
+                applyLookDefault={false}
+                currency={scheduling.currency}
+                onApply={onApplyTemplate}
+              />
+            }
           />
         )}
       </div>
