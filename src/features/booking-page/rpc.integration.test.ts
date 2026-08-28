@@ -138,11 +138,11 @@ describe("getPublishedPage", () => {
     const { getPublishedPage } = await import("./queries");
     await owner.rpc("save_booking_page_draft", { p_org_id: orgId, p_channel: "appointments", p_doc: withHero });
     await owner.rpc("publish_booking_page", { p_org_id: orgId, p_channel: "appointments" });
-    expect(await getPublishedPage(orgId, "appointments")).toEqual(withHero);
-    expect(await getPublishedPage(strangerOrgId, "appointments")).toEqual(DEFAULT_PAGE);
+    expect(await getPublishedPage(orgId)).toEqual(withHero);
+    expect(await getPublishedPage(strangerOrgId)).toEqual(DEFAULT_PAGE);
     // Junk that passes the SQL checks but not zod: the renderer must never trust it.
     await admin.from("booking_pages").update({ published: { ...withHero, layout: "diagonal" } }).eq("org_id", orgId).eq("channel", "appointments");
-    expect(await getPublishedPage(orgId, "appointments")).toEqual(DEFAULT_PAGE);
+    expect(await getPublishedPage(orgId)).toEqual(DEFAULT_PAGE);
     await owner.rpc("publish_booking_page", { p_org_id: orgId, p_channel: "appointments" });
   });
 });
