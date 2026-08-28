@@ -5,7 +5,10 @@ import type { Channel as CatalogChannel } from "@/lib/booking/channel";
    channel an org sells. Distinct on purpose from OrgMode's Channel
    ("appointments" | "rentals" — what the org sells) and lib/booking/channel's
    Channel ("services" | "spaces" — the ?channel= query the widget-only
-   embed still takes); these two mappers are the only bridges. */
+   embed still takes); these two mappers are the only bridges.
+   lib/booking/url.ts and channel-pages.ts import PageChannel from here
+   (type-only) — a deliberate downward share, so the URL builders and the
+   routing rule speak the page's word. */
 export const PAGE_CHANNELS = ["appointments", "spaces"] as const;
 export type PageChannel = (typeof PAGE_CHANNELS)[number];
 

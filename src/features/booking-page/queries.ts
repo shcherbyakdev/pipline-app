@@ -51,19 +51,6 @@ function toDraftState(row: PageRow, orgId: string): PageDraftState {
 
 export const EMPTY_PAGE_STATE: PageDraftState = { draft: DEFAULT_PAGE, published: null, publishedAt: null };
 
-/** RLS-scoped read of one channel's page for the studio. */
-export async function getPageDraftState(orgId: string, channel: PageChannel): Promise<PageDraftState> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("booking_pages")
-    .select("draft, published, published_at")
-    .eq("org_id", orgId)
-    .eq("channel", channel)
-    .maybeSingle();
-  if (error) throw error;
-  return data ? toDraftState(data, orgId) : EMPTY_PAGE_STATE;
-}
-
 /** Every page of the org in one read, keyed by channel; a channel with no
     row is absent. The builder asks it "is anything published?" and the
     welcome checklist reads the front door's entry. */

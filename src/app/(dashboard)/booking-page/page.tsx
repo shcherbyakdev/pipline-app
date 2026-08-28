@@ -31,6 +31,9 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
     declared.offersRentals ? listOfferings() : [],
   ]);
   if (!branding || !scheduling) notFound();
+  // Admin-side approximation of catalogueHas (lib/booking/catalog.ts): the
+  // public catalogue also drops staffless and plan-hidden services, so the
+  // two can differ for an org whose every person is deactivated.
   const has = { services: services.some((s) => s.active), spaces: offerings.some(isBookableOffering) };
 
   // Which page: ?page= when it names a channel the org declares; else the
@@ -53,6 +56,9 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
     channel === "appointments" && present.offersRentals && has.spaces ? { href: "#", label: SPACES.crossLink }
     : channel === "spaces" && present.offersAppointments && has.services ? { href: "#", label: APPOINTMENTS.crossLink }
     : null;
+  // The live page 404s until the channel has something bookable —
+  // resolveChannelPage's rule.
+  const publicReachable = channel === "appointments" ? has.services : has.spaces;
   const [pages, pageSections] = await Promise.all([
     getPageStates(branding.orgId),
     getPageSectionsEntitlement(branding.orgId),
@@ -70,6 +76,7 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
         // Re-mount per page: the draft hook is seeded once from its props.
         key={channel}
         channel={channel}
+        publicReachable={publicReachable}
         crossLink={crossLink}
         branding={branding}
         scheduling={scheduling}

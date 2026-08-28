@@ -1,4 +1,5 @@
 import type { PageChannel } from "@/features/booking-page/channel";
+import { channelPath, targetQuery } from "./url";
 
 /* Which page a public URL renders (spec 2026-08-28 §3.1). Pure, decided on
    the GATED catalogue — mode ∩ rentals flag ∩ bookable (an active service;
@@ -28,4 +29,19 @@ export function resolveChannelPage(route: "root" | "spaces", has: Has): ChannelP
   // A spaces-only org's spaces page IS the root; /spaces still renders it
   // (links never break) but points its canonical at the root.
   return { channel: "spaces", canonical: has.services ? "spaces" : "root" };
+}
+
+/** A root URL that asked for the spaces channel — `?channel=spaces`, or a
+    pre-branch `?space=<id>` deep link — while the root is the appointments
+    page: the path to send it to (the space preselected), else null. */
+export function rootRedirect(
+  handle: string,
+  page: ChannelPage,
+  has: Has,
+  sp: { channel?: string | string[]; space?: string | string[] },
+): string | null {
+  if (page.channel !== "appointments" || !has.spaces) return null;
+  const space = typeof sp.space === "string" && sp.space !== "" ? sp.space : null;
+  if (!space && sp.channel !== "spaces") return null;
+  return `${channelPath(handle, "spaces")}${space ? targetQuery({ space }) : ""}`;
 }

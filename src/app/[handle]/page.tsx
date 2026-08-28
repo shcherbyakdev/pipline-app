@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { getBookingOrg, resolveHandleAlias } from "@/lib/booking/public";
-import { bookingPath, channelPath } from "@/lib/booking/url";
+import { bookingPath } from "@/lib/booking/url";
 import { listPublicCatalog, catalogueHas } from "@/lib/booking/catalog";
-import { resolveChannelPage, type Has } from "@/lib/booking/channel-pages";
-import { resolveChannelParam } from "@/lib/booking/channel";
+import { resolveChannelPage, rootRedirect, type Has } from "@/lib/booking/channel-pages";
 import { env } from "@/env";
 import { getPublishedPage } from "@/features/booking-page/queries";
 import { pageMetadata } from "@/features/booking-page/metadata";
@@ -47,11 +46,10 @@ export default async function BookPage({ params, searchParams }: PageProps<"/[ha
   const page = resolveChannelPage("root", has);
   if (!page) notFound();
   const sp = await searchParams;
-  // `?channel=spaces` predates the spaces page (admin IA spec §5): it now
-  // means that page. Temporary — it depends on data. `?channel=services`
-  // is the root already (or degrades exactly as applyChannel did).
-  if (resolveChannelParam(sp.channel) === "spaces" && page.channel === "appointments" && has.spaces) {
-    redirect(channelPath(handle, "spaces"));
-  }
+  // A root URL that asked for spaces — `?channel=spaces` (admin IA spec §5)
+  // or a pre-branch `?space=<id>` link — now means the spaces page (spec
+  // 2026-08-28 §3.2). Temporary: it depends on data.
+  const to = rootRedirect(handle, page, has, sp);
+  if (to) redirect(to);
   return renderChannelPage({ org, handle, page, catalogue, searchParams: sp });
 }

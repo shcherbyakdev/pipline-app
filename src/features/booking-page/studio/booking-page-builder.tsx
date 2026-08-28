@@ -34,12 +34,12 @@ type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSet
    a visitor will see it on the right — the same PageRenderer + WidgetTheme
    composition as /[handle], fed by the draft and the unsaved settings. */
 export function BookingPageBuilder({
-  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections, mode, channel, crossLink,
+  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections, mode, channel, publicReachable, crossLink,
 }: {
   branding: BrandingSettings; scheduling: SchedulingSettings; appUrl: string; supabaseUrl: string;
   previewServices: PublicService[]; previewOfferings: PublicOffering[]; staff: PublicStaff[];
   initialPage: { draft: PageDocument; published: PageDocument | null };
-  pageSections: PlanLimits["pageSections"]; mode: OrgMode; channel: PageChannel; crossLink: RenderContext["crossLink"];
+  pageSections: PlanLimits["pageSections"]; mode: OrgMode; channel: PageChannel; publicReachable: boolean; crossLink: RenderContext["crossLink"];
 }) {
   const draft = usePageDraft(initialPage, channel);
   const [tab, setTab] = React.useState<StudioTab>("sections");
@@ -138,7 +138,7 @@ export function BookingPageBuilder({
             selectedId={selectedId}
             onSelect={setSelectedId}
             emptyContext={{ serviceCount: previewServices.length, staffCount: staff.length, offeringCount: previewOfferings.length }}
-            liveUrl={scheduling.handle ? channelUrl(appUrl, scheduling.handle, channel) : null}
+            liveUrl={scheduling.handle && publicReachable ? channelUrl(appUrl, scheduling.handle, channel) : null}
             pageSections={pageSections}
             mode={mode}
             templatePicker={<TemplatePicker doc={draft.doc} ctx={ctx} mode={mode} onApply={onApplyTemplate} />}
