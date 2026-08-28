@@ -28,7 +28,7 @@ describe("booking URLs", () => {
     expect(bookingLink("https://booklo.co", "anna")).toBe("https://booklo.co/anna");
     expect(bookingLink("https://booklo.co/", "anna", { staff: "maria" })).toBe("https://booklo.co/anna/maria");
     expect(bookingLink("https://booklo.co", "anna", { service: "s1" })).toBe("https://booklo.co/anna?service=s1");
-    expect(bookingLink("https://booklo.co", "anna", { space: "o1" })).toBe("https://booklo.co/anna?space=o1");
+    expect(bookingLink("https://booklo.co", "anna", { space: "o1" })).toBe("https://booklo.co/anna/spaces?space=o1");
   });
   it("channelPath / channelUrl: appointments is the root, spaces is a segment", () => {
     expect(channelPath("anna", "appointments")).toBe("/anna");

@@ -36,7 +36,8 @@ export function hostLabel(appUrl: string): string {
    a `?staff=` query on the embed — the two builders below know which;
    everything else is the same query on both. A channel target is that
    channel's page on the hosted side (channelUrl) and a ?channel= query on
-   the embed. Slugged short links for services/spaces need a migration and
+   the embed. A space target opens the spaces page with the space
+   preselected. Slugged short links for services/spaces need a migration and
    stay deferred. */
 export type LinkTarget =
   | { service: string }
@@ -58,6 +59,9 @@ export function bookingLink(appUrl: string, handle: string, target?: LinkTarget)
   // A channel is a page of its own (spec 2026-08-28 §3.6); the embed below
   // keeps the query because the iframe is the widget, not a page.
   if (target && "channel" in target) return channelUrl(appUrl, handle, target.channel === "spaces" ? "spaces" : "appointments");
+  // A space lives on the spaces page (every org that sells spaces has one —
+  // a spaces-only org's is also its root); the query preselects it there.
+  if (target && "space" in target) return `${channelUrl(appUrl, handle, "spaces")}${targetQuery(target)}`;
   return `${bookingUrl(appUrl, handle)}${targetQuery(target)}`;
 }
 
