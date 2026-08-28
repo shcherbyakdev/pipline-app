@@ -10,6 +10,7 @@ export const STARTER = {
   firstService: {
     title: "Add your first service",
     sub: "It goes straight onto your page. Add more on Services whenever you like.",
+    why: "A layout needs at least one service to show — add one and the page fills in.",
     name: "Name",
     namePlaceholder: "e.g. Haircut",
     duration: "Duration",
@@ -20,6 +21,7 @@ export const STARTER = {
   firstSpace: {
     title: "Add your first space",
     sub: "It goes straight onto your page, with one unit. Add more on Spaces whenever you like.",
+    why: "A layout needs at least one bookable space to show — add one and the page fills in.",
     name: "Name",
     namePlaceholder: "e.g. Studio A",
     bookedBy: "Booked by",
@@ -28,9 +30,11 @@ export const STARTER = {
     days: "the day",
     price: (per: string, currency: string) => `Price per ${per} (${currency}, optional)`,
     submit: "Add space",
+    noticeHint: "The page can list this space once it has a unit — add one on Spaces. You can keep going and publish when it is bookable.",
   },
   back: "Back",
   leave: "Leave for now",
+  continue: "Continue",
   picker: {
     trigger: "Start from a template",
     title: "Start from a template",

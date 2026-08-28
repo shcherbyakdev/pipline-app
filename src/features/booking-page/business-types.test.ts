@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BUSINESS_TYPES, applyType, templateOf, typesFor } from "./business-types";
+import { BUSINESS_TYPES, applyType, templateOf, typePreview, typesFor, type BusinessType } from "./business-types";
 import { TEMPLATES } from "./templates";
 import { pageDocumentSchema } from "./schema";
 import { pageChannelMode } from "./channel";
@@ -57,5 +57,15 @@ describe("business types (spec 2026-08-28 §5.2)", () => {
       expect(t.copy.bookingTitle.length).toBeLessThanOrEqual(60);
       if (t.copy.cta) expect(t.copy.cta.length).toBeLessThanOrEqual(40);
     }
+  });
+  it("typePreview keeps the sample copy but reads as the type — rooms and stays differ on one template", () => {
+    const rooms = BUSINESS_TYPES.find((t) => t.id === "rooms")!;
+    const stays = BUSINESS_TYPES.find((t) => t.id === "stays")!;
+    const mode = pageChannelMode("spaces");
+    const title = (t: BusinessType) => typePreview(t, mode).sections.find((s) => s.type === "booking");
+    expect(title(rooms)?.type === "booking" && title(rooms)!.title).toBe("Book a space");
+    expect(title(stays)?.type === "booking" && title(stays)!.title).toBe("Book a stay");
+    const hero = typePreview(stays, mode).sections.find((s) => s.type === "hero");
+    expect(hero?.type === "hero" && hero.headline).toBe("Rooms by the hour in Podgórze");
   });
 });

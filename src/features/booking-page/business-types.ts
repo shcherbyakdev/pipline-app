@@ -1,7 +1,7 @@
 import type { OrgMode } from "@/features/orgs/mode";
 import type { PageChannel } from "./channel";
 import type { PageDocument, Section } from "./schema";
-import { TEMPLATES, applyTemplate, type Template } from "./templates";
+import { TEMPLATES, applyTemplate, templatePreview, type Template } from "./templates";
 
 /* The starter's cards (spec 2026-08-28 §5.2). A type is a business the
    owner recognises — "Salon & beauty", not "Studio template" — mapped 1:1
@@ -52,5 +52,13 @@ function withCopy(section: Section, copy: BusinessType["copy"]): Section {
     the type's own words on the widget and the cover. */
 export function applyType(t: BusinessType, mode: OrgMode): PageDocument {
   const doc = applyTemplate(templateOf(t), mode);
+  return { ...doc, sections: doc.sections.map((s) => withCopy(s, t.copy)) };
+}
+
+/** The card's thumbnail: the template's sample copy with the type's own
+    widget title and cover button, so two types on one template still
+    read as themselves. */
+export function typePreview(t: BusinessType, mode: OrgMode): PageDocument {
+  const doc = templatePreview(templateOf(t), mode);
   return { ...doc, sections: doc.sections.map((s) => withCopy(s, t.copy)) };
 }

@@ -15,8 +15,8 @@ import type { PageDocument } from "../schema";
 import type { PageChannel } from "../channel";
 import type { RenderContext } from "../render/context";
 import { PageRenderer, pageContainerClass } from "../render/page-renderer";
-import { templatePreview, type Template, type TemplateSkin } from "../templates";
-import { applyType, templateOf, typesFor, type BusinessType } from "../business-types";
+import type { TemplateSkin } from "../templates";
+import { applyType, templateOf, typePreview, typesFor, type BusinessType } from "../business-types";
 import { STARTER } from "../copy";
 import { initialStarterState, starterReducer, type StarterAction, type StarterState } from "./starter-state";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -28,7 +28,8 @@ import { FirstServiceForm, FirstSpaceForm } from "./first-item-form";
    theme exactly as applySkin does — colour overrides included — so the
    thumbnail is what you'd actually get. A thumbnail is a template, not a
    page: no cross-link. */
-function TypeThumb({ template, ctx, mode }: { template: Template; ctx: RenderContext; mode: OrgMode }) {
+function TypeThumb({ type, ctx, mode }: { type: BusinessType; ctx: RenderContext; mode: OrgMode }) {
+  const template = templateOf(type);
   const base: WidgetThemeConfig = template.skin ? { ...ctx.theme, ...template.skin } : ctx.theme;
   const scheme = base.theme === "auto" ? "light" : base.theme;
   const theme: WidgetThemeConfig = { ...base, theme: scheme };
@@ -37,7 +38,7 @@ function TypeThumb({ template, ctx, mode }: { template: Template; ctx: RenderCon
       <div className={cn("pointer-events-none absolute top-0 left-0 w-[900px] origin-top-left scale-[0.3] p-8", scheme, "bg-background text-foreground")}>
         <WidgetTheme config={theme} accentColor={ctx.branding.accentColor} transparent>
           <div className={cn("mx-auto", pageContainerClass(template.layout))}>
-            <PageRenderer doc={templatePreview(template, mode)} ctx={{ ...ctx, theme, mode: "preview", crossLink: null }} />
+            <PageRenderer doc={typePreview(type, mode)} ctx={{ ...ctx, theme, mode: "preview", crossLink: null }} />
           </div>
         </WidgetTheme>
       </div>
@@ -122,6 +123,9 @@ export function StarterDialog({
                 <DialogTitle>{channel === "appointments" ? STARTER.firstService.title : STARTER.firstSpace.title}</DialogTitle>
                 <DialogDescription>{channel === "appointments" ? STARTER.firstService.sub : STARTER.firstSpace.sub}</DialogDescription>
               </DialogHeader>
+              {!starter ? (
+                <p className="text-muted-foreground text-sm">{channel === "appointments" ? STARTER.firstService.why : STARTER.firstSpace.why}</p>
+              ) : null}
               {channel === "appointments" ? (
                 <FirstServiceForm currency={currency} onCreated={onCreated} onBack={() => dispatch({ kind: "back" })} />
               ) : (
@@ -154,7 +158,7 @@ export function StarterDialog({
                       onClick={() => choose(t)}
                       className="hover:border-primary has-[button:focus-visible]:ring-ring/50 flex w-full cursor-pointer flex-col gap-2 rounded-lg border p-2 has-[button:focus-visible]:ring-2"
                     >
-                      <TypeThumb template={templateOf(t)} ctx={ctx} mode={mode} />
+                      <TypeThumb type={t} ctx={ctx} mode={mode} />
                       <button type="button" className="flex flex-col items-start gap-0.5 text-left outline-none" aria-label={`${t.name} — ${t.examples}`}>
                         <span className="text-sm font-medium">{t.name}</span>
                         <span className="text-muted-foreground text-xs">{t.examples}</span>

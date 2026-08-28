@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
 import { createService } from "@/features/scheduling/actions";
 import { createOffering } from "@/features/rentals/actions";
 import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
@@ -10,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { GENERIC_WRITE_ERROR } from "@/lib/actions";
 import { STARTER } from "../copy";
 
 /* The starter's second step (spec 2026-08-28 §5.3): the fewest fields that
@@ -43,12 +43,17 @@ export function FirstServiceForm({ currency, onCreated, onBack }: { currency: st
     const payload = { name, durationMin: Number(fd.get("durationMin")), priceLabel: priceLabel === "" ? undefined : priceLabel };
     setError(null);
     startTransition(async () => {
-      const result = await createService(payload);
-      if (!result.ok) {
-        setError(result.error);
-        return;
+      try {
+        const result = await createService(payload);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        onCreated();
+      } catch (error) {
+        console.error("[booking-page] first item threw:", error);
+        setError(GENERIC_WRITE_ERROR);
       }
-      onCreated();
     });
   };
 
@@ -88,6 +93,10 @@ const MODES: ReadonlyArray<{ value: RangeMode; label: string; per: string }> = [
 export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: string; onCreated: () => void; onBack: () => void }) {
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
+  // A notice means the space saved but its first unit or hours did not (plan
+  // cap): the page still needs a bookable unit, so hold the step instead of
+  // advancing on a fading toast.
+  const [notice, setNotice] = React.useState<string | null>(null);
   // Controlled: the price label and the payload branch both follow it.
   const [rangeMode, setRangeMode] = React.useState<RangeMode>("hours");
   const nameId = React.useId();
@@ -109,17 +118,36 @@ export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: stri
         : { name, rangeMode, ...OFFERING_DEFAULTS.stay, priceCents };
     setError(null);
     startTransition(async () => {
-      const result = await createOffering(payload);
-      if (!result.ok) {
-        setError(result.error);
-        return;
+      try {
+        const result = await createOffering(payload);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        if (result.notice) {
+          setNotice(result.notice);
+          return;
+        }
+        onCreated();
+      } catch (error) {
+        console.error("[booking-page] first item threw:", error);
+        setError(GENERIC_WRITE_ERROR);
       }
-      // A notice means the space saved but its first unit or hours did not
-      // (plan cap) — the page still needs it, so say so and carry on.
-      if (result.notice) toast.warning(result.notice);
-      onCreated();
     });
   };
+
+  if (notice) {
+    return (
+      <div className="flex flex-col gap-4">
+        <p role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">{notice}</p>
+        <p className="text-muted-foreground text-sm">{STARTER.firstSpace.noticeHint}</p>
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={onBack}>{STARTER.back}</Button>
+          <Button type="button" size="sm" onClick={onCreated}>{STARTER.continue}</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
