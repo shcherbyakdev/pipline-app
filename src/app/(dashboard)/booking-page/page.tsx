@@ -9,6 +9,7 @@ import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { getPageDraftState, getPageSectionsEntitlement } from "@/features/booking-page/queries";
 import { BookingPageBuilder } from "@/features/booking-page/studio/booking-page-builder";
+import type { PageChannel } from "@/features/booking-page/channel";
 import { PageIntro } from "@/components/shell/page-header";
 import { env } from "@/env";
 
@@ -23,6 +24,8 @@ export default async function BookingPagePage() {
   // templates and lists sections as the appointments page it is.
   const { org } = await requireOrg();
   const declared = effectiveMode(await getDashboardFlags(org.id), modeOf(org));
+  // Interim until Task 8: the page of the org's first declared channel.
+  const channel: PageChannel = declared.offersAppointments ? "appointments" : "spaces";
   const [branding, scheduling, services, staff, offerings] = await Promise.all([
     getBrandingSettings(),
     getSchedulingSettings(),
@@ -37,7 +40,7 @@ export default async function BookingPagePage() {
   });
   const catalog = toPreviewCatalog({ mode, services, offerings });
   const [page, pageSections] = await Promise.all([
-    getPageDraftState(branding.orgId),
+    getPageDraftState(branding.orgId, channel),
     getPageSectionsEntitlement(branding.orgId),
   ]);
 
@@ -58,6 +61,7 @@ export default async function BookingPagePage() {
         initialPage={{ draft: page.draft, published: page.published }}
         pageSections={pageSections}
         mode={mode}
+        channel={channel}
       />
     </div>
   );

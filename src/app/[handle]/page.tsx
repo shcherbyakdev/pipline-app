@@ -25,7 +25,11 @@ export async function generateMetadata({ params }: PageProps<"/[handle]">): Prom
   if (!HANDLE_RE.test(handle)) return {};
   const org = await getBookingOrg(handle);
   if (!org) return {};
-  return pageMetadata(await getPublishedPage(org.orgId), org, env.NEXT_PUBLIC_SUPABASE_URL);
+  return pageMetadata(
+    await getPublishedPage(org.orgId, org.offersAppointments ? "appointments" : "spaces"),
+    org,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+  );
 }
 
 export default async function BookPage({ params, searchParams }: PageProps<"/[handle]">) {
@@ -50,7 +54,7 @@ export default async function BookPage({ params, searchParams }: PageProps<"/[ha
     listPublicCatalog(org),
     getOrgBranding(org.orgId),
     // The org's published composition; the default page when none.
-    getPublishedPage(org.orgId),
+    getPublishedPage(org.orgId, org.offersAppointments ? "appointments" : "spaces"),
   ]);
   if (offering.services.length === 0 && offerings.length === 0) notFound();
   const theme = parseWidgetTheme(branding.themeRaw);

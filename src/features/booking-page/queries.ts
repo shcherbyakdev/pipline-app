@@ -7,14 +7,20 @@ import { getEntitlements } from "@/lib/billing/queries";
 import type { PlanLimits } from "@/lib/billing/plans";
 import { DEFAULT_PAGE } from "./defaults";
 import { parsePageDocument, type PageDocument } from "./schema";
+import { parsePageChannel, type PageChannel } from "./channel";
 
-/** The published document for a public page, or DEFAULT_PAGE when there is
-    none / it fails to parse (logged). Admin client: the public surface stays
-    off the anon grant surface (getBookingOrg precedent). Memoised per
-    request — the page and generateMetadata both read it. */
-export const getPublishedPage = cache(async (orgId: string): Promise<PageDocument> => {
+/** One channel's published document for a public page, or DEFAULT_PAGE when
+    there is none / it fails to parse (logged). Admin client: the public
+    surface stays off the anon grant surface (getBookingOrg precedent).
+    Memoised per request — the page and generateMetadata both read it. */
+export const getPublishedPage = cache(async (orgId: string, channel: PageChannel): Promise<PageDocument> => {
   const admin = createAdminClient();
-  const { data, error } = await admin.from("booking_pages").select("published").eq("org_id", orgId).maybeSingle();
+  const { data, error } = await admin
+    .from("booking_pages")
+    .select("published")
+    .eq("org_id", orgId)
+    .eq("channel", channel)
+    .maybeSingle();
   if (error) {
     console.error("[booking-page] published read failed:", error.message);
     return DEFAULT_PAGE;
@@ -22,7 +28,7 @@ export const getPublishedPage = cache(async (orgId: string): Promise<PageDocumen
   if (!data?.published) return DEFAULT_PAGE;
   const doc = parsePageDocument(data.published, orgId);
   if (!doc) {
-    console.error(`[booking-page] published document for org ${orgId} failed to parse — rendering the default page`);
+    console.error(`[booking-page] published ${channel} document for org ${orgId} failed to parse — rendering the default page`);
     return DEFAULT_PAGE;
   }
   return doc;
@@ -30,23 +36,50 @@ export const getPublishedPage = cache(async (orgId: string): Promise<PageDocumen
 
 export type PageDraftState = { draft: PageDocument; published: PageDocument | null; publishedAt: string | null };
 
-/** RLS-scoped read for the studio. An unparseable stored draft falls back to
-    the published page, then to the default — the same doctrine as above. */
-export async function getPageDraftState(orgId: string): Promise<PageDraftState> {
+type PageRow = { draft: unknown; published: unknown; published_at: string | null };
+
+/** An unparseable stored draft falls back to the published page, then to
+    the default — the same doctrine as getPublishedPage. */
+function toDraftState(row: PageRow, orgId: string): PageDraftState {
+  const published = row.published ? parsePageDocument(row.published, orgId) : null;
+  return {
+    draft: parsePageDocument(row.draft, orgId) ?? published ?? DEFAULT_PAGE,
+    published,
+    publishedAt: row.published_at,
+  };
+}
+
+export const EMPTY_PAGE_STATE: PageDraftState = { draft: DEFAULT_PAGE, published: null, publishedAt: null };
+
+/** RLS-scoped read of one channel's page for the studio. */
+export async function getPageDraftState(orgId: string, channel: PageChannel): Promise<PageDraftState> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("booking_pages")
     .select("draft, published, published_at")
     .eq("org_id", orgId)
+    .eq("channel", channel)
     .maybeSingle();
   if (error) throw error;
-  if (!data) return { draft: DEFAULT_PAGE, published: null, publishedAt: null };
-  const published = data.published ? parsePageDocument(data.published, orgId) : null;
-  return {
-    draft: parsePageDocument(data.draft, orgId) ?? published ?? DEFAULT_PAGE,
-    published,
-    publishedAt: data.published_at,
-  };
+  return data ? toDraftState(data, orgId) : EMPTY_PAGE_STATE;
+}
+
+/** Every page of the org in one read, keyed by channel; a channel with no
+    row is absent. The builder asks it "is anything published?" and the
+    welcome checklist reads the front door's entry. */
+export async function getPageStates(orgId: string): Promise<Partial<Record<PageChannel, PageDraftState>>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("booking_pages")
+    .select("channel, draft, published, published_at")
+    .eq("org_id", orgId);
+  if (error) throw error;
+  const out: Partial<Record<PageChannel, PageDraftState>> = {};
+  for (const row of data ?? []) {
+    const channel = parsePageChannel(row.channel);
+    if (channel) out[channel] = toDraftState(row, orgId);
+  }
+  return out;
 }
 
 /** Fails OPEN: a billing hiccup must never block publishing a page. */

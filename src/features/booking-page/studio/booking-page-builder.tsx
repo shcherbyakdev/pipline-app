@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { bookingPath, bookingUrl, hostLabel } from "@/lib/booking/url";
 import type { PageDocument } from "../schema";
 import { replaceSection } from "../doc-ops";
+import type { PageChannel } from "../channel";
 import type { RenderContext } from "../render/context";
 import { PageRenderer, pageContainerClass } from "../render/page-renderer";
 import { SelectionProvider } from "../render/selection";
@@ -33,14 +34,14 @@ type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSet
    a visitor will see it on the right — the same PageRenderer + WidgetTheme
    composition as /[handle], fed by the draft and the unsaved settings. */
 export function BookingPageBuilder({
-  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections, mode,
+  branding, scheduling, appUrl, supabaseUrl, previewServices, previewOfferings, staff, initialPage, pageSections, mode, channel,
 }: {
   branding: BrandingSettings; scheduling: SchedulingSettings; appUrl: string; supabaseUrl: string;
   previewServices: PublicService[]; previewOfferings: PublicOffering[]; staff: PublicStaff[];
   initialPage: { draft: PageDocument; published: PageDocument | null };
-  pageSections: PlanLimits["pageSections"]; mode: OrgMode;
+  pageSections: PlanLimits["pageSections"]; mode: OrgMode; channel: PageChannel;
 }) {
-  const draft = usePageDraft(initialPage);
+  const draft = usePageDraft(initialPage, channel);
   const [tab, setTab] = React.useState<StudioTab>("sections");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [accent, setAccent] = React.useState<string | null>(branding.accentColor);

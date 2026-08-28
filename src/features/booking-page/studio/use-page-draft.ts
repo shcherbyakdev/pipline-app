@@ -7,6 +7,7 @@ import { GENERIC_WRITE_ERROR } from "@/lib/actions";
 import { pageDocumentSchema, type PageDocument } from "../schema";
 import { DEFAULT_PAGE } from "../defaults";
 import { deepEqual, hasUnpublishedChanges, issuesBySection, type IssueMap } from "../doc-ops";
+import type { PageChannel } from "../channel";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error" | "invalid";
 const AUTOSAVE_MS = 800;
@@ -15,8 +16,10 @@ const AUTOSAVE_MS = 800;
    autosave debounced, the whole document validated before every write so the
    RPC only ever sees valid documents. Publish sends the current local doc
    (the action saves then publishes); discard reverts to the last published
-   document, or the default page when never published. */
-export function usePageDraft(initial: { draft: PageDocument; published: PageDocument | null }) {
+   document, or the default page when never published.
+   The page's channel rides every write; the hook never switches pages — the
+   builder is re-mounted per ?page= (booking-page/page.tsx). */
+export function usePageDraft(initial: { draft: PageDocument; published: PageDocument | null }, channel: PageChannel) {
   const [doc, setDoc] = React.useState(initial.draft);
   const [published, setPublished] = React.useState(initial.published);
   const [status, setStatus] = React.useState<SaveStatus>("idle");
@@ -59,10 +62,10 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
     const parsed = pageDocumentSchema.safeParse(candidate);
     if (!parsed.success || deepEqual(parsed.data, lastSaved.current)) return;
     lastSaved.current = parsed.data;
-    void saveBookingPageDraft(parsed.data).catch((error) => {
+    void saveBookingPageDraft({ channel, doc: parsed.data }).catch((error) => {
       console.error("[booking-page] detached autosave threw:", error);
     });
-  }, []);
+  }, [channel]);
 
   const flush = React.useCallback(() => {
     clearTimer();
@@ -81,7 +84,7 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
     setStatus("saving");
     const run = (async () => {
       try {
-        const result = await saveBookingPageDraft(valid);
+        const result = await saveBookingPageDraft({ channel, doc: valid });
         if (result.ok) {
           lastSaved.current = valid;
           setStatus(deepEqual(docRef.current, valid) ? "saved" : "idle");
@@ -109,7 +112,7 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
     startTransition(async () => {
       await run;
     });
-  }, [validate, clearTimer, startTransition, saveDetached]);
+  }, [validate, clearTimer, startTransition, saveDetached, channel]);
 
   // Wait for whatever autosave is running (and any re-run it queues) before a
   // write that must not be overtaken. A queued re-flush is dropped first:
@@ -171,7 +174,7 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
     startTransition(async () => {
       try {
         await settle();
-        const result = await publishBookingPage(valid);
+        const result = await publishBookingPage({ channel, doc: valid });
         if (!result.ok) {
           setStatus("error");
           toast.error(result.error);
@@ -187,14 +190,14 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
         toast.error(GENERIC_WRITE_ERROR);
       }
     });
-  }, [validate, clearTimer, startTransition, settle]);
+  }, [validate, clearTimer, startTransition, settle, channel]);
 
   const discard = React.useCallback(() => {
     clearTimer();
     startTransition(async () => {
       try {
         await settle();
-        const result = await discardBookingPageDraft();
+        const result = await discardBookingPageDraft({ channel });
         // No "error" status here: discard has no retry affordance, the toast is the whole signal.
         if (!result.ok) {
           toast.error(result.error);
@@ -212,7 +215,7 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
         toast.error(GENERIC_WRITE_ERROR);
       }
     });
-  }, [published, clearTimer, startTransition, settle]);
+  }, [published, clearTimer, startTransition, settle, channel]);
 
   return {
     doc, update, published, status, issues, busy,

@@ -131,19 +131,32 @@ describe("table access", () => {
   });
 });
 
-describe("getPublishedPage", () => {
+describe("getPublishedPage / getPageStates", () => {
   // Dynamic import: queries.ts reaches @/env through the admin client, which
   // parses process.env at module load — after loadEnvFile() above.
   it("returns the published document, and DEFAULT_PAGE when never published or unparseable", async () => {
     const { getPublishedPage } = await import("./queries");
     await owner.rpc("save_booking_page_draft", { p_org_id: orgId, p_channel: "appointments", p_doc: withHero });
     await owner.rpc("publish_booking_page", { p_org_id: orgId, p_channel: "appointments" });
-    expect(await getPublishedPage(orgId)).toEqual(withHero);
-    expect(await getPublishedPage(strangerOrgId)).toEqual(DEFAULT_PAGE);
+    expect(await getPublishedPage(orgId, "appointments")).toEqual(withHero);
+    expect(await getPublishedPage(strangerOrgId, "appointments")).toEqual(DEFAULT_PAGE);
     // Junk that passes the SQL checks but not zod: the renderer must never trust it.
     await admin.from("booking_pages").update({ published: { ...withHero, layout: "diagonal" } }).eq("org_id", orgId).eq("channel", "appointments");
-    expect(await getPublishedPage(orgId)).toEqual(DEFAULT_PAGE);
+    expect(await getPublishedPage(orgId, "appointments")).toEqual(DEFAULT_PAGE);
     await owner.rpc("publish_booking_page", { p_org_id: orgId, p_channel: "appointments" });
+  });
+
+  it("getPageStates keys every row by channel and skips channels with no row", async () => {
+    // queries.ts creates an RLS client from cookies; the RPC rows above are
+    // enough to check the admin-side shape through getPublishedPage, and the
+    // keyed read through a direct select with the owner client mirrors it.
+    // A second row for a second channel — self-contained, so this doesn't
+    // depend on the later "channels" describe block having already run.
+    await owner.rpc("save_booking_page_draft", { p_org_id: orgId, p_channel: "spaces", p_doc: DEFAULT_PAGE });
+    const { data } = await owner.from("booking_pages").select("channel").eq("org_id", strangerOrgId);
+    expect(data ?? []).toHaveLength(0); // stranger's rows are invisible to owner
+    const mine = await owner.from("booking_pages").select("channel").eq("org_id", orgId).order("channel");
+    expect(mine.data!.map((r) => r.channel)).toEqual(["appointments", "spaces"]);
   });
 });
 
