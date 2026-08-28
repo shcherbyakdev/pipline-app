@@ -1184,6 +1184,17 @@ export const listPublicCatalog = cache(async (org: BookingOrg): Promise<{
 
 Add to its header comment: `Memoised per request: generateMetadata and the page both resolve the channel from it.`
 
+Below it, add the one helper both routes (and their `generateMetadata`) use to turn the catalogue into the routing rule's input — in `catalog.ts`, not duplicated per route:
+
+```ts
+/** What the gated catalogue holds, as the routing rule reads it (spec 2026-08-28 §3.1). */
+export function catalogueHas(cat: Awaited<ReturnType<typeof listPublicCatalog>>): Has {
+  return { services: cat.offering.services.length > 0, spaces: cat.offerings.length > 0 };
+}
+```
+
+with `import type { Has } from "./channel-pages";`. In the two route files below, replace every `hasOf(org)` with `catalogueHas(await listPublicCatalog(org))`, drop the local `hasOf` helper, and build `has` in the page bodies as `const has = catalogueHas(catalogue);` (importing `catalogueHas` next to `listPublicCatalog`).
+
 - [ ] **Step 5: The shared body — `render/channel-page.tsx`**
 
 ```tsx
