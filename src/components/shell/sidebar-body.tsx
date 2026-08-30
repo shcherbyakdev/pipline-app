@@ -46,7 +46,7 @@ export function SidebarBody({
         <div className="flex min-w-0 items-center gap-2.5 px-1.5">
           <span
             aria-hidden="true"
-            className="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-md text-[12px] font-semibold"
+            className="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold"
           >
             {initial}
           </span>
