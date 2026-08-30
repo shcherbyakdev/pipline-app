@@ -517,6 +517,15 @@ export function CalendarWeek({
           </div>
         </div>
       </div>
+      {/* One quiet line under the grid: what the hatch means, and that the
+          grid is drawable — the two things a new provider can't guess. */}
+      <div className="text-subtle flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 text-xs">
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden className="border-border h-3.5 w-5 shrink-0 rounded-[3px] border" style={HATCH} />
+          Closed hours
+        </span>
+        <span>Drag across open hours to add a booking{blockable ? " or block time" : ""}.</span>
+      </div>
       <BookingDetailDialog
         booking={selected}
         timeZone={timeZone}
