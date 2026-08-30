@@ -46,7 +46,32 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
   --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
   --color-tint: var(--tint);
+  --color-success: var(--success);
+  /* Landing kind colours: what a booking is, coloured the same everywhere. */
+  --color-kind-time: var(--kind-time);
+  --color-kind-time-soft: var(--kind-time-soft);
+  --color-kind-space: var(--kind-space);
+  --color-kind-space-soft: var(--kind-space-soft);
+  --color-kind-stay: var(--kind-stay);
+  --color-kind-stay-soft: var(--kind-stay-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-subtle: var(--subtle);
+  --color-kind-class: var(--kind-class);
+  --color-kind-class-soft: var(--kind-class-soft);
+  --color-kind-embed: var(--kind-embed);
+  --color-kind-time-text: var(--kind-time-text);
+  --color-kind-space-text: var(--kind-space-text);
+  --color-kind-class-text: var(--kind-class-text);
+  --color-kind-stay-text: var(--kind-stay-text);
+  --font-display: var(--font-display, var(--font-sans));
+  /* Landing motion curves (Emil Kowalski's design-engineering rules): the
+     built-in easings are too weak; entering/exiting takes the strong
+     ease-out, on-screen movement the strong ease-in-out. */
+  --ease-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -204,111 +229,145 @@
   }
 }
 
-/* Marketing landing palette — warm paper ground, ink-navy type, hairlines at
-   low alpha, one accent (--highlight, cobalt) and a pale tint of it
-   (--tint) for the panels that hold product UI. --primary is the ink button.
-   The cobalt sits a few degrees bluer than the indigo create_org seeds as the
-   first staff colour (#4f46e5), so a fresh booking page still reads as the
-   same family as the mockups. Applied on the (marketing) layout wrapper so
-   these win over the app's `.dark` tokens on <html>. Landing components use
-   tokens only — this block is the single place the landing's colours live. */
+/* Marketing landing: a product-first, soft world, fourth cut (direction
+   contract in app/layout.tsx; references gumloop.com and family.co). Warm
+   off-white ground, soft grey panels, near-black type at weight 500,
+   hairlines at low alpha, one layered shadow. Ink is the only control
+   colour. Colour lives where it names a kind of booking (appointments blue,
+   spaces green, classes pink, stays orange) and in small labels, never in
+   the chrome. Applied on the (marketing) layout wrapper so these win over
+   the app's `.dark` tokens on <html>. Landing components use tokens only:
+   this block is the single place the landing's colours live. */
 .marketing {
   color-scheme: light;
-  --background: oklch(0.987 0.004 90); /* paper #fcfbf8 */
-  --foreground: oklch(0.22 0.03 262); /* ink #1a2238 */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.03 262);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.03 262);
-  --primary: oklch(0.22 0.03 262);
-  --primary-foreground: oklch(0.987 0.004 90);
-  --secondary: oklch(0.965 0.006 85); /* sand #f4f2ed */
-  --secondary-foreground: oklch(0.22 0.03 262);
-  --muted: oklch(0.965 0.006 85);
-  /* ≈ #5b647a: 5.7:1 on paper — AA for body text. */
-  --muted-foreground: oklch(0.5 0.03 262);
-  --accent: oklch(0.22 0.03 262 / 5%);
-  --accent-foreground: oklch(0.22 0.03 262);
+  --background: #fbfbfa;
+  --foreground: #1c1c1a;
+  --card: #ffffff;
+  --card-foreground: #1c1c1a;
+  --popover: #ffffff;
+  --popover-foreground: #1c1c1a;
+  --primary: #1c1c1a;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f2;
+  --secondary-foreground: #1c1c1a;
+  --muted: #f4f4f2;
+  /* Secondary text, 6.6:1 on the ground. */
+  --muted-foreground: #5f5f5b;
+  /* Captions and tick labels, 4.7:1 on the ground. */
+  --subtle: #737370;
+  --accent: #efefec;
+  --accent-foreground: #1c1c1a;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.22 0.03 262 / 9%);
-  --input: oklch(0.22 0.03 262 / 14%);
-  --ring: var(--highlight);
-  /* Cobalt ≈ #3556f0. The headline's second line, eyebrows, focus rings, the
-     mockups' selected state, the wordmark's lit cell — nothing else. */
-  --highlight: oklch(0.53 0.23 268);
-  /* Pale cobalt: the stage panel behind the hero mockup, the announcement strip. */
-  --tint: oklch(0.955 0.025 268);
+  --border: rgb(28 28 26 / 0.07);
+  --input: rgb(28 28 26 / 0.11);
+  --ring: #1c1c1a;
+  --highlight: #22b455;
+  --highlight-foreground: #ffffff;
+  --tint: #f4f4f2;
+  --success: #22b455;
+  --kind-time: #1e8bff;
+  --kind-time-soft: #e7f1ff;
+  --kind-space: #22b455;
+  --kind-space-soft: #e6f7ec;
+  --kind-stay: #ff9500;
+  --kind-stay-soft: #fff2df;
+  --kind-class: #ff3d8f;
+  --kind-class-soft: #ffe6f0;
+  --kind-embed: #8b5cf6;
+  /* The same kinds as text: darkened to hold AA on the ground and the tints. */
+  --kind-time-text: #0b6fd6;
+  --kind-space-text: #15803d;
+  --kind-class-text: #c81e6a;
+  --kind-stay-text: #b45309;
+  --danger: #e11d48;
+  --danger-soft: #fde7ef;
+  --shadow-card: 0 1px 2px rgb(28 28 26 / 0.04), 0 16px 40px -20px rgb(28 28 26 / 0.18);
+  --shadow-lift: 0 1px 2px rgb(28 28 26 / 0.05), 0 6px 16px -8px rgb(28 28 26 / 0.14);
+  background-color: var(--background);
+  accent-color: var(--foreground);
+  caret-color: var(--foreground);
 }
-/* Ink slab (final CTA + footer): the ground and text tokens flipped so copy
-   and hairlines read on ink. --card / --primary are left alone, so the claim
-   bar inside stays a white bar with an ink button. */
-.marketing .ink {
-  color-scheme: dark;
-  --background: oklch(0.22 0.03 262);
-  --foreground: oklch(0.987 0.004 90);
-  --muted-foreground: oklch(0.74 0.02 262);
-  --accent: oklch(1 0 0 / 6%);
-  --accent-foreground: oklch(0.987 0.004 90);
-  --secondary: oklch(1 0 0 / 6%);
-  --secondary-foreground: oklch(0.987 0.004 90);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 18%);
+/* The app root is dark; paint the marketing route's root too so overscroll
+   and any gap below the page never shows the dark ground. */
+html:has(.marketing) {
+  background: #fbfbfa;
+  color-scheme: light;
+}
+.marketing ::selection {
+  background: rgb(28 28 26 / 0.12);
 }
 
-/* Landing motion (spec §3.8). Delays are arbitrary values on the element. */
+/* Landing motion. Curves are the strong ease-out; only transform, opacity,
+   clip-path and filter move; every loop has a reduced-motion variant that
+   holds its end state. Delays are arbitrary values on the element. */
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(24px); filter: blur(6px); }
-  to { opacity: 1; transform: translateY(0); filter: blur(0); }
-}
-@keyframes fade-down {
-  from { opacity: 0; transform: translateY(-16px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes hero-rise {
-  from { opacity: 0; transform: translateY(64px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-.animate-fade-up { animation: fade-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.animate-fade-down { animation: fade-down 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.animate-hero-rise { animation: hero-rise 1.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
-/* Satellite cards drifting over the hero stage. */
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-.animate-float { animation: float 7s ease-in-out infinite; }
-.animate-float-slow { animation: float 9s ease-in-out 1.2s infinite; }
-/* The "Booked" state popping into a time button in the hero widget. */
-@keyframes pop {
-  from { transform: scale(0.85); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-.animate-pop { animation: pop 0.45s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+.animate-fade-up { animation: fade-up 0.5s var(--ease-strong) both; }
 /* Scroll reveal: components/reveal.tsx sets `data-in` once the element
    enters the viewport; JS-off is handled by the <noscript> in the
-   (marketing) layout. */
+   (marketing) layout. Siblings stagger by 60ms. */
 .reveal {
   opacity: 0;
-  transform: translateY(18px);
-  transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(12px);
+  transition: opacity 0.55s var(--ease-strong), transform 0.55s var(--ease-strong);
   transition-delay: var(--reveal-delay, 0ms);
 }
 .reveal[data-in] { opacity: 1; transform: none; }
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-up, .animate-fade-down, .animate-hero-rise, .animate-float, .animate-float-slow, .animate-pop { animation: none; }
-  .reveal { opacity: 1; transform: none; transition: none; }
-}
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
+/* Hero widget (components/booking-widget.tsx): the loop is driven by state,
+   so every change is a CSS transition (interruptible, retargets on a mode
+   switch). The one keyframe: the "Booked" label entering its slot from a
+   visible size, never from nothing. */
+@keyframes pop {
+  from { transform: scale(0.94); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-pop { animation: pop 0.25s var(--ease-strong) both; }
+
+/* Hero mode switch (components/hero.tsx): the ink pill is the clip-path
+   tabs pattern -- an active-styled copy of the row revealed by an animated
+   inset, so background and label colour glide as one element (250ms,
+   strong ease-in-out, on the element inline style). The widget below
+   enters from the chosen tab's side -- spatial consistency with the
+   switch -- and a light blur bridges the crossfade so the two states read
+   as one object. */
+@keyframes enter-right { from { opacity: 0; transform: translateX(16px); filter: blur(4px); } }
+@keyframes enter-left { from { opacity: 0; transform: translateX(-16px); filter: blur(4px); } }
+.animate-enter-right { animation: enter-right 0.35s var(--ease-strong) both; }
+.animate-enter-left { animation: enter-left 0.35s var(--ease-strong) both; }
+
+/* How scenes (components/how-scenes.tsx): three 8s loops. */
+.marketing .hs-type { clip-path: inset(0 0 0 0); animation: hs-type 8s steps(12) infinite; }
+@keyframes hs-type { 0% { clip-path: inset(0 100% 0 0); } 20%, 100% { clip-path: inset(0 0 0 0); } }
+.marketing .hs-caret { animation: hs-caret 1s steps(1) infinite; }
+@keyframes hs-caret { 50% { opacity: 0; } }
+.marketing .hs-grow { animation: hs-grow 8s var(--ease-strong) infinite; }
+@keyframes hs-grow { 0%, 20% { opacity: 0; transform: translateY(8px); } 30%, 92% { opacity: 1; transform: none; } 97%, 100% { opacity: 0; transform: none; } }
+.marketing .hs-row { animation: hs-row 8s var(--ease-strong) infinite; }
+.marketing .hs-row-2 { animation-delay: 0.5s; }
+.marketing .hs-row-3 { animation-delay: 1s; }
+.marketing .hs-row-4 { animation-delay: 1.5s; }
+@keyframes hs-row { 0%, 4% { opacity: 0; transform: translateY(8px); } 10%, 88% { opacity: 1; transform: none; } 94%, 100% { opacity: 0; transform: none; } }
+
+/* Feature cells (components/feature-cells.tsx): two quiet 8s loops. */
+.marketing .fc-sel .fc-row { animation: fc-sel 8s var(--ease-strong) infinite; }
+.marketing .fc-sel .fc-row:nth-child(2) { animation-delay: 2.6s; }
+.marketing .fc-sel .fc-row:nth-child(3) { animation-delay: 5.2s; }
+@keyframes fc-sel { 0%, 5% { box-shadow: inset 0 0 0 1px var(--input); background: var(--card); } 8%, 30% { box-shadow: inset 0 0 0 1.5px var(--foreground); background: var(--secondary); } 34%, 100% { box-shadow: inset 0 0 0 1px var(--input); background: var(--card); } }
+.marketing .fc-fill { clip-path: inset(0 0 0 0 round 7px); animation: fc-fill 8s var(--ease-strong) infinite; }
+@keyframes fc-fill { 0%, 10% { clip-path: inset(0 100% 0 0 round 7px); opacity: 1; } 16%, 90% { clip-path: inset(0 0 0 0 round 7px); opacity: 1; } 96%, 100% { clip-path: inset(0 0 0 0 round 7px); opacity: 0; } }
+
+/* Reduced motion: keep opacity and colour, drop movement; every loop holds
+   its end state. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up { animation: fade-up 0.2s ease both; transform: none; }
+  .animate-enter-right, .animate-enter-left { animation: fade-up 0.2s ease both; transform: none; filter: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .animate-pop,
+  .marketing .hs-type, .marketing .hs-caret, .marketing .hs-grow, .marketing .hs-row, .marketing .fc-sel .fc-row, .marketing .fc-fill { animation: none; }
+  .marketing .hs-type { clip-path: none; }
 }
 
 /* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text

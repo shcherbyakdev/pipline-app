@@ -109,10 +109,36 @@ describe("site config", () => {
       ...Object.values(WELCOME).map((v) => (typeof v === "function" ? v("x") : v)),
       FINAL_CTA.heading, FINAL_CTA.sub,
       ...Object.values(ANNOUNCEMENT),
-      AUDIENCE.eyebrow, AUDIENCE.heading, AUDIENCE.sub, ...AUDIENCE.groups, ...AUDIENCE.proofs,
+      AUDIENCE.heading, AUDIENCE.sub, ...AUDIENCE.blocks.flatMap((b) => [b.title, b.body, ...b.groups]),
+      ...SITE.truths,
       ...HERO_TABS.map((t) => t.label),
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);
+  });
+
+  // The landing's copy rule (2026-08-28 redesign): no em- or en-dashes in
+  // anything the page shows. Ranges use a hyphen, asides use a comma or a
+  // period. Pricing is left out on purpose: its table cells and one row
+  // label still carry the dash and the page is off while billing is.
+  it("landing copy contains no em- or en-dashes", () => {
+    const landing = [
+      ...SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
+      ...SITE.truths,
+      ...STEPS.flatMap((s) => [s.word, s.title, s.body]),
+      ...FEATURES.flatMap((f) => [f.title, f.body]),
+      ...FAQ.flatMap((f) => [f.question, f.answer]),
+      ...Object.values(SECTIONS).flatMap((s) => [s.heading, s.eyebrow, "sub" in s ? s.sub : ""]),
+      ...Object.values(CTA),
+      ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
+      FINAL_CTA.heading, FINAL_CTA.sub,
+      ...Object.values(ANNOUNCEMENT),
+      AUDIENCE.heading, AUDIENCE.sub, ...AUDIENCE.blocks.flatMap((b) => [b.title, b.body, ...b.groups]),
+    ].join("\n");
+    expect(landing).not.toMatch(/[—–]/);
+  });
+
+  it("the marked headline word is in the second headline line", () => {
+    expect(SITE.headline[1]).toContain(SITE.markedWord);
   });
 
   it("headline is two short lines (≤ 4 words each)", () => {
