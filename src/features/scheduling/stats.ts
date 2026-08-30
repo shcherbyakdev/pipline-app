@@ -15,6 +15,10 @@ export type StatsBookingRow = {
 export type OverviewStats = {
   weekCount: number;
   monthCount: number;
+  /** Confirmed bookings in the previous Mon–Sun week — the tile's trend line. */
+  prevWeekCount: number;
+  /** Confirmed bookings in the previous calendar month. */
+  prevMonthCount: number;
   /** cancelled / (created-in-30d minus rescheduled); null when no denominator. */
   cancellationRate: number | null;
   /** en short weekday name in the org tz ("Tue"); null when no past-90d history. */
@@ -38,6 +42,14 @@ function nextMonthFirstISO(todayISO: string): string {
     : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 }
 
+function prevMonthFirstISO(todayISO: string): string {
+  const year = Number(todayISO.slice(0, 4));
+  const month = Number(todayISO.slice(5, 7));
+  return month === 1
+    ? `${year - 1}-12-01`
+    : `${year}-${String(month - 1).padStart(2, "0")}-01`;
+}
+
 export function computeOverviewStats(
   rows: StatsBookingRow[],
   now: Date,
@@ -49,14 +61,22 @@ export function computeOverviewStats(
   const weekTo = wallTimeToUtc(addDaysISO(weekStartISO, 7), "00:00", timeZone).getTime();
   const monthFrom = wallTimeToUtc(`${todayISO.slice(0, 7)}-01`, "00:00", timeZone).getTime();
   const monthTo = wallTimeToUtc(nextMonthFirstISO(todayISO), "00:00", timeZone).getTime();
+  // The previous periods, for trend context on the tiles. Both sit well
+  // inside the caller's 90-day window.
+  const prevWeekFrom = wallTimeToUtc(addDaysISO(weekStartISO, -7), "00:00", timeZone).getTime();
+  const prevMonthFrom = wallTimeToUtc(prevMonthFirstISO(todayISO), "00:00", timeZone).getTime();
 
   let weekCount = 0;
   let monthCount = 0;
+  let prevWeekCount = 0;
+  let prevMonthCount = 0;
   for (const b of rows) {
     if (b.status !== "confirmed") continue;
     const t = Date.parse(b.startsAt);
     if (t >= weekFrom && t < weekTo) weekCount++;
     if (t >= monthFrom && t < monthTo) monthCount++;
+    if (t >= prevWeekFrom && t < weekFrom) prevWeekCount++;
+    if (t >= prevMonthFrom && t < monthFrom) prevMonthCount++;
   }
 
   const createdFrom = now.getTime() - 30 * DAY_MS;
@@ -110,5 +130,5 @@ export function computeOverviewStats(
     }
   }
 
-  return { weekCount, monthCount, cancellationRate, busiestWeekday, busiestHour };
+  return { weekCount, monthCount, prevWeekCount, prevMonthCount, cancellationRate, busiestWeekday, busiestHour };
 }

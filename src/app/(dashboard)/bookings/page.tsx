@@ -231,7 +231,7 @@ export default async function BookingsPage({
             <ChevronRight className="size-4" />
           </Link>
         </nav>
-        <Link href={base} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+        <Link href={base} className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
           Today
         </Link>
         <nav aria-label="Timeline zoom" className={SEGMENTED_NAV_CLASS}>
@@ -360,7 +360,7 @@ export default async function BookingsPage({
       {toolbar(
         "week",
         defaultStaffId,
-        <Link href={todayHref} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+        <Link href={todayHref} className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
           Today
         </Link>,
       )}

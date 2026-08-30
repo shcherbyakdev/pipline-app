@@ -5,7 +5,8 @@ import { flushSync } from "react-dom";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { durationOptions, formatDurationLabel, type HourlyOffering } from "@/features/rentals/hourly";
-import { formatOfferingPrice } from "@/features/rentals/pricing";
+import { formatOfferingPrice, totalCents } from "@/features/rentals/pricing";
+import { formatMoney } from "@/lib/money";
 import { getHourlySlots, createRentalBookingHours } from "@/features/rentals/hourly-actions";
 import { formatHourlyWhenLine } from "@/features/scheduling/templates";
 import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
@@ -224,6 +225,13 @@ export function HourlyBookingFlow({
                   onClick={() => changeDuration(d)}
                 >
                   {formatDurationLabel(d)}
+                  {/* Price tracks the choice (per-hour offerings only — a
+                      flat price is the same on every pill and says nothing). */}
+                  {hourly.pricingMode === "per_unit" && hourly.priceCents !== null ? (
+                    <span className="text-muted-foreground">
+                      · {formatMoney(totalCents(hourly, d / 60)!, currency)}
+                    </span>
+                  ) : null}
                 </Button>
               ))}
             </div>
@@ -240,6 +248,9 @@ export function HourlyBookingFlow({
               {options.map((d) => (
                 <option key={d} value={d}>
                   {formatDurationLabel(d)}
+                  {hourly.pricingMode === "per_unit" && hourly.priceCents !== null
+                    ? ` · ${formatMoney(totalCents(hourly, d / 60)!, currency)}`
+                    : ""}
                 </option>
               ))}
             </select>

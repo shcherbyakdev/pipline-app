@@ -34,6 +34,40 @@ const HATCH: React.CSSProperties = {
 // right like the reference design.
 const GRID_COLS = "grid-cols-[2.5rem_repeat(7,minmax(0,1fr))_3.5rem]";
 
+/* Side-by-side columns for bookings that overlap in one day (the standard
+   calendar treatment): sorted by start, each booking takes the first free
+   column of its overlap cluster, and the cluster's column count divides the
+   width — so two 9:00 bookings sit next to each other instead of stacking. */
+function overlapLayout(
+  items: Array<{ id: string; start: number; end: number }>,
+): Map<string, { col: number; cols: number }> {
+  const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end || a.id.localeCompare(b.id));
+  const out = new Map<string, { col: number; cols: number }>();
+  let cluster: string[] = [];
+  let colEnds: number[] = [];
+  let clusterEnd = 0;
+  const flush = () => {
+    for (const id of cluster) out.get(id)!.cols = colEnds.length;
+    cluster = [];
+    colEnds = [];
+  };
+  for (const it of sorted) {
+    if (cluster.length > 0 && it.start >= clusterEnd) flush();
+    clusterEnd = cluster.length === 0 ? it.end : Math.max(clusterEnd, it.end);
+    let col = colEnds.findIndex((end) => end <= it.start);
+    if (col === -1) {
+      col = colEnds.length;
+      colEnds.push(it.end);
+    } else {
+      colEnds[col] = Math.max(colEnds[col], it.end);
+    }
+    out.set(it.id, { col, cols: 1 });
+    cluster.push(it.id);
+  }
+  flush();
+  return out;
+}
+
 export function CalendarWeek({
   weekStart, timeZone, staff, editStaffId, blockable, preferSpace, defaultStaffId,
   bookings, rules, exceptions, services, spaces, prevHref, nextHref,
@@ -206,6 +240,24 @@ export function CalendarWeek({
 
   const byDay = (date: string) =>
     timed.filter((b) => zonedParts(new Date(b.startsAt), timeZone).date === date);
+
+  // Overlap columns per booking, computed once per render (a week of chips
+  // is a small key space). Ends mirror the chip's own clamped end.
+  const chipLayout = React.useMemo(() => {
+    const m = new Map<string, { col: number; cols: number }>();
+    for (const d of days) {
+      const items = byDay(d).map((b) => {
+        const s = zonedParts(new Date(b.startsAt), timeZone);
+        const e = zonedParts(new Date(b.endsAt), timeZone);
+        const endMin = e.date === d ? Math.min(e.minutes, endHour * 60) : endHour * 60;
+        // A zero/negative visible span still occupies a column: floor at 15.
+        return { id: b.id, start: s.minutes, end: Math.max(endMin, s.minutes + 15) };
+      });
+      for (const [id, v] of overlapLayout(items)) m.set(id, v);
+    }
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- byDay derives from timed
+  }, [days, timed, timeZone, endHour]);
 
   // A stay shows a chip on every day it covers, first to last (org zone).
   const rentalsOn = (date: string) =>
@@ -392,13 +444,24 @@ export function CalendarWeek({
               const endMin = e.date === d ? Math.min(e.minutes, endHour * 60) : endHour * 60;
               const compact = endMin - s.minutes < 30;
               const isSpace = b.rentalUnitId !== null;
+              const lay = chipLayout.get(b.id) ?? { col: 0, cols: 1 };
               return (
                 <button
                   key={b.id}
                   type="button"
                   onClick={() => setSelected(b)}
-                  className="absolute inset-x-0 z-10 overflow-hidden rounded-md border bg-card p-1.5 text-left text-xs shadow-sm hover:shadow"
+                  className={cn(
+                    "absolute z-10 overflow-hidden rounded-md border bg-card p-1.5 text-left text-xs shadow-sm hover:shadow",
+                    lay.cols === 1 && "inset-x-0",
+                  )}
                   style={{
+                    // Overlapping bookings share the day side-by-side.
+                    ...(lay.cols > 1
+                      ? {
+                          left: `calc(${(lay.col * 100) / lay.cols}% + ${lay.col === 0 ? 0 : 1}px)`,
+                          width: `calc(${100 / lay.cols}% - 1px)`,
+                        }
+                      : null),
                     top: `${pct(s.minutes)}%`,
                     height: `${Math.max(pct(endMin) - pct(s.minutes), 1.5)}%`,
                     // A team reads its calendar by person first, so the accent
@@ -521,7 +584,13 @@ export function CalendarWeek({
           grid is drawable — the two things a new provider can't guess. */}
       <div className="text-subtle flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 text-xs">
         <span className="flex items-center gap-1.5">
-          <span aria-hidden className="border-border h-3.5 w-5 shrink-0 rounded-[3px] border" style={HATCH} />
+          {/* Denser, darker pitch than the grid's own hatch: a 20px sample
+              needs more contrast than a full cell to read at a glance. */}
+          <span
+            aria-hidden
+            className="border-border h-3.5 w-5 shrink-0 rounded-[3px] border"
+            style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 3px, var(--input) 3px, var(--input) 4px)" }}
+          />
           Closed hours
         </span>
         <span>Drag across open hours to add a booking{blockable ? " or block time" : ""}.</span>

@@ -83,6 +83,7 @@ export function SchedulingSettingsForm({
   return (
     <SettingsCard
       title="Address & timezone"
+      description="Applies when you save."
       footer={
         <>
           {dirty ? <span className="text-muted-foreground mr-auto text-xs">Unsaved changes</span> : null}

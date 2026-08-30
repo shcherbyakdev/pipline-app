@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getClient, listClientBookings } from "@/features/clients/queries";
 import { ClientHeader } from "@/features/clients/components/client-header";
@@ -27,10 +28,21 @@ export default async function ClientDetailPage({ params }: PageProps<"/clients/[
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
+        {/* Same wayfinding as the space detail page ("← Spaces"). */}
+        <Link href="/clients" className="text-muted-foreground w-fit text-sm hover:underline">
+          ← Clients
+        </Link>
         <ClientHeader id={client.id} name={client.name} />
-        <p className="text-muted-foreground px-3 text-sm">
-          {client.email ?? "No email on file"}
-        </p>
+        {client.email ? (
+          <a
+            href={`mailto:${client.email}`}
+            className="text-muted-foreground hover:text-foreground w-fit px-3 text-sm hover:underline"
+          >
+            {client.email}
+          </a>
+        ) : (
+          <p className="text-muted-foreground px-3 text-sm">No email on file</p>
+        )}
       </div>
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">

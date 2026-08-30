@@ -13,8 +13,10 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { UserMultipleIcon } from "@hugeicons/core-free-icons";
 import type { NavItem } from "@/components/shell/nav";
 import type { OrgMode } from "@/features/orgs/mode";
+import { clientsForCommandMenu } from "@/features/clients/actions";
 import { SPACES } from "@/features/orgs/vocab";
 
 /** Dispatched on `window` by the top bar's search button; the menu toggles on it
@@ -47,6 +49,19 @@ export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }
     router.push(href);
   };
 
+  // Clients load once, on first open — the palette is the fastest path to a
+  // person, but the directory must not cost every page load. Failure just
+  // means no Clients group; navigation still works.
+  const [clients, setClients] = React.useState<Awaited<ReturnType<typeof clientsForCommandMenu>> | null>(null);
+  React.useEffect(() => {
+    if (!open || clients !== null) return;
+    let cancelled = false;
+    clientsForCommandMenu()
+      .then((rows) => { if (!cancelled) setClients(rows); })
+      .catch(() => { if (!cancelled) setClients([]); });
+    return () => { cancelled = true; };
+  }, [open, clients]);
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput placeholder="Type a command or search…" />
@@ -64,6 +79,20 @@ export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }
             </CommandItem>
           ))}
         </CommandGroup>
+        {clients && clients.length > 0 ? (
+          <CommandGroup heading="Clients">
+            {clients.map((c) => (
+              <CommandItem
+                key={c.id}
+                value={`client ${c.name} ${c.email ?? ""}`}
+                onSelect={() => go(`/clients/${c.id}`)}
+              >
+                <HugeiconsIcon icon={UserMultipleIcon} size={16} /> {c.name}
+                {c.email ? <span className="text-muted-foreground ml-auto text-xs">{c.email}</span> : null}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ) : null}
         <CommandGroup heading="Actions">
           {mode.offersAppointments && (
             <CommandItem onSelect={() => go("/services?new=1")}>

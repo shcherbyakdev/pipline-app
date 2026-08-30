@@ -116,6 +116,8 @@ describe("computeOverviewStats", () => {
     expect(stats).toEqual({
       weekCount: 0,
       monthCount: 0,
+      prevWeekCount: 0,
+      prevMonthCount: 0,
       cancellationRate: null,
       busiestWeekday: null,
       busiestHour: null,

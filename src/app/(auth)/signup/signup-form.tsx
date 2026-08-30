@@ -6,6 +6,7 @@ import type { AuthState } from "@/features/auth/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/shared/password-input";
 
 const initial: AuthState = {};
 
@@ -44,14 +45,7 @@ export function SignupForm({ handle, host }: { handle: string | null; host: stri
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-        />
+        <PasswordInput id="password" name="password" required minLength={8} autoComplete="new-password" />
         <p className="text-muted-foreground text-xs">At least 8 characters.</p>
       </div>
       {state.error ? (

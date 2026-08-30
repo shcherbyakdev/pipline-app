@@ -24,8 +24,16 @@ export default async function OverviewPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="This week" value={String(stats.weekCount)} caption="confirmed bookings" />
-        <StatTile label="This month" value={String(stats.monthCount)} caption="confirmed bookings" />
+        <StatTile
+          label="This week"
+          value={String(stats.weekCount)}
+          caption={`vs ${stats.prevWeekCount} last week`}
+        />
+        <StatTile
+          label="This month"
+          value={String(stats.monthCount)}
+          caption={`vs ${stats.prevMonthCount} last month`}
+        />
         <StatTile label="Cancellation rate" value={rate} caption="last 30 days" />
         <StatTile label="Busiest time" value={busiest} caption="last 90 days" />
       </div>

@@ -24,10 +24,10 @@ export function pageContainerClass(layout: PageDocument["layout"]): string {
   return layout === "split" ? "max-w-5xl" : "max-w-lg";
 }
 
-function renderSection(section: Section, ctx: RenderContext, pickers: Pickers, crossLink: RenderContext["crossLink"]) {
+function renderSection(section: Section, ctx: RenderContext, pickers: Pickers, crossLink: RenderContext["crossLink"], heroCtaHidden: boolean) {
   switch (section.type) {
     case "header": return <HeaderSection section={section} ctx={ctx} crossLink={crossLink} />;
-    case "hero": return <HeroSection section={section} ctx={ctx} pickers={pickers} crossLink={crossLink} />;
+    case "hero": return <HeroSection section={section} ctx={ctx} pickers={pickers} crossLink={crossLink} ctaHidden={heroCtaHidden} />;
     case "about": return <AboutSection section={section} ctx={ctx} />;
     case "services": return <ServicesSection section={section} ctx={ctx} />;
     case "staff": return <StaffSection section={section} ctx={ctx} />;
@@ -67,9 +67,19 @@ export function PageRenderer({
   // Which catalogue sections the PUBLIC page shows (even in preview, which
   // renders hidden ones dimmed): those are the pickers, the widget defers.
   const pickers = pickersOnPage(doc, counts);
+  const shownPublic = publicSections(doc, counts);
   // The sibling-channel link's host, decided on the public-visible list so
   // preview and live agree (same doctrine as pickers). One section gets it.
-  const host = ctx.crossLink ? crossLinkHost(publicSections(doc, counts)) : null;
+  const host = ctx.crossLink ? crossLinkHost(shownPublic) : null;
+  // The cover's Book button points at the page's first booking step
+  // (bookHref). When that target renders ABOVE the hero — a page that leads
+  // with its catalogue — the button would scroll backwards and read as dead,
+  // so it is suppressed. Decided on the public-visible order (same doctrine
+  // as pickers) so the studio preview and the live page agree.
+  const ctaTarget = pickers.services ? "services" : pickers.spaces ? "spaces" : "booking";
+  const heroIdx = shownPublic.findIndex((s) => s.type === "hero");
+  const targetIdx = shownPublic.findIndex((s) => s.type === ctaTarget);
+  const heroCtaHidden = heroIdx !== -1 && targetIdx !== -1 && targetIdx < heroIdx;
   const split = doc.layout === "split";
   const others = sections.filter((s) => s.type !== "booking").length;
   return (
@@ -84,7 +94,7 @@ export function PageRenderer({
         >
           {sections.map((section) => {
             const docked = split && section.type === "booking";
-            const inner = renderSection(section, ctx, pickers, host?.sectionId === section.id ? ctx.crossLink : null);
+            const inner = renderSection(section, ctx, pickers, host?.sectionId === section.id ? ctx.crossLink : null, heroCtaHidden);
             return ctx.mode === "preview" ? (
               <SectionFrame key={section.id} id={section.id} type={section.type} hidden={section.hidden} className={cn(docked && DOCKED)}>
                 {inner}
