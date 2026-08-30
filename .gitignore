@@ -54,3 +54,10 @@ next-env.d.ts
 .claude/
 .playwright-mcp/
 /book-clean.png
+
+# Impeccable design-skill session artifacts (PRODUCT.md is tracked; briefs/config are machine-local)
+.impeccable/
+
+# Reference screenshots, deliberately untracked (see PRODUCT.md "Evidence on Hand")
+/teak-*.jpeg
+/ref-*.jpeg

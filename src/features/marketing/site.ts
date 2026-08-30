@@ -11,10 +11,15 @@ export const SITE = {
   name: "Booklo",
   tagline: "Booking page & widget for appointments and spaces",
   description:
-    "Booklo gives solo providers and small businesses a hosted booking page and an embeddable widget — for appointments, and for spaces like rooms, studios and gear booked by the hour or night. Clients book without an account; confirmations, reminders and rescheduling are handled for you.",
-  // Two staggered lines; the second (the promise) is set in the accent.
+    "Booklo gives solo providers and small businesses a hosted booking page and an embeddable widget: for appointments, and for spaces like rooms, studios and gear booked by the hour or night. Clients book without an account; confirmations, reminders and rescheduling are handled for you.",
+  // Two lines; `markedWord` is the word in the second line the hero draws a
+  // marker stroke behind (the promise).
   headline: ["Your booking page.", "Claimed in a minute."],
-  subheadline: "Appointments and spaces on one page. Clients pick a time, you both get the email — no accounts, no double bookings.",
+  markedWord: "Claimed",
+  subheadline: "Appointments and spaces on one page. Clients pick a time, you both get the email. No accounts, no double bookings.",
+  /** Under the claim bar: three product truths, as words (there are no
+      metrics to show and none may be invented). */
+  truths: ["No client accounts", "No double bookings", "Live in a minute"],
   // Flag-conditional (lib/flags.ts): while billing is off there IS no paid
   // ladder to contrast a "Free plan" with, and /pricing 404s — so the note
   // says what is actually true today. Flipping the flag flips the copy.
@@ -53,21 +58,21 @@ export const CTA = {
 } as const;
 
 /** The claim bar (hero + final CTA). The status line is assembled from
-    these: `taken(url)` + " — " + (`tryPrefix` + suggestion | `tryAnother`). */
+    these: `taken(url)` + ". " + (`tryPrefix` + suggestion | `tryAnother`). */
 export const CLAIM = {
   placeholder: "your-name",
   button: "Claim",
-  hint: "3–50 characters: letters, numbers, dashes.",
+  hint: "3-50 characters: letters, numbers, dashes.",
   taken: (url: string) => `${url} is taken`,
-  tryPrefix: "try ",
+  tryPrefix: "Try ",
   tryAnother: "try another name",
-  unavailable: "That name can't be used — try another.",
-  checkFailed: "Couldn't check right now — you can still continue.",
+  unavailable: "That name can't be used. Try another.",
+  checkFailed: "Couldn't check right now. You can still continue.",
 } as const;
 
 export const FINAL_CTA = {
   heading: "Claim your page.",
-  sub: "Pick a name, add a service, set your hours — you're bookable.",
+  sub: "Pick a name, add a service, set your hours. You're bookable.",
 } as const;
 
 /** The hero's tab pill: which channel the mockup previews. Labels come from
@@ -80,18 +85,35 @@ export const HERO_TABS = [
 /** Strip above the nav. Same flag rule as SITE.heroNote. */
 export const ANNOUNCEMENT = {
   label: "Early access",
-  text: BILLING_ON ? "Free plan for solo providers — no credit card." : "Free while we build — no credit card.",
+  text: BILLING_ON ? "Free plan for solo providers, no credit card." : "Free while we build, no credit card.",
   cta: "Claim your page",
 } as const;
 
-/** "Who it's for" band under the hero: a wrap of pills and the three things
-    the page removes. */
+/** "Who it's for": a centred heading, then three staggered text blocks (the
+    two things the page books, and both at once), each with the kinds of
+    business it names. */
+export type AudienceBlock = { title: string; body: string; groups: readonly string[] };
 export const AUDIENCE = {
   eyebrow: "Who it's for",
-  heading: "Built for people who sell their time — or their space.",
+  heading: "Built for people who sell their time, or their space.",
   sub: "Consultants and coaches, but also studios, rooms and gear that clients book by the hour or night. One page, one calendar.",
-  groups: ["Consultants", "Coaches", "Therapists", "Tutors", "Photographers", "Studios", "Coworking", "Rehearsal rooms", "Courts", "Gear rental"],
-  proofs: ["No back-and-forth emails", "No double bookings", "No client accounts"],
+  blocks: [
+    {
+      title: "Your time",
+      body: "Consultations, sessions, classes. Clients pick a slot on your calendar and the confirmation goes to both of you.",
+      groups: ["Consultants", "Coaches", "Therapists", "Tutors", "Photographers"],
+    },
+    {
+      title: "Your space",
+      body: "Rooms, studios and gear, booked by the hour, night or day. Each space has units, so two clients never get the same room.",
+      groups: ["Studios", "Coworking", "Rehearsal rooms", "Courts", "Gear rental"],
+    },
+    {
+      title: "Or both, on one page",
+      body: "One address, one calendar, one list of bookings. Clients see only real openings, whatever they are booking.",
+      groups: [],
+    },
+  ] satisfies readonly AudienceBlock[],
 } as const;
 
 export type NavLink = { label: string; href: string };
@@ -105,12 +127,13 @@ export const NAV_LINKS: NavLink[] = [
   { label: "FAQ", href: SITE.anchors.faq },
 ];
 
-export type Step = { number: "01" | "02" | "03"; title: string; body: string };
+/** `word` is the one-word verb drawn in a marker stroke beside each step. */
+export type Step = { number: "01" | "02" | "03"; word: string; title: string; body: string };
 
 export const STEPS: Step[] = [
-  { number: "01", title: "Add what you offer and when", body: "Services or spaces — how long they take, when you're open, how many units you have." },
-  { number: "02", title: "Share your link or embed the widget", body: "Every account gets a page at its own address. One line embeds it on your site." },
-  { number: "03", title: "Clients book; you both get confirmations", body: "They see only real openings. Confirmations and reminders go out on their own." },
+  { number: "01", word: "Add", title: "Add what you offer and when", body: "Services or spaces: how long they take, when you're open, how many units you have." },
+  { number: "02", word: "Share", title: "Share your link or embed the widget", body: "Every account gets a page at its own address. One line embeds it on your site." },
+  { number: "03", word: "Book", title: "Clients book; you both get confirmations", body: "They see only real openings. Confirmations and reminders go out on their own." },
 ];
 
 /** Which product fragment illustrates a feature (components/mocks/feature-mocks.tsx). */
@@ -121,11 +144,11 @@ export type Feature = { visual: FeatureVisual; title: string; body: string };
 export const FEATURES: Feature[] = [
   { visual: "page", title: "Hosted booking page", body: "A clean, mobile-first page at your own address. Nothing to install, nothing to host." },
   { visual: "spaces", title: "Spaces by the hour or night", body: "Rooms, studios and gear on the same page. Clients pick a window or a stay; units never double up." },
-  { visual: "slot-guard", title: "Double-booking impossible", body: "Slots and units are guarded in the database — two people can never take the same time." },
+  { visual: "slot-guard", title: "Double-booking impossible", body: "Slots and units are guarded in the database. Two people can never take the same time." },
   { visual: "manage", title: "Self-serve cancel & reschedule", body: "Clients manage their booking from a secure link in the email. No back-and-forth." },
   { visual: "embed", title: "Embed on any site", body: "One script tag. The widget sits inside your page and grows with its content." },
   { visual: "reminder", title: "Automatic reminders", body: "A reminder goes out before every booking, so fewer no-shows." },
-  { visual: "brand", title: "Your brand", body: "Logo, brand colour and a welcome message — the page looks like yours, not ours." },
+  { visual: "brand", title: "Your brand", body: "Logo, brand colour and a welcome message. The page looks like yours, not ours." },
 ];
 
 export type FaqItem = { question: string; answer: string };
@@ -133,16 +156,16 @@ export type FaqItem = { question: string; answer: string };
 export const FAQ: FaqItem[] = [
   { question: "Do my clients need an account?", answer: "No. They pick a time, enter a name and email, and they're booked. Everything else happens through links in their confirmation email." },
   { question: "Can I embed it on my own website?", answer: "Yes. Copy one script tag from your dashboard and paste it into any page. The widget adjusts its height automatically." },
-  { question: "Can I rent out a room, a studio or gear?", answer: "Yes. Next to appointments, Booklo books spaces — rooms, studios and gear — by the hour, night or day, from the same page. Each space has units, so two clients can never get the same room." },
-  { question: "What happens if two people pick the same slot?", answer: "Only one booking can win. The other person sees that the slot was just taken and is offered fresh times — never a silent double booking." },
+  { question: "Can I rent out a room, a studio or gear?", answer: "Yes. Next to appointments, Booklo books spaces (rooms, studios and gear) by the hour, night or day, from the same page. Each space has units, so two clients can never get the same room." },
+  { question: "What happens if two people pick the same slot?", answer: "Only one booking can win. The other person sees that the slot was just taken and is offered fresh times, never a silent double booking." },
   { question: "How do clients cancel or reschedule?", answer: "Their confirmation email contains a secure manage link. From there they can cancel or pick another slot; you get notified either way." },
-  { question: "What data do you store about my clients?", answer: "Name, email and an optional note — nothing else. No documents, no card numbers, no accounts." },
+  { question: "What data do you store about my clients?", answer: "Name, email and an optional note, nothing else. No documents, no card numbers, no accounts." },
   // Same flag rule as SITE.heroNote: the paid answer names plans that cannot
   // be bought and points at a /pricing that 404s until FLAG_DEFAULTS.billing flips.
   {
     question: "What does it cost?",
     answer: BILLING_ON
-      ? "Free for one person or one room — one bookable resource, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and more bookable people and units; see Pricing."
+      ? "Free for one person or one room: one bookable resource, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and more bookable people and units; see Pricing."
       : "Booklo is free during early access. We'll announce pricing well before anything changes, and early users will hear first.",
   },
 ];
@@ -266,3 +289,11 @@ export function allInternalHrefs(): string[] {
   ];
   return [...new Set(hrefs)].filter((h) => h !== "#");
 }
+
+/** Under each step: four specifics, as short as a label. Shown beside the
+    step in how-it-works.tsx; indexed like STEPS. */
+export const STEP_POINTS: readonly (readonly string[])[] = [
+  ["Services with buffers", "Spaces with units", "Hours per person or room", "Price labels and terms"],
+  ["booklo.co/your-name", "One script tag", "Per-person links", "Your logo and colour"],
+  ["Confirmation to both", "Reminder before", "Self-serve reschedule", "Walk-ins by hand"],
+];

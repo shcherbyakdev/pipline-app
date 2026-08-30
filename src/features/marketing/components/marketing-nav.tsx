@@ -7,9 +7,11 @@ import { CTA, NAV_LINKS, SITE } from "@/features/marketing/site";
 import { marketingButton } from "./marketing-button";
 import { BookloWordmark } from "./booklo-mark";
 
-/* Logo left, links centre (md+), Log in + Get started right, hamburger below
-   md with a blurred dropdown. Sticky, so the primary CTA stays in reach while
-   the page scrolls. The dropdown closes on link click and on Escape. */
+/* Wordmark left, plain links beside it (md+), Log in as a grey pill and Get
+   started as the ink pill on the right; a hamburger below md that opens a
+   small card. Sticky so the primary CTA stays in reach while the page
+   scrolls; the ground shows through at 80% with a light blur. The card
+   closes on link click and on Escape. */
 export function MarketingNav() {
   const [open, setOpen] = React.useState(false);
   const toggleRef = React.useRef<HTMLButtonElement>(null);
@@ -27,23 +29,29 @@ export function MarketingNav() {
   }, [open]);
 
   return (
-    <header className="animate-fade-down bg-background/85 sticky top-0 z-30 backdrop-blur-md">
-      <nav aria-label="Main" className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5 sm:px-8">
-        <Link href={SITE.links.home} className="text-foreground text-[21px]">
+    <header className="bg-background/80 sticky top-0 z-30 backdrop-blur-md">
+      <nav aria-label="Main" className="mx-auto flex h-[72px] w-full max-w-6xl items-center gap-8 px-5 sm:px-8 lg:gap-10">
+        <Link
+          href={SITE.links.home}
+          className="text-foreground focus-visible:ring-ring rounded-sm text-[25px] outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+        >
           <BookloWordmark />
         </Link>
 
-        <ul className="hidden items-center gap-7 md:flex">
+        <ul className="hidden items-center gap-1 md:flex">
           {NAV_LINKS.map((l) => (
             <li key={l.href}>
-              <a href={l.href} className="text-foreground/70 hover:text-foreground text-sm transition-colors duration-200">
+              <a
+                href={l.href}
+                className="text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent focus-visible:ring-ring block rounded-full px-3 py-1.5 text-[15px] font-medium transition-[background-color] duration-150 ease-strong outline-none focus-visible:ring-2"
+              >
                 {l.label}
               </a>
             </li>
           ))}
         </ul>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <Link href={SITE.links.login} className={marketingButton("neutral", "md", "hidden sm:inline-flex")}>
             {CTA.login}
           </Link>
@@ -53,7 +61,7 @@ export function MarketingNav() {
           <button
             ref={toggleRef}
             type="button"
-            className="text-foreground hover:bg-accent inline-flex size-10 items-center justify-center rounded-full md:hidden"
+            className="text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent focus-visible:ring-ring inline-flex size-10 items-center justify-center rounded-full outline-none focus-visible:ring-2 md:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             aria-controls="mobile-nav"
@@ -65,14 +73,11 @@ export function MarketingNav() {
       </nav>
 
       {open ? (
-        <div
-          id="mobile-nav"
-          className="animate-fade-up bg-card/90 ring-border absolute top-full right-4 left-4 mt-1 rounded-2xl px-5 py-2 shadow-lg ring-1 backdrop-blur-xl md:hidden"
-        >
+        <div id="mobile-nav" className="animate-fade-up bg-card absolute top-full right-4 left-4 mt-2 rounded-2xl p-2 shadow-[var(--shadow-card)] md:hidden">
           <ul>
             {[...NAV_LINKS, { label: CTA.login, href: SITE.links.login }].map((l) => (
-              <li key={l.href} className="border-border border-b last:border-b-0">
-                <a href={l.href} onClick={() => setOpen(false)} className="text-foreground/80 hover:text-foreground block py-3 text-[15px]">
+              <li key={l.href}>
+                <a href={l.href} onClick={() => setOpen(false)} className="text-foreground hover:bg-accent block rounded-xl px-3 py-2.5 text-[15px] font-medium">
                   {l.label}
                 </a>
               </li>

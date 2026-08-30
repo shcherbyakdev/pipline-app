@@ -1,26 +1,26 @@
 import { Plus } from "lucide-react";
 import { anchorId, FAQ, SECTIONS, SITE } from "@/features/marketing/site";
-import { Eyebrow } from "./section-header";
+import { cn } from "@/lib/utils";
 import { Reveal } from "./reveal";
+import { H2, SECTION, SECTION_INNER } from "./type";
 
+/* A centred heading, then the questions as a narrow disclosure list with a
+   hairline under each. The plus turns into a cross on open. */
 export function Faq() {
   return (
-    <section id={anchorId(SITE.anchors.faq)} aria-labelledby="faq-heading" className="scroll-mt-20">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-20 sm:px-8 md:py-24 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-20 lg:py-28">
-        <Reveal>
-          <Eyebrow>{SECTIONS.faq.eyebrow}</Eyebrow>
-          <h2 id="faq-heading" className="text-foreground mt-4 text-[32px] leading-[1.08] font-medium tracking-[-0.03em] text-balance sm:text-4xl md:text-[44px]">
+    <section id={anchorId(SITE.anchors.faq)} aria-labelledby="faq-heading" className={cn(SECTION, "scroll-mt-20")}>
+      <div className={SECTION_INNER}>
+        <Reveal className="text-center">
+          <h2 id="faq-heading" className={H2}>
             {SECTIONS.faq.heading}
           </h2>
         </Reveal>
-        <Reveal delay={100} className="divide-border border-border divide-y border-y">
+        <Reveal delay={60} className="mx-auto mt-14 max-w-3xl">
           {FAQ.map((item) => (
-            <details key={item.question} className="group py-5">
-              <summary className="focus-visible:ring-highlight flex cursor-pointer list-none items-center justify-between gap-6 rounded-md text-[17px] font-medium tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background [&::-webkit-details-marker]:hidden">
+            <details key={item.question} className="group border-border border-b py-5">
+              <summary className="focus-visible:ring-ring flex cursor-pointer list-none items-center justify-between gap-6 text-[17px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background [&::-webkit-details-marker]:hidden">
                 {item.question}
-                <span className="ring-border text-muted-foreground group-hover:text-foreground flex size-7 shrink-0 items-center justify-center rounded-full ring-1 transition-[transform,color] duration-300 group-open:rotate-45 motion-reduce:transition-none">
-                  <Plus className="size-3.5" aria-hidden="true" />
-                </span>
+                <Plus className="text-subtle size-4 shrink-0 transition-transform duration-200 ease-strong group-open:rotate-45 motion-reduce:transition-none" aria-hidden="true" />
               </summary>
               <p className="text-muted-foreground mt-3 max-w-2xl text-[15px] leading-relaxed">{item.answer}</p>
             </details>

@@ -8,9 +8,11 @@ import { HANDLE_RE, isReservedHandle, normalizeHandle } from "@/features/schedul
 import { CLAIM, SITE } from "@/features/marketing/site";
 import { cn } from "@/lib/utils";
 
-/* "booklo.co/ your-name [→]" (spec §3.5). Controlled: the hero owns the
-   handle so the mockup can mirror it. Checks availability on submit only —
-   a public page shouldn't hit the DB on every keystroke. */
+/* "booklo.co/ your-name [Claim →]" (spec §3.5). A white field with a hairline
+   and the ink submit inside it: the page one action, the only
+   place a control is filled. Controlled: the hero owns the handle so
+   the widget can mirror it. Checks availability on submit only; a public
+   page shouldn't hit the DB on every keystroke. */
 export function ClaimBar({
   handle,
   onHandleChange,
@@ -45,7 +47,7 @@ export function ClaimBar({
       return;
     }
     startTransition(async () => {
-      // No suggestion lookups here — the bar only needs free/taken;
+      // No suggestion lookups here: the bar only needs free/taken;
       // onboarding offers alternatives.
       const r = await checkHandle(handle, { suggest: false });
       if (r.status === "free" || r.status === "error") {
@@ -68,7 +70,7 @@ export function ClaimBar({
     status = (
       <>
         {CLAIM.taken(url)}
-        {" — "}
+        {". "}
         {suggestion ? (
           <>
             {CLAIM.tryPrefix}
@@ -99,13 +101,11 @@ export function ClaimBar({
     <form onSubmit={submit} className={cn("w-full", className)} noValidate>
       <div
         className={cn(
-          "bg-card ring-border focus-within:ring-highlight flex items-center gap-2 rounded-full shadow-[0_1px_2px_rgb(26_34_56/0.05),0_12px_32px_-16px_rgb(26_34_56/0.25)] ring-1 focus-within:ring-2",
+          "bg-card ring-input focus-within:ring-ring flex items-center gap-2 rounded-full shadow-[var(--shadow-card)] ring-1 transition-shadow duration-200 ease-strong focus-within:ring-2",
           tall ? "py-1.5 pr-1.5 pl-5" : "py-1 pr-1 pl-4",
         )}
       >
-        {/* card-foreground, not foreground: the bar is a white card and must
-            keep ink text even inside the `.ink` slab, where --foreground flips. */}
-        <label htmlFor={id} className="text-card-foreground shrink-0 font-mono text-sm sm:text-base">
+        <label htmlFor={id} className="text-card-foreground shrink-0 font-mono text-sm sm:text-[15px]">
           {host}/
         </label>
         <input
@@ -127,25 +127,27 @@ export function ClaimBar({
           aria-label="Your page name"
           aria-describedby={`${id}-status`}
           aria-invalid={result?.status === "invalid" || result?.status === "taken" || undefined}
-          className="text-card-foreground placeholder:text-card-foreground/40 min-w-0 flex-1 bg-transparent py-2 font-mono text-sm outline-none sm:text-base"
+          className="text-card-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent py-2 font-mono text-sm outline-none sm:text-[15px]"
         />
+        {/* Always live: a short or bad name submits into the hint below
+            rather than greying the page's one action out. */}
         <button
           type="submit"
-          disabled={pending || handle.length < 3}
-          aria-label={CLAIM.button}
+          disabled={pending}
           className={cn(
-            "bg-primary text-primary-foreground inline-flex shrink-0 items-center justify-center rounded-full transition-transform hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 motion-reduce:transition-none",
-            tall ? "size-9 sm:size-10" : "size-8",
+            "bg-primary text-primary-foreground inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-[15px] font-medium transition-[background-color,transform,opacity] duration-[160ms] ease-strong [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85 active:scale-[0.97] disabled:opacity-60 motion-reduce:transition-none",
+            tall ? "h-11 px-5" : "h-9 px-4",
           )}
         >
+          {CLAIM.button}
           {pending ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
           ) : (
-            <ArrowRight className="size-4 sm:size-[18px]" aria-hidden="true" />
+            <ArrowRight className="size-3.5" aria-hidden="true" />
           )}
         </button>
       </div>
-      <p id={`${id}-status`} aria-live="polite" className={cn("mt-2 min-h-5 text-sm", tone)}>
+      <p id={`${id}-status`} aria-live="polite" className={cn("mt-2 min-h-5 text-[13px]", tone)}>
         {status}
       </p>
     </form>
