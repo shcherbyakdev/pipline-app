@@ -26,6 +26,8 @@ export const SPACES = {
   /** Welcome-checklist chip when a space exists but none has an active unit
       (setup-checklist.ts): the public page lists a space only once it has one. */
   addUnit: "Add a unit to your space",
+  /** /rentals page intro line above the list. */
+  intro: "Rooms, studios and gear, booked by the hour, night or day.",
   /** /rentals list with nothing in it. */
   empty:
     "No spaces yet — a space is a room, studio or item clients book by the hour, night or day. Add one, then add its units.",

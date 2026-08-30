@@ -446,7 +446,13 @@ export function BookingWidget({
                 Anyone" would be nonsense — else "· X" for the visitor's own pick. */}
             {withLabel ? `${lockedStaff ? " with " : " · "}${withLabel}` : ""} —{" "}
             {dayFmt.format(new Date(slot))},{" "}
-            {timeFmt.format(new Date(slot))}{" "}
+            {timeFmt.format(new Date(slot))}
+            {/* What they're committing to, restated at the moment of
+                commitment: length and price, when the service names one. */}
+            <span className="text-muted-foreground">
+              {" · "}
+              {service.durationMin} min{service.priceLabel ? ` · ${service.priceLabel}` : ""}
+            </span>{" "}
             <button type="button" className="text-muted-foreground underline" onClick={() => setSlot(null)}>
               change
             </button>

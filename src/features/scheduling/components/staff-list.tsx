@@ -24,20 +24,26 @@ function Row({
   usedColors,
   handle,
   appUrl,
+  isPublic,
 }: {
   staff: StaffRow;
   services: ServiceRow[];
   usedColors: string[];
   handle: string | null;
   appUrl: string;
+  /** On the plan's public roster (Team page passed the real one)? A person
+      beyond the cap has a 404ing URL, so their link isn't offered either. */
+  isPublic: boolean;
 }) {
   const [, startTransition] = React.useTransition();
   // The switch moves the moment it's clicked and snaps back on its own if the
   // action fails (a deactivation blocked by the offboarding guard).
   const [active, setActive] = React.useOptimistic(staff.active);
 
-  // A deactivated person's booking URL 404s, so their link isn't offered.
-  const path = handle && staff.active ? bookingPath(handle, staff.slug) : null;
+  // A deactivated person's booking URL 404s, so their link isn't offered —
+  // same for a person the plan keeps off the public roster.
+  const path = handle && staff.active && isPublic ? bookingPath(handle, staff.slug) : null;
+  const overPlanLimit = staff.active && !isPublic;
 
   const onToggle = (next: boolean) => {
     startTransition(async () => {
@@ -76,6 +82,7 @@ function Row({
           <p className="text-muted-foreground truncate text-xs">
             {serviceLabel(staff.serviceIds.length)}
             {path ? <span className="font-mono"> · {path}</span> : null}
+            {overPlanLimit ? " · Not on your public page — over your plan's limit" : null}
           </p>
         </div>
       </div>
@@ -123,11 +130,14 @@ export function StaffList({
   services,
   handle,
   appUrl,
+  publicStaffIds,
 }: {
   staff: StaffRow[];
   services: ServiceRow[];
   handle: string | null;
   appUrl: string;
+  /** The plan's public roster ids; null = no cap applies, flag nobody. */
+  publicStaffIds: string[] | null;
 }) {
   const usedColors = staff.map((s) => s.color);
   return (
@@ -150,6 +160,7 @@ export function StaffList({
             usedColors={usedColors}
             handle={handle}
             appUrl={appUrl}
+            isPublic={publicStaffIds === null || publicStaffIds.includes(person.id)}
           />
         ))}
       </ol>
