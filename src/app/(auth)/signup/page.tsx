@@ -18,11 +18,8 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
   const host = hostLabel(env.NEXT_PUBLIC_APP_URL);
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <h1 className="mb-1 text-2xl font-semibold tracking-tight">
-          Create your Booklo account
-        </h1>
+    <div>
+      <h1 className="mb-1 text-xl font-semibold tracking-tight">Create your Booklo account</h1>
         <p className="text-muted-foreground mb-6 text-sm">
           You&apos;ll confirm your email before signing in.
         </p>
@@ -33,7 +30,6 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
             Sign in
           </Link>
         </p>
-      </div>
-    </main>
+    </div>
   );
 }

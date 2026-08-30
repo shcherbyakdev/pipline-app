@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
 
 export type StudioTab = "sections" | "settings";
 const TABS: ReadonlyArray<{ id: StudioTab; label: string }> = [
@@ -12,7 +12,7 @@ const TABS: ReadonlyArray<{ id: StudioTab; label: string }> = [
    Sections = the draft → Publish model; Settings = saved-as-you-go. */
 export function StudioTabs({ value, onChange }: { value: StudioTab; onChange: (tab: StudioTab) => void }) {
   return (
-    <div role="tablist" aria-label="Booking page" className="border-border bg-muted/40 flex w-fit items-center gap-0.5 rounded-lg border p-0.5">
+    <div role="tablist" aria-label="Booking page" className={SEGMENTED_NAV_CLASS}>
       {TABS.map((t) => (
         <button
           key={t.id}
@@ -20,10 +20,7 @@ export function StudioTabs({ value, onChange }: { value: StudioTab; onChange: (t
           role="tab"
           aria-selected={value === t.id}
           onClick={() => onChange(t.id)}
-          className={cn(
-            "focus-visible:ring-ring/50 h-7 rounded-[6px] px-3 text-sm outline-none focus-visible:ring-2",
-            value === t.id ? "bg-background text-foreground font-medium shadow-xs" : "text-muted-foreground hover:text-foreground",
-          )}
+          className={segmentedItemClass(value === t.id)}
         >
           {t.label}
         </button>

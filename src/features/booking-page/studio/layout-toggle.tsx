@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
 import type { PageDocument } from "../schema";
 
 type Layout = PageDocument["layout"];
@@ -11,7 +11,7 @@ const OPTIONS: ReadonlyArray<{ value: Layout; label: string; title: string }> = 
 
 export function LayoutToggle({ value, onChange }: { value: Layout; onChange: (layout: Layout) => void }) {
   return (
-    <div role="radiogroup" aria-label="Layout" className="bg-secondary flex h-7 items-center gap-0.5 rounded-md border p-0.5">
+    <div role="radiogroup" aria-label="Layout" className={SEGMENTED_NAV_CLASS}>
       {OPTIONS.map((o) => (
         <button
           key={o.value}
@@ -20,10 +20,7 @@ export function LayoutToggle({ value, onChange }: { value: Layout; onChange: (la
           aria-checked={value === o.value}
           title={o.title}
           onClick={() => onChange(o.value)}
-          className={cn(
-            "focus-visible:ring-ring/50 h-6 rounded-[4px] px-2 text-xs outline-none focus-visible:ring-2",
-            value === o.value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-          )}
+          className={segmentedItemClass(value === o.value, "h-6 px-2.5 text-xs")}
         >
           {o.label}
         </button>

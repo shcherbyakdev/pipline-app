@@ -10,12 +10,12 @@ export default async function ClientsPage() {
           No clients yet — clients appear here after their first booking.
         </p>
       ) : (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-2">
           {clients.map((c) => (
             <li key={c.id}>
               <Link
                 href={`/clients/${c.id}`}
-                className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm hover:bg-accent/50"
+                className="bg-card hover:bg-accent/40 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-colors duration-150 ease-strong"
               >
                 <span className="min-w-0 truncate font-medium">{c.name}</span>
                 {c.email ? (

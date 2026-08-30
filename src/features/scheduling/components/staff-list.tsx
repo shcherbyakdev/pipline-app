@@ -61,7 +61,7 @@ function Row({
   };
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+    <li className="bg-card flex flex-col gap-2 rounded-xl border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <div className="flex min-w-0 items-center gap-2.5">
         <span
           aria-hidden
@@ -79,7 +79,7 @@ function Row({
           </p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         {path ? (
           <>
             <Button variant="ghost" size="xs" onClick={copyLink}>

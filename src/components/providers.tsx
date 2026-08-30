@@ -18,7 +18,7 @@ export function Providers({ flags, mode, children }: { flags: Flags; mode: OrgMo
   // gating the nav (navItemsFor, below) but not ⌘K's actions.
   const eff = effectiveMode(flags, mode);
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
       {children}
       {/* Mounted only when the org's `command_menu` flag resolves true, so ⌘K never binds otherwise. */}
       {flags.command_menu && <CommandMenu items={navItemsFor(flags, mode)} mode={eff} />}

@@ -14,7 +14,7 @@ export function AppSidebar({
   mode: OrgMode;
 }) {
   return (
-    <aside className="bg-sidebar text-sidebar-foreground hidden w-[220px] shrink-0 flex-col border-r md:sticky md:top-0 md:flex md:h-screen">
+    <aside className="bg-sidebar text-sidebar-foreground hidden w-[236px] shrink-0 flex-col border-r md:sticky md:top-0 md:flex md:h-screen">
       <SidebarBody org={org} userEmail={userEmail} flags={flags} mode={mode} />
     </aside>
   );
