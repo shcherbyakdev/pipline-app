@@ -40,8 +40,6 @@ import type { BookingsView } from "@/features/scheduling/bookings-views";
 import { mondayOf } from "@/features/scheduling/calendar-geometry";
 import { unionWindows, weekdayOf } from "@/features/scheduling/day-windows";
 import { wallTimeToUtc, addDaysISO, dateInZone } from "@/features/scheduling/slots";
-import { getPageStates } from "@/features/booking-page/queries";
-import { frontDoor } from "@/lib/booking/channel-pages";
 import { SETUP_DISMISSED_COOKIE, setupChecklist, showWelcome, type ChecklistItem } from "@/features/scheduling/setup-checklist";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -133,7 +131,7 @@ export default async function BookingsPage({
   // scope sets the default, not the choice.
   const preferSpace = scopedSpace(scope, people, spaces);
 
-  // Welcome checklist: two cheap reads on every load until the list is
+  // Welcome checklist: one cheap read on every load until the list is
   // done or the owner dismisses it (setup-checklist.ts showWelcome). It
   // used to ride ?welcome=1 and vanished on the first click — every chip
   // navigates away. Progress is still derived, never persisted (spec §4
@@ -141,14 +139,10 @@ export default async function BookingsPage({
   const dismissed = (await cookies()).get(SETUP_DISMISSED_COOKIE)?.value === org.id;
   let checklist: ChecklistItem[] = [];
   if (!dismissed) {
-    const [ownersWithHours, pages] = await Promise.all([countHoursOwners(), getPageStates(org.id)]);
+    const ownersWithHours = await countHoursOwners();
     // Bookable = has an active unit: the measure the public page uses
     // (listPublicOfferings), so the chip cannot tick while /[handle] 404s.
     const bookableSpaceCount = spaces.filter((o) => o.activeUnitCount > 0).length;
-    // "Publish your page" tracks the page /<handle> resolves to (spec
-    // 2026-08-28 §4.4); before anything is bookable, the declared-first channel.
-    const door = frontDoor({ services: activeServices.length > 0, spaces: bookableSpaceCount > 0 })
-      ?? (eff.offersAppointments ? "appointments" : "spaces");
     checklist = setupChecklist({
       mode: eff,
       serviceCount: activeServices.length,
@@ -157,7 +151,6 @@ export default async function BookingsPage({
       unitlessSpaceId: spaces.find((o) => o.activeUnitCount === 0)?.id ?? null,
       hourlySpaceCount: spaces.filter((o) => o.rangeMode === "hours").length,
       ownersWithHours,
-      published: (pages[door]?.published ?? null) !== null,
     });
   }
   const handle = settings?.handle ?? null;

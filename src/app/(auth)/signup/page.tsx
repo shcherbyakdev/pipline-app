@@ -19,17 +19,18 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold tracking-tight">Create your Booklo account</h1>
-        <p className="text-muted-foreground mb-6 text-sm">
-          You&apos;ll confirm your email before signing in.
-        </p>
-        <SignupForm handle={handle} host={host} />
-        <p className="text-muted-foreground mt-6 text-sm">
-          Already have an account?{" "}
-          <Link href="/login" className="text-foreground hover:underline">
-            Sign in
-          </Link>
-        </p>
+      {/* The wordmark above already says Booklo — the heading doesn't repeat it. */}
+      <h1 className="mb-1.5 text-center text-lg font-semibold tracking-tight">Create your account</h1>
+      <p className="text-muted-foreground mb-6 text-center text-sm">
+        You&apos;ll confirm your email before signing in.
+      </p>
+      <SignupForm handle={handle} host={host} />
+      <p className="text-muted-foreground mt-7 text-center text-sm">
+        Already have an account?{" "}
+        <Link href="/login" className="text-foreground hover:underline">
+          Sign in
+        </Link>
+      </p>
     </div>
   );
 }

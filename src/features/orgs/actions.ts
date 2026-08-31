@@ -10,10 +10,10 @@ import { effectiveContrast } from "@/lib/widget-theme";
 import { ONBOARDING } from "@/features/marketing/site";
 import { getCurrentOrg } from "@/lib/auth/session";
 import { seedDefaultHours } from "@/features/scheduling/default-hours";
+import { stepHref } from "./onboarding-steps";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
   createOrgWithPageSchema,
-  modeToFlags,
   updateAccentInput,
   updateOrgModesInput,
   widgetThemeInput,
@@ -36,14 +36,9 @@ export async function createOrgWithPage(
     name: formData.get("name"),
     handle: formData.get("handle"),
     timezone: formData.get("timezone"),
-    mode: formData.get("mode"),
   });
   if (!parsed.success) {
-    // A mode issue gets its own copy — the picker is a distinct affordance
-    // from the name/handle text fields, so "check the fields" would send
-    // the user hunting. Mirrors the path[0]-check idiom in utils/actions.ts.
-    const modeIssue = parsed.error.issues.some((i) => i.path[0] === "mode");
-    return { error: modeIssue ? ONBOARDING.modeError : "Check the name (2–80 characters) and the page address." };
+    return { error: "Check the name (2–80 characters) and the page address." };
   }
 
   const supabase = await createClient();
@@ -55,13 +50,16 @@ export async function createOrgWithPage(
   // the RPC refuses too (0052), this just skips the round trip.
   if (await getCurrentOrg()) redirect("/bookings");
 
-  const flags = modeToFlags(parsed.data.mode);
+  // Appointments by default; the wizard's mode step flips it via
+  // update_org_modes for spaces sellers. (A later flip to spaces-only
+  // keeps the hours seeded below — invisible until appointments return,
+  // pre-filled if they do.)
   const { data: org, error } = await supabase.rpc("create_org_with_page", {
     p_name: parsed.data.name,
     p_handle: parsed.data.handle,
     p_timezone: parsed.data.timezone,
-    p_offers_appointments: flags.offersAppointments,
-    p_offers_rentals: flags.offersRentals,
+    p_offers_appointments: true,
+    p_offers_rentals: false,
   });
   if (error) {
     if (error.code === "23505") return { error: ONBOARDING.justTaken };
@@ -80,10 +78,11 @@ export async function createOrgWithPage(
   // ones that still tick the setup checklist's "Set hours" chip — the
   // honest-tick rule. Onboarding never fails over this: the org exists
   // either way and the editor offers the same week in one click.
-  if (flags.offersAppointments) await seedFirstMemberHours(supabase, org);
-  // The welcome banner shows itself on /bookings until setup is done
-  // (setup-checklist.ts showWelcome) — no flag in the URL.
-  redirect("/bookings");
+  await seedFirstMemberHours(supabase, org);
+  // Straight into the wizard (mode first — appointments preselected). Every
+  // step is skippable; the welcome banner still shows itself on /bookings
+  // until setup is done (setup-checklist.ts showWelcome).
+  redirect(stepHref("mode"));
 }
 
 // create_org_with_page returns the org row; the staff row it mints is read

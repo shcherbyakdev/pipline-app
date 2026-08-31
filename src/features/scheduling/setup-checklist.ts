@@ -15,11 +15,10 @@ export type ChecklistInput = {
   unitlessSpaceId: string | null; // first active space with no active unit — where the chip sends the owner
   hourlySpaceCount: number;  // of those, booked by the hour — they set weekly hours on /availability (U3)
   ownersWithHours: number;   // team members or hourly spaces with ≥1 weekly rule
-  published: boolean;        // booking page has a published document
 };
 
 export type ChecklistItem = {
-  id: "service" | "space" | "hours" | "publish";
+  id: "service" | "space" | "hours";
   label: string;
   href: string;
   done: boolean;
@@ -48,7 +47,11 @@ export function setupChecklist(i: ChecklistInput): ChecklistItem[] {
   if (i.mode.offersAppointments || i.hourlySpaceCount > 0) {
     items.push({ id: "hours", label: WELCOME.setHours, href: "/availability", done: i.ownersWithHours > 0 });
   }
-  items.push({ id: "publish", label: WELCOME.publish, href: "/booking-page", done: i.published });
+  // No "publish" chip: /[handle] renders a default page document the moment
+  // the catalogue has something bookable (renderChannelPage), so the chips
+  // above ARE the go-live conditions — a publish chip claimed the page was
+  // off while it was already live (honest-tick rule). Builder publishing
+  // only swaps default content for customised content.
   return items;
 }
 

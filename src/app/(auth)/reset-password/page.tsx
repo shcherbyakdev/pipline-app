@@ -12,11 +12,11 @@ export default async function ResetPasswordPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold tracking-tight">Set a new password</h1>
-        <p className="text-muted-foreground mb-6 text-sm">
-          You&apos;re signed in via your reset link — choose a new password.
-        </p>
-        <ResetPasswordForm />
+      <h1 className="mb-1.5 text-center text-lg font-semibold tracking-tight">Set a new password</h1>
+      <p className="text-muted-foreground mb-6 text-center text-sm">
+        You&apos;re signed in via your reset link — choose a new password.
+      </p>
+      <ResetPasswordForm />
     </div>
   );
 }

@@ -57,8 +57,9 @@ function form(fields: Record<string, string>): FormData {
   for (const [k, v] of Object.entries(fields)) fd.set(k, v);
   return fd;
 }
-const onboarding = (mode: string) =>
-  form({ name: "Anna Studio", handle: "anna-studio", timezone: "Europe/Warsaw", mode });
+// Mode left createOrgWithPage (wizard's mode step owns it now); every org
+// is created as appointments and gets the seeded week.
+const onboarding = () => form({ name: "Anna Studio", handle: "anna-studio", timezone: "Europe/Warsaw" });
 
 const hourRows = () => state.inserts.filter((i) => i.table === "availability_rules");
 
@@ -72,8 +73,8 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("createOrgWithPage — a new account is bookable on day one", () => {
-  it("gives an appointments org's first member Mon–Fri 09:00–17:00", async () => {
-    await expect(createOrgWithPage({}, onboarding("appointments"))).rejects.toThrow(/^REDIRECT:\/bookings/);
+  it("gives a new org's first member Mon–Fri 09:00–17:00 and opens the wizard", async () => {
+    await expect(createOrgWithPage({}, onboarding())).rejects.toThrow(/^REDIRECT:\/onboarding\?step=mode/);
     expect(hourRows()).toHaveLength(1);
     const rows = hourRows()[0].rows as Array<Row>;
     expect(rows.map((r) => r.weekday)).toEqual([1, 2, 3, 4, 5]);
@@ -86,24 +87,14 @@ describe("createOrgWithPage — a new account is bookable on day one", () => {
     });
   });
 
-  it("does the same for an org that sells both", async () => {
-    await expect(createOrgWithPage({}, onboarding("both"))).rejects.toThrow(/^REDIRECT:\/bookings/);
-    expect(hourRows()).toHaveLength(1);
-  });
-
-  it("skips a spaces-only org — its staff row never surfaces on /availability", async () => {
-    await expect(createOrgWithPage({}, onboarding("rentals"))).rejects.toThrow(/^REDIRECT:\/bookings/);
-    expect(hourRows()).toHaveLength(0);
-  });
-
-  it("still lands the owner on the dashboard when the seed fails", async () => {
+  it("still lands the owner in the wizard when the seed fails", async () => {
     state.insertError = { message: "boom" };
-    await expect(createOrgWithPage({}, onboarding("appointments"))).rejects.toThrow(/^REDIRECT:\/bookings/);
+    await expect(createOrgWithPage({}, onboarding())).rejects.toThrow(/^REDIRECT:\/onboarding\?step=mode/);
   });
 
   it("does not guess a staff id when the row cannot be read back", async () => {
     state.staffRow = null;
-    await expect(createOrgWithPage({}, onboarding("appointments"))).rejects.toThrow(/^REDIRECT:\/bookings/);
+    await expect(createOrgWithPage({}, onboarding())).rejects.toThrow(/^REDIRECT:\/onboarding\?step=mode/);
     expect(hourRows()).toHaveLength(0);
   });
 });
