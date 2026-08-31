@@ -36,6 +36,7 @@ function PasswordForm({ onSwitch, next }: { onSwitch: () => void; next: string |
           required
           autoComplete="email"
           placeholder="you@company.com"
+          className="h-11 rounded-xl"
         />
       </div>
       <div className="flex flex-col gap-2">
@@ -48,21 +49,23 @@ function PasswordForm({ onSwitch, next }: { onSwitch: () => void; next: string |
             Forgot password?
           </Link>
         </div>
-        <PasswordInput id="password" name="password" required autoComplete="current-password" />
+        <PasswordInput
+          id="password"
+          name="password"
+          required
+          autoComplete="current-password"
+          className="h-11 rounded-xl"
+        />
       </div>
       {state.error ? (
         <p className="text-destructive text-sm">{state.error}</p>
       ) : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className="h-11">
         {pending ? "Signing in…" : "Sign in"}
       </Button>
-      <button
-        type="button"
-        onClick={onSwitch}
-        className="text-muted-foreground text-sm hover:underline"
-      >
+      <Button type="button" variant="outline" onClick={onSwitch} className="h-11">
         Email me a magic link instead
-      </button>
+      </Button>
     </form>
   );
 }
@@ -72,7 +75,7 @@ function MagicLinkForm({ onSwitch }: { onSwitch: () => void }) {
 
   if (state.sent) {
     return (
-      <p className="text-sm">Check your email for a magic link to sign in.</p>
+      <p className="text-center text-sm">Check your email for a magic link to sign in.</p>
     );
   }
 
@@ -87,21 +90,18 @@ function MagicLinkForm({ onSwitch }: { onSwitch: () => void }) {
           required
           autoComplete="email"
           placeholder="you@company.com"
+          className="h-11 rounded-xl"
         />
       </div>
       {state.error ? (
         <p className="text-destructive text-sm">{state.error}</p>
       ) : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className="h-11">
         {pending ? "Sending…" : "Send magic link"}
       </Button>
-      <button
-        type="button"
-        onClick={onSwitch}
-        className="text-muted-foreground text-sm hover:underline"
-      >
+      <Button type="button" variant="outline" onClick={onSwitch} className="h-11">
         Sign in with a password instead
-      </button>
+      </Button>
     </form>
   );
 }

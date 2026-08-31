@@ -72,6 +72,24 @@ export const availabilityOwnerInput = z
   .extend(ownerFields)
   .refine(oneOwner, { message: ONE_OWNER_MESSAGE });
 
+/** The onboarding wizard's hours step: one window per checked day, the
+    whole week in one write (setWeeklyHours replaces the owner's weekly
+    rules). At least one day — an all-off week is what Skip is for. */
+export const weeklyHoursInput = z
+  .object({
+    days: z
+      .array(
+        z
+          .object({ weekday: z.number().int().min(0).max(6), startTime: timeField, endTime: timeField })
+          .refine((d) => d.startTime < d.endTime, { message: "start must precede end" }),
+      )
+      .min(1)
+      .max(7)
+      .refine((ds) => new Set(ds.map((d) => d.weekday)).size === ds.length, { message: "duplicate weekday" }),
+  })
+  .extend(ownerFields)
+  .refine(oneOwner, { message: ONE_OWNER_MESSAGE });
+
 // Calendar-only surface (block/unblock a time range) — stays staff-only,
 // unlike the rest of the availability inputs above: rental offerings have
 // no calendar-block UI (spec, task 6).

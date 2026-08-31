@@ -18,7 +18,9 @@ export function modeToFlags(mode: OrgModeChoice): OrgMode {
 
 // Onboarding (spec 2026-08-23-landing-claim): org + handle + timezone in one
 // step. Handle is optional — "" (untouched field) → null, as in
-// schedulingSettingsInput.
+// schedulingSettingsInput. No mode here: every org is created as
+// appointments and the wizard's first step (skippable) is where that
+// changes, via update_org_modes.
 export const createOrgWithPageSchema = z.object({
   name: z.string().trim().min(2).max(80),
   handle: z.preprocess(
@@ -28,7 +30,6 @@ export const createOrgWithPageSchema = z.object({
       .refine((h) => h === null || !isReservedHandle(h), { message: "reserved handle" }),
   ),
   timezone: z.string().min(1).max(64),
-  mode: z.enum(ORG_MODES),
 });
 
 export type OrgState = { error?: string };

@@ -7,7 +7,6 @@ import type { OrgState } from "@/features/orgs/schema";
 import { HANDLE_RE, isReservedHandle, normalizeHandle, toDisplayName } from "@/features/scheduling/handle";
 import { useHandleCheck } from "@/features/scheduling/use-handle-check";
 import { ONBOARDING } from "@/features/marketing/site";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,29 +24,28 @@ const subscribeNoop = () => () => {};
 const getBrowserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 const getServerTimeZone = () => "UTC";
 
+/* One screen: name, page address, timezone → Create workspace. The mode
+   choice lives in the wizard that follows (appointments preselected there),
+   so this screen carries no dots — the stepper begins where skipping does. */
 export function OnboardingForm({ initialHandle, host }: { initialHandle: string | null; host: string }) {
   const [state, action, pending] = useActionState(createOrgWithPage, initial);
   const [name, setName] = React.useState(initialHandle ? toDisplayName(initialHandle) : "");
-  const [mode, setMode] = React.useState<string | null>(null);
   const [handle, setHandle] = React.useState(initialHandle ?? "");
   const detectedTimezone = React.useSyncExternalStore(subscribeNoop, getBrowserTimeZone, getServerTimeZone);
   // null until the user picks one; the detected zone is the default until then.
   const [timezone, setTimezone] = React.useState<string | null>(null);
   const effectiveTimezone = timezone ?? detectedTimezone;
 
-  const { result, checking } = useHandleCheck(handle);
+  const { result } = useHandleCheck(handle);
   const url = `${host}/${handle || ONBOARDING.handlePlaceholder}`;
 
-  let status: React.ReactNode = ONBOARDING.handleHint;
-  let tone = "text-muted-foreground";
+  // Silent under the field by default (the reference shows nothing there) —
+  // the line appears only for problems: malformed, taken, reserved, or a
+  // failed check. The rules copy doubles as the malformed-input error.
+  let status: React.ReactNode = null;
+  let tone = "text-destructive";
   if (handle && !HANDLE_RE.test(handle)) {
     status = ONBOARDING.handleHint;
-    tone = "text-destructive";
-  } else if (checking) {
-    status = ONBOARDING.handleChecking;
-  } else if (result?.status === "free") {
-    status = ONBOARDING.handleFree(url);
-    tone = "text-foreground";
   } else if (result?.status === "taken") {
     status = (
       <>
@@ -62,16 +60,21 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
         ) : null}
       </>
     );
-    tone = "text-destructive";
   } else if (result?.status === "invalid") {
-    if (isReservedHandle(handle)) status = ONBOARDING.handleReserved;
-    tone = "text-destructive";
+    status = isReservedHandle(handle) ? ONBOARDING.handleReserved : ONBOARDING.handleHint;
   } else if (result?.status === "error") {
     status = ONBOARDING.handleCheckFailed;
+    tone = "text-muted-foreground";
   }
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    // Tight label→field pairs (gap-2), generous separation between groups
+    // (gap-6), one extra breath before the CTA — the reference's rhythm.
+    <form action={action} className="step-enter flex flex-col gap-6">
+      <div className="mb-2 text-center">
+        <h1 className="text-xl font-semibold tracking-tight">{ONBOARDING.heading}</h1>
+        <p className="text-muted-foreground mt-1.5 text-sm text-pretty">{ONBOARDING.sub}</p>
+      </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="name">{ONBOARDING.nameLabel}</Label>
         <Input
@@ -83,42 +86,15 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={ONBOARDING.namePlaceholder}
+          className="h-11 rounded-xl"
         />
       </div>
-      {/* Native radios wrapped in label-cards (house idiom is native form
-          controls); the input is visually hidden but stays keyboard/AT
-          reachable. No default: the server validates too. */}
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">{ONBOARDING.modeLegend}</legend>
-        {ONBOARDING.modes.map((m) => {
-          const selected = mode === m.value;
-          return (
-            <label
-              key={m.value}
-              className={cn(
-                "flex cursor-pointer flex-col gap-0.5 rounded-md border p-3 transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring/50",
-                selected ? "border-foreground/40 bg-accent" : "hover:bg-accent/60",
-              )}
-            >
-              <input
-                type="radio"
-                name="mode"
-                value={m.value}
-                required
-                className="sr-only"
-                checked={selected}
-                onChange={() => setMode(m.value)}
-              />
-              <span className="text-sm font-medium">{m.title}</span>
-              <span className="text-muted-foreground text-sm">{m.blurb}</span>
-            </label>
-          );
-        })}
-      </fieldset>
       <div className="flex flex-col gap-2">
         <Label htmlFor="handle">{ONBOARDING.handleLabel}</Label>
-        <InputGroup>
-          <InputGroupAddon>
+        {/* The host lives in a filled segment with its own divider (the
+            reference's URL field), not as loose inline text. */}
+        <InputGroup className="h-11 overflow-clip rounded-xl">
+          <InputGroupAddon className="bg-muted h-full self-stretch border-r px-3">
             <InputGroupText className="font-mono text-xs">{host}/</InputGroupText>
           </InputGroupAddon>
           <InputGroupInput
@@ -130,10 +106,12 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
             autoComplete="off"
             spellCheck={false}
             aria-describedby="handle-status"
-            className="font-mono text-xs"
+            className="h-full pl-3! font-mono text-xs"
           />
         </InputGroup>
-        <p id="handle-status" aria-live="polite" className={`min-h-4 text-xs ${tone}`}>
+        {/* Persistent node so aria-describedby always resolves; empty it
+            leaves the flow so the group's height matches its siblings. */}
+        <p id="handle-status" aria-live="polite" className={`empty:hidden text-xs ${tone}`}>
           {status}
         </p>
       </div>
@@ -144,7 +122,7 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
           name="timezone"
           value={effectiveTimezone}
           onChange={(e) => setTimezone(e.target.value)}
-          className="border-input h-9 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="border-input bg-card h-11 w-full rounded-xl border px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           {TIMEZONES.map((tz) => (
             <option key={tz} value={tz}>
@@ -154,7 +132,7 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
         </select>
       </div>
       {state.error ? <p className="text-destructive text-sm">{state.error}</p> : null}
-      <Button type="submit" disabled={pending || mode === null}>
+      <Button type="submit" disabled={pending} className="mt-3 h-11">
         {pending ? ONBOARDING.submitting : ONBOARDING.submit}
       </Button>
     </form>

@@ -14,7 +14,7 @@ export function ForgotPasswordForm() {
 
   if (state.sent) {
     return (
-      <p className="text-sm">
+      <p className="text-center text-sm">
         If an account exists for that address, you&apos;ll receive a password
         reset link.
       </p>
@@ -32,12 +32,13 @@ export function ForgotPasswordForm() {
           required
           autoComplete="email"
           placeholder="you@company.com"
+          className="h-11 rounded-xl"
         />
       </div>
       {state.error ? (
         <p className="text-destructive text-sm">{state.error}</p>
       ) : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className="h-11">
         {pending ? "Sending…" : "Send reset link"}
       </Button>
     </form>

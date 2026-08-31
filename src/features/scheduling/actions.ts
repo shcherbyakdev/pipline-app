@@ -6,6 +6,7 @@ import { assertCanAddService } from "@/lib/billing/gates";
 import { seedDefaultHours } from "./default-hours";
 import {
   availabilityOwnerInput,
+  weeklyHoursInput,
   serviceInput,
   updateServiceInput,
   serviceIdInput,
@@ -405,6 +406,44 @@ export async function applyDefaultHours(input: unknown): Promise<ActionState> {
   if (error) {
     if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
     return fail("applyDefaultHours", error);
+  }
+  revalidateOwner(parsed.data);
+  revalidatePath("/bookings");
+  return { ok: true };
+}
+
+// The onboarding wizard's hours step: the whole week at once, one window
+// per day, replacing whatever the owner had (the seeded Mon–Fri 9–5).
+// Delete-then-insert is sequential like the sibling actions — solo-admin
+// orgs make the non-atomic window negligible (blockTimeRange precedent) —
+// and a failed insert leaves an empty week the editor's one-click default
+// or the wizard itself can refill.
+export async function setWeeklyHours(input: unknown): Promise<ActionState> {
+  const parsed = weeklyHoursInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
+    return { ok: false, error: GENERIC_WRITE_ERROR };
+  }
+  const { error: deleteError } = await ownerEq(
+    supabase.from("availability_rules").delete().eq("org_id", orgId),
+    parsed.data,
+  );
+  if (deleteError) return fail("setWeeklyHours.clear", deleteError);
+  const { error } = await supabase.from("availability_rules").insert(
+    parsed.data.days.map((d) => ({
+      org_id: orgId,
+      ...ownerCols(parsed.data),
+      weekday: d.weekday,
+      start_time: d.startTime,
+      end_time: d.endTime,
+    })),
+  );
+  if (error) {
+    if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    return fail("setWeeklyHours", error);
   }
   revalidateOwner(parsed.data);
   revalidatePath("/bookings");

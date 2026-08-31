@@ -16,7 +16,7 @@ export function SignupForm({ handle, host }: { handle: string | null; host: stri
 
   if (state.sent) {
     return (
-      <p className="text-sm">
+      <p className="text-center text-sm">
         {claimed
           ? `Check your email to confirm your account and claim ${claimed}.`
           : "Check your email to confirm your account."}
@@ -27,7 +27,7 @@ export function SignupForm({ handle, host }: { handle: string | null; host: stri
   return (
     <form action={action} className="flex flex-col gap-4">
       {claimed ? (
-        <p className="bg-muted text-muted-foreground rounded-lg px-3 py-2 font-mono text-xs">
+        <p className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-center font-mono text-xs">
           Claiming <span className="text-foreground">{claimed}</span>
         </p>
       ) : null}
@@ -41,17 +41,25 @@ export function SignupForm({ handle, host }: { handle: string | null; host: stri
           required
           autoComplete="email"
           placeholder="you@company.com"
+          className="h-11 rounded-xl"
         />
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Password</Label>
-        <PasswordInput id="password" name="password" required minLength={8} autoComplete="new-password" />
+        <PasswordInput
+          id="password"
+          name="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          className="h-11 rounded-xl"
+        />
         <p className="text-muted-foreground text-xs">At least 8 characters.</p>
       </div>
       {state.error ? (
         <p className="text-destructive text-sm">{state.error}</p>
       ) : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className="h-11">
         {pending ? "Creating account…" : "Create account"}
       </Button>
     </form>

@@ -17,22 +17,20 @@ export default async function LoginPage({
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-semibold tracking-tight">Sign in to Booklo</h1>
-        <p className="text-muted-foreground mb-6 text-sm">
-          Use your email and password, or get a magic link.
+      {/* The wordmark above already says Booklo — the heading doesn't repeat it. */}
+      <h1 className="mb-6 text-center text-lg font-semibold tracking-tight">Sign in</h1>
+      {error === "auth" ? (
+        <p className="text-destructive mb-4 text-center text-sm">
+          That link is invalid or has expired — request a new one.
         </p>
-        {error === "auth" ? (
-          <p className="text-destructive mb-4 text-sm">
-            That link is invalid or has expired — request a new one.
-          </p>
-        ) : null}
-        <LoginForm next={nextPath} />
-        <p className="text-muted-foreground mt-6 text-sm">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-foreground hover:underline">
-            Sign up
-          </Link>
-        </p>
+      ) : null}
+      <LoginForm next={nextPath} />
+      <p className="text-muted-foreground mt-7 text-center text-sm">
+        Don&apos;t have an account?{" "}
+        <Link href="/signup" className="text-foreground hover:underline">
+          Sign up
+        </Link>
+      </p>
     </div>
   );
 }

@@ -244,7 +244,7 @@ export const PRICING = {
 /** Onboarding ("Claim your page") copy. Lives here with the rest of the
     funnel copy so site.test.ts guards it like everything else. */
 export const ONBOARDING = {
-  heading: "Claim your page",
+  heading: "Create your workspace",
   sub: "This is the address clients book you at. You can change it later.",
   nameLabel: "Your name or business",
   namePlaceholder: "Anna Studio",
@@ -265,8 +265,39 @@ export const ONBOARDING = {
     { value: "appointments", title: "Appointments", blurb: "Time on your calendar: consultations, sessions, classes." },
     { value: "both", title: "Both", blurb: SPACES.pickerBothBlurb },
   ],
-  submit: "Claim my page",
-  submitting: "Claiming…",
+  next: "Continue",
+  back: "Back",
+  skip: "Skip",
+  submit: "Create workspace",
+  /* The wizard steps after the org exists (features/orgs/onboarding-steps.ts).
+     Field labels come from STARTER.firstService/firstSpace — same forms,
+     same words. */
+  wizard: {
+    mode: { heading: "What are you booking?", sub: "You can change this any time in Settings." },
+    service: { heading: "Add your first service", sub: "What clients book with you. Add more on Services later." },
+    space: { heading: "Add your first space", sub: "A room, studio or item clients book. Its first unit comes with it." },
+    hours: {
+      heading: "Your weekly hours",
+      sub: "When clients can book you. We started you with Mon–Fri, 9–5.",
+      save: "Save hours",
+    },
+    share: {
+      heading: "Your page is live",
+      sub: "Share the link anywhere clients find you.",
+      /* /<handle> 404s while nothing is publicly bookable (D9's intentional
+         404; app/[handle]/page.tsx) — never claim live, or offer a copyable
+         link, before it actually resolves. */
+      almostHeading: "Almost live",
+      almostSub: "Add what clients book and your page opens at:",
+      noHandle: "Your workspace is ready.",
+      noHandleSub: "Pick a page address on Booking page and you're bookable.",
+      setUpPage: "Set up your booking page",
+      copyLink: "Copy link",
+      copied: "Copied",
+      finish: "Go to your bookings",
+    },
+  },
+  submitting: "Creating…",
   justTaken: "That name was just taken — pick another.",
 } as const;
 
@@ -276,9 +307,8 @@ export const WELCOME = {
   owned: (url: string) => `${url} is yours.`,
   sub: "Add a service and set your hours to go live.",
   subRentals: "Add a space and its units to go live.",
-  subBoth: "Add what you offer, set hours, publish — then share your link.",
+  subBoth: "Add what you offer and set hours — then share your link.",
   setHours: "Set hours",
-  publish: "Publish your page",
   copyLink: "Copy link",
   copied: "Copied",
   noHandle: "Your workspace is ready.",

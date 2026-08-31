@@ -28,53 +28,28 @@ describe("accent colour input", () => {
 });
 
 describe("createOrgWithPageSchema", () => {
+  // Mode left this schema: every org is created as appointments and the
+  // wizard's mode step (update_org_modes) owns the choice now.
   it("accepts name + handle + timezone", () => {
     expect(
       createOrgWithPageSchema.parse({
         name: "Anna Studio",
         handle: "anna-studio",
         timezone: "Europe/Warsaw",
-        mode: "appointments",
       }),
     ).toEqual({
       name: "Anna Studio",
       handle: "anna-studio",
       timezone: "Europe/Warsaw",
-      mode: "appointments",
     });
   });
   it("maps an empty handle to null", () => {
-    expect(
-      createOrgWithPageSchema.parse({ name: "Anna", handle: "", timezone: "UTC", mode: "appointments" }).handle,
-    ).toBeNull();
+    expect(createOrgWithPageSchema.parse({ name: "Anna", handle: "", timezone: "UTC" }).handle).toBeNull();
   });
   it("rejects a malformed or reserved handle and a missing timezone", () => {
-    expect(
-      createOrgWithPageSchema.safeParse({ name: "Anna", handle: "-x", timezone: "UTC", mode: "appointments" })
-        .success,
-    ).toBe(false);
-    expect(
-      createOrgWithPageSchema.safeParse({ name: "Anna", handle: "signup", timezone: "UTC", mode: "appointments" })
-        .success,
-    ).toBe(false);
-    expect(
-      createOrgWithPageSchema.safeParse({ name: "Anna", handle: "anna", timezone: "", mode: "appointments" })
-        .success,
-    ).toBe(false);
-  });
-});
-
-const BASE = { name: "Anna Studio", handle: "anna-studio", timezone: "Europe/Warsaw" };
-
-describe("createOrgWithPageSchema mode", () => {
-  it("requires a mode", () => {
-    expect(createOrgWithPageSchema.safeParse(BASE).success).toBe(false);
-    expect(createOrgWithPageSchema.safeParse({ ...BASE, mode: "hourly" }).success).toBe(false);
-  });
-  it("accepts the three modes", () => {
-    for (const mode of ["appointments", "rentals", "both"]) {
-      expect(createOrgWithPageSchema.safeParse({ ...BASE, mode }).success).toBe(true);
-    }
+    expect(createOrgWithPageSchema.safeParse({ name: "Anna", handle: "-x", timezone: "UTC" }).success).toBe(false);
+    expect(createOrgWithPageSchema.safeParse({ name: "Anna", handle: "signup", timezone: "UTC" }).success).toBe(false);
+    expect(createOrgWithPageSchema.safeParse({ name: "Anna", handle: "anna", timezone: "" }).success).toBe(false);
   });
 });
 
