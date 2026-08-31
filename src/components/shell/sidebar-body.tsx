@@ -25,12 +25,16 @@ export function SidebarBody({
   userEmail,
   flags,
   mode,
+  pendingRequests,
   onNavigate,
 }: {
   org: string;
   userEmail: string;
   flags: Flags;
   mode: OrgMode;
+  /** Live booking requests; badges the Overview row. 0 hides the badge —
+      and is what the layout passes whenever the overview flag is off. */
+  pendingRequests: number;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -88,6 +92,17 @@ export function SidebarBody({
                   >
                     <HugeiconsIcon icon={icon} size={16} className={cn("shrink-0", active ? "text-brand-text" : "text-subtle")} />
                     {text}
+                    {/* Booking requests waiting. The bare number would be
+                        read out as "Overview 3", so the noun rides along
+                        for screen readers. */}
+                    {href === "/overview" && pendingRequests > 0 ? (
+                      <span className="bg-primary/10 text-primary ml-auto rounded-full px-1.5 text-xs font-medium tabular-nums">
+                        {pendingRequests}
+                        <span className="sr-only">
+                          {pendingRequests === 1 ? " request waiting" : " requests waiting"}
+                        </span>
+                      </span>
+                    ) : null}
                   </Link>
                 );
               })}

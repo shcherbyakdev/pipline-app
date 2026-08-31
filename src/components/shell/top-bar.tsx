@@ -13,17 +13,20 @@ export function TopBar({
   userEmail,
   flags,
   mode,
+  pendingRequests,
 }: {
   org: string;
   userEmail: string;
   flags: Flags;
   mode: OrgMode;
+  // Only passed through: the mobile sheet renders the same SidebarBody.
+  pendingRequests: number;
 }) {
   const pathname = usePathname();
   const title = titleForPath(pathname, navItemsFor(flags, mode));
   return (
     <header className="bg-background/80 sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b px-4 backdrop-blur-md md:px-6">
-      <MobileNav org={org} userEmail={userEmail} flags={flags} mode={mode} />
+      <MobileNav org={org} userEmail={userEmail} flags={flags} mode={mode} pendingRequests={pendingRequests} />
       <h1 className="text-sm font-semibold tracking-[-0.01em]">{title}</h1>
     </header>
   );

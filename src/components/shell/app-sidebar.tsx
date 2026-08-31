@@ -7,15 +7,17 @@ export function AppSidebar({
   userEmail,
   flags,
   mode,
+  pendingRequests,
 }: {
   org: string;
   userEmail: string;
   flags: Flags;
   mode: OrgMode;
+  pendingRequests: number;
 }) {
   return (
     <aside className="bg-sidebar text-sidebar-foreground hidden w-[236px] shrink-0 flex-col border-r md:sticky md:top-0 md:flex md:h-screen">
-      <SidebarBody org={org} userEmail={userEmail} flags={flags} mode={mode} />
+      <SidebarBody org={org} userEmail={userEmail} flags={flags} mode={mode} pendingRequests={pendingRequests} />
     </aside>
   );
 }

@@ -201,10 +201,15 @@ export type AdminBooking = {
   staffId: string | null;
   staffName: string | null;
   staffColor: string | null;
+  // H3 money, snapshotted onto the row at write time (0057). Null whenever
+  // the offering carried no price — appointments always. The requests inbox
+  // shows it so "accept" is a decision made with the amount in view.
+  priceCents: number | null;
+  currency: string | null;
 };
 
 export const BOOKING_COLUMNS =
-  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
+  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, price_cents, currency, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
 
 export type BookingRow = {
   id: string;
@@ -219,6 +224,8 @@ export type BookingRow = {
   note: string | null;
   rescheduled_from_id: string | null;
   staff_id: string | null;
+  price_cents: number | null;
+  currency: string | null;
   staff: { name: string; color: string } | null;
   services: { name: string } | null;
   rental_offerings: { name: string; range_mode: RangeMode } | null;
@@ -243,6 +250,8 @@ export function toAdminBooking(b: BookingRow): AdminBooking {
     staffId: b.staff_id,
     staffName: b.staff?.name ?? null,
     staffColor: b.staff?.color ?? null,
+    priceCents: b.price_cents,
+    currency: b.currency,
   };
 }
 
