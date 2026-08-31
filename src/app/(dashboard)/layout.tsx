@@ -14,8 +14,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const flags = await getDashboardFlags(org.id);
   const mode = modeOf(org);
   // Badge on the Overview row. Gated on the flag so an opted-out org runs
-  // exactly the queries it ran before: none.
-  const pendingRequests = flags.overview ? await countPendingRequests() : 0;
+  // exactly the queries it ran before: none. A decorative badge must never
+  // take down the layout, so a query error is swallowed to 0.
+  const pendingRequests = flags.overview
+    ? await countPendingRequests().catch((e) => {
+        console.error("[shell] pending count:", e);
+        return 0;
+      })
+    : 0;
 
   return (
     <Providers flags={flags} mode={mode}>

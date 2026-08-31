@@ -221,9 +221,9 @@ export function bookingLifecycleKey(
     // frees the OLD member's calendar — their notice needs a key of its own
     // so a later real cancellation isn't deduped against it.
     | "staff-handed-over"
-    // Booking approval (0062): the client's request-received and
-    // request-declined mails, and the accept-time confirmation's key (Task 7).
-    | "request-received"
+    // Booking approval (0062): the client's request-declined mail, and the
+    // accept-time confirmation's key (Task 7). The request-received mail
+    // rides bookingIdempotencyKey instead — no lifecycle key for it.
     | "request-declined"
     | "manage-accept"
     | `manage-${string}`,

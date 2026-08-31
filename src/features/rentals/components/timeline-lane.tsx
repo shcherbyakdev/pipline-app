@@ -427,7 +427,7 @@ function StayBar({
               phase === "past" && "opacity-60",
               // A request holds the dates without being confirmed — a ghost
               // of the bar it becomes when the owner accepts.
-              pendingRequest && "border-dashed opacity-80",
+              pendingRequest && "border-dashed",
               flagged && (hard ? "ring-2 ring-destructive" : "ring-2 ring-amber-500"),
             )}
             style={{

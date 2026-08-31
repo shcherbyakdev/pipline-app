@@ -239,8 +239,9 @@ export async function createRentalBookingHours(
     // The RPC decided under the flag it read at insert time — one select
     // keeps the emails honest even if the toggle flips mid-flight. Read it
     // here, before mail prep, so every success return below can carry it.
-    const { data: statusRow } = await admin
+    const { data: statusRow, error: statusError } = await admin
       .from("bookings").select("status").eq("id", bookingId as string).maybeSingle();
+    if (statusError) console.error("[rentals] createRentalBookingHours status read:", statusError);
     const isPending = statusRow?.status === "pending";
 
     // Everything both mails share, computed once; nothing below may fail the

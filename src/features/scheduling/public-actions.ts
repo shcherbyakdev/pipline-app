@@ -242,8 +242,9 @@ export async function createBooking(
 
     // The RPC decided under the flag it read at insert time — one select
     // keeps the emails honest even if the toggle flips mid-flight.
-    const { data: statusRow } = await admin
+    const { data: statusRow, error: statusError } = await admin
       .from("bookings").select("status").eq("id", row.booking_id).maybeSingle();
+    if (statusError) console.error("[scheduling] createBooking status read:", statusError);
     const isPending = statusRow?.status === "pending";
 
     // Solo orgs never name a staff member (resolveClientStaffName holds that

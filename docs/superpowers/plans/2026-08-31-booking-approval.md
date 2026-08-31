@@ -17,6 +17,7 @@
 3. **RPC return shapes unchanged.** Instead of adding `status` to the create RPCs' returns, each create action does one `select("status")` by the returned id (admin client). Smaller migration, same truth.
 4. **`overview` flag default flips `false` → `true`** — the spec's "Overview inbox" is unreachable while `/overview` 404s by default (2026-08-18 ruling: stat tiles alone didn't earn the nav slot; the inbox does).
 5. **Withdraw email reuses the existing cancellation templates** (client + provider). Manage-page UI says "Withdraw request"; the email copy still says "cancelled as requested". Deferred nicety.
+6. **Decline note is email-only in v1.** Spec §9 said the manage page shows the note on a declined request; surfacing it requires widening `resolve_booking_token` (a further migration). The note IS stored on the row (audit trail) and delivered in the decline email; the manage page shows the "Request declined" state only. Follow-up: widen the resolver and render the note.
 
 ## Global Constraints
 
