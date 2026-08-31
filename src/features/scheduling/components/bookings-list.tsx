@@ -49,9 +49,10 @@ function Row({
   const [declining, setDeclining] = React.useState(false);
   const nowMs = useNowMs();
   // Which side of the request line this row is on. The query already routes a
-  // lapsed request to Past (`actionable` false), and `isExpiredRequest` catches
-  // one that lapses while the page sits open — either way it is history and
-  // offers no buttons the RPCs would refuse.
+  // lapsed request to Past (`actionable` false), and `isExpiredRequest` covers
+  // the gap between that server render and hydration — `nowMs` is seeded once
+  // at mount and never ticks, so a request lapsing later keeps its buttons
+  // until the next render; the RPCs refuse them, which is the safe direction.
   const lapsedRequest =
     booking.status === "pending" &&
     (!actionable || (nowMs !== null && isExpiredRequest(booking, new Date(nowMs))));
