@@ -1,38 +1,42 @@
 ---
 name: Booklo
-description: Product-first soft — one warm off-white world for the landing, auth, admin and booking pages
+description: Product-first periwinkle (aave.com-referenced) — one white-and-lavender world for the landing, auth, admin and booking pages
 colors:
-  ground: "#fbfbfa"
-  ink: "#1c1c1a"
+  ground: "#fefefe"
+  ink: "#252228"
   card: "#ffffff"
-  panel: "#f4f4f2"
-  panel-hover: "#efefec"
-  sidebar: "#f6f6f4"
-  text-secondary: "#5f5f5b"
-  text-subtle: "#737370"
-  hairline: "rgb(28 28 26 / 0.08)"
-  hairline-strong: "rgb(28 28 26 / 0.12)"
-  kind-time: "#1e8bff"
-  kind-time-soft: "#e7f1ff"
-  kind-time-text: "#0b6fd6"
-  kind-space: "#22b455"
-  kind-space-soft: "#e6f7ec"
-  kind-space-text: "#15803d"
+  panel: "#f4f2fb"
+  panel-hover: "#eeecf8"
+  sidebar: "#f6f4fb"
+  text-secondary: "#5c5964"
+  text-subtle: "#686472"
+  stage-wash: "#e2dcfb"
+  hairline: "rgb(37 34 40 / 0.08)"
+  hairline-strong: "rgb(37 34 40 / 0.12)"
+  kind-time: "#978eff"
+  kind-time-soft: "#eeebff"
+  kind-time-text: "#4f42d8"
+  kind-space: "#01d062"
+  kind-space-soft: "#e3f9ec"
+  kind-space-text: "#0c7039"
   kind-class: "#ff3d8f"
   kind-class-soft: "#ffe6f0"
-  kind-class-text: "#c81e6a"
+  kind-class-text: "#b61a60"
   kind-stay: "#ff9500"
   kind-stay-soft: "#fff2df"
-  kind-stay-text: "#b45309"
+  kind-stay-text: "#a04a06"
   kind-embed: "#8b5cf6"
-  success: "#22b455"
+  on-kind: "#252228"
+  brand: "#978eff"
+  brand-text: "#4f42d8"
+  success: "#01d062"
   danger: "#e11d48"
   danger-soft: "#fde7ef"
-  night-ground: "#131312"
-  night-card: "#1b1b1a"
-  night-panel: "#222220"
-  night-ink: "#f4f4f2"
-  night-hairline: "rgb(244 244 242 / 0.09)"
+  night-ground: "#151318"
+  night-card: "#1d1a21"
+  night-panel: "#26232c"
+  night-ink: "#f2f0f7"
+  night-hairline: "rgb(242 240 247 / 0.09)"
 typography:
   display:
     fontFamily: "Inter, system-ui, sans-serif"
@@ -78,12 +82,12 @@ components:
 
 ## Overview
 
-Booklo is drawn as one **product-first soft** world everywhere: the marketing
+Booklo is drawn as one **product-first periwinkle** world (aave.com-referenced) everywhere: the marketing
 landing, auth, the admin app and the hosted booking pages share a single
 palette declared on `:root` in `src/app/globals.css` (the `.marketing` block
 holds the same values plus landing-only notes). Warm off-white ground, white
 cards on low-alpha hairlines, near-black ink as the only control colour.
-Colour appears **only where it names a kind of booking** — appointments blue,
+Colour appears **only where it names a kind of booking** — appointments periwinkle,
 spaces green, classes pink, stays orange, embed purple — never in the chrome.
 `.dark` is the same world at night (warm near-black, off-white ink pill),
 reachable per browser via Settings → Interface theme and by `/book` pages
@@ -96,16 +100,23 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
   `text-kind-space-text`…). Never hex values in components.
 - A bare `border` class resolves to the hairline token via the base layer in
   globals.css — do not add explicit grey border colours.
-- Kind colours as text always use the `-text` variants (AA on ground and
-  tints). Soft tints are for dots, discs, bars and event surfaces.
-- Secondary text is `text-muted-foreground` (#5f5f5b); captions and tick
-  labels are `text-subtle` (#737370). Never lighter greys for readable text.
+- Kind colours as text always use the `-text` variants (>= 5:1 on their own
+  soft tints, not just the ground). Soft tints are for dots, discs, bars and
+  event surfaces.
+- Text sitting ON a solid kind colour (chips, badges) is `text-on-kind` —
+  ink, never white: the kind colours are bright in both themes, so white
+  fails AA on them (2.2:1 on stay orange) while ink holds 5-7.8:1.
+- Secondary text is `text-muted-foreground` (#5c5964); captions and tick
+  labels are `text-subtle` (#686472). Never lighter greys for readable text.
 
 ## Typography
 
-- **Inter for everything that is read**: headlines at weight 500 with tight
-  tracking, body at 400, UI labels at 13px/500.
-- **Outfit Semibold only for the "booklo" wordmark** (`BookloWordmark`).
+- **Inter for everything that is read in the product**: body at 400, UI
+  labels at 13px/500.
+- **Outfit 500 for landing display type** (`font-display`): the hero (54px
+  desktop, 32px phones) and section H2s (44px desktop) on the marketing
+  pages only. Admin headlines stay Inter.
+- **Outfit Semibold for the "booklo" wordmark** (`BookloWordmark`).
 - **Geist Mono only where a value is a value** (handle URLs, kbd hints, tick
   labels). Monospace is never a "technical" costume.
 - Page titles live in the admin top bar (14px/600); pages don't render their
@@ -123,11 +134,17 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 ## Elevation & Depth
 
+The landing hero's stage takes the lavender wash: a top-to-bottom gradient
+from `#f5f3fe` to `stage-wash` (#e2dcfb), the reference's white-into-
+periwinkle fade (`.stage-wash` in globals.css). It is the only gradient in
+the system.
+
+
 Two shadows only, defined as tokens and used via `shadow-(--shadow-card)` /
 `shadow-(--shadow-lift)`:
 
-- `--shadow-card`: `0 1px 2px rgb(28 28 26 / 0.04), 0 16px 40px -20px rgb(28 28 26 / 0.18)` — overlays (dialogs, popovers, menus, sheets).
-- `--shadow-lift`: `0 1px 2px rgb(28 28 26 / 0.05), 0 6px 16px -8px rgb(28 28 26 / 0.14)` — small lifted elements (active nav row, segmented pill, search pill).
+- `--shadow-card`: `0 1px 2px rgb(37 34 40 / 0.04), 0 16px 40px -20px rgb(37 34 40 / 0.18)` — overlays (dialogs, popovers, menus, sheets).
+- `--shadow-lift`: `0 1px 2px rgb(37 34 40 / 0.05), 0 6px 16px -8px rgb(37 34 40 / 0.14)` — small lifted elements (active nav row, segmented pill, search pill).
 
 Overlay scrims are a plain ink dim (`bg-foreground/10`), no backdrop blur.
 
@@ -161,9 +178,11 @@ radius.
 - Do keep admin motion at 150–250ms, state-driven, transform/opacity only;
   every loop or entrance needs a reduced-motion variant.
 - Don't add page-load choreography to admin surfaces.
-- Don't put kind colours in chrome, nav, or buttons; ink is the only control
-  colour.
+- Don't put kind colours in chrome, nav, or buttons; ink pills are the
+  controls, and the brand blue appears only as focus rings, checked controls
+  and the active nav icon.
 - Don't hand grey borders, `transition-all`, pure `#000`/`#fff`, or a second
   accent into any surface.
-- Don't render marketing surfaces with `dark:` utilities — the `.marketing`
-  scope is light-only by design.
+- The landing is light except **one dark band**: the final CTA section opts
+  into the `.dark` scope (plum night) and carries `data-nav-dark`; the sticky
+  nav inverts while over it. No other marketing surface goes dark.

@@ -40,7 +40,7 @@ export function BrowserFrame({
         <div
           className={cn(
             "mx-auto flex h-6 w-full max-w-xs items-center justify-center truncate rounded-md px-3 font-mono text-[11px]",
-            dark ? "bg-white/8 text-white/50" : "bg-black/6 text-black/45",
+            dark ? "bg-white/8 text-white/70" : "bg-black/6 text-black/60",
           )}
         >
           <span className="truncate">{url}</span>

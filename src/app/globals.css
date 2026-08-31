@@ -81,6 +81,14 @@
   --color-kind-space-text: var(--kind-space-text);
   --color-kind-class-text: var(--kind-class-text);
   --color-kind-stay-text: var(--kind-stay-text);
+  /* Ink for text sitting ON a solid kind colour (chips, badges): the kind
+     colours are bright in both themes, so near-black holds AA everywhere
+     white fails (white on stay orange is 2.2:1; ink is 7.8:1). */
+  --color-on-kind: var(--on-kind);
+  /* The brand accent (the appointments blue): focus rings, checked
+     controls, the active nav icon. Controls themselves stay ink pills. */
+  --color-brand: var(--brand);
+  --color-brand-text: var(--brand-text);
   --font-display: var(--font-display, var(--font-sans));
   /* Landing motion curves (Emil Kowalski's design-engineering rules): the
      built-in easings are too weak; entering/exiting takes the strong
@@ -113,60 +121,66 @@
    `.dark` below is the same world at night. */
 :root {
   color-scheme: light;
-  --background: #fbfbfa;
-  --foreground: #1c1c1a;
+  --background: #fefefe;
+  --foreground: #252228;
   --card: #ffffff;
-  --card-foreground: #1c1c1a;
+  --card-foreground: #252228;
   --popover: #ffffff;
-  --popover-foreground: #1c1c1a;
-  --primary: #1c1c1a;
+  --popover-foreground: #252228;
+  --primary: #252228;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f2;
-  --secondary-foreground: #1c1c1a;
-  --muted: #f4f4f2;
-  --muted-foreground: #5f5f5b;
-  --subtle: #737370;
-  --accent: #efefec;
-  --accent-foreground: #1c1c1a;
+  --secondary: #f4f2fb;
+  --secondary-foreground: #252228;
+  --muted: #f4f2fb;
+  --muted-foreground: #5c5964;
+  --subtle: #686472;
+  --accent: #eeecf8;
+  --accent-foreground: #252228;
   --destructive: #e11d48;
-  --border: rgb(28 28 26 / 0.08);
-  --input: rgb(28 28 26 / 0.12);
-  --ring: #1c1c1a;
-  --highlight: #22b455;
-  --highlight-foreground: #ffffff;
-  --tint: #f4f4f2;
-  --success: #22b455;
-  --kind-time: #1e8bff;
-  --kind-time-soft: #e7f1ff;
-  --kind-space: #22b455;
-  --kind-space-soft: #e6f7ec;
+  --border: rgb(37 34 40 / 0.08);
+  --input: rgb(37 34 40 / 0.12);
+  --ring: #4f42d8;
+  --highlight: #01d062;
+  --highlight-foreground: #252228;
+  --tint: #f4f2fb;
+  --success: #01d062;
+  --kind-time: #978eff;
+  --kind-time-soft: #eeebff;
+  --kind-space: #01d062;
+  --kind-space-soft: #e3f9ec;
   --kind-stay: #ff9500;
   --kind-stay-soft: #fff2df;
   --kind-class: #ff3d8f;
   --kind-class-soft: #ffe6f0;
   --kind-embed: #8b5cf6;
-  --kind-time-text: #0b6fd6;
-  --kind-space-text: #15803d;
-  --kind-class-text: #c81e6a;
-  --kind-stay-text: #b45309;
+  /* Kind colours as text, darkened to hold >= 5:1 on their own soft tints
+     (the hardest surface they sit on), not just the ground. */
+  --kind-time-text: #4f42d8;
+  --kind-space-text: #0c7039;
+  --kind-class-text: #b61a60;
+  --kind-stay-text: #a04a06;
+  --on-kind: #252228;
+  /* The brand accent = the appointments blue. */
+  --brand: #978eff;
+  --brand-text: #4f42d8;
   --danger: #e11d48;
   --danger-soft: #fde7ef;
-  --shadow-card: 0 1px 2px rgb(28 28 26 / 0.04), 0 16px 40px -20px rgb(28 28 26 / 0.18);
-  --shadow-lift: 0 1px 2px rgb(28 28 26 / 0.05), 0 6px 16px -8px rgb(28 28 26 / 0.14);
+  --shadow-card: 0 1px 2px rgb(37 34 40 / 0.04), 0 16px 40px -20px rgb(37 34 40 / 0.18);
+  --shadow-lift: 0 1px 2px rgb(37 34 40 / 0.05), 0 6px 16px -8px rgb(37 34 40 / 0.14);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: #f6f6f4;
-  --sidebar-foreground: #1c1c1a;
-  --sidebar-primary: #1c1c1a;
+  --sidebar: #f6f4fb;
+  --sidebar-foreground: #252228;
+  --sidebar-primary: #252228;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgb(28 28 26 / 0.05);
-  --sidebar-accent-foreground: #1c1c1a;
-  --sidebar-border: rgb(28 28 26 / 0.08);
-  --sidebar-ring: #1c1c1a;
+  --sidebar-accent: rgb(37 34 40 / 0.05);
+  --sidebar-accent-foreground: #252228;
+  --sidebar-border: rgb(37 34 40 / 0.08);
+  --sidebar-ring: #4f42d8;
   --status-not-started: oklch(0.65 0 0);
   --status-in-progress: oklch(0.62 0.17 250);
   --status-complete: oklch(0.68 0.17 150);
@@ -182,31 +196,31 @@
    pages whose widget theme is "dark". */
 .dark {
   color-scheme: dark;
-  --background: #131312;
-  --foreground: #f4f4f2;
-  --card: #1b1b1a;
-  --card-foreground: #f4f4f2;
-  --popover: #21211f;
-  --popover-foreground: #f4f4f2;
-  --primary: #f4f4f2;
-  --primary-foreground: #1c1c1a;
-  --secondary: #222220;
-  --secondary-foreground: #f4f4f2;
-  --muted: #222220;
-  --muted-foreground: #a5a49e;
-  --subtle: #8f8e88;
-  --accent: rgb(244 244 242 / 0.07);
-  --accent-foreground: #f4f4f2;
+  --background: #151318;
+  --foreground: #f2f0f7;
+  --card: #1d1a21;
+  --card-foreground: #f2f0f7;
+  --popover: #232029;
+  --popover-foreground: #f2f0f7;
+  --primary: #f2f0f7;
+  --primary-foreground: #252228;
+  --secondary: #26232c;
+  --secondary-foreground: #f2f0f7;
+  --muted: #26232c;
+  --muted-foreground: #aaa6b5;
+  --subtle: #94909f;
+  --accent: rgb(242 240 247 / 0.07);
+  --accent-foreground: #f2f0f7;
   --destructive: #ff5c7c;
-  --border: rgb(244 244 242 / 0.09);
-  --input: rgb(244 244 242 / 0.14);
-  --ring: #f4f4f2;
+  --border: rgb(242 240 247 / 0.09);
+  --input: rgb(242 240 247 / 0.14);
+  --ring: #a89dff;
   --highlight: #34d16d;
-  --highlight-foreground: #131312;
-  --tint: #222220;
+  --highlight-foreground: #151318;
+  --tint: #26232c;
   --success: #34d16d;
-  --kind-time: #4da3ff;
-  --kind-time-soft: #182a41;
+  --kind-time: #a89dff;
+  --kind-time-soft: #262047;
   --kind-space: #34d16d;
   --kind-space-soft: #143220;
   --kind-stay: #ffa64d;
@@ -214,10 +228,14 @@
   --kind-class: #ff5ca2;
   --kind-class-soft: #3d1728;
   --kind-embed: #a78bfa;
-  --kind-time-text: #7db8ff;
+  --kind-time-text: #b9b0ff;
   --kind-space-text: #57d989;
   --kind-class-text: #ff86b8;
   --kind-stay-text: #ffb867;
+  /* Kind colours stay bright at night, so ink still reads on them. */
+  --on-kind: #252228;
+  --brand: #a89dff;
+  --brand-text: #b9b0ff;
   --danger: #ff5c7c;
   --danger-soft: #3d1420;
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px -20px rgb(0 0 0 / 0.7);
@@ -227,14 +245,14 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: #161615;
-  --sidebar-foreground: #f4f4f2;
-  --sidebar-primary: #f4f4f2;
-  --sidebar-primary-foreground: #1c1c1a;
-  --sidebar-accent: rgb(244 244 242 / 0.07);
-  --sidebar-accent-foreground: #f4f4f2;
-  --sidebar-border: rgb(244 244 242 / 0.09);
-  --sidebar-ring: #f4f4f2;
+  --sidebar: #18161c;
+  --sidebar-foreground: #f2f0f7;
+  --sidebar-primary: #f2f0f7;
+  --sidebar-primary-foreground: #252228;
+  --sidebar-accent: rgb(242 240 247 / 0.07);
+  --sidebar-accent-foreground: #f2f0f7;
+  --sidebar-border: rgb(242 240 247 / 0.09);
+  --sidebar-ring: #a89dff;
   --status-not-started: oklch(0.65 0 0);
   --status-in-progress: oklch(0.62 0.17 250);
   --status-complete: oklch(0.68 0.17 150);
@@ -249,24 +267,24 @@
    tokens; anything nested here that needs those must add them. */
 .light {
   color-scheme: light;
-  --background: #fbfbfa;
-  --foreground: #1c1c1a;
+  --background: #fefefe;
+  --foreground: #252228;
   --card: #ffffff;
-  --card-foreground: #1c1c1a;
+  --card-foreground: #252228;
   --popover: #ffffff;
-  --popover-foreground: #1c1c1a;
-  --primary: #1c1c1a;
+  --popover-foreground: #252228;
+  --primary: #252228;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f2;
-  --secondary-foreground: #1c1c1a;
-  --muted: #f4f4f2;
-  --muted-foreground: #5f5f5b;
-  --accent: #efefec;
-  --accent-foreground: #1c1c1a;
+  --secondary: #f4f2fb;
+  --secondary-foreground: #252228;
+  --muted: #f4f2fb;
+  --muted-foreground: #5c5964;
+  --accent: #eeecf8;
+  --accent-foreground: #252228;
   --destructive: #e11d48;
-  --border: rgb(28 28 26 / 0.08);
-  --input: rgb(28 28 26 / 0.12);
-  --ring: #1c1c1a;
+  --border: rgb(37 34 40 / 0.08);
+  --input: rgb(37 34 40 / 0.12);
+  --ring: #4f42d8;
 }
 
 /* Hosted booking page (/book/[handle]) in the org's widget theme "auto":
@@ -277,24 +295,24 @@
 @media not (prefers-color-scheme: light) {
   .book-auto {
     color-scheme: dark;
-    --background: #131312;
-    --foreground: #f4f4f2;
-    --card: #1b1b1a;
-    --card-foreground: #f4f4f2;
-    --popover: #21211f;
-    --popover-foreground: #f4f4f2;
-    --primary: #f4f4f2;
-    --primary-foreground: #1c1c1a;
-    --secondary: #222220;
-    --secondary-foreground: #f4f4f2;
-    --muted: #222220;
-    --muted-foreground: #a5a49e;
-    --accent: rgb(244 244 242 / 0.07);
-    --accent-foreground: #f4f4f2;
+    --background: #151318;
+    --foreground: #f2f0f7;
+    --card: #1d1a21;
+    --card-foreground: #f2f0f7;
+    --popover: #232029;
+    --popover-foreground: #f2f0f7;
+    --primary: #f2f0f7;
+    --primary-foreground: #252228;
+    --secondary: #26232c;
+    --secondary-foreground: #f2f0f7;
+    --muted: #26232c;
+    --muted-foreground: #aaa6b5;
+    --accent: rgb(242 240 247 / 0.07);
+    --accent-foreground: #f2f0f7;
     --destructive: #ff5c7c;
-    --border: rgb(244 244 242 / 0.09);
-    --input: rgb(244 244 242 / 0.14);
-    --ring: #f4f4f2;
+    --border: rgb(242 240 247 / 0.09);
+    --input: rgb(242 240 247 / 0.14);
+    --ring: #a89dff;
   }
 }
 
@@ -309,49 +327,53 @@
    this block is the single place the landing's colours live. */
 .marketing {
   color-scheme: light;
-  --background: #fbfbfa;
-  --foreground: #1c1c1a;
+  --background: #fefefe;
+  --foreground: #252228;
   --card: #ffffff;
-  --card-foreground: #1c1c1a;
+  --card-foreground: #252228;
   --popover: #ffffff;
-  --popover-foreground: #1c1c1a;
-  --primary: #1c1c1a;
+  --popover-foreground: #252228;
+  --primary: #252228;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f2;
-  --secondary-foreground: #1c1c1a;
-  --muted: #f4f4f2;
+  --secondary: #f4f2fb;
+  --secondary-foreground: #252228;
+  --muted: #f4f2fb;
   /* Secondary text, 6.6:1 on the ground. */
-  --muted-foreground: #5f5f5b;
-  /* Captions and tick labels, 4.7:1 on the ground. */
-  --subtle: #737370;
-  --accent: #efefec;
-  --accent-foreground: #1c1c1a;
+  --muted-foreground: #5c5964;
+  /* Captions and tick labels, 4.9:1 on the soft panels (5.2:1 on the ground). */
+  --subtle: #686472;
+  --accent: #eeecf8;
+  --accent-foreground: #252228;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: rgb(28 28 26 / 0.07);
-  --input: rgb(28 28 26 / 0.11);
-  --ring: #1c1c1a;
-  --highlight: #22b455;
-  --highlight-foreground: #ffffff;
-  --tint: #f4f4f2;
-  --success: #22b455;
-  --kind-time: #1e8bff;
-  --kind-time-soft: #e7f1ff;
-  --kind-space: #22b455;
-  --kind-space-soft: #e6f7ec;
+  --border: rgb(37 34 40 / 0.07);
+  --input: rgb(37 34 40 / 0.11);
+  --ring: #4f42d8;
+  --highlight: #01d062;
+  --highlight-foreground: #252228;
+  --tint: #f4f2fb;
+  --success: #01d062;
+  --kind-time: #978eff;
+  --kind-time-soft: #eeebff;
+  --kind-space: #01d062;
+  --kind-space-soft: #e3f9ec;
   --kind-stay: #ff9500;
   --kind-stay-soft: #fff2df;
   --kind-class: #ff3d8f;
   --kind-class-soft: #ffe6f0;
   --kind-embed: #8b5cf6;
-  /* The same kinds as text: darkened to hold AA on the ground and the tints. */
-  --kind-time-text: #0b6fd6;
-  --kind-space-text: #15803d;
-  --kind-class-text: #c81e6a;
-  --kind-stay-text: #b45309;
+  /* The same kinds as text: darkened to hold >= 5:1 on the tints, not just
+     the ground. */
+  --kind-time-text: #4f42d8;
+  --kind-space-text: #0c7039;
+  --kind-class-text: #b61a60;
+  --kind-stay-text: #a04a06;
+  --on-kind: #252228;
+  --brand: #978eff;
+  --brand-text: #4f42d8;
   --danger: #e11d48;
   --danger-soft: #fde7ef;
-  --shadow-card: 0 1px 2px rgb(28 28 26 / 0.04), 0 16px 40px -20px rgb(28 28 26 / 0.18);
-  --shadow-lift: 0 1px 2px rgb(28 28 26 / 0.05), 0 6px 16px -8px rgb(28 28 26 / 0.14);
+  --shadow-card: 0 1px 2px rgb(37 34 40 / 0.04), 0 16px 40px -20px rgb(37 34 40 / 0.18);
+  --shadow-lift: 0 1px 2px rgb(37 34 40 / 0.05), 0 6px 16px -8px rgb(37 34 40 / 0.14);
   background-color: var(--background);
   accent-color: var(--foreground);
   caret-color: var(--foreground);
@@ -359,13 +381,19 @@
 /* Text selection carries the world too — everywhere, not only on the
    landing. */
 ::selection {
-  background: rgb(28 28 26 / 0.12);
+  background: rgb(37 34 40 / 0.12);
 }
 .dark ::selection {
-  background: rgb(244 244 242 / 0.2);
+  background: rgb(242 240 247 / 0.2);
 }
 .marketing ::selection {
-  background: rgb(28 28 26 / 0.12);
+  background: rgb(37 34 40 / 0.12);
+}
+
+/* Hero stage: the reference's lavender wash, white fading into soft
+   periwinkle. */
+.marketing .stage-wash {
+  background: linear-gradient(180deg, #f5f3fe 0%, #e2dcfb 100%);
 }
 
 /* Landing motion. Curves are the strong ease-out; only transform, opacity,
@@ -397,13 +425,26 @@
 }
 .animate-pop { animation: pop 0.25s var(--ease-strong) both; }
 
-/* Hero mode switch (components/hero.tsx): the ink pill is the clip-path
-   tabs pattern -- an active-styled copy of the row revealed by an animated
-   inset, so background and label colour glide as one element (250ms,
-   strong ease-in-out, on the element inline style). The widget below
-   enters from the chosen tab's side -- spatial consistency with the
-   switch -- and a light blur bridges the crossfade so the two states read
-   as one object. */
+/* Hero fragment chips (components/hero.tsx): the booking story told in
+   four chips. They enter on a 70ms stagger from scale .95 (strong
+   ease-out), then take a quiet story beat in booking order — one 3px lift
+   each, strong ease-in-out, on the page's shared 8s cycle. Transform and
+   opacity only; the entrance and the beat never overlap (the beat's first
+   delay clears the last entrance). */
+.marketing .frag {
+  animation:
+    frag-in 0.45s var(--ease-strong) both,
+    frag-beat 8s var(--ease-in-out-strong) infinite;
+}
+.marketing .frag:nth-child(1) { animation-delay: 0ms, 1600ms; }
+.marketing .frag:nth-child(2) { animation-delay: 70ms, 2300ms; }
+.marketing .frag:nth-child(3) { animation-delay: 140ms, 3000ms; }
+.marketing .frag:nth-child(4) { animation-delay: 210ms, 3700ms; }
+@keyframes frag-in { from { opacity: 0; transform: translateY(8px) scale(0.95); } }
+@keyframes frag-beat { 0%, 100% { transform: none; } 4% { transform: translateY(-3px); } 9% { transform: none; } }
+
+/* The widget below enters from the side the channel "comes from" -- and a
+   light blur bridges the crossfade so the two states read as one object. */
 @keyframes enter-right { from { opacity: 0; transform: translateX(16px); filter: blur(4px); } }
 @keyframes enter-left { from { opacity: 0; transform: translateX(-16px); filter: blur(4px); } }
 .animate-enter-right { animation: enter-right 0.35s var(--ease-strong) both; }
@@ -422,13 +463,51 @@
 .marketing .hs-row-4 { animation-delay: 1.5s; }
 @keyframes hs-row { 0%, 4% { opacity: 0; transform: translateY(8px); } 10%, 88% { opacity: 1; transform: none; } 94%, 100% { opacity: 0; transform: none; } }
 
-/* Feature cells (components/feature-cells.tsx): two quiet 8s loops. */
-.marketing .fc-sel .fc-row { animation: fc-sel 8s var(--ease-strong) infinite; }
-.marketing .fc-sel .fc-row:nth-child(2) { animation-delay: 2.6s; }
-.marketing .fc-sel .fc-row:nth-child(3) { animation-delay: 5.2s; }
-@keyframes fc-sel { 0%, 5% { box-shadow: inset 0 0 0 1px var(--input); background: var(--card); } 8%, 30% { box-shadow: inset 0 0 0 1.5px var(--foreground); background: var(--secondary); } 34%, 100% { box-shadow: inset 0 0 0 1px var(--input); background: var(--card); } }
+/* Feature cells (components/feature-cells.tsx): four quiet explanatory
+   loops, transform/opacity/clip-path only (plus the brand chip's recolour,
+   which IS that cell's story). The rest of the cells hold still. */
+/* Reschedule picker: the white selection card glides down the three rows
+   (rows are 38px + 8px gap, so the steps are 46px). */
+.marketing .fc-slide { animation: fc-slide 9s var(--ease-in-out-strong) infinite; }
+@keyframes fc-slide {
+  0%, 30% { transform: translateY(0); }
+  33.5%, 63.5% { transform: translateY(46px); }
+  67%, 97% { transform: translateY(92px); }
+  100% { transform: translateY(0); }
+}
+/* Reminders: "sent" lands on the first row, then the second. */
+.marketing .fc-sent { animation: fc-sent 9s var(--ease-strong) infinite; }
+.marketing .fc-sent-2 { animation-name: fc-sent-2; }
+@keyframes fc-sent {
+  0%, 12% { opacity: 0; transform: scale(0.95); }
+  16%, 92% { opacity: 1; transform: none; }
+  96%, 100% { opacity: 0; transform: scale(0.95); }
+}
+@keyframes fc-sent-2 {
+  0%, 32% { opacity: 0; transform: scale(0.95); }
+  36%, 92% { opacity: 1; transform: none; }
+  96%, 100% { opacity: 0; transform: scale(0.95); }
+}
+/* Room's day filling. */
 .marketing .fc-fill { clip-path: inset(0 0 0 0 round 7px); animation: fc-fill 8s var(--ease-strong) infinite; }
 @keyframes fc-fill { 0%, 10% { clip-path: inset(0 100% 0 0 round 7px); opacity: 1; } 16%, 90% { clip-path: inset(0 0 0 0 round 7px); opacity: 1; } 96%, 100% { clip-path: inset(0 0 0 0 round 7px); opacity: 0; } }
+/* Brand: the swatch ring slides (swatches are 30px + 10px gap) while the
+   mini page's avatar and button recolour in step. Base state = the brand
+   periwinkle, so the still (reduced-motion) frame is coherent. */
+.marketing .fc-swatch { transform: translateX(40px); animation: fc-swatch 9s var(--ease-in-out-strong) infinite; }
+@keyframes fc-swatch {
+  0%, 30% { transform: translateX(40px); }
+  33.5%, 63.5% { transform: translateX(80px); }
+  67%, 97% { transform: translateX(120px); }
+  100% { transform: translateX(40px); }
+}
+.marketing .fc-chip { background: var(--brand); animation: fc-chip 9s var(--ease-in-out-strong) infinite; }
+@keyframes fc-chip {
+  0%, 32% { background: var(--brand); }
+  35%, 65% { background: var(--kind-stay); }
+  68.5%, 98% { background: var(--kind-space); }
+  100% { background: var(--brand); }
+}
 
 /* Reduced motion: keep opacity and colour, drop movement; every loop holds
    its end state. */
@@ -436,8 +515,9 @@
   .animate-fade-up { animation: fade-up 0.2s ease both; transform: none; }
   .animate-enter-right, .animate-enter-left { animation: fade-up 0.2s ease both; transform: none; filter: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
+  .marketing .frag { animation: fade-up 0.2s ease both; transform: none; }
   .animate-pop,
-  .marketing .hs-type, .marketing .hs-caret, .marketing .hs-grow, .marketing .hs-row, .marketing .fc-sel .fc-row, .marketing .fc-fill { animation: none; }
+  .marketing .hs-type, .marketing .hs-caret, .marketing .hs-grow, .marketing .hs-row, .marketing .fc-slide, .marketing .fc-sent, .marketing .fc-sent-2, .marketing .fc-swatch, .marketing .fc-chip, .marketing .fc-fill { animation: none; }
   .marketing .hs-type { clip-path: none; }
 }
 
