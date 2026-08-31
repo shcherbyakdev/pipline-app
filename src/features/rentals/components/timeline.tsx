@@ -268,7 +268,10 @@ export function Timeline({
             // Open hand at rest: the chart is draggable through time and the
             // cursor is the affordance that says so (the legend repeats it).
             "min-h-[20rem] cursor-grab overflow-x-hidden overflow-y-auto",
-            summary.count > 0 ? "h-[calc(100dvh-17.5rem)]" : "h-[calc(100dvh-14rem)]",
+            // Offsets = page chrome above/below the chart inside the panel
+            // shell: 44px header + p-6 + toolbar rows + the panel's top gap
+            // (md:p-2) and border (see AppShell).
+            summary.count > 0 ? "h-[calc(100dvh-17.625rem)]" : "h-[calc(100dvh-14.125rem)]",
             // While dragging: closed hand, no selection, and nothing under
             // the moving pointer reacts (no hover cards popping mid-drag —
             // the container itself still gets the captured events).

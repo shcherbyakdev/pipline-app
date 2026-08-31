@@ -11,12 +11,12 @@ import { signOut } from "@/features/auth/actions";
 import { OPEN_COMMAND_MENU_EVENT } from "@/components/command-menu";
 import { cn } from "@/lib/utils";
 
-/* Soft-world sidebar: a warm grey panel one step off the ground, 13px/500
-   rows on 8px radii, and the active row lifted onto a white card (hairline
-   + the small layered shadow) instead of an accent tint — the same move the
-   landing's booking card uses for its selected row. */
+/* Linear sidebar metrics (Figma ref 2003:2) on the soft-world palette:
+   13px/500 items, 14px icons, 8px radius, 28px rows, section labels 12px
+   muted. The active row keeps the soft world's move — lifted onto a card
+   (hairline + the small layered shadow) — at Linear's density. */
 const itemClass =
-  "flex h-8 w-full items-center gap-2.5 rounded-lg border border-transparent px-2.5 text-[13px] font-medium transition-colors duration-150 ease-strong outline-none focus-visible:ring-2 focus-visible:ring-ring/40";
+  "flex h-7 w-full items-center gap-2.5 rounded-[8px] border border-transparent px-2 text-[13px] font-medium transition-colors duration-150 ease-strong outline-none focus-visible:ring-2 focus-visible:ring-ring/40";
 const idleClass = "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground";
 const activeClass = "border-border bg-card text-foreground shadow-(--shadow-lift)";
 
@@ -59,9 +59,9 @@ export function SidebarBody({
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event(OPEN_COMMAND_MENU_EVENT))}
-          className="bg-card text-muted-foreground hover:text-foreground focus-visible:ring-ring/40 mt-4 flex h-8 w-full items-center gap-2.5 rounded-full border px-3 text-[13px] shadow-(--shadow-lift) transition-colors duration-150 ease-strong outline-none focus-visible:ring-2"
+          className="bg-card text-muted-foreground hover:text-foreground focus-visible:ring-ring/40 mt-3 flex h-7 w-full items-center gap-2.5 rounded-[8px] border px-2 text-[13px] shadow-(--shadow-lift) transition-colors duration-150 ease-strong outline-none focus-visible:ring-2"
         >
-          <HugeiconsIcon icon={Search01Icon} size={15} className="shrink-0" />
+          <HugeiconsIcon icon={Search01Icon} size={14} className="shrink-0" />
           <span className="flex-1 text-left">Search</span>
           <kbd className="text-subtle font-mono text-[10px]">⌘K</kbd>
         </button>
@@ -86,7 +86,7 @@ export function SidebarBody({
                     aria-current={active ? "page" : undefined}
                     className={cn(itemClass, active ? activeClass : idleClass)}
                   >
-                    <HugeiconsIcon icon={icon} size={16} className={cn("shrink-0", active ? "text-brand-text" : "text-subtle")} />
+                    <HugeiconsIcon icon={icon} size={14} className={cn("shrink-0", active ? "text-brand-text" : "text-subtle")} />
                     {text}
                   </Link>
                 );
@@ -103,7 +103,7 @@ export function SidebarBody({
         <form action={signOut}>
           <button
             type="submit"
-            className="text-muted-foreground hover:bg-sidebar-accent hover:text-foreground focus-visible:ring-ring/40 flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-colors duration-150 ease-strong outline-none focus-visible:ring-2"
+            className="text-muted-foreground hover:bg-sidebar-accent hover:text-foreground focus-visible:ring-ring/40 flex h-7 w-full items-center gap-2 rounded-[8px] px-2 text-xs transition-colors duration-150 ease-strong outline-none focus-visible:ring-2"
           >
             <HugeiconsIcon icon={Logout03Icon} size={15} className="text-subtle" />
             Sign out
