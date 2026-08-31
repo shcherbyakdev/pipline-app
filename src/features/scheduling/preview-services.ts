@@ -24,6 +24,7 @@ const CANNED_PREVIEW_SERVICE: PublicService = {
   minNoticeMin: 0,
   maxPerDay: null,
   bookingWindowDays: 30,
+  requiresApproval: false,
 };
 
 type ServiceRow = PublicService & { active: boolean };
@@ -43,6 +44,7 @@ export function toPreviewServices(services: ServiceRow[]): PublicService[] {
       minNoticeMin: s.minNoticeMin,
       maxPerDay: s.maxPerDay,
       bookingWindowDays: s.bookingWindowDays,
+      requiresApproval: s.requiresApproval,
     }));
   return active.length > 0 ? active : [CANNED_PREVIEW_SERVICE];
 }

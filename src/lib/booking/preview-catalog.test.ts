@@ -12,6 +12,7 @@ function service(id: string, active = true): ServiceRow {
   return {
     id, name: id, description: null, durationMin: 30, priceLabel: null,
     bufferBeforeMin: 0, bufferAfterMin: 0, minNoticeMin: 0, maxPerDay: null, bookingWindowDays: 30, active,
+    requiresApproval: false,
   };
 }
 function offering(id: string, active = true, activeUnitCount = 1): OfferingRow {

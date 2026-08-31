@@ -104,6 +104,8 @@ export function whenLineFor(
 
 export const STATUS_LABEL: Record<string, string> = {
   confirmed: "Confirmed",
+  pending: "Pending approval",
+  declined: "Declined",
   cancelled_by_client: "Cancelled by client",
   cancelled_by_provider: "Cancelled by you",
   rescheduled: "Rescheduled",
@@ -219,6 +221,11 @@ export function bookingLifecycleKey(
     // frees the OLD member's calendar — their notice needs a key of its own
     // so a later real cancellation isn't deduped against it.
     | "staff-handed-over"
+    // Booking approval (0062): the client's request-received and
+    // request-declined mails, and the accept-time confirmation's key (Task 7).
+    | "request-received"
+    | "request-declined"
+    | "manage-accept"
     | `manage-${string}`,
 ): string {
   return `booking/${bookingId}/${kind}`;
@@ -254,6 +261,83 @@ export function bookingCancelledEmail(input: {
     input.serviceName,
     ...staffTextLine(input.staffName),
     input.whenLine,
+    ...badgeTextLines(input.badgeUrl),
+  ].join("\n");
+  return { subject, html, text };
+}
+
+// Approval: the request-time twin of bookingConfirmationEmail. No .ics —
+// nothing is on anyone's calendar yet; the manage link is the withdraw path.
+export function bookingRequestReceivedEmail(input: {
+  orgName: string;
+  serviceName: string;
+  whenLine: string;
+  manageUrl: string;
+  staffName?: string | null;
+  badgeUrl?: string | null;
+  infoLines?: string[];
+}): { subject: string; html: string; text: string } {
+  const subject = `Request received — ${input.serviceName}, ${input.whenLine}`;
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
+  <p style="margin: 0 0 8px;">Your booking request was sent. You'll get an email once ${esc(input.orgName)} confirms it.</p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${(input.infoLines ?? []).map((l) => `\n  <p style="margin: 0 0 4px; color: #444;">${esc(l)}</p>`).join("")}
+  <p style="margin: 0 0 8px;">
+    <a href="${esc(input.manageUrl)}">View or withdraw this request</a>
+  </p>
+  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
+    Keep this email — the link above is your access to the request.
+  </p>${badgeHtmlLine(input.badgeUrl)}
+</div>`.trim();
+  const text = [
+    input.orgName,
+    "",
+    `Your booking request was sent. You'll get an email once ${input.orgName} confirms it.`,
+    input.serviceName,
+    ...staffTextLine(input.staffName),
+    input.whenLine,
+    ...(input.infoLines ?? []),
+    "",
+    `View or withdraw: ${input.manageUrl}`,
+    ...badgeTextLines(input.badgeUrl),
+  ].join("\n");
+  return { subject, html, text };
+}
+
+export function bookingDeclinedEmail(input: {
+  orgName: string;
+  serviceName: string;
+  whenLine: string;
+  note?: string | null;
+  staffName?: string | null;
+  badgeUrl?: string | null;
+}): { subject: string; html: string; text: string } {
+  const subject = `Request declined — ${input.serviceName}, ${input.whenLine}`;
+  const noteHtml = input.note
+    ? `\n  <p style="margin: 0 0 16px; color: #444; white-space: pre-wrap;">&ldquo;${esc(input.note)}&rdquo;</p>`
+    : "";
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
+  <p style="margin: 0 0 8px;">${esc(input.orgName)} couldn't take your booking request.</p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${noteHtml}
+  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
+    You're welcome to request another time on the booking page.
+  </p>${badgeHtmlLine(input.badgeUrl)}
+</div>`.trim();
+  const text = [
+    input.orgName,
+    "",
+    `${input.orgName} couldn't take your booking request.`,
+    input.serviceName,
+    ...staffTextLine(input.staffName),
+    input.whenLine,
+    ...(input.note ? ["", `"${input.note}"`] : []),
+    "",
+    "You're welcome to request another time on the booking page.",
     ...badgeTextLines(input.badgeUrl),
   ].join("\n");
   return { subject, html, text };
@@ -384,21 +468,31 @@ export function providerNewBookingEmail(input: {
   // the client confirmation. Absent or empty renders byte-identical to the
   // pre-H3 template.
   infoLines?: string[];
+  // Approval (0062): the org requires approval and this booking landed
+  // pending — the provider's copy reads "requested" and points at the
+  // accept/decline step instead of the plain "booked" confirmation.
+  pending?: boolean;
 }): { subject: string; html: string; text: string } {
-  const subject = `New booking — ${input.serviceName}, ${input.whenLine}`;
+  const requested = input.pending === true;
+  const subject = requested
+    ? `New booking request — ${input.serviceName}, ${input.whenLine}`
+    : `New booking — ${input.serviceName}, ${input.whenLine}`;
   const noteHtml = input.note
     ? `\n  <p style="margin: 0 0 16px; color: #444; white-space: pre-wrap;">${esc(input.note)}</p>`
     : "";
+  const footer = requested
+    ? "Accept or decline it from your Overview page — the slot is held until you do."
+    : "It's on your calendar; the client got their confirmation.";
   const html = `
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-  <p style="margin: 0 0 8px;"><strong>${esc(input.clientName)}</strong> booked with you.</p>
+  <p style="margin: 0 0 8px;"><strong>${esc(input.clientName)}</strong> ${requested ? "requested a booking with you." : "booked with you."}</p>
   <p style="margin: 0 0 4px;">${esc(input.serviceName)}</p>${staffHtmlLine(input.staffName)}
   <p style="margin: 0 0 4px;">${esc(input.whenLine)}</p>${(input.infoLines ?? []).map((l) => `\n  <p style="margin: 0 0 4px; color: #444;">${esc(l)}</p>`).join("")}
   <p style="margin: 0 0 16px; color: #666;">${esc(input.clientEmail)}</p>${noteHtml}
-  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">It's on your calendar; the client got their confirmation.</p>
+  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">${esc(footer)}</p>
 </div>`.trim();
   const text = [
-    `${input.clientName} booked with you.`,
+    `${input.clientName} ${requested ? "requested a booking with you." : "booked with you."}`,
     input.serviceName,
     ...staffTextLine(input.staffName),
     input.whenLine,
@@ -406,7 +500,7 @@ export function providerNewBookingEmail(input: {
     input.clientEmail,
     ...(input.note ? ["", input.note] : []),
     "",
-    "It's on your calendar; the client got their confirmation.",
+    footer,
   ].join("\n");
   return { subject, html, text };
 }
