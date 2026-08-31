@@ -2,12 +2,17 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { whenLineFor } from "@/features/scheduling/templates";
-import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/booking-actions";
+import { whenLineFor, STATUS_LABEL } from "@/features/scheduling/templates";
+import {
+  acceptBookingRequest, cancelBookingAdmin, resendManageLink,
+} from "@/features/scheduling/booking-actions";
+import { isExpiredRequest } from "@/features/scheduling/requests";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
+import { DeclineRequestDialog } from "./requests-inbox";
 import { MoveRentalDialog } from "@/features/rentals/components/move-rental-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -56,11 +61,27 @@ function DetailBody({
   const [pending, startTransition] = React.useTransition();
   const [confirming, setConfirming] = React.useState(false);
   const [moveOpen, setMoveOpen] = React.useState(false);
+  const [declining, setDeclining] = React.useState(false);
   const [now] = React.useState(nowMs);
   // Past this point the booking is history: nothing to cancel or move (the
   // actions refuse it too — this just stops offering what can't happen).
   const ended = new Date(booking.endsAt).getTime() < now;
   const started = new Date(booking.startsAt).getTime() <= now;
+  // A request the owner can still answer vs one that lapsed unanswered — the
+  // RPCs draw the same line (0063), so nothing offers a click they'd refuse.
+  const expiredRequest = isExpiredRequest(booking, new Date(now));
+  const liveRequest = booking.status === "pending" && !expiredRequest;
+
+  const accept = () =>
+    startTransition(async () => {
+      const result = await acceptBookingRequest({ id: booking.id });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(result.emailed ? "Accepted — confirmation sent." : "Accepted.");
+      onClose();
+    });
 
   const cancel = () =>
     startTransition(async () => {
@@ -117,7 +138,30 @@ function DetailBody({
         {booking.clientEmail ? ` · ${booking.clientEmail}` : " · no email on file"}
         {booking.note ? ` · “${booking.note}”` : null}
       </p>
-      {ended ? (
+      {/* Only the actions branch on status — everything above is the same
+          booking whatever state it is in. */}
+      {liveRequest ? (
+        <>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{STATUS_LABEL.pending}</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={accept} disabled={pending}>
+              Accept
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setDeclining(true)} disabled={pending}>
+              Decline…
+            </Button>
+          </div>
+        </>
+      ) : expiredRequest ? (
+        <>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">Request expired</Badge>
+          </div>
+          <p className="text-muted-foreground text-xs">This request lapsed before it was answered.</p>
+        </>
+      ) : ended ? (
         <p className="text-muted-foreground text-xs">This appointment has ended.</p>
       ) : (
         <div className="flex items-center gap-2">
@@ -156,7 +200,16 @@ function DetailBody({
         </div>
       )}
       {/* Nested inside the popup: Base UI's own nested-dialog shape, so
-          focus and dismissal stack instead of fighting each other. */}
+          focus and dismissal stack instead of fighting each other. It owns
+          the action, the toast and the refresh — this one just closes. */}
+      {liveRequest ? (
+        <DeclineRequestDialog
+          bookingId={booking.id}
+          open={declining}
+          onOpenChange={setDeclining}
+          onDeclined={onClose}
+        />
+      ) : null}
       {booking.rentalUnitId === null || ended ? null : (
         <MoveRentalDialog
           booking={booking}

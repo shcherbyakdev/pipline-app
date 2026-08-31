@@ -17,6 +17,7 @@ import {
 } from "@/features/rentals/timeline-layout";
 import { visibleOffset } from "@/features/rentals/pan";
 import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
+import { isExpiredRequest } from "@/features/scheduling/requests";
 import { zonedParts } from "@/features/scheduling/calendar-geometry";
 import { BookingDetailDialog } from "@/features/scheduling/components/booking-detail-dialog";
 import { NewBookingDialog } from "@/features/scheduling/components/new-booking-dialog";
@@ -163,9 +164,18 @@ export function Timeline({
   );
 
   const blackoutsByUnit = React.useMemo(() => groupBy(blackouts, (b) => b.unitId), [blackouts]);
+  // The stay feed keeps every pending request (rentals/queries.ts) because a
+  // live one holds its dates. A LAPSED one holds nothing and is never drawn —
+  // unlike the week grid, this feed doesn't filter them out SQL-side. Before
+  // the clock is seeded nothing is dropped, so the server and first client
+  // render agree.
   const staysByUnit = React.useMemo(
-    () => groupBy(bookings.filter((b) => b.rentalUnitId !== null), (b) => b.rentalUnitId!),
-    [bookings],
+    () =>
+      groupBy(
+        bookings.filter((b) => b.rentalUnitId !== null && (now === null || !isExpiredRequest(b, now))),
+        (b) => b.rentalUnitId!,
+      ),
+    [bookings, now],
   );
 
   // Conflicts are a per-unit question, detected over every stay the fetch

@@ -4,13 +4,17 @@ import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { whenLineFor, STATUS_LABEL } from "@/features/scheduling/templates";
-import { cancelBookingAdmin, resendManageLink } from "@/features/scheduling/booking-actions";
+import {
+  acceptBookingRequest, cancelBookingAdmin, resendManageLink,
+} from "@/features/scheduling/booking-actions";
+import { isExpiredRequest } from "@/features/scheduling/requests";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { OrgMode } from "@/features/orgs/mode";
 import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { RESEND_STARTED_HINT } from "./booking-detail-dialog";
+import { DeclineRequestDialog } from "./requests-inbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -42,7 +46,16 @@ function Row({
 }) {
   const [pending, startTransition] = React.useTransition();
   const [confirming, setConfirming] = React.useState(false);
+  const [declining, setDeclining] = React.useState(false);
   const nowMs = useNowMs();
+  // Which side of the request line this row is on. The query already routes a
+  // lapsed request to Past (`actionable` false), and `isExpiredRequest` catches
+  // one that lapses while the page sits open — either way it is history and
+  // offers no buttons the RPCs would refuse.
+  const lapsedRequest =
+    booking.status === "pending" &&
+    (!actionable || (nowMs !== null && isExpiredRequest(booking, new Date(nowMs))));
+  const liveRequest = booking.status === "pending" && !lapsedRequest;
   // "Upcoming" is ends_at-based (a stay in progress still lists), but a
   // manage link can only be reissued before the start (rotate_booking_token).
   const started = nowMs !== null && new Date(booking.startsAt).getTime() <= nowMs;
@@ -63,6 +76,13 @@ function Row({
       setConfirming(false);
     });
 
+  const accept = () =>
+    startTransition(async () => {
+      const result = await acceptBookingRequest({ id: booking.id });
+      if (!result.ok) toast.error(result.error);
+      else toast.success(result.emailed ? "Accepted — confirmation sent." : "Accepted.");
+    });
+
   const resend = () =>
     startTransition(async () => {
       const result = await resendManageLink({ id: booking.id });
@@ -81,7 +101,13 @@ function Row({
           {booking.serviceName}
           {showKind && booking.rentalUnitId !== null ? <Badge variant="outline">{SPACES.badge}</Badge> : null}
         </p>
-        {actionable ? null : (
+        {liveRequest ? (
+          <Badge variant="secondary">{STATUS_LABEL.pending}</Badge>
+        ) : lapsedRequest ? (
+          // "Pending approval" would be a lie in the history list — this one
+          // ran out of time.
+          <Badge variant="secondary">Request expired</Badge>
+        ) : actionable ? null : (
           <Badge variant="secondary">{STATUS_LABEL[booking.status] ?? booking.status}</Badge>
         )}
       </div>
@@ -113,7 +139,19 @@ function Row({
         {booking.clientEmail ? ` · ${booking.clientEmail}` : ""}
         {booking.note ? ` · “${booking.note}”` : null}
       </p>
-      {actionable ? (
+      {/* A request is answered, not managed: Accept / Decline replace the
+          reschedule–resend–cancel row until it becomes a booking. */}
+      {liveRequest ? (
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={accept} disabled={pending}>
+            Accept
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setDeclining(true)} disabled={pending}>
+            Decline…
+          </Button>
+          <DeclineRequestDialog bookingId={booking.id} open={declining} onOpenChange={setDeclining} />
+        </div>
+      ) : actionable && !lapsedRequest ? (
         <div className="flex items-center gap-2">
           {/* Rentals have no slot grid to move to — cancel/rebook instead. */}
           {booking.serviceId === null ? null : (
