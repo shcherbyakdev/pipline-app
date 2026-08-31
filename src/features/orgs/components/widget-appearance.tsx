@@ -333,7 +333,9 @@ export function WidgetAppearance({
             )}
           </div>
         </SettingsCard>
-        <div className="lg:sticky lg:top-[calc(52px+1.5rem)] lg:self-start">
+        {/* Sticks inside the shell panel's scroll container (the header row
+            sits above it), so the offset is just the content padding. */}
+        <div className="lg:sticky lg:top-6 lg:self-start">
           <EmbedPreviewFrame config={previewConfig} accentColor={accentColor}>
             <BookingWidget
               handle="preview"
