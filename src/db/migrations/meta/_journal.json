@@ -435,6 +435,13 @@
       "when": 1787918959144,
       "tag": "0061_reserved_staff_slugs",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1788183127497,
+      "tag": "0062_booking_approval",
+      "breakpoints": true
     }
   ]
 }
