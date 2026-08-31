@@ -43,6 +43,9 @@ export function RentalBookingFlow({
   const [unitId, setUnitId] = React.useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = React.useState(false);
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
+  // Whether the RPC left it pending (the space requires approval) — the done
+  // panel says "Request sent" instead of "Booking confirmed".
+  const [donePending, setDonePending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
   // Request-ordering guard: a fast month-nav click can fire a second fetch
@@ -118,6 +121,7 @@ export function RentalBookingFlow({
       });
       if (result.ok) {
         setDoneToken(result.token);
+        setDonePending(result.pending);
         return;
       }
       setError(result.error);
@@ -143,6 +147,7 @@ export function RentalBookingFlow({
       <BookingConfirmed
         token={doneToken}
         summary={summary ? { title: offering.name, whenLine: summary } : undefined}
+        pending={donePending}
       />
     );
   }
@@ -248,7 +253,7 @@ export function RentalBookingFlow({
             idPrefix="rental-"
           />
           <Button type="submit" className="wt-primary" disabled={pending}>
-            {pending ? "Booking…" : "Confirm booking"}
+            {pending ? "Sending…" : offering.requiresApproval ? "Request to book" : "Confirm booking"}
           </Button>
         </form>
       )}

@@ -69,6 +69,9 @@ export const services = pgTable(
     maxPerDay: integer("max_per_day"),
     bookingWindowDays: integer("booking_window_days").default(60).notNull(),
     active: boolean("active").default(true).notNull(),
+    // Approval feature: when true, public creates insert status='pending'
+    // instead of 'confirmed' (0062). Admin walk-ins ignore it.
+    requiresApproval: boolean("requires_approval").default(false).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -185,13 +188,18 @@ export const bookings = pgTable(
     clientEmail: text("client_email"),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
-    // 'confirmed' | 'cancelled_by_client' | 'cancelled_by_provider' |
-    // 'rescheduled' — CHECK in 0026. The EXCLUDE guard covers 'confirmed' only.
+    // 'confirmed' | 'pending' | 'declined' | 'cancelled_by_client' |
+    // 'cancelled_by_provider' | 'rescheduled' — CHECK in 0062 (was 0026).
+    // The EXCLUDE guards cover 'confirmed' AND 'pending' (0062): a request
+    // holds its slot. "Expired" is computed (pending && starts_at <= now()),
+    // never stored.
     status: text("status").default("confirmed").notNull(),
     // sha256 hex of the manage token (mint.ts idiom). The raw token is
     // returned once from create_booking's caller and never stored.
     cancelTokenHash: text("cancel_token_hash").notNull(),
     note: text("note"),
+    // Provider's optional message stamped at decline time (CHECK <= 500, 0062).
+    declineNote: text("decline_note"),
     // H3 money snapshot, computed inside the rental RPCs at (re)booking
     // time. NULL for appointments and pre-H3 rows; historical record —
     // later offering/currency edits never rewrite it.

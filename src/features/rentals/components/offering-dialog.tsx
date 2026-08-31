@@ -101,6 +101,7 @@ export function OfferingDialog({
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
       unitSelection: String(fd.get("unitSelection") ?? "auto"),
       active: fd.get("active") === "on",
+      requiresApproval: fd.get("requiresApproval") === "on",
       priceCents: price === "" ? null : Math.round(Number(price) * 100),
       pricingMode: String(fd.get("pricingMode") ?? "per_unit"),
       depositType,
@@ -517,6 +518,19 @@ export function OfferingDialog({
             />
             <Label htmlFor="offering-active">Active</Label>
           </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="offering-requires-approval"
+              name="requiresApproval"
+              type="checkbox"
+              className="size-4"
+              defaultChecked={offering?.requiresApproval ?? false}
+            />
+            <Label htmlFor="offering-requires-approval">Require approval</Label>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            New bookings wait for your confirmation instead of confirming instantly.
+          </p>
           <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : "Save"}
           </Button>

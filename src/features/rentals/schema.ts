@@ -24,6 +24,7 @@ const offeringCommon = z.object({
   bookingWindowDays: z.number().int().min(1).max(730).default(180),
   unitSelection: z.enum(UNIT_SELECTIONS).default("auto"),
   active: z.boolean().default(true),
+  requiresApproval: z.boolean().default(false),
   priceCents: z.number().int().min(0).max(100_000_000).nullable().default(null),
   pricingMode: z.enum(PRICING_MODES).default("per_unit"),
   depositType: z.enum(DEPOSIT_TYPES).default("none"),

@@ -12,6 +12,7 @@ function service(id: string, active = true): ServiceRow {
   return {
     id, name: id, description: null, durationMin: 30, priceLabel: null,
     bufferBeforeMin: 0, bufferAfterMin: 0, minNoticeMin: 0, maxPerDay: null, bookingWindowDays: 30, active,
+    requiresApproval: false,
   };
 }
 function offering(id: string, active = true, activeUnitCount = 1): OfferingRow {
@@ -19,7 +20,7 @@ function offering(id: string, active = true, activeUnitCount = 1): OfferingRow {
     id, name: id, description: null, rangeMode: "nights", startTime: "15:00", endTime: "11:00",
     minStay: 1, maxStay: null, turnoverDays: 0, minNoticeDays: 0, bookingWindowDays: 180,
     unitSelection: "auto", slotIncrementMin: null, minDurationMin: null, maxDurationMin: null,
-    turnoverMin: 0, minNoticeMin: 0, active, sortOrder: 0, unitCount: 1, activeUnitCount,
+    turnoverMin: 0, minNoticeMin: 0, active, requiresApproval: false, sortOrder: 0, unitCount: 1, activeUnitCount,
     priceCents: 20000, pricingMode: "per_unit", depositType: "none", depositValue: null,
     cancelWindowMin: 0, termsText: null,
   };

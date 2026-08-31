@@ -120,6 +120,9 @@ export function BookingWidget({
   // Whom the RPC actually assigned — null for solo orgs, so the confirmation
   // stays wordless there.
   const [doneStaffName, setDoneStaffName] = React.useState<string | null>(null);
+  // Whether the RPC left it pending (the service requires approval) — the
+  // done panel says "Request sent" instead of "Booking confirmed".
+  const [donePending, setDonePending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
   const slotsRegionRef = React.useRef<HTMLDivElement>(null);
@@ -225,6 +228,7 @@ export function BookingWidget({
       if (result.ok) {
         setDoneToken(result.token);
         setDoneStaffName(result.staffName);
+        setDonePending(result.pending);
       } else {
         setError(result.error);
         if ("slotTaken" in result && result.slotTaken) {
@@ -275,7 +279,8 @@ export function BookingWidget({
     );
   }
 
-  if (doneToken) return <BookingConfirmed token={doneToken} staffName={doneStaffName} />;
+  if (doneToken)
+    return <BookingConfirmed token={doneToken} staffName={doneStaffName} pending={donePending} />;
 
   // Whom this booking is with, or null when there is nothing worth saying —
   // a solo org (or one eligible person) must read exactly as it did before
@@ -459,7 +464,13 @@ export function BookingWidget({
           </p>
           <ClientDetailsFields />
           <Button type="submit" className="wt-primary" disabled={pending || !!preview}>
-            {preview ? "Preview" : pending ? "Booking…" : "Confirm booking"}
+            {preview
+              ? "Preview"
+              : pending
+                ? "Sending…"
+                : service.requiresApproval
+                  ? "Request to book"
+                  : "Confirm booking"}
           </Button>
         </form>
       )}

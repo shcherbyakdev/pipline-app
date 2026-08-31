@@ -336,10 +336,19 @@ export function CalendarWeek({
                     key={b.id}
                     type="button"
                     onClick={() => setSelected(b)}
-                    className="w-full truncate rounded border bg-card px-1.5 py-0.5 text-left text-[11px]"
+                    className={cn(
+                      "w-full truncate rounded border px-1.5 py-0.5 text-left text-[11px]",
+                      // A request is a ghost: it holds the slot but nobody has
+                      // said yes yet (0062). Dashed BOX + a lighter fill —
+                      // the dashed left rule already means "space". No
+                      // `opacity` on top: it faded the muted client-name line
+                      // below 4.5:1 (QA), and the two signals here suffice.
+                      b.status === "pending" ? "border-dashed bg-card/50" : "bg-card",
+                    )}
                     style={{ borderLeft: `3px solid ${serviceAccent(b.rentalOfferingId ?? "")}` }}
                   >
                     {b.serviceName}
+                    {b.status === "pending" ? <span className="sr-only"> · Pending</span> : null}
                   </button>
                 ))}
               </div>
@@ -451,8 +460,13 @@ export function CalendarWeek({
                   type="button"
                   onClick={() => setSelected(b)}
                   className={cn(
-                    "absolute z-10 overflow-hidden rounded-md border bg-card p-1.5 text-left text-xs shadow-sm hover:shadow",
+                    "absolute z-10 overflow-hidden rounded-md border p-1.5 text-left text-xs shadow-sm hover:shadow",
                     lay.cols === 1 && "inset-x-0",
+                    // A pending request holds the slot but isn't confirmed —
+                    // it reads as a ghost of the booking it would become.
+                    // Dashed border + translucent fill only: an added
+                    // `opacity` dropped the muted client-name line to 4.16:1.
+                    b.status === "pending" ? "border-dashed bg-card/50" : "bg-card",
                   )}
                   style={{
                     // Overlapping bookings share the day side-by-side.
@@ -514,6 +528,11 @@ export function CalendarWeek({
                       </span>
                     </>
                   )}
+                  {/* The word, not just the dashes: a sliver of a card has no
+                      room for it on screen but still owes it to a reader. */}
+                  {b.status === "pending" ? (
+                    <span className={cn("text-muted-foreground", compact ? "sr-only" : "block")}>Pending</span>
+                  ) : null}
                 </button>
               );
             })}

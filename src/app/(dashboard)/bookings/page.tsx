@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import {
   listBookings,
-  listConfirmedBookingsBetween,
+  listCalendarBookingsBetween,
   listExceptionsBetween,
   listServices,
   getAvailabilityAdmin,
@@ -300,7 +300,7 @@ export default async function BookingsPage({
   const owners = scopeHoursOwners(scope, activeStaff, people, spaces);
   const [rawBookings, exceptions, availability] = await Promise.all([
     // Fetched UNFILTERED and narrowed in memory — one org-week of rows.
-    listConfirmedBookingsBetween(fromIso, toIso),
+    listCalendarBookingsBetween(fromIso, toIso),
     // Likewise every owner's overrides for the week, attributed per row.
     listExceptionsBetween(weekStart, weekEnd),
     Promise.all(

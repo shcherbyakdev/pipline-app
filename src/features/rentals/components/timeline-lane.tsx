@@ -398,6 +398,9 @@ function StayBar({
     : `${dayMonth(startDate)} → ${dayMonth(endDate)}`;
   const flagged = conflicts.length > 0;
   const hard = isHard(conflicts);
+  // Lapsed requests never reach a lane (timeline.tsx filters them), so a
+  // pending row here is always one the owner can still answer.
+  const pendingRequest = b.status === "pending";
   const when = whenLineFor({ startsAt, endsAt, isRental: true, rangeMode: mode }, timeZone);
   const time = mode === "hours" ? minToTime(zonedParts(startsAt, timeZone).minutes) : null;
 
@@ -415,20 +418,24 @@ function StayBar({
             type="button"
             id={`tl-stay-${b.id}`}
             onClick={() => onSelect(b)}
-            aria-label={`${b.clientName}, ${when}${flagged ? `. ${conflicts.map(conflictText).join(". ")}` : ""}`}
+            aria-label={`${b.clientName}, ${when}${pendingRequest ? ". Pending approval" : ""}${flagged ? `. ${conflicts.map(conflictText).join(". ")}` : ""}`}
             className={cn(
               "absolute z-10 flex overflow-hidden rounded-md border text-left shadow-sm outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring",
               chip ? "items-center gap-1 px-1 text-[11px]" : "flex-col justify-center px-1.5 text-xs",
               clippedLeft && "rounded-l-none border-l-0",
               clippedRight && "rounded-r-none border-r-0",
               phase === "past" && "opacity-60",
+              // A request holds the dates without being confirmed — a ghost
+              // of the bar it becomes when the owner accepts.
+              pendingRequest && "border-dashed",
               flagged && (hard ? "ring-2 ring-destructive" : "ring-2 ring-amber-500"),
             )}
             style={{
               ...style,
               // The space's hue as a wash over the card, so a lane's bars read
               // as that space's; the left rule is the same hue at full strength.
-              background: `color-mix(in srgb, ${accent} 16%, var(--card))`,
+              // Half the wash while it is only a request.
+              background: `color-mix(in srgb, ${accent} ${pendingRequest ? 8 : 16}%, var(--card))`,
               borderLeft: clippedLeft ? undefined : `3px solid ${accent}`,
             }}
           >
@@ -485,6 +492,7 @@ function StayBar({
         </span>
         {b.clientEmail ? <span className="opacity-70">{b.clientEmail}</span> : null}
         {b.note ? <span className="opacity-70">“{b.note}”</span> : null}
+        {pendingRequest ? <span>Pending approval</span> : null}
         {phase === "current" ? <span>In house now</span> : phase === "past" ? <span className="opacity-70">Ended</span> : null}
         {conflicts.map((c, i) => (
           <span key={i} className={cn("flex items-start gap-1", c.kind === "turnover" ? "text-amber-500" : "text-destructive")}>

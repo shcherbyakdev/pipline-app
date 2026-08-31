@@ -15,20 +15,24 @@ export function AppShell({
   userEmail,
   flags,
   mode,
+  pendingRequests,
   children,
 }: {
   org: string;
   userEmail: string;
   flags: Flags;
   mode: OrgMode;
+  /** Live booking requests, for the badge on the Overview row (0 when the
+      overview flag is off — the layout doesn't even count them then). */
+  pendingRequests: number;
   children: React.ReactNode;
 }) {
   return (
     <div className="bg-sidebar flex h-dvh w-full">
-      <AppSidebar org={org} userEmail={userEmail} flags={flags} mode={mode} />
+      <AppSidebar org={org} userEmail={userEmail} flags={flags} mode={mode} pendingRequests={pendingRequests} />
       <div className="flex min-w-0 flex-1 flex-col md:p-2 md:pl-0">
         <div className="bg-background flex min-h-0 flex-1 flex-col overflow-hidden md:rounded-[12px] md:border md:shadow-(--shadow-card)">
-          <TopBar org={org} userEmail={userEmail} flags={flags} mode={mode} />
+          <TopBar org={org} userEmail={userEmail} flags={flags} mode={mode} pendingRequests={pendingRequests} />
           <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">{children}</main>
         </div>
       </div>

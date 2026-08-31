@@ -15,6 +15,7 @@ export type ServiceRow = {
   maxPerDay: number | null;
   bookingWindowDays: number;
   active: boolean;
+  requiresApproval: boolean;
   sortOrder: number;
   /** Team (multi-staff): who can be booked for this service (0040
       `service_staff`). Includes deactivated people — their link survives a
@@ -27,7 +28,7 @@ export async function listServices(): Promise<ServiceRow[]> {
   const { data, error } = await supabase
     .from("services")
     .select(
-      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days, active, sort_order, service_staff(staff_id)",
+      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days, active, requires_approval, sort_order, service_staff(staff_id)",
     )
     .order("sort_order")
     .order("name");
@@ -44,6 +45,7 @@ export async function listServices(): Promise<ServiceRow[]> {
     maxPerDay: s.max_per_day,
     bookingWindowDays: s.booking_window_days,
     active: s.active,
+    requiresApproval: s.requires_approval,
     sortOrder: s.sort_order,
     staffIds: ((s.service_staff ?? []) as { staff_id: string }[]).map((l) => l.staff_id),
   }));
@@ -199,10 +201,15 @@ export type AdminBooking = {
   staffId: string | null;
   staffName: string | null;
   staffColor: string | null;
+  // H3 money, snapshotted onto the row at write time (0057). Null whenever
+  // the offering carried no price — appointments always. The requests inbox
+  // shows it so "accept" is a decision made with the amount in view.
+  priceCents: number | null;
+  currency: string | null;
 };
 
 export const BOOKING_COLUMNS =
-  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
+  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, price_cents, currency, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
 
 export type BookingRow = {
   id: string;
@@ -217,6 +224,8 @@ export type BookingRow = {
   note: string | null;
   rescheduled_from_id: string | null;
   staff_id: string | null;
+  price_cents: number | null;
+  currency: string | null;
   staff: { name: string; color: string } | null;
   services: { name: string } | null;
   rental_offerings: { name: string; range_mode: RangeMode } | null;
@@ -241,6 +250,8 @@ export function toAdminBooking(b: BookingRow): AdminBooking {
     staffId: b.staff_id,
     staffName: b.staff?.name ?? null,
     staffColor: b.staff?.color ?? null,
+    priceCents: b.price_cents,
+    currency: b.currency,
   };
 }
 
@@ -248,20 +259,25 @@ export async function listBookings(): Promise<{ upcoming: AdminBooking[]; past: 
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
   const [upcomingRes, pastRes] = await Promise.all([
+    // Upcoming: confirmed, plus live pending requests.
     supabase
       .from("bookings")
       .select(BOOKING_COLUMNS)
-      .eq("status", "confirmed")
+      .or(`status.eq.confirmed,and(status.eq.pending,starts_at.gt.${nowIso})`)
       // ends_at, not starts_at (Rentals R1): a multi-night stay in progress is
       // still upcoming — it only leaves the list once it has ended.
       .gte("ends_at", nowIso)
       .order("starts_at", { ascending: true }),
-    // History: anything cancelled/rescheduled, plus confirmed-and-ended.
+    // History: terminal statuses, confirmed-and-ended, and lapsed requests.
     // Capped — S5's calendar view is the archaeology surface.
     supabase
       .from("bookings")
       .select(BOOKING_COLUMNS)
-      .or(`status.neq.confirmed,ends_at.lt.${nowIso}`)
+      .or(
+        `status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined),` +
+          `and(status.eq.confirmed,ends_at.lt.${nowIso}),` +
+          `and(status.eq.pending,starts_at.lte.${nowIso})`,
+      )
       .order("starts_at", { ascending: false })
       .limit(50),
   ]);
@@ -277,7 +293,7 @@ export async function listBookings(): Promise<{ upcoming: AdminBooking[]; past: 
     have no staff (staff_id is null), so they drop out whenever the filter is
     on — the calendar's staff filter is an appointment lens, and callers that
     want the whole week (the default "All" view) simply omit the argument. */
-export async function listConfirmedBookingsBetween(
+export async function listCalendarBookingsBetween(
   fromIso: string,
   toIso: string,
   staffIds?: string[],
@@ -286,7 +302,9 @@ export async function listConfirmedBookingsBetween(
   const base = supabase
     .from("bookings")
     .select(BOOKING_COLUMNS)
-    .eq("status", "confirmed")
+    // Confirmed, plus live pending requests — they hold slots (0062), so the
+    // grid must show why a time is blocked. A lapsed pending is history.
+    .or(`status.eq.confirmed,and(status.eq.pending,starts_at.gt.${new Date().toISOString()})`)
     // Overlap, not containment (Rentals R1): a multi-night stay that began
     // before the visible week still belongs on it.
     .lt("starts_at", toIso)
@@ -341,4 +359,29 @@ export async function listStatsBookings(fromIso: string): Promise<StatsBookingRo
     status: b.status,
     createdAt: b.created_at,
   }));
+}
+
+/** Live pending requests, oldest start first — the Overview inbox feed. */
+export async function listPendingRequests(): Promise<AdminBooking[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select(BOOKING_COLUMNS)
+    .eq("status", "pending")
+    .gt("starts_at", new Date().toISOString())
+    .order("starts_at", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as unknown as BookingRow[]).map(toAdminBooking);
+}
+
+/** Cheap head-count of live pending requests — the sidebar badge. */
+export async function countPendingRequests(): Promise<number> {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("bookings")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending")
+    .gt("starts_at", new Date().toISOString());
+  if (error) throw error;
+  return count ?? 0;
 }

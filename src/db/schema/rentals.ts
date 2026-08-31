@@ -62,6 +62,8 @@ export const rentalOfferings = pgTable(
     // 'auto' | 'client_picks' — CHECK in 0037.
     unitSelection: text("unit_selection").default("auto").notNull(),
     active: boolean("active").default(true).notNull(),
+    // Approval feature (0062): public creates insert status='pending'.
+    requiresApproval: boolean("requires_approval").default(false).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },

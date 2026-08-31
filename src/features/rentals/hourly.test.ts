@@ -38,6 +38,7 @@ function offering(over: Partial<PublicOffering> = {}): PublicOffering {
     depositValue: null,
     cancelWindowMin: 0,
     termsText: null,
+    requiresApproval: false,
     ...over,
   };
 }

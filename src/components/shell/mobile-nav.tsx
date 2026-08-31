@@ -18,11 +18,13 @@ export function MobileNav({
   userEmail,
   flags,
   mode,
+  pendingRequests,
 }: {
   org: string;
   userEmail: string;
   flags: Flags;
   mode: OrgMode;
+  pendingRequests: number;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -38,7 +40,14 @@ export function MobileNav({
         className="bg-sidebar text-sidebar-foreground flex w-[260px] flex-col p-0"
       >
         <SheetTitle className="sr-only">Navigation</SheetTitle>
-        <SidebarBody org={org} userEmail={userEmail} flags={flags} mode={mode} onNavigate={() => setOpen(false)} />
+        <SidebarBody
+          org={org}
+          userEmail={userEmail}
+          flags={flags}
+          mode={mode}
+          pendingRequests={pendingRequests}
+          onNavigate={() => setOpen(false)}
+        />
       </SheetContent>
     </Sheet>
   );

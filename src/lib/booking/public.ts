@@ -33,6 +33,7 @@ export type PublicService = {
   minNoticeMin: number;
   maxPerDay: number | null;
   bookingWindowDays: number;
+  requiresApproval: boolean;
 };
 
 export type BookingOrg = {
@@ -68,7 +69,7 @@ export async function listPublicServices(orgId: string): Promise<PublicService[]
   const { data, error } = await admin
     .from("services")
     .select(
-      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days",
+      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days, requires_approval",
     )
     .eq("org_id", orgId)
     .eq("active", true)
@@ -86,6 +87,7 @@ export async function listPublicServices(orgId: string): Promise<PublicService[]
     minNoticeMin: s.min_notice_min,
     maxPerDay: s.max_per_day,
     bookingWindowDays: s.booking_window_days,
+    requiresApproval: s.requires_approval,
   }));
 }
 
@@ -134,7 +136,8 @@ export async function getBusyIntervals(
     .from("bookings")
     .select("starts_at, ends_at, service_id, services(buffer_before_min, buffer_after_min)")
     .eq("staff_id", staffId)
-    .eq("status", "confirmed")
+    // Pending requests hold their slot (0062 EXCLUDE) — busy sets must agree.
+    .in("status", ["confirmed", "pending"])
     // Rentals never block the provider's calendar (unit-level guard, R1).
     .is("rental_unit_id", null)
     .gte("ends_at", fromIso)
@@ -178,7 +181,7 @@ async function getServiceByIdIncludingInactive(
   const { data, error } = await admin
     .from("services")
     .select(
-      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days",
+      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days, requires_approval",
     )
     .eq("org_id", orgId)
     .eq("id", serviceId)
@@ -196,6 +199,7 @@ async function getServiceByIdIncludingInactive(
     minNoticeMin: data.min_notice_min,
     maxPerDay: data.max_per_day,
     bookingWindowDays: data.booking_window_days,
+    requiresApproval: data.requires_approval,
   };
 }
 
@@ -404,11 +408,12 @@ export type PublicOffering = {
   depositValue: number | null;
   cancelWindowMin: number;
   termsText: string | null;
+  requiresApproval: boolean;
 };
 export type PublicUnit = { id: string; name: string; description: string | null; active: boolean };
 
 const PUBLIC_OFFERING_COLUMNS =
-  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text";
+  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text, requires_approval";
 
 type PublicOfferingDb = {
   id: string;
@@ -434,6 +439,7 @@ type PublicOfferingDb = {
   deposit_value: number | null;
   cancel_window_min: number;
   terms_text: string | null;
+  requires_approval: boolean;
 };
 
 function toPublicOffering(o: PublicOfferingDb): PublicOffering {
@@ -461,6 +467,7 @@ function toPublicOffering(o: PublicOfferingDb): PublicOffering {
     depositValue: o.deposit_value,
     cancelWindowMin: o.cancel_window_min,
     termsText: o.terms_text,
+    requiresApproval: o.requires_approval,
   };
 }
 
@@ -643,7 +650,7 @@ export async function loadOrgRangeContext(
       .from("bookings")
       .select("id, rental_unit_id, starts_at, ends_at")
       .in("rental_unit_id", unitIds)
-      .eq("status", "confirmed")
+      .in("status", ["confirmed", "pending"])
       .gte("ends_at", `${windowStart}T00:00:00Z`)
       .lte("starts_at", `${windowEnd}T23:59:59Z`),
   ]);
@@ -745,7 +752,7 @@ export async function loadOrgHourlyContext(
           .from("bookings")
           .select("id, rental_unit_id, starts_at, ends_at")
           .in("rental_unit_id", unitIds)
-          .eq("status", "confirmed")
+          .in("status", ["confirmed", "pending"])
           .gte("ends_at", fromIso)
           .lte("starts_at", toIso)
       : Promise.resolve({ data: [], error: null }),

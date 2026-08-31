@@ -59,6 +59,9 @@ export function HourlyBookingFlow({
   const [unitId, setUnitId] = React.useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = React.useState(false);
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
+  // Whether the RPC left it pending (the space requires approval) — the done
+  // panel says "Request sent" instead of "Booking confirmed".
+  const [donePending, setDonePending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
   const slotsRegionRef = React.useRef<HTMLDivElement>(null);
@@ -154,6 +157,7 @@ export function HourlyBookingFlow({
       });
       if (result.ok) {
         setDoneToken(result.token);
+        setDonePending(result.pending);
         return;
       }
       setError(result.error);
@@ -191,7 +195,7 @@ export function HourlyBookingFlow({
             ),
           }
         : undefined;
-    return <BookingConfirmed token={doneToken} summary={summary} />;
+    return <BookingConfirmed token={doneToken} summary={summary} pending={donePending} />;
   }
 
   return (
@@ -344,7 +348,7 @@ export function HourlyBookingFlow({
             idPrefix="hourly-"
           />
           <Button type="submit" className="wt-primary" disabled={pending}>
-            {pending ? "Booking…" : "Confirm booking"}
+            {pending ? "Sending…" : offering.requiresApproval ? "Request to book" : "Confirm booking"}
           </Button>
         </form>
       )}

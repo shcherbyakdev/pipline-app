@@ -27,6 +27,7 @@ export const serviceInput = z.object({
   maxPerDay: z.number().int().min(1).max(100).nullable().default(null),
   bookingWindowDays: z.number().int().min(1).max(365).default(60),
   active: z.boolean().default(true),
+  requiresApproval: z.boolean().default(false),
   // Team (multi-staff): who can be booked for this service. Optional, and the
   // absence is meaningful — a solo org's dialog never renders the checklist,
   // so `createService` assigns every active member and `updateService` leaves
@@ -183,6 +184,14 @@ export const rescheduleBookingInput = z.object({
 });
 
 export const bookingIdInput = z.object({ id: z.uuid() });
+
+// Approval: declining a request may carry a short reason for the client's
+// mail. 500 is the DB's own ceiling (bookings_decline_note_check, 0062) —
+// decline_booking (0063) refuses anything longer.
+export const declineBookingInput = z.object({
+  id: z.uuid(),
+  note: z.string().trim().max(500).optional(),
+});
 
 export const adminRescheduleInput = z.object({
   id: z.uuid(),

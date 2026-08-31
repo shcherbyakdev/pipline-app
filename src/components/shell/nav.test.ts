@@ -1,19 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { navItemsFor, titleForPath, NAV_SECTIONS, NAV_SECTION_LABELS } from "./nav";
-import { FLAG_DEFAULTS } from "@/lib/flags";
+import { FLAG_DEFAULTS, type Flags } from "@/lib/flags";
 import { BOTH } from "@/features/orgs/mode";
 
 const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
 const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
 // Rentals flag forced ON here: nav must be exercised for the un-parked world
 // regardless of what FLAG_DEFAULTS says while tasks land out of order.
-const FLAGS = { ...FLAG_DEFAULTS, rentals: true };
+const FLAGS: Flags = { ...FLAG_DEFAULTS, rentals: true };
 const hrefs = (flags: typeof FLAGS, mode: typeof BOTH) => navItemsFor(flags, mode).map((i) => i.href);
 
 describe("navItemsFor (flags × mode) — spec §1 table, fixed order, spaces first (H5b)", () => {
   it("both channels: every row, in the spec's order", () => {
     expect(hrefs(FLAGS, BOTH)).toEqual([
-      "/bookings", "/clients",
+      "/overview", "/bookings", "/clients",
       "/rentals", "/services", "/team", "/availability",
       "/booking-page", "/embed",
       "/settings",
@@ -21,12 +21,12 @@ describe("navItemsFor (flags × mode) — spec §1 table, fixed order, spaces fi
   });
   it("rentals-only: keeps Availability (it covers spaces from U3), hides Services and Team", () => {
     expect(hrefs(FLAGS, RENTALS_ONLY)).toEqual([
-      "/bookings", "/clients", "/rentals", "/availability", "/booking-page", "/embed", "/settings",
+      "/overview", "/bookings", "/clients", "/rentals", "/availability", "/booking-page", "/embed", "/settings",
     ]);
   });
   it("appointments-only: hides Spaces, keeps the rest in order", () => {
     expect(hrefs(FLAGS, APPTS_ONLY)).toEqual([
-      "/bookings", "/clients", "/services", "/team", "/availability", "/booking-page", "/embed", "/settings",
+      "/overview", "/bookings", "/clients", "/services", "/team", "/availability", "/booking-page", "/embed", "/settings",
     ]);
   });
   it("sections: Offer holds the catalogue nouns, Share the channels, account the rest", () => {
@@ -51,7 +51,10 @@ describe("navItemsFor (flags × mode) — spec §1 table, fixed order, spaces fi
     expect(hrefs({ ...FLAGS, rentals: false }, BOTH)).not.toContain("/rentals");
   });
   it("existing flag gating is untouched", () => {
-    const h = hrefs(FLAGS, BOTH); // billing + overview off in FLAG_DEFAULTS
+    // Billing is off in FLAG_DEFAULTS; overview is on since the requests
+    // inbox landed, so its gate is exercised by switching it back off (what
+    // an opted-out org gets from /utils/flags).
+    const h = hrefs({ ...FLAGS, overview: false }, BOTH);
     expect(h).not.toContain("/billing");
     expect(h).not.toContain("/overview");
   });

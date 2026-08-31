@@ -24,10 +24,13 @@ export const FLAG_DEFAULTS = {
       view is unreachable, the public surface lists no offerings, the rentals
       public actions refuse. */
   rentals: true,
-  /** /overview (ruling 2026-08-18): four org-wide tiles is not yet a dashboard
-      worth the first nav slot. While off: /overview 404s and the sidebar
-      starts at Bookings. */
-  overview: false,
+  /** /overview. The 2026-08-18 ruling (four org-wide tiles is not yet a
+      dashboard worth the first nav slot) is SUPERSEDED by booking approval:
+      the requests inbox is work waiting on the owner, and that earns the
+      slot — the tiles now ride along under it. An org can still be opted out
+      per-org from /utils/flags. While off: /overview 404s, the sidebar starts
+      at Bookings and no request count is fetched for it. */
+  overview: true,
   /** ⌘K palette (ruling 2026-08-18): presented as "Search" but only navigates.
       While off: no sidebar Search button and ⌘K is inert (never mounts). */
   command_menu: false,
@@ -42,6 +45,9 @@ export const FLAG_KEYS = Object.keys(FLAG_DEFAULTS) as readonly FlagKey[];
 export const FLAG_META: Record<FlagKey, { label: string; description: string }> = {
   billing: { label: "Billing", description: "Plans, gates, /billing page and nav item, entitlement reads." },
   rentals: { label: "Rentals", description: "/rentals, the bookings timeline, rental offerings on the public widget." },
-  overview: { label: "Overview", description: "The /overview stat tiles and their nav row." },
+  overview: {
+    label: "Overview",
+    description: "The /overview requests inbox and stat tiles, their nav row and its request count.",
+  },
   command_menu: { label: "Command menu", description: "The ⌘K palette and the sidebar Search button." },
 };

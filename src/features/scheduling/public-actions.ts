@@ -24,6 +24,7 @@ import {
   bookingConfirmationEmail,
   bookingIdempotencyKey,
   bookingLifecycleKey,
+  bookingRequestReceivedEmail,
   providerNewBookingEmail,
   formatWhenLine,
 } from "./templates";
@@ -162,7 +163,7 @@ export async function getSlots(
 export async function createBooking(
   input: unknown,
 ): Promise<
-  | { ok: true; token: string; staffName: string | null }
+  | { ok: true; token: string; staffName: string | null; pending: boolean }
   | { ok: false; error: string; slotTaken?: boolean }
 > {
   if (await limited("booking")) return { ok: false, error: TOO_MANY_REQUESTS };
@@ -239,6 +240,13 @@ export async function createBooking(
       return { ok: false, error: GENERIC_WRITE_ERROR };
     }
 
+    // The RPC decided under the flag it read at insert time — one select
+    // keeps the emails honest even if the toggle flips mid-flight.
+    const { data: statusRow, error: statusError } = await admin
+      .from("bookings").select("status").eq("id", row.booking_id).maybeSingle();
+    if (statusError) console.error("[scheduling] createBooking status read:", statusError);
+    const isPending = statusRow?.status === "pending";
+
     // Solo orgs never name a staff member (resolveClientStaffName holds that
     // rule, and degrades to the unnamed copy if the count blows up — past this
     // point the booking EXISTS and nothing may fail the action).
@@ -253,21 +261,31 @@ export async function createBooking(
     });
 
     // Best-effort confirmation (spec: the booking survives email failure;
-    // S2's drain adds retries).
+    // S2's drain adds retries). Pending: the request-received twin instead —
+    // nothing is confirmed and nothing is on a calendar yet.
     try {
       const manageUrl = buildBookingManageUrl(token);
-      const msg = bookingConfirmationEmail({
-        orgName: ctx.org.orgName,
-        serviceName: ctx.service.name,
-        whenLine,
-        manageUrl,
-        icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
-        staffName,
-        // "Powered by Booklo" unless the org's plan lets it opt out and it
-        // did (emailBadgeUrl swallows its own errors — same discipline as
-        // resolveClientStaffName above: the booking is already committed).
-        badgeUrl: await emailBadgeUrl(ctx.org.orgId),
-      });
+      const msg = isPending
+        ? bookingRequestReceivedEmail({
+            orgName: ctx.org.orgName,
+            serviceName: ctx.service.name,
+            whenLine,
+            manageUrl,
+            staffName,
+            badgeUrl: await emailBadgeUrl(ctx.org.orgId),
+          })
+        : bookingConfirmationEmail({
+            orgName: ctx.org.orgName,
+            serviceName: ctx.service.name,
+            whenLine,
+            manageUrl,
+            icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+            staffName,
+            // "Powered by Booklo" unless the org's plan lets it opt out and it
+            // did (emailBadgeUrl swallows its own errors — same discipline as
+            // resolveClientStaffName above: the booking is already committed).
+            badgeUrl: await emailBadgeUrl(ctx.org.orgId),
+          });
       await selectTransport().send({
         to: email,
         subject: msg.subject,
@@ -293,6 +311,7 @@ export async function createBooking(
           whenLine,
           staffName,
           note: note ?? null,
+          pending: isPending,
         });
         await selectTransport().send({
           to: providerEmail,
@@ -311,7 +330,9 @@ export async function createBooking(
     // are unaffected: sendStaffNotice itself skips orgs with <= 1 active staff,
     // where the provider notice already says the same thing. Team orgs: the
     // assigned member gets theirs unless they ARE the provider address.
-    if (!(await isStaffTheProvider(ctx.org.orgId, row.staff_id, providerEmail))) await sendStaffNotice({
+    // Pending requests stay quiet: the member hears about it on accept, when
+    // there is actually something in their day (Task 7).
+    if (!isPending && !(await isStaffTheProvider(ctx.org.orgId, row.staff_id, providerEmail))) await sendStaffNotice({
       orgId: ctx.org.orgId,
       staffId: row.staff_id,
       kind: "new",
@@ -321,7 +342,7 @@ export async function createBooking(
       idempotencyKey,
     });
 
-    return { ok: true, token, staffName };
+    return { ok: true, token, staffName, pending: isPending };
   } catch (error) {
     console.error("[scheduling] createBooking:", error);
     return { ok: false, error: GENERIC_WRITE_ERROR };
