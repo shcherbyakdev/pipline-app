@@ -10,14 +10,16 @@ export function isReservedStaffSlug(slug: string): boolean {
   return RESERVED.has(slug);
 }
 
+/* Every value must keep white initials readable (>= 4.5:1 with #fff) — the
+   chips in the week grid and staff switch draw white text on these. */
 export const STAFF_COLORS = [
   "#4f46e5",
-  "#0891b2",
-  "#059669",
-  "#d97706",
+  "#0e7490",
+  "#047857",
+  "#b45309",
   "#dc2626",
   "#7c3aed",
-  "#db2777",
+  "#be185d",
   "#475569",
 ] as const;
 

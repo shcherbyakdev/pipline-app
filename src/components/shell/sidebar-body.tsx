@@ -86,7 +86,7 @@ export function SidebarBody({
                     aria-current={active ? "page" : undefined}
                     className={cn(itemClass, active ? activeClass : idleClass)}
                   >
-                    <HugeiconsIcon icon={icon} size={16} className={cn("shrink-0", active ? "text-foreground" : "text-subtle")} />
+                    <HugeiconsIcon icon={icon} size={16} className={cn("shrink-0", active ? "text-brand-text" : "text-subtle")} />
                     {text}
                   </Link>
                 );

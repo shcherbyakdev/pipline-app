@@ -1,24 +1,36 @@
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 import type { FeatureVisual } from "@/features/marketing/site";
 
 /* One small product fragment per feature, for the bento. White fragment on
-   the cell's ground; a couple carry a quiet loop (keyframes in globals.css
-   under "Feature cells", `fc-*`). Decorative: the fragments are aria-hidden
-   by the cell. Sample names only. */
+   the cell's ground; rows are borderless soft fills, and an "on" row is a
+   white card with the lift shadow — the same active-state idiom the app
+   uses. Four fragments carry a quiet explanatory loop (keyframes in
+   globals.css under "Feature cells", `fc-*`): the reschedule picker's
+   selection glides, the reminders get sent, the room's day fills, the brand
+   swatch ring slides while the page recolours. Decorative: the fragments
+   are aria-hidden by the cell. Sample names only. */
 
 function Frag({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn("bg-card flex min-h-[170px] flex-col justify-center gap-2 rounded-[14px] p-4 shadow-[var(--shadow-card)]", className)}>{children}</div>;
+  return <div className={cn("bg-card flex min-h-[170px] flex-col justify-center gap-2 rounded-[16px] p-4 shadow-[var(--shadow-card)]", className)}>{children}</div>;
 }
 
 function Row({ children, on, className }: { children: React.ReactNode; on?: boolean; className?: string }) {
   return (
-    <div className={cn("flex items-center justify-between rounded-[10px] px-3 py-2.5 text-[13px] leading-none font-medium ring-1 ring-inset", on ? "bg-secondary ring-foreground ring-[1.5px]" : "ring-input", className)}>
+    <div
+      className={cn(
+        "flex items-center justify-between rounded-[10px] px-3 py-2.5 text-[13px] leading-none font-medium",
+        on ? "bg-card ring-input shadow-[var(--shadow-lift)] ring-1 ring-inset" : "bg-muted",
+        className,
+      )}
+    >
       {children}
     </div>
   );
 }
 
-/* Double-booking impossible: a person's slot and a room's window, both guarded. */
+/* Double-booking impossible: a person's slot and a room's window, both
+   guarded. Still on purpose — the point is that nothing moves. */
 function Guard() {
   return (
     <Frag>
@@ -32,10 +44,6 @@ function Guard() {
             <span>Tom, 10:30</span>
             <span className="text-danger font-semibold">taken</span>
           </Row>
-          <Row>
-            <span>Tom, 11:00</span>
-            <span className="text-kind-space-text font-semibold">Booked</span>
-          </Row>
         </div>
         <div className="flex flex-col gap-2">
           <Row>
@@ -44,10 +52,6 @@ function Guard() {
           </Row>
           <Row>
             <span>Room 2, 11:00 to 14:00</span>
-            <span className="text-subtle font-normal">free</span>
-          </Row>
-          <Row>
-            <span>Room 2, 14:00 to 17:00</span>
             <span className="text-subtle font-normal">free</span>
           </Row>
         </div>
@@ -67,7 +71,7 @@ function Page() {
             ["Consultation", "30 min"],
             ["Workshop", "2 h"],
           ].map(([t, d]) => (
-            <div key={t} className="ring-input mb-1.5 flex justify-between rounded-[7px] px-2 py-[7px] font-medium ring-1 ring-inset">
+            <div key={t} className="bg-muted mb-1.5 flex justify-between rounded-[7px] px-2 py-[7px] font-medium">
               <span>{t}</span>
               <span className="text-subtle font-normal">{d}</span>
             </div>
@@ -79,30 +83,41 @@ function Page() {
   );
 }
 
-/* Self-serve reschedule: the client picks another time from their link. */
+/* Self-serve reschedule: the client picks another time from their link. A
+   white selection card glides down the list (transform only). */
 function Manage() {
   return (
-    <Frag className="fc-sel">
-      {["Mon 24, 9:00", "Tue 25, 14:30", "Wed 26, 10:00"].map((t) => (
-        <Row key={t} className="fc-row">
-          <span>{t}</span>
-        </Row>
-      ))}
+    <Frag>
+      <div className="relative flex flex-col gap-2">
+        <div aria-hidden className="fc-slide bg-card ring-input pointer-events-none absolute inset-x-0 top-0 h-[38px] rounded-[10px] shadow-[var(--shadow-lift)] ring-1 ring-inset" />
+        {["Mon 24, 9:00", "Tue 25, 14:30", "Wed 26, 10:00"].map((t) => (
+          <div key={t} className="relative flex h-[38px] items-center rounded-[10px] px-3 text-[13px] leading-none font-medium">
+            {t}
+          </div>
+        ))}
+      </div>
     </Frag>
   );
 }
 
-/* Reminders: two went out. */
+/* Reminders: they go out on their own — "sent" lands on one row, then the
+   next. */
 function Reminder() {
   return (
     <Frag>
       <Row>
         <span>Tomorrow 10:30, Consultation</span>
-        <span className="text-subtle font-normal">sent</span>
+        <span className="fc-sent text-kind-space-text flex items-center gap-1 font-medium">
+          <Check className="size-3" strokeWidth={3} />
+          sent
+        </span>
       </Row>
       <Row>
         <span>Fri 15:00, Lake cabin check-in</span>
-        <span className="text-subtle font-normal">sent</span>
+        <span className="fc-sent fc-sent-2 text-kind-space-text flex items-center gap-1 font-medium">
+          <Check className="size-3" strokeWidth={3} />
+          sent
+        </span>
       </Row>
     </Frag>
   );
@@ -111,9 +126,9 @@ function Reminder() {
 /* Embed: one script tag, on ink. */
 function Embed() {
   return (
-    <pre className="flex min-h-[170px] items-center overflow-x-auto rounded-[14px] bg-[#2a2a27] px-4 py-3.5 font-mono text-[12px] leading-[1.65] text-[#d8d8d3]">
+    <pre className="flex min-h-[170px] items-center overflow-x-auto rounded-[16px] bg-white/6 px-4 py-3.5 font-mono text-[12px] leading-[1.65] text-[#dcd8e6] ring-1 ring-white/10 ring-inset">
       {"<"}
-      <span className="text-[#8fc4ff]">script</span>
+      <span className="text-[#b9b0ff]">script</span>
       {' src="booklo.co/embed.js"\n  data-page="anna-studio">'}
     </pre>
   );
@@ -129,7 +144,7 @@ function Spaces() {
       </div>
       <div className="grid grid-cols-8 gap-1">
         {Array.from({ length: 8 }, (_, i) => (
-          <i key={i} className={cn("block h-[34px] rounded-[7px]", i >= 2 && i <= 4 ? "fc-fill bg-kind-space" : "bg-card ring-input ring-1 ring-inset")} />
+          <i key={i} className={cn("block h-[34px] rounded-[7px]", i >= 2 && i <= 4 ? "fc-fill bg-kind-space" : "bg-muted")} />
         ))}
       </div>
       <div className="text-subtle flex justify-between font-mono text-[11px] leading-none">
@@ -140,20 +155,21 @@ function Spaces() {
   );
 }
 
-/* Your brand: a colour picked, the page recoloured. */
-const SWATCHES = ["#1c1c1a", "var(--kind-time)", "var(--kind-stay)", "var(--kind-space)", "var(--kind-class)"];
+/* Your brand: the swatch ring slides, the page recolours with it. */
+const SWATCHES = ["var(--foreground)", "var(--brand)", "var(--kind-stay)", "var(--kind-space)", "var(--kind-class)"];
 function Brand() {
   return (
     <Frag>
-      <div className="flex gap-2.5">
-        {SWATCHES.map((c, i) => (
-          <i key={c} className={cn("block size-[30px] rounded-full", i === 2 && "shadow-[0_0_0_2px_var(--card),0_0_0_4px_var(--foreground)]")} style={{ background: c }} />
+      <div className="relative flex gap-2.5">
+        <i aria-hidden className="fc-swatch ring-foreground pointer-events-none absolute top-0 left-0 block size-[30px] rounded-full ring-2 ring-offset-2 ring-offset-[var(--card)]" />
+        {SWATCHES.map((c) => (
+          <i key={c} className="block size-[30px] rounded-full" style={{ background: c }} />
         ))}
       </div>
-      <div className="ring-input mt-3.5 flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-[13px] leading-none font-medium ring-1 ring-inset">
-        <span className="bg-kind-stay grid size-[26px] place-items-center rounded-lg text-[12px] font-semibold text-white">A</span>
+      <div className="bg-muted mt-3.5 flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-[13px] leading-none font-medium">
+        <span className="fc-chip text-on-kind grid size-[26px] place-items-center rounded-lg text-[12px] font-semibold">A</span>
         Anna Studio
-        <span className="bg-kind-stay ml-auto rounded-full px-2.5 py-1.5 text-[12px] text-white">Book now</span>
+        <span className="fc-chip text-on-kind ml-auto rounded-full px-2.5 py-1.5 text-[12px] font-medium">Book now</span>
       </div>
     </Frag>
   );

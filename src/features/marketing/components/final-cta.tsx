@@ -7,11 +7,13 @@ import { ClaimBar } from "./claim-bar";
 import { Reveal } from "./reveal";
 import { H2, SECTION, SECTION_INNER } from "./type";
 
-/* The page ends on the claim it opened with, centred, on the plain ground. */
+/* The page ends on the claim it opened with, centred — on the landing's one
+   dark band: the section opts into the `.dark` token scope (plum night), and
+   the sticky nav watches `data-nav-dark` to go light while over it. */
 export function FinalCta({ host }: { host: string }) {
   const [handle, setHandle] = React.useState("");
   return (
-    <section aria-labelledby="cta-heading" className={cn(SECTION, "pb-24 md:pb-28")}>
+    <section aria-labelledby="cta-heading" data-nav-dark className={cn(SECTION, "dark bg-background flex min-h-[80dvh] flex-col justify-center pb-24 md:pb-28")}>
       <div className={SECTION_INNER}>
         <Reveal className="mx-auto max-w-2xl text-center">
           <h2 id="cta-heading" className={cn(H2, "md:text-[52px]")}>

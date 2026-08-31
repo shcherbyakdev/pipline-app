@@ -15,8 +15,8 @@ const VARIANT = {
   primary: "bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85",
   /* Kept for callers that asked for the old accent pill: ink now. */
   marker: "bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85",
-  /* Soft grey. */
-  neutral: "bg-accent text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-input",
+  /* Lavender ghost (the reference's secondary pill). */
+  neutral: "bg-brand/10 text-brand-text [@media(hover:hover)_and_(pointer:fine)]:hover:bg-brand/15",
   /* Plain text link. */
   quiet: "text-muted-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:text-foreground",
 } as const;

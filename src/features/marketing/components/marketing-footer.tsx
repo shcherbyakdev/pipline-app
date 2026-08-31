@@ -3,10 +3,11 @@ import { FOOTER_COLUMNS, SITE } from "@/features/marketing/site";
 import { BookloWordmark } from "./booklo-mark";
 
 /* A hairline above, the wordmark, the link columns, one quiet line at the
-   bottom. Same ground as the page. */
+   bottom. Part of the landing's dark closing block: the footer shares the
+   CTA band's `.dark` scope so the page ends on the plum night ground. */
 export function MarketingFooter() {
   return (
-    <footer className="border-border border-t">
+    <footer className="dark bg-background border-border border-t">
       <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
         <div className="grid gap-10 py-12 md:grid-cols-[1.6fr_repeat(3,1fr)] md:py-14">
           <div>
