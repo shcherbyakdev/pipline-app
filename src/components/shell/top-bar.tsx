@@ -6,8 +6,9 @@ import type { OrgMode } from "@/features/orgs/mode";
 import { MobileNav } from "./mobile-nav";
 import { navItemsFor, titleForPath } from "./nav";
 
-/* Soft-world top bar: hairline underneath, the ground blurring through, the
-   view title on the left (pages don't render their own <h1>). */
+/* Panel header row, Linear-style: hairline underneath, the view title at
+   13px/500 on the left (pages no longer render their own <h1>). It sits above
+   the panel's scroll container, so it needs no sticky/backdrop. */
 export function TopBar({
   org,
   userEmail,
@@ -25,9 +26,9 @@ export function TopBar({
   const pathname = usePathname();
   const title = titleForPath(pathname, navItemsFor(flags, mode));
   return (
-    <header className="bg-background/80 sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b px-4 backdrop-blur-md md:px-6">
+    <header className="flex h-11 shrink-0 items-center gap-2 border-b px-4 md:px-6">
       <MobileNav org={org} userEmail={userEmail} flags={flags} mode={mode} pendingRequests={pendingRequests} />
-      <h1 className="text-sm font-semibold tracking-[-0.01em]">{title}</h1>
+      <h1 className="text-[13px] font-medium">{title}</h1>
     </header>
   );
 }
