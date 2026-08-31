@@ -386,14 +386,16 @@ export async function resendManageLink(
     const { data: booking, error: readError } = await supabase
       .from("bookings")
       .select(
-        "id, client_email, starts_at, ends_at, rental_unit_id, staff(name), services(name), rental_offerings(name), rental_units(name)",
+        "id, status, client_email, starts_at, ends_at, rental_unit_id, staff(name), services(name), rental_offerings(name), rental_units(name)",
       )
       .eq("id", parsed.data.id)
       .eq("org_id", org.id)
-      .eq("status", "confirmed")
+      // A pending request's link is the client's only handle on it, so it
+      // reissues like a confirmed booking's (rotate_booking_token, 0064).
+      .in("status", ["confirmed", "pending"])
       .maybeSingle();
     if (readError) return fail("resendManageLink", readError);
-    if (!booking) return { ok: false, error: "Only a confirmed booking has a manage link." };
+    if (!booking) return { ok: false, error: "Only an upcoming booking or request has a manage link." };
     if (!booking.client_email) {
       return { ok: false, error: "No email on file for this client.", noEmail: true };
     }
@@ -408,6 +410,7 @@ export async function resendManageLink(
     if (error) return fail("resendManageLink", error);
 
     const row = booking as unknown as {
+      status: string;
       starts_at: string;
       ends_at: string;
       rental_unit_id: string | null;
@@ -432,6 +435,9 @@ export async function resendManageLink(
         manageUrl: buildBookingManageUrl(fresh.token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
         canReschedule: row.rental_unit_id === null,
+        // A request has nothing on a calendar yet — the template drops the
+        // .ics and says "request" throughout.
+        request: row.status === "pending",
         // Same copy the client already has from the confirmation: a resent link
         // must not silently drop who the appointment is with. Solo orgs → null
         // (resolveClientStaffName), rentals have no staff at all.
@@ -638,7 +644,6 @@ export async function acceptBookingRequest(
         } else {
           // Rotate first (resendManageLink discipline): the confirmation must
           // carry a live link, and the request-received link dies with it.
-          // rotate_booking_token needs status='confirmed' — hence after the RPC.
           const fresh = generateAccessToken();
           const { error: rotateError } = await supabase.rpc("rotate_booking_token", {
             p_booking_id: row.id,

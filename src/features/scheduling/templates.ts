@@ -169,21 +169,32 @@ export function bookingManageLinkEmail(input: {
   // Rentals have no self-service reschedule — don't promise one (default:
   // appointments, which do).
   canReschedule?: boolean;
+  // Approval: the booking is still a PENDING request. Nothing is on a
+  // calendar yet, so the .ics goes (bookingRequestReceivedEmail's rule) and
+  // the copy talks about a request, not a booking.
+  request?: boolean;
 }): { subject: string; html: string; text: string } {
-  const subject = `Your booking link — ${input.serviceName} with ${input.orgName}`;
-  const verbs = input.canReschedule === false ? "view or cancel" : "view, reschedule, or cancel";
-  const intro = `Here is a fresh link to ${verbs} your booking (${input.whenLine}). Any previous link no longer works.`;
+  const subject = input.request
+    ? `Your request link — ${input.serviceName} with ${input.orgName}`
+    : `Your booking link — ${input.serviceName} with ${input.orgName}`;
+  const verbs = input.request
+    ? "view or withdraw"
+    : input.canReschedule === false
+      ? "view or cancel"
+      : "view, reschedule, or cancel";
+  const noun = input.request ? "booking request" : "booking";
+  const intro = `Here is a fresh link to ${verbs} your ${noun} (${input.whenLine}). Any previous link no longer works.`;
+  const icsHtml = input.request
+    ? ""
+    : `\n  <p style="margin: 0 0 8px;">\n    <a href="${esc(input.icsUrl)}">Add to calendar (.ics)</a>\n  </p>`;
   const html = `
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
   <p style="margin: 0 0 8px;">${esc(intro)}</p>
   <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
-  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${icsHtml}
   <p style="margin: 0 0 8px;">
-    <a href="${esc(input.icsUrl)}">Add to calendar (.ics)</a>
-  </p>
-  <p style="margin: 0 0 8px;">
-    <a href="${esc(input.manageUrl)}">View or manage this booking</a>
+    <a href="${esc(input.manageUrl)}">${input.request ? "View or withdraw this request" : "View or manage this booking"}</a>
   </p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     Keep this email — the link above replaces any previous manage link.
@@ -197,7 +208,7 @@ export function bookingManageLinkEmail(input: {
     ...staffTextLine(input.staffName),
     input.whenLine,
     "",
-    `Add to calendar: ${input.icsUrl}`,
+    ...(input.request ? [] : [`Add to calendar: ${input.icsUrl}`]),
     `View or manage: ${input.manageUrl}`,
     ...badgeTextLines(input.badgeUrl),
   ].join("\n");

@@ -449,6 +449,13 @@
       "when": 1788186451979,
       "tag": "0063_approval_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1788192058971,
+      "tag": "0064_approval_followups",
+      "breakpoints": true
     }
   ]
 }

@@ -93,7 +93,11 @@ beforeAll(async () => {
 
 describe("booking approval — appointments", () => {
   beforeAll(async () => {
-    await owner.from("services").update({ requires_approval: true }).eq("id", serviceId);
+    const { error } = await owner
+      .from("services")
+      .update({ requires_approval: true })
+      .eq("id", serviceId);
+    if (error) throw error;
   });
 
   const create = (startsAt: string, email = "req@example.com") => {
@@ -160,15 +164,10 @@ describe("booking approval — appointments", () => {
     expect(await statusOf(id)).toBe("cancelled_by_client");
   });
 
-  it("rotate_booking_token and reschedule_booking refuse a pending row", async () => {
+  it("reschedule_booking leaves a pending row alone", async () => {
     const { data, token } = await create("2027-07-05T10:00:00Z", "rr@example.com");
     const id = (data as Array<{ booking_id: string }>)[0].booking_id;
     const fresh = generateAccessToken();
-    const { error: rotErr } = await owner.rpc("rotate_booking_token", {
-      p_booking_id: id,
-      p_token_hash: fresh.tokenHash,
-    });
-    expect(rotErr).not.toBeNull(); // guard stays 'confirmed' — accept flips first
     // reschedule_booking's `where status = 'confirmed'` select finds nothing
     // and returns early: no error, zero rows, and the request is untouched.
     const { data: resData, error: resErr } = await admin.rpc("reschedule_booking", {
@@ -179,6 +178,105 @@ describe("booking approval — appointments", () => {
     expect(resErr).toBeNull();
     expect((resData as unknown[] | null) ?? []).toHaveLength(0);
     expect(await statusOf(id)).toBe("pending");
+  });
+
+  // ---- 0064 follow-ups: the v1 gaps the approval slice left behind.
+
+  it("rotate_booking_token reissues a pending request's link", async () => {
+    const { data } = await create("2027-07-10T10:00:00Z", "rot@example.com");
+    const id = (data as Array<{ booking_id: string }>)[0].booking_id;
+    const hashOf = async () =>
+      (await admin.from("bookings").select("cancel_token_hash").eq("id", id).single()).data!
+        .cancel_token_hash;
+    const before = await hashOf();
+    const fresh = generateAccessToken();
+    const { error } = await owner.rpc("rotate_booking_token", {
+      p_booking_id: id,
+      p_token_hash: fresh.tokenHash,
+    });
+    expect(error).toBeNull();
+    const after = await hashOf();
+    expect(after).toBe(fresh.tokenHash);
+    expect(after).not.toBe(before);
+  });
+
+  it("decline_note over 500 chars is refused by the CHECK constraint", async () => {
+    const { data } = await create("2027-07-11T10:00:00Z", "chk@example.com");
+    const id = (data as Array<{ booking_id: string }>)[0].booking_id;
+    // The RPC guards its own argument; this is the column constraint under it.
+    const { error } = await admin
+      .from("bookings")
+      .update({ decline_note: "x".repeat(501) })
+      .eq("id", id);
+    expect(error).not.toBeNull();
+    const { error: ok } = await admin
+      .from("bookings")
+      .update({ decline_note: "x".repeat(500) })
+      .eq("id", id);
+    expect(ok).toBeNull();
+  });
+
+  it("resolve_booking_token returns the decline note", async () => {
+    const { data, token } = await create("2027-07-12T10:00:00Z", "note@example.com");
+    const id = (data as Array<{ booking_id: string }>)[0].booking_id;
+    const { error } = await owner.rpc("decline_booking", {
+      p_booking_id: id,
+      p_note: "try Tuesday",
+    });
+    expect(error).toBeNull();
+    const { data: rows, error: resErr } = await admin.rpc("resolve_booking_token", {
+      p_token: token,
+    });
+    expect(resErr).toBeNull();
+    const row = (rows as Array<{ booking_status: string; decline_note: string | null }>)[0];
+    expect(row.booking_status).toBe("declined");
+    expect(row.decline_note).toBe("try Tuesday");
+  });
+
+  // Placed after every auto-assign test on purpose: create_staff adds a
+  // second ACTIVE member, which would give pick_staff_for_slot (p_staff_id
+  // null) somewhere else to put a request. The one test below it pins
+  // p_staff_id, so it doesn't care.
+  it("a live pending request blocks staff deactivation; declining frees it", async () => {
+    const { data: staff2, error: staffErr } = await owner.rpc("create_staff", {
+      p_org_id: orgId,
+      p_name: "Second",
+      p_slug: "second",
+      p_email: null,
+      p_color: "#4f46e5",
+      p_service_ids: [serviceId],
+    });
+    expect(staffErr).toBeNull();
+    const staff2Id = staff2 as string;
+    const t = generateAccessToken();
+    const { data: row, error: insErr } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        service_id: serviceId,
+        staff_id: staff2Id,
+        client_name: "Requester",
+        client_email: "staff2@example.com",
+        starts_at: "2027-08-01T10:00:00Z",
+        ends_at: "2027-08-01T11:00:00Z",
+        status: "pending",
+        cancel_token_hash: t.tokenHash,
+      })
+      .select("id")
+      .single();
+    expect(insErr).toBeNull();
+    const { error: blocked } = await owner
+      .from("staff")
+      .update({ active: false })
+      .eq("id", staff2Id);
+    expect(blocked?.message).toMatch(/has_future_bookings/);
+    const { error: declineErr } = await owner.rpc("decline_booking", {
+      p_booking_id: row!.id,
+      p_note: null,
+    });
+    expect(declineErr).toBeNull();
+    const { error: ok } = await owner.from("staff").update({ active: false }).eq("id", staff2Id);
+    expect(ok).toBeNull();
   });
 
   it("create_booking_admin ignores the flag (walk-ins confirm instantly)", async () => {

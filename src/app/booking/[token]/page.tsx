@@ -75,6 +75,11 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
             ? "Request expired"
             : (STATUS_LINE[b.status] ?? b.status)}
         </p>
+        {b.status === "declined" && b.declineNote ? (
+          <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+            &ldquo;{b.declineNote}&rdquo;
+          </p>
+        ) : null}
       </div>
       {b.status === "confirmed" ? (
         <>

@@ -94,6 +94,32 @@ describe("booking lifecycle templates", () => {
     expect(bookingManageLinkEmail(base).text).toContain("view, reschedule, or cancel");
   });
 
+  it("manage link email for a pending request says request and drops the .ics", () => {
+    const base = {
+      orgName: "Studio",
+      serviceName: "Cut",
+      whenLine: "Mon, 05 Apr, 10:00",
+      manageUrl: "https://app/booking/fresh-tok",
+      icsUrl: "https://app/booking/fresh-tok/calendar.ics",
+    };
+    const msg = bookingManageLinkEmail({ ...base, request: true });
+    expect(msg.subject.startsWith("Your request link")).toBe(true);
+    for (const body of [msg.html, msg.text]) {
+      expect(body).toContain("view or withdraw");
+      expect(body).toContain("booking request");
+      // Nothing is on a calendar until the request is accepted.
+      expect(body).not.toContain(".ics");
+      expect(body).not.toContain("Add to calendar");
+      expect(body).toContain("https://app/booking/fresh-tok");
+    }
+    // Unset: a confirmed booking still gets its subject, wording and .ics.
+    const plain = bookingManageLinkEmail(base);
+    expect(plain.subject.startsWith("Your booking link")).toBe(true);
+    expect(plain.text).toContain("your booking (");
+    expect(plain.html).toContain("Add to calendar (.ics)");
+    expect(plain.text).toContain("Add to calendar: https://app/booking/fresh-tok/calendar.ics");
+  });
+
   it("provider rescheduled email shows both times and escapes clientName", () => {
     const msg = providerRescheduledEmail({
       serviceName: "Cut",

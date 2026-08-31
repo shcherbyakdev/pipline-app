@@ -49,9 +49,10 @@ function Row({
   const [declining, setDeclining] = React.useState(false);
   const nowMs = useNowMs();
   // Which side of the request line this row is on. The query already routes a
-  // lapsed request to Past (`actionable` false), and `isExpiredRequest` catches
-  // one that lapses while the page sits open — either way it is history and
-  // offers no buttons the RPCs would refuse.
+  // lapsed request to Past (`actionable` false), and `isExpiredRequest` covers
+  // the gap between that server render and hydration — `nowMs` is seeded once
+  // at mount and never ticks, so a request lapsing later keeps its buttons
+  // until the next render; the RPCs refuse them, which is the safe direction.
   const lapsedRequest =
     booking.status === "pending" &&
     (!actionable || (nowMs !== null && isExpiredRequest(booking, new Date(nowMs))));
@@ -87,7 +88,7 @@ function Row({
     startTransition(async () => {
       const result = await resendManageLink({ id: booking.id });
       if (!result.ok) toast.error(result.error);
-      else if (result.emailed) toast.success("A fresh booking link is on its way to the client.");
+      else if (result.emailed) toast.success("A fresh link is on its way to the client.");
       else
         toast.warning(
           "Link was reset, but the email failed — the old link no longer works. Contact the client directly.",
@@ -139,8 +140,10 @@ function Row({
         {booking.clientEmail ? ` · ${booking.clientEmail}` : ""}
         {booking.note ? ` · “${booking.note}”` : null}
       </p>
-      {/* A request is answered, not managed: Accept / Decline replace the
-          reschedule–resend–cancel row until it becomes a booking. */}
+      {/* A request is answered, not managed: the list keeps only Accept /
+          Decline in place of the reschedule–resend–cancel row until it
+          becomes a booking. (The detail dialog also offers Resend link —
+          a request's link is reissuable too, it just isn't row work.) */}
       {liveRequest ? (
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={accept} disabled={pending}>

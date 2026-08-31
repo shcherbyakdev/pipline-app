@@ -35,6 +35,9 @@ export type ResolveBookingResult =
         currency: string | null;
         depositCents: number | null;
         cancelWindowMin: number | null;
+        // Approval: the provider's reason for turning a request down (0064).
+        // Null for everything that was never declined.
+        declineNote: string | null;
       };
     };
 
@@ -77,6 +80,7 @@ export async function resolveBookingToken(
     currency: string | null;
     deposit_cents: number | null;
     cancel_window_min: number | null;
+    decline_note: string | null;
   }> | null)?.[0];
   if (!row) return { status: "not_found" };
   return {
@@ -99,6 +103,7 @@ export async function resolveBookingToken(
       currency: row.currency,
       depositCents: row.deposit_cents,
       cancelWindowMin: row.cancel_window_min,
+      declineNote: row.decline_note,
     },
   };
 }

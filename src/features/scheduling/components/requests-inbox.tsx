@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/dialog";
 
 /* Decline-with-a-message popup. Owns the action, the toast and the refresh so
-   both callers stay thin: this file's inbox rows, and the booking-detail
-   dialog (Task 9) — which passes `onDeclined` to close itself afterwards. */
+   all three callers stay thin: this file's inbox rows, the bookings list, and
+   the booking-detail dialog — which passes `onDeclined` to close itself
+   afterwards (the two inline rows have nothing to close). */
 export function DeclineRequestDialog({
   bookingId,
   open,
