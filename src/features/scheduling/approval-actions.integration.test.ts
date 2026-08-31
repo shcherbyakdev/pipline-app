@@ -200,17 +200,23 @@ describe("accept/decline booking requests (Task 7)", () => {
     expect(row.data!.status).toBe("declined");
     expect(row.data!.decline_note).toBe("fully booked");
 
+    // The friendly line, not GENERIC: the RPC's bare 'not found' sentinel is
+    // the only error the actions may relabel (a transport/PGRST202 failure
+    // must fall through to fail()).
     const again = await bookingActions.acceptBookingRequest({ id: declineId });
-    expect(again.ok).toBe(false);
+    expect(again).toEqual({ ok: false, error: "Only a live pending request can be accepted." });
     // The already-confirmed row from the previous test is just as resolved.
     const declineConfirmed = await bookingActions.declineBookingRequest({ id: acceptId });
-    expect(declineConfirmed.ok).toBe(false);
+    expect(declineConfirmed).toEqual({
+      ok: false,
+      error: "Only a live pending request can be declined.",
+    });
     expect(await statusOf(acceptId)).toBe("confirmed");
   });
 
   it("accept refuses an expired request", async () => {
     const result = await bookingActions.acceptBookingRequest({ id: expiredId });
-    expect(result.ok).toBe(false);
+    expect(result).toEqual({ ok: false, error: "Only a live pending request can be accepted." });
     expect(await statusOf(expiredId)).toBe("pending");
   });
 

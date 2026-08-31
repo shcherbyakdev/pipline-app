@@ -577,8 +577,13 @@ export async function acceptBookingRequest(
       p_booking_id: parsed.data.id,
     });
     if (rpcError) {
-      console.error("[scheduling] acceptBookingRequest rpc:", rpcError.code || "rpc error");
-      return { ok: false, error: NOT_PENDING_ACCEPT };
+      // Only the RPC's own bare sentinel means "a guard refused it". A
+      // transport error, a PostgREST 5xx or a PGRST202 (function missing after
+      // a partial deploy) arrives as `{ error }` too, and must not be
+      // relabelled as a resolved request — fail() logs the whole thing.
+      return isRpcSentinel(rpcError, "not found")
+        ? { ok: false, error: NOT_PENDING_ACCEPT }
+        : fail("acceptBookingRequest", rpcError);
     }
 
     // Past this line the accept is COMMITTED — nothing below may turn into a
@@ -721,8 +726,10 @@ export async function declineBookingRequest(
       p_note: parsed.data.note ?? null,
     });
     if (rpcError) {
-      console.error("[scheduling] declineBookingRequest rpc:", rpcError.code || "rpc error");
-      return { ok: false, error: NOT_PENDING_DECLINE };
+      // Sentinel-only mapping, same reasoning as accept above.
+      return isRpcSentinel(rpcError, "not found")
+        ? { ok: false, error: NOT_PENDING_DECLINE }
+        : fail("declineBookingRequest", rpcError);
     }
 
     // Committed from here — same discipline as accept above: the re-read
