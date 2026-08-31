@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter, Outfit } from "next/font/google";
 import { SITE } from "@/features/marketing/site";
+import { CookieNotice } from "@/features/marketing/components/cookie-notice";
 
 // Landing typography: Inter for everything that is read (headlines at
 // weight 500, body at 400, controls at 500), Outfit Semibold for the one
@@ -42,6 +43,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
         <style>{`.marketing .reveal{opacity:1;transform:none}`}</style>
       </noscript>
       {children}
+      <CookieNotice />
     </div>
   );
 }

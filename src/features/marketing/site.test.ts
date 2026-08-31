@@ -9,6 +9,7 @@ import {
   FAQ,
   SECTIONS,
   CTA,
+  COOKIE_NOTICE,
   CLAIM,
   ONBOARDING,
   WELCOME,
@@ -112,6 +113,7 @@ describe("site config", () => {
       AUDIENCE.heading, AUDIENCE.sub, ...AUDIENCE.blocks.flatMap((b) => [b.title, b.body, ...b.groups]),
       ...SITE.truths,
       ...HERO_TABS.map((t) => t.label),
+      ...Object.values(COOKIE_NOTICE),
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);
   });
@@ -133,6 +135,7 @@ describe("site config", () => {
       FINAL_CTA.heading, FINAL_CTA.sub,
       ...Object.values(ANNOUNCEMENT),
       AUDIENCE.heading, AUDIENCE.sub, ...AUDIENCE.blocks.flatMap((b) => [b.title, b.body, ...b.groups]),
+      ...Object.values(COOKIE_NOTICE),
     ].join("\n");
     expect(landing).not.toMatch(/[—–]/);
   });

@@ -55,6 +55,16 @@ export const CTA = {
   getStarted: "Get started",
   getStartedFree: "Get started free",
   seeHow: "See how it works",
+  dashboard: "Dashboard",
+} as const;
+
+/** Info-only cookie notice (marketing pages). Only essential cookies exist,
+    which need no consent, so there is nothing to accept or reject: a note,
+    a policy link and one dismiss button. */
+export const COOKIE_NOTICE = {
+  text: "Booklo only uses essential cookies, like the one that keeps you signed in. No tracking.",
+  policy: "Privacy policy",
+  dismiss: "Got it",
 } as const;
 
 /** The claim bar (hero + final CTA). The status line is assembled from
