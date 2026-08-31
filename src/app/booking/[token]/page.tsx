@@ -9,6 +9,8 @@ import { moneyInfoLines } from "@/features/rentals/pricing";
 
 const STATUS_LINE: Record<string, string> = {
   confirmed: "Confirmed",
+  pending: "Waiting for confirmation",
+  declined: "Request declined",
   cancelled_by_client: "Cancelled",
   cancelled_by_provider: "Cancelled by the provider",
   rescheduled: "Rescheduled",
@@ -68,7 +70,11 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
             {l}
           </p>
         ))}
-        <p className="text-muted-foreground">{STATUS_LINE[b.status] ?? b.status}</p>
+        <p className="text-muted-foreground">
+          {b.status === "pending" && !isInFuture
+            ? "Request expired"
+            : (STATUS_LINE[b.status] ?? b.status)}
+        </p>
       </div>
       {b.status === "confirmed" ? (
         <>
@@ -92,6 +98,23 @@ export default async function BookingManagePage({ params }: PageProps<"/booking/
               This booking has already started.
             </p>
           )}
+        </>
+      ) : null}
+      {b.status === "pending" && isInFuture ? (
+        <>
+          <p className="text-muted-foreground text-sm">
+            {b.orgName} hasn&rsquo;t confirmed this request yet — you&rsquo;ll get an email
+            when they do.
+          </p>
+          <ManageBooking
+            token={token}
+            timeZone={b.orgTimezone}
+            canReschedule={false}
+            canCancel={true}
+            kind={b.rentalUnitId === null ? "appointment" : "rental"}
+            rangeMode={b.rangeMode}
+            request
+          />
         </>
       ) : null}
     </main>

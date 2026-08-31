@@ -37,6 +37,7 @@ export function ManageBooking({
   canCancel,
   kind,
   rangeMode,
+  request,
 }: {
   token: string;
   timeZone: string;
@@ -55,6 +56,10 @@ export function ManageBooking({
   // which never reads it (kind === "appointment" always wins the branch
   // below).
   rangeMode: "nights" | "days" | "hours" | null;
+  // Booking approval: a still-pending request cancels through the same
+  // cancel_booking action, just with "withdraw" wording — nothing else
+  // about the flow changes.
+  request?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
@@ -201,7 +206,7 @@ export function ManageBooking({
       ) : confirmingCancel ? (
         <div className="flex items-center gap-2">
           <Button variant="destructive" onClick={doCancel} disabled={pending}>
-            Yes, cancel this booking
+            {request ? "Yes, withdraw this request" : "Yes, cancel this booking"}
           </Button>
           <Button variant="ghost" onClick={() => setConfirmingCancel(false)} disabled={pending}>
             Keep it
@@ -209,7 +214,7 @@ export function ManageBooking({
         </div>
       ) : (
         <Button variant="ghost" onClick={() => setConfirmingCancel(true)} disabled={pending}>
-          Cancel booking
+          {request ? "Withdraw request" : "Cancel booking"}
         </Button>
       )}
       {!canReschedule || (kind === "rental" && !picking) ? (
