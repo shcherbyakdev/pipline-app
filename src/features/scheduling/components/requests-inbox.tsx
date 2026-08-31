@@ -125,11 +125,25 @@ function RequestRow({ booking, timeZone }: { booking: AdminBooking; timeZone: st
       {booking.note ? (
         <p className="text-muted-foreground line-clamp-2">“{booking.note}”</p>
       ) : null}
+      {/* The list repeats these two buttons per request, so the visible word
+          alone is an ambiguous accessible name — same disambiguation the
+          services and staff lists use (`Delete ${service.name}`). */}
       <div className="flex items-center gap-2">
-        <Button size="sm" onClick={accept} disabled={pending}>
+        <Button
+          size="sm"
+          onClick={accept}
+          disabled={pending}
+          aria-label={`Accept request from ${booking.clientName}`}
+        >
           Accept
         </Button>
-        <Button variant="outline" size="sm" onClick={() => setDeclining(true)} disabled={pending}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setDeclining(true)}
+          disabled={pending}
+          aria-label={`Decline request from ${booking.clientName}`}
+        >
           Decline…
         </Button>
       </div>

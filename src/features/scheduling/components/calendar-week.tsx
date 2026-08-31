@@ -340,8 +340,10 @@ export function CalendarWeek({
                       "w-full truncate rounded border px-1.5 py-0.5 text-left text-[11px]",
                       // A request is a ghost: it holds the slot but nobody has
                       // said yes yet (0062). Dashed BOX + a lighter fill —
-                      // the dashed left rule already means "space".
-                      b.status === "pending" ? "border-dashed bg-card/50 opacity-80" : "bg-card",
+                      // the dashed left rule already means "space". No
+                      // `opacity` on top: it faded the muted client-name line
+                      // below 4.5:1 (QA), and the two signals here suffice.
+                      b.status === "pending" ? "border-dashed bg-card/50" : "bg-card",
                     )}
                     style={{ borderLeft: `3px solid ${serviceAccent(b.rentalOfferingId ?? "")}` }}
                   >
@@ -462,7 +464,9 @@ export function CalendarWeek({
                     lay.cols === 1 && "inset-x-0",
                     // A pending request holds the slot but isn't confirmed —
                     // it reads as a ghost of the booking it would become.
-                    b.status === "pending" ? "border-dashed bg-card/50 opacity-80" : "bg-card",
+                    // Dashed border + translucent fill only: an added
+                    // `opacity` dropped the muted client-name line to 4.16:1.
+                    b.status === "pending" ? "border-dashed bg-card/50" : "bg-card",
                   )}
                   style={{
                     // Overlapping bookings share the day side-by-side.
