@@ -111,6 +111,19 @@ describe("computeOverviewStats", () => {
     expect(computeOverviewStats(rows, now, "UTC").monthCount).toBe(1);
   });
 
+  it("pending and declined rows never count — not as bookings, not in cancellation rate", () => {
+    const rows = [
+      row("2027-03-10T09:00:00Z", "pending"),
+      row("2027-03-10T10:00:00Z", "declined"),
+      row("2027-03-10T11:00:00Z", "confirmed"),
+      row("2027-03-10T12:00:00Z", "cancelled_by_client"),
+    ];
+    const stats = computeOverviewStats(rows, NOW, TZ);
+    expect(stats.weekCount).toBe(1);
+    // eligible = confirmed + cancelled only -> rate 1/2, not 1/4
+    expect(stats.cancellationRate).toBe(0.5);
+  });
+
   it("empty input yields zero counts and null rates", () => {
     const stats = computeOverviewStats([], NOW, TZ);
     expect(stats).toEqual({

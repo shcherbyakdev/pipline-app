@@ -134,7 +134,8 @@ export async function getBusyIntervals(
     .from("bookings")
     .select("starts_at, ends_at, service_id, services(buffer_before_min, buffer_after_min)")
     .eq("staff_id", staffId)
-    .eq("status", "confirmed")
+    // Pending requests hold their slot (0062 EXCLUDE) — busy sets must agree.
+    .in("status", ["confirmed", "pending"])
     // Rentals never block the provider's calendar (unit-level guard, R1).
     .is("rental_unit_id", null)
     .gte("ends_at", fromIso)
@@ -643,7 +644,7 @@ export async function loadOrgRangeContext(
       .from("bookings")
       .select("id, rental_unit_id, starts_at, ends_at")
       .in("rental_unit_id", unitIds)
-      .eq("status", "confirmed")
+      .in("status", ["confirmed", "pending"])
       .gte("ends_at", `${windowStart}T00:00:00Z`)
       .lte("starts_at", `${windowEnd}T23:59:59Z`),
   ]);
@@ -745,7 +746,7 @@ export async function loadOrgHourlyContext(
           .from("bookings")
           .select("id, rental_unit_id, starts_at, ends_at")
           .in("rental_unit_id", unitIds)
-          .eq("status", "confirmed")
+          .in("status", ["confirmed", "pending"])
           .gte("ends_at", fromIso)
           .lte("starts_at", toIso)
       : Promise.resolve({ data: [], error: null }),

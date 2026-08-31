@@ -85,6 +85,7 @@ export function computeOverviewStats(
   for (const b of rows) {
     if (Date.parse(b.createdAt) < createdFrom) continue;
     if (b.status === "rescheduled") continue; // the replacement booking already counts
+    if (b.status === "pending" || b.status === "declined") continue; // a request never became a booking
     eligible++;
     if (isCancelled(b.status)) cancelled++;
   }

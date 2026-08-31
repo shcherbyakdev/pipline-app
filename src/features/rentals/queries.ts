@@ -297,7 +297,9 @@ export async function listTimelineData(
     supabase
       .from("bookings")
       .select(BOOKING_COLUMNS)
-      .eq("status", "confirmed")
+      // Pending requests hold their slot (0062 EXCLUDE) — a pending stay
+      // must occupy its lane on the tape chart.
+      .in("status", ["confirmed", "pending"])
       .not("rental_unit_id", "is", null)
       .lt("starts_at", toIso)
       .gt("ends_at", fromIso)
