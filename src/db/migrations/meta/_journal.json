@@ -442,6 +442,13 @@
       "when": 1788183127497,
       "tag": "0062_booking_approval",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1788186451979,
+      "tag": "0063_approval_actions",
+      "breakpoints": true
     }
   ]
 }

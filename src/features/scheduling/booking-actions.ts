@@ -11,9 +11,12 @@ import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { computeSlots, dateInZone } from "./slots";
+import { moneyInfoLines } from "@/features/rentals/pricing";
+import type { RangeMode } from "@/features/rentals/range";
 import {
   bookingCancelledEmail,
   bookingRescheduledEmail,
+  bookingDeclinedEmail,
   bookingLifecycleKey,
   bookingConfirmationEmail,
   bookingManageLinkEmail,
@@ -24,6 +27,7 @@ import {
 import { bookingTitle } from "./booking-label";
 import {
   bookingIdInput,
+  declineBookingInput,
   adminRescheduleInput,
   adminSlotsInput,
   adminCreateBookingInput,
@@ -540,5 +544,255 @@ export async function createBookingAdmin(
     return { ok: true, emailed };
   } catch (error) {
     return fail("createBookingAdmin", error);
+  }
+}
+
+// ---- Booking approval (0062/0063): the provider's answer to a request.
+//
+// Neither flip can be a plain UPDATE: 0028's provider seam grants
+// `authenticated` only bookings.status, under a policy pinned to
+// confirmed → cancelled_by_provider, and decline_note has no column grant at
+// all. Both actions therefore call a definer RPC (0063) and then RE-READ the
+// row for the email tail. The RPC is the commit point — everything after it
+// follows cancelBookingAdmin's committed-tail discipline.
+
+/** Both RPCs raise a bare 'not found' for every guard they hold (not this
+    org's row / not pending / already started), so the action cannot tell
+    them apart — one friendly line covers all of them. */
+const NOT_PENDING_ACCEPT = "Only a live pending request can be accepted.";
+const NOT_PENDING_DECLINE = "Only a live pending request can be declined.";
+
+export async function acceptBookingRequest(
+  input: unknown,
+): Promise<{ ok: true; emailed: boolean; noEmail?: boolean } | { ok: false; error: string }> {
+  const parsed = bookingIdInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  try {
+    const org = await currentOrg();
+    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const supabase = await createClient();
+    // pending -> confirmed cannot 23P01: the row already holds its slot under
+    // the widened EXCLUDE (0062). Guards (live pending, this org) are the RPC's.
+    const { error: rpcError } = await supabase.rpc("accept_booking", {
+      p_booking_id: parsed.data.id,
+    });
+    if (rpcError) {
+      console.error("[scheduling] acceptBookingRequest rpc:", rpcError.code || "rpc error");
+      return { ok: false, error: NOT_PENDING_ACCEPT };
+    }
+
+    // Past this line the accept is COMMITTED — nothing below may turn into a
+    // failed action, so the whole tail (the re-read included) sits in its own
+    // catch rather than falling through to the outer one.
+    let emailed = false;
+    let noEmail = false;
+    try {
+      const { data: rows, error: readError } = await supabase
+        .from("bookings")
+        .select(
+          "id, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, price_cents, currency, deposit_cents, staff(name), services(name), rental_offerings(name, range_mode, cancel_window_min), rental_units(name)",
+        )
+        .eq("id", parsed.data.id)
+        .eq("org_id", org.id);
+      if (readError) console.error("[scheduling] acceptBookingRequest read:", readError);
+      const row = (rows as unknown as Array<{
+        id: string;
+        client_name: string;
+        client_email: string | null;
+        staff_id: string | null;
+        starts_at: string;
+        ends_at: string;
+        rental_unit_id: string | null;
+        price_cents: number | null;
+        currency: string | null;
+        deposit_cents: number | null;
+        staff: { name: string } | null;
+        services: { name: string } | null;
+        rental_offerings: { name: string; range_mode: RangeMode; cancel_window_min: number } | null;
+        rental_units: { name: string } | null;
+      }> | null)?.[0];
+      // No row = the read failed after a committed accept: no mail can go
+      // out, and the action still reports success.
+      if (!row) {
+        noEmail = true;
+      } else {
+        const serviceName = bookingTitle(row);
+        const whenLine = whenLineFor(
+          {
+            startsAt: new Date(row.starts_at),
+            endsAt: new Date(row.ends_at),
+            isRental: row.rental_unit_id !== null,
+            rangeMode: row.rental_offerings?.range_mode ?? null,
+          },
+          org.timezone,
+        );
+        const idempotencyKey = bookingLifecycleKey(row.id, "manage-accept");
+
+        if (!row.client_email) {
+          noEmail = true;
+        } else {
+          // Rotate first (resendManageLink discipline): the confirmation must
+          // carry a live link, and the request-received link dies with it.
+          // rotate_booking_token needs status='confirmed' — hence after the RPC.
+          const fresh = generateAccessToken();
+          const { error: rotateError } = await supabase.rpc("rotate_booking_token", {
+            p_booking_id: row.id,
+            p_token_hash: fresh.tokenHash,
+          });
+          if (rotateError) {
+            // Accepted but not rotated: the old (request) link still works.
+            // Skip the mail; "Resend link" recovers.
+            console.error("[scheduling] accept rotate failed:", rotateError);
+          } else {
+            emailed = true;
+            try {
+              const infoLines =
+                row.rental_unit_id !== null
+                  ? moneyInfoLines({
+                      totalCents: row.price_cents,
+                      depositCents: row.deposit_cents,
+                      currency: row.currency,
+                      cancelWindowMin: row.rental_offerings?.cancel_window_min ?? 0,
+                    })
+                  : [];
+              const msg = bookingConfirmationEmail({
+                orgName: org.name,
+                serviceName,
+                whenLine,
+                manageUrl: buildBookingManageUrl(fresh.token),
+                icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+                staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
+                badgeUrl: await emailBadgeUrl(org.id),
+                infoLines,
+              });
+              await selectTransport().send({
+                to: row.client_email,
+                subject: msg.subject,
+                html: msg.html,
+                text: msg.text,
+                idempotencyKey,
+              });
+            } catch (mailError) {
+              console.error("[scheduling] accept email failed:", mailError);
+              emailed = false;
+            }
+          }
+        }
+
+        // The member finally hears about it — creating a pending row
+        // deliberately skipped the staff notice (Task 5).
+        if (row.staff_id) {
+          await sendStaffNotice({
+            orgId: org.id,
+            staffId: row.staff_id,
+            kind: "new",
+            serviceName,
+            clientName: row.client_name,
+            whenLine,
+            idempotencyKey,
+          });
+        }
+      }
+    } catch (postError) {
+      console.error("[scheduling] accept follow-up failed:", postError);
+    }
+
+    revalidatePath("/bookings");
+    revalidatePath("/overview");
+    return { ok: true, emailed, noEmail };
+  } catch (error) {
+    return fail("acceptBookingRequest", error);
+  }
+}
+
+export async function declineBookingRequest(
+  input: unknown,
+): Promise<{ ok: true; emailed: boolean; noEmail?: boolean } | { ok: false; error: string }> {
+  const parsed = declineBookingInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  try {
+    const org = await currentOrg();
+    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    const supabase = await createClient();
+    // The RPC stores the note (nullif(btrim(...), '')) — decline_note carries
+    // no column grant, so the action never writes it itself.
+    const { error: rpcError } = await supabase.rpc("decline_booking", {
+      p_booking_id: parsed.data.id,
+      p_note: parsed.data.note ?? null,
+    });
+    if (rpcError) {
+      console.error("[scheduling] declineBookingRequest rpc:", rpcError.code || "rpc error");
+      return { ok: false, error: NOT_PENDING_DECLINE };
+    }
+
+    // Committed from here — same discipline as accept above: the re-read
+    // included, nothing below may fail the action.
+    let emailed = false;
+    let noEmail = false;
+    try {
+      const { data: rows, error: readError } = await supabase
+        .from("bookings")
+        .select(
+          "id, client_email, starts_at, ends_at, rental_unit_id, staff(name), services(name), rental_offerings(name, range_mode), rental_units(name)",
+        )
+        .eq("id", parsed.data.id)
+        .eq("org_id", org.id);
+      if (readError) console.error("[scheduling] declineBookingRequest read:", readError);
+      const row = (rows as unknown as Array<{
+        id: string;
+        client_email: string | null;
+        starts_at: string;
+        ends_at: string;
+        rental_unit_id: string | null;
+        staff: { name: string } | null;
+        services: { name: string } | null;
+        rental_offerings: { name: string; range_mode: RangeMode } | null;
+        rental_units: { name: string } | null;
+      }> | null)?.[0];
+
+      if (!row?.client_email) {
+        noEmail = true;
+      } else {
+        emailed = true;
+        try {
+          const msg = bookingDeclinedEmail({
+            orgName: org.name,
+            serviceName: bookingTitle(row),
+            whenLine: whenLineFor(
+              {
+                startsAt: new Date(row.starts_at),
+                endsAt: new Date(row.ends_at),
+                isRental: row.rental_unit_id !== null,
+                rangeMode: row.rental_offerings?.range_mode ?? null,
+              },
+              org.timezone,
+            ),
+            // The provider's own words, straight from the parsed input — the
+            // RPC stored the same value (trimmed) in decline_note.
+            note: parsed.data.note ?? null,
+            staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
+            badgeUrl: await emailBadgeUrl(org.id),
+          });
+          await selectTransport().send({
+            to: row.client_email,
+            subject: msg.subject,
+            html: msg.html,
+            text: msg.text,
+            idempotencyKey: bookingLifecycleKey(row.id, "request-declined"),
+          });
+        } catch (mailError) {
+          console.error("[scheduling] decline email failed:", mailError);
+          emailed = false;
+        }
+      }
+    } catch (postError) {
+      console.error("[scheduling] decline follow-up failed:", postError);
+    }
+
+    revalidatePath("/bookings");
+    revalidatePath("/overview");
+    return { ok: true, emailed, noEmail };
+  } catch (error) {
+    return fail("declineBookingRequest", error);
   }
 }

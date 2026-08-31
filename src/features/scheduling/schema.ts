@@ -185,6 +185,14 @@ export const rescheduleBookingInput = z.object({
 
 export const bookingIdInput = z.object({ id: z.uuid() });
 
+// Approval: declining a request may carry a short reason for the client's
+// mail. 500 is the DB's own ceiling (bookings_decline_note_check, 0062) —
+// decline_booking (0063) refuses anything longer.
+export const declineBookingInput = z.object({
+  id: z.uuid(),
+  note: z.string().trim().max(500).optional(),
+});
+
 export const adminRescheduleInput = z.object({
   id: z.uuid(),
   startsAt: z.iso.datetime(),
