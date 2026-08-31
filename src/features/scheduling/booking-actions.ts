@@ -644,7 +644,6 @@ export async function acceptBookingRequest(
         } else {
           // Rotate first (resendManageLink discipline): the confirmation must
           // carry a live link, and the request-received link dies with it.
-          // rotate_booking_token needs status='confirmed' — hence after the RPC.
           const fresh = generateAccessToken();
           const { error: rotateError } = await supabase.rpc("rotate_booking_token", {
             p_booking_id: row.id,

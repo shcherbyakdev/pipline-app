@@ -1,7 +1,8 @@
 /**
  * S3 widget/embed RPCs: update_org_widget_theme (validated jsonb write to
  * orgs.widget_theme, same select-only-orgs discipline as branding) and
- * rotate_booking_token (manage-link rotation — confirmed + future only).
+ * rotate_booking_token (manage-link rotation — a future confirmed booking or
+ * pending request; 0064 widened it to requests).
  * Requires the local Supabase stack.
  */
 import { describe, it, expect, beforeAll } from "vitest";

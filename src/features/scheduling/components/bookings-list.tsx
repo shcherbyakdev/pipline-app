@@ -88,7 +88,7 @@ function Row({
     startTransition(async () => {
       const result = await resendManageLink({ id: booking.id });
       if (!result.ok) toast.error(result.error);
-      else if (result.emailed) toast.success("A fresh booking link is on its way to the client.");
+      else if (result.emailed) toast.success("A fresh link is on its way to the client.");
       else
         toast.warning(
           "Link was reset, but the email failed — the old link no longer works. Contact the client directly.",
@@ -140,8 +140,10 @@ function Row({
         {booking.clientEmail ? ` · ${booking.clientEmail}` : ""}
         {booking.note ? ` · “${booking.note}”` : null}
       </p>
-      {/* A request is answered, not managed: Accept / Decline replace the
-          reschedule–resend–cancel row until it becomes a booking. */}
+      {/* A request is answered, not managed: the list keeps only Accept /
+          Decline in place of the reschedule–resend–cancel row until it
+          becomes a booking. (The detail dialog also offers Resend link —
+          a request's link is reissuable too, it just isn't row work.) */}
       {liveRequest ? (
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={accept} disabled={pending}>

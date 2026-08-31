@@ -194,7 +194,7 @@ export function bookingManageLinkEmail(input: {
   <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(input.staffName)}
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${icsHtml}
   <p style="margin: 0 0 8px;">
-    <a href="${esc(input.manageUrl)}">View or manage this booking</a>
+    <a href="${esc(input.manageUrl)}">${input.request ? "View or withdraw this request" : "View or manage this booking"}</a>
   </p>
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     Keep this email — the link above replaces any previous manage link.
