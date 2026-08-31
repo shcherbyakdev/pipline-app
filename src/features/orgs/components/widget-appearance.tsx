@@ -151,6 +151,54 @@ export function WidgetAppearance({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* The page's one job first: the snippet, in the first viewport —
+          styling below is the refinement, not the point. */}
+      {handle ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-muted-foreground text-sm font-medium">Embed snippet</p>
+          {staffOptions.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="wt-staff" className="text-xs font-medium">
+                Book with
+              </Label>
+              <select
+                id="wt-staff"
+                className={cn(selectClass, "w-auto")}
+                value={staffSlug}
+                onChange={(e) => setStaffSlug(e.target.value)}
+              >
+                <option value="">Whole team</option>
+                {staffOptions.map((s) => (
+                  <option key={s.slug} value={s.slug}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-muted-foreground text-xs">
+                {staffSlug
+                  ? "This snippet books that person only."
+                  : "Clients pick who they book."}
+              </span>
+            </div>
+          ) : null}
+          <pre className="bg-muted overflow-x-auto rounded-md border p-3 font-mono text-xs">
+            {snippet}
+          </pre>
+          <div>
+            <Button variant="outline" size="sm" onClick={copySnippet}>
+              Copy
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-sm">
+          Set a booking page address on{" "}
+          <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
+            Booking page
+          </Link>{" "}
+          to get your embed code.
+        </p>
+      )}
       {/* Controls stay a narrow column; the preview gets the room, since
           judging the widget in context is the point of this page. */}
       <div className="grid gap-8 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
@@ -298,52 +346,6 @@ export function WidgetAppearance({
           </EmbedPreviewFrame>
         </div>
       </div>
-      {handle ? (
-        <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm font-medium">Embed snippet</p>
-          {staffOptions.length > 0 ? (
-            <div className="flex items-center gap-2">
-              <Label htmlFor="wt-staff" className="text-xs font-medium">
-                Book with
-              </Label>
-              <select
-                id="wt-staff"
-                className={cn(selectClass, "w-auto")}
-                value={staffSlug}
-                onChange={(e) => setStaffSlug(e.target.value)}
-              >
-                <option value="">Whole team</option>
-                {staffOptions.map((s) => (
-                  <option key={s.slug} value={s.slug}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <span className="text-muted-foreground text-xs">
-                {staffSlug
-                  ? "This snippet books that person only."
-                  : "Clients pick who they book."}
-              </span>
-            </div>
-          ) : null}
-          <pre className="bg-muted overflow-x-auto rounded-md border p-3 font-mono text-xs">
-            {snippet}
-          </pre>
-          <div>
-            <Button variant="outline" size="sm" onClick={copySnippet}>
-              Copy
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          Set a booking page address on{" "}
-          <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
-            Booking page
-          </Link>{" "}
-          to get your embed code.
-        </p>
-      )}
     </div>
   );
 }

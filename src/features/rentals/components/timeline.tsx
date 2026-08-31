@@ -265,7 +265,9 @@ export function Timeline({
           {...pan.handlers}
           style={{ "--base": `${-visIdx * cellPx}px` } as React.CSSProperties}
           className={cn(
-            "min-h-[20rem] overflow-x-hidden overflow-y-auto",
+            // Open hand at rest: the chart is draggable through time and the
+            // cursor is the affordance that says so (the legend repeats it).
+            "min-h-[20rem] cursor-grab overflow-x-hidden overflow-y-auto",
             summary.count > 0 ? "h-[calc(100dvh-17.5rem)]" : "h-[calc(100dvh-14rem)]",
             // While dragging: closed hand, no selection, and nothing under
             // the moving pointer reacts (no hover cards popping mid-drag —
@@ -477,6 +479,7 @@ function Legend() {
         <span aria-hidden className="bg-primary inline-block h-3 w-0.5" />
         Now
       </li>
+      <li>Drag sideways to move through time.</li>
     </ul>
   );
 }

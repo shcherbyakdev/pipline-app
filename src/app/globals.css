@@ -2,15 +2,30 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Nested `.light` surfaces opt out of `dark:` variants; nothing under (dashboard) sits inside `.light`. */
-/* `.book-auto` (hosted booking page, theme "auto") opts out too, but only
-   while the visitor's system is light — see the media block below. */
+/* The root is light; `.dark` opts a subtree in (the admin's per-browser
+   Interface theme, or a /book page whose widget theme is "dark"), and a
+   nested `.light` opts back out. `.book-auto` (hosted booking page, theme
+   "auto") counts as dark only while the visitor's system is dark — its
+   tokens flip in the media block below, and this variant must flip with
+   them. */
 @custom-variant dark {
   @media not (prefers-color-scheme: light) {
-    &:is(.dark *):not(.light *) { @slot; }
+    &:is(:where(.dark, .book-auto) *):not(.light *) { @slot; }
   }
   @media (prefers-color-scheme: light) {
     &:is(.dark *):not(.light *):not(.book-auto *) { @slot; }
+  }
+}
+
+/* Tailwind v4's preflight defaults un-coloured borders to currentColor
+   (near-black ink here), which the old dark theme masked. The soft world is
+   drawn in hairlines: a bare `border` means the hairline token, everywhere.
+   Explicit border-* utilities still win (they're in the utilities layer). */
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--border);
   }
 }
 
@@ -90,39 +105,68 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* App tokens: the product-first soft world, everywhere. One palette for the
+   landing, auth, admin and public booking pages (the `.marketing` block
+   below holds the same values plus the landing's own notes): warm off-white
+   ground, white cards on low-alpha hairlines, near-black ink as the only
+   control colour, kind colours only where they name a kind of booking.
+   `.dark` below is the same world at night. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.62 0.12 187);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  color-scheme: light;
+  --background: #fbfbfa;
+  --foreground: #1c1c1a;
+  --card: #ffffff;
+  --card-foreground: #1c1c1a;
+  --popover: #ffffff;
+  --popover-foreground: #1c1c1a;
+  --primary: #1c1c1a;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f2;
+  --secondary-foreground: #1c1c1a;
+  --muted: #f4f4f2;
+  --muted-foreground: #5f5f5b;
+  --subtle: #737370;
+  --accent: #efefec;
+  --accent-foreground: #1c1c1a;
+  --destructive: #e11d48;
+  --border: rgb(28 28 26 / 0.08);
+  --input: rgb(28 28 26 / 0.12);
+  --ring: #1c1c1a;
+  --highlight: #22b455;
+  --highlight-foreground: #ffffff;
+  --tint: #f4f4f2;
+  --success: #22b455;
+  --kind-time: #1e8bff;
+  --kind-time-soft: #e7f1ff;
+  --kind-space: #22b455;
+  --kind-space-soft: #e6f7ec;
+  --kind-stay: #ff9500;
+  --kind-stay-soft: #fff2df;
+  --kind-class: #ff3d8f;
+  --kind-class-soft: #ffe6f0;
+  --kind-embed: #8b5cf6;
+  --kind-time-text: #0b6fd6;
+  --kind-space-text: #15803d;
+  --kind-class-text: #c81e6a;
+  --kind-stay-text: #b45309;
+  --danger: #e11d48;
+  --danger-soft: #fde7ef;
+  --shadow-card: 0 1px 2px rgb(28 28 26 / 0.04), 0 16px 40px -20px rgb(28 28 26 / 0.18);
+  --shadow-lift: 0 1px 2px rgb(28 28 26 / 0.05), 0 6px 16px -8px rgb(28 28 26 / 0.14);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #f6f6f4;
+  --sidebar-foreground: #1c1c1a;
+  --sidebar-primary: #1c1c1a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(28 28 26 / 0.05);
+  --sidebar-accent-foreground: #1c1c1a;
+  --sidebar-border: rgb(28 28 26 / 0.08);
+  --sidebar-ring: #1c1c1a;
   --status-not-started: oklch(0.65 0 0);
   --status-in-progress: oklch(0.62 0.17 250);
   --status-complete: oklch(0.68 0.17 150);
@@ -130,43 +174,67 @@
   --status-blocked: oklch(0.63 0.22 25);
 }
 
-/* App dark theme — shares the landing's Linear-dark palette (see `.marketing`
-   below for the rationale per token): page ground #08090a, raised surfaces
-   #0f1011 / #141516 / #191a1b, cool off-white type, white-alpha hairlines,
-   pale-yellow accent for primary actions. The shell frame + sidebar sit on
-   --card; the content well is --background so cards lift off it. */
+/* The soft world at night: the same warm hue family inverted. Warm
+   near-black ground, raised surfaces one step lighter, warm off-white type,
+   the ink pill becomes an off-white pill, hairlines at white-alpha, kind
+   colours brightened to hold AA on the dark ground. Reached per browser via
+   Settings → Interface theme (next-themes; default light) and by /book
+   pages whose widget theme is "dark". */
 .dark {
-  --background: oklch(0.139 0.003 246); /* #08090a */
-  --foreground: oklch(0.978 0.001 197); /* #f7f8f8 */
-  --card: oklch(0.172 0.003 248); /* #0f1011 */
-  --card-foreground: oklch(0.978 0.001 197);
-  --popover: oklch(0.195 0.003 248); /* #141516 */
-  --popover-foreground: oklch(0.978 0.001 197);
-  --primary: oklch(0.974 0.07 105); /* #FDFAC3 */
-  --primary-foreground: oklch(0.139 0.003 246);
-  --secondary: oklch(0.217 0.002 248); /* #191a1b */
-  --secondary-foreground: oklch(0.978 0.001 197);
-  --muted: oklch(0.195 0.003 248); /* #141516 */
-  --muted-foreground: oklch(0.649 0.015 262); /* #8a8f98 */
-  --accent: oklch(1 0 0 / 5%);
-  --accent-foreground: oklch(0.978 0.001 197);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.649 0.015 262);
+  color-scheme: dark;
+  --background: #131312;
+  --foreground: #f4f4f2;
+  --card: #1b1b1a;
+  --card-foreground: #f4f4f2;
+  --popover: #21211f;
+  --popover-foreground: #f4f4f2;
+  --primary: #f4f4f2;
+  --primary-foreground: #1c1c1a;
+  --secondary: #222220;
+  --secondary-foreground: #f4f4f2;
+  --muted: #222220;
+  --muted-foreground: #a5a49e;
+  --subtle: #8f8e88;
+  --accent: rgb(244 244 242 / 0.07);
+  --accent-foreground: #f4f4f2;
+  --destructive: #ff5c7c;
+  --border: rgb(244 244 242 / 0.09);
+  --input: rgb(244 244 242 / 0.14);
+  --ring: #f4f4f2;
+  --highlight: #34d16d;
+  --highlight-foreground: #131312;
+  --tint: #222220;
+  --success: #34d16d;
+  --kind-time: #4da3ff;
+  --kind-time-soft: #182a41;
+  --kind-space: #34d16d;
+  --kind-space-soft: #143220;
+  --kind-stay: #ffa64d;
+  --kind-stay-soft: #3a2712;
+  --kind-class: #ff5ca2;
+  --kind-class-soft: #3d1728;
+  --kind-embed: #a78bfa;
+  --kind-time-text: #7db8ff;
+  --kind-space-text: #57d989;
+  --kind-class-text: #ff86b8;
+  --kind-stay-text: #ffb867;
+  --danger: #ff5c7c;
+  --danger-soft: #3d1420;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px -20px rgb(0 0 0 / 0.7);
+  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.5), 0 6px 16px -8px rgb(0 0 0 / 0.55);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.172 0.003 248); /* #0f1011 */
-  --sidebar-foreground: oklch(0.978 0.001 197);
-  --sidebar-primary: oklch(0.974 0.07 105);
-  --sidebar-primary-foreground: oklch(0.139 0.003 246);
-  --sidebar-accent: oklch(1 0 0 / 5%);
-  --sidebar-accent-foreground: oklch(0.978 0.001 197);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.649 0.015 262);
+  --sidebar: #161615;
+  --sidebar-foreground: #f4f4f2;
+  --sidebar-primary: #f4f4f2;
+  --sidebar-primary-foreground: #1c1c1a;
+  --sidebar-accent: rgb(244 244 242 / 0.07);
+  --sidebar-accent-foreground: #f4f4f2;
+  --sidebar-border: rgb(244 244 242 / 0.09);
+  --sidebar-ring: #f4f4f2;
   --status-not-started: oklch(0.65 0 0);
   --status-in-progress: oklch(0.62 0.17 250);
   --status-complete: oklch(0.68 0.17 150);
@@ -181,51 +249,52 @@
    tokens; anything nested here that needs those must add them. */
 .light {
   color-scheme: light;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.62 0.12 187);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --background: #fbfbfa;
+  --foreground: #1c1c1a;
+  --card: #ffffff;
+  --card-foreground: #1c1c1a;
+  --popover: #ffffff;
+  --popover-foreground: #1c1c1a;
+  --primary: #1c1c1a;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f2;
+  --secondary-foreground: #1c1c1a;
+  --muted: #f4f4f2;
+  --muted-foreground: #5f5f5b;
+  --accent: #efefec;
+  --accent-foreground: #1c1c1a;
+  --destructive: #e11d48;
+  --border: rgb(28 28 26 / 0.08);
+  --input: rgb(28 28 26 / 0.12);
+  --ring: #1c1c1a;
 }
 
 /* Hosted booking page (/book/[handle]) in the org's widget theme "auto":
-   light when the visitor's system is light, else it inherits the app's dark
-   tokens from <html>. Same values as `.light` above — keep the two in sync
-   (a media query can't share a selector list with a plain class). */
-@media (prefers-color-scheme: light) {
+   the root is light, so "auto" simply inherits the light tokens until the
+   visitor's system is dark — then it takes the night set. Values mirror
+   `.dark` above — keep the two in sync (a media query can't share a
+   selector list with a plain class). */
+@media not (prefers-color-scheme: light) {
   .book-auto {
-    color-scheme: light;
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.62 0.12 187);
-    --primary-foreground: oklch(0.99 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    color-scheme: dark;
+    --background: #131312;
+    --foreground: #f4f4f2;
+    --card: #1b1b1a;
+    --card-foreground: #f4f4f2;
+    --popover: #21211f;
+    --popover-foreground: #f4f4f2;
+    --primary: #f4f4f2;
+    --primary-foreground: #1c1c1a;
+    --secondary: #222220;
+    --secondary-foreground: #f4f4f2;
+    --muted: #222220;
+    --muted-foreground: #a5a49e;
+    --accent: rgb(244 244 242 / 0.07);
+    --accent-foreground: #f4f4f2;
+    --destructive: #ff5c7c;
+    --border: rgb(244 244 242 / 0.09);
+    --input: rgb(244 244 242 / 0.14);
+    --ring: #f4f4f2;
   }
 }
 
@@ -287,11 +356,13 @@
   accent-color: var(--foreground);
   caret-color: var(--foreground);
 }
-/* The app root is dark; paint the marketing route's root too so overscroll
-   and any gap below the page never shows the dark ground. */
-html:has(.marketing) {
-  background: #fbfbfa;
-  color-scheme: light;
+/* Text selection carries the world too — everywhere, not only on the
+   landing. */
+::selection {
+  background: rgb(28 28 26 / 0.12);
+}
+.dark ::selection {
+  background: rgb(244 244 242 / 0.2);
 }
 .marketing ::selection {
   background: rgb(28 28 26 / 0.12);
@@ -409,20 +480,13 @@ html:has(.marketing) {
 }
 /* Same unlayered-always-wins mechanism as the border-color rule above, for
    fills. The service list / date-nav / time-slot buttons (booking-widget.tsx)
-   use shadcn Button's `outline` variant (`bg-background hover:bg-muted
-   dark:bg-input/30 dark:hover:bg-input/50`) or a bare `hover:bg-accent/50`.
-   Those all read dashboard tokens (--background/--muted/--accent/--input),
-   which .widget-theme never redefines — so they keep whatever value the
-   PAGE ROOT set. The root layout hardcodes `dark` on <html> for every route
-   (dashboard, /book, /embed alike), and Tailwind's `dark:` custom variant
-   (`&:is(.dark *)`) matches ANY descendant of a `.dark` ancestor, so
-   `dark:bg-input/30` fires unconditionally — even for a widget whose OWN
-   theme is wt-light. The result: washed-out dashboard-dark-mode grey boxes
-   that match neither the light nor the dark widget theme (the bug reported
-   from the Settings live preview, but present identically on /book and
-   /embed since the same `dark` class is on <html> there too). Marked
-   surfaces get an explicit widget-derived fill instead: transparent at
-   rest, a subtle tint mixed from the widget's own bg/text at hover. */
+   use shadcn Button's `outline` variant or a bare `hover:bg-accent/50`,
+   which read app tokens (--background/--muted/--accent/--input) that
+   .widget-theme never redefines — so they'd keep whatever the PAGE ROOT (or
+   an enclosing `.dark`/`.book-auto` scope, e.g. a dark-theme admin's live
+   preview) set, and match neither the light nor the dark widget theme.
+   Marked surfaces get an explicit widget-derived fill instead: transparent
+   at rest, a subtle tint mixed from the widget's own bg/text at hover. */
 .widget-theme .wt-surface {
   background-color: transparent;
 }

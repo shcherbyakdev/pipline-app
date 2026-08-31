@@ -55,7 +55,7 @@ function Row({
   };
 
   return (
-    <li className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+    <li className="bg-card flex flex-col gap-2 rounded-xl border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">{service.name}</span>
@@ -66,7 +66,7 @@ function Row({
           {team ? ` · ${team}` : ""}
         </p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         {/* Only a service a client can actually book gets a link — active and
             offered by an active person; an unlinked one would just degrade to
             the org flow. */}

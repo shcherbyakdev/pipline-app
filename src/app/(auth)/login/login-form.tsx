@@ -7,6 +7,7 @@ import type { AuthState } from "@/features/auth/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/shared/password-input";
 
 const initial: AuthState = {};
 
@@ -47,13 +48,7 @@ function PasswordForm({ onSwitch, next }: { onSwitch: () => void; next: string |
             Forgot password?
           </Link>
         </div>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          required
-          autoComplete="current-password"
-        />
+        <PasswordInput id="password" name="password" required autoComplete="current-password" />
       </div>
       {state.error ? (
         <p className="text-destructive text-sm">{state.error}</p>

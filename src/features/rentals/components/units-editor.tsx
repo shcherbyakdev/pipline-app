@@ -250,9 +250,7 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border pt-3">
-        <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-          Unavailable dates
-        </h3>
+        <h3 className="text-muted-foreground text-xs font-medium">Unavailable dates</h3>
         {unit.blackouts.length > 0 ? (
           <ul className="flex flex-col gap-1">
             {unit.blackouts.map((blackout) => (

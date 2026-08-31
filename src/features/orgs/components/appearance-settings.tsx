@@ -4,7 +4,7 @@ import * as React from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Moon02Icon, Sun01Icon } from "@hugeicons/core-free-icons";
 import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
+import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
 
 const subscribeNoop = () => () => {};
 
@@ -29,7 +29,7 @@ export function AppearanceSettings() {
         <div className="text-sm font-medium">Interface theme</div>
         <p className="text-muted-foreground text-sm">Applies to this browser only.</p>
       </div>
-      <div role="radiogroup" aria-label="Interface theme" className="grid grid-cols-2 gap-2 sm:max-w-xs">
+      <div role="radiogroup" aria-label="Interface theme" className={SEGMENTED_NAV_CLASS}>
         {OPTIONS.map(({ value, label, icon }) => {
           const selected = current === value;
           return (
@@ -39,14 +39,9 @@ export function AppearanceSettings() {
               role="radio"
               aria-checked={selected}
               onClick={() => setTheme(value)}
-              className={cn(
-                "flex h-9 items-center justify-center gap-2 rounded-md border text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                selected
-                  ? "border-foreground/40 bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-              )}
+              className={segmentedItemClass(selected)}
             >
-              <HugeiconsIcon icon={icon} size={16} />
+              <HugeiconsIcon icon={icon} size={15} />
               {label}
             </button>
           );

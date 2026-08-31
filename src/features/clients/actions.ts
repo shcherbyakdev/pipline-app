@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient as createSupabase } from "@/lib/supabase/server";
 import { generateAccessToken, buildPortalUrl } from "@/lib/tokens";
+import { listClientsDirectory } from "./queries";
 import {
   createClientInput,
   renameClientInput,
@@ -176,4 +177,17 @@ export async function revokePortalLink(input: unknown): Promise<ActionState> {
   if (error || !data) return fail("revokePortalLink", error ?? "link not visible");
   revalidatePath(`/clients/${data.client_id}`);
   return { ok: true };
+}
+
+/** ⌘K palette: the client directory as search entries. Read-only, RLS-scoped
+    to the caller's org; fetched once per palette session on first open. */
+export async function clientsForCommandMenu(): Promise<
+  Array<{ id: string; name: string; email: string | null }>
+> {
+  try {
+    return (await listClientsDirectory()).map((c) => ({ id: c.id, name: c.name, email: c.email }));
+  } catch (error) {
+    console.error("[clients] clientsForCommandMenu:", error);
+    return [];
+  }
 }

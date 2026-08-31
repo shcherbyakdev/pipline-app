@@ -47,10 +47,12 @@ export function ClientHeader({ id, name }: { id: string; name: string }) {
         className="border-transparent text-lg font-semibold shadow-none focus-visible:border-input"
       />
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        {/* Labeled, not icon-only: destructive intent should be readable
+            before the pointer commits (the dialog still confirms). */}
         <DialogTrigger
           render={
-            <Button variant="ghost" size="icon" aria-label="Delete client">
-              <Trash2 className="size-4" />
+            <Button variant="ghost" size="sm" className="text-muted-foreground shrink-0">
+              <Trash2 className="size-4" /> Delete client
             </Button>
           }
         />

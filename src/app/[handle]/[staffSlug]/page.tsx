@@ -81,7 +81,7 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
   return (
     <div className={bookShellClass(theme.theme)}>
       <WidgetTheme config={theme} accentColor={branding.accentColor} transparent className="flex flex-1 flex-col">
-        <main className={cn("mx-auto flex w-full flex-col gap-6 p-6", pageContainerClass(doc.layout))}>
+        <main className={cn("mx-auto flex w-full flex-col gap-6 px-6 pt-10 pb-8", pageContainerClass(doc.layout))}>
           <PageRenderer doc={doc} ctx={ctx} initialServiceId={initialServiceId} />
           {/* Same rule as /book/[handle] and the embed (spec §5). */}
           {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}

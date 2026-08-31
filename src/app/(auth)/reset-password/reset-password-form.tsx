@@ -4,8 +4,8 @@ import { useActionState } from "react";
 import { updatePassword } from "@/features/auth/actions";
 import type { AuthState } from "@/features/auth/schema";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/shared/password-input";
 
 const initial: AuthState = {};
 
@@ -16,26 +16,12 @@ export function ResetPasswordForm() {
     <form action={action} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">New password</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-        />
+        <PasswordInput id="password" name="password" required minLength={8} autoComplete="new-password" />
         <p className="text-muted-foreground text-xs">At least 8 characters.</p>
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="confirm">Confirm new password</Label>
-        <Input
-          id="confirm"
-          name="confirm"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-        />
+        <PasswordInput id="confirm" name="confirm" required minLength={8} autoComplete="new-password" />
       </div>
       {state.error ? (
         <p className="text-destructive text-sm">{state.error}</p>

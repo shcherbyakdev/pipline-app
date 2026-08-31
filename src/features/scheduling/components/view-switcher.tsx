@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { viewSwitcherItems, type BookingsView } from "@/features/scheduling/bookings-views";
-import { cn } from "@/lib/utils";
+import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
 
 /* Week · Timeline · List — a segmented row of links (staff-tabs.tsx idiom:
    navigation, not state, so the view survives a refresh and can be shared).
@@ -18,21 +18,13 @@ export function ViewSwitcher({
 }) {
   const items = viewSwitcherItems({ current, showTimeline, scopeQuery });
   return (
-    <nav
-      aria-label="Bookings view"
-      className="border-border bg-muted/40 flex w-fit items-center gap-0.5 rounded-lg border p-0.5"
-    >
+    <nav aria-label="Bookings view" className={SEGMENTED_NAV_CLASS}>
       {items.map((item) => (
         <Link
           key={item.view}
           href={item.href}
           aria-current={item.current ? "page" : undefined}
-          className={cn(
-            "focus-visible:ring-ring/50 flex h-7 shrink-0 items-center rounded-[6px] px-2.5 text-sm outline-none focus-visible:ring-2",
-            item.current
-              ? "bg-background text-foreground font-medium shadow-xs"
-              : "text-muted-foreground hover:text-foreground",
-          )}
+          className={segmentedItemClass(item.current)}
         >
           {item.label}
         </Link>

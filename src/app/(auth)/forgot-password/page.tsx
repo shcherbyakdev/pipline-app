@@ -4,11 +4,8 @@ import { ForgotPasswordForm } from "./forgot-password-form";
 export default async function ForgotPasswordPage({ searchParams }: PageProps<"/forgot-password">) {
   const { expired } = await searchParams;
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <h1 className="mb-1 text-2xl font-semibold tracking-tight">
-          Reset your password
-        </h1>
+    <div>
+      <h1 className="mb-1 text-xl font-semibold tracking-tight">Reset your password</h1>
         <p className="text-muted-foreground mb-6 text-sm">
           We&apos;ll email you a link to set a new one.
         </p>
@@ -23,7 +20,6 @@ export default async function ForgotPasswordPage({ searchParams }: PageProps<"/f
             Back to sign in
           </Link>
         </p>
-      </div>
-    </main>
+    </div>
   );
 }

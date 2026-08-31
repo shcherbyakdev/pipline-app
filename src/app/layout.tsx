@@ -1,16 +1,26 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Geist_Mono, Inter, Outfit } from "next/font/google";
 import { SITE } from "@/features/marketing/site";
 import "./globals.css";
 
+// One type voice for the whole product (landing, auth, admin, booking
+// pages): Inter for everything that is read, Geist Mono where a value is a
+// value, Outfit Semibold only for the wordmark. The (marketing) layout
+// re-declares the same variables; both resolve to the same faces.
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const geistMono = Geist_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+});
+
+const outfit = Outfit({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["600"],
 });
 
 export const metadata: Metadata = {
@@ -31,10 +41,12 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // suppressHydrationWarning: next-themes sets the `dark`/`light` class on
-    // <html> before hydration, which otherwise mismatches server output.
+    // <html> before hydration (dashboard only), which otherwise mismatches
+    // server output. The root itself is light — the soft world's tokens live
+    // on :root — so public pages need no theme class at all.
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} dark h-full antialiased`}
+      className={`${inter.variable} ${geistMono.variable} ${outfit.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       {/* suppressHydrationWarning: browser extensions (e.g. Bitdefender)

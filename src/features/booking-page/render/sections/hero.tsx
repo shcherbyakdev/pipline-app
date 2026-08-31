@@ -8,7 +8,7 @@ import { CrossLink } from "../cross-link";
 import { Ghost } from "../ghost";
 import { bookHref, type Pickers } from "../pickers";
 
-export function HeroSection({ section, ctx, pickers, crossLink }: { section: SectionOf<"hero">; ctx: RenderContext; pickers: Pickers; crossLink: RenderContext["crossLink"] }) {
+export function HeroSection({ section, ctx, pickers, crossLink, ctaHidden = false }: { section: SectionOf<"hero">; ctx: RenderContext; pickers: Pickers; crossLink: RenderContext["crossLink"]; ctaHidden?: boolean }) {
   const src = section.imagePath ? pageImageUrl(ctx.supabaseUrl, section.imagePath) : null;
   const center = section.align === "center";
   return (
@@ -28,7 +28,9 @@ export function HeroSection({ section, ctx, pickers, crossLink }: { section: Sec
           <p className="text-muted-foreground max-w-prose text-base text-pretty sm:text-lg">{section.subheadline}</p>
         ) : null}
       </div>
-      <BookButton label={section.cta} href={bookHref(pickers)} mode={ctx.mode} />
+      {/* Suppressed when the booking step renders above this section — the
+          anchor would scroll backwards (PageRenderer decides). */}
+      {ctaHidden ? null : <BookButton label={section.cta} href={bookHref(pickers)} mode={ctx.mode} />}
       <CrossLink link={crossLink} mode={ctx.mode} />
     </section>
   );
