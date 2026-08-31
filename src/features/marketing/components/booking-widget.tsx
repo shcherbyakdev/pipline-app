@@ -86,7 +86,7 @@ function subscribeReducedMotion(cb: () => void) {
   mq.addEventListener("change", cb);
   return () => mq.removeEventListener("change", cb);
 }
-function usePrefersReducedMotion() {
+export function usePrefersReducedMotion() {
   return React.useSyncExternalStore(
     subscribeReducedMotion,
     () => window.matchMedia(REDUCED).matches,
@@ -182,7 +182,7 @@ export function BookingWidget({ handle, host, mode, enterFrom = null }: { handle
                   const sel = idx === s.offer;
                   return (
                     <li key={o.name} className={cn("flex items-start gap-3 rounded-[12px] p-3", sel && "bg-card shadow-[var(--shadow-lift)]", EASE)}>
-                      <span className={cn("mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full", sel ? cn(k.fill, "text-white") : "bg-card ring-input ring-1 ring-inset", EASE)}>
+                      <span className={cn("mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full", sel ? cn(k.fill, "text-on-kind") : "bg-card ring-input ring-1 ring-inset", EASE)}>
                         {sel ? <Check className="size-2.5" strokeWidth={3} /> : null}
                       </span>
                       <span className="min-w-0 flex-1">
@@ -229,7 +229,7 @@ export function BookingWidget({ handle, host, mode, enterFrom = null }: { handle
                         "flex size-9 items-center justify-center rounded-full text-[13px]",
                         EASE,
                         d === null && "invisible",
-                        !open && "text-subtle/60",
+                        !open && "text-subtle",
                         open && !sel && cn(k.soft, k.text, "font-medium"),
                         sel && "bg-foreground text-background font-medium",
                       )}

@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import { CTA, NAV_LINKS, SITE } from "@/features/marketing/site";
 import { marketingButton } from "./marketing-button";
 import { BookloWordmark } from "./booklo-mark";
+import { cn } from "@/lib/utils";
 
 /* Wordmark left, plain links beside it (md+), Log in as a grey pill and Get
    started as the ink pill on the right; a hamburger below md that opens a
@@ -15,6 +16,19 @@ import { BookloWordmark } from "./booklo-mark";
 export function MarketingNav() {
   const [open, setOpen] = React.useState(false);
   const toggleRef = React.useRef<HTMLButtonElement>(null);
+
+  /* While the dark band (the section marked data-nav-dark) sits under the
+     bar, the header opts into the `.dark` token scope so its ground, links
+     and pills invert. The observer's bottom margin shrinks the viewport to
+     roughly the bar's own strip, so "intersecting" means "under the bar". */
+  const [overDark, setOverDark] = React.useState(false);
+  React.useEffect(() => {
+    const target = document.querySelector("[data-nav-dark]");
+    if (!target) return;
+    const io = new IntersectionObserver(([e]) => setOverDark(e.isIntersecting), { rootMargin: "0px 0px -92% 0px" });
+    io.observe(target);
+    return () => io.disconnect();
+  }, []);
 
   React.useEffect(() => {
     if (!open) return;
@@ -29,7 +43,7 @@ export function MarketingNav() {
   }, [open]);
 
   return (
-    <header className="bg-background/80 sticky top-0 z-30 backdrop-blur-md">
+    <header className={cn("bg-background/80 sticky top-0 z-30 backdrop-blur-md transition-[background-color] duration-300", overDark && "dark")}>
       <nav aria-label="Main" className="mx-auto flex h-[72px] w-full max-w-6xl items-center gap-8 px-5 sm:px-8 lg:gap-10">
         <Link
           href={SITE.links.home}
