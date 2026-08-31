@@ -63,6 +63,8 @@ describe("booking approval — rentals", () => {
   let unitId: string;
   let hoursOfferingId: string;
   let hoursUnitId: string;
+  let windowOfferingId: string;
+  let windowUnitId: string;
 
   const bookingRow = async (id: string): Promise<Row> => {
     const { data, error } = await admin.from("bookings").select("*").eq("id", id).single();
@@ -145,7 +147,53 @@ describe("booking approval — rentals", () => {
     }));
     const { error: e7 } = await owner.from("availability_rules").insert(rules);
     if (e7) throw e7;
+
+    // Nights offering with a free-cancellation window (H3) — the two states
+    // cancel_booking treats differently live here: a request is always
+    // withdrawable, a confirmed stay inside the window is not.
+    const { data: winOff, error: e8 } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: orgId,
+        name: "Lodge",
+        range_mode: "nights",
+        start_time: "15:00",
+        end_time: "11:00",
+        min_stay: 1,
+        turnover_days: 0,
+        booking_window_days: 365,
+        requires_approval: true,
+        cancel_window_min: 10_080, // 7 days — every date below sits inside it
+      })
+      .select("id")
+      .single();
+    if (e8) throw e8;
+    windowOfferingId = winOff!.id as string;
+    const { data: winUnit, error: e9 } = await owner
+      .from("rental_units")
+      .insert({ org_id: orgId, offering_id: windowOfferingId, name: "L1", sort_order: 0 })
+      .select("id")
+      .single();
+    if (e9) throw e9;
+    windowUnitId = winUnit!.id as string;
   });
+
+  const createWindowStay = (start: string, end: string, email: string) => {
+    const t = generateAccessToken();
+    return admin
+      .rpc("create_rental_booking", {
+        p_handle: handle,
+        p_offering_id: windowOfferingId,
+        p_unit_id: windowUnitId,
+        p_start_date: start,
+        p_end_date: end,
+        p_name: "W",
+        p_email: email,
+        p_note: null,
+        p_token_hash: t.tokenHash,
+      })
+      .then((r) => ({ ...r, token: t.token }));
+  };
 
   it("range create inserts pending; pending blocks the dates; decline frees them", async () => {
     const h = () => generateAccessToken();
@@ -227,5 +275,28 @@ describe("booking approval — rentals", () => {
       p_token_hash: generateAccessToken().tokenHash,
     });
     expect(e2).not.toBeNull(); // rental_unit_is_free_hours now sees pending
+  });
+
+  it("a pending request inside the cancel window is still withdrawable", async () => {
+    const { data: id, error, token } = await createWindowStay(d(1), d(3), "win-p@example.com");
+    expect(error).toBeNull();
+    const { error: cancelErr } = await admin.rpc("cancel_booking", { p_token: token });
+    expect(cancelErr).toBeNull();
+    expect((await bookingRow(id as string)).status).toBe("cancelled_by_client");
+  });
+
+  it("a confirmed stay inside the cancel window raises the cancel_window sentinel", async () => {
+    const { data: id, error, token } = await createWindowStay(d(4), d(6), "win-c@example.com");
+    expect(error).toBeNull();
+    // Service role: the accept write path is authenticated-seam-restricted
+    // (0028); only the resulting state matters here.
+    const { error: acceptErr } = await admin
+      .from("bookings")
+      .update({ status: "confirmed" })
+      .eq("id", id as string);
+    expect(acceptErr).toBeNull();
+    const { error: cancelErr } = await admin.rpc("cancel_booking", { p_token: token });
+    expect(cancelErr?.message).toMatch(/cancel_window/);
+    expect((await bookingRow(id as string)).status).toBe("confirmed");
   });
 });
