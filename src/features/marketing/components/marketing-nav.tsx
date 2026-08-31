@@ -4,6 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { CTA, NAV_LINKS, SITE } from "@/features/marketing/site";
+import { hasAuthCookie } from "@/features/marketing/auth-cookie";
+import { DEFAULT_AFTER_LOGIN } from "@/lib/auth/next-path";
 import { marketingButton } from "./marketing-button";
 import { BookloWordmark } from "./booklo-mark";
 import { cn } from "@/lib/utils";
@@ -13,9 +15,22 @@ import { cn } from "@/lib/utils";
    small card. Sticky so the primary CTA stays in reach while the page
    scrolls; the ground shows through at 80% with a light blur. The card
    closes on link click and on Escape. */
+const subscribeNoop = () => () => {};
+
 export function MarketingNav() {
   const [open, setOpen] = React.useState(false);
   const toggleRef = React.useRef<HTMLButtonElement>(null);
+
+  /* Signed-in visitors get one Dashboard pill instead of Log in / Get
+     started. Read from the Supabase cookie via useSyncExternalStore (the
+     onboarding-form idiom: no subscription, the value never changes while
+     mounted) so the page stays static; SSR and first paint show the
+     signed-out pair for a beat. */
+  const authed = React.useSyncExternalStore(
+    subscribeNoop,
+    () => hasAuthCookie(document.cookie),
+    () => false,
+  );
 
   /* While the dark band (the section marked data-nav-dark) sits under the
      bar, the header opts into the `.dark` token scope so its ground, links
@@ -66,12 +81,20 @@ export function MarketingNav() {
         </ul>
 
         <div className="ml-auto flex items-center gap-2">
-          <Link href={SITE.links.login} className={marketingButton("neutral", "md", "hidden sm:inline-flex")}>
-            {CTA.login}
-          </Link>
-          <Link href={SITE.links.signup} className={marketingButton("primary", "md")}>
-            {CTA.getStarted}
-          </Link>
+          {authed ? (
+            <Link href={DEFAULT_AFTER_LOGIN} className={marketingButton("primary", "md")}>
+              {CTA.dashboard}
+            </Link>
+          ) : (
+            <>
+              <Link href={SITE.links.login} className={marketingButton("neutral", "md", "hidden sm:inline-flex")}>
+                {CTA.login}
+              </Link>
+              <Link href={SITE.links.signup} className={marketingButton("primary", "md")}>
+                {CTA.getStarted}
+              </Link>
+            </>
+          )}
           <button
             ref={toggleRef}
             type="button"
@@ -89,7 +112,7 @@ export function MarketingNav() {
       {open ? (
         <div id="mobile-nav" className="animate-fade-up bg-card absolute top-full right-4 left-4 mt-2 rounded-2xl p-2 shadow-[var(--shadow-card)] md:hidden">
           <ul>
-            {[...NAV_LINKS, { label: CTA.login, href: SITE.links.login }].map((l) => (
+            {[...NAV_LINKS, authed ? { label: CTA.dashboard, href: DEFAULT_AFTER_LOGIN } : { label: CTA.login, href: SITE.links.login }].map((l) => (
               <li key={l.href}>
                 <a href={l.href} onClick={() => setOpen(false)} className="text-foreground hover:bg-accent block rounded-xl px-3 py-2.5 text-[15px] font-medium">
                   {l.label}
