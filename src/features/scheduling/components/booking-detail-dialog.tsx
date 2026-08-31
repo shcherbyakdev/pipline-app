@@ -152,6 +152,16 @@ function DetailBody({
             <Button variant="outline" size="sm" onClick={() => setDeclining(true)} disabled={pending}>
               Decline…
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resend}
+              disabled={pending || resendBlocked}
+              focusableWhenDisabled={resendBlocked}
+              title={resendHint}
+            >
+              Resend link
+            </Button>
           </div>
         </>
       ) : expiredRequest ? (

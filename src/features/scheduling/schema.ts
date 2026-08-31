@@ -141,7 +141,7 @@ export function planLimitResourceError(max: number): string {
 }
 export const STAFF_SLUG_TAKEN_ERROR = "That link name is already used.";
 export function staffFutureBookingsError(name: string): string {
-  return `${name} has upcoming bookings — move or cancel them first.`;
+  return `${name} has upcoming bookings or pending requests — move or resolve them first.`;
 }
 
 // Team (multi-staff): the public surface either names a staff member or asks
