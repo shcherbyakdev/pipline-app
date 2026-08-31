@@ -17,6 +17,7 @@ import {
   bookingConfirmationEmail,
   bookingIdempotencyKey,
   bookingLifecycleKey,
+  bookingRequestReceivedEmail,
   providerNewBookingEmail,
   formatHourlyWhenLine,
 } from "@/features/scheduling/templates";
@@ -158,7 +159,9 @@ function isTaken(error: { message?: string; code?: string }): boolean {
 
 export async function createRentalBookingHours(
   input: unknown,
-): Promise<{ ok: true; token: string } | { ok: false; error: string; slotTaken?: boolean }> {
+): Promise<
+  { ok: true; token: string; pending: boolean } | { ok: false; error: string; slotTaken?: boolean }
+> {
   if (await limited("booking")) return { ok: false, error: TOO_MANY_REQUESTS };
   const parsed = createRentalBookingHoursInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
@@ -233,6 +236,13 @@ export async function createRentalBookingHours(
       return { ok: false, error: GENERIC_WRITE_ERROR };
     }
 
+    // The RPC decided under the flag it read at insert time — one select
+    // keeps the emails honest even if the toggle flips mid-flight. Read it
+    // here, before mail prep, so every success return below can carry it.
+    const { data: statusRow } = await admin
+      .from("bookings").select("status").eq("id", bookingId as string).maybeSingle();
+    const isPending = statusRow?.status === "pending";
+
     // Everything both mails share, computed once; nothing below may fail the
     // committed booking, so the unit-name/provider-email reads swallow their
     // own errors AND the whole block is wrapped below — a throw here (e.g.
@@ -271,24 +281,35 @@ export async function createRentalBookingHours(
       prep = { whenLine, serviceName, infoLines, providerEmail };
     } catch (error) {
       console.error("[rentals] post-booking mail prep failed:", error);
-      return { ok: true, token };
+      return { ok: true, token, pending: isPending };
     }
     const { whenLine, serviceName, infoLines, providerEmail } = prep;
 
-    // Best-effort confirmation (the booking survives email failure).
+    // Best-effort confirmation (the booking survives email failure). Pending:
+    // the request-received twin instead — nothing is confirmed yet.
     try {
-      const msg = bookingConfirmationEmail({
-        orgName: ctx.org.orgName,
-        serviceName,
-        whenLine,
-        manageUrl: buildBookingManageUrl(token),
-        icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
-        // "Powered by Booklo" unless the org's plan lets it opt out and it
-        // did (emailBadgeUrl swallows its own errors — same discipline as
-        // scheduling/public-actions.ts's own confirmation send).
-        badgeUrl: await emailBadgeUrl(ctx.org.orgId),
-        infoLines,
-      });
+      const manageUrl = buildBookingManageUrl(token);
+      const msg = isPending
+        ? bookingRequestReceivedEmail({
+            orgName: ctx.org.orgName,
+            serviceName,
+            whenLine,
+            manageUrl,
+            badgeUrl: await emailBadgeUrl(ctx.org.orgId),
+            infoLines,
+          })
+        : bookingConfirmationEmail({
+            orgName: ctx.org.orgName,
+            serviceName,
+            whenLine,
+            manageUrl,
+            icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+            // "Powered by Booklo" unless the org's plan lets it opt out and it
+            // did (emailBadgeUrl swallows its own errors — same discipline as
+            // scheduling/public-actions.ts's own confirmation send).
+            badgeUrl: await emailBadgeUrl(ctx.org.orgId),
+            infoLines,
+          });
       await selectTransport().send({
         to: email,
         subject: msg.subject,
@@ -314,6 +335,7 @@ export async function createRentalBookingHours(
           whenLine,
           note: note ?? null,
           infoLines,
+          pending: isPending,
         });
         await selectTransport().send({
           to: providerEmail,
@@ -328,7 +350,7 @@ export async function createRentalBookingHours(
       }
     }
 
-    return { ok: true, token };
+    return { ok: true, token, pending: isPending };
   } catch (error) {
     console.error("[rentals] createRentalBookingHours:", error);
     return { ok: false, error: GENERIC_WRITE_ERROR };

@@ -22,6 +22,7 @@ import {
   bookingConfirmationEmail,
   bookingIdempotencyKey,
   bookingLifecycleKey,
+  bookingRequestReceivedEmail,
   formatRangeWhenLine,
   providerNewBookingEmail,
 } from "@/features/scheduling/templates";
@@ -120,7 +121,9 @@ function isTaken(error: { message?: string; code?: string }): boolean {
 
 export async function createRentalBooking(
   input: unknown,
-): Promise<{ ok: true; token: string } | { ok: false; error: string; datesTaken?: boolean }> {
+): Promise<
+  { ok: true; token: string; pending: boolean } | { ok: false; error: string; datesTaken?: boolean }
+> {
   if (await limited()) return { ok: false, error: "Too many requests — slow down." };
   const parsed = createRentalBookingInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
@@ -228,6 +231,13 @@ export async function createRentalBooking(
       return { ok: false, error: GENERIC_WRITE_ERROR };
     }
 
+    // The RPC decided under the flag it read at insert time — one select
+    // keeps the emails honest even if the toggle flips mid-flight. Read it
+    // here, before mail prep, so every success return below can carry it.
+    const { data: statusRow } = await admin
+      .from("bookings").select("status").eq("id", bookingId as string).maybeSingle();
+    const isPending = statusRow?.status === "pending";
+
     // Everything both mails share, computed once; nothing below may fail the
     // committed booking, so the unit-name/provider-email reads swallow their
     // own errors AND the whole block is wrapped below — a throw here (e.g.
@@ -267,20 +277,30 @@ export async function createRentalBooking(
       prep = { whenLine, serviceName, infoLines, providerEmail };
     } catch (error) {
       console.error("[rentals] post-booking mail prep failed:", error);
-      return { ok: true, token };
+      return { ok: true, token, pending: isPending };
     }
     const { whenLine, serviceName, infoLines, providerEmail } = prep;
 
-    // Best-effort confirmation (the booking survives email failure).
+    // Best-effort confirmation (the booking survives email failure). Pending:
+    // the request-received twin instead — nothing is confirmed yet.
     try {
-      const msg = bookingConfirmationEmail({
-        orgName: org.orgName,
-        serviceName,
-        whenLine,
-        manageUrl: buildBookingManageUrl(token),
-        icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
-        infoLines,
-      });
+      const manageUrl = buildBookingManageUrl(token);
+      const msg = isPending
+        ? bookingRequestReceivedEmail({
+            orgName: org.orgName,
+            serviceName,
+            whenLine,
+            manageUrl,
+            infoLines,
+          })
+        : bookingConfirmationEmail({
+            orgName: org.orgName,
+            serviceName,
+            whenLine,
+            manageUrl,
+            icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+            infoLines,
+          });
       await selectTransport().send({
         to: email,
         subject: msg.subject,
@@ -304,6 +324,7 @@ export async function createRentalBooking(
           whenLine,
           note: note ?? null,
           infoLines,
+          pending: isPending,
         });
         await selectTransport().send({
           to: providerEmail,
@@ -318,7 +339,7 @@ export async function createRentalBooking(
       }
     }
 
-    return { ok: true, token };
+    return { ok: true, token, pending: isPending };
   } catch (error) {
     console.error("[rentals] createRentalBooking:", error);
     return { ok: false, error: GENERIC_WRITE_ERROR };
