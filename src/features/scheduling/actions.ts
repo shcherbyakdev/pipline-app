@@ -98,6 +98,7 @@ function toServiceRow(d: import("zod").infer<typeof serviceInput>) {
     max_per_day: d.maxPerDay,
     booking_window_days: d.bookingWindowDays,
     active: d.active,
+    requires_approval: d.requiresApproval,
   };
 }
 

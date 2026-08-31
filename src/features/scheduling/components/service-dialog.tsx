@@ -90,6 +90,7 @@ export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff:
       maxPerDay: maxPerDayRaw === "" ? null : Number(maxPerDayRaw),
       bookingWindowDays,
       active: fd.get("active") === "on",
+      requiresApproval: fd.get("requiresApproval") === "on",
       // Omitted when the checklist wasn't rendered: the server then keeps the
       // existing links (edit) or assigns every active member (create).
       ...(showStaff ? { staffIds: [...staffIds] } : {}),
@@ -283,6 +284,19 @@ export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff:
             />
             <Label htmlFor="service-active">Active</Label>
           </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="service-requires-approval"
+              name="requiresApproval"
+              type="checkbox"
+              className="size-4"
+              defaultChecked={service?.requiresApproval ?? false}
+            />
+            <Label htmlFor="service-requires-approval">Require approval</Label>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            New bookings wait for your confirmation instead of confirming instantly.
+          </p>
           <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : "Save"}
           </Button>

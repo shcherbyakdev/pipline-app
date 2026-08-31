@@ -52,6 +52,7 @@ function toOfferingRow(d: import("zod").infer<typeof offeringInput>) {
     booking_window_days: d.bookingWindowDays,
     unit_selection: d.unitSelection,
     active: d.active,
+    requires_approval: d.requiresApproval,
     price_cents: d.priceCents,
     pricing_mode: d.pricingMode,
     deposit_type: d.depositType,

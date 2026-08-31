@@ -15,6 +15,7 @@ export type ServiceRow = {
   maxPerDay: number | null;
   bookingWindowDays: number;
   active: boolean;
+  requiresApproval: boolean;
   sortOrder: number;
   /** Team (multi-staff): who can be booked for this service (0040
       `service_staff`). Includes deactivated people — their link survives a
@@ -27,7 +28,7 @@ export async function listServices(): Promise<ServiceRow[]> {
   const { data, error } = await supabase
     .from("services")
     .select(
-      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days, active, sort_order, service_staff(staff_id)",
+      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days, active, requires_approval, sort_order, service_staff(staff_id)",
     )
     .order("sort_order")
     .order("name");
@@ -44,6 +45,7 @@ export async function listServices(): Promise<ServiceRow[]> {
     maxPerDay: s.max_per_day,
     bookingWindowDays: s.booking_window_days,
     active: s.active,
+    requiresApproval: s.requires_approval,
     sortOrder: s.sort_order,
     staffIds: ((s.service_staff ?? []) as { staff_id: string }[]).map((l) => l.staff_id),
   }));

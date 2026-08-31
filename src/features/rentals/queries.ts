@@ -33,6 +33,7 @@ export type OfferingRow = {
   turnoverMin: number;
   minNoticeMin: number;
   active: boolean;
+  requiresApproval: boolean;
   sortOrder: number;
   unitCount: number;
   // Of those, active. The public page lists a space only once this is > 0
@@ -54,7 +55,7 @@ export type OfferingRow = {
 // these columns must add `.eq("active_units.active", true)` (the filter
 // lives on the query, not in the select string) — see offeringsQuery.
 export const OFFERING_COLUMNS =
-  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, sort_order, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text, rental_units(count), active_units:rental_units(count)";
+  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, requires_approval, sort_order, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text, rental_units(count), active_units:rental_units(count)";
 
 type OfferingDb = {
   id: string;
@@ -75,6 +76,7 @@ type OfferingDb = {
   turnover_min: number;
   min_notice_min: number;
   active: boolean;
+  requires_approval: boolean;
   sort_order: number;
   price_cents: number | null;
   pricing_mode: "per_unit" | "flat";
@@ -106,6 +108,7 @@ function toOffering(o: OfferingDb): OfferingRow {
     turnoverMin: o.turnover_min,
     minNoticeMin: o.min_notice_min,
     active: o.active,
+    requiresApproval: o.requires_approval,
     sortOrder: o.sort_order,
     unitCount: o.rental_units?.[0]?.count ?? 0,
     activeUnitCount: o.active_units?.[0]?.count ?? 0,
