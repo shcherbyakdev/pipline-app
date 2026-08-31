@@ -128,13 +128,16 @@ export const AUDIENCE = {
 
 export type NavLink = { label: string; href: string };
 
+// Home-anchored ("/#x", not "#x"): the nav and footer also render on
+// /pricing, /privacy and /terms, where a bare anchor goes nowhere. On the
+// landing itself the browser still scrolls in place (same path).
 export const NAV_LINKS: NavLink[] = [
-  { label: "How it works", href: SITE.anchors.how },
-  { label: "Features", href: SITE.anchors.features },
+  { label: "How it works", href: `/${SITE.anchors.how}` },
+  { label: "Features", href: `/${SITE.anchors.features}` },
   // Only listed once billing is live (lib/flags.ts) — while off, /pricing 404s
   // and nothing should link to it from the nav.
   ...(BILLING_ON ? [{ label: "Pricing", href: SITE.links.pricing }] : []),
-  { label: "FAQ", href: SITE.anchors.faq },
+  { label: "FAQ", href: `/${SITE.anchors.faq}` },
 ];
 
 /** `word` is the one-word verb drawn in a marker stroke beside each step. */

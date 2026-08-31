@@ -42,17 +42,23 @@ describe("site config", () => {
   it("every internal href is an in-page anchor or an existing route", () => {
     for (const href of allInternalHrefs()) {
       if (href.startsWith("#")) continue;
-      const dir = ROUTE_DIRS[href];
+      // "/#x" is the home route plus an anchor (nav/footer render on
+      // /pricing, /privacy and /terms too, so their section links must
+      // carry the path).
+      const dir = ROUTE_DIRS[href.startsWith("/#") ? "/" : href];
       expect(dir, `no route mapping for ${href}`).toBeDefined();
       expect(existsSync(join(process.cwd(), dir, "page.tsx")), `${dir}/page.tsx missing`).toBe(true);
     }
   });
 
-  it("every anchor yields a usable id and every nav href is an anchor or an internal route", () => {
+  it("every anchor yields a usable id and every nav href is a home-anchored section link or an internal route", () => {
     const anchors: string[] = Object.values(SITE.anchors);
     for (const a of anchors) expect(anchorId(a), `bad anchor ${a}`).not.toBe("");
     for (const l of NAV_LINKS) {
-      expect(anchors.includes(l.href) || l.href in ROUTE_DIRS, `nav href ${l.href} is neither anchor nor route`).toBe(true);
+      // Bare "#x" is relative to the current page and goes nowhere on
+      // /pricing, /privacy or /terms, which render the same nav and footer.
+      const ok = (l.href.startsWith("/#") && anchors.includes(l.href.slice(1))) || l.href in ROUTE_DIRS;
+      expect(ok, `nav href ${l.href} is neither /#anchor nor route`).toBe(true);
     }
   });
 
