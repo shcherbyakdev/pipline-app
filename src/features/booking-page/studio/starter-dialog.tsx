@@ -66,11 +66,10 @@ function TypePreview({
   const scheme = base.theme === "auto" ? "light" : base.theme;
   const theme: WidgetThemeConfig = { ...base, theme: scheme };
   return (
-    <div
-      className="bg-muted/50 relative h-full overflow-x-hidden overflow-y-auto rounded-xl border"
-      aria-hidden
-      inert
-    >
+    <div className="bg-muted/50 relative h-full overflow-x-hidden overflow-y-auto rounded-xl border">
+      {/* aria-hidden/inert guard the page CONTENT (focus, clicks, AT) but
+          must not sit on the scroll container itself — an inert scroller
+          ignores the wheel and the pane cannot be scrolled at all. */}
       <div
         className={cn(
           "pointer-events-none w-[900px] p-8",
@@ -78,6 +77,8 @@ function TypePreview({
           "bg-background text-foreground",
         )}
         style={{ zoom: 0.68 }}
+        aria-hidden
+        inert
       >
         <WidgetTheme
           config={theme}

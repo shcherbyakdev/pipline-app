@@ -108,7 +108,14 @@ export function TimeSlotGrid({
         tabIndex={-1}
         aria-live="polite"
         aria-busy={pending || undefined}
-        className={pending ? "flex flex-col gap-4 opacity-60 transition-opacity" : "flex flex-col gap-4"}
+        className={
+          // outline-none: focus arrives programmatically after a duration
+          // pick; the UA ring would box the whole week — the visible rings
+          // belong on the slot buttons.
+          pending
+            ? "flex flex-col gap-4 opacity-60 outline-none transition-opacity"
+            : "flex flex-col gap-4 outline-none"
+        }
       >
         {pending && byDay.size === 0 ? (
           <p className="text-muted-foreground text-sm">Loading times…</p>

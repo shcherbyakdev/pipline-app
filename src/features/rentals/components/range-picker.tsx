@@ -114,26 +114,45 @@ export function RangePicker({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className={widget ? "wt-surface" : undefined}
-          disabled={!canGoBack}
-          aria-label="Previous month"
-          onClick={() => onMonthChange(addMonths(month, -1))}
-        >
-          ←
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className={widget ? "wt-surface" : undefined}
-          aria-label="Next month"
-          onClick={() => onMonthChange(addMonths(month, 1))}
-        >
-          →
-        </Button>
+      {/* The step prompt leads the picker (aria-live announces the
+          check-in → check-out swap) — below the grids it taught the
+          two-click model a viewport too late on phones. */}
+      <div className="flex items-center justify-between gap-2">
+        <div aria-live="polite">
+          {!(start && end) ? (
+            <p className="text-sm">
+              <span className="font-medium">
+                {picking
+                  ? `Now pick your ${offering.rangeMode === "nights" ? "check-out" : "return"} date.`
+                  : `Pick your ${offering.rangeMode === "nights" ? "check-in" : "pickup"} date.`}
+              </span>{" "}
+              <span className="text-muted-foreground">
+                {picking ? "Faded dates are unavailable for that stay." : "Faded dates are unavailable."}
+              </span>
+            </p>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className={widget ? "wt-surface" : undefined}
+            disabled={!canGoBack}
+            aria-label="Previous month"
+            onClick={() => onMonthChange(addMonths(month, -1))}
+          >
+            ←
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className={widget ? "wt-surface" : undefined}
+            aria-label="Next month"
+            onClick={() => onMonthChange(addMonths(month, 1))}
+          >
+            →
+          </Button>
+        </div>
       </div>
 
       <div aria-live="polite">
@@ -211,13 +230,7 @@ export function RangePicker({
             change
           </button>
         </p>
-      ) : (
-        <p className="text-muted-foreground text-xs">
-          {picking
-            ? `Now pick your ${offering.rangeMode === "nights" ? "check-out" : "return"} date. Faded dates are unavailable for that stay.`
-            : `Pick your ${offering.rangeMode === "nights" ? "check-in" : "pickup"} date. Faded dates are unavailable.`}
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }

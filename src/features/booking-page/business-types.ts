@@ -25,7 +25,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
   { id: "team", channel: "appointments", name: "Team & shop", examples: "barbershop, multi-chair salon", templateId: "team", copy: { bookingTitle: "Book a chair", cta: "Book now" } },
   { id: "online", channel: "appointments", name: "Online & lessons", examples: "tutoring, classes, remote", templateId: "minimal", copy: { bookingTitle: "Book a lesson", cta: "Book now" } },
   { id: "rooms", channel: "spaces", name: "Rooms, studios & gear", examples: "by the hour", templateId: "venue", copy: { bookingTitle: "Book a space", cta: "Book a space" } },
-  { id: "stays", channel: "spaces", name: "Stays", examples: "nights & days", templateId: "venue", copy: { bookingTitle: "Book a stay", cta: "Book a stay" } },
+  { id: "stays", channel: "spaces", name: "Stays", examples: "nights & days", templateId: "stay", copy: { bookingTitle: "Book a stay", cta: "Book a stay" } },
   // Classic: a name and the widget — no cover, so no button.
   { id: "other-appointments", channel: "appointments", name: "Something else", examples: "a name and the widget", templateId: "classic", copy: { bookingTitle: "Book a time" } },
   { id: "other-spaces", channel: "spaces", name: "Something else", examples: "a name and the widget", templateId: "classic", copy: { bookingTitle: "Book a space" } },
