@@ -129,6 +129,13 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
   centered columns.
 - List rows are white cards (`bg-card rounded-xl border px-4 py-3`) that
   stack to a column under `sm:` — actions wrap below the text on phones.
+- Roster tables (Team, 2026-09-01, Linear-referenced): flat rows on the
+  ground — no card per row — under a muted 12px column-header row with a
+  hairline. Header and rows share one grid template; the full grid needs
+  `lg:` (its fixed action/role tracks crush the `fr` columns below that),
+  so below `lg:` rows stack with `divide-y` hairlines and actions always
+  visible. Row hover is `bg-muted/50`; per-row actions are opacity-revealed
+  on hover/focus-within. Page column is `max-w-6xl`.
 - Public booking pages: `px-6 pt-10 pb-8` column, width from
   `pageContainerClass`.
 
