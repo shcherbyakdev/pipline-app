@@ -58,14 +58,16 @@ describe("business types (spec 2026-08-28 §5.2)", () => {
       if (t.copy.cta) expect(t.copy.cta.length).toBeLessThanOrEqual(40);
     }
   });
-  it("typePreview keeps the sample copy but reads as the type — rooms and stays differ on one template", () => {
+  it("typePreview keeps the sample copy but reads as the type — rooms and stays are distinct pages", () => {
     const rooms = BUSINESS_TYPES.find((t) => t.id === "rooms")!;
     const stays = BUSINESS_TYPES.find((t) => t.id === "stays")!;
     const mode = pageChannelMode("spaces");
     const title = (t: BusinessType) => typePreview(t, mode).sections.find((s) => s.type === "booking");
     expect(title(rooms)?.type === "booking" && title(rooms)!.title).toBe("Book a space");
     expect(title(stays)?.type === "booking" && title(stays)!.title).toBe("Book a stay");
+    // Stays previews its own overnight template, not venue's hourly-rooms page.
     const hero = typePreview(stays, mode).sections.find((s) => s.type === "hero");
-    expect(hero?.type === "hero" && hero.headline).toBe("Rooms by the hour in Podgórze");
+    expect(hero?.type === "hero" && hero.headline).toBe("Two cabins outside Kraków");
+    expect(templateOf(stays).id).not.toBe(templateOf(rooms).id);
   });
 });
