@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Menu01Icon } from "@hugeicons/core-free-icons";
 import type { Flags } from "@/lib/flags";
 import type { OrgMode } from "@/features/orgs/mode";
+import type { PlanStatus } from "@/features/billing/queries";
 import { SidebarBody } from "./sidebar-body";
 import {
   Sheet,
@@ -19,12 +20,14 @@ export function MobileNav({
   flags,
   mode,
   pendingRequests,
+  planStatus,
 }: {
   org: string;
   userEmail: string;
   flags: Flags;
   mode: OrgMode;
   pendingRequests: number;
+  planStatus: PlanStatus | null;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -46,6 +49,7 @@ export function MobileNav({
           flags={flags}
           mode={mode}
           pendingRequests={pendingRequests}
+          planStatus={planStatus}
           onNavigate={() => setOpen(false)}
         />
       </SheetContent>

@@ -5,7 +5,7 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "test-anon-key";
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { FLAG_DEFAULTS } from "./index";
+import { FLAG_DEFAULTS, plansEnforced } from "./index";
 
 /* Both Supabase client factories are replaced for the whole file so the two
    DEGRADE paths can be exercised without a cookie store (next/headers) or a
@@ -88,5 +88,16 @@ describe("degrade paths", () => {
     expect(flags).toEqual(FLAG_DEFAULTS);
     expect(flags).not.toBe(FLAG_DEFAULTS);
     expect(logged).toHaveBeenCalled();
+  });
+});
+
+describe("plansEnforced", () => {
+  it("either billing or the waitlist enforces plan limits; neither = the pre-billing world", () => {
+    expect(plansEnforced({ billing: false, premium_waitlist: false })).toBe(false);
+    expect(plansEnforced({ billing: true, premium_waitlist: false })).toBe(true);
+    expect(plansEnforced({ billing: false, premium_waitlist: true })).toBe(true);
+  });
+  it("the environment default enforces: the waitlist ships on", () => {
+    expect(plansEnforced(FLAG_DEFAULTS)).toBe(true);
   });
 });

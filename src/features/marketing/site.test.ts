@@ -19,6 +19,7 @@ import {
   HERO_TABS,
   FORBIDDEN_COPY,
   PRICING,
+  PREMIUM,
   anchorId,
   allInternalHrefs,
 } from "./site";
@@ -30,6 +31,7 @@ const ROUTE_DIRS: Record<string, string> = {
   "/login": "src/app/(auth)/login",
   "/signup": "src/app/(auth)/signup",
   "/pricing": "src/app/(marketing)/pricing",
+  "/waitlist": "src/app/(dashboard)/waitlist",
   "/privacy": "src/app/(marketing)/privacy",
   "/terms": "src/app/(marketing)/terms",
 };
@@ -120,6 +122,7 @@ describe("site config", () => {
       ...SITE.truths,
       ...HERO_TABS.map((t) => t.label),
       ...Object.values(COOKIE_NOTICE),
+      PREMIUM.eyebrow, PREMIUM.heading, PREMIUM.sub, PREMIUM.cta, PREMIUM.note, ...PREMIUM.perks,
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);
   });
@@ -142,6 +145,7 @@ describe("site config", () => {
       ...Object.values(ANNOUNCEMENT),
       AUDIENCE.heading, AUDIENCE.sub, ...AUDIENCE.blocks.flatMap((b) => [b.title, b.body, ...b.groups]),
       ...Object.values(COOKIE_NOTICE),
+      PREMIUM.eyebrow, PREMIUM.heading, PREMIUM.sub, PREMIUM.cta, PREMIUM.note, ...PREMIUM.perks,
     ].join("\n");
     expect(landing).not.toMatch(/[—–]/);
   });
@@ -173,6 +177,11 @@ describe("site config", () => {
 
   it("FORBIDDEN_COPY retires the old channel words and keeps the H4 ones (H5b ruling 7)", () => {
     expect(FORBIDDEN_COPY).toEqual(["google", "calendar sync", "stripe", "payment", "offering", "rentals"]);
+  });
+
+  it("the Premium section shows while billing is off and reads its number from PLANS", () => {
+    expect(PREMIUM.shown).toBe(true);
+    expect(PREMIUM.perks[0]).toContain(String(PLANS.pro.limits.bookableResources));
   });
 
   it("the resources pricing row reads its numbers from PLANS", () => {

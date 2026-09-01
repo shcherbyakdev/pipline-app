@@ -3,9 +3,11 @@ import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseWidgetTheme } from "@/lib/widget-theme";
-import { badgeShows, entitlementsFor, monthWindow, type Entitlements, type OrgSubscriptionRow } from "./entitlements";
+import { badgeShows, entitlementsFor, monthWindow, pickSubscription, type Entitlements, type OrgSubscriptionRow } from "./entitlements";
 import { activeOverrideRow, type PlanOverride, type PlanOverrideDetails } from "./overrides";
+import { waitlistRow, type WaitlistEntry } from "./waitlist";
 import { isPaidPlan } from "./plans";
+import { plansEnforced } from "@/lib/flags";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { env } from "@/env";
 
@@ -64,20 +66,34 @@ export async function getPlanOverrideDetails(orgId: string, admin: SupabaseClien
   };
 }
 
-/** The EFFECTIVE subscription: an unexpired comp override wins outright over
-    the provider row; otherwise the provider row; otherwise null = Free. The
-    single seam every entitlement read goes through — gates, badge, public
-    offering, reminders inherit comps without knowing they exist.
+/** The org's premium-waitlist row, or null. Members read their own (0066);
+    the admin client reads any. */
+export async function getWaitlistEntry(orgId: string, client: SupabaseClient): Promise<WaitlistEntry | null> {
+  const { data, error } = await client.from("premium_waitlist").select("joined_at").eq("org_id", orgId).maybeSingle();
+  if (error) throw error;
+  return data ? { joinedAt: data.joined_at } : null;
+}
 
-    Works with the RLS client (dashboard: both tables have a member SELECT
-    policy) and the admin client (public/drain paths). */
+/** The EFFECTIVE subscription: an unexpired comp override wins outright over
+    the provider row; a live provider row beats the premium waitlist (a real
+    Team must not read as Pro); the waitlist beats a lapsed provider row and
+    Free (pickSubscription). The single seam every entitlement read goes
+    through — gates, badge, public offering, reminders inherit comps and the
+    waitlist without knowing they exist.
+
+    Works with the RLS client (dashboard: all three tables have a member
+    SELECT policy) and the admin client (public/drain paths). */
 export async function getOrgSubscription(
   orgId: string,
   client: SupabaseClient,
   now = new Date(),
 ): Promise<OrgSubscriptionRow | null> {
-  const [raw, override] = await Promise.all([getRawOrgSubscription(orgId, client), getPlanOverride(orgId, client)]);
-  return activeOverrideRow(override, now) ?? raw;
+  const [raw, override, waitlist] = await Promise.all([
+    getRawOrgSubscription(orgId, client),
+    getPlanOverride(orgId, client),
+    getWaitlistEntry(orgId, client),
+  ]);
+  return pickSubscription([activeOverrideRow(override, now), raw, waitlistRow(waitlist)], now);
 }
 
 export async function getEntitlements(orgId: string, client: SupabaseClient, now = new Date()): Promise<Entitlements> {
@@ -143,7 +159,8 @@ export async function monthlyBookingUsage(
     templates stay pure (they take `badgeUrl: string | null`, never import
     env themselves).
 
-    While the org's `billing` flag is off, hiding is allowed unconditionally —
+    While plan limits are not enforced for the org (plansEnforced: neither
+    billing nor the waitlist is on), hiding is allowed unconditionally —
     the same answer the public pages get from loadPublicOffering's UNLIMITED
     entitlements. Without that check the flag-off world would read Free
     (hideBadge: false) and badge the emails of an org whose own booking page
@@ -159,7 +176,7 @@ export async function emailBadgeUrl(orgId: string): Promise<string | null> {
     const admin = createAdminClient();
     const { data, error } = await admin.from("orgs").select("widget_theme, handle").eq("id", orgId).maybeSingle();
     if (error) throw error;
-    const hideAllowed = (await getOrgFlagsAdmin(orgId)).billing ? (await getEntitlementsAdmin(orgId)).hideBadge : true;
+    const hideAllowed = plansEnforced(await getOrgFlagsAdmin(orgId)) ? (await getEntitlementsAdmin(orgId)).hideBadge : true;
     return badgeShows(parseWidgetTheme(data?.widget_theme).hidePoweredBy, hideAllowed) ? url(data?.handle) : null;
   } catch (error) {
     console.error("[billing] emailBadgeUrl:", error);

@@ -27,8 +27,11 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export function SubscriptionPanel({ view, now }: { view: OrgAdminView; now: Date }) {
-  const { org, subscription: sub, override } = view;
+  const { org, subscription: sub, override, waitlist } = view;
   const active = isOverrideActive(override, now);
+  // What the effective plan is standing on when neither a comp nor a live
+  // provider row is: the waitlist's Pro (lib/billing/waitlist.ts).
+  const viaWaitlist = !active && !(sub?.status === "active" || sub?.status === "past_due") && waitlist !== null;
   // The one state the owner cannot see from either side alone: the comp wins
   // for entitlements while the provider keeps charging the card. Nothing in
   // the code prevents it (granting a comp to a paying org is legitimate — a
@@ -41,7 +44,14 @@ export function SubscriptionPanel({ view, now }: { view: OrgAdminView; now: Date
         <p className="text-lg font-semibold">
           {PLANS[view.effectivePlan].name}
           {active ? <span className="text-muted-foreground ml-2 text-sm font-normal">(complimentary)</span> : null}
+          {viaWaitlist ? <span className="text-muted-foreground ml-2 text-sm font-normal">(premium waitlist)</span> : null}
         </p>
+        <dl className="flex flex-col gap-1">
+          <Row
+            label="Premium waitlist"
+            value={waitlist ? `joined by ${waitlist.joinedBy} · ${formatInstant(waitlist.joinedAt)}` : "not joined"}
+          />
+        </dl>
         {doubleBilled ? (
           <p className="text-sm text-amber-600 dark:text-amber-500">
             This org has an active comp AND a live provider subscription — the comp wins for entitlements

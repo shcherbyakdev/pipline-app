@@ -24,7 +24,7 @@ export const SITE = {
   // ladder to contrast a "Free plan" with, and /pricing 404s — so the note
   // says what is actually true today. Flipping the flag flips the copy.
   heroNote: BILLING_ON ? "Free plan · No credit card" : "Free during early access · No credit card",
-  links: { home: "/", login: "/login", signup: "/signup", pricing: "/pricing" },
+  links: { home: "/", login: "/login", signup: "/signup", pricing: "/pricing", waitlist: "/waitlist" },
   anchors: { how: "#how-it-works", features: "#features", faq: "#faq" },
 } as const;
 
@@ -47,6 +47,27 @@ export const SECTIONS = {
     sub: "Nothing you have to configure twice.",
   },
   faq: { eyebrow: "FAQ", heading: "Questions, answered" },
+} as const;
+
+/** The Premium section (spec 2026-09-01-premium-waitlist-design.md): while
+    billing is off, the upgrade path is the waitlist, and the landing says
+    so. The perks are Pro's limits in the customer's words; the one number
+    reads from PLANS so it can never drift from the gate. Same flag rule as
+    SITE.heroNote: once billing is live this section retires in favour of
+    /pricing, and PREMIUM.shown says so. */
+export const PREMIUM = {
+  shown: !BILLING_ON,
+  eyebrow: "Premium",
+  heading: "Free while we build. Premium, if you ask.",
+  sub: "Every account starts free. Join the Premium waitlist from your dashboard and use everything it unlocks now, at no cost.",
+  perks: [
+    `Up to ${PLANS.pro.limits.bookableResources} bookable people or units`,
+    "Unlimited services on your page",
+    "Reminders for every booking",
+    "No Booklo badge on your page",
+  ],
+  cta: "Join the waitlist",
+  note: "Sign up or log in, then join from your dashboard.",
 } as const;
 
 /** Call-to-action button labels. */
@@ -179,7 +200,7 @@ export const FAQ: FaqItem[] = [
     question: "What does it cost?",
     answer: BILLING_ON
       ? "Free for one person or one room: one bookable resource, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and more bookable people and units; see Pricing."
-      : "Booklo is free during early access. We'll announce pricing well before anything changes, and early users will hear first.",
+      : "Booklo is free during early access. Premium is on its way: join the waitlist from your dashboard and everything it unlocks is yours now, at no cost. We'll announce pricing well before anything changes, and early users will hear first.",
   },
 ];
 

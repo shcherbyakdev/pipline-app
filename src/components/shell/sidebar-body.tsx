@@ -7,6 +7,8 @@ import { Logout03Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { navItemsFor, NAV_SECTIONS, NAV_SECTION_LABELS } from "./nav";
 import type { Flags } from "@/lib/flags";
 import type { OrgMode } from "@/features/orgs/mode";
+import type { PlanStatus } from "@/features/billing/queries";
+import { WaitlistCard } from "@/features/billing/components/waitlist-card";
 import { signOut } from "@/features/auth/actions";
 import { OPEN_COMMAND_MENU_EVENT } from "@/components/command-menu";
 import { cn } from "@/lib/utils";
@@ -26,6 +28,7 @@ export function SidebarBody({
   flags,
   mode,
   pendingRequests,
+  planStatus,
   onNavigate,
 }: {
   org: string;
@@ -35,6 +38,9 @@ export function SidebarBody({
   /** Live booking requests; badges the Overview row. 0 hides the badge —
       and is what the layout passes whenever the overview flag is off. */
   pendingRequests: number;
+  /** Drives the waitlist card: shown to a Free org that hasn't joined while
+      the flag is on. null = limits not enforced, nothing to sell. */
+  planStatus: PlanStatus | null;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -112,6 +118,9 @@ export function SidebarBody({
       </nav>
 
       <div className="mt-auto flex flex-col gap-1 pt-4">
+        {flags.premium_waitlist && planStatus && planStatus.plan === "free" && !planStatus.waitlisted ? (
+          <WaitlistCard onNavigate={onNavigate} />
+        ) : null}
         <div className="text-subtle truncate px-2.5 text-xs" title={userEmail}>
           {userEmail}
         </div>

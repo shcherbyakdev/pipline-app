@@ -5,6 +5,7 @@ import { isAuthorizedDrainRequest } from "@/features/chasing/drain-auth";
 import { runReminderDrain } from "@/features/scheduling/reminders";
 import { emailBadgeUrl, getEntitlementsAdmin, monthlyBookingUsage } from "@/lib/billing/queries";
 import { reminderQuotaExceeded } from "@/lib/billing/entitlements";
+import { plansEnforced } from "@/lib/flags";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 
 // A tick is up to REMINDER_BATCH_LIMIT (25) sequential sends plus a handful
@@ -62,9 +63,10 @@ export async function POST(request: Request) {
       // "is this the 31st?" — stable no matter when the tick runs or what
       // was cancelled since (spec §3, "the first 30 bookings each month").
       quotaExceeded: async (orgId, tz, createdAt) => {
-        // Only metered once the ORG's billing flag is on — an org with billing
-        // off is unmetered, same as the rest of its billing surface.
-        if (!(await flagsFor(orgId)).billing) return false;
+        // Only metered once the ORG's limits are enforced (plansEnforced) —
+        // an org with neither billing nor the waitlist on is unmetered, same
+        // as the rest of its billing surface.
+        if (!plansEnforced(await flagsFor(orgId))) return false;
         return reminderQuotaExceeded(
           await monthlyBookingUsage(orgId, tz, new Date(createdAt), admin, { before: createdAt }),
           await entitlementsFor(orgId),

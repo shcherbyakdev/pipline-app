@@ -43,3 +43,14 @@ export const billingEvents = pgTable(
     index("billing_events_org_id_idx").on(t.orgId),
   ],
 );
+
+// Premium waitlist (spec 2026-09-01-premium-waitlist-design.md). One row =
+// the org joined; the entitlement seam (lib/billing/queries.ts
+// getOrgSubscription) treats it as an active Pro subscription until the perk
+// is withdrawn. Members insert their own org's row; only service_role
+// removes it. RLS, grants live in 0066_premium_waitlist_security.sql.
+export const premiumWaitlist = pgTable("premium_waitlist", {
+  orgId: uuid("org_id").primaryKey().references(() => orgs.id, { onDelete: "cascade" }),
+  joinedBy: text("joined_by").notNull(), // the member's email
+  joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
+});
