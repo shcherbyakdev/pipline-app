@@ -26,8 +26,24 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { SPACES } from "@/features/orgs/vocab";
+import { TIME_OPTIONS } from "@/features/scheduling/time-options";
+import { TimeCombobox } from "@/features/scheduling/components/time-combobox";
 
 const selectClass = nativeSelectClass;
+
+/* TimeCombobox in an uncontrolled form: the combobox is controlled, so the
+   hidden input carries its value into the FormData under the old name. The
+   surrounding fragment is keyed per mode, so defaultValue-style seeding via
+   useState stays correct across mode switches. */
+function TimeField({ id, name, label, defaultValue }: { id: string; name: string; label: string; defaultValue: string }) {
+  const [value, setValue] = React.useState(defaultValue);
+  return (
+    <>
+      <input type="hidden" name={name} value={value} />
+      <TimeCombobox id={id} label={label} value={value} options={TIME_OPTIONS} onCommit={setValue} className="w-full" />
+    </>
+  );
+}
 
 const INCREMENT_OPTIONS = [15, 30, 60];
 
@@ -335,12 +351,10 @@ export function OfferingDialog({
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="offering-start-time">Start time</Label>
-                      <Input
+                      <TimeField
                         id="offering-start-time"
                         name="startTime"
-                        type="time"
-                        step={900}
-                        required
+                        label="Start time"
                         defaultValue={
                           offering?.startTime ??
                           OFFERING_DEFAULTS.stay.startTime
@@ -349,12 +363,10 @@ export function OfferingDialog({
                     </div>
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="offering-end-time">End time</Label>
-                      <Input
+                      <TimeField
                         id="offering-end-time"
                         name="endTime"
-                        type="time"
-                        step={900}
-                        required
+                        label="End time"
                         defaultValue={
                           offering?.endTime ?? OFFERING_DEFAULTS.stay.endTime
                         }
