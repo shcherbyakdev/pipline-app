@@ -34,7 +34,7 @@ describe("safeNextPath", () => {
 
 describe("isProtectedPath", () => {
   it("covers the dashboard, onboarding, utils, dev and the reset page", () => {
-    for (const p of ["/bookings", "/clients/abc", "/embed", "/onboarding", "/utils/flags", "/dev/billing/checkout", "/reset-password"]) {
+    for (const p of ["/bookings", "/clients/abc", "/embed", "/onboarding", "/utils/flags", "/dev/billing/checkout", "/reset-password", "/waitlist"]) {
       expect(isProtectedPath(p), p).toBe(true);
     }
   });

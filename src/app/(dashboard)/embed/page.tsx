@@ -12,6 +12,8 @@ import { requireOrg } from "@/lib/auth/session";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { createClient } from "@/lib/supabase/server";
 import { getEntitlements } from "@/lib/billing/queries";
+import { upgradeHref } from "@/lib/billing/upgrade-path";
+import { getPlanStatus } from "@/features/billing/queries";
 import { plansEnforced } from "@/lib/flags";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { env } from "@/env";
@@ -60,6 +62,9 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   // ruling loadPublicOffering follows, and the badge itself is enforced
   // server-side regardless (badgeVisible / emailBadgeUrl).
   const canHideBadge = await badgeToggleEnabled(settings.orgId);
+  // Where the toggle sends a capped org (its chip and the box itself).
+  const flags = await getDashboardFlags(org.id);
+  const badgeUpgradeHref = canHideBadge ? null : upgradeHref(flags, (await getPlanStatus()).plan);
 
   const catalog = toPreviewCatalog({ mode, services, offerings });
   // Solo orgs get no "Book with" choice at all (there is only one answer);
@@ -91,6 +96,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         staffOptions={staffOptions}
         initialStaffSlug={initialStaffSlug}
         canHideBadge={canHideBadge}
+        upgradeHref={badgeUpgradeHref}
       />
       {schedulingSettings.handle ? (
         <LinksTable

@@ -35,6 +35,7 @@ export const PROTECTED_PREFIXES = [
   "/booking-page",
   "/settings",
   "/billing",
+  "/waitlist",
   "/overview",
   "/programs",
   "/templates",

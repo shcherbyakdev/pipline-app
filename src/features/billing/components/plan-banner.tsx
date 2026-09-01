@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Entitlements } from "@/lib/billing/entitlements";
 import type { Flags } from "@/lib/flags";
+import { UPGRADE_LABELS, upgradeHref } from "@/lib/billing/upgrade-path";
 import type { OrgMode } from "@/features/orgs/mode";
 import { resourceBannerText, resourceMeter } from "../resource-usage";
 import { getBillingOverview, type BillingOverview } from "../queries";
@@ -15,9 +16,9 @@ type Usage = BillingOverview["usage"];
     there, and an org already on Pro (waitlisted, comped) gets the fact
     without a door that leads nowhere. */
 export function bannerCta(flags: Pick<Flags, "billing" | "premium_waitlist">, ent: Pick<Entitlements, "plan">, label: string): { href: string; label: string } | null {
-  if (flags.billing) return { href: "/billing", label };
-  if (flags.premium_waitlist && ent.plan === "free") return { href: "/waitlist", label: "Join the Premium waitlist" };
-  return null;
+  const href = upgradeHref(flags, ent.plan);
+  if (!href) return null;
+  return { href, label: href === "/billing" ? label : UPGRADE_LABELS[href] };
 }
 
 /* The nudges in the shell (the spec's sidebar pill was folded into these —

@@ -11,18 +11,17 @@ import {
   planLimitServicesError,
   type UpgradeHint,
 } from "@/features/scheduling/schema";
+import { upgradeHref } from "./upgrade-path";
 
 // Creation gates (spec §7.4). Enforced in actions, not triggers — the
 // public-offering filter is the value gate; these keep the admin honest.
 // Return the refusal copy, or null when allowed.
 
-/** Which way out the refusal names. Billing sells it while it is on; the
-    waitlist grants Pro, so it only helps an org still on Free; a waitlisted
-    org at Pro's cap has nowhere to go yet and is told so. */
+/** Which way out the refusal names — upgradeHref's answer as a copy key, so
+    the sentence and the link every surface renders can never disagree. */
 export function upgradeHint(flags: Pick<Flags, "billing" | "premium_waitlist">, ent: Pick<Entitlements, "plan">): UpgradeHint {
-  if (flags.billing) return "billing";
-  if (flags.premium_waitlist && ent.plan === "free") return "waitlist";
-  return "none";
+  const href = upgradeHref(flags, ent.plan);
+  return href === "/billing" ? "billing" : href === "/waitlist" ? "waitlist" : "none";
 }
 
 /** H5b: people and units share one budget (spec ruling 4/5). The cap comes

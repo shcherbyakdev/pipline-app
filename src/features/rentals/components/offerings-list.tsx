@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { toastRefusal } from "@/features/billing/refusal-toast";
 import { deleteOffering, setOfferingActive } from "@/features/rentals/actions";
 import { Switch } from "@/components/ui/switch";
 import type { OfferingRow } from "@/features/rentals/queries";
@@ -52,7 +53,7 @@ function Row({
     startTransition(async () => {
       setActive(next);
       const result = await setOfferingActive({ id: offering.id, active: next });
-      if (!result.ok) toast.error(result.error);
+      if (!result.ok) toastRefusal(result.error);
     });
   };
 

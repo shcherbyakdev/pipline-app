@@ -9,6 +9,7 @@ import type { Flags } from "@/lib/flags";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { PlanStatus } from "@/features/billing/queries";
 import { WaitlistCard } from "@/features/billing/components/waitlist-card";
+import { PlanTag } from "@/features/billing/components/plan-tag";
 import { signOut } from "@/features/auth/actions";
 import { OPEN_COMMAND_MENU_EVENT } from "@/components/command-menu";
 import { cn } from "@/lib/utils";
@@ -51,9 +52,10 @@ export function SidebarBody({
 
   return (
     <div className="flex h-full flex-col px-3 py-4">
-      {/* Workspace row: the org's initial on an ink tile + the org name. */}
+      {/* Workspace row: the org's initial on an ink tile + the org name, and
+          the plan tag (Free / Premium) beside it while limits are enforced. */}
       <div className="flex h-9 items-center pr-8 md:pr-0">
-        <div className="flex min-w-0 items-center gap-2.5 px-1.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 px-1.5">
           <span
             aria-hidden="true"
             className="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold"
@@ -61,6 +63,11 @@ export function SidebarBody({
             {initial}
           </span>
           <span className="truncate text-[13.5px] font-semibold tracking-[-0.01em]">{org}</span>
+          {planStatus ? (
+            <span className="ml-auto shrink-0">
+              <PlanTag status={planStatus} flags={flags} />
+            </span>
+          ) : null}
         </div>
       </div>
 

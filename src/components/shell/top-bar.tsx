@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import type { Flags } from "@/lib/flags";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { PlanStatus } from "@/features/billing/queries";
-import { PlanTag } from "@/features/billing/components/plan-tag";
 import { MobileNav } from "./mobile-nav";
 import { navItemsFor, titleForPath } from "./nav";
 
@@ -25,7 +24,8 @@ export function TopBar({
   mode: OrgMode;
   // Only passed through: the mobile sheet renders the same SidebarBody.
   pendingRequests: number;
-  /** The account tag on the right; null = limits not enforced, no tag. */
+  // Only passed through as well: the plan tag lives in the sidebar's
+  // workspace row (ruling 2026-09-01), which the mobile sheet also renders.
   planStatus: PlanStatus | null;
 }) {
   const pathname = usePathname();
@@ -34,11 +34,6 @@ export function TopBar({
     <header className="flex h-11 shrink-0 items-center gap-2 border-b px-4 md:px-6">
       <MobileNav org={org} userEmail={userEmail} flags={flags} mode={mode} pendingRequests={pendingRequests} planStatus={planStatus} />
       <h1 className="text-[13px] font-medium">{title}</h1>
-      {planStatus ? (
-        <div className="ml-auto flex items-center">
-          <PlanTag status={planStatus} flags={flags} />
-        </div>
-      ) : null}
     </header>
   );
 }

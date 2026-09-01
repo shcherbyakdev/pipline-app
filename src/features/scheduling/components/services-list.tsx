@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { toastRefusal } from "@/features/billing/refusal-toast";
 import { deleteService, setServiceActive } from "@/features/scheduling/actions";
 import { Switch } from "@/components/ui/switch";
 import type { ServiceRow } from "@/features/scheduling/queries";
@@ -58,7 +59,7 @@ function Row({
     startTransition(async () => {
       setActive(next);
       const result = await setServiceActive({ id: service.id, active: next });
-      if (!result.ok) toast.error(result.error);
+      if (!result.ok) toastRefusal(result.error);
     });
   };
 
