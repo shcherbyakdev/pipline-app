@@ -97,6 +97,10 @@
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
+  /* Takeover-dialog scrim: the light world's ink, deliberately NOT theme-
+     flipped — `bg-foreground/N` turns into a white wash at night, and a
+     scrim that hides the page behind must stay dark in both themes. */
+  --color-scrim: #252228;
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-status-not-started: var(--status-not-started);
