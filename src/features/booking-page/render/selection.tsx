@@ -2,8 +2,13 @@
 
 import * as React from "react";
 
-export type Selection = { selectedId: string | null; select: (id: string) => void };
-const Ctx = React.createContext<Selection>({ selectedId: null, select: () => {} });
+export type Selection = {
+  selectedId: string | null;
+  select: (id: string) => void;
+  /** Section the list is hovering — the preview echoes it with its hover outline. */
+  hoveredId?: string | null;
+};
+const Ctx = React.createContext<Selection>({ selectedId: null, select: () => {}, hoveredId: null });
 
 /* Studio only: which section the preview highlights and the inspector edits.
    Absent (public page, template thumbnails) the default no-op context applies. */

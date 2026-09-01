@@ -6,15 +6,17 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/features/clients/actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
+  DialogBreadcrumbHeader,
+  DialogChip,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
+  DialogFooterBar,
   DialogTrigger,
+  dialogBareInputClass,
+  dialogPanelClass,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 export function CreateClientDialog() {
   const searchParams = useSearchParams();
@@ -53,18 +55,27 @@ export function CreateClientDialog() {
           </Button>
         }
       />
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New client</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="client-name">Name</Label>
-            <Input id="client-name" name="name" required maxLength={120} autoFocus />
+      <DialogContent className={dialogPanelClass}>
+        <DialogBreadcrumbHeader chip={<DialogChip>Client</DialogChip>}>
+          New client
+        </DialogBreadcrumbHeader>
+        <form onSubmit={onSubmit} className="flex flex-col">
+          <div className="flex flex-col px-5 pt-4 pb-6">
+            <input
+              aria-label="Name"
+              name="name"
+              required
+              maxLength={120}
+              placeholder="Client name"
+              className={cn(dialogBareInputClass, "text-[15px] font-medium")}
+              autoFocus
+            />
           </div>
-          <Button type="submit" disabled={pending}>
-            {pending ? "Creating…" : "Create client"}
-          </Button>
+          <DialogFooterBar>
+            <Button type="submit" size="sm" variant="brand" disabled={pending}>
+              {pending ? "Creating…" : "Create client"}
+            </Button>
+          </DialogFooterBar>
         </form>
       </DialogContent>
     </Dialog>

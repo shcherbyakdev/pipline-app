@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import { createStaff, updateStaff } from "@/features/scheduling/staff-actions";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { ServiceRow } from "@/features/scheduling/queries";
-import { STAFF_COLORS, nextStaffColor, slugifyStaffName } from "@/features/scheduling/staff-slug";
+import {
+  STAFF_COLORS,
+  nextStaffColor,
+  slugifyStaffName,
+} from "@/features/scheduling/staff-slug";
 import { bookingPath } from "@/lib/booking/url";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,10 +19,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
+  DialogBreadcrumbHeader,
+  DialogChip,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
+  DialogFooterBar,
   DialogTrigger,
+  dialogBareInputClass,
+  dialogPanelClass,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +65,11 @@ export function StaffDialog({
       <DialogTrigger
         render={
           isEdit ? (
-            <Button size="sm" variant="outline" aria-label={`Edit ${staff!.name}`}>
+            <Button
+              size="sm"
+              variant="outline"
+              aria-label={`Edit ${staff!.name}`}
+            >
               <Pencil className="size-4" /> Edit
             </Button>
           ) : (
@@ -68,10 +79,10 @@ export function StaffDialog({
           )
         }
       />
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit ${staff!.name}` : "New team member"}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className={cn(dialogPanelClass, "sm:max-w-md")}>
+        <DialogBreadcrumbHeader chip={<DialogChip>Team</DialogChip>}>
+          {isEdit ? `Edit ${staff!.name}` : "New team member"}
+        </DialogBreadcrumbHeader>
         <StaffForm
           key={formKey}
           staff={staff}
@@ -113,7 +124,9 @@ function StaffForm({
   // booking URL may already be out in the world.
   const [slugTouched, setSlugTouched] = React.useState(isEdit);
   const [email, setEmail] = React.useState(staff?.email ?? "");
-  const [color, setColor] = React.useState(staff?.color ?? nextStaffColor(usedColors));
+  const [color, setColor] = React.useState(
+    staff?.color ?? nextStaffColor(usedColors),
+  );
   // A new person can do everything by default; narrowing is the deliberate act.
   const [serviceIds, setServiceIds] = React.useState<Set<string>>(
     () => new Set(staff ? staff.serviceIds : services.map((s) => s.id)),
@@ -121,7 +134,8 @@ function StaffForm({
 
   const onNameChange = (value: string) => {
     setName(value);
-    if (!slugTouched) setSlug(value.trim() === "" ? "" : slugifyStaffName(value));
+    if (!slugTouched)
+      setSlug(value.trim() === "" ? "" : slugifyStaffName(value));
   };
 
   const toggleService = (id: string, checked: boolean) =>
@@ -157,107 +171,133 @@ function StaffForm({
   };
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="staff-name">Name</Label>
-        <Input
-          id="staff-name"
+    <form onSubmit={onSubmit} className="flex flex-col">
+      <div className="flex flex-col px-5 pt-4 pb-6">
+        <input
+          aria-label="Name"
           required
           maxLength={80}
           value={name}
+          placeholder="Team member name"
+          className={cn(dialogBareInputClass, "text-[15px] font-medium")}
           onChange={(e) => onNameChange(e.target.value)}
           autoFocus
         />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="staff-slug">Booking link</Label>
-        <div className="flex items-center gap-1">
-          <span className="text-muted-foreground shrink-0 font-mono text-xs">
-            {bookingPath(handle ?? "…")}/
-          </span>
-          <Input
-            id="staff-slug"
-            required
-            minLength={2}
-            maxLength={40}
-            pattern={SLUG_PATTERN}
-            title="Lowercase letters, numbers and dashes."
-            value={slug}
-            onChange={(e) => {
-              setSlugTouched(true);
-              // Typing can't produce a character the slug rules reject.
-              setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="staff-email">Email</Label>
-        <Input
-          id="staff-email"
+        <input
+          aria-label="Email"
           type="email"
           maxLength={320}
-          placeholder="Optional — for booking notices"
+          placeholder="Email — optional, for booking notices"
           value={email}
+          className={cn(dialogBareInputClass, "mt-3 text-sm")}
           onChange={(e) => setEmail(e.target.value)}
         />
-      </div>
 
-      <div role="group" aria-labelledby={colourGroupId} className="flex flex-col gap-2">
-        <p id={colourGroupId} className="text-sm leading-none font-medium">Colour</p>
-        <div className="flex flex-wrap gap-2">
-          {STAFF_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-label={`Colour ${c}`}
-              aria-pressed={color === c}
-              onClick={() => setColor(c)}
-              style={{ background: c }}
-              className={cn(
-                "size-6 rounded-full ring-offset-2 ring-offset-popover outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                color === c ? "ring-2 ring-foreground" : "ring-1 ring-black/10",
-              )}
-            />
-          ))}
-        </div>
-      </div>
+        <div className="mt-6 flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="staff-slug">Booking link</Label>
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground shrink-0 font-mono text-xs">
+                {bookingPath(handle ?? "…")}/
+              </span>
+              <Input
+                id="staff-slug"
+                required
+                minLength={2}
+                maxLength={40}
+                pattern={SLUG_PATTERN}
+                title="Lowercase letters, numbers and dashes."
+                value={slug}
+                onChange={(e) => {
+                  setSlugTouched(true);
+                  // Typing can't produce a character the slug rules reject.
+                  setSlug(
+                    e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                  );
+                }}
+              />
+            </div>
+          </div>
 
-      {services.length > 0 ? (
-        <div role="group" aria-labelledby={servicesGroupId} className="flex flex-col gap-2">
-          <p id={servicesGroupId} className="text-sm leading-none font-medium">Services</p>
-          <ul className="flex flex-col gap-1.5">
-            {services.map((service) => (
-              <li key={service.id} className="flex items-center gap-2">
-                <Checkbox
-                  id={`staff-service-${service.id}`}
-                  checked={serviceIds.has(service.id)}
-                  onCheckedChange={(checked) => toggleService(service.id, checked === true)}
+          <div
+            role="group"
+            aria-labelledby={colourGroupId}
+            className="flex flex-col gap-2"
+          >
+            <p id={colourGroupId} className="text-sm leading-none font-medium">
+              Colour
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {STAFF_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={`Colour ${c}`}
+                  aria-pressed={color === c}
+                  onClick={() => setColor(c)}
+                  style={{ background: c }}
+                  className={cn(
+                    "size-6 rounded-full ring-offset-2 ring-offset-popover outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    color === c
+                      ? "ring-2 ring-foreground"
+                      : "ring-1 ring-black/10",
+                  )}
                 />
-                <Label
-                  htmlFor={`staff-service-${service.id}`}
-                  className="flex items-center gap-2 text-sm font-normal"
-                >
-                  {service.name}
-                  {!service.active ? <Badge variant="outline">Inactive</Badge> : null}
-                </Label>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          </div>
+
+          {services.length > 0 ? (
+            <div
+              role="group"
+              aria-labelledby={servicesGroupId}
+              className="flex flex-col gap-2"
+            >
+              <p
+                id={servicesGroupId}
+                className="text-sm leading-none font-medium"
+              >
+                Services
+              </p>
+              <ul className="flex flex-col gap-1.5">
+                {services.map((service) => (
+                  <li key={service.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`staff-service-${service.id}`}
+                      checked={serviceIds.has(service.id)}
+                      onCheckedChange={(checked) =>
+                        toggleService(service.id, checked === true)
+                      }
+                    />
+                    <Label
+                      htmlFor={`staff-service-${service.id}`}
+                      className="flex items-center gap-2 text-sm font-normal"
+                    >
+                      {service.name}
+                      {!service.active ? (
+                        <Badge variant="outline">Inactive</Badge>
+                      ) : null}
+                    </Label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {!isEdit && firstActiveStaffName ? (
+            <p className="text-muted-foreground text-xs">
+              Starts with {firstActiveStaffName}&apos;s weekly hours — edit them
+              on Availability.
+            </p>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
-      {!isEdit && firstActiveStaffName ? (
-        <p className="text-muted-foreground text-xs">
-          Starts with {firstActiveStaffName}&apos;s weekly hours — edit them on Availability.
-        </p>
-      ) : null}
-
-      <Button type="submit" disabled={pending}>
-        {pending ? "Saving…" : "Save"}
-      </Button>
+      <DialogFooterBar>
+        <Button type="submit" size="sm" variant="brand" disabled={pending}>
+          {pending ? "Saving…" : "Save"}
+        </Button>
+      </DialogFooterBar>
     </form>
   );
 }

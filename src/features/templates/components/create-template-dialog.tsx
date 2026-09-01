@@ -4,18 +4,22 @@ import * as React from "react";
 import { useActionState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
-import { createTemplate, type CreateTemplateState } from "@/features/templates/actions";
+import {
+  createTemplate,
+  type CreateTemplateState,
+} from "@/features/templates/actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
+  DialogBreadcrumbHeader,
+  DialogChip,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
+  DialogFooterBar,
   DialogTrigger,
+  dialogBareInputClass,
+  dialogPanelClass,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 const initial: CreateTemplateState = {};
 
@@ -49,23 +53,38 @@ export function CreateTemplateDialog() {
           </Button>
         }
       />
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New template</DialogTitle>
-        </DialogHeader>
-        <form action={action} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="template-name">Name</Label>
-            <Input id="template-name" name="name" required maxLength={80} autoFocus />
+      <DialogContent className={dialogPanelClass}>
+        <DialogBreadcrumbHeader chip={<DialogChip>Template</DialogChip>}>
+          New template
+        </DialogBreadcrumbHeader>
+        <form action={action} className="flex flex-col">
+          <div className="flex flex-col px-5 pt-4 pb-6">
+            <input
+              aria-label="Name"
+              name="name"
+              required
+              maxLength={80}
+              placeholder="Template name"
+              className={cn(dialogBareInputClass, "text-[15px] font-medium")}
+              autoFocus
+            />
+            <textarea
+              aria-label="Description (optional)"
+              name="description"
+              maxLength={500}
+              rows={3}
+              placeholder="Add a description…"
+              className={cn(dialogBareInputClass, "mt-3 resize-none text-sm")}
+            />
+            {state.error ? (
+              <p className="text-destructive mt-3 text-sm">{state.error}</p>
+            ) : null}
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="template-description">Description (optional)</Label>
-            <Textarea id="template-description" name="description" maxLength={500} rows={3} />
-          </div>
-          {state.error ? <p className="text-destructive text-sm">{state.error}</p> : null}
-          <Button type="submit" disabled={pending}>
-            {pending ? "Creating…" : "Create template"}
-          </Button>
+          <DialogFooterBar>
+            <Button type="submit" size="sm" variant="brand" disabled={pending}>
+              {pending ? "Creating…" : "Create template"}
+            </Button>
+          </DialogFooterBar>
         </form>
       </DialogContent>
     </Dialog>
