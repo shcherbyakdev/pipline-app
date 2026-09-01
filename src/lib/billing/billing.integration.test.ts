@@ -148,21 +148,25 @@ describe("billing: monthlyBookingUsage", () => {
 });
 
 describe("billing: emailBadgeUrl", () => {
-  // While the org's `billing` flag is off (the default; this org has no
-  // org_feature_flags row) hiding is allowed unconditionally, so the org's
-  // own tick decides — the same answer its booking page gives. (Flag on,
-  // the org's plan has to allow it too; that path is unit-covered by
-  // badgeVisible + entitlementsFor.)
+  // While plan limits are not enforced for the org (neither `billing` nor
+  // `premium_waitlist` on — the latter defaults on, so the org pins it off)
+  // hiding is allowed unconditionally, so the org's own tick decides — the
+  // same answer its booking page gives. (Enforced, the org's plan has to
+  // allow it too; that path is unit-covered by badgeVisible + entitlementsFor.)
   //
   // Its OWN org, with no org_subscriptions row: the shared `orgId` above is
   // on a paid plan by this point, which would hide the badge under either
   // rule and prove nothing. A Free org is exactly the case the old code got
   // wrong (Free.hideBadge = false → badge despite the tick).
-  it("honours the org's Hide tick while billing is off, even with no subscription", async () => {
+  it("honours the org's Hide tick while limits are not enforced, even with no subscription", async () => {
     const free = await signedInUser("badge");
     const { data, error: orgError } = await free.rpc("create_org", { p_name: "BadgeCo" });
     if (orgError) throw orgError;
     const freeOrgId = (data as { id: string }).id;
+    const { error: flagError } = await admin
+      .from("org_feature_flags")
+      .insert({ org_id: freeOrgId, flag: "premium_waitlist", enabled: false, updated_by: "badge-test" });
+    if (flagError) throw flagError;
     const setTheme = async (hidePoweredBy: boolean) => {
       const { error } = await admin.from("orgs").update({ widget_theme: { hidePoweredBy } }).eq("id", freeOrgId);
       if (error) throw error;
