@@ -203,14 +203,22 @@ function DialogBreadcrumbHeader({
   );
 }
 
-/* DialogFooter re-based for the p-0 panel (no parent padding to offset). */
+/* DialogFooter re-based for the p-0 panel (no parent padding to offset).
+   Sticky so a long body (e.g. the space dialog with its rules open) never
+   scrolls the only submit control out of view; the color-mix reproduces the
+   footer's translucent bg-muted/50-over-popover tint as an opaque colour,
+   since content scrolling under a pinned footer would ghost through 50%. */
 function DialogFooterBar({
   className,
   ...props
 }: React.ComponentProps<typeof DialogFooter>) {
   return (
     <DialogFooter
-      className={cn("mx-0 mb-0 items-center rounded-b-3xl px-5", className)}
+      className={cn(
+        "sticky bottom-0 mx-0 mb-0 items-center rounded-b-3xl px-5",
+        "bg-[color-mix(in_oklab,var(--color-muted)_50%,var(--color-popover))]",
+        className,
+      )}
       {...props}
     />
   );
