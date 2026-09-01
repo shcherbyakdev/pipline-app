@@ -87,6 +87,27 @@ export const TEMPLATES: readonly Template[] = [
     skin: { theme: "light", radius: "subtle", font: "system" },
   },
   {
+    // Nights/days twin of Venue — the "Stays" card previewed as a byte-for-
+    // byte hourly-rooms page before this; warm serif skin and overnight
+    // sample copy keep the two spaces cards distinguishable at a glance.
+    id: "stay",
+    name: "Stay",
+    description: "Photo-led cover, your stays with nightly prices, house rules and directions.",
+    layout: "column",
+    sections: [
+      s("hero", "tplhero08", { headline: "Two cabins outside Kraków", subheadline: "Quiet, forest-facing, self check-in. Pick your dates and book online.", align: "center", cta: "Book a stay" }),
+      s("spaces", "tplspc008", { style: "cards" }),
+      s("booking", "tplbook08", { title: "Book a stay" }),
+      s("gallery", "tplgal008", { columns: 3 }),
+      s("faq", "tplfaq008", { items: [
+        { q: "When can I check in?", a: "From 15:00 — the door code arrives by email on arrival day. Check-out is 11:00." },
+        { q: "Can I cancel?", a: "Yes — see the cancellation window on each stay." },
+      ] }),
+      s("location", "tplloc008", { address: "Zawoja 145\n34-222 Zawoja", mapsUrl: "https://maps.app.goo.gl/example" }),
+    ],
+    skin: { theme: "light", radius: "round", font: "lora" },
+  },
+  {
     id: "split",
     name: "Split",
     description: "Story on the left, booking pinned on the right.",

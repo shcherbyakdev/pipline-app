@@ -67,12 +67,13 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
   }
 
   return (
-    // The workspace-creation flow is the entrance to the admin, so it wears
-    // the admin's dark world (`.dark` opts the subtree in — globals.css):
-    // no panel, a narrow centred column on the dark ground, the signed-in
+    // The workspace-creation flow is the entrance to the admin, so it follows
+    // the viewer's theme like every other admin surface (it used to force
+    // `.dark`, which jarred: light landing → confirm link → dark wizard):
+    // no panel, a narrow centred column on the ground, the signed-in
     // account pinned at the bottom. Lives outside the (auth) group because
     // this route already has a session.
-    <main className="dark bg-background text-foreground flex min-h-full flex-1 flex-col items-center p-6">
+    <main className="bg-background text-foreground flex min-h-full flex-1 flex-col items-center p-6">
       <div className="flex w-full max-w-[400px] flex-1 flex-col justify-center py-10">{content}</div>
       {stepper}
       {/* The account footer belongs to the create screen ("am I signing up

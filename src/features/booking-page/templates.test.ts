@@ -10,16 +10,16 @@ const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
 const BOTH = { offersAppointments: true, offersRentals: true };
 
 describe("templates", () => {
-  it("ships seven, each a valid preview and applied document in every mode", () => {
-    expect(TEMPLATES.map((t) => t.id)).toEqual(["classic", "profile", "studio", "venue", "split", "team", "minimal"]);
+  it("ships eight, each a valid preview and applied document in every mode", () => {
+    expect(TEMPLATES.map((t) => t.id)).toEqual(["classic", "profile", "studio", "venue", "stay", "split", "team", "minimal"]);
     for (const t of TEMPLATES) for (const mode of [APPTS_ONLY, RENTALS_ONLY, BOTH]) {
       expect(pageDocumentSchema.safeParse(templatePreview(t, mode)).success, `${t.id} preview`).toBe(true);
       const applied = applyTemplate(t, mode);
       expect(pageDocumentSchema.safeParse(applied).success, `${t.id} applied`).toBe(true);
       expect(applied.layout).toBe(t.layout);
     }
-    // appointments-only leaves the legacy six exactly as authored
-    for (const t of TEMPLATES.filter((x) => x.id !== "venue")) {
+    // appointments-only leaves the six spaces-free templates exactly as authored
+    for (const t of TEMPLATES.filter((x) => x.id !== "venue" && x.id !== "stay")) {
       expect(applyTemplate(t, APPTS_ONLY).sections.map((s) => s.type)).toEqual(t.sections.map((s) => s.type));
     }
   });
