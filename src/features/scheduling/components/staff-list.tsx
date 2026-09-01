@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Switch } from "@base-ui/react/switch";
+import { Switch } from "@/components/ui/switch";
 import { setStaffActive } from "@/features/scheduling/staff-actions";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { ServiceRow } from "@/features/scheduling/queries";
@@ -87,6 +87,7 @@ function Row({
 
   return (
     <li
+      role="row"
       className={cn(
         "group relative flex flex-col gap-2 rounded-lg px-3 py-2 hover:bg-muted/50",
         gridCols
@@ -96,7 +97,7 @@ function Row({
           absolute variant wins over the base `relative`), so the stacked
           row reads name → link → actions instead of leaving the switch
           alone on a wrapped line. */}
-      <div className="flex min-w-0 items-center gap-3 max-lg:pr-12">
+      <div role="cell" className="flex min-w-0 items-center gap-3 max-lg:pr-12">
         <span
           aria-hidden
           style={{ background: staff.color }}
@@ -128,6 +129,7 @@ function Row({
         </div>
       </div>
       <p
+        role="cell"
         className={cn(
           "text-muted-foreground truncate font-mono text-xs max-lg:pl-9",
           !path && "max-lg:hidden"
@@ -135,8 +137,8 @@ function Row({
       >
         {path ?? "—"}
       </p>
-      <span className="max-lg:hidden">{role}</span>
-      <div className="flex items-center gap-2 max-lg:flex-wrap lg:justify-end">
+      <span role="cell" className="max-lg:hidden">{role}</span>
+      <div role="cell" className="flex items-center gap-2 max-lg:flex-wrap lg:justify-end">
         {/* Row actions surface on hover/focus (always visible below lg,
             where there is no reliable hover). */}
         <span className="flex items-center gap-1 lg:opacity-0 lg:transition-opacity lg:group-focus-within:opacity-100 lg:group-hover:opacity-100">
@@ -174,14 +176,12 @@ function Row({
             handle={handle}
           />
         </span>
-        <Switch.Root
+        <Switch
           checked={active}
           onCheckedChange={onToggle}
           aria-label={`${staff.name} is bookable`}
-          className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-input bg-muted transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-checked:bg-primary data-disabled:opacity-50 max-lg:absolute max-lg:top-2.5 max-lg:right-3"
-        >
-          <Switch.Thumb className="size-3.5 translate-x-0.5 rounded-full bg-background shadow-sm transition-[translate] data-checked:translate-x-[18px]" />
-        </Switch.Root>
+          className="max-lg:absolute max-lg:top-2.5 max-lg:right-3"
+        />
       </div>
     </li>
   );
@@ -213,30 +213,37 @@ export function StaffList({
           — then everyone gets their own link.
         </p>
       )}
-      <div
-        className={cn(
-          "hidden border-b px-3 pb-2 text-xs font-medium text-muted-foreground",
-          gridCols
-        )}
-      >
-        <span>Name</span>
-        <span>Booking link</span>
-        <span>Role</span>
-        <span aria-hidden />
+      {/* ARIA table grammar on the styled rows so "Owner" and the link read
+          in their columns; the layout stays the responsive grid. */}
+      <div role="table" aria-label="Team members" className="flex flex-col gap-3">
+        <div
+          role="row"
+          className={cn(
+            "hidden border-b px-3 pb-2 text-xs font-medium text-muted-foreground",
+            gridCols
+          )}
+        >
+          <span role="columnheader">Name</span>
+          <span role="columnheader">Booking link</span>
+          <span role="columnheader">Role</span>
+          <span role="columnheader">
+            <span className="sr-only">Actions</span>
+          </span>
+        </div>
+        <ol role="rowgroup" className="flex flex-col max-lg:divide-y">
+          {staff.map((person) => (
+            <Row
+              key={person.id}
+              staff={person}
+              services={services}
+              usedColors={usedColors}
+              handle={handle}
+              appUrl={appUrl}
+              isPublic={publicStaffIds === null || publicStaffIds.includes(person.id)}
+            />
+          ))}
+        </ol>
       </div>
-      <ol className="flex flex-col max-lg:divide-y">
-        {staff.map((person) => (
-          <Row
-            key={person.id}
-            staff={person}
-            services={services}
-            usedColors={usedColors}
-            handle={handle}
-            appUrl={appUrl}
-            isPublic={publicStaffIds === null || publicStaffIds.includes(person.id)}
-          />
-        ))}
-      </ol>
     </div>
   );
 }

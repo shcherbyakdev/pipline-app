@@ -36,6 +36,7 @@ export const serviceInput = z.object({
 });
 export const updateServiceInput = serviceInput.extend({ id: z.uuid() });
 export const serviceIdInput = z.object({ id: z.uuid() });
+export const serviceActiveInput = serviceIdInput.extend({ active: z.boolean() });
 
 // H2 (hourly mode): hours and overrides hang off an OWNER, not the org — a
 // staff member OR an hours rental offering, never both, never neither

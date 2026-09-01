@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
@@ -18,7 +18,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BookingDetailDialog } from "./booking-detail-dialog";
 import { NewBookingDialog } from "./new-booking-dialog";
-import { dragInitial } from "@/features/scheduling/booking-kinds";
+import { defaultSlotLength, dragInitial } from "@/features/scheduling/booking-kinds";
 import type { OfferingOption } from "@/features/rentals/offering-option";
 import { SPACES } from "@/features/orgs/vocab";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -148,10 +148,58 @@ export function CalendarWeek({
 
   const router = useRouter();
   const [busy, startBusy] = React.useTransition();
-  type Selection = { date: string; startMin: number; endMin: number };
+  // `dragged` distinguishes a real drag (its span is the wanted length) from
+  // a click, which selects the default slot below and lets the dialog follow
+  // whichever service gets picked.
+  type Selection = { date: string; startMin: number; endMin: number; dragged: boolean };
   const [selection, setSelection] = React.useState<Selection | null>(null);
   const [dragging, setDragging] = React.useState(false);
   const [createOpen, setCreateOpen] = React.useState(false);
+  // The slot a click books and the hover ghost previews: the default
+  // service's length (the dialog starts on that service too), clamped to
+  // the visible grid.
+  const slotMin = defaultSlotLength(services, spaces);
+  const clampEnd = (startMin: number) => Math.min(startMin + slotMin, endHour * 60);
+  // Where the ghost sits while the pointer roams free grid (no selection).
+  const [hover, setHover] = React.useState<{ date: string; startMin: number } | null>(null);
+
+  // Keyboard path: the hour tiles are buttons under a roving tabindex —
+  // one Tab stop for the whole grid, arrows move it, Enter selects the
+  // default slot at that hour (same as a click), Shift+↑/↓ resizes the
+  // selection like a drag. `focusCell` names the one tile with tabIndex 0.
+  const [focusCell, setFocusCell] = React.useState<{ di: number; h: number }>({ di: 0, h: startHour });
+  const gridBodyRef = React.useRef<HTMLDivElement>(null);
+  const focusTile = (di: number, h: number) => {
+    setFocusCell({ di, h });
+    gridBodyRef.current
+      ?.querySelector<HTMLButtonElement>(`[data-cal-tile="${di}:${h}"]`)
+      ?.focus();
+  };
+  const onGridKeyDown = (e: React.KeyboardEvent) => {
+    const tile = (e.target as HTMLElement).closest?.("[data-cal-tile]");
+    if (!tile) return;
+    const [di, h] = (tile.getAttribute("data-cal-tile") ?? "").split(":").map(Number);
+    if (e.shiftKey && (e.key === "ArrowDown" || e.key === "ArrowUp") && selection && selection.date === days[di]) {
+      e.preventDefault();
+      const delta = e.key === "ArrowDown" ? 15 : -15;
+      setSelection({
+        ...selection,
+        endMin: Math.min(Math.max(selection.endMin + delta, selection.startMin + 15), endHour * 60),
+        dragged: true,
+      });
+      return;
+    }
+    const moves: Record<string, [number, number]> = {
+      ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+    };
+    const m = moves[e.key];
+    if (!m) return;
+    e.preventDefault();
+    focusTile(
+      Math.min(Math.max(di + m[0], 0), 6),
+      Math.min(Math.max(h + m[1], startHour), endHour - 1),
+    );
+  };
   const dayHasExceptions = (d: string) => exceptions.some((e) => e.date === d);
   // How many minutes of the selection fall inside open windows — drives
   // which popover actions make sense: "Block time" needs some open time,
@@ -173,7 +221,13 @@ export function CalendarWeek({
   // set-state-in-effect lint rule doesn't fire.
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelection(null);
+      if (e.key !== "Escape") return;
+      setSelection(null);
+      // If focus was in the popover it is about to unmount with it —
+      // hand focus back to the grid's roving tile instead of <body>.
+      if ((document.activeElement as HTMLElement | null)?.closest?.("[data-cal-popover]")) {
+        document.querySelector<HTMLButtonElement>('[data-cal-tile][tabindex="0"]')?.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -360,7 +414,7 @@ export function CalendarWeek({
             reads as discrete rounded hour tiles with gutters (reference
             style) — the tiles are visual only; cards, selection, and
             pointer math stay percent-positioned on the continuous column. */}
-        <div className={cn("grid min-h-0 flex-1 gap-x-1.5", GRID_COLS)}>
+        <div ref={gridBodyRef} onKeyDown={onGridKeyDown} className={cn("grid min-h-0 flex-1 gap-x-1.5", GRID_COLS)}>
           <div />
           {days.map((d, di) => (
           <div
@@ -368,7 +422,10 @@ export function CalendarWeek({
             data-cal-column
             className="relative"
             onPointerDown={(e) => {
-              if ((e.target as HTMLElement).closest("button")) return; // cards handle themselves
+              // Cards and the popover handle themselves; hour tiles are
+              // buttons too (keyboard path) but a pointer on them still
+              // starts a selection here.
+              if ((e.target as HTMLElement).closest("[data-cal-card],[data-cal-popover]")) return;
               // Capture on the column itself so drag-move keeps firing here
               // even if the pointer strays outside the column bounds —
               // avoids a stuck `dragging` from a pointerup that lands
@@ -379,33 +436,59 @@ export function CalendarWeek({
               // Clamp so an extreme drag (pointer released past the grid
               // edge) can't produce a selection start outside the grid.
               const min = Math.min(Math.max(raw, startHour * 60), endHour * 60 - 15);
-              setSelection({ date: d, startMin: min, endMin: min + 15 });
+              setSelection({ date: d, startMin: min, endMin: min + 15, dragged: false });
               setDragging(true);
+              setHover(null);
             }}
             onPointerMove={(e) => {
-              if (!dragging || !selection || selection.date !== d) return;
               const rect = e.currentTarget.getBoundingClientRect();
-              const raw = snap15(startHour * 60 + ((e.clientY - rect.top) / rect.height) * totalMin) + 15;
-              // Same clamp for the drag-derived end.
-              const min = Math.min(Math.max(raw, startHour * 60 + 15), endHour * 60);
-              setSelection({ ...selection, endMin: Math.max(min, selection.startMin + 15) });
+              if (dragging && selection && selection.date === d) {
+                const raw = snap15(startHour * 60 + ((e.clientY - rect.top) / rect.height) * totalMin) + 15;
+                // Same clamp for the drag-derived end.
+                const min = Math.min(Math.max(raw, startHour * 60 + 15), endHour * 60);
+                const endMin = Math.max(min, selection.startMin + 15);
+                // Moving within the first 15-min cell is still a click; once
+                // the span grows past it, the drag owns the length for good.
+                setSelection({ ...selection, endMin, dragged: selection.dragged || endMin > selection.startMin + 15 });
+              } else if (selection === null) {
+                const raw = snap15(startHour * 60 + ((e.clientY - rect.top) / rect.height) * totalMin);
+                const min = Math.min(Math.max(raw, startHour * 60), endHour * 60 - 15);
+                // Re-render only when the ghost actually moves a step.
+                setHover((h) => (h && h.date === d && h.startMin === min ? h : { date: d, startMin: min }));
+              }
             }}
-            onPointerUp={() => setDragging(false)}
+            onPointerUp={() => {
+              setDragging(false);
+              // A click books the default slot the hover ghost promised —
+              // not a 15-minute sliver.
+              setSelection((sel) =>
+                sel && !sel.dragged ? { ...sel, endMin: clampEnd(sel.startMin) } : sel,
+              );
+            }}
+            onPointerLeave={() => setHover((h) => (h?.date === d ? null : h))}
           >
             {Array.from({ length: endHour - startHour }, (_, i) => {
               const h = startHour + i;
               const tile = hourTileState(windowsByDay[di], h);
               return (
-                <div
+                <button
                   key={i}
+                  type="button"
+                  data-cal-tile={`${di}:${h}`}
+                  tabIndex={focusCell.di === di && focusCell.h === h ? 0 : -1}
+                  aria-label={`${DAY_LABELS[(di + 1) % 7]} ${Number(d.slice(8, 10))}, ${String(h).padStart(2, "0")}:00${tile.fullyClosed ? " (closed hours)" : ""}`}
+                  onFocus={() => setFocusCell({ di, h })}
+                  onClick={(e) => {
+                    // Keyboard activation only (detail 0) — a pointer click's
+                    // selection is already made by the column's pointer
+                    // handlers and must not be snapped back to the hour.
+                    if (e.detail !== 0) return;
+                    const start = Math.min(h * 60, endHour * 60 - 15);
+                    setSelection({ date: d, startMin: start, endMin: clampEnd(start), dragged: false });
+                  }}
                   className={cn(
-                    "group absolute inset-x-0 cursor-pointer rounded-md transition-colors",
+                    "absolute inset-x-0 cursor-pointer rounded-md outline-none focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                     tile.fullyClosed ? "bg-muted/15" : "bg-muted/40",
-                    // hover affordance goes quiet while a selection exists —
-                    // otherwise its ring + plus stack under the selection
-                    // outline as visual noise
-                    selection === null &&
-                      "hover:bg-primary/5 hover:ring-1 hover:ring-inset hover:ring-primary",
                   )}
                   style={{
                     top: `calc(${pct(h * 60)}% + 2px)`,
@@ -428,13 +511,29 @@ export function CalendarWeek({
                         }}
                       />
                     ))}
-                  {/* hover affordance: click/drag here starts a booking */}
-                  {selection === null ? (
-                    <Plus className="pointer-events-none absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
-                  ) : null}
-                </div>
+                </button>
               );
             })}
+            {/* Hover ghost: the exact slot a click would select, drawn UNDER
+                the booking cards (they're z-10) so occupied time visibly
+                stays occupied — the ghost only shows through free grid. */}
+            {hover?.date === d && selection === null ? (
+              // Kind-time periwinkle, not chrome grey: grey means closed or
+              // blocked on this grid; colour names a bookable kind — and the
+              // ghost previews an appointment.
+              <div
+                aria-hidden
+                className="border-kind-time/60 bg-kind-time-soft/80 pointer-events-none absolute inset-x-0 rounded-md border"
+                style={{
+                  top: `${pct(hover.startMin)}%`,
+                  height: `${pct(clampEnd(hover.startMin)) - pct(hover.startMin)}%`,
+                }}
+              >
+                <span className="text-kind-time-text absolute top-0.5 left-1.5 text-[11px] font-medium tabular-nums">
+                  {minToTime(hover.startMin)}–{minToTime(clampEnd(hover.startMin))}
+                </span>
+              </div>
+            ) : null}
             {nowParts?.date === d &&
             nowParts.minutes >= startHour * 60 &&
             nowParts.minutes <= endHour * 60 ? (
@@ -458,6 +557,7 @@ export function CalendarWeek({
                 <button
                   key={b.id}
                   type="button"
+                  data-cal-card
                   onClick={() => setSelected(b)}
                   className={cn(
                     "absolute z-10 overflow-hidden rounded-md border p-1.5 text-left text-xs shadow-sm hover:shadow",
@@ -495,7 +595,7 @@ export function CalendarWeek({
                       <span
                         title={b.staffName}
                         style={{ background: b.staffColor ?? undefined }}
-                        className="shrink-0 rounded-sm px-1 py-0.5 text-[9px] leading-none font-semibold text-white/95"
+                        className="shrink-0 rounded-sm px-1 py-0.5 text-[10px] leading-none font-semibold text-white/95"
                       >
                         {initials(b.staffName)}
                       </span>
@@ -612,7 +712,14 @@ export function CalendarWeek({
           />
           Closed hours
         </span>
-        <span>Drag across open hours to add a booking{blockable ? " or block time" : ""}.</span>
+        <span>Click or drag on the grid to add a booking{blockable ? " or block time" : ""}.</span>
+      </div>
+      {/* Screen-reader narration for the pointer-free path: what got
+          selected and how to act on it. */}
+      <div aria-live="polite" className="sr-only">
+        {selection && !dragging
+          ? `Selected ${minToTime(selection.startMin)} to ${minToTime(selection.endMin)} on ${selection.date}. Tab to actions, Shift plus arrow keys to resize, Escape to cancel.`
+          : ""}
       </div>
       <BookingDetailDialog
         booking={selected}

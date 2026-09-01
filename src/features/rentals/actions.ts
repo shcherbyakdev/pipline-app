@@ -10,6 +10,7 @@ import {
   offeringInput,
   updateOfferingInput,
   offeringIdInput,
+  offeringActiveInput,
   unitInput,
   updateUnitInput,
   unitIdInput,
@@ -162,6 +163,29 @@ export async function updateOffering(input: unknown): Promise<ActionState> {
   if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
   revalidatePath("/rentals");
   revalidatePath(`/rentals/${id}`);
+  revalidatePath("/availability");
+  return { ok: true };
+}
+
+/* The row switch on /rentals — same shape as setStaffActive, and the same
+   gate posture as updateOffering (which already flips `active` ungated). */
+export async function setOfferingActive(input: unknown): Promise<ActionState> {
+  const parsed = offeringActiveInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const orgId = await currentOrgId();
+  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("rental_offerings")
+    .update({ active: parsed.data.active })
+    .eq("id", parsed.data.id)
+    .eq("org_id", orgId)
+    .select("id")
+    .maybeSingle();
+  if (error) return fail("setOfferingActive", error);
+  if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
+  revalidatePath("/rentals");
+  revalidatePath(`/rentals/${parsed.data.id}`);
   revalidatePath("/availability");
   return { ok: true };
 }

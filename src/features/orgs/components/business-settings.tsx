@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { updateOrgModes } from "@/features/orgs/actions";
 import type { OrgMode } from "@/features/orgs/mode";
@@ -40,7 +40,7 @@ export function BusinessSettings({ mode }: { mode: OrgMode }) {
   };
 
   return (
-    <div className="bg-card flex flex-col gap-3 rounded-lg border p-4">
+    <div className="bg-card flex flex-col gap-3 rounded-xl border p-4">
       <div>
         <div className="text-sm font-medium">What you offer</div>
         <p className="text-muted-foreground text-sm">
@@ -53,20 +53,19 @@ export function BusinessSettings({ mode }: { mode: OrgMode }) {
           const locked = checked && enabledCount === 1;
           const id = `business-${row.key}`;
           return (
-            <div key={row.key} className="flex items-start gap-3">
-              <Checkbox
-                id={id}
-                checked={checked}
-                disabled={pending || locked}
-                onCheckedChange={(c) => toggle(row.key, c === true)}
-                className="mt-0.5"
-              />
+            <div key={row.key} className="flex items-center justify-between gap-3">
               <div className="flex flex-col">
                 <Label htmlFor={id}>{row.label}</Label>
                 <span className="text-muted-foreground text-sm">
                   {locked ? "Keep at least one booking type on." : row.blurb}
                 </span>
               </div>
+              <Switch
+                id={id}
+                checked={checked}
+                disabled={pending || locked}
+                onCheckedChange={(c) => toggle(row.key, c)}
+              />
             </div>
           );
         })}

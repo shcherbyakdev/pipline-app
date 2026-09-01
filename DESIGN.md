@@ -175,8 +175,13 @@ radius.
 - **Sidebar** (`components/shell/sidebar-body.tsx`): 13px/500 rows on 8px
   radii; the active row is a white card, idle rows tint on hover.
 - **Inputs**: white fill, hairline border, ink focus ring at 30%.
-- **Overlays**: `rounded-2xl` dialogs, `rounded-xl` popovers/menus, 150ms
-  `ease-strong` enter/exit from 95% scale.
+- **Overlays**: `rounded-3xl` p-0 dialog panels (the Linear-style
+  header/body/footer zones in `ui/dialog.tsx`; plain confirm dialogs stay
+  `rounded-2xl`), `rounded-xl` popovers/menus, 150ms `ease-strong`
+  enter/exit from 95% scale.
+- **Switches** (`components/ui/switch.tsx`): the one on/off idiom — grey
+  track, brand-checked like the checkbox; used on roster rows, dialog
+  toggles and Settings.
 
 ## Do's and Don'ts
 
