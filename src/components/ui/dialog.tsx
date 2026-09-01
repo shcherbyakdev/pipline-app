@@ -43,13 +43,18 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  overlayClassName,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
+  /** Strengthen the scrim for takeover-sized dialogs (e.g. the template
+      gallery) that sit over busy surfaces; the default stays the system's
+      subtle ink dim. */
+  overlayClassName?: string;
 }) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(

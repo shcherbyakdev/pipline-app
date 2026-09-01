@@ -212,6 +212,7 @@ export function StarterDialog({
         )}
         <DialogContent
           className={cn(dialogPanelClass, "sm:max-w-4xl")}
+          overlayClassName="bg-foreground/30"
           finalFocus={finalFocus}
         >
           <DialogBreadcrumbHeader chip={<DialogChip>Booking page</DialogChip>}>
