@@ -39,6 +39,7 @@ export const STARTER = {
     trigger: "Start from a template",
     title: "Start from a template",
     sub: "Pick the closest match, then make it yours. Your published page stays until you publish.",
+    use: "Use this template",
   },
   replace: {
     title: "Replace your current draft?",

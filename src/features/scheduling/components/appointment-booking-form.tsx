@@ -9,10 +9,14 @@ import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { DayWindow } from "@/features/scheduling/day-windows";
 import { minToTime, snap15, timeToMin, zonedParts } from "@/features/scheduling/calendar-geometry";
 import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
+import { ChevronDownIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  DialogFooter,
+  dialogBareInputClass as bareInputClass,
+  dialogPillClass as pillClass,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 const TIME_RE = /^\d{2}:\d{2}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -137,108 +141,120 @@ export function AppointmentBookingForm({
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="ab-date">Date</Label>
-          <Input
-            id="ab-date"
+    <form onSubmit={submit} className="flex flex-col">
+      <div className="flex flex-col px-5 pt-5 pb-6">
+        <input
+          aria-label="Client name"
+          required
+          maxLength={200}
+          value={name}
+          placeholder="Client name"
+          className={cn(bareInputClass, "text-[15px] font-medium")}
+          onChange={(e) => { setName(e.target.value); clearOverlap(); }}
+        />
+        <input
+          aria-label="Email (optional — confirmation is sent only if given)"
+          type="email"
+          maxLength={320}
+          value={email}
+          placeholder="Email — optional, confirmation is sent only if given"
+          className={cn(bareInputClass, "mt-3 text-sm")}
+          onChange={(e) => { setEmail(e.target.value); clearOverlap(); }}
+        />
+        <textarea
+          aria-label="Note (optional)"
+          maxLength={2000}
+          rows={2}
+          value={note}
+          placeholder="Add a note…"
+          className={cn(bareInputClass, "mt-3 resize-none text-sm")}
+          onChange={(e) => { setNote(e.target.value); clearOverlap(); }}
+        />
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <input
+            aria-label="Date"
             type="date"
             required
             value={date}
+            className={pillClass}
             onChange={(e) => { setDate(e.target.value); clearOverlap(); }}
           />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="ab-start">
-            Starts at <span className="text-muted-foreground font-normal">({timeZone})</span>
-          </Label>
-          <Input
-            id="ab-start"
+          <input
+            aria-label={`Starts at (${timeZone})`}
             type="time"
             step={900}
             required
             value={startTime}
+            className={pillClass}
             onChange={(e) => { setStartTime(e.target.value); clearOverlap(); }}
           />
-        </div>
-      </div>
-      {activeStaff.length > 1 ? (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="ab-staff">Team member</Label>
-          <select
-            id="ab-staff"
-            className="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
-            value={staffId}
-            disabled={eligible.length === 0}
-            onChange={(e) => { setPickedStaffId(e.target.value); clearOverlap(); }}
-          >
-            {eligible.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
-      ) : null}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="ab-end">
-          Ends at{" "}
-          <span className="text-muted-foreground font-normal">
-            ({durationMin > 0 ? `${durationMin} min` : "—"})
+          <span aria-hidden className="text-muted-foreground text-xs">–</span>
+          <input
+            aria-label="Ends at"
+            type="time"
+            step={300}
+            value={effectiveEndTime}
+            className={pillClass}
+            onChange={(e) => { setEndTouched(true); setEndTime(e.target.value); clearOverlap(); }}
+          />
+          {activeStaff.length > 1 ? (
+            <span className="relative inline-flex">
+              <select
+                aria-label="Team member"
+                className={cn(pillClass, "appearance-none pr-6")}
+                value={staffId}
+                disabled={eligible.length === 0}
+                onChange={(e) => { setPickedStaffId(e.target.value); clearOverlap(); }}
+              >
+                {eligible.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <ChevronDownIcon aria-hidden className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2" />
+            </span>
+          ) : null}
+          <span className="text-muted-foreground text-xs">
+            {durationMin > 0 ? `${durationMin} min` : "—"} · {timeZone}
           </span>
-        </Label>
-        <Input
-          id="ab-end"
-          type="time"
-          step={300}
-          value={effectiveEndTime}
-          onChange={(e) => { setEndTouched(true); setEndTime(e.target.value); clearOverlap(); }}
-        />
+        </div>
+        {outsideHours ? (
+          <p className="mt-3 text-xs text-amber-600 dark:text-amber-500">
+            Outside your open hours — allowed for bookings you create yourself.
+          </p>
+        ) : null}
+        {insideNotice && !tooFarPast ? (
+          <p className="mt-3 text-xs text-amber-600 dark:text-amber-500">
+            Inside this service’s minimum-notice window — allowed for bookings you create yourself.
+          </p>
+        ) : null}
+        {tooFarPast ? (
+          <p className="text-destructive mt-3 text-xs">
+            This time is more than 24 hours in the past — bookings can’t be recorded that far
+            back. Pick a slot from the last day, or a future one.
+          </p>
+        ) : null}
+        {invalidDuration ? (
+          <p className="text-destructive mt-3 text-xs">
+            End must be after the start — between 5 minutes and 8 hours long.
+          </p>
+        ) : null}
+        {serviceId && !staffId ? (
+          <p className="text-destructive mt-3 text-xs">
+            Nobody on the team offers this service yet — assign someone on the Services page.
+          </p>
+        ) : null}
+        {overlapError ? <p className="text-destructive mt-3 text-xs">{overlapError}</p> : null}
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="ab-name">Client name</Label>
-        <Input id="ab-name" required maxLength={200} value={name} onChange={(e) => { setName(e.target.value); clearOverlap(); }} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="ab-email">Email (optional — confirmation is sent only if given)</Label>
-        <Input id="ab-email" type="email" maxLength={320} value={email} onChange={(e) => { setEmail(e.target.value); clearOverlap(); }} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="ab-note">Note (optional)</Label>
-        <Textarea id="ab-note" maxLength={2000} value={note} onChange={(e) => { setNote(e.target.value); clearOverlap(); }} />
-      </div>
-      {outsideHours ? (
-        <p className="text-sm text-amber-600 dark:text-amber-500">
-          Outside your open hours — allowed for bookings you create yourself.
-        </p>
-      ) : null}
-      {insideNotice && !tooFarPast ? (
-        <p className="text-sm text-amber-600 dark:text-amber-500">
-          Inside this service’s minimum-notice window — allowed for bookings you create yourself.
-        </p>
-      ) : null}
-      {tooFarPast ? (
-        <p className="text-destructive text-sm">
-          This time is more than 24 hours in the past — bookings can’t be recorded that far
-          back. Pick a slot from the last day, or a future one.
-        </p>
-      ) : null}
-      {invalidDuration ? (
-        <p className="text-destructive text-sm">
-          End must be after the start — between 5 minutes and 8 hours long.
-        </p>
-      ) : null}
-      {serviceId && !staffId ? (
-        <p className="text-destructive text-sm">
-          Nobody on the team offers this service yet — assign someone on the Services page.
-        </p>
-      ) : null}
-      {overlapError ? <p className="text-destructive text-sm">{overlapError}</p> : null}
-      <Button
-        type="submit"
-        disabled={pending || !serviceId || !staffId || tooFarPast || invalidDuration || !validDate || !validStart}
-      >
-        {pending ? "Creating…" : "Create booking"}
-      </Button>
+      <DialogFooter className="mx-0 mb-0 items-center rounded-b-3xl px-5">
+        <Button
+          type="submit"
+          size="sm"
+          variant="brand"
+          disabled={pending || !serviceId || !staffId || tooFarPast || invalidDuration || !validDate || !validStart}
+        >
+          {pending ? "Creating…" : "Create booking"}
+        </Button>
+      </DialogFooter>
     </form>
   );
 }

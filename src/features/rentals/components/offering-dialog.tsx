@@ -15,15 +15,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
+  DialogBreadcrumbHeader,
+  DialogChip,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
+  DialogFooterBar,
   DialogTrigger,
+  dialogBareInputClass,
+  dialogPanelClass,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { SPACES } from "@/features/orgs/vocab";
 
 // The native-<select> idiom shared by the booking forms.
-const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
+const selectClass =
+  "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
 
 const INCREMENT_OPTIONS = [15, 30, 60];
 
@@ -56,7 +61,9 @@ export function OfferingDialog({
   // built in onSubmit always agree on which fields are on the page —
   // switching modes mid-form unmounts the other branch's inputs, so a
   // stale field is never in the submitted FormData.
-  const [rangeMode, setRangeMode] = React.useState<RangeMode>(offering?.rangeMode ?? "nights");
+  const [rangeMode, setRangeMode] = React.useState<RangeMode>(
+    offering?.rangeMode ?? "nights",
+  );
   // Drives the min/max duration inputs' `step` so it tracks the increment
   // select live, not just at mount.
   const [slotIncrementMin, setSlotIncrementMin] = React.useState<number>(
@@ -94,7 +101,9 @@ export function OfferingDialog({
     const cancelWindowMin =
       cancelWindowRaw === ""
         ? 0
-        : Math.round(Number(cancelWindowRaw) * (rangeMode === "hours" ? 60 : 1440));
+        : Math.round(
+            Number(cancelWindowRaw) * (rangeMode === "hours" ? 60 : 1440),
+          );
     const common = {
       name,
       description: description === "" ? undefined : description,
@@ -167,187 +176,212 @@ export function OfferingDialog({
           )
         }
       />
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? SPACES.dialogTitle.edit : SPACES.dialogTitle.new}</DialogTitle>
-        </DialogHeader>
-        {/* More fields than the service dialog, so the body scrolls rather
-            than pushing the popup past the viewport. */}
-        <form onSubmit={onSubmit} className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto px-1">
-          <SectionHeading>Basics</SectionHeading>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="offering-name">Name</Label>
-            <Input
-              id="offering-name"
+      <DialogContent className={cn(dialogPanelClass, "sm:max-w-lg")}>
+        <DialogBreadcrumbHeader
+          chip={<DialogChip tone="space">Space</DialogChip>}
+        >
+          {isEdit ? SPACES.dialogTitle.edit : SPACES.dialogTitle.new}
+        </DialogBreadcrumbHeader>
+        <form onSubmit={onSubmit} className="flex flex-col">
+          <div className="flex flex-col px-5 pt-4 pb-6">
+            <input
+              aria-label="Name"
               name="name"
               required
               maxLength={200}
               defaultValue={offering?.name}
+              placeholder="Space name"
+              className={cn(dialogBareInputClass, "text-[15px] font-medium")}
               autoFocus
             />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="offering-description">Description</Label>
-            <Textarea
-              id="offering-description"
+            <textarea
+              aria-label="Description"
               name="description"
               maxLength={2000}
+              rows={2}
               defaultValue={offering?.description ?? ""}
+              placeholder="Add a description…"
+              className={cn(dialogBareInputClass, "mt-3 resize-none text-sm")}
             />
-          </div>
-          <SectionHeading>Pricing & policies</SectionHeading>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="offering-price">Price ({currency})</Label>
-              <Input
-                id="offering-price"
-                name="price"
-                type="number"
-                min={0}
-                step="0.01"
-                placeholder="Unpriced"
-                defaultValue={offering?.priceCents != null ? offering.priceCents / 100 : ""}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="offering-pricing-mode">Pricing mode</Label>
-              <select
-                id="offering-pricing-mode"
-                name="pricingMode"
-                className={selectClass}
-                defaultValue={offering?.pricingMode ?? "per_unit"}
-              >
-                <option value="per_unit">
-                  {rangeMode === "hours" ? "Per hour" : rangeMode === "nights" ? "Per night" : "Per day"}
-                </option>
-                <option value="flat">Flat per booking</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="offering-deposit-type">Deposit</Label>
-              <select
-                id="offering-deposit-type"
-                name="depositType"
-                className={selectClass}
-                value={depositType}
-                onChange={(e) => setDepositType(e.target.value as DepositType)}
-              >
-                <option value="none">No deposit</option>
-                <option value="fixed">Fixed amount</option>
-                <option value="percent">Percent of total</option>
-                <option value="full">Full amount</option>
-              </select>
-            </div>
-            {depositType === "fixed" ? (
+            <div className="mt-6 flex flex-col gap-4">
+              <SectionHeading>Pricing & policies</SectionHeading>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-price">Price ({currency})</Label>
+                  <Input
+                    id="offering-price"
+                    name="price"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="Unpriced"
+                    defaultValue={
+                      offering?.priceCents != null
+                        ? offering.priceCents / 100
+                        : ""
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-pricing-mode">Pricing mode</Label>
+                  <select
+                    id="offering-pricing-mode"
+                    name="pricingMode"
+                    className={selectClass}
+                    defaultValue={offering?.pricingMode ?? "per_unit"}
+                  >
+                    <option value="per_unit">
+                      {rangeMode === "hours"
+                        ? "Per hour"
+                        : rangeMode === "nights"
+                          ? "Per night"
+                          : "Per day"}
+                    </option>
+                    <option value="flat">Flat per booking</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-deposit-type">Deposit</Label>
+                  <select
+                    id="offering-deposit-type"
+                    name="depositType"
+                    className={selectClass}
+                    value={depositType}
+                    onChange={(e) =>
+                      setDepositType(e.target.value as DepositType)
+                    }
+                  >
+                    <option value="none">No deposit</option>
+                    <option value="fixed">Fixed amount</option>
+                    <option value="percent">Percent of total</option>
+                    <option value="full">Full amount</option>
+                  </select>
+                </div>
+                {depositType === "fixed" ? (
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="offering-deposit-value">
+                      Deposit amount ({currency})
+                    </Label>
+                    <Input
+                      id="offering-deposit-value"
+                      name="depositValue"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      defaultValue={
+                        offering?.depositType === "fixed" &&
+                        offering.depositValue != null
+                          ? offering.depositValue / 100
+                          : ""
+                      }
+                    />
+                  </div>
+                ) : depositType === "percent" ? (
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="offering-deposit-value">Deposit (%)</Label>
+                    <Input
+                      id="offering-deposit-value"
+                      name="depositValue"
+                      type="number"
+                      min={1}
+                      max={100}
+                      defaultValue={
+                        offering?.depositType === "percent" &&
+                        offering.depositValue != null
+                          ? offering.depositValue
+                          : ""
+                      }
+                    />
+                  </div>
+                ) : null}
+              </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-deposit-value">Deposit amount ({currency})</Label>
+                <Label htmlFor="offering-cancel-window">
+                  Free cancellation until (
+                  {rangeMode === "hours" ? "hours" : "days"} before start)
+                </Label>
                 <Input
-                  id="offering-deposit-value"
-                  name="depositValue"
+                  id="offering-cancel-window"
+                  name="cancelWindow"
                   type="number"
                   min={0}
-                  step="0.01"
+                  placeholder="No window"
                   defaultValue={
-                    offering?.depositType === "fixed" && offering.depositValue != null
-                      ? offering.depositValue / 100
+                    offering && offering.cancelWindowMin > 0
+                      ? offering.rangeMode === "hours"
+                        ? offering.cancelWindowMin / 60
+                        : offering.cancelWindowMin / 1440
                       : ""
                   }
                 />
               </div>
-            ) : depositType === "percent" ? (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-deposit-value">Deposit (%)</Label>
-                <Input
-                  id="offering-deposit-value"
-                  name="depositValue"
-                  type="number"
-                  min={1}
-                  max={100}
-                  defaultValue={
-                    offering?.depositType === "percent" && offering.depositValue != null
-                      ? offering.depositValue
-                      : ""
-                  }
+                <Label htmlFor="offering-terms">Terms</Label>
+                <Textarea
+                  id="offering-terms"
+                  name="termsText"
+                  rows={4}
+                  maxLength={10000}
+                  defaultValue={offering?.termsText ?? ""}
                 />
               </div>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="offering-cancel-window">
-              Free cancellation until ({rangeMode === "hours" ? "hours" : "days"} before start)
-            </Label>
-            <Input
-              id="offering-cancel-window"
-              name="cancelWindow"
-              type="number"
-              min={0}
-              placeholder="No window"
-              defaultValue={
-                offering && offering.cancelWindowMin > 0
-                  ? offering.rangeMode === "hours"
-                    ? offering.cancelWindowMin / 60
-                    : offering.cancelWindowMin / 1440
-                  : ""
-              }
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="offering-terms">Terms</Label>
-            <Textarea
-              id="offering-terms"
-              name="termsText"
-              rows={4}
-              maxLength={10000}
-              defaultValue={offering?.termsText ?? ""}
-            />
-          </div>
-          {/* "Stay" is a hotel word; an hourly room is a session. `rangeMode`
+              {/* "Stay" is a hotel word; an hourly room is a session. `rangeMode`
               is the dialog's own live state (the select just below). */}
-          <SectionHeading>{rangeMode === "hours" ? "Session" : "Stay"}</SectionHeading>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="offering-range-mode">Booked by</Label>
-            <select
-              id="offering-range-mode"
-              name="rangeMode"
-              className={selectClass}
-              value={rangeMode}
-              onChange={(e) => setRangeMode(e.target.value as RangeMode)}
-            >
-              <option value="nights">Nightly (check-in → check-out)</option>
-              <option value="days">Daily (pickup → return)</option>
-              <option value="hours">Hourly (booked by the hour)</option>
-            </select>
-          </div>
-          {rangeMode === "hours" ? (
-            <>
+              <SectionHeading>
+                {rangeMode === "hours" ? "Session" : "Stay"}
+              </SectionHeading>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-slot-increment">Slot increment</Label>
+                <Label htmlFor="offering-range-mode">Booked by</Label>
                 <select
-                  id="offering-slot-increment"
-                  name="slotIncrementMin"
+                  id="offering-range-mode"
+                  name="rangeMode"
                   className={selectClass}
-                  value={slotIncrementMin}
-                  onChange={(e) => setSlotIncrementMin(Number(e.target.value))}
+                  value={rangeMode}
+                  onChange={(e) => setRangeMode(e.target.value as RangeMode)}
                 >
-                  {/* Guards an existing offering whose increment isn't one of
-                      the three common values — editing must not silently
-                      snap it to 15. */}
-                  {!INCREMENT_OPTIONS.includes(slotIncrementMin) ? (
-                    <option value={slotIncrementMin}>{slotIncrementMin} min</option>
-                  ) : null}
-                  {INCREMENT_OPTIONS.map((m) => (
-                    <option key={m} value={m}>
-                      {m} min
-                    </option>
-                  ))}
+                  <option value="nights">Nightly (check-in → check-out)</option>
+                  <option value="days">Daily (pickup → return)</option>
+                  <option value="hours">Hourly (booked by the hour)</option>
                 </select>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-min-duration">Min duration (min)</Label>
-                  {/* No `min` here: the HTML step-validation base is `min`
+              {rangeMode === "hours" ? (
+                <>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="offering-slot-increment">
+                      Slot increment
+                    </Label>
+                    <select
+                      id="offering-slot-increment"
+                      name="slotIncrementMin"
+                      className={selectClass}
+                      value={slotIncrementMin}
+                      onChange={(e) =>
+                        setSlotIncrementMin(Number(e.target.value))
+                      }
+                    >
+                      {/* Guards an existing offering whose increment isn't one of
+                      the three common values — editing must not silently
+                      snap it to 15. */}
+                      {!INCREMENT_OPTIONS.includes(slotIncrementMin) ? (
+                        <option value={slotIncrementMin}>
+                          {slotIncrementMin} min
+                        </option>
+                      ) : null}
+                      {INCREMENT_OPTIONS.map((m) => (
+                        <option key={m} value={m}>
+                          {m} min
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="offering-min-duration">
+                        Min duration (min)
+                      </Label>
+                      {/* No `min` here: the HTML step-validation base is `min`
                       (falling back to 0 when absent), so `min={5}` +
                       `step={slotIncrementMin}` would only accept
                       5, 5+step, 5+2·step… — disjoint from the Zod branch's
@@ -355,185 +389,217 @@ export function OfferingDialog({
                       (e.g. 60/240 with a 15/30/60 increment) could ever pass
                       native validation. The 5-minute floor is still
                       enforced server-side by hoursFields's `.min(5)`. */}
-                  <Input
-                    id="offering-min-duration"
-                    name="minDurationMin"
-                    type="number"
-                    required
-                    max={1440}
-                    step={slotIncrementMin}
-                    defaultValue={offering?.minDurationMin ?? OFFERING_DEFAULTS.hours.minDurationMin}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-max-duration">Max duration (min)</Label>
-                  <Input
-                    id="offering-max-duration"
-                    name="maxDurationMin"
-                    type="number"
-                    required
-                    max={1440}
-                    step={slotIncrementMin}
-                    defaultValue={offering?.maxDurationMin ?? OFFERING_DEFAULTS.hours.maxDurationMin}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-turnover-min">Turnover (minutes)</Label>
-                  <Input
-                    id="offering-turnover-min"
-                    name="turnoverMin"
-                    type="number"
-                    min={0}
-                    max={1440}
-                    defaultValue={offering?.turnoverMin ?? 0}
-                  />
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-start-time">Start time</Label>
-                  <Input
-                    id="offering-start-time"
-                    name="startTime"
-                    type="time"
-                    step={900}
-                    required
-                    defaultValue={offering?.startTime ?? OFFERING_DEFAULTS.stay.startTime}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-end-time">End time</Label>
-                  <Input
-                    id="offering-end-time"
-                    name="endTime"
-                    type="time"
-                    step={900}
-                    required
-                    defaultValue={offering?.endTime ?? OFFERING_DEFAULTS.stay.endTime}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-min-stay">Min stay</Label>
-                  <Input
-                    id="offering-min-stay"
-                    name="minStay"
-                    type="number"
-                    required
-                    min={1}
-                    max={365}
-                    defaultValue={offering?.minStay ?? OFFERING_DEFAULTS.stay.minStay}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-max-stay">Max stay</Label>
-                  <Input
-                    id="offering-max-stay"
-                    name="maxStay"
-                    type="number"
-                    min={1}
-                    max={365}
-                    placeholder="Unlimited"
-                    defaultValue={offering?.maxStay ?? ""}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-turnover">Turnover (days)</Label>
-                  <Input
-                    id="offering-turnover"
-                    name="turnoverDays"
-                    type="number"
-                    min={0}
-                    max={30}
-                    defaultValue={offering?.turnoverDays ?? 0}
-                  />
-                </div>
-              </div>
-            </>
-          )}
+                      <Input
+                        id="offering-min-duration"
+                        name="minDurationMin"
+                        type="number"
+                        required
+                        max={1440}
+                        step={slotIncrementMin}
+                        defaultValue={
+                          offering?.minDurationMin ??
+                          OFFERING_DEFAULTS.hours.minDurationMin
+                        }
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="offering-max-duration">
+                        Max duration (min)
+                      </Label>
+                      <Input
+                        id="offering-max-duration"
+                        name="maxDurationMin"
+                        type="number"
+                        required
+                        max={1440}
+                        step={slotIncrementMin}
+                        defaultValue={
+                          offering?.maxDurationMin ??
+                          OFFERING_DEFAULTS.hours.maxDurationMin
+                        }
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="offering-turnover-min">
+                        Turnover (minutes)
+                      </Label>
+                      <Input
+                        id="offering-turnover-min"
+                        name="turnoverMin"
+                        type="number"
+                        min={0}
+                        max={1440}
+                        defaultValue={offering?.turnoverMin ?? 0}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="offering-start-time">Start time</Label>
+                      <Input
+                        id="offering-start-time"
+                        name="startTime"
+                        type="time"
+                        step={900}
+                        required
+                        defaultValue={
+                          offering?.startTime ??
+                          OFFERING_DEFAULTS.stay.startTime
+                        }
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="offering-end-time">End time</Label>
+                      <Input
+                        id="offering-end-time"
+                        name="endTime"
+                        type="time"
+                        step={900}
+                        required
+                        defaultValue={
+                          offering?.endTime ?? OFFERING_DEFAULTS.stay.endTime
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="offering-min-stay">Min stay</Label>
+                      <Input
+                        id="offering-min-stay"
+                        name="minStay"
+                        type="number"
+                        required
+                        min={1}
+                        max={365}
+                        defaultValue={
+                          offering?.minStay ?? OFFERING_DEFAULTS.stay.minStay
+                        }
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="offering-max-stay">Max stay</Label>
+                      <Input
+                        id="offering-max-stay"
+                        name="maxStay"
+                        type="number"
+                        min={1}
+                        max={365}
+                        placeholder="Unlimited"
+                        defaultValue={offering?.maxStay ?? ""}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="offering-turnover">Turnover (days)</Label>
+                      <Input
+                        id="offering-turnover"
+                        name="turnoverDays"
+                        type="number"
+                        min={0}
+                        max={30}
+                        defaultValue={offering?.turnoverDays ?? 0}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
-          <SectionHeading>Booking</SectionHeading>
-          <div className="grid grid-cols-2 gap-4">
-            {rangeMode === "hours" ? (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-min-notice-min">Min notice (minutes)</Label>
-                <Input
-                  id="offering-min-notice-min"
-                  name="minNoticeMin"
-                  type="number"
-                  min={0}
-                  max={43200}
-                  defaultValue={offering?.minNoticeMin ?? 0}
-                />
+              <SectionHeading>Booking</SectionHeading>
+              <div className="grid grid-cols-2 gap-4">
+                {rangeMode === "hours" ? (
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="offering-min-notice-min">
+                      Min notice (minutes)
+                    </Label>
+                    <Input
+                      id="offering-min-notice-min"
+                      name="minNoticeMin"
+                      type="number"
+                      min={0}
+                      max={43200}
+                      defaultValue={offering?.minNoticeMin ?? 0}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="offering-min-notice">
+                      Min notice (days)
+                    </Label>
+                    <Input
+                      id="offering-min-notice"
+                      name="minNoticeDays"
+                      type="number"
+                      min={0}
+                      max={365}
+                      defaultValue={offering?.minNoticeDays ?? 0}
+                    />
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-booking-window">
+                    Booking window (days)
+                  </Label>
+                  <Input
+                    id="offering-booking-window"
+                    name="bookingWindowDays"
+                    type="number"
+                    min={1}
+                    max={730}
+                    defaultValue={offering?.bookingWindowDays ?? 180}
+                  />
+                </div>
               </div>
-            ) : (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-min-notice">Min notice (days)</Label>
-                <Input
-                  id="offering-min-notice"
-                  name="minNoticeDays"
-                  type="number"
-                  min={0}
-                  max={365}
-                  defaultValue={offering?.minNoticeDays ?? 0}
-                />
+                <Label htmlFor="offering-unit-selection">Unit selection</Label>
+                <select
+                  id="offering-unit-selection"
+                  name="unitSelection"
+                  className={selectClass}
+                  defaultValue={offering?.unitSelection ?? "auto"}
+                >
+                  <option value="auto">Assign a unit automatically</option>
+                  <option value="client_picks">
+                    Let the client pick a unit
+                  </option>
+                </select>
               </div>
-            )}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="offering-booking-window">Booking window (days)</Label>
-              <Input
-                id="offering-booking-window"
-                name="bookingWindowDays"
-                type="number"
-                min={1}
-                max={730}
-                defaultValue={offering?.bookingWindowDays ?? 180}
-              />
+
+              <div className="flex items-center gap-2">
+                <input
+                  id="offering-active"
+                  name="active"
+                  type="checkbox"
+                  className="size-4 accent-(--brand-text)"
+                  defaultChecked={offering?.active ?? true}
+                />
+                <Label htmlFor="offering-active">Active</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="offering-requires-approval"
+                  name="requiresApproval"
+                  type="checkbox"
+                  className="size-4 accent-(--brand-text)"
+                  defaultChecked={offering?.requiresApproval ?? false}
+                />
+                <Label htmlFor="offering-requires-approval">
+                  Require approval
+                </Label>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                New bookings wait for your confirmation instead of confirming
+                instantly.
+              </p>
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="offering-unit-selection">Unit selection</Label>
-            <select
-              id="offering-unit-selection"
-              name="unitSelection"
-              className={selectClass}
-              defaultValue={offering?.unitSelection ?? "auto"}
-            >
-              <option value="auto">Assign a unit automatically</option>
-              <option value="client_picks">Let the client pick a unit</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              id="offering-active"
-              name="active"
-              type="checkbox"
-              className="size-4"
-              defaultChecked={offering?.active ?? true}
-            />
-            <Label htmlFor="offering-active">Active</Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              id="offering-requires-approval"
-              name="requiresApproval"
-              type="checkbox"
-              className="size-4"
-              defaultChecked={offering?.requiresApproval ?? false}
-            />
-            <Label htmlFor="offering-requires-approval">Require approval</Label>
-          </div>
-          <p className="text-muted-foreground text-xs">
-            New bookings wait for your confirmation instead of confirming instantly.
-          </p>
-          <Button type="submit" disabled={pending}>
-            {pending ? "Saving…" : "Save"}
-          </Button>
+          <DialogFooterBar>
+            <Button type="submit" size="sm" variant="brand" disabled={pending}>
+              {pending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooterBar>
         </form>
       </DialogContent>
     </Dialog>

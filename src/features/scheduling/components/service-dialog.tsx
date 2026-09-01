@@ -11,16 +11,25 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
+  DialogBreadcrumbHeader,
+  DialogChip,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
+  DialogFooterBar,
   DialogTrigger,
+  dialogBareInputClass,
+  dialogPanelClass,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
-export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff: StaffRow[] }) {
+export function ServiceDialog({
+  service,
+  staff,
+}: {
+  service?: ServiceRow;
+  staff: StaffRow[];
+}) {
   const isEdit = Boolean(service);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -46,7 +55,8 @@ export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff:
   // (mirrors the staff dialog's service checklist). On edit the seed is the
   // stored set, deactivated people included — only active rows are rendered,
   // so someone off the roster keeps their assignment through a save.
-  const defaultStaffIds = () => new Set(service ? service.staffIds : activeStaff.map((s) => s.id));
+  const defaultStaffIds = () =>
+    new Set(service ? service.staffIds : activeStaff.map((s) => s.id));
   const [staffIds, setStaffIds] = React.useState<Set<string>>(defaultStaffIds);
 
   const onOpenChange = (next: boolean) => {
@@ -74,8 +84,14 @@ export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff:
     const description = String(fd.get("description") ?? "").trim();
     const priceLabel = String(fd.get("priceLabel") ?? "").trim();
     const maxPerDayRaw = String(fd.get("maxPerDay") ?? "").trim();
-    const bookingWindowDays = Number(String(fd.get("bookingWindowDays") ?? "").trim());
-    if (!Number.isInteger(bookingWindowDays) || bookingWindowDays < 1 || bookingWindowDays > 365) {
+    const bookingWindowDays = Number(
+      String(fd.get("bookingWindowDays") ?? "").trim(),
+    );
+    if (
+      !Number.isInteger(bookingWindowDays) ||
+      bookingWindowDays < 1 ||
+      bookingWindowDays > 365
+    ) {
       setWindowError("Enter how many days ahead clients can book — 1 to 365.");
       return;
     }
@@ -123,183 +139,217 @@ export function ServiceDialog({ service, staff }: { service?: ServiceRow; staff:
           )
         }
       />
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit service" : "New service"}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="service-name">Name</Label>
-            <Input
-              id="service-name"
+      <DialogContent className={cn(dialogPanelClass, "sm:max-w-lg")}>
+        <DialogBreadcrumbHeader
+          chip={<DialogChip tone="time">Service</DialogChip>}
+        >
+          {isEdit ? "Edit service" : "New service"}
+        </DialogBreadcrumbHeader>
+        <form onSubmit={onSubmit} className="flex flex-col">
+          <div className="flex flex-col px-5 pt-4 pb-6">
+            <input
+              aria-label="Name"
               name="name"
               required
               maxLength={200}
               defaultValue={service?.name}
+              placeholder="Service name"
+              className={cn(dialogBareInputClass, "text-[15px] font-medium")}
               autoFocus
             />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="service-description">Description</Label>
-            <Textarea
-              id="service-description"
+            <textarea
+              aria-label="Description"
               name="description"
               maxLength={2000}
+              rows={2}
               defaultValue={service?.description ?? ""}
+              placeholder="Add a description…"
+              className={cn(dialogBareInputClass, "mt-3 resize-none text-sm")}
             />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="service-duration">Duration (min)</Label>
-              <Input
-                id="service-duration"
-                name="durationMin"
-                type="number"
-                required
-                min={5}
-                max={480}
-                defaultValue={service?.durationMin}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="service-price-label">Price label</Label>
-              <Input
-                id="service-price-label"
-                name="priceLabel"
-                maxLength={100}
-                placeholder="e.g. €50"
-                defaultValue={service?.priceLabel ?? ""}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="service-buffer-before">Buffer before (min)</Label>
-              <Input
-                id="service-buffer-before"
-                name="bufferBeforeMin"
-                type="number"
-                min={0}
-                max={240}
-                defaultValue={service?.bufferBeforeMin ?? 0}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="service-buffer-after">Buffer after (min)</Label>
-              <Input
-                id="service-buffer-after"
-                name="bufferAfterMin"
-                type="number"
-                min={0}
-                max={240}
-                defaultValue={service?.bufferAfterMin ?? 0}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="service-min-notice">Min notice (min)</Label>
-              <Input
-                id="service-min-notice"
-                name="minNoticeMin"
-                type="number"
-                min={0}
-                max={20160}
-                defaultValue={service?.minNoticeMin ?? 0}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="service-max-per-day">Max per day</Label>
-              <Input
-                id="service-max-per-day"
-                name="maxPerDay"
-                type="number"
-                min={1}
-                max={100}
-                placeholder="Unlimited"
-                defaultValue={service?.maxPerDay ?? ""}
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="service-booking-window">Booking window (days)</Label>
-            <Input
-              id="service-booking-window"
-              name="bookingWindowDays"
-              type="number"
-              required
-              min={1}
-              max={365}
-              defaultValue={service?.bookingWindowDays ?? 60}
-              aria-invalid={windowError !== null || undefined}
-              aria-describedby={windowError !== null ? "service-booking-window-error" : undefined}
-              onInput={() => setWindowError(null)}
-            />
-            {windowError ? (
-              <p id="service-booking-window-error" className="text-destructive text-xs">
-                {windowError}
-              </p>
-            ) : null}
-          </div>
-          {showStaff ? (
-            // A group heading, not a <label>: a label with nothing to point
-            // at is announced as orphaned; the checklist's own labels do the
-            // per-row work.
-            <div role="group" aria-labelledby={staffGroupId} className="flex flex-col gap-2">
-              <p id={staffGroupId} className="text-sm leading-none font-medium">Team members</p>
-              <ul className="flex flex-col gap-1.5">
-                {activeStaff.map((person) => (
-                  <li key={person.id} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`service-staff-${person.id}`}
-                      checked={staffIds.has(person.id)}
-                      onCheckedChange={(checked) => toggleStaff(person.id, checked === true)}
-                    />
-                    <Label
-                      htmlFor={`service-staff-${person.id}`}
-                      className="flex items-center gap-2 text-sm font-normal"
-                    >
-                      <span
-                        aria-hidden
-                        style={{ background: person.color }}
-                        className="size-2.5 shrink-0 rounded-full"
-                      />
-                      {person.name}
-                    </Label>
-                  </li>
-                ))}
-              </ul>
+            <div className="mt-6 flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="service-duration">Duration (min)</Label>
+                  <Input
+                    id="service-duration"
+                    name="durationMin"
+                    type="number"
+                    required
+                    min={5}
+                    max={480}
+                    defaultValue={service?.durationMin}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="service-price-label">Price label</Label>
+                  <Input
+                    id="service-price-label"
+                    name="priceLabel"
+                    maxLength={100}
+                    placeholder="e.g. €50"
+                    defaultValue={service?.priceLabel ?? ""}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="service-buffer-before">
+                    Buffer before (min)
+                  </Label>
+                  <Input
+                    id="service-buffer-before"
+                    name="bufferBeforeMin"
+                    type="number"
+                    min={0}
+                    max={240}
+                    defaultValue={service?.bufferBeforeMin ?? 0}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="service-buffer-after">
+                    Buffer after (min)
+                  </Label>
+                  <Input
+                    id="service-buffer-after"
+                    name="bufferAfterMin"
+                    type="number"
+                    min={0}
+                    max={240}
+                    defaultValue={service?.bufferAfterMin ?? 0}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="service-min-notice">Min notice (min)</Label>
+                  <Input
+                    id="service-min-notice"
+                    name="minNoticeMin"
+                    type="number"
+                    min={0}
+                    max={20160}
+                    defaultValue={service?.minNoticeMin ?? 0}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="service-max-per-day">Max per day</Label>
+                  <Input
+                    id="service-max-per-day"
+                    name="maxPerDay"
+                    type="number"
+                    min={1}
+                    max={100}
+                    placeholder="Unlimited"
+                    defaultValue={service?.maxPerDay ?? ""}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="service-booking-window">
+                  Booking window (days)
+                </Label>
+                <Input
+                  id="service-booking-window"
+                  name="bookingWindowDays"
+                  type="number"
+                  required
+                  min={1}
+                  max={365}
+                  defaultValue={service?.bookingWindowDays ?? 60}
+                  aria-invalid={windowError !== null || undefined}
+                  aria-describedby={
+                    windowError !== null
+                      ? "service-booking-window-error"
+                      : undefined
+                  }
+                  onInput={() => setWindowError(null)}
+                />
+                {windowError ? (
+                  <p
+                    id="service-booking-window-error"
+                    className="text-destructive text-xs"
+                  >
+                    {windowError}
+                  </p>
+                ) : null}
+              </div>
+              {showStaff ? (
+                // A group heading, not a <label>: a label with nothing to point
+                // at is announced as orphaned; the checklist's own labels do the
+                // per-row work.
+                <div
+                  role="group"
+                  aria-labelledby={staffGroupId}
+                  className="flex flex-col gap-2"
+                >
+                  <p
+                    id={staffGroupId}
+                    className="text-sm leading-none font-medium"
+                  >
+                    Team members
+                  </p>
+                  <ul className="flex flex-col gap-1.5">
+                    {activeStaff.map((person) => (
+                      <li key={person.id} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`service-staff-${person.id}`}
+                          checked={staffIds.has(person.id)}
+                          onCheckedChange={(checked) =>
+                            toggleStaff(person.id, checked === true)
+                          }
+                        />
+                        <Label
+                          htmlFor={`service-staff-${person.id}`}
+                          className="flex items-center gap-2 text-sm font-normal"
+                        >
+                          <span
+                            aria-hidden
+                            style={{ background: person.color }}
+                            className="size-2.5 shrink-0 rounded-full"
+                          />
+                          {person.name}
+                        </Label>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-muted-foreground text-xs">
+                    Only these people are offered for this service.
+                  </p>
+                </div>
+              ) : null}
+              <div className="flex items-center gap-2">
+                <input
+                  id="service-active"
+                  name="active"
+                  type="checkbox"
+                  className="size-4 accent-(--brand-text)"
+                  defaultChecked={service?.active ?? true}
+                />
+                <Label htmlFor="service-active">Active</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="service-requires-approval"
+                  name="requiresApproval"
+                  type="checkbox"
+                  className="size-4 accent-(--brand-text)"
+                  defaultChecked={service?.requiresApproval ?? false}
+                />
+                <Label htmlFor="service-requires-approval">
+                  Require approval
+                </Label>
+              </div>
               <p className="text-muted-foreground text-xs">
-                Only these people are offered for this service.
+                New bookings wait for your confirmation instead of confirming
+                instantly.
               </p>
             </div>
-          ) : null}
-          <div className="flex items-center gap-2">
-            <input
-              id="service-active"
-              name="active"
-              type="checkbox"
-              className="size-4"
-              defaultChecked={service?.active ?? true}
-            />
-            <Label htmlFor="service-active">Active</Label>
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              id="service-requires-approval"
-              name="requiresApproval"
-              type="checkbox"
-              className="size-4"
-              defaultChecked={service?.requiresApproval ?? false}
-            />
-            <Label htmlFor="service-requires-approval">Require approval</Label>
-          </div>
-          <p className="text-muted-foreground text-xs">
-            New bookings wait for your confirmation instead of confirming instantly.
-          </p>
-          <Button type="submit" disabled={pending}>
-            {pending ? "Saving…" : "Save"}
-          </Button>
+          <DialogFooterBar>
+            <Button type="submit" size="sm" variant="brand" disabled={pending}>
+              {pending ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooterBar>
         </form>
       </DialogContent>
     </Dialog>

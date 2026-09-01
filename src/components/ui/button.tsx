@@ -11,6 +11,11 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/85",
+        // The Linear-style dialogs' accent submit (Figma ref 2014:306):
+        // brand indigo; primary-foreground flips to ink in dark, where
+        // --brand-text is a light periwinkle.
+        brand:
+          "bg-(--brand-text) text-primary-foreground hover:bg-(--brand-text)/85",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:

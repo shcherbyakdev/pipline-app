@@ -76,7 +76,9 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
     // `staff` (= [person]).
     staff: [person], offerings: [], lockedStaff: person,
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public",
-    crossLink: null, // final — a person's page is not a channel page
+    // Not a channel page, but not a dead end either: the header hosts a way
+    // back to the org's own page.
+    crossLink: { href: bookingPath(handle), label: `← Back to ${org.orgName}` },
   };
   return (
     <div className={bookShellClass(theme.theme)}>

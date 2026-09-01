@@ -46,12 +46,20 @@ export function LivePreview({
           <DeviceToggle value={device} onChange={setDevice} />
         </div>
       </div>
-      <BrowserFrame url={url} dark={dark}>
-        <div className={cn("flex justify-center px-6 py-8 transition-[background-color] sm:px-10", minHeight, pageClassName)}>
+      <BrowserFrame url={url} dark={dark} device={device}>
+        {/* Mobile is a real viewport: phone-proportioned height, the page
+            scrolls inside the bezel. Desktop flows at full height as before. */}
+        <div
+          className={cn(
+            "flex justify-center transition-[background-color]",
+            device === "mobile" ? "h-[660px] overflow-y-auto px-4 py-6" : cn("px-6 py-8 sm:px-10", minHeight),
+            pageClassName,
+          )}
+        >
           <div
             className={cn(
               "flex w-full flex-col gap-6 transition-[max-width] duration-300",
-              device === "mobile" ? "max-w-[360px]" : desktopMaxWidth,
+              device === "mobile" ? "max-w-none" : desktopMaxWidth,
             )}
           >
             {children}

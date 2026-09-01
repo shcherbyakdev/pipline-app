@@ -14,8 +14,9 @@ export function SectionFrame({
 }: {
   id: string; type: SectionType; hidden: boolean; className?: string; style?: React.CSSProperties; children: React.ReactNode;
 }) {
-  const { selectedId, select } = useSelection();
+  const { selectedId, select, hoveredId } = useSelection();
   const selected = selectedId === id;
+  const listHovered = hoveredId === id;
   const ref = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (selected) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -35,6 +36,7 @@ export function SectionFrame({
       className={cn(
         "group relative cursor-pointer rounded-[var(--widget-radius)] outline-2 outline-offset-4 outline-transparent transition-[outline-color]",
         "hover:outline-[color-mix(in_oklab,var(--widget-accent)_50%,transparent)]",
+        listHovered && "outline-[color-mix(in_oklab,var(--widget-accent)_50%,transparent)]",
         selected && "outline-[var(--widget-accent)]",
         hidden && "opacity-40",
         className,

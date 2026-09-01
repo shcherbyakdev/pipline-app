@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
+  DialogBreadcrumbHeader,
+  DialogChip,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
+  DialogFooterBar,
   DialogTrigger,
+  dialogPanelClass,
 } from "@/components/ui/dialog";
 
 // The dialog is a small state machine; every stage renders from this one
@@ -68,7 +70,9 @@ export function ImportCsvDialog({ programId }: { programId: string }) {
       setStage({ step: "pick" });
       return;
     }
-    toast.success(`Imported ${result.inserted} new, ${result.updated} updated.`);
+    toast.success(
+      `Imported ${result.inserted} new, ${result.updated} updated.`,
+    );
     onOpenChange(false);
   };
 
@@ -81,72 +85,85 @@ export function ImportCsvDialog({ programId }: { programId: string }) {
           </Button>
         }
       />
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Import units from CSV</DialogTitle>
-        </DialogHeader>
+      <DialogContent className={dialogPanelClass}>
+        <DialogBreadcrumbHeader chip={<DialogChip>Units</DialogChip>}>
+          Import units from CSV
+        </DialogBreadcrumbHeader>
 
-        {stage.step === "pick" || stage.step === "checking" ? (
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="import-csv-file">
-              CSV with &quot;name&quot; and &quot;external_ref&quot; columns
-            </Label>
-            <Input
-              id="import-csv-file"
-              type="file"
-              accept=".csv,text/csv"
-              disabled={stage.step === "checking"}
-              onChange={(e) => onFile(e.target.files?.[0])}
-            />
-            {stage.step === "checking" ? (
-              <p className="text-muted-foreground text-sm">Checking…</p>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="flex flex-col px-5 pt-4 pb-6">
+          {stage.step === "pick" || stage.step === "checking" ? (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="import-csv-file">
+                CSV with &quot;name&quot; and &quot;external_ref&quot; columns
+              </Label>
+              <Input
+                id="import-csv-file"
+                type="file"
+                accept=".csv,text/csv"
+                disabled={stage.step === "checking"}
+                onChange={(e) => onFile(e.target.files?.[0])}
+              />
+              {stage.step === "checking" ? (
+                <p className="text-muted-foreground text-sm">Checking…</p>
+              ) : null}
+            </div>
+          ) : null}
 
-        {stage.step === "invalid" ? (
-          <div className="flex flex-col gap-3">
-            <ul className="text-destructive max-h-48 overflow-y-auto text-sm">
-              {stage.errors.map((error) => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
-            <p className="text-muted-foreground text-sm">
-              Nothing was imported. Fix the file and try again.
-            </p>
-            <Button variant="outline" onClick={() => setStage({ step: "pick" })}>
-              Pick another file
-            </Button>
-          </div>
-        ) : null}
+          {stage.step === "invalid" ? (
+            <div className="flex flex-col gap-3">
+              <ul className="text-destructive max-h-48 overflow-y-auto text-sm">
+                {stage.errors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
+              </ul>
+              <p className="text-muted-foreground text-sm">
+                Nothing was imported. Fix the file and try again.
+              </p>
+            </div>
+          ) : null}
 
-        {stage.step === "ready" || stage.step === "importing" ? (
-          <div className="flex flex-col gap-4">
-            {stage.step === "ready" ? (
+          {stage.step === "ready" || stage.step === "importing" ? (
+            stage.step === "ready" ? (
               <p className="text-sm">
                 {stage.rows.length} rows: <strong>{stage.newCount} new</strong>,{" "}
-                <strong>{stage.updateCount} updated</strong>. Updates change unit names only;
-                progress is untouched.
+                <strong>{stage.updateCount} updated</strong>. Updates change
+                unit names only; progress is untouched.
               </p>
             ) : (
               <p className="text-muted-foreground text-sm">Importing…</p>
-            )}
-            <div className="flex gap-2">
-              <Button
-                disabled={stage.step === "importing"}
-                onClick={() => stage.step === "ready" && onConfirm(stage.rows)}
-              >
-                {stage.step === "importing" ? "Importing…" : "Import"}
-              </Button>
-              <Button
-                variant="outline"
-                disabled={stage.step === "importing"}
-                onClick={() => setStage({ step: "pick" })}
-              >
-                Back
-              </Button>
-            </div>
-          </div>
+            )
+          ) : null}
+        </div>
+
+        {stage.step === "invalid" ? (
+          <DialogFooterBar>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStage({ step: "pick" })}
+            >
+              Pick another file
+            </Button>
+          </DialogFooterBar>
+        ) : stage.step === "ready" || stage.step === "importing" ? (
+          <DialogFooterBar>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={stage.step === "importing"}
+              onClick={() => setStage({ step: "pick" })}
+            >
+              Back
+            </Button>
+            <Button
+              variant="brand"
+              size="sm"
+              disabled={stage.step === "importing"}
+              onClick={() => stage.step === "ready" && onConfirm(stage.rows)}
+            >
+              {stage.step === "importing" ? "Importing…" : "Import"}
+            </Button>
+          </DialogFooterBar>
         ) : null}
       </DialogContent>
     </Dialog>

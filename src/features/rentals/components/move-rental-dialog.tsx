@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
-import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
+import {
+  asEngineOffering,
+  validateStay,
+  type RangeAvailability,
+} from "@/features/rentals/range";
 import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
 import { formatDurationLabel } from "@/features/rentals/hourly";
 import { dateInZone } from "@/features/scheduling/slots";
@@ -23,11 +27,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
+  DialogBreadcrumbHeader,
+  DialogChip,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
+  dialogPanelClass,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 // Two rendered months are at most 62 days; the turnover tail (≤ 30) has to
 // come along or validateStay reads a missing day at the far edge as
@@ -62,17 +68,23 @@ export function MoveRentalDialog({
   // to LABEL the picker — the action re-derives it server-side from the row
   // and never takes it from here.
   const durationMin = Math.round(
-    (new Date(booking.endsAt).getTime() - new Date(booking.startsAt).getTime()) / 60_000,
+    (new Date(booking.endsAt).getTime() -
+      new Date(booking.startsAt).getTime()) /
+      60_000,
   );
 
   // ---- nights/days (range engine) state — unchanged from before H2.
   const [month, setMonth] = React.useState(() =>
     monthOf(dateInZone(new Date(booking.startsAt), timeZone)),
   );
-  const [availability, setAvailability] = React.useState<RangeAvailability | null>(null);
+  const [availability, setAvailability] =
+    React.useState<RangeAvailability | null>(null);
   const [offering, setOffering] = React.useState<PublicOffering | null>(null);
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
-  const [range, setRange] = React.useState<RangeValue>({ start: null, end: null });
+  const [range, setRange] = React.useState<RangeValue>({
+    start: null,
+    end: null,
+  });
 
   // ---- hours (H2) state.
   const [hourFromDate, setHourFromDate] = React.useState(() =>
@@ -185,20 +197,33 @@ export function MoveRentalDialog({
 
   const stay =
     offering && availability && range.start && range.end
-      ? validateStay(asEngineOffering(offering), availability, range.start, range.end)
+      ? validateStay(
+          asEngineOffering(offering),
+          availability,
+          range.start,
+          range.end,
+        )
       : null;
   const freeUnitIds = stay && stay.ok ? stay.unitIds : null;
-  const keepUnitName = units.find((u) => u.id === booking.rentalUnitId)?.name ?? null;
+  const keepUnitName =
+    units.find((u) => u.id === booking.rentalUnitId)?.name ?? null;
 
-  const matchingHourSlot = slot ? hourSlots.find((s) => s.startsAt === slot) : undefined;
+  const matchingHourSlot = slot
+    ? hourSlots.find((s) => s.startsAt === slot)
+    : undefined;
   const freeHourUnitIds = matchingHourSlot ? matchingHourSlot.unitIds : null;
-  const keepHourUnitName = hourUnits.find((u) => u.id === booking.rentalUnitId)?.name ?? null;
+  const keepHourUnitName =
+    hourUnits.find((u) => u.id === booking.rentalUnitId)?.name ?? null;
 
   function confirmHours() {
     if (!slot) return;
     startTransition(async () => {
       setError(null);
-      const result = await rescheduleRentalHoursAdmin({ id: booking.id, unitId, startsAt: slot });
+      const result = await rescheduleRentalHoursAdmin({
+        id: booking.id,
+        unitId,
+        startsAt: slot,
+      });
       if (!result.ok) {
         setError(result.error);
         if (result.datesTaken) {
@@ -211,9 +236,15 @@ export function MoveRentalDialog({
         return;
       }
       if (result.datesChanged) {
-        toast.success(result.emailed ? "Booking moved — the client has been emailed" : "Booking moved");
+        toast.success(
+          result.emailed
+            ? "Booking moved — the client has been emailed"
+            : "Booking moved",
+        );
       } else if (result.unitChanged) {
-        toast.success(result.emailed ? "Unit changed — client emailed" : "Unit changed");
+        toast.success(
+          result.emailed ? "Unit changed — client emailed" : "Unit changed",
+        );
       } else {
         toast.success("Booking moved");
       }
@@ -250,10 +281,14 @@ export function MoveRentalDialog({
       }
       if (result.datesChanged) {
         toast.success(
-          result.emailed ? "Stay moved — the client has been emailed" : "Stay moved",
+          result.emailed
+            ? "Stay moved — the client has been emailed"
+            : "Stay moved",
         );
       } else if (result.unitChanged) {
-        toast.success(result.emailed ? "Unit changed — client emailed" : "Unit changed");
+        toast.success(
+          result.emailed ? "Unit changed — client emailed" : "Unit changed",
+        );
       } else {
         toast.success("Stay moved");
       }
@@ -265,9 +300,13 @@ export function MoveRentalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{hourly ? "Move booking" : "Move stay"}</DialogTitle>
+      <DialogContent className={cn(dialogPanelClass, "sm:max-w-2xl")}>
+        <DialogBreadcrumbHeader
+          chip={<DialogChip tone="space">{booking.serviceName}</DialogChip>}
+        >
+          {hourly ? "Move booking" : "Move stay"}
+        </DialogBreadcrumbHeader>
+        <div className="flex flex-col gap-4 px-5 pt-4 pb-6">
           <DialogDescription>
             {booking.clientName} ·{" "}
             {whenLineFor(
@@ -280,95 +319,107 @@ export function MoveRentalDialog({
               timeZone,
             )}
           </DialogDescription>
-        </DialogHeader>
-        {hourly ? (
-          <div className="flex flex-col gap-4">
-            {!slot ? (
-              <TimeSlotGrid
-                slots={hourSlots.map((s) => s.startsAt)}
-                fromDate={hourFromDate}
-                todayISO={dateInZone(new Date(), timeZone)}
-                pending={pending}
-                orgTimeZone={timeZone}
-                onNavigate={navigateHours}
-                onPick={pickSlot}
-                regionRef={slotsRegionRef}
-                headerSlot={<p className="text-sm font-medium">{formatDurationLabel(durationMin)}</p>}
+          {hourly ? (
+            <div className="flex flex-col gap-4">
+              {!slot ? (
+                <TimeSlotGrid
+                  slots={hourSlots.map((s) => s.startsAt)}
+                  fromDate={hourFromDate}
+                  todayISO={dateInZone(new Date(), timeZone)}
+                  pending={pending}
+                  orgTimeZone={timeZone}
+                  onNavigate={navigateHours}
+                  onPick={pickSlot}
+                  regionRef={slotsRegionRef}
+                  headerSlot={
+                    <p className="text-sm font-medium">
+                      {formatDurationLabel(durationMin)}
+                    </p>
+                  }
+                />
+              ) : (
+                <>
+                  <p className="text-sm">
+                    {formatDurationLabel(durationMin)} ·{" "}
+                    {new Intl.DateTimeFormat("en-GB", {
+                      weekday: "short",
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }).format(new Date(slot))}{" "}
+                    <button
+                      type="button"
+                      className="text-muted-foreground underline"
+                      onClick={backToTime}
+                    >
+                      change
+                    </button>
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="move-rental-hour-unit">Unit</Label>
+                    <UnitSelect
+                      id="move-rental-hour-unit"
+                      units={hourUnits}
+                      freeUnitIds={freeHourUnitIds}
+                      value={unitId}
+                      onChange={setUnitId}
+                      keepUnitId={booking.rentalUnitId}
+                      keepUnitName={keepHourUnitName}
+                    />
+                  </div>
+                  <Button onClick={confirmHours} disabled={pending}>
+                    {pending ? "Moving…" : "Move booking"}
+                  </Button>
+                </>
+              )}
+              {error ? (
+                <p className="text-destructive text-sm">{error}</p>
+              ) : null}
+            </div>
+          ) : offering === null ? (
+            <p className="text-muted-foreground text-sm">
+              {error ?? "Loading availability…"}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <RangePicker
+                variant="admin"
+                offering={offering}
+                availability={availability}
+                loading={pending}
+                month={month}
+                onMonthChange={changeMonth}
+                value={range}
+                onChange={changeRange}
+                canGoBack={month > monthOf(dateInZone(new Date(), timeZone))}
+                timeZone={timeZone}
               />
-            ) : (
-              <>
-                <p className="text-sm">
-                  {formatDurationLabel(durationMin)} ·{" "}
-                  {new Intl.DateTimeFormat("en-GB", {
-                    weekday: "short",
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }).format(new Date(slot))}{" "}
-                  <button type="button" className="text-muted-foreground underline" onClick={backToTime}>
-                    change
-                  </button>
-                </p>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="move-rental-hour-unit">Unit</Label>
-                  <UnitSelect
-                    id="move-rental-hour-unit"
-                    units={hourUnits}
-                    freeUnitIds={freeHourUnitIds}
-                    value={unitId}
-                    onChange={setUnitId}
-                    keepUnitId={booking.rentalUnitId}
-                    keepUnitName={keepHourUnitName}
-                  />
-                </div>
-                <Button onClick={confirmHours} disabled={pending}>
-                  {pending ? "Moving…" : "Move booking"}
-                </Button>
-              </>
-            )}
-            {error ? <p className="text-destructive text-sm">{error}</p> : null}
-          </div>
-        ) : offering === null ? (
-          <p className="text-muted-foreground text-sm">
-            {error ?? "Loading availability…"}
-          </p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <RangePicker
-              variant="admin"
-              offering={offering}
-              availability={availability}
-              loading={pending}
-              month={month}
-              onMonthChange={changeMonth}
-              value={range}
-              onChange={changeRange}
-              canGoBack={month > monthOf(dateInZone(new Date(), timeZone))}
-              timeZone={timeZone}
-            />
-            {range.start && range.end ? (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="move-rental-unit">Unit</Label>
-                  <UnitSelect
-                    id="move-rental-unit"
-                    units={units}
-                    freeUnitIds={freeUnitIds}
-                    value={unitId}
-                    onChange={setUnitId}
-                    keepUnitId={booking.rentalUnitId}
-                    keepUnitName={keepUnitName}
-                  />
-                </div>
-                <Button onClick={confirm} disabled={pending || !stay?.ok}>
-                  {pending ? "Moving…" : "Move stay"}
-                </Button>
-              </>
-            ) : null}
-            {error ? <p className="text-destructive text-sm">{error}</p> : null}
-          </div>
-        )}
+              {range.start && range.end ? (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="move-rental-unit">Unit</Label>
+                    <UnitSelect
+                      id="move-rental-unit"
+                      units={units}
+                      freeUnitIds={freeUnitIds}
+                      value={unitId}
+                      onChange={setUnitId}
+                      keepUnitId={booking.rentalUnitId}
+                      keepUnitName={keepUnitName}
+                    />
+                  </div>
+                  <Button onClick={confirm} disabled={pending || !stay?.ok}>
+                    {pending ? "Moving…" : "Move stay"}
+                  </Button>
+                </>
+              ) : null}
+              {error ? (
+                <p className="text-destructive text-sm">{error}</p>
+              ) : null}
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

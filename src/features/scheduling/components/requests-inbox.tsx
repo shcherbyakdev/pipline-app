@@ -4,19 +4,24 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { whenLineFor } from "@/features/scheduling/templates";
-import { acceptBookingRequest, declineBookingRequest } from "@/features/scheduling/booking-actions";
+import {
+  acceptBookingRequest,
+  declineBookingRequest,
+} from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import { formatMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
+  DialogBreadcrumbHeader,
+  DialogChip,
   DialogContent,
   DialogDescription,
-  DialogHeader,
-  DialogTitle,
+  DialogFooterBar,
+  dialogBareInputClass,
+  dialogPanelClass,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 /* Decline-with-a-message popup. Owns the action, the toast and the refresh so
    all three callers stay thin: this file's inbox rows, the bookings list, and
@@ -46,7 +51,10 @@ export function DeclineRequestDialog({
 
   const decline = () =>
     startTransition(async () => {
-      const result = await declineBookingRequest({ id: bookingId, note: note.trim() || undefined });
+      const result = await declineBookingRequest({
+        id: bookingId,
+        note: note.trim() || undefined,
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -59,37 +67,58 @@ export function DeclineRequestDialog({
 
   return (
     <Dialog open={open} onOpenChange={change}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Decline request</DialogTitle>
+      <DialogContent className={dialogPanelClass}>
+        <DialogBreadcrumbHeader
+          chip={<DialogChip tone="time">Request</DialogChip>}
+        >
+          Decline request
+        </DialogBreadcrumbHeader>
+        <div className="flex flex-col px-5 pt-4 pb-6">
           <DialogDescription>
-            The time is released and the client is emailed that you can&apos;t take it.
+            The time is released and the client is emailed that you can&apos;t
+            take it.
           </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={noteId}>Message to the client (optional)</Label>
-          <Textarea
+          <textarea
             id={noteId}
+            aria-label="Message to the client (optional)"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={500}
-            placeholder="e.g. We're fully booked that morning — happy to take you at 14:00."
+            rows={3}
+            placeholder="Message to the client (optional) — e.g. We're fully booked that morning, happy to take you at 14:00."
+            className={cn(dialogBareInputClass, "mt-4 resize-none text-sm")}
           />
         </div>
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={() => change(false)} disabled={pending}>
+        <DialogFooterBar>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => change(false)}
+            disabled={pending}
+          >
             Keep
           </Button>
-          <Button variant="destructive" size="sm" onClick={decline} disabled={pending}>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={decline}
+            disabled={pending}
+          >
             {pending ? "Declining…" : "Decline request"}
           </Button>
-        </div>
+        </DialogFooterBar>
       </DialogContent>
     </Dialog>
   );
 }
 
-function RequestRow({ booking, timeZone }: { booking: AdminBooking; timeZone: string }) {
+function RequestRow({
+  booking,
+  timeZone,
+}: {
+  booking: AdminBooking;
+  timeZone: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [declining, setDeclining] = React.useState(false);
@@ -98,7 +127,10 @@ function RequestRow({ booking, timeZone }: { booking: AdminBooking; timeZone: st
     startTransition(async () => {
       const result = await acceptBookingRequest({ id: booking.id });
       if (!result.ok) toast.error(result.error);
-      else toast.success(result.emailed ? "Accepted — confirmation sent." : "Accepted.");
+      else
+        toast.success(
+          result.emailed ? "Accepted — confirmation sent." : "Accepted.",
+        );
       router.refresh();
     });
 
@@ -148,7 +180,11 @@ function RequestRow({ booking, timeZone }: { booking: AdminBooking; timeZone: st
           Decline…
         </Button>
       </div>
-      <DeclineRequestDialog bookingId={booking.id} open={declining} onOpenChange={setDeclining} />
+      <DeclineRequestDialog
+        bookingId={booking.id}
+        open={declining}
+        onOpenChange={setDeclining}
+      />
     </li>
   );
 }
