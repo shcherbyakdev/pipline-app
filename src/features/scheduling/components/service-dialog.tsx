@@ -9,6 +9,7 @@ import type { ServiceRow } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -58,11 +59,22 @@ export function ServiceDialog({
   const defaultStaffIds = () =>
     new Set(service ? service.staffIds : activeStaff.map((s) => s.id));
   const [staffIds, setStaffIds] = React.useState<Set<string>>(defaultStaffIds);
+  // Controlled switches (the one checked-control idiom, ui/switch.tsx) —
+  // Base UI's Switch is a button, so the values travel in state, not FormData.
+  const [active, setActive] = React.useState(service?.active ?? true);
+  const [requiresApproval, setRequiresApproval] = React.useState(
+    service?.requiresApproval ?? false,
+  );
 
   const onOpenChange = (next: boolean) => {
     // The popup unmounts when closed, so the uncontrolled fields reset on
-    // reopen — the checklist is state, and has to be put back by hand to match.
-    if (next) setStaffIds(defaultStaffIds());
+    // reopen — the checklist and switches are state, and have to be put back
+    // by hand to match.
+    if (next) {
+      setStaffIds(defaultStaffIds());
+      setActive(service?.active ?? true);
+      setRequiresApproval(service?.requiresApproval ?? false);
+    }
     setWindowError(null);
     setManuallyOpened(next);
     if (!next && urlOpen) router.replace("/services");
@@ -105,8 +117,8 @@ export function ServiceDialog({
       minNoticeMin: Number(fd.get("minNoticeMin")),
       maxPerDay: maxPerDayRaw === "" ? null : Number(maxPerDayRaw),
       bookingWindowDays,
-      active: fd.get("active") === "on",
-      requiresApproval: fd.get("requiresApproval") === "on",
+      active,
+      requiresApproval,
       // Omitted when the checklist wasn't rendered: the server then keeps the
       // existing links (edit) or assigns every active member (create).
       ...(showStaff ? { staffIds: [...staffIds] } : {}),
@@ -120,7 +132,7 @@ export function ServiceDialog({
         return;
       }
       onOpenChange(false);
-      toast.success("Saved");
+      toast.success(isEdit ? "Saved" : "Service created");
     });
   };
 
@@ -317,37 +329,41 @@ export function ServiceDialog({
                   </p>
                 </div>
               ) : null}
-              <div className="flex items-center gap-2">
-                <input
-                  id="service-active"
-                  name="active"
-                  type="checkbox"
-                  className="size-4 accent-(--brand-text)"
-                  defaultChecked={service?.active ?? true}
-                />
+              <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="service-active">Active</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="service-requires-approval"
-                  name="requiresApproval"
-                  type="checkbox"
-                  className="size-4 accent-(--brand-text)"
-                  defaultChecked={service?.requiresApproval ?? false}
+                <Switch
+                  id="service-active"
+                  checked={active}
+                  onCheckedChange={setActive}
                 />
-                <Label htmlFor="service-requires-approval">
-                  Require approval
-                </Label>
               </div>
-              <p className="text-muted-foreground text-xs">
-                New bookings wait for your confirmation instead of confirming
-                instantly.
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col">
+                  <Label htmlFor="service-requires-approval">
+                    Require approval
+                  </Label>
+                  <span className="text-muted-foreground text-xs">
+                    New bookings wait for your confirmation instead of
+                    confirming instantly.
+                  </span>
+                </div>
+                <Switch
+                  id="service-requires-approval"
+                  checked={requiresApproval}
+                  onCheckedChange={setRequiresApproval}
+                />
+              </div>
             </div>
           </div>
           <DialogFooterBar>
             <Button type="submit" size="sm" variant="brand" disabled={pending}>
-              {pending ? "Saving…" : "Save"}
+              {pending
+                ? isEdit
+                  ? "Saving…"
+                  : "Creating…"
+                : isEdit
+                  ? "Save"
+                  : "Create service"}
             </Button>
           </DialogFooterBar>
         </form>

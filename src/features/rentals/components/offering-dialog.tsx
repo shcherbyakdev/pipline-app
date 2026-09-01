@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Plus } from "lucide-react";
+import { ChevronRight, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createOffering, updateOffering } from "@/features/rentals/actions";
 import type { OfferingRow } from "@/features/rentals/queries";
@@ -10,8 +10,9 @@ import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
 import type { RangeMode } from "@/features/rentals/range";
 import type { DepositType } from "@/features/rentals/pricing";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, nativeSelectClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -26,9 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { SPACES } from "@/features/orgs/vocab";
 
-// The native-<select> idiom shared by the booking forms.
-const selectClass =
-  "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
+const selectClass = nativeSelectClass;
 
 const INCREMENT_OPTIONS = [15, 30, 60];
 
@@ -74,8 +73,23 @@ export function OfferingDialog({
   const [depositType, setDepositType] = React.useState<DepositType>(
     offering?.depositType ?? "none",
   );
+  // Controlled switches (the one checked-control idiom, ui/switch.tsx) —
+  // Base UI's Switch is a button, so the values travel in state, not FormData.
+  const [active, setActive] = React.useState(offering?.active ?? true);
+  const [requiresApproval, setRequiresApproval] = React.useState(
+    offering?.requiresApproval ?? false,
+  );
 
   const onOpenChange = (next: boolean) => {
+    // The popup unmounts when closed, but these live here as controlled
+    // state — put them back on reopen so a cancelled edit doesn't linger.
+    if (next) {
+      setRangeMode(offering?.rangeMode ?? "nights");
+      setSlotIncrementMin(offering?.slotIncrementMin ?? OFFERING_DEFAULTS.hours.slotIncrementMin);
+      setDepositType(offering?.depositType ?? "none");
+      setActive(offering?.active ?? true);
+      setRequiresApproval(offering?.requiresApproval ?? false);
+    }
     setManuallyOpened(next);
     if (!next && urlOpen) router.replace("/rentals");
   };
@@ -109,8 +123,8 @@ export function OfferingDialog({
       description: description === "" ? undefined : description,
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
       unitSelection: String(fd.get("unitSelection") ?? "auto"),
-      active: fd.get("active") === "on",
-      requiresApproval: fd.get("requiresApproval") === "on",
+      active,
+      requiresApproval,
       priceCents: price === "" ? null : Math.round(Number(price) * 100),
       pricingMode: String(fd.get("pricingMode") ?? "per_unit"),
       depositType,
@@ -157,7 +171,7 @@ export function OfferingDialog({
       // or a failed insert): the space is not bookable yet — a warning, not
       // "Saved", so the owner knows to visit the space's page.
       if (result.notice) toast.warning(result.notice);
-      else toast.success("Saved");
+      else toast.success(isEdit ? "Saved" : "Space created");
     });
   };
 
@@ -204,131 +218,9 @@ export function OfferingDialog({
               className={cn(dialogBareInputClass, "mt-3 resize-none text-sm")}
             />
             <div className="mt-6 flex flex-col gap-4">
-              <SectionHeading>Pricing & policies</SectionHeading>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-price">Price ({currency})</Label>
-                  <Input
-                    id="offering-price"
-                    name="price"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    placeholder="Unpriced"
-                    defaultValue={
-                      offering?.priceCents != null
-                        ? offering.priceCents / 100
-                        : ""
-                    }
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-pricing-mode">Pricing mode</Label>
-                  <select
-                    id="offering-pricing-mode"
-                    name="pricingMode"
-                    className={selectClass}
-                    defaultValue={offering?.pricingMode ?? "per_unit"}
-                  >
-                    <option value="per_unit">
-                      {rangeMode === "hours"
-                        ? "Per hour"
-                        : rangeMode === "nights"
-                          ? "Per night"
-                          : "Per day"}
-                    </option>
-                    <option value="flat">Flat per booking</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-deposit-type">Deposit</Label>
-                  <select
-                    id="offering-deposit-type"
-                    name="depositType"
-                    className={selectClass}
-                    value={depositType}
-                    onChange={(e) =>
-                      setDepositType(e.target.value as DepositType)
-                    }
-                  >
-                    <option value="none">No deposit</option>
-                    <option value="fixed">Fixed amount</option>
-                    <option value="percent">Percent of total</option>
-                    <option value="full">Full amount</option>
-                  </select>
-                </div>
-                {depositType === "fixed" ? (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="offering-deposit-value">
-                      Deposit amount ({currency})
-                    </Label>
-                    <Input
-                      id="offering-deposit-value"
-                      name="depositValue"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      defaultValue={
-                        offering?.depositType === "fixed" &&
-                        offering.depositValue != null
-                          ? offering.depositValue / 100
-                          : ""
-                      }
-                    />
-                  </div>
-                ) : depositType === "percent" ? (
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="offering-deposit-value">Deposit (%)</Label>
-                    <Input
-                      id="offering-deposit-value"
-                      name="depositValue"
-                      type="number"
-                      min={1}
-                      max={100}
-                      defaultValue={
-                        offering?.depositType === "percent" &&
-                        offering.depositValue != null
-                          ? offering.depositValue
-                          : ""
-                      }
-                    />
-                  </div>
-                ) : null}
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-cancel-window">
-                  Free cancellation until (
-                  {rangeMode === "hours" ? "hours" : "days"} before start)
-                </Label>
-                <Input
-                  id="offering-cancel-window"
-                  name="cancelWindow"
-                  type="number"
-                  min={0}
-                  placeholder="No window"
-                  defaultValue={
-                    offering && offering.cancelWindowMin > 0
-                      ? offering.rangeMode === "hours"
-                        ? offering.cancelWindowMin / 60
-                        : offering.cancelWindowMin / 1440
-                      : ""
-                  }
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-terms">Terms</Label>
-                <Textarea
-                  id="offering-terms"
-                  name="termsText"
-                  rows={4}
-                  maxLength={10000}
-                  defaultValue={offering?.termsText ?? ""}
-                />
-              </div>
-              {/* "Stay" is a hotel word; an hourly room is a session. `rangeMode`
-              is the dialog's own live state (the select just below). */}
+              {/* The structural choice first: "Booked by" renames half the
+                  other fields (Per night / check-in / sessions), so it must
+                  be picked before any of them is shown. */}
               <SectionHeading>
                 {rangeMode === "hours" ? "Session" : "Stay"}
               </SectionHeading>
@@ -346,8 +238,12 @@ export function OfferingDialog({
                   <option value="hours">Hourly (booked by the hour)</option>
                 </select>
               </div>
+              {/* Keyed per mode: without keys React reuses the same-position
+                  uncontrolled inputs across branches (Min stay's "1" would
+                  survive into Min duration and fail its step validation) —
+                  a mode switch must remount the whole branch. */}
               {rangeMode === "hours" ? (
-                <>
+                <React.Fragment key="hours">
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="offering-slot-increment">
                       Slot increment
@@ -433,9 +329,9 @@ export function OfferingDialog({
                       />
                     </div>
                   </div>
-                </>
+                </React.Fragment>
               ) : (
-                <>
+                <React.Fragment key="stay">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="offering-start-time">Start time</Label>
@@ -504,13 +400,174 @@ export function OfferingDialog({
                       />
                     </div>
                   </div>
-                </>
+                </React.Fragment>
               )}
 
-              <SectionHeading>Booking</SectionHeading>
+              <SectionHeading>Pricing</SectionHeading>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-price">Price ({currency})</Label>
+                  <Input
+                    id="offering-price"
+                    name="price"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="Unpriced"
+                    defaultValue={
+                      offering?.priceCents != null
+                        ? offering.priceCents / 100
+                        : ""
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-pricing-mode">Pricing mode</Label>
+                  <select
+                    id="offering-pricing-mode"
+                    name="pricingMode"
+                    className={selectClass}
+                    defaultValue={offering?.pricingMode ?? "per_unit"}
+                  >
+                    <option value="per_unit">
+                      {rangeMode === "hours"
+                        ? "Per hour"
+                        : rangeMode === "nights"
+                          ? "Per night"
+                          : "Per day"}
+                    </option>
+                    <option value="flat">Flat per booking</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="offering-active">Active</Label>
+                <Switch
+                  id="offering-active"
+                  checked={active}
+                  onCheckedChange={setActive}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col">
+                  <Label htmlFor="offering-requires-approval">
+                    Require approval
+                  </Label>
+                  <span className="text-muted-foreground text-xs">
+                    New bookings wait for your confirmation instead of
+                    confirming instantly.
+                  </span>
+                </div>
+                <Switch
+                  id="offering-requires-approval"
+                  checked={requiresApproval}
+                  onCheckedChange={setRequiresApproval}
+                />
+              </div>
+
+              {/* Everything below is policy fine print with safe defaults —
+                  collapsed on create so the modal opens scannable, open on
+                  edit so no stored value hides. Native <details>: closed
+                  fields stay in the DOM, so FormData still submits them. */}
+              <details className="group flex flex-col" open={isEdit}>
+                <summary className="text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium tracking-wide uppercase select-none [&::-webkit-details-marker]:hidden">
+                  <ChevronRight
+                    aria-hidden
+                    className="size-3.5 transition-transform group-open:rotate-90"
+                  />
+                  Deposit, cancellation & booking rules
+                </summary>
+                <div className="mt-4 flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-deposit-type">Deposit</Label>
+                  <select
+                    id="offering-deposit-type"
+                    name="depositType"
+                    className={selectClass}
+                    value={depositType}
+                    onChange={(e) =>
+                      setDepositType(e.target.value as DepositType)
+                    }
+                  >
+                    <option value="none">No deposit</option>
+                    <option value="fixed">Fixed amount</option>
+                    <option value="percent">Percent of total</option>
+                    <option value="full">Full amount</option>
+                  </select>
+                </div>
+                {depositType === "fixed" ? (
+                  <div key="dep-fixed" className="flex flex-col gap-2">
+                    <Label htmlFor="offering-deposit-value">
+                      Deposit amount ({currency})
+                    </Label>
+                    <Input
+                      id="offering-deposit-value"
+                      name="depositValue"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      defaultValue={
+                        offering?.depositType === "fixed" &&
+                        offering.depositValue != null
+                          ? offering.depositValue / 100
+                          : ""
+                      }
+                    />
+                  </div>
+                ) : depositType === "percent" ? (
+                  <div key="dep-percent" className="flex flex-col gap-2">
+                    <Label htmlFor="offering-deposit-value">Deposit (%)</Label>
+                    <Input
+                      id="offering-deposit-value"
+                      name="depositValue"
+                      type="number"
+                      min={1}
+                      max={100}
+                      defaultValue={
+                        offering?.depositType === "percent" &&
+                        offering.depositValue != null
+                          ? offering.depositValue
+                          : ""
+                      }
+                    />
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="offering-cancel-window">
+                  Free cancellation until (
+                  {rangeMode === "hours" ? "hours" : "days"} before start)
+                </Label>
+                <Input
+                  id="offering-cancel-window"
+                  name="cancelWindow"
+                  type="number"
+                  min={0}
+                  placeholder="No window"
+                  defaultValue={
+                    offering && offering.cancelWindowMin > 0
+                      ? offering.rangeMode === "hours"
+                        ? offering.cancelWindowMin / 60
+                        : offering.cancelWindowMin / 1440
+                      : ""
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="offering-terms">Terms</Label>
+                <Textarea
+                  id="offering-terms"
+                  name="termsText"
+                  rows={4}
+                  maxLength={10000}
+                  defaultValue={offering?.termsText ?? ""}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 {rangeMode === "hours" ? (
-                  <div className="flex flex-col gap-2">
+                  <div key="notice-min" className="flex flex-col gap-2">
                     <Label htmlFor="offering-min-notice-min">
                       Min notice (minutes)
                     </Label>
@@ -524,7 +581,7 @@ export function OfferingDialog({
                     />
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2">
+                  <div key="notice-days" className="flex flex-col gap-2">
                     <Label htmlFor="offering-min-notice">
                       Min notice (days)
                     </Label>
@@ -566,38 +623,19 @@ export function OfferingDialog({
                   </option>
                 </select>
               </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  id="offering-active"
-                  name="active"
-                  type="checkbox"
-                  className="size-4 accent-(--brand-text)"
-                  defaultChecked={offering?.active ?? true}
-                />
-                <Label htmlFor="offering-active">Active</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="offering-requires-approval"
-                  name="requiresApproval"
-                  type="checkbox"
-                  className="size-4 accent-(--brand-text)"
-                  defaultChecked={offering?.requiresApproval ?? false}
-                />
-                <Label htmlFor="offering-requires-approval">
-                  Require approval
-                </Label>
-              </div>
-              <p className="text-muted-foreground text-xs">
-                New bookings wait for your confirmation instead of confirming
-                instantly.
-              </p>
+                </div>
+              </details>
             </div>
           </div>
           <DialogFooterBar>
             <Button type="submit" size="sm" variant="brand" disabled={pending}>
-              {pending ? "Saving…" : "Save"}
+              {pending
+                ? isEdit
+                  ? "Saving…"
+                  : "Creating…"
+                : isEdit
+                  ? "Save"
+                  : "Create space"}
             </Button>
           </DialogFooterBar>
         </form>

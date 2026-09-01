@@ -26,7 +26,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
    from a drag it is prefilled and keeps the drag's default length; opened
    from the toolbar it starts on today at the next quarter hour — the one
    thing the old drag-only dialog could not do. */
-export type DragPrefill = { date: string; startMin: number; dragEndMin: number; windows: DayWindow[] };
+export type DragPrefill = { date: string; startMin: number; dragEndMin: number; dragged: boolean; windows: DayWindow[] };
 
 export function AppointmentBookingForm({
   serviceId, services, staff, defaultStaffId, timeZone, drag, onDone,
@@ -83,12 +83,13 @@ export function AppointmentBookingForm({
   const validStart = TIME_RE.test(startTime);
   const validDate = DATE_RE.test(date) && !Number.isNaN(new Date(`${date}T12:00:00Z`).getTime());
   const startMin = validStart ? timeToMin(startTime) : 0;
-  // End time is editable. Default: a real drag (more than one 15-min snap
-  // unit) sets the LENGTH, not a fixed end clock time — so editing the
-  // start later carries the same length forward instead of pinning the old
-  // end. No drag (or a click-sized one) falls back to the service duration.
-  // Until the user touches the end, it follows the start.
-  const dragged = drag !== null && drag.dragEndMin - drag.startMin > 15;
+  // End time is editable. Default: a real drag sets the LENGTH, not a fixed
+  // end clock time — so editing the start later carries the same length
+  // forward instead of pinning the old end. A click (the grid says so via
+  // `dragged`) follows the picked service's duration instead, so switching
+  // services in the dialog re-lengthens the slot. Until the user touches
+  // the end, it follows the start.
+  const dragged = drag !== null && drag.dragged;
   const defaultLengthMin = dragged && drag ? drag.dragEndMin - drag.startMin : (service?.durationMin ?? 60);
   const defaultEndMin = startMin + defaultLengthMin;
   const [endTouched, setEndTouched] = React.useState(false);

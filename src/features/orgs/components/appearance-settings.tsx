@@ -24,7 +24,7 @@ export function AppearanceSettings() {
   const mounted = React.useSyncExternalStore(subscribeNoop, () => true, () => false);
   const current = mounted ? resolvedTheme : undefined;
   return (
-    <div className="bg-card flex flex-col gap-3 rounded-lg border p-4">
+    <div className="bg-card flex flex-col gap-3 rounded-xl border p-4">
       <div>
         <div className="text-sm font-medium">Interface theme</div>
         <p className="text-muted-foreground text-sm">Applies to this browser only.</p>

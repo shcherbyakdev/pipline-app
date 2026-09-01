@@ -17,4 +17,9 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   )
 }
 
-export { Input }
+/* The native-<select> twin of Input — same metrics (h-8, 10px radius, card
+   fill), so a select and an input sharing a dialog row sit flush. */
+const nativeSelectClass =
+  "h-8 w-full rounded-lg border border-input bg-card px-2.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-50"
+
+export { Input, nativeSelectClass }

@@ -100,6 +100,7 @@ export const updateOfferingInput = z.union([
     .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
 ]);
 export const offeringIdInput = z.object({ id: z.uuid() });
+export const offeringActiveInput = offeringIdInput.extend({ active: z.boolean() });
 
 export const unitInput = z.object({
   offeringId: z.uuid(),

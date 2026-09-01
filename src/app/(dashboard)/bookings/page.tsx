@@ -173,18 +173,18 @@ export default async function BookingsPage({
       />
     ) : null;
 
-  // One toolbar shape for every view: primary action on the left, view
-  // controls on the right (admin IA spec §2) — the scope selector, then
-  // the per-view slot (`right`: the week's Today link, the timeline's
-  // window and zoom), then the switcher. Every view reads the scope; the
-  // timeline takes its spaces side and ignores people.
+  // One toolbar shape for every view, Linear-style: the scope filter on the
+  // left; the per-view slot (`right`: the week's Today link, the timeline's
+  // window and zoom), the switcher, and the primary action on the right —
+  // the create CTA sits top-right like every other page's. Every view reads
+  // the scope; the timeline takes its spaces side and ignores people.
   const toolbar = (current: BookingsView, defaultStaffId: string, right: ReactNode = null) => (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div>{newBookingFor(defaultStaffId)}</div>
+      <div>{scopeMenu}</div>
       <div className="flex flex-wrap items-center gap-2">
-        {scopeMenu}
         {right}
         <ViewSwitcher current={current} showTimeline={showTimeline} scopeQuery={scopeQs} />
+        {newBookingFor(defaultStaffId)}
       </div>
     </div>
   );

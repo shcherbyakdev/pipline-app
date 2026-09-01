@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canCreateWalkIn, defaultSelection, dragInitial, parseSelection, pickerLabel } from "./booking-kinds";
+import { canCreateWalkIn, defaultSelection, defaultSlotLength, dragInitial, parseSelection, pickerLabel } from "./booking-kinds";
 
 const services = [{ id: "s1" }, { id: "s2" }];
 const hourly = { id: "h1", name: "Room", rangeMode: "hours" as const, slotIncrementMin: 30, minDurationMin: 60, maxDurationMin: 240 };
@@ -16,7 +16,7 @@ describe("pickerLabel", () => {
 
 describe("defaultSelection", () => {
   it("a prefilled id wins, then the first service, then the first space, then nothing", () => {
-    expect(defaultSelection(services, [hourly], { kind: "service", serviceId: "s2", ...sel, dragEndMin: 660, windows: [] })).toEqual({ kind: "service", id: "s2" });
+    expect(defaultSelection(services, [hourly], { kind: "service", serviceId: "s2", ...sel, dragEndMin: 660, dragged: true, windows: [] })).toEqual({ kind: "service", id: "s2" });
     expect(defaultSelection(services, [hourly], { kind: "space", offeringId: "h1" })).toEqual({ kind: "space", id: "h1" });
     expect(defaultSelection(services, [hourly])).toEqual({ kind: "service", id: "s1" });
     expect(defaultSelection([], [nightly, hourly])).toEqual({ kind: "space", id: "n1" });
@@ -38,7 +38,10 @@ describe("parseSelection", () => {
 
 describe("dragInitial (spec §2 — drag on the week grid)", () => {
   it("any service ⇒ the appointment form with the drag's date, start and length", () => {
-    expect(dragInitial(sel, services, [hourly], [])).toEqual({ kind: "service", date: "2026-08-25", startMin: 600, dragEndMin: 660, windows: [] });
+    expect(dragInitial(sel, services, [hourly], [])).toEqual({ kind: "service", date: "2026-08-25", startMin: 600, dragEndMin: 660, dragged: true, windows: [] });
+  });
+  it("a click (dragged: false) carries the flag so the form follows the picked service's length", () => {
+    expect(dragInitial({ ...sel, dragged: false }, services, [hourly], [])).toEqual({ kind: "service", date: "2026-08-25", startMin: 600, dragEndMin: 660, dragged: false, windows: [] });
   });
   it("no services but an hourly space ⇒ that space with the day prefilled", () => {
     expect(dragInitial(sel, [], [nightly, hourly], [])).toEqual({ kind: "space", offeringId: "h1", date: "2026-08-25" });
@@ -48,6 +51,15 @@ describe("dragInitial (spec §2 — drag on the week grid)", () => {
   });
   it("a preferred space (the week's space scope) wins over the org's services", () => {
     expect(dragInitial(sel, services, [nightly, hourly], [], "n1")).toEqual({ kind: "space", offeringId: "n1", date: "2026-08-25" });
+  });
+});
+
+describe("defaultSlotLength", () => {
+  it("first service's length, else the first hourly space's minimum, else an hour", () => {
+    expect(defaultSlotLength([{ durationMin: 45 }], [hourly])).toBe(45);
+    expect(defaultSlotLength([], [nightly, hourly])).toBe(60);
+    expect(defaultSlotLength([], [{ ...hourly, minDurationMin: 90 }])).toBe(90);
+    expect(defaultSlotLength([], [nightly])).toBe(60);
   });
 });
 

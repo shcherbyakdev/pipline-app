@@ -14,7 +14,8 @@ export type Initial =
       serviceId?: string;
       date: string;       // org-local YYYY-MM-DD
       startMin: number;   // org-local minutes since midnight (snapped)
-      dragEndMin: number; // a real drag (> one 15-min snap) sets the default length
+      dragEndMin: number; // where the selection ended on the grid
+      dragged: boolean;   // a real drag pins the length; a click follows the picked service
       windows: DayWindow[]; // effective windows for `date` — the outside-hours hint only
     }
   | { kind: "space"; offeringId?: string; unitId?: string | null; date?: string };
@@ -66,7 +67,7 @@ export function selectionValue(sel: KindSelection): string {
    `preferSpace` (the week's space scope — bookings-scope.ts scopedSpace)
    wins outright: a drag on a space's week books that space. */
 export function dragInitial(
-  sel: { date: string; startMin: number; endMin: number },
+  sel: { date: string; startMin: number; endMin: number; dragged?: boolean },
   services: readonly Row[],
   spaces: readonly OfferingOption[],
   windows: DayWindow[],
@@ -74,9 +75,26 @@ export function dragInitial(
 ): Initial | null {
   if (preferSpace) return { kind: "space", offeringId: preferSpace, date: sel.date };
   if (services.length > 0) {
-    return { kind: "service", date: sel.date, startMin: sel.startMin, dragEndMin: sel.endMin, windows };
+    return {
+      kind: "service",
+      date: sel.date,
+      startMin: sel.startMin,
+      dragEndMin: sel.endMin,
+      dragged: sel.dragged ?? true,
+      windows,
+    };
   }
   const hourly = spaces.find((o) => o.rangeMode === "hours");
   if (hourly) return { kind: "space", offeringId: hourly.id, date: sel.date };
   return null;
+}
+
+/* What a plain click on the week grid selects (the ghost the hover previews):
+   the default service's length — the same service defaultSelection starts the
+   dialog on — else the first hourly space's minimum session, else an hour. */
+export function defaultSlotLength(
+  services: readonly { durationMin: number }[],
+  spaces: readonly OfferingOption[],
+): number {
+  return services[0]?.durationMin ?? spaces.find((o) => o.rangeMode === "hours")?.minDurationMin ?? 60;
 }
