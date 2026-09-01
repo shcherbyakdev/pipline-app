@@ -94,7 +94,12 @@ describe("rental flow e2e (action layer)", () => {
     orgId = (org as { id: string }).id;
     const { error: eFlag } = await admin
       .from("org_feature_flags")
-      .insert({ org_id: orgId, flag: "rentals", enabled: true, updated_by: "flow-test" });
+      .insert([
+        { org_id: orgId, flag: "rentals", enabled: true, updated_by: "flow-test" },
+        // Plan caps are not this suite's subject: the premium waitlist flag
+        // (default on) would cap the org at Free's two resources.
+        { org_id: orgId, flag: "premium_waitlist", enabled: false, updated_by: "flow-test" },
+      ]);
     if (eFlag) throw eFlag;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
@@ -321,7 +326,12 @@ describe("hourly offering rejected by the date-range action layer", () => {
     const hourlyOrgId = (org as { id: string }).id;
     const { error: eFlag } = await admin
       .from("org_feature_flags")
-      .insert({ org_id: hourlyOrgId, flag: "rentals", enabled: true, updated_by: "flow-test" });
+      .insert([
+        { org_id: hourlyOrgId, flag: "rentals", enabled: true, updated_by: "flow-test" },
+        // Plan caps are not this suite's subject: the premium waitlist flag
+        // (default on) would cap the org at Free's two resources.
+        { org_id: hourlyOrgId, flag: "premium_waitlist", enabled: false, updated_by: "flow-test" },
+      ]);
     if (eFlag) throw eFlag;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: hourlyOrgId,
@@ -374,7 +384,12 @@ describe("terms acceptance gate (date-range action layer)", () => {
     termsOrgId = (org as { id: string }).id;
     const { error: eFlag } = await admin
       .from("org_feature_flags")
-      .insert({ org_id: termsOrgId, flag: "rentals", enabled: true, updated_by: "flow-test" });
+      .insert([
+        { org_id: termsOrgId, flag: "rentals", enabled: true, updated_by: "flow-test" },
+        // Plan caps are not this suite's subject: the premium waitlist flag
+        // (default on) would cap the org at Free's two resources.
+        { org_id: termsOrgId, flag: "premium_waitlist", enabled: false, updated_by: "flow-test" },
+      ]);
     if (eFlag) throw eFlag;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: termsOrgId,

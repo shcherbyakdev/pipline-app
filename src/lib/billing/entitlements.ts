@@ -28,6 +28,15 @@ export function effectivePlan(row: OrgSubscriptionRow | null, now: Date): PlanId
   return "free";
 }
 
+/** Three sources can entitle an org — a comp override, the provider row, the
+    premium waitlist — and the seam hands them over in priority order. The
+    first one that actually entitles (effectivePlan ≠ free) wins; if none
+    does, the first row present is returned so callers keep seeing a lapsed
+    provider row rather than nothing. */
+export function pickSubscription(rows: ReadonlyArray<OrgSubscriptionRow | null>, now: Date): OrgSubscriptionRow | null {
+  return rows.find((r) => r && effectivePlan(r, now) !== "free") ?? rows.find((r) => r !== null) ?? null;
+}
+
 export function entitlementsFor(row: OrgSubscriptionRow | null, now: Date): Entitlements {
   const plan = effectivePlan(row, now);
   const limits = { ...PLANS[plan].limits };

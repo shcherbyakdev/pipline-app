@@ -1,13 +1,35 @@
 import { describe, it, expect } from "vitest";
 import {
   effectivePlan, entitlementsFor, monthWindow, canAddResource, canAddService, countResources,
-  badgeShows, badgeVisible, reminderQuotaExceeded, type OrgSubscriptionRow,
+  badgeShows, badgeVisible, reminderQuotaExceeded, pickSubscription, type OrgSubscriptionRow,
 } from "./entitlements";
+import { waitlistRow } from "./waitlist";
 
 const now = new Date("2026-08-18T12:00:00Z");
 const row = (o: Partial<OrgSubscriptionRow>): OrgSubscriptionRow => ({
   plan: "pro", status: "active", interval: "month", seats: 1,
   currentPeriodEnd: "2026-09-18T12:00:00Z", cancelAtPeriodEnd: false, ...o,
+});
+
+describe("pickSubscription — comp > provider row > waitlist, first that entitles wins", () => {
+  const wl = waitlistRow({ joinedAt: "2026-09-01T00:00:00Z" });
+  it("nothing → null; only the waitlist → Pro", () => {
+    expect(pickSubscription([null, null, null], now)).toBeNull();
+    expect(pickSubscription([null, null, wl], now)?.plan).toBe("pro");
+  });
+  it("a live Team row beats the waitlist; the waitlist beats a lapsed row", () => {
+    const team = row({ plan: "team", seats: 5 });
+    expect(pickSubscription([null, team, wl], now)).toBe(team);
+    const lapsed = row({ status: "expired" });
+    expect(pickSubscription([null, lapsed, wl], now)).toBe(wl);
+  });
+  it("with no entitling row at all, the first row present is returned (a lapsed row stays visible)", () => {
+    const lapsed = row({ status: "expired" });
+    expect(pickSubscription([null, lapsed, null], now)).toBe(lapsed);
+  });
+  it("entitlementsFor of the pick: waitlisted org has Pro's limits", () => {
+    expect(entitlementsFor(pickSubscription([null, null, wl], now), now).publicServices).toBeNull();
+  });
 });
 
 describe("effectivePlan", () => {
@@ -28,7 +50,7 @@ describe("entitlementsFor", () => {
   it("free defaults", () => {
     const e = entitlementsFor(null, now);
     expect(e.plan).toBe("free");
-    expect(e.bookableResources).toBe(1);
+    expect(e.bookableResources).toBe(2);
     expect(e.publicServices).toBe(3);
     expect(e.hideBadge).toBe(false);
   });
@@ -73,8 +95,8 @@ describe("gates", () => {
   const free = entitlementsFor(null, now);
   const team = entitlementsFor(row({ plan: "team", seats: 5 }), now);
   it("canAddResource", () => {
-    expect(canAddResource(1, free)).toBe(false);
-    expect(canAddResource(0, free)).toBe(true);
+    expect(canAddResource(2, free)).toBe(false);
+    expect(canAddResource(1, free)).toBe(true);
     expect(canAddResource(4, team)).toBe(true);
     expect(canAddResource(5, team)).toBe(false);
   });

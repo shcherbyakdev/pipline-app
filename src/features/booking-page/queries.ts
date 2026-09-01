@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { plansEnforced } from "@/lib/flags";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { getEntitlements } from "@/lib/billing/queries";
 import type { PlanLimits } from "@/lib/billing/plans";
@@ -72,7 +73,7 @@ export async function getPageStates(orgId: string): Promise<Partial<Record<PageC
 /** Fails OPEN: a billing hiccup must never block publishing a page. */
 export async function getPageSectionsEntitlement(orgId: string): Promise<PlanLimits["pageSections"]> {
   try {
-    if (!(await getDashboardFlags(orgId)).billing) return "all";
+    if (!plansEnforced(await getDashboardFlags(orgId))) return "all";
     return (await getEntitlements(orgId, await createClient())).pageSections;
   } catch (error) {
     console.error("[billing] page-sections read failed — publish proceeds:", error);

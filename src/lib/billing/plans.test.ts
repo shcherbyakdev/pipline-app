@@ -17,7 +17,7 @@ describe("PLANS", () => {
   });
   it("limits match the H5b spec: resources 1 / 3 / 10, services 3 / ∞ / ∞", () => {
     expect(PLANS.free.limits).toMatchObject({
-      bookableResources: 1, publicServices: 3, reminderBookingsPerMonth: 30, hideBadge: false,
+      bookableResources: 2, publicServices: 3, reminderBookingsPerMonth: 30, hideBadge: false,
     });
     expect(PLANS.pro.limits.bookableResources).toBe(3);
     expect(PLANS.pro.limits.publicServices).toBeNull();
@@ -28,7 +28,7 @@ describe("PLANS", () => {
     for (const p of Object.values(PLANS)) {
       expect(p.blurb.toLowerCase()).not.toMatch(/seat|team member/);
     }
-    expect(PLANS.free.blurb).toBe("Everything one person — or one room — needs to take bookings.");
+    expect(PLANS.free.blurb).toBe("Everything two people — or two rooms — need to take bookings.");
   });
   it("pricePerMonth divides yearly by 12", () => {
     expect(pricePerMonth("pro", "month")).toBe(12);

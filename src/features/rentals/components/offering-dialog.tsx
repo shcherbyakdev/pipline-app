@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { toastRefusal } from "@/features/billing/refusal-toast";
 import { createOffering, updateOffering } from "@/features/rentals/actions";
 import type { OfferingRow } from "@/features/rentals/queries";
 import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
@@ -179,14 +180,14 @@ export function OfferingDialog({
         ? await updateOffering({ id: offering!.id, ...payload })
         : await createOffering(payload);
       if (!result.ok) {
-        toast.error(result.error);
+        toastRefusal(result.error);
         return;
       }
       onOpenChange(false);
       // A notice means the space saved but its first unit did not (plan cap
       // or a failed insert): the space is not bookable yet — a warning, not
       // "Saved", so the owner knows to visit the space's page.
-      if (result.notice) toast.warning(result.notice);
+      if (result.notice) toastRefusal(result.notice, "warning");
       else toast.success(isEdit ? "Saved" : "Space created");
     });
   };

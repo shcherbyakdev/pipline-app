@@ -103,9 +103,11 @@ describe("reserved list covers every top-level app route", () => {
   });
 });
 
-describe("reserved list parity with 0051_handles.sql", () => {
+describe("reserved list parity with the migration that last defined reserved_handles()", () => {
   it("RESERVED_HANDLES equals the array in reserved_handles()", () => {
-    const sql = readFileSync(join(process.cwd(), "src/db/migrations/0051_handles.sql"), "utf8");
+    // The LAST definition wins in Postgres, so the check reads the newest
+    // migration that redefines the function (0051 first, 0066 since).
+    const sql = readFileSync(join(process.cwd(), "src/db/migrations/0066_premium_waitlist_security.sql"), "utf8");
     const block = /function public\.reserved_handles\(\)[\s\S]*?select array\[([\s\S]*?)\]::text\[\]/.exec(sql);
     expect(block, "reserved_handles() array not found").not.toBeNull();
     const inSql = [...block![1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();

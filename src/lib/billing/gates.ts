@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { FLAG_DEFAULTS, type Flags } from "@/lib/flags";
+import { FLAG_DEFAULTS, plansEnforced, type Flags } from "@/lib/flags";
 import { getOrgFlags } from "@/lib/flags/resolve";
 import { effectiveMode, type OrgMode } from "@/features/orgs/mode";
 import { getEntitlements } from "./queries";
@@ -8,20 +8,29 @@ import { canAddResource, canAddService, countResources, type Entitlements, type 
 import {
   GENERIC_WRITE_ERROR,
   planLimitResourceError,
-  PLAN_LIMIT_SERVICES_ERROR,
+  planLimitServicesError,
+  type UpgradeHint,
 } from "@/features/scheduling/schema";
+import { upgradeHref } from "./upgrade-path";
 
 // Creation gates (spec §7.4). Enforced in actions, not triggers — the
 // public-offering filter is the value gate; these keep the admin honest.
 // Return the refusal copy, or null when allowed.
 
+/** Which way out the refusal names — upgradeHref's answer as a copy key, so
+    the sentence and the link every surface renders can never disagree. */
+export function upgradeHint(flags: Pick<Flags, "billing" | "premium_waitlist">, ent: Pick<Entitlements, "plan">): UpgradeHint {
+  const href = upgradeHref(flags, ent.plan);
+  return href === "/billing" ? "billing" : href === "/waitlist" ? "waitlist" : "none";
+}
+
 /** H5b: people and units share one budget (spec ruling 4/5). The cap comes
     from the entitlements, so a Team org at 5 of 5 is told it has 5. */
-export function resourceGateMessage(usage: ResourceUsage, mode: OrgMode, ent: Entitlements): string | null {
-  return canAddResource(countResources(usage, mode), ent) ? null : planLimitResourceError(ent.bookableResources);
+export function resourceGateMessage(usage: ResourceUsage, mode: OrgMode, ent: Entitlements, how: UpgradeHint = "billing"): string | null {
+  return canAddResource(countResources(usage, mode), ent) ? null : planLimitResourceError(ent.bookableResources, how);
 }
-export function serviceGateMessage(serviceCount: number, ent: Entitlements): string | null {
-  return canAddService(serviceCount, ent) ? null : PLAN_LIMIT_SERVICES_ERROR;
+export function serviceGateMessage(serviceCount: number, ent: Entitlements, how: UpgradeHint = "billing"): string | null {
+  return canAddService(serviceCount, ent) ? null : planLimitServicesError(how);
 }
 
 // The lookup + evaluation, no flag check. A failed entitlements/count read
@@ -29,11 +38,12 @@ export function serviceGateMessage(serviceCount: number, ent: Entitlements): str
 // Action, so the lookup is wrapped here rather than left to throw — callers
 // (assertCanAdd*, and tests) always get back a string|null, never a
 // rejection. `flags` is passed in (the callers already resolved it for the
-// billing check) so the rentals kill-switch can stop units from counting.
+// enforcement check) so the rentals kill-switch can stop units from
+// counting and the refusal can name the right way out (upgradeHint).
 export async function evaluateResourceGate(
   orgId: string,
   client: SupabaseClient,
-  flags: Pick<Flags, "rentals">,
+  flags: Pick<Flags, "rentals" | "billing" | "premium_waitlist">,
 ): Promise<string | null> {
   try {
     const [ent, orgRow, staffRes, unitRes] = await Promise.all([
@@ -49,21 +59,25 @@ export async function evaluateResourceGate(
       offersAppointments: orgRow.data.offers_appointments,
       offersRentals: orgRow.data.offers_rentals,
     });
-    return resourceGateMessage({ activeStaff: staffRes.count ?? 0, activeUnits: unitRes.count ?? 0 }, mode, ent);
+    return resourceGateMessage({ activeStaff: staffRes.count ?? 0, activeUnits: unitRes.count ?? 0 }, mode, ent, upgradeHint(flags, ent));
   } catch (error) {
     console.error("[billing] gate lookup failed (refusing):", error);
     return GENERIC_WRITE_ERROR;
   }
 }
 
-export async function evaluateServiceGate(orgId: string, client: SupabaseClient): Promise<string | null> {
+export async function evaluateServiceGate(
+  orgId: string,
+  client: SupabaseClient,
+  flags: Pick<Flags, "billing" | "premium_waitlist">,
+): Promise<string | null> {
   try {
     const [ent, { count, error }] = await Promise.all([
       getEntitlements(orgId, client),
       client.from("services").select("id", { count: "exact", head: true }).eq("org_id", orgId),
     ]);
     if (error) throw error;
-    return serviceGateMessage(count ?? 0, ent);
+    return serviceGateMessage(count ?? 0, ent, upgradeHint(flags, ent));
   } catch (error) {
     console.error("[billing] gate lookup failed (refusing):", error);
     return GENERIC_WRITE_ERROR;
@@ -76,20 +90,21 @@ export async function evaluateServiceGate(orgId: string, client: SupabaseClient)
    provider from adding a unit because a flag table hiccuped. */
 export async function assertCanAddStaff(orgId: string, client: SupabaseClient): Promise<string | null> {
   const flags = await orgFlags(orgId, client);
-  if (!flags.billing) return null;
+  if (!plansEnforced(flags)) return null;
   return evaluateResourceGate(orgId, client, flags);
 }
 
 /** H5b: a new or reactivated unit spends the same budget a person does. */
 export async function assertCanAddUnit(orgId: string, client: SupabaseClient): Promise<string | null> {
   const flags = await orgFlags(orgId, client);
-  if (!flags.billing) return null;
+  if (!plansEnforced(flags)) return null;
   return evaluateResourceGate(orgId, client, flags);
 }
 
 export async function assertCanAddService(orgId: string, client: SupabaseClient): Promise<string | null> {
-  if (!(await orgFlags(orgId, client)).billing) return null;
-  return evaluateServiceGate(orgId, client);
+  const flags = await orgFlags(orgId, client);
+  if (!plansEnforced(flags)) return null;
+  return evaluateServiceGate(orgId, client, flags);
 }
 
 async function orgFlags(orgId: string, client: SupabaseClient): Promise<Flags> {

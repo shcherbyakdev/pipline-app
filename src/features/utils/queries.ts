@@ -5,7 +5,8 @@ import { readFakeRow } from "@/features/billing/dev/queries";
 import type { FakeRow } from "@/lib/billing/fake-emulator";
 import { getPlanOverrideDetails } from "@/lib/billing/queries";
 import { activeOverrideRow, type PlanOverrideDetails } from "@/lib/billing/overrides";
-import { entitlementsFor } from "@/lib/billing/entitlements";
+import { waitlistRow } from "@/lib/billing/waitlist";
+import { entitlementsFor, pickSubscription } from "@/lib/billing/entitlements";
 import type { PlanId } from "@/lib/billing/plans";
 
 /* Owner-only reads. Every function here takes the ADMIN client on purpose:
@@ -59,6 +60,7 @@ export async function getOrgSummary(orgId: string): Promise<OrgSummary | null> {
 }
 
 export type FlagOverrideRow = { flag: string; enabled: boolean; updatedBy: string; updatedAt: string };
+export type WaitlistRow = { joinedBy: string; joinedAt: string };
 
 export type OrgAdminView = {
   org: OrgSummary;
@@ -68,6 +70,9 @@ export type OrgAdminView = {
   /** The WHOLE override row, note and grantor included — the admin client is
       the only one privileged to read those columns (0046). */
   override: PlanOverrideDetails | null;
+  /** The premium-waitlist row: who joined, when. Grants Pro beneath a comp
+      and a live provider row (lib/billing/queries.ts getOrgSubscription). */
+  waitlist: WaitlistRow | null;
   effectivePlan: PlanId;
   flags: FlagOverrideRow[];
 };
@@ -78,17 +83,25 @@ export async function readOrgAdminView(orgId: string, now = new Date()): Promise
   const admin = createAdminClient();
   const org = await getOrgSummary(orgId);
   if (!org) return null;
-  const [subscription, override, flagRes] = await Promise.all([
+  const [subscription, override, flagRes, waitRes] = await Promise.all([
     readFakeRow(admin, orgId),
     getPlanOverrideDetails(orgId, admin),
     admin.from("org_feature_flags").select("flag, enabled, updated_by, updated_at").eq("org_id", orgId),
+    admin.from("premium_waitlist").select("joined_by, joined_at").eq("org_id", orgId).maybeSingle(),
   ]);
   if (flagRes.error) throw flagRes.error;
-  const effective = activeOverrideRow(override, now) ?? (subscription ? { ...subscription } : null);
+  if (waitRes.error) throw waitRes.error;
+  const waitlist = waitRes.data ? { joinedBy: waitRes.data.joined_by, joinedAt: waitRes.data.joined_at } : null;
+  // Same ranking as the member-facing seam: comp > provider row > waitlist.
+  const effective = pickSubscription(
+    [activeOverrideRow(override, now), subscription ? { ...subscription } : null, waitlistRow(waitlist && { joinedAt: waitlist.joinedAt })],
+    now,
+  );
   return {
     org,
     subscription,
     override,
+    waitlist,
     effectivePlan: entitlementsFor(effective, now).plan,
     flags: (flagRes.data ?? []).map((r) => ({ flag: r.flag, enabled: r.enabled, updatedBy: r.updated_by, updatedAt: r.updated_at })),
   };

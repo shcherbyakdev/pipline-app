@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { toastRefusal } from "@/features/billing/refusal-toast";
 import { Switch } from "@/components/ui/switch";
 import { setStaffActive } from "@/features/scheduling/staff-actions";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
@@ -58,7 +59,7 @@ function Row({
     startTransition(async () => {
       setActive(next);
       const result = await setStaffActive({ id: staff.id, active: next });
-      if (!result.ok) toast.error(result.error);
+      if (!result.ok) toastRefusal(result.error);
     });
   };
 

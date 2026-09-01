@@ -18,10 +18,20 @@ describe("resourceMeter (spec §1.2)", () => {
     });
   });
   it("a spaces-only org's backfilled person is not counted", () => {
-    expect(resourceMeter({ activeStaff: 1, activeUnits: 1 }, SPACES, free).value).toBe("1 / 1");
+    expect(resourceMeter({ activeStaff: 1, activeUnits: 1 }, SPACES, free).value).toBe("1 / 2");
   });
-  it("both-mode on Free with spaces explains why they are hidden", () => {
+  it("both-mode on Free (two slots): the person and the first unit are public, the rest hidden", () => {
     const m = resourceMeter({ activeStaff: 1, activeUnits: 2 }, BOTH, free);
+    expect(m.value).toBe("3 / 2");
+    expect(m.caption).toBe("only the first 2 are bookable publicly");
+    expect(m.hidden).toBe(1);
+  });
+  it("both-mode on a one-resource plan explains why every space is hidden", () => {
+    const one = entitlementsFor(
+      { plan: "team", status: "active", interval: "month", seats: 1, currentPeriodEnd: null, cancelAtPeriodEnd: false },
+      now,
+    );
+    const m = resourceMeter({ activeStaff: 1, activeUnits: 2 }, BOTH, one);
     expect(m.value).toBe("3 / 1");
     expect(m.caption).toBe("your person takes the slot — spaces need a second resource");
     expect(m.hidden).toBe(2);

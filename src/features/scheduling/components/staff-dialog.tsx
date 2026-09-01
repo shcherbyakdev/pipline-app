@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { toastRefusal } from "@/features/billing/refusal-toast";
 import { createStaff, updateStaff } from "@/features/scheduling/staff-actions";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { ServiceRow } from "@/features/scheduling/queries";
@@ -12,8 +13,9 @@ import {
   slugifyStaffName,
 } from "@/features/scheduling/staff-slug";
 import { bookingPath } from "@/lib/booking/url";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,12 +44,17 @@ export function StaffDialog({
   usedColors,
   handle,
   firstActiveStaffName,
+  gateHref = null,
 }: {
   staff?: StaffRow;
   services: ServiceRow[];
   usedColors: string[];
   handle: string | null;
   firstActiveStaffName?: string | null;
+  /** Set when the plan would refuse another person (the page asks the same
+      gate the action does): the create trigger becomes a link to the door
+      instead of a form that can only be refused. */
+  gateHref?: string | null;
 }) {
   const isEdit = Boolean(staff);
   const [open, setOpen] = React.useState(false);
@@ -59,6 +66,16 @@ export function StaffDialog({
     if (next) setFormKey((k) => k + 1);
     setOpen(next);
   };
+
+  // After the hooks (their order must not depend on the gate): a capped org
+  // gets the door, not a form the action would refuse.
+  if (!isEdit && gateHref) {
+    return (
+      <Link href={gateHref} className={cn(buttonVariants({ size: "sm" }))}>
+        <Plus className="size-4" /> New team member
+      </Link>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -162,7 +179,7 @@ function StaffForm({
         ? await updateStaff({ id: staff.id, ...payload })
         : await createStaff(payload);
       if (!result.ok) {
-        toast.error(result.error);
+        toastRefusal(result.error);
         return;
       }
       onDone();

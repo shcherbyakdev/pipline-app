@@ -47,9 +47,12 @@ const PAID_LIMITS = { hideBadge: true, customReminders: true, gcalSync: true, in
 
 export const PLANS: Record<PlanId, PlanDef> = {
   free: {
-    id: "free", name: "Free", blurb: "Everything one person — or one room — needs to take bookings.",
+    // Two, not one (ruling 2026-09-01): you plus one team member is free —
+    // the second addition is what the waitlist/Billing gate on. The budget is
+    // still shared with units, so a spaces-only org gets two rooms.
+    id: "free", name: "Free", blurb: "Everything two people — or two rooms — need to take bookings.",
     monthly: 0, yearly: 0,
-    limits: { bookableResources: 1, publicServices: 3, reminderBookingsPerMonth: 30,
+    limits: { bookableResources: 2, publicServices: 3, reminderBookingsPerMonth: 30,
       hideBadge: false, customReminders: false, gcalSync: false, intakeQuestions: false, pageSections: "all" },
   },
   pro: {

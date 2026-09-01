@@ -4,10 +4,12 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { toastRefusal } from "@/features/billing/refusal-toast";
 import { createService, updateService } from "@/features/scheduling/actions";
 import type { ServiceRow } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -27,9 +29,13 @@ import { cn } from "@/lib/utils";
 export function ServiceDialog({
   service,
   staff,
+  gateHref = null,
 }: {
   service?: ServiceRow;
   staff: StaffRow[];
+  /** Set when the plan would refuse another service (staff-dialog idiom):
+      the create trigger links to the door instead. */
+  gateHref?: string | null;
 }) {
   const isEdit = Boolean(service);
   const searchParams = useSearchParams();
@@ -128,13 +134,22 @@ export function ServiceDialog({
         ? await updateService({ id: service!.id, ...payload })
         : await createService(payload);
       if (!result.ok) {
-        toast.error(result.error);
+        toastRefusal(result.error);
         return;
       }
       onOpenChange(false);
       toast.success(isEdit ? "Saved" : "Service created");
     });
   };
+
+  // After the hooks (staff-dialog idiom): a capped org gets the door.
+  if (!isEdit && gateHref) {
+    return (
+      <Link href={gateHref} className={cn(buttonVariants({ size: "sm" }))}>
+        <Plus className="size-4" /> New service
+      </Link>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

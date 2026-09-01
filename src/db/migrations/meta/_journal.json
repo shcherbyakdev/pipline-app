@@ -456,6 +456,20 @@
       "when": 1788192058971,
       "tag": "0064_approval_followups",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1788291301336,
+      "tag": "0065_premium_waitlist",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1788291314597,
+      "tag": "0066_premium_waitlist_security",
+      "breakpoints": true
     }
   ]
 }

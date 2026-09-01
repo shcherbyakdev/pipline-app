@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import { updateWidgetTheme } from "@/features/orgs/actions";
@@ -45,6 +46,7 @@ export function WidgetAppearance({
   staffOptions = [],
   initialStaffSlug = null,
   canHideBadge = true,
+  upgradeHref = null,
 }: {
   initial: WidgetThemeConfig;
   accentColor: string | null;
@@ -67,6 +69,9 @@ export function WidgetAppearance({
   // exactly as before. The server enforces it regardless (badgeVisible): this
   // only stops the toggle from looking like it works.
   canHideBadge?: boolean;
+  /** Where a capped org goes to lift it (lib/billing/upgrade-path.ts) —
+      the disabled toggle and its chip both lead there. null = no door. */
+  upgradeHref?: string | null;
 }) {
   const [config, setConfig] = React.useState<WidgetThemeConfig>(initial);
   const [pending, startTransition] = React.useTransition();
@@ -88,6 +93,7 @@ export function WidgetAppearance({
   // there — the studio must not promise a badge-free widget the visitor never
   // sees. The stored config is untouched: upgrade and the tick works again.
   const previewConfig = { ...config, hidePoweredBy: !badgeShows(config.hidePoweredBy, canHideBadge) };
+  const router = useRouter();
 
   const save = () => {
     startTransition(async () => {
@@ -312,24 +318,39 @@ export function WidgetAppearance({
             </div>
           </SettingsRow>
           <div className="flex items-center gap-2 px-4 py-3">
+            {/* A capped org's click on the box is a request to lift the cap,
+                so it goes to the door instead of toggling (preventDefault
+                keeps the box unchecked); a disabled input would swallow the
+                click and teach nothing. No door = plainly disabled. */}
             <input
               id="wt-hide-powered-by"
               type="checkbox"
               className="size-4"
               checked={config.hidePoweredBy}
-              disabled={pending || !canHideBadge}
+              disabled={pending || (!canHideBadge && !upgradeHref)}
+              aria-describedby={canHideBadge ? undefined : "wt-hide-powered-by-plan"}
+              onClick={(e) => {
+                if (canHideBadge || !upgradeHref) return;
+                e.preventDefault();
+                router.push(upgradeHref);
+              }}
               onChange={(e) => setConfig((c) => ({ ...c, hidePoweredBy: e.target.checked }))}
             />
             <Label htmlFor="wt-hide-powered-by" className="text-xs font-medium">
               Hide &quot;Powered by Booklo&quot;
             </Label>
-            {canHideBadge ? null : (
+            {canHideBadge ? null : upgradeHref ? (
               <Link
-                href="/billing"
-                className="border-primary/40 text-primary rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
+                id="wt-hide-powered-by-plan"
+                href={upgradeHref}
+                className="border-brand/40 text-brand-text hover:bg-brand/10 rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
               >
-                Pro
+                Premium
               </Link>
+            ) : (
+              <span id="wt-hide-powered-by-plan" className="border-brand/40 text-brand-text rounded-full border px-1.5 py-0.5 text-[10px] font-medium">
+                Premium
+              </span>
             )}
           </div>
         </SettingsCard>

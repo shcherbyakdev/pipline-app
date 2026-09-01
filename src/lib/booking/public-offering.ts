@@ -13,6 +13,7 @@ import { limitPublicOffering, limitPublicResources } from "./bookable";
 import { getEntitlementsAdminStrict } from "@/lib/billing/queries";
 import { type Entitlements } from "@/lib/billing/entitlements";
 import { PLANS } from "@/lib/billing/plans";
+import { plansEnforced } from "@/lib/flags";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { effectiveMode } from "@/features/orgs/mode";
 
@@ -47,10 +48,10 @@ const UNLIMITED: Entitlements = {
   bookableResources: Number.MAX_SAFE_INTEGER,
 };
 
-// null = no cap applies (billing off, or the read failed and the offering
-// fails open — see loadPublicResources).
+// null = no cap applies (limits not enforced — plansEnforced — or the read
+// failed and the offering fails open — see loadPublicResources).
 async function loadEntitlements(orgId: string): Promise<Entitlements | null> {
-  if (!(await getOrgFlagsAdmin(orgId)).billing) return null;
+  if (!plansEnforced(await getOrgFlagsAdmin(orgId))) return null;
   try {
     return await getEntitlementsAdminStrict(orgId);
   } catch (error) {

@@ -86,7 +86,12 @@ describe("hourly public booking flow (action layer)", () => {
     // this same row.
     const { error: eFlag } = await admin
       .from("org_feature_flags")
-      .insert({ org_id: orgId, flag: "rentals", enabled: true, updated_by: "h2-flow-test" });
+      .insert([
+        { org_id: orgId, flag: "rentals", enabled: true, updated_by: "h2-flow-test" },
+        // Plan caps are not this suite's subject: the premium waitlist flag
+        // (default on) would cap the org at Free's two resources.
+        { org_id: orgId, flag: "premium_waitlist", enabled: false, updated_by: "h2-flow-test" },
+      ]);
     if (eFlag) throw eFlag;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: orgId,
@@ -317,7 +322,12 @@ describe("hourly public booking flow: client_picks unit membership", () => {
     orgId = (org as { id: string }).id;
     const { error: eFlag } = await admin
       .from("org_feature_flags")
-      .insert({ org_id: orgId, flag: "rentals", enabled: true, updated_by: "h2-flow-test" });
+      .insert([
+        { org_id: orgId, flag: "rentals", enabled: true, updated_by: "h2-flow-test" },
+        // Plan caps are not this suite's subject: the premium waitlist flag
+        // (default on) would cap the org at Free's two resources.
+        { org_id: orgId, flag: "premium_waitlist", enabled: false, updated_by: "h2-flow-test" },
+      ]);
     if (eFlag) throw eFlag;
     picksHandle = `h2flow-picks-${Date.now()}`;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
@@ -478,7 +488,12 @@ describe("terms acceptance gate (hourly action layer)", () => {
     termsOrgId = (org as { id: string }).id;
     const { error: eFlag } = await admin
       .from("org_feature_flags")
-      .insert({ org_id: termsOrgId, flag: "rentals", enabled: true, updated_by: "h2-flow-test" });
+      .insert([
+        { org_id: termsOrgId, flag: "rentals", enabled: true, updated_by: "h2-flow-test" },
+        // Plan caps are not this suite's subject: the premium waitlist flag
+        // (default on) would cap the org at Free's two resources.
+        { org_id: termsOrgId, flag: "premium_waitlist", enabled: false, updated_by: "h2-flow-test" },
+      ]);
     if (eFlag) throw eFlag;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {
       p_org_id: termsOrgId,

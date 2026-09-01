@@ -34,6 +34,14 @@ export const FLAG_DEFAULTS = {
   /** ⌘K palette (ruling 2026-08-18): presented as "Search" but only navigates.
       While off: no sidebar Search button and ⌘K is inert (never mounts). */
   command_menu: false,
+  /** Premium waitlist (spec 2026-09-01-premium-waitlist-design.md): the
+      upgrade path while billing is still being built. While on: plan limits
+      are ENFORCED (plansEnforced below) so a Free org is capped, the sidebar
+      carries the waitlist card, the top bar the plan tag, /waitlist is live
+      and joining it grants Pro (lib/billing/queries.ts getOrgSubscription).
+      Independent of `billing`: that flag still owns /billing, checkout and
+      the portal. */
+  premium_waitlist: true,
 } as const;
 
 export type FlagKey = keyof typeof FLAG_DEFAULTS;
@@ -50,4 +58,16 @@ export const FLAG_META: Record<FlagKey, { label: string; description: string }> 
     description: "The /overview requests inbox and stat tiles, their nav row and its request count.",
   },
   command_menu: { label: "Command menu", description: "The ⌘K palette and the sidebar Search button." },
+  premium_waitlist: {
+    label: "Premium waitlist",
+    description: "Plan limits enforced; the sidebar card, top-bar plan tag and /waitlist. Joining grants Pro.",
+  },
 };
+
+/** Are plan limits enforced for this org? Billing enforces them because it
+    sells the way past them; the waitlist enforces them because joining is
+    that way. Off both: the pre-billing world, everything allowed. Every
+    "should the cap apply?" read goes through here, never `flags.billing`. */
+export function plansEnforced(flags: Pick<Flags, "billing" | "premium_waitlist">): boolean {
+  return flags.billing || flags.premium_waitlist;
+}

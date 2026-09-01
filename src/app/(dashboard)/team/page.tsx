@@ -7,14 +7,29 @@ import { StaffDialog } from "@/features/scheduling/components/staff-dialog";
 import { PageIntro } from "@/components/shell/page-header";
 import { loadPublicResources } from "@/lib/booking/public-offering";
 import { requireOrg } from "@/lib/auth/session";
+import { createClient } from "@/lib/supabase/server";
+import { plansEnforced } from "@/lib/flags";
+import { getDashboardFlags } from "@/lib/flags/resolve";
+import { evaluateResourceGate } from "@/lib/billing/gates";
+import { upgradeHrefFromRefusal } from "@/lib/billing/upgrade-path";
 import { env } from "@/env";
+
+/** Would the plan refuse one more person right now? The page asks the SAME
+    gate createStaff does, so the add button never opens a form the action
+    would only refuse — it links to the door instead (null = open the form). */
+async function addGateHref(orgId: string): Promise<string | null> {
+  const flags = await getDashboardFlags(orgId);
+  if (!plansEnforced(flags)) return null;
+  const refused = await evaluateResourceGate(orgId, await createClient(), flags);
+  return refused ? upgradeHrefFromRefusal(refused) : null;
+}
 
 /* Team: the roster. Always visible, even for a solo provider — they see one
    row (themselves) with their booking link, and nothing about the app changes
    until they add a second person. */
 export default async function TeamPage() {
   const { org } = await requireOrg();
-  const [staff, services, scheduling, resources] = await Promise.all([
+  const [staff, services, scheduling, resources, gateHref] = await Promise.all([
     listStaff(),
     listServices(),
     getSchedulingSettings(),
@@ -22,6 +37,7 @@ export default async function TeamPage() {
     // page uses), so this page never offers a link that would 404. null = no
     // cap applies (billing off, or the read failed open) → flag nobody.
     loadPublicResources(org.id),
+    addGateHref(org.id),
   ]);
   if (!scheduling) notFound();
   const publicStaffIds = resources ? resources.staff.map((s) => s.id) : null;
@@ -41,6 +57,7 @@ export default async function TeamPage() {
           usedColors={staff.map((s) => s.color)}
           handle={scheduling.handle}
           firstActiveStaffName={firstActive?.name ?? null}
+          gateHref={gateHref}
         />
       </div>
       <StaffList
