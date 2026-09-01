@@ -153,7 +153,10 @@ Two shadows only, defined as tokens and used via `shadow-(--shadow-card)` /
 - `--shadow-card`: `0 1px 2px rgb(37 34 40 / 0.04), 0 16px 40px -20px rgb(37 34 40 / 0.18)` — overlays (dialogs, popovers, menus, sheets).
 - `--shadow-lift`: `0 1px 2px rgb(37 34 40 / 0.05), 0 6px 16px -8px rgb(37 34 40 / 0.14)` — small lifted elements (active nav row, segmented pill, search pill).
 
-Overlay scrims are a plain ink dim (`bg-foreground/10`), no backdrop blur.
+Overlay scrims are a near-opaque ink wall (`bg-scrim/90` — `--color-scrim`
+is the light world's ink, deliberately not theme-flipped so the scrim stays
+dark at night), no backdrop blur; the page behind a dialog or sheet is not
+meant to be visible (ruled 2026-09-01).
 
 ## Shapes
 
