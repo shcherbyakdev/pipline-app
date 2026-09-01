@@ -10,7 +10,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { listPendingRequests, listStatsBookings } from "@/features/scheduling/queries";
 import { listActiveStaff } from "@/features/scheduling/staff-queries";
-import { buildYearHeatmap, type HeatmapDay } from "@/features/scheduling/stats";
+import { buildYearHeatmap } from "@/features/scheduling/stats";
+import { CELL, HEAT_LEVELS, PENDING_FILL, PENDING_RING, TODAY_OUTLINE } from "./heatmap-cells";
+import { YearGrid } from "./year-grid";
 import { RequestsInbox } from "@/features/scheduling/components/requests-inbox";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
@@ -25,100 +27,7 @@ const GO_TO = [
   { href: "/booking-page", label: "Booking page", icon: Globe02Icon },
 ] as const;
 
-const HEAT_LEVELS = [
-  "bg-muted",
-  "bg-primary/25",
-  "bg-primary/45",
-  "bg-primary/70",
-  "bg-primary",
-] as const;
-
-/* Amber = "needs attention", matching the rentals timeline. A pending-only
-   day fills solid amber; a day that also has confirmed appointments keeps its
-   load fill and gets the amber ring instead (the fill must stay readable).
-   Today reuses the brand outline so it can stack with either. */
-const PENDING_FILL = "bg-amber-400 dark:bg-amber-500";
-const PENDING_RING = "ring-2 ring-amber-500 ring-inset";
-const TODAY_OUTLINE = "outline-2 outline-brand-text";
-
 const MAX_AVATARS = 5;
-
-const CELL = "size-[13px] rounded-[3px]";
-
-function YearGrid({
-  weeks,
-  todayISO,
-  summary,
-}: {
-  weeks: HeatmapDay[][];
-  todayISO: string;
-  summary: string;
-}) {
-  const dayFmt = new Intl.DateTimeFormat("en", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-  const monthFmt = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" });
-  // Month label above the column where a new month starts (judged by each
-  // column's first in-year day, so the padded first column still reads "Jan").
-  const firstDates = weeks.map((week) => week.find((d) => d !== null)?.date ?? "");
-  const labels = firstDates.map((date, i) => {
-    if (!date) return "";
-    const month = date.slice(5, 7);
-    return i === 0 || month !== firstDates[i - 1].slice(5, 7)
-      ? monthFmt.format(new Date(`${date}T12:00:00Z`))
-      : "";
-  });
-  return (
-    // One image to assistive tech — 371 unlabeled cells would be noise; the
-    // caption above carries the totals and the tooltips serve pointer users.
-    <div role="img" aria-label={summary} className="flex gap-[2px] overflow-x-auto pb-1">
-      <div className="text-subtle mt-[16px] mr-1 flex flex-col gap-[2px] text-[10px] leading-[13px]">
-        {["Mon", "", "Wed", "", "Fri", "", ""].map((d, i) => (
-          <span key={i} className="h-[13px]">
-            {d}
-          </span>
-        ))}
-      </div>
-      {weeks.map((week, i) => (
-        <div key={i} className="flex flex-col gap-[2px]">
-          {/* Fixed to the cell width so a 3-letter label can't widen its
-              column; the text just paints past the box. */}
-          <span className="text-subtle h-[14px] w-[13px] text-[10px] leading-[14px] whitespace-nowrap">
-            {labels[i]}
-          </span>
-          {week.map((day, d) =>
-            day === null ? (
-              <div key={d} className={CELL} />
-            ) : (
-              <div
-                key={day.date}
-                title={[
-                  dayFmt.format(new Date(`${day.date}T12:00:00Z`)),
-                  `${day.confirmed} ${day.confirmed === 1 ? "appointment" : "appointments"}`,
-                  day.pending > 0 ? `${day.pending} pending` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-                data-today={day.date === todayISO ? "" : undefined}
-                className={cn(
-                  CELL,
-                  day.pending > 0 && day.confirmed === 0
-                    ? PENDING_FILL
-                    : HEAT_LEVELS[day.level],
-                  day.pending > 0 && day.confirmed > 0 && PENDING_RING,
-                  day.date === todayISO && TODAY_OUTLINE,
-                )}
-              />
-            ),
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default async function OverviewPage({
   searchParams,
