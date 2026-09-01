@@ -16,6 +16,9 @@ import {
   dialogBareInputClass as bareInputClass,
   dialogPillClass as pillClass,
 } from "@/components/ui/dialog";
+import { TIME_OPTIONS, endOptions } from "@/features/scheduling/time-options";
+import { DatePicker } from "./date-picker";
+import { TimeCombobox } from "./time-combobox";
 import { cn } from "@/lib/utils";
 
 const TIME_RE = /^\d{2}:\d{2}$/;
@@ -171,32 +174,29 @@ export function AppointmentBookingForm({
           className={cn(bareInputClass, "mt-3 resize-none text-sm")}
           onChange={(e) => { setNote(e.target.value); clearOverlap(); }}
         />
+        {/* The app's own pickers in the pill dress — the native date/time
+            inputs wore browser chrome no theme could reach. */}
         <div className="mt-6 flex flex-wrap items-center gap-2">
-          <input
-            aria-label="Date"
-            type="date"
-            required
+          <DatePicker
+            label="Date"
             value={date}
             className={pillClass}
-            onChange={(e) => { setDate(e.target.value); clearOverlap(); }}
+            onCommit={(d) => { setDate(d); clearOverlap(); }}
           />
-          <input
-            aria-label={`Starts at (${timeZone})`}
-            type="time"
-            step={900}
-            required
+          <TimeCombobox
+            label={`Starts at (${timeZone})`}
             value={startTime}
-            className={pillClass}
-            onChange={(e) => { setStartTime(e.target.value); clearOverlap(); }}
+            options={TIME_OPTIONS}
+            className={cn(pillClass, "w-20 text-center")}
+            onCommit={(hm) => { setStartTime(hm); clearOverlap(); }}
           />
           <span aria-hidden className="text-muted-foreground text-xs">–</span>
-          <input
-            aria-label="Ends at"
-            type="time"
-            step={300}
+          <TimeCombobox
+            label="Ends at"
             value={effectiveEndTime}
-            className={pillClass}
-            onChange={(e) => { setEndTouched(true); setEndTime(e.target.value); clearOverlap(); }}
+            options={endOptions(startTime)}
+            className={cn(pillClass, "w-20 text-center")}
+            onCommit={(hm) => { setEndTouched(true); setEndTime(hm); clearOverlap(); }}
           />
           {activeStaff.length > 1 ? (
             <span className="relative inline-flex">

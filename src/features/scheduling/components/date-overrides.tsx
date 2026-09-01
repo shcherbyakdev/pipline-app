@@ -5,8 +5,8 @@ import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "./date-picker";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +41,10 @@ function formatDateLabel(date: string): string {
   // Noon UTC avoids DST/offset edge cases pushing the date field itself
   // across a day boundary when rendered in the browser's local time.
   const d = new Date(`${date}T12:00:00Z`);
-  return new Intl.DateTimeFormat(undefined, {
+  // en-GB pinned: `undefined` lets the server's and browser's locales
+  // disagree — a hydration mismatch on every override row (units-editor's
+  // formatDate had the same bug).
+  return new Intl.DateTimeFormat("en-GB", {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -319,16 +322,15 @@ function OverrideDialog({
             <label htmlFor="override-date" className="text-sm font-medium">
               Date
             </label>
-            <Input
+            <DatePicker
               id="override-date"
-              type="date"
+              label="Date"
               min={today}
               value={draftDate}
-              onChange={(e) => onDateChange(e.target.value)}
+              onCommit={onDateChange}
               // date is fixed while editing — changing it would orphan the
               // original date's rows; delete and re-add instead
               disabled={isEditing}
-              className="w-auto"
             />
           </div>
           <label className="flex items-center gap-2 text-sm">

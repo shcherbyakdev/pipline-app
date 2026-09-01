@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DatePicker } from "@/features/scheduling/components/date-picker";
 import {
   createUnit,
   updateUnit,
@@ -25,7 +26,9 @@ const END_BEFORE_START = "End date must not precede the start date.";
 function formatDate(date: string): string {
   // Noon UTC keeps the rendered day from sliding across a boundary in
   // negative-offset timezones (date-overrides.tsx makes the same call).
-  return new Intl.DateTimeFormat(undefined, {
+  // en-GB pinned: `undefined` let the server's and browser's locales
+  // disagree, which is a hydration mismatch on every blackout row.
+  return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -345,25 +348,19 @@ function AddBlackoutForm({ offeringId, unitId }: { offeringId: string; unitId: s
 
   return (
     <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
-      <Input
-        type="date"
+      <DatePicker
+        label="Unavailable from"
         value={startDate}
-        onChange={(e) => setStartDate(e.target.value)}
-        required
-        aria-label="Unavailable from"
-        className="w-auto"
+        onCommit={setStartDate}
       />
       <span aria-hidden="true" className="text-muted-foreground text-sm">
         →
       </span>
-      <Input
-        type="date"
+      <DatePicker
+        label="Unavailable until"
         value={endDate}
         min={startDate || undefined}
-        onChange={(e) => setEndDate(e.target.value)}
-        required
-        aria-label="Unavailable until"
-        className="w-auto"
+        onCommit={setEndDate}
       />
       <Input
         value={reason}

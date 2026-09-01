@@ -31,6 +31,8 @@ export function TimeCombobox({
   invalid,
   describedBy,
   disabled,
+  id,
+  className,
 }: {
   value: string
   options: string[]
@@ -39,6 +41,9 @@ export function TimeCombobox({
   invalid?: boolean
   describedBy?: string
   disabled?: boolean
+  id?: string
+  /** Input overrides — e.g. the dialog pill (dialogPillClass). */
+  className?: string
 }) {
   const reactId = React.useId()
   const listboxId = `${reactId}-listbox`
@@ -165,6 +170,7 @@ export function TimeCombobox({
     <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       <Input
         ref={inputRef}
+        id={id}
         type="text"
         role="combobox"
         aria-expanded={open}
@@ -195,7 +201,7 @@ export function TimeCombobox({
         onBlur={() => {
           if (open) commitOrRevertTyped()
         }}
-        className="w-28 text-center"
+        className={cn("w-28 text-center", className)}
       />
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Positioner
