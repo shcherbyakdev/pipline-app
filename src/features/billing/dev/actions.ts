@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { env } from "@/env";
 import { applyBillingEvents } from "@/lib/billing/apply-events";
 import { actionEvents, checkoutEvents, classifyTestCard, FAKE_ACTIONS, type FakeAction } from "@/lib/billing/fake-emulator";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireDevBilling } from "./guard";
 import { readFakeRow } from "./queries";
+import { safeReturnUrl } from "./return-url";
 
 /* The fake provider's back office. Every one of these is what a Stripe
    webhook would have POSTed: the emulator builds the same `BillingEvent[]`
@@ -50,18 +50,11 @@ function portalUrl(returnTo: string, extra: Record<string, string> = {}): string
     concatenation, so a `return` that already carries `checkout=success`
     (startCheckout's does) doesn't end up with the param twice.
 
-    The origin check is the open-redirect guard: `return` rides in the query
-    string of a page anyone signed in can open, and "dev-only" is not a reason
-    to hand out a redirect to an arbitrary host. */
+    The origin check is the open-redirect guard (safeReturnUrl): `return` rides
+    in the query string of a page anyone signed in can open, and "dev-only" is
+    not a reason to hand out a redirect to an arbitrary host. */
 function returnUrlWith(returnTo: string, params: Record<string, string>): string {
-  const appUrl = new URL(env.NEXT_PUBLIC_APP_URL);
-  let target: URL;
-  try {
-    target = new URL(returnTo, appUrl);
-  } catch {
-    target = new URL("/billing", appUrl);
-  }
-  if (target.origin !== appUrl.origin) target = new URL("/billing", appUrl);
+  const target = new URL(safeReturnUrl(returnTo));
   for (const [key, value] of Object.entries(params)) target.searchParams.set(key, value);
   return target.toString();
 }
