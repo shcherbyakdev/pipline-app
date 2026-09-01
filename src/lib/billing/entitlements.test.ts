@@ -50,7 +50,7 @@ describe("entitlementsFor", () => {
   it("free defaults", () => {
     const e = entitlementsFor(null, now);
     expect(e.plan).toBe("free");
-    expect(e.bookableResources).toBe(1);
+    expect(e.bookableResources).toBe(2);
     expect(e.publicServices).toBe(3);
     expect(e.hideBadge).toBe(false);
   });
@@ -95,8 +95,8 @@ describe("gates", () => {
   const free = entitlementsFor(null, now);
   const team = entitlementsFor(row({ plan: "team", seats: 5 }), now);
   it("canAddResource", () => {
-    expect(canAddResource(1, free)).toBe(false);
-    expect(canAddResource(0, free)).toBe(true);
+    expect(canAddResource(2, free)).toBe(false);
+    expect(canAddResource(1, free)).toBe(true);
     expect(canAddResource(4, team)).toBe(true);
     expect(canAddResource(5, team)).toBe(false);
   });

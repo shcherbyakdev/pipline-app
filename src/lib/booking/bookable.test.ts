@@ -84,10 +84,10 @@ const services = [{ id: "s1" }, { id: "s2" }, { id: "s3" }, { id: "s4" }];
 const map = { s1: ["a", "b"], s2: ["b"], s3: ["a"], s4: ["c"] };
 
 describe("limitPublicOffering", () => {
-  it("free: primary staff only, then services that person offers, capped at 3", () => {
+  it("free: the first two people, then services they offer, capped at 3", () => {
     const r = limitPublicOffering(services, staff, map, entitlementsFor(null, now));
-    expect(r.staff.map((s) => s.id)).toEqual(["a"]);
-    expect(r.services.map((s) => s.id)).toEqual(["s1", "s3"]); // s2 (b only), s4 (c only) drop; <= 3 anyway
+    expect(r.staff.map((s) => s.id)).toEqual(["a", "b"]);
+    expect(r.services.map((s) => s.id)).toEqual(["s1", "s2", "s3"]); // s4 (c only) drops; <= 3 anyway
   });
 
   it("free with 4 services all offered by the primary → first 3", () => {
@@ -123,10 +123,12 @@ describe("limitPublicOffering", () => {
   // never bites — capping first would have spent a slot on s1 and returned
   // ["s2", "s3"], hiding a service the org may legitimately offer.
   it("narrows to the bookable roster before capping, not after", () => {
+    // c is the third person, outside Free's two slots: s1 must drop BEFORE
+    // the cap of 3 is applied, or the cap would keep s1 and lose s4.
     const r = limitPublicOffering(
       services,
       staff,
-      { s1: ["b"], s2: ["a"], s3: ["a"], s4: ["a"] },
+      { s1: ["c"], s2: ["a"], s3: ["a"], s4: ["a"] },
       entitlementsFor(null, now),
     );
     expect(r.services.map((s) => s.id)).toEqual(["s2", "s3", "s4"]);
@@ -199,15 +201,15 @@ describe("limitPublicResources (H5b: one budget, people first, then units)", () 
     expect(r.staff.map((s) => s.id)).toEqual(["a", "b"]);
     expect(r.units.map((u) => u.id)).toEqual(["u1"]);
   });
-  it("both-mode on Free: the person takes the one slot and every unit is hidden", () => {
+  it("both-mode on Free (two slots): people fill them first and every unit is hidden", () => {
     const r = limitPublicResources(people, units, BOTH, free);
-    expect(r.staff.map((s) => s.id)).toEqual(["a"]);
+    expect(r.staff.map((s) => s.id)).toEqual(["a", "b"]);
     expect(r.units).toEqual([]);
   });
   it("spaces-only: the backfilled staff row neither shows nor spends a slot", () => {
     const r = limitPublicResources(people, units, SPACES, free);
     expect(r.staff).toEqual([]);
-    expect(r.units.map((u) => u.id)).toEqual(["u1"]);
+    expect(r.units.map((u) => u.id)).toEqual(["u1", "u2"]);
   });
   it("appointments-only: units neither show nor spend a slot", () => {
     const r = limitPublicResources(people, units, APPTS, pro);

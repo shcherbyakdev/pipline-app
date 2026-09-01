@@ -49,9 +49,16 @@ page, a Premium section on the landing.
    visitor goes through login and back). The cost FAQ mentions the waitlist.
    No em-dashes, no forbidden words (site.test guards it).
 8. **Existing orgs are capped at once.** With the flag default ON, every org
-   not on the waitlist is Free: 1 bookable resource, 3 public services, 30
-   reminder bookings/month, badge forced. That is the point; the sidebar
-   card and the banner say how to lift it.
+   not on the waitlist is Free: 2 bookable resources (ruling 2026-09-01: you
+   plus one team member is free, the second addition prompts the waitlist;
+   the budget stays shared with units per H5b, so a both-mode org's room
+   spends the second slot), 3 public services, 30 reminder bookings/month,
+   badge forced. The sidebar card and the banner say how to lift it.
+9. **Capped add buttons go to the door.** Team/Services pages ask the same
+   gate the action does; when it would refuse, "New team member" / "New
+   service" is a link to /waitlist (or /billing). Every other "lift the cap"
+   link reads lib/billing/upgrade-path.ts; refusal toasts carry the door as
+   their action.
 
 ## 3. Deferred (deliberately)
 

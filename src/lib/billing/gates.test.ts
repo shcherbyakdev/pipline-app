@@ -29,8 +29,11 @@ const BOTH = { offersAppointments: true, offersRentals: true };
 const SPACES = { offersAppointments: false, offersRentals: true };
 
 describe("resourceGateMessage", () => {
-  it("Free, both-mode, one person → the one-resource copy (no room for a unit)", () => {
-    expect(resourceGateMessage({ activeStaff: 1, activeUnits: 0 }, BOTH, free)).toBe(planLimitResourceError(1, "billing"));
+  it("Free, both-mode, one person + one unit → the cap copy (both slots spent)", () => {
+    expect(resourceGateMessage({ activeStaff: 1, activeUnits: 1 }, BOTH, free)).toBe(planLimitResourceError(2, "billing"));
+  });
+  it("Free, appointments-only, one person → allowed (you plus one member is free)", () => {
+    expect(resourceGateMessage({ activeStaff: 1, activeUnits: 0 }, { offersAppointments: true, offersRentals: false }, free)).toBeNull();
   });
   it("Free, spaces-only, the backfilled person and no unit → allowed", () => {
     expect(resourceGateMessage({ activeStaff: 1, activeUnits: 0 }, SPACES, free)).toBeNull();
@@ -119,23 +122,32 @@ const FLAGS_ON = { rentals: true, billing: true, premium_waitlist: false };
 const FLAGS_WAITLIST = { rentals: true, billing: false, premium_waitlist: true };
 
 describe("evaluateResourceGate", () => {
-  it("Free both-mode org at 1 person + 0 units → refusal", async () => {
+  it("Free both-mode org at 2 people + 0 units → refusal (the second member spent the free slot)", async () => {
     const client = stubClient({
       org_subscriptions: { data: null, error: null },
       orgs: { data: orgModeRow(true, true), error: null },
+      staff: { count: 2, error: null },
+      rental_units: { count: 0, error: null },
+    });
+    await expect(evaluateResourceGate("org-1", client, FLAGS_ON)).resolves.toBe(planLimitResourceError(2, "billing"));
+  });
+  it("Free org at 1 person → allowed: you plus one team member is free", async () => {
+    const client = stubClient({
+      org_subscriptions: { data: null, error: null },
+      orgs: { data: orgModeRow(true, false), error: null },
       staff: { count: 1, error: null },
       rental_units: { count: 0, error: null },
     });
-    await expect(evaluateResourceGate("org-1", client, FLAGS_ON)).resolves.toBe(planLimitResourceError(1, "billing"));
+    await expect(evaluateResourceGate("org-1", client, FLAGS_WAITLIST)).resolves.toBeNull();
   });
   it("with the waitlist as the way up, the Free refusal points at it", async () => {
     const client = stubClient({
       org_subscriptions: { data: null, error: null },
       orgs: { data: orgModeRow(true, true), error: null },
-      staff: { count: 1, error: null },
+      staff: { count: 2, error: null },
       rental_units: { count: 0, error: null },
     });
-    await expect(evaluateResourceGate("org-1", client, FLAGS_WAITLIST)).resolves.toBe(planLimitResourceError(1, "waitlist"));
+    await expect(evaluateResourceGate("org-1", client, FLAGS_WAITLIST)).resolves.toBe(planLimitResourceError(2, "waitlist"));
   });
   it("a waitlisted org gets Pro's budget, and at its cap is told there is no door yet", async () => {
     const waitlisted = (staff: number) => stubClient({

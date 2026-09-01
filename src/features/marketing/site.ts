@@ -199,7 +199,7 @@ export const FAQ: FaqItem[] = [
   {
     question: "What does it cost?",
     answer: BILLING_ON
-      ? "Free for one person or one room: one bookable resource, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and more bookable people and units; see Pricing."
+      ? "Free for you and one more person, or two rooms: two bookable resources, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and more bookable people and units; see Pricing."
       : "Booklo is free during early access. Premium is on its way: join the waitlist from your dashboard and everything it unlocks is yours now, at no cost. We'll announce pricing well before anything changes, and early users will hear first.",
   },
 ];
@@ -239,7 +239,7 @@ const FOUNDER_MONTHLY = formatUsd(PLANS.pro.monthly * FOUNDER_PRICE_FACTOR);
     (lib/billing/plans.ts) directly so a number never lives in two places. */
 export const PRICING = {
   heading: "Simple pricing",
-  sub: "Free for one person or one room. Pay when you need your brand, unlimited services or more bookable resources.",
+  sub: "Free for you and one more person, or two rooms. Pay when you need your brand, unlimited services or more bookable resources.",
   note: "Prices in USD. Taxes are handled at checkout.",
   rows: [
     // H5b: the one row that IS a limit reads it from PLANS so the number can
