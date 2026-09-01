@@ -345,14 +345,15 @@ export async function listExceptionsBetween(
   }));
 }
 
-// Overview tiles (S5): minimal columns, single 90-day starts_at window —
-// see stats.ts for why that also covers the created_at-based tile.
-export async function listStatsBookings(fromIso: string): Promise<StatsBookingRow[]> {
+// Overview activity grid: minimal columns, one org-tz-year starts_at window
+// (see stats.ts).
+export async function listStatsBookings(fromIso: string, toIso: string): Promise<StatsBookingRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("bookings")
     .select("starts_at, status, created_at")
-    .gte("starts_at", fromIso);
+    .gte("starts_at", fromIso)
+    .lt("starts_at", toIso);
   if (error) throw error;
   return (data ?? []).map((b) => ({
     startsAt: b.starts_at,

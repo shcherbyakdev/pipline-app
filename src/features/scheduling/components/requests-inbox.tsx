@@ -134,34 +134,41 @@ function RequestRow({
       router.refresh();
     });
 
+  const when = whenLineFor(
+    {
+      startsAt: new Date(booking.startsAt),
+      endsAt: new Date(booking.endsAt),
+      isRental: booking.rentalUnitId !== null,
+      rangeMode: booking.rangeMode,
+    },
+    timeZone,
+  );
+  const detail = [
+    when,
+    `${booking.serviceName}${booking.staffName ? ` · ${booking.staffName}` : ""}`,
+    booking.priceCents !== null && booking.currency
+      ? formatMoney(booking.priceCents, booking.currency)
+      : null,
+    booking.note ? `“${booking.note}”` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <li className="flex flex-col gap-2 rounded-lg border p-4 text-sm">
-      <p className="font-medium">{booking.clientName}</p>
-      <p>
-        {booking.serviceName}
-        {booking.staffName ? ` · ${booking.staffName}` : ""}
-      </p>
-      <p>
-        {whenLineFor(
-          {
-            startsAt: new Date(booking.startsAt),
-            endsAt: new Date(booking.endsAt),
-            isRental: booking.rentalUnitId !== null,
-            rangeMode: booking.rangeMode,
-          },
-          timeZone,
-        )}
-      </p>
-      {booking.priceCents !== null && booking.currency ? (
-        <p>{formatMoney(booking.priceCents, booking.currency)}</p>
-      ) : null}
-      {booking.note ? (
-        <p className="text-muted-foreground line-clamp-2">“{booking.note}”</p>
-      ) : null}
+    // Actions sit inline beside the text on desktop and wrap below it on
+    // phones — same stacking rule the other admin list rows follow.
+    <li className="flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-medium">{booking.clientName}</p>
+        {/* One truncated line; `title` keeps a long note reachable on hover. */}
+        <p className="text-muted-foreground truncate text-xs" title={detail}>
+          {detail}
+        </p>
+      </div>
       {/* The list repeats these two buttons per request, so the visible word
           alone is an ambiguous accessible name — same disambiguation the
           services and staff lists use (`Delete ${service.name}`). */}
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <Button
           size="sm"
           onClick={accept}
@@ -202,8 +209,11 @@ export function RequestsInbox({
   if (requests.length === 0) return null;
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium">Requests</h2>
-      <ul className="flex flex-col gap-2">
+      <div className="flex items-baseline gap-2">
+        <h2 className="text-sm font-medium">Requests</h2>
+        <span className="text-muted-foreground text-xs">{requests.length}</span>
+      </div>
+      <ul className="bg-card divide-y rounded-xl border">
         {requests.map((b) => (
           <RequestRow key={b.id} booking={b} timeZone={timeZone} />
         ))}
