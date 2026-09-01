@@ -8,6 +8,8 @@ import { setStaffActive } from "@/features/scheduling/staff-actions";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { ServiceRow } from "@/features/scheduling/queries";
 import { bookingPath } from "@/lib/booking/url";
+import { initials } from "@/features/scheduling/staff-slug";
+import { ownerHref } from "@/features/scheduling/availability-owner";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,6 +19,13 @@ function serviceLabel(count: number): string {
   if (count === 0) return "No services";
   return count === 1 ? "1 service" : `${count} services`;
 }
+
+/* Shared column template so the header row and every member row align:
+   Name | Booking link | Role | actions. The fixed tracks (110px + 360px)
+   only fit from lg: up — below that the row keeps the stacked layout, or
+   the fr columns collapse to zero width and the headers pile up. */
+const gridCols =
+  "lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_110px_360px] lg:items-center lg:gap-3";
 
 function Row({
   staff,
@@ -66,57 +75,110 @@ function Row({
     }
   };
 
+  // ponytail: staff have no logins yet (user_id reserved), so "role" is
+  // derived — the creator's seeded row is always sort_order 0 and it is
+  // never user-editable. Replace with a real role once invites land.
+  const role =
+    staff.sortOrder === 0 ? (
+      <Badge variant="secondary">Owner</Badge>
+    ) : (
+      <span className="text-muted-foreground text-xs">Member</span>
+    );
+
   return (
-    <li className="bg-card flex flex-col gap-2 rounded-xl border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-      <div className="flex min-w-0 items-center gap-2.5">
+    <li
+      className={cn(
+        "group relative flex flex-col gap-2 rounded-lg px-3 py-2 hover:bg-muted/50",
+        gridCols
+      )}
+    >
+      {/* Below lg the switch is pinned top-right next to the name (the
+          absolute variant wins over the base `relative`), so the stacked
+          row reads name → link → actions instead of leaving the switch
+          alone on a wrapped line. */}
+      <div className="flex min-w-0 items-center gap-3 max-lg:pr-12">
         <span
           aria-hidden
           style={{ background: staff.color }}
-          className="size-2.5 shrink-0 rounded-full"
-        />
-        <div className="flex min-w-0 flex-col gap-0.5">
+          className="flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-medium text-white"
+        >
+          {initials(staff.name)}
+        </span>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium">{staff.name}</span>
+            <span className="truncate text-[13px] font-medium">{staff.name}</span>
+            <span className="lg:hidden">{role}</span>
             {!staff.active ? <Badge variant="outline">Inactive</Badge> : null}
+            {overPlanLimit ? (
+              <Badge
+                variant="destructive"
+                title="Not on your public page — over your plan's limit"
+              >
+                Over plan limit
+                <span className="sr-only">
+                  : not shown on your public page because it is over your
+                  plan&apos;s limit
+                </span>
+              </Badge>
+            ) : null}
           </div>
           <p className="text-muted-foreground truncate text-xs">
             {serviceLabel(staff.serviceIds.length)}
-            {path ? <span className="font-mono"> · {path}</span> : null}
-            {overPlanLimit ? " · Not on your public page — over your plan's limit" : null}
           </p>
         </div>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
-        {path ? (
-          <>
-            <Button variant="ghost" size="xs" onClick={copyLink}>
-              Copy link
-            </Button>
-            {/*
-              A plain styled Link, not <Button render={<Link .../>}>: base-ui's
-              Button enforces button semantics on whatever it renders, and its
-              own docs say links should not go through that render prop
-              (rentals/components/offerings-list.tsx makes the same call).
-            */}
+      <p
+        className={cn(
+          "text-muted-foreground truncate font-mono text-xs max-lg:pl-9",
+          !path && "max-lg:hidden"
+        )}
+      >
+        {path ?? "—"}
+      </p>
+      <span className="max-lg:hidden">{role}</span>
+      <div className="flex items-center gap-2 max-lg:flex-wrap lg:justify-end">
+        {/* Row actions surface on hover/focus (always visible below lg,
+            where there is no reliable hover). */}
+        <span className="flex items-center gap-1 lg:opacity-0 lg:transition-opacity lg:group-focus-within:opacity-100 lg:group-hover:opacity-100">
+          {staff.active ? (
             <Link
-              href={`/embed?staff=${staff.slug}`}
+              href={ownerHref({ kind: "staff", id: staff.id })}
               className={cn(buttonVariants({ variant: "ghost", size: "xs" }))}
             >
-              Embed…
+              Hours
             </Link>
-          </>
-        ) : null}
-        <StaffDialog
-          staff={staff}
-          services={services}
-          usedColors={usedColors}
-          handle={handle}
-        />
+          ) : null}
+          {path ? (
+            <>
+              <Button variant="ghost" size="xs" onClick={copyLink}>
+                Copy link
+              </Button>
+              {/*
+                A plain styled Link, not <Button render={<Link .../>}>: base-ui's
+                Button enforces button semantics on whatever it renders, and its
+                own docs say links should not go through that render prop
+                (rentals/components/offerings-list.tsx makes the same call).
+              */}
+              <Link
+                href={`/embed?staff=${staff.slug}`}
+                className={cn(buttonVariants({ variant: "ghost", size: "xs" }))}
+              >
+                Embed…
+              </Link>
+            </>
+          ) : null}
+          <StaffDialog
+            staff={staff}
+            services={services}
+            usedColors={usedColors}
+            handle={handle}
+          />
+        </span>
         <Switch.Root
           checked={active}
           onCheckedChange={onToggle}
           aria-label={`${staff.name} is bookable`}
-          className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-input bg-muted transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-checked:bg-primary data-disabled:opacity-50"
+          className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-input bg-muted transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-checked:bg-primary data-disabled:opacity-50 max-lg:absolute max-lg:top-2.5 max-lg:right-3"
         >
           <Switch.Thumb className="size-3.5 translate-x-0.5 rounded-full bg-background shadow-sm transition-[translate] data-checked:translate-x-[18px]" />
         </Switch.Root>
@@ -151,7 +213,18 @@ export function StaffList({
           — then everyone gets their own link.
         </p>
       )}
-      <ol className="flex flex-col gap-2">
+      <div
+        className={cn(
+          "hidden border-b px-3 pb-2 text-xs font-medium text-muted-foreground",
+          gridCols
+        )}
+      >
+        <span>Name</span>
+        <span>Booking link</span>
+        <span>Role</span>
+        <span aria-hidden />
+      </div>
+      <ol className="flex flex-col max-lg:divide-y">
         {staff.map((person) => (
           <Row
             key={person.id}

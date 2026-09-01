@@ -16,8 +16,10 @@ export const STAFF_COLORS = [
   "#4f46e5",
   "#0e7490",
   "#047857",
-  "#b45309",
-  "#dc2626",
+  // Darker than the tailwind-700/600 originals so 10px white initials hold
+  // ≥4.5:1 on every swatch (2026-09-01 audit; the rest already passed).
+  "#92400e",
+  "#b91c1c",
   "#7c3aed",
   "#be185d",
   "#475569",

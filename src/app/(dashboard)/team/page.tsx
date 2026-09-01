@@ -31,11 +31,11 @@ export default async function TeamPage() {
   const firstActive = staff.find((s) => s.active) ?? null;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-      <PageIntro>
-        Your bookable people. Each has their own hours, services and booking link.
-      </PageIntro>
-      <div className="flex items-center justify-end">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <PageIntro>
+          Your bookable people. Each has their own hours, services and booking link.
+        </PageIntro>
         <StaffDialog
           services={services}
           usedColors={staff.map((s) => s.color)}
