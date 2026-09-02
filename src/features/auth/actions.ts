@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { afterLogin, RECOVERY_COOKIE } from "@/lib/auth/next-path";
 import { env } from "@/env";
@@ -13,13 +13,26 @@ import {
   newPasswordSchema,
   type AuthState,
 } from "./schema";
+import type en from "../../../messages/en.json";
+
+type AuthT = Awaited<ReturnType<typeof getTranslations<"auth">>>;
+type AuthErrorKey = `errors.${keyof (typeof en)["auth"]["errors"]}`;
+
+// Zod issue messages are keys (schema.ts). An issue we did not write a key
+// for falls back to the action's generic message. t.has() is the runtime
+// check; the cast is the one place a checked string meets the typed t.
+function issueMessage(t: AuthT, issue: { message: string } | undefined, fallback: AuthErrorKey): string {
+  const key = issue?.message;
+  return key && t.has(key as AuthErrorKey) ? t(key as AuthErrorKey) : t(fallback);
+}
 
 export async function sendMagicLink(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const t = await getTranslations("auth");
   const parsed = emailSchema.safeParse({ email: formData.get("email") });
-  if (!parsed.success) return { error: "Enter a valid email address." };
+  if (!parsed.success) return { error: t("errors.emailInvalid") };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
@@ -27,7 +40,7 @@ export async function sendMagicLink(
     options: { emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/confirm` },
   });
 
-  if (error) return { error: "Could not send the link. Try again shortly." };
+  if (error) return { error: t("errors.linkFailed") };
   return { sent: true };
 }
 
@@ -35,17 +48,18 @@ export async function signInWithPassword(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const t = await getTranslations("auth");
   const parsed = signInSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
-  if (!parsed.success) return { error: "Enter a valid email and password." };
+  if (!parsed.success) return { error: t("errors.credentialsInvalid") };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   // Generic on purpose: raw Supabase messages distinguish unknown accounts
   // from unconfirmed ones, which leaks account existence.
-  if (error) return { error: "Invalid email or password." };
+  if (error) return { error: t("errors.signInFailed") };
   // Back to the page the session expired on (requireUser / the proxy set
   // it); afterLogin refuses anything that is not a same-site path.
   redirect(afterLogin(formData.get("next")));
@@ -55,16 +69,14 @@ export async function signUp(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const t = await getTranslations("auth");
   const parsed = signUpSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
     handle: formData.get("handle"),
   });
   if (!parsed.success) {
-    return {
-      error:
-        parsed.error.issues[0]?.message ?? "Enter a valid email and password.",
-    };
+    return { error: issueMessage(t, parsed.error.issues[0], "errors.credentialsInvalid") };
   }
 
   const supabase = await createClient();
@@ -87,12 +99,12 @@ export async function signUp(
     // a rejected password (HIBP leaked-password protection at launch) and
     // the auth rate limit. Everything else stays generic.
     if (error.code === "weak_password") {
-      return { error: "That password is too common or has appeared in a data breach — choose another." };
+      return { error: t("errors.passwordWeak") };
     }
     if (error.code === "over_request_rate_limit" || error.code === "over_email_send_rate_limit") {
-      return { error: "Too many attempts — wait a few minutes and try again." };
+      return { error: t("errors.tooManyAttempts") };
     }
-    return { error: "Could not create your account. Try again." };
+    return { error: t("errors.signUpFailed") };
   }
   // Existing emails get an obfuscated user (no error) from Supabase when
   // confirmations are on, so this copy never reveals account existence.
@@ -103,8 +115,9 @@ export async function requestPasswordReset(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const t = await getTranslations("auth");
   const parsed = emailSchema.safeParse({ email: formData.get("email") });
-  if (!parsed.success) return { error: "Enter a valid email address." };
+  if (!parsed.success) return { error: t("errors.emailInvalid") };
 
   const supabase = await createClient();
   // The recovery template hardcodes next=/reset-password; redirectTo only
@@ -124,14 +137,13 @@ export async function updatePassword(
   _prev: AuthState,
   formData: FormData,
 ): Promise<AuthState> {
+  const t = await getTranslations("auth");
   const parsed = newPasswordSchema.safeParse({
     password: formData.get("password"),
     confirm: formData.get("confirm"),
   });
   if (!parsed.success) {
-    return {
-      error: parsed.error.issues[0]?.message ?? "Enter a valid password.",
-    };
+    return { error: issueMessage(t, parsed.error.issues[0], "errors.passwordInvalid") };
   }
 
   const supabase = await createClient();
@@ -146,14 +158,14 @@ export async function updatePassword(
   // 15 minutes; it is spent here.
   const jar = await cookies();
   if (!jar.get(RECOVERY_COOKIE)) {
-    return { error: "Your reset link has expired — request a new one." };
+    return { error: t("errors.resetExpired") };
   }
 
   const { error } = await supabase.auth.updateUser({
     password: parsed.data.password,
   });
   if (error) {
-    return { error: "Could not update your password. Request a new reset link." };
+    return { error: t("errors.updateFailed") };
   }
   jar.delete(RECOVERY_COOKIE);
   redirect("/bookings");

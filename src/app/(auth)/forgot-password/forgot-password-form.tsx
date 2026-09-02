@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { requestPasswordReset } from "@/features/auth/actions";
 import type { AuthState } from "@/features/auth/schema";
 import { Button } from "@/components/ui/button";
@@ -11,27 +12,25 @@ const initial: AuthState = {};
 
 export function ForgotPasswordForm() {
   const [state, action, pending] = useActionState(requestPasswordReset, initial);
+  const t = useTranslations("auth");
 
   if (state.sent) {
     return (
-      <p className="text-center text-sm">
-        If an account exists for that address, you&apos;ll receive a password
-        reset link.
-      </p>
+      <p className="text-center text-sm">{t("forgot.sent")}</p>
     );
   }
 
   return (
     <form action={action} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("email")}</Label>
         <Input
           id="email"
           name="email"
           type="email"
           required
           autoComplete="email"
-          placeholder="you@company.com"
+          placeholder={t("emailPlaceholder")}
           className="h-11 rounded-xl"
         />
       </div>
@@ -39,7 +38,7 @@ export function ForgotPasswordForm() {
         <p className="text-destructive text-sm">{state.error}</p>
       ) : null}
       <Button type="submit" disabled={pending} className="h-11">
-        {pending ? "Sending…" : "Send reset link"}
+        {pending ? t("forgot.sending") : t("forgot.submit")}
       </Button>
     </form>
   );

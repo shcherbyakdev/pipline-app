@@ -70,7 +70,7 @@ describe("newPasswordSchema", () => {
     });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0]?.message).toBe("Passwords don't match.");
+      expect(result.error.issues[0]?.message).toBe("errors.passwordsMismatch");
     }
   });
   it("rejects passwords shorter than 8 characters even when matching", () => {

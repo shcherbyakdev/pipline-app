@@ -70,14 +70,14 @@ describe("sendMagicLink", () => {
       error: { message: "rate limit exceeded" },
     });
     const state = await sendMagicLink({}, form({ email: "a@b.com" }));
-    expect(state.error).toBe("Could not send the link. Try again shortly.");
+    expect(state.error).toBe("errors.linkFailed");
   });
 });
 
 describe("signInWithPassword", () => {
   it("returns a validation error without calling Supabase on bad input", async () => {
     const state = await signInWithPassword({}, form({ email: "nope", password: "" }));
-    expect(state.error).toBe("Enter a valid email and password.");
+    expect(state.error).toBe("errors.credentialsInvalid");
     expect(auth.signInWithPassword).not.toHaveBeenCalled();
   });
 
@@ -89,7 +89,7 @@ describe("signInWithPassword", () => {
       {},
       form({ email: "a@b.com", password: "wrong-pass" }),
     );
-    expect(state.error).toBe("Invalid email or password.");
+    expect(state.error).toBe("errors.signInFailed");
   });
 
   it("redirects to /bookings on success", async () => {
@@ -115,7 +115,7 @@ describe("signInWithPassword", () => {
 describe("signUp", () => {
   it("surfaces the password policy message on short passwords", async () => {
     const state = await signUp({}, form({ email: "a@b.com", password: "short" }));
-    expect(state.error).toBe("Password must be at least 8 characters.");
+    expect(state.error).toBe("errors.passwordMin");
     expect(auth.signUp).not.toHaveBeenCalled();
   });
 
@@ -133,7 +133,7 @@ describe("signUp", () => {
   it("maps Supabase errors to generic copy", async () => {
     auth.signUp.mockResolvedValue({ error: { message: "boom" } });
     const state = await signUp({}, form({ email: "a@b.com", password: "12345678" }));
-    expect(state.error).toBe("Could not create your account. Try again.");
+    expect(state.error).toBe("errors.signUpFailed");
   });
 
   it("stores a claimed handle as user metadata next to the locale", async () => {
@@ -166,7 +166,7 @@ describe("requestPasswordReset", () => {
 
   it("rejects an invalid email before calling Supabase", async () => {
     const state = await requestPasswordReset({}, form({ email: "nope" }));
-    expect(state.error).toBe("Enter a valid email address.");
+    expect(state.error).toBe("errors.emailInvalid");
     expect(auth.resetPasswordForEmail).not.toHaveBeenCalled();
   });
 });
@@ -184,14 +184,14 @@ describe("updatePassword", () => {
       {},
       form({ password: "12345678", confirm: "12345679" }),
     );
-    expect(state.error).toBe("Passwords don't match.");
+    expect(state.error).toBe("errors.passwordsMismatch");
     expect(auth.updateUser).not.toHaveBeenCalled();
   });
 
   it("refuses a session that did not come from a recovery link", async () => {
     auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
     const state = await updatePassword({}, form({ password: "12345678", confirm: "12345678" }));
-    expect(state.error).toMatch(/reset link has expired/);
+    expect(state.error).toBe("errors.resetExpired");
     expect(auth.updateUser).not.toHaveBeenCalled();
   });
 
@@ -214,21 +214,17 @@ describe("updatePassword", () => {
       {},
       form({ password: "12345678", confirm: "12345678" }),
     );
-    expect(state.error).toBe(
-      "Could not update your password. Request a new reset link.",
-    );
+    expect(state.error).toBe("errors.updateFailed");
   });
 });
 
 describe("signUp error codes", () => {
   it("names a rejected (leaked/common) password and the rate limit; everything else stays generic", async () => {
     auth.signUp.mockResolvedValueOnce({ error: { code: "weak_password", message: "x" } });
-    expect((await signUp({}, form({ email: "a@b.com", password: "password1" }))).error).toMatch(/data breach/);
+    expect((await signUp({}, form({ email: "a@b.com", password: "password1" }))).error).toBe("errors.passwordWeak");
     auth.signUp.mockResolvedValueOnce({ error: { code: "over_request_rate_limit", message: "x" } });
-    expect((await signUp({}, form({ email: "a@b.com", password: "password1" }))).error).toMatch(/Too many attempts/);
+    expect((await signUp({}, form({ email: "a@b.com", password: "password1" }))).error).toBe("errors.tooManyAttempts");
     auth.signUp.mockResolvedValueOnce({ error: { code: "user_already_exists", message: "x" } });
-    expect((await signUp({}, form({ email: "a@b.com", password: "password1" }))).error).toBe(
-      "Could not create your account. Try again.",
-    );
+    expect((await signUp({}, form({ email: "a@b.com", password: "password1" }))).error).toBe("errors.signUpFailed");
   });
 });

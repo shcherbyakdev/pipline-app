@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { sendMagicLink, signInWithPassword } from "@/features/auth/actions";
 import type { AuthState } from "@/features/auth/schema";
 import { Button } from "@/components/ui/button";
@@ -22,31 +23,32 @@ export function LoginForm({ next = null }: { next?: string | null }) {
 
 function PasswordForm({ onSwitch, next }: { onSwitch: () => void; next: string | null }) {
   const [state, action, pending] = useActionState(signInWithPassword, initial);
+  const t = useTranslations("auth");
 
   return (
     <form action={action} className="flex flex-col gap-4">
       {/* Validated again server-side (afterLogin) — this is only a carrier. */}
       {next ? <input type="hidden" name="next" value={next} /> : null}
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("email")}</Label>
         <Input
           id="email"
           name="email"
           type="email"
           required
           autoComplete="email"
-          placeholder="you@company.com"
+          placeholder={t("emailPlaceholder")}
           className="h-11 rounded-xl"
         />
       </div>
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">{t("password")}</Label>
           <Link
             href="/forgot-password"
             className="text-muted-foreground text-xs hover:underline"
           >
-            Forgot password?
+            {t("login.forgot")}
           </Link>
         </div>
         <PasswordInput
@@ -61,10 +63,10 @@ function PasswordForm({ onSwitch, next }: { onSwitch: () => void; next: string |
         <p className="text-destructive text-sm">{state.error}</p>
       ) : null}
       <Button type="submit" disabled={pending} className="h-11">
-        {pending ? "Signing in…" : "Sign in"}
+        {pending ? t("login.submitting") : t("login.submit")}
       </Button>
       <Button type="button" variant="outline" onClick={onSwitch} className="h-11">
-        Email me a magic link instead
+        {t("login.useMagic")}
       </Button>
     </form>
   );
@@ -72,24 +74,25 @@ function PasswordForm({ onSwitch, next }: { onSwitch: () => void; next: string |
 
 function MagicLinkForm({ onSwitch }: { onSwitch: () => void }) {
   const [state, action, pending] = useActionState(sendMagicLink, initial);
+  const t = useTranslations("auth");
 
   if (state.sent) {
     return (
-      <p className="text-center text-sm">Check your email for a magic link to sign in.</p>
+      <p className="text-center text-sm">{t("login.magicSent")}</p>
     );
   }
 
   return (
     <form action={action} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("email")}</Label>
         <Input
           id="email"
           name="email"
           type="email"
           required
           autoComplete="email"
-          placeholder="you@company.com"
+          placeholder={t("emailPlaceholder")}
           className="h-11 rounded-xl"
         />
       </div>
@@ -97,10 +100,10 @@ function MagicLinkForm({ onSwitch }: { onSwitch: () => void }) {
         <p className="text-destructive text-sm">{state.error}</p>
       ) : null}
       <Button type="submit" disabled={pending} className="h-11">
-        {pending ? "Sending…" : "Send magic link"}
+        {pending ? t("login.sending") : t("login.sendMagic")}
       </Button>
       <Button type="button" variant="outline" onClick={onSwitch} className="h-11">
-        Sign in with a password instead
+        {t("login.usePassword")}
       </Button>
     </form>
   );
