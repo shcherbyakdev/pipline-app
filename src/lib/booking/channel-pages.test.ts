@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { frontDoor, resolveChannelPage, rootRedirect } from "./channel-pages";
+import { frontDoor, resolveChannelPage, rootRedirect, channelReach } from "./channel-pages";
 
 const BOTH = { services: true, spaces: true };
 const APPTS = { services: true, spaces: false };
@@ -55,5 +55,21 @@ describe("rootRedirect (spec 2026-08-28 §3.2 amendment)", () => {
   });
   it("an appointments-only org has no spaces page to send it to", () => {
     expect(rootRedirect("anna", appointmentsRoot, APPTS, { channel: "spaces" })).toBeNull();
+  });
+});
+
+describe("channelReach — what the studio may promise about a channel (Free cap, 2026-09-02)", () => {
+  const both = { services: true, spaces: true };
+  it("reachable when the plan-limited public catalogue has the channel; capped when the admin has it bookable but the plan hides all of it", () => {
+    expect(channelReach("spaces", both, { services: true, spaces: false })).toEqual({ reachable: false, capped: true });
+    expect(channelReach("spaces", both, both)).toEqual({ reachable: true, capped: false });
+    expect(channelReach("appointments", both, { services: false, spaces: true })).toEqual({ reachable: false, capped: true });
+  });
+  it("nothing bookable in the admin either: not reachable, not capped — the starter's job, not a plan notice", () => {
+    expect(channelReach("spaces", { services: true, spaces: false }, { services: true, spaces: false })).toEqual({ reachable: false, capped: false });
+  });
+  it("no cap applies (null public view): the admin's own answer stands", () => {
+    expect(channelReach("spaces", both, null)).toEqual({ reachable: true, capped: false });
+    expect(channelReach("spaces", { services: true, spaces: false }, null)).toEqual({ reachable: false, capped: false });
   });
 });

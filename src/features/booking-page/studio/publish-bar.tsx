@@ -14,11 +14,14 @@ const STATUS_LABEL: Record<SaveStatus, string | null> = {
    the builder above both panes, so it never disappears behind a tab or the
    section inspector. */
 export function PublishBar({
-  status, unpublished, neverPublished, busy, pageIssue, liveUrl, onRetry, onPublish, onDiscard,
+  status, unpublished, neverPublished, busy, pageIssue, liveUrl, capped = null, onRetry, onPublish, onDiscard,
 }: {
   status: SaveStatus; unpublished: boolean; neverPublished: boolean; busy: boolean;
   /** Page-level zod message (exactly-one-booking etc.), if any. */
   pageIssue?: string; liveUrl: string | null;
+  /** The plan hides this channel from the public page: clients would see a
+      not-found page. `href` is the door out (the waitlist or plans), if any. */
+  capped?: { href: string | null } | null;
   onRetry: () => void; onPublish: () => void; onDiscard: () => void;
 }) {
   const label = STATUS_LABEL[status];
@@ -36,6 +39,17 @@ export function PublishBar({
         {label ? <span role="status" className={cn("text-xs", bad ? "text-destructive" : "text-muted-foreground")}>{label}</span> : null}
         {status === "error" ? <Button size="xs" variant="ghost" onClick={onRetry}>Retry</Button> : null}
         {pageIssue ? <span className="text-destructive text-xs">{pageIssue}</span> : null}
+        {capped ? (
+          <span role="status" className="text-amber-700 dark:text-amber-400 text-xs">
+            Not on your public page — over your plan&apos;s limit, so clients would see a not-found page.
+            {capped.href ? (
+              <>
+                {" "}
+                <a href={capped.href} className="underline underline-offset-3">Lift the limit</a>
+              </>
+            ) : null}
+          </span>
+        ) : null}
       </div>
       <div className="flex items-center gap-2">
         {liveUrl ? (

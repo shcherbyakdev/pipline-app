@@ -20,6 +20,16 @@ export function frontDoor(has: Has): PageChannel | null {
   return null;
 }
 
+/** What the studio may promise about a channel. `admin` is what the org
+    has bookable by its own rows; `pub` is the plan-limited public view
+    (null = no cap applies). Capped = the org has it, the plan hides all of
+    it — the studio then warns instead of offering a link that 404s. */
+export function channelReach(channel: PageChannel, admin: Has, pub: Has | null): { reachable: boolean; capped: boolean } {
+  const key = channel === "appointments" ? "services" : "spaces";
+  const reachable = pub ? pub[key] : admin[key];
+  return { reachable, capped: admin[key] && !reachable };
+}
+
 export function resolveChannelPage(route: "root" | "spaces", has: Has): ChannelPage | null {
   if (route === "root") {
     const channel = frontDoor(has);
