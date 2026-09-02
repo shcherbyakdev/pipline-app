@@ -26,7 +26,6 @@ import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
 import { RangePicker, type RangeValue } from "./range-picker";
 import { UnitSelect } from "./unit-select";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogBreadcrumbHeader,
@@ -362,18 +361,16 @@ export function MoveRentalDialog({
                       {t("form.change")}
                     </button>
                   </p>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="move-rental-hour-unit">{t("form.unit")}</Label>
-                    <UnitSelect
-                      id="move-rental-hour-unit"
-                      units={hourUnits}
-                      freeUnitIds={freeHourUnitIds}
-                      value={unitId}
-                      onChange={setUnitId}
-                      keepUnitId={booking.rentalUnitId}
-                      keepUnitName={keepHourUnitName}
-                    />
-                  </div>
+                  <UnitSelect
+                    id="move-rental-hour-unit"
+                    label={t("form.unit")}
+                    units={hourUnits}
+                    freeUnitIds={freeHourUnitIds}
+                    value={unitId}
+                    onChange={setUnitId}
+                    keepUnitId={booking.rentalUnitId}
+                    keepUnitName={keepHourUnitName}
+                  />
                   <Button onClick={confirmHours} disabled={pending}>
                     {pending ? t("move.moving") : t("move.title")}
                   </Button>
@@ -403,18 +400,16 @@ export function MoveRentalDialog({
               />
               {range.start && range.end ? (
                 <>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="move-rental-unit">{t("form.unit")}</Label>
-                    <UnitSelect
-                      id="move-rental-unit"
-                      units={units}
-                      freeUnitIds={freeUnitIds}
-                      value={unitId}
-                      onChange={setUnitId}
-                      keepUnitId={booking.rentalUnitId}
-                      keepUnitName={keepUnitName}
-                    />
-                  </div>
+                  <UnitSelect
+                    id="move-rental-unit"
+                    label={t("form.unit")}
+                    units={units}
+                    freeUnitIds={freeUnitIds}
+                    value={unitId}
+                    onChange={setUnitId}
+                    keepUnitId={booking.rentalUnitId}
+                    keepUnitName={keepUnitName}
+                  />
                   <Button onClick={confirm} disabled={pending || !stay?.ok}>
                     {pending ? t("move.moving") : t("move.stayTitle")}
                   </Button>

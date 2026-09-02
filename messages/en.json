@@ -517,10 +517,12 @@
     "back": "← Spaces",
     "addUnit": "Add a unit to your space",
     "intro": "Rooms, studios and gear, booked by the hour, night or day.",
-    "empty": "No spaces yet — a space is a room, studio or item clients book by the hour, night or day. Add one, then add its units.",
-    "timelineEmpty": "No spaces yet — add a space and its units under",
+    "empty": "No spaces yet — a space is a room, studio or item clients book by the hour, night or day.",
+    "timelineEmpty": "No spaces yet — add a space under",
     "unitsHint": "Units are the individual rooms or items a client is assigned — one per room.",
     "unitsEmpty": "No units yet — the space won't appear on your booking page until it has an active unit.",
+    "blackoutsHint": "Dates this space can't be booked — maintenance, your own stay, a closed week.",
+    "splitIntoUnits": "Several identical rooms or items? Split this space into units →",
     "field": "Space",
     "pickerBoth": "Space or service",
     "badge": "Space",
@@ -558,7 +560,8 @@
       "keep": "Keep",
       "deleteAria": "Delete {name}",
       "bookableAria": "{name} is bookable",
-      "deleted": "Deleted"
+      "deleted": "Deleted",
+      "details": "Details"
     },
     "detail": {
       "openingHours": "Opening hours",
@@ -635,7 +638,7 @@
       "deleteAria": "Delete unit {name}",
       "blackouts": {
         "title": "Unavailable dates",
-        "none": "None — this unit is bookable all year.",
+        "none": "None — bookable all year.",
         "from": "Unavailable from",
         "until": "Unavailable until",
         "reason": "Reason",

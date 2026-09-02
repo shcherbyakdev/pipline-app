@@ -11,7 +11,6 @@ import { formatHourlyWhenLine } from "@/features/scheduling/templates";
 import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
 import { UnitSelect } from "./unit-select";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 
 function todayISO(): string {
   return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(
@@ -171,18 +170,16 @@ export function HourlyReschedulePanel({
             </button>
           </p>
           {picksUnit ? (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="hourly-reschedule-unit">{t("unit")}</Label>
-              <UnitSelect
-                id="hourly-reschedule-unit"
-                units={units}
-                freeUnitIds={freeUnitIds}
-                value={unitId}
-                onChange={setUnitId}
-                keepUnitId={currentUnitId}
-                keepUnitName={currentUnitName}
-              />
-            </div>
+            <UnitSelect
+              id="hourly-reschedule-unit"
+              label={t("unit")}
+              units={units}
+              freeUnitIds={freeUnitIds}
+              value={unitId}
+              onChange={setUnitId}
+              keepUnitId={currentUnitId}
+              keepUnitName={currentUnitName}
+            />
           ) : null}
           <Button onClick={confirm} disabled={pending}>
             {pending ? t("rescheduling") : t("confirmNewTime")}

@@ -167,8 +167,12 @@ export function RentalBookingFlow({
   }
 
   // Preview has no units (canned availability only): the details form
-  // follows the dates directly, as it does for an auto-assigned space.
-  const needsUnitStep = !preview && offering.unitSelection === "client_picks" && !unitId;
+  // follows the dates directly, as it does for an auto-assigned space. So
+  // does a single-unit space — there is nothing to pick (`!== 1`, not
+  // `> 1`: while units are still loading the step stays put, so a
+  // multi-unit space never flashes the details form first).
+  const needsUnitStep =
+    !preview && offering.unitSelection === "client_picks" && units.length !== 1 && !unitId;
   // The earliest month the picker may show: this one — or the canned one.
   const homeMonth = monthOf(preview ? preview.availability.notBefore : todayISO());
 

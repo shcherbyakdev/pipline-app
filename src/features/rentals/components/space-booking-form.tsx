@@ -22,7 +22,6 @@ import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
 import { RangePicker, type RangeValue } from "./range-picker";
 import { UnitSelect } from "./unit-select";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 
 // See move-rental-dialog.tsx: 62 rendered days + the longest turnover tail.
 const WINDOW_DAYS = 93;
@@ -372,16 +371,14 @@ export function SpaceBookingForm({
                   {t("form.change")}
                 </button>
               </p>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="new-rental-hour-unit">{t("form.unit")}</Label>
-                <UnitSelect
-                  id="new-rental-hour-unit"
-                  units={hourUnits}
-                  freeUnitIds={freeHourUnitIds}
-                  value={effectiveHourUnitId}
-                  onChange={setUnitId}
-                />
-              </div>
+              <UnitSelect
+                id="new-rental-hour-unit"
+                label={t("form.unit")}
+                units={hourUnits}
+                freeUnitIds={freeHourUnitIds}
+                value={effectiveHourUnitId}
+                onChange={setUnitId}
+              />
               <ClientDetailsFields emailOptional idPrefix="new-rental-hour-" />
               <Button type="submit" disabled={pending}>
                 {pending ? tCommon("creating") : t("create.button")}
@@ -408,16 +405,14 @@ export function SpaceBookingForm({
           />
           {range.start && range.end ? (
             <form action={submit} className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="new-rental-unit">{t("form.unit")}</Label>
-                <UnitSelect
-                  id="new-rental-unit"
-                  units={units}
-                  freeUnitIds={freeUnitIds}
-                  value={effectiveUnitId}
-                  onChange={setUnitId}
-                />
-              </div>
+              <UnitSelect
+                id="new-rental-unit"
+                label={t("form.unit")}
+                units={units}
+                freeUnitIds={freeUnitIds}
+                value={effectiveUnitId}
+                onChange={setUnitId}
+              />
               <ClientDetailsFields emailOptional idPrefix="new-rental-" />
               <Button type="submit" disabled={pending || !stay?.ok}>
                 {pending ? tCommon("creating") : t("create.button")}

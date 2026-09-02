@@ -169,6 +169,23 @@ export async function updateOffering(input: unknown): Promise<ActionState> {
     .maybeSingle();
   if (error) return fail("updateOffering", error);
   if (!data) return generic();
+  // A single-unit space never shows its unit — the space is the unit — so
+  // the unit's name follows the space's. Best-effort: a stale unit name only
+  // shows where two names differ (unit-label.ts), never blocks the save.
+  const { data: units, error: unitsError } = await supabase
+    .from("rental_units")
+    .select("id")
+    .eq("offering_id", id)
+    .limit(2);
+  if (unitsError) console.error("[rentals] updateOffering units:", unitsError);
+  else if (units?.length === 1) {
+    const { error: renameError } = await supabase
+      .from("rental_units")
+      .update({ name: rest.name })
+      .eq("id", units[0].id)
+      .eq("org_id", orgId);
+    if (renameError) console.error("[rentals] updateOffering unit rename:", renameError);
+  }
   revalidatePath("/rentals");
   revalidatePath(`/rentals/${id}`);
   revalidatePath("/availability");

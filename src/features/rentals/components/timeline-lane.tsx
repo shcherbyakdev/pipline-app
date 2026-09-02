@@ -7,6 +7,7 @@ import { TriangleAlert } from "lucide-react";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { TimelineOffering, TimelineBlackout } from "@/features/rentals/queries";
 import { barSpan, blackoutSpan, turnoverSpan } from "@/features/rentals/timeline-geometry";
+import { withUnit } from "@/features/rentals/unit-label";
 import {
   continuationLabels,
   dayMonth,
@@ -157,6 +158,9 @@ export function TimelineLane({
   );
   const compact = zoom === 56;
   const maxPerDay = byDay ? Math.max(1, ...[...byDay.values()].map((l) => l.length)) : 1;
+  // What this lane is called to a person: the unit for a split space, the
+  // space itself for a single-unit one (its unit is never shown anywhere).
+  const laneName = offering.units.length > 1 ? unit.name : offering.name;
   const laneHeight =
     mode === "hours"
       ? compact ? ROW_PX : Math.max(ROW_PX, maxPerDay * CHIP_PX + 8)
@@ -170,7 +174,8 @@ export function TimelineLane({
         className="bg-background border-border/60 sticky left-0 z-20 flex items-center gap-2 border-b pr-3 pl-6"
         style={{ ...RAIL_PAN_STYLE, minHeight: laneHeight }}
       >
-        <span className="truncate text-sm">{unit.name}</span>
+        {/* A single-unit space is named once, in the header above its lane. */}
+        {offering.units.length > 1 ? <span className="truncate text-sm">{laneName}</span> : null}
         {unit.active ? null : (
           <Badge variant="outline" className="shrink-0">
             {tCommon("inactive")}
@@ -191,7 +196,7 @@ export function TimelineLane({
                 key={d}
                 type="button"
                 disabled={past}
-                aria-label={t("timeline.newHere", { unit: unit.name, date: cellDateLabel(d, intlLocale) })}
+                aria-label={t("timeline.newHere", { unit: laneName, date: cellDateLabel(d, intlLocale) })}
                 onClick={() => onNew({ offeringId: offering.id, unitId: unit.id, date: d })}
                 className={cn(
                   "border-border/40 border-r last:border-r-0",
@@ -290,7 +295,7 @@ export function TimelineLane({
                       startsAt={startsAt}
                       endsAt={endsAt}
                       offering={offering}
-                      unitName={unit.name}
+                      unitName={laneName}
                       timeZone={timeZone}
                       now={now}
                       conflicts={conflicts.get(b.id) ?? []}
@@ -318,7 +323,7 @@ export function TimelineLane({
                   date={dayList[idx]}
                   list={list}
                   offering={offering}
-                  unitName={unit.name}
+                  unitName={laneName}
                   timeZone={timeZone}
                   conflicts={conflicts}
                   scopeSuffix={scopeSuffix}
@@ -332,7 +337,7 @@ export function TimelineLane({
                     startsAt={startsAt}
                     endsAt={endsAt}
                     offering={offering}
-                    unitName={unit.name}
+                    unitName={laneName}
                     timeZone={timeZone}
                     now={now}
                     conflicts={conflicts.get(b.id) ?? []}
@@ -510,7 +515,7 @@ function StayBar({
         <span className="font-medium">{b.clientName}</span>
         <span>{when}</span>
         <span className="opacity-70">
-          {length} · {offering.name} · {unitName}
+          {length} · {withUnit(offering.name, unitName)}
         </span>
         {b.clientEmail ? <span className="opacity-70">{b.clientEmail}</span> : null}
         {note ? <span className="opacity-70">{note}</span> : null}

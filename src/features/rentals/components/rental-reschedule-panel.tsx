@@ -15,7 +15,6 @@ import {
 import { RangePicker, type RangeValue } from "./range-picker";
 import { UnitSelect } from "./unit-select";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 
 // Two rendered months are at most 62 days; the turnover tail (≤ 30) has to
 // come along or validateStay reads a missing day at the far edge as
@@ -175,18 +174,16 @@ export function RentalReschedulePanel({
           {range.start && range.end ? (
             <>
               {picksUnit ? (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="rental-reschedule-unit">{t("unit")}</Label>
-                  <UnitSelect
-                    id="rental-reschedule-unit"
-                    units={units}
-                    freeUnitIds={freeUnitIds}
-                    value={unitId}
-                    onChange={setUnitId}
-                    keepUnitId={currentUnitId}
-                    keepUnitName={currentUnitName}
-                  />
-                </div>
+                <UnitSelect
+                  id="rental-reschedule-unit"
+                  label={t("unit")}
+                  units={units}
+                  freeUnitIds={freeUnitIds}
+                  value={unitId}
+                  onChange={setUnitId}
+                  keepUnitId={currentUnitId}
+                  keepUnitName={currentUnitName}
+                />
               ) : null}
               <Button onClick={confirm} disabled={pending || !stay?.ok}>
                 {pending ? t("rescheduling") : t("confirmNewDates")}

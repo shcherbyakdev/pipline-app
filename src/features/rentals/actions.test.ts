@@ -8,6 +8,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 type Row = Record<string, unknown>;
 const state = vi.hoisted(() => ({
   inserts: [] as Array<{ table: string; row: Row }>,
+  updates: [] as Array<{ table: string; row: Row }>,
+  units: [] as Array<{ id: string }>,
   unitInsertError: null as null | { message: string },
   hoursInsertError: null as null | { message: string },
 }));
@@ -33,7 +35,7 @@ vi.mock("@/lib/supabase/server", () => ({
             ? { data: { id: "off-1" }, error: null }
             : table === "availability_rules"
               ? { data: null, error: state.hoursInsertError }
-              : { data: null, error: state.unitInsertError };
+              : { data: state.units, error: state.unitInsertError };
       const b: Record<string, unknown> = {
         select: () => b,
         limit: () => b,
@@ -41,6 +43,10 @@ vi.mock("@/lib/supabase/server", () => ({
         single: async () => result(),
         insert: (row: Row) => {
           state.inserts.push({ table, row });
+          return b;
+        },
+        update: (row: Row) => {
+          state.updates.push({ table, row });
           return b;
         },
         eq: () => b,
@@ -52,7 +58,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { createOffering } from "./actions";
+import { createOffering, updateOffering } from "./actions";
 
 const space = {
   name: "Room A",
@@ -67,6 +73,8 @@ const space = {
 
 beforeEach(() => {
   state.inserts = [];
+  state.updates = [];
+  state.units = [];
   state.unitInsertError = null;
   state.hoursInsertError = null;
   assertCanAddUnit.mockReset();
@@ -150,5 +158,26 @@ describe("createOffering — an hourly space starts with the default week", () =
       ok: true,
       notice: "Saved the space, but couldn't set its default hours — set them on Availability.",
     });
+  });
+});
+
+/* A single-unit space never shows its unit (the space IS the unit), so the
+   unit's name must follow the space's — otherwise a rename leaves mail
+   reading "Apartment · Flat". A multi-unit space's units are the owner's. */
+describe("updateOffering — a single-unit space renames its unit with itself", () => {
+  const edit = { id: "00000000-0000-4000-8000-000000000001", ...space, name: "Apartment" };
+
+  it("renames the sole unit to the space's new name", async () => {
+    state.units = [{ id: "unit-1" }];
+    expect(await updateOffering(edit)).toEqual({ ok: true });
+    expect(state.updates.filter((u) => u.table === "rental_units")).toEqual([
+      { table: "rental_units", row: { name: "Apartment" } },
+    ]);
+  });
+
+  it("leaves a multi-unit space's units alone", async () => {
+    state.units = [{ id: "unit-1" }, { id: "unit-2" }];
+    expect(await updateOffering(edit)).toEqual({ ok: true });
+    expect(state.updates.filter((u) => u.table === "rental_units")).toEqual([]);
   });
 });

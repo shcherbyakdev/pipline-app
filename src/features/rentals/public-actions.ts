@@ -19,6 +19,7 @@ import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { getProviderEmail } from "@/lib/booking/provider";
+import { withUnit } from "@/features/rentals/unit-label";
 import { wallTimeToUtc } from "@/features/scheduling/slots";
 import {
   bookingConfirmationEmail,
@@ -266,7 +267,7 @@ export async function createRentalBooking(
         console.error("[rentals] getBookingUnitName:", e);
         return null;
       });
-      const serviceName = unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name;
+      const serviceName = withUnit(ctx.offering.name, unitName);
       const total = totalCents(
         ctx.offering,
         stayUnits(ctx.offering.rangeMode as "nights" | "days", startDate, endDate),

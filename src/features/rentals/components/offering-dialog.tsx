@@ -623,18 +623,24 @@ export function OfferingDialog({
                   />
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-unit-selection">{t("dialog.unitSelection")}</Label>
-                <select
-                  id="offering-unit-selection"
-                  name="unitSelection"
-                  className={selectClass}
-                  defaultValue={offering?.unitSelection ?? "auto"}
-                >
-                  <option value="auto">{t("dialog.unitAuto")}</option>
-                  <option value="client_picks">{t("dialog.unitClientPicks")}</option>
-                </select>
-              </div>
+              {/* Only a split space has units to choose between; a new or
+                  single-unit space keeps its setting quietly. */}
+              {(offering?.unitCount ?? 0) > 1 ? (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="offering-unit-selection">{t("dialog.unitSelection")}</Label>
+                  <select
+                    id="offering-unit-selection"
+                    name="unitSelection"
+                    className={selectClass}
+                    defaultValue={offering?.unitSelection ?? "auto"}
+                  >
+                    <option value="auto">{t("dialog.unitAuto")}</option>
+                    <option value="client_picks">{t("dialog.unitClientPicks")}</option>
+                  </select>
+                </div>
+              ) : (
+                <input type="hidden" name="unitSelection" value={offering?.unitSelection ?? "auto"} />
+              )}
                 </div>
               </details>
             </div>
