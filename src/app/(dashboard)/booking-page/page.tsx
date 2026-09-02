@@ -6,7 +6,10 @@ import { listOfferings } from "@/features/rentals/queries";
 import { effectiveMode, modeOf, presentMode } from "@/features/orgs/mode";
 import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 import { isBookableOffering, toPreviewCatalog } from "@/lib/booking/preview-catalog";
-import { frontDoor } from "@/lib/booking/channel-pages";
+import { channelReach, frontDoor } from "@/lib/booking/channel-pages";
+import { loadPublicResources } from "@/lib/booking/public-offering";
+import { upgradeHref } from "@/lib/billing/upgrade-path";
+import { getPlanStatus } from "@/features/billing/queries";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { pageChannelMode, parsePageChannel, type PageChannel } from "@/features/booking-page/channel";
@@ -61,7 +64,22 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
     : null;
   // The live page 404s until the channel has something bookable —
   // resolveChannelPage's rule.
-  const publicReachable = channel === "appointments" ? has.services : has.spaces;
+  // The plan's ACTUAL public view (the same memoised loader the public page
+  // uses; null = no cap applies): a Free org past its resource budget has
+  // spaces the public page never lists, and the studio must say so rather
+  // than offer a "View live page" that lands on a 404.
+  const resources = await loadPublicResources(org.id);
+  const publicHas = resources
+    ? {
+        services: has.services && resources.staff.length > 0,
+        spaces: offerings.some((o) => isBookableOffering(o) && resources.allowedSpaceIds.has(o.id)),
+      }
+    : null;
+  const reach = channelReach(channel, has, publicHas);
+  const publicReachable = reach.reachable;
+  const capped = reach.capped
+    ? { href: upgradeHref(await getDashboardFlags(org.id), (await getPlanStatus()).plan) }
+    : null;
   const [pages, pageSections] = await Promise.all([
     getPageStates(branding.orgId),
     getPageSectionsEntitlement(branding.orgId),
@@ -99,6 +117,7 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
         key={channel}
         channel={channel}
         publicReachable={publicReachable}
+        capped={capped}
         starter={starter}
         badge={badge}
         crossLink={crossLink}
