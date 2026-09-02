@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
@@ -12,6 +13,7 @@ import { ownerHref } from "@/features/scheduling/availability-owner";
 import { SPACES } from "@/features/orgs/vocab";
 
 export default async function RentalDetailPage({ params }: PageProps<"/rentals/[id]">) {
+  const tu = await getTranslations("public.units");
   const { id } = await params;
   // uuid guard: a malformed id must 404, not crash the PostgREST query
   // (same idiom as programs/[id]/units/[unitId]).
@@ -47,7 +49,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
             </div>
             <p className="text-muted-foreground text-xs">
               {hourly
-                ? `${formatDurationLabel(offering.minDurationMin!)}–${formatDurationLabel(offering.maxDurationMin!)} · every ${offering.slotIncrementMin} min`
+                ? `${formatDurationLabel(offering.minDurationMin!, tu)}–${formatDurationLabel(offering.maxDurationMin!, tu)} · every ${offering.slotIncrementMin} min`
                 : nightly
                   ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
                   : `pickup ${offering.startTime} · return ${offering.endTime}`}

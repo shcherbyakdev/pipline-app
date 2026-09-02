@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export function SlotFrame({
   orgTimeZone: string;
   children: React.ReactNode;
 }) {
+  const t = useTranslations("public.slots");
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return (
     <>
@@ -52,16 +54,16 @@ export function SlotFrame({
         className={pending ? "flex flex-col gap-4 opacity-60 outline-none transition-opacity" : "flex flex-col gap-4 outline-none"}
       >
         {pending && empty ? (
-          <p className="text-muted-foreground text-sm">Loading times…</p>
+          <p className="text-muted-foreground text-sm">{t("loading")}</p>
         ) : empty ? (
           <p className="text-muted-foreground text-sm">{emptyText}</p>
         ) : (
           children
         )}
       </div>
-      <p className="text-muted-foreground text-xs">Times shown in your timezone ({viewerTz}).</p>
+      <p className="text-muted-foreground text-xs">{t("viewerTz", { tz: viewerTz })}</p>
       {viewerTz !== orgTimeZone ? (
-        <p className="text-muted-foreground text-xs">The organisation&apos;s local timezone is {orgTimeZone}.</p>
+        <p className="text-muted-foreground text-xs">{t("orgTz", { tz: orgTimeZone })}</p>
       ) : null}
     </>
   );

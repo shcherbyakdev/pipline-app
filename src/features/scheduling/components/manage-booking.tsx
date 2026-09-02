@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { addDaysISO } from "@/features/scheduling/slots";
 import {
@@ -11,7 +12,7 @@ import {
 } from "@/features/scheduling/manage-actions";
 import { RentalReschedulePanel } from "@/features/rentals/components/rental-reschedule-panel";
 import { HourlyReschedulePanel } from "@/features/rentals/components/hourly-reschedule-panel";
-import { CANCEL_WINDOW_PASSED } from "@/features/rentals/schema";
+import { INTL_LOCALES } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
 
 // The viewer's local date (booking-widget's rule; getManageSlots pads its
@@ -21,8 +22,8 @@ const todayISO = () =>
 const viewerDay = (iso: string) =>
   new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 
-const slotLabel = (iso: string) =>
-  new Intl.DateTimeFormat(undefined, {
+const slotLabel = (iso: string, intlLocale: string) =>
+  new Intl.DateTimeFormat(intlLocale, {
     weekday: "short",
     day: "2-digit",
     month: "short",
@@ -44,7 +45,7 @@ export function ManageBooking({
   // Whether self-serve rescheduling is offered at all (cancel is always).
   canReschedule: boolean;
   // H3: false once a rental's free-cancellation window has elapsed — hides
-  // the cancel button and shows CANCEL_WINDOW_PASSED instead. Always true for
+  // the cancel button and shows errors.cancelWindowPassed instead. Always true for
   // appointments and rentals with no cancel window (page.tsx computes it).
   // Reschedule is unaffected either way.
   canCancel: boolean;
@@ -61,6 +62,11 @@ export function ManageBooking({
   // about the flow changes.
   request?: boolean;
 }) {
+  const t = useTranslations("public.manage");
+  const ts = useTranslations("public.slots");
+  const tc = useTranslations("common");
+  const tErrors = useTranslations("errors");
+  const intl = INTL_LOCALES[useLocale()];
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [confirmingCancel, setConfirmingCancel] = React.useState(false);
@@ -101,7 +107,7 @@ export function ManageBooking({
       const res = await cancelBooking({ token });
       if (!res.ok) toast.error(res.error);
       else {
-        toast.success("Booking cancelled");
+        toast.success(t("cancelled"));
         router.refresh();
       }
     });
@@ -122,7 +128,7 @@ export function ManageBooking({
     <div className="flex flex-col gap-4">
       {!canReschedule ? null : !picking ? (
         <Button variant="outline" onClick={openPicker} disabled={pending}>
-          Reschedule
+          {t("reschedule")}
         </Button>
       ) : kind === "rental" ? (
         rangeMode === "hours" ? (
@@ -141,14 +147,14 @@ export function ManageBooking({
       ) : (
         <div className="flex flex-col gap-3 rounded-md border p-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Pick a new time</p>
+            <p className="text-sm font-medium">{t("pickNewTime")}</p>
             <div className="flex gap-1">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => nav(-7)}
                 disabled={pending || fromDate <= todayISO()}
-                aria-label="Previous week"
+                aria-label={ts("prevWeek")}
               >
                 ←
               </Button>
@@ -157,27 +163,27 @@ export function ManageBooking({
                 size="sm"
                 onClick={() => nav(7)}
                 disabled={pending}
-                aria-label="Next week"
+                aria-label={ts("nextWeek")}
               >
                 →
               </Button>
             </div>
           </div>
           {slots === null ? (
-            <p className="text-muted-foreground text-sm">Loading…</p>
+            <p className="text-muted-foreground text-sm">{tc("loading")}</p>
           ) : slots.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No free times this week — try the next.</p>
+            <p className="text-muted-foreground text-sm">{ts("emptyWeek")}</p>
           ) : candidate ? (
             <div className="flex flex-col gap-2">
               <p className="text-sm">
-                Move this booking to <span className="font-medium">{slotLabel(candidate)}</span>?
+                {t.rich("moveTo", { when: slotLabel(candidate, intl), b: (c) => <span className="font-medium">{c}</span> })}
               </p>
               <div className="flex items-center gap-2">
                 <Button size="sm" onClick={() => pick(candidate)} disabled={pending}>
-                  Confirm new time
+                  {t("confirmNewTime")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setCandidate(null)} disabled={pending}>
-                  Pick another
+                  {t("pickAnother")}
                 </Button>
               </div>
             </div>
@@ -191,38 +197,34 @@ export function ManageBooking({
                   disabled={pending}
                   onClick={() => setCandidate(s)}
                 >
-                  {slotLabel(s)}
+                  {slotLabel(s, intl)}
                 </Button>
               ))}
             </div>
           )}
-          <p className="text-muted-foreground text-xs">
-            Times shown in your local timezone; the provider is in {timeZone}.
-          </p>
+          <p className="text-muted-foreground text-xs">{ts("localTzProviderIn", { tz: timeZone })}</p>
         </div>
       )}
       {!canCancel ? (
-        <p className="text-muted-foreground text-xs">{CANCEL_WINDOW_PASSED}</p>
+        <p className="text-muted-foreground text-xs">{tErrors("cancelWindowPassed")}</p>
       ) : confirmingCancel ? (
         <div className="flex items-center gap-2">
           <Button variant="destructive" onClick={doCancel} disabled={pending}>
-            {request ? "Yes, withdraw this request" : "Yes, cancel this booking"}
+            {request ? t("withdrawConfirm") : t("cancelConfirm")}
           </Button>
           <Button variant="ghost" onClick={() => setConfirmingCancel(false)} disabled={pending}>
-            Keep it
+            {t("keepIt")}
           </Button>
         </div>
       ) : (
         <Button variant="ghost" onClick={() => setConfirmingCancel(true)} disabled={pending}>
-          {request ? "Withdraw request" : "Cancel booking"}
+          {request ? t("withdraw") : t("cancel")}
         </Button>
       )}
       {!canReschedule || (kind === "rental" && !picking) ? (
         // Rentals: the range line above is in the provider's zone, and
         // outside the open panel (which says so itself) nothing else does.
-        <p className="text-muted-foreground text-xs">
-          Times shown in the provider&rsquo;s timezone ({timeZone}).
-        </p>
+        <p className="text-muted-foreground text-xs">{ts("providerTz", { tz: timeZone })}</p>
       ) : null}
     </div>
   );

@@ -35,8 +35,10 @@ export function bookingIdempotencyKey(bookingId: string): string {
   return `booking/${bookingId}/confirmation`;
 }
 
-export function formatWhenLine(starts: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
+// `intlLocale` is the Intl tag (INTL_LOCALES[locale]); the emails still pass
+// none and read en-GB until Wave 2 hands them the org locale.
+export function formatWhenLine(starts: Date, timeZone: string, intlLocale = "en-GB"): string {
+  return new Intl.DateTimeFormat(intlLocale, {
     weekday: "short",
     day: "2-digit",
     month: "short",
@@ -51,8 +53,8 @@ export function formatWhenLine(starts: Date, timeZone: string): string {
 // Rentals (R1): a stay spans two instants, so the when-line carries both
 // ends in the org zone with a single trailing tz suffix (repeating "CEST"
 // on both halves reads as noise).
-export function formatRangeWhenLine(starts: Date, ends: Date, timeZone: string): string {
-  const f = new Intl.DateTimeFormat("en-GB", {
+export function formatRangeWhenLine(starts: Date, ends: Date, timeZone: string, intlLocale = "en-GB"): string {
+  const f = new Intl.DateTimeFormat(intlLocale, {
     weekday: "short",
     day: "2-digit",
     month: "short",
@@ -62,7 +64,7 @@ export function formatRangeWhenLine(starts: Date, ends: Date, timeZone: string):
     timeZone,
   });
   const tz =
-    new Intl.DateTimeFormat("en-GB", { timeZone, timeZoneName: "short" })
+    new Intl.DateTimeFormat(intlLocale, { timeZone, timeZoneName: "short" })
       .formatToParts(starts)
       .find((p) => p.type === "timeZoneName")?.value ?? timeZone;
   return `${f.format(starts)} → ${f.format(ends)} (${tz})`;
@@ -71,17 +73,17 @@ export function formatRangeWhenLine(starts: Date, ends: Date, timeZone: string):
 // Hourly rentals (H2): a booking spans two instants within one day, so the
 // when-line is formatRangeWhenLine's construction with the date printed once
 // and an en-dash time range instead of the arrow between two full dates.
-export function formatHourlyWhenLine(starts: Date, ends: Date, timeZone: string): string {
-  const dateFmt = new Intl.DateTimeFormat("en-GB", {
+export function formatHourlyWhenLine(starts: Date, ends: Date, timeZone: string, intlLocale = "en-GB"): string {
+  const dateFmt = new Intl.DateTimeFormat(intlLocale, {
     weekday: "short",
     day: "2-digit",
     month: "short",
     year: "numeric",
     timeZone,
   });
-  const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone });
+  const timeFmt = new Intl.DateTimeFormat(intlLocale, { hour: "2-digit", minute: "2-digit", timeZone });
   const tz =
-    new Intl.DateTimeFormat("en-GB", { timeZone, timeZoneName: "short" })
+    new Intl.DateTimeFormat(intlLocale, { timeZone, timeZoneName: "short" })
       .formatToParts(starts)
       .find((p) => p.type === "timeZoneName")?.value ?? timeZone;
   return `${dateFmt.format(starts)}, ${timeFmt.format(starts)}–${timeFmt.format(ends)} (${tz})`;
@@ -95,11 +97,12 @@ export function formatHourlyWhenLine(starts: Date, ends: Date, timeZone: string)
 export function whenLineFor(
   b: { startsAt: Date; endsAt: Date; isRental: boolean; rangeMode?: RangeMode | null },
   timeZone: string,
+  intlLocale = "en-GB",
 ): string {
-  if (!b.isRental) return formatWhenLine(b.startsAt, timeZone);
+  if (!b.isRental) return formatWhenLine(b.startsAt, timeZone, intlLocale);
   return b.rangeMode === "hours"
-    ? formatHourlyWhenLine(b.startsAt, b.endsAt, timeZone)
-    : formatRangeWhenLine(b.startsAt, b.endsAt, timeZone);
+    ? formatHourlyWhenLine(b.startsAt, b.endsAt, timeZone, intlLocale)
+    : formatRangeWhenLine(b.startsAt, b.endsAt, timeZone, intlLocale);
 }
 
 export const STATUS_LABEL: Record<string, string> = {

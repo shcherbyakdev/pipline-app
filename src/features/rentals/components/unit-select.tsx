@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { PublicUnit } from "@/lib/booking/public";
 
 // The native-<select> idiom shared by the booking forms.
@@ -27,6 +28,7 @@ export function UnitSelect({
   keepUnitName?: string | null;
   id: string;
 }) {
+  const t = useTranslations("public.manage");
   const options = freeUnitIds === null ? units : units.filter((u) => freeUnitIds.includes(u.id));
   return (
     <select
@@ -37,12 +39,11 @@ export function UnitSelect({
       onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
     >
       <option value="">
-        {keepUnitId && keepUnitName ? `Auto — keep ${keepUnitName} if free` : "Auto"}
+        {keepUnitId && keepUnitName ? t("unitAutoKeep", { name: keepUnitName }) : t("unitAuto")}
       </option>
       {options.map((u) => (
         <option key={u.id} value={u.id}>
-          {u.name}
-          {u.active ? "" : " (inactive)"}
+          {u.active ? u.name : t("unitInactive", { name: u.name })}
         </option>
       ))}
     </select>

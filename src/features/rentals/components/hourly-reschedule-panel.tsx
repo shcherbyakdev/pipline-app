@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { INTL_LOCALES } from "@/i18n/config";
 import { toast } from "sonner";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { getManageHourlySlots, rescheduleRentalBookingHours } from "@/features/rentals/manage-actions";
@@ -35,6 +37,10 @@ export function HourlyReschedulePanel({
   onCancel: () => void;
 }) {
   const router = useRouter();
+  const intlLocale = INTL_LOCALES[useLocale()];
+  const t = useTranslations("public.manage");
+  const tWidget = useTranslations("public.widget");
+  const tSlots = useTranslations("public.slots");
   const [fromDate, setFromDate] = React.useState(todayISO);
   const [slots, setSlots] = React.useState<HourlySlot[]>([]);
   const [durationMin, setDurationMin] = React.useState<number | null>(null);
@@ -127,7 +133,7 @@ export function HourlyReschedulePanel({
         return;
       }
       // New booking, new token: the manage link changes.
-      toast.success("Booking rescheduled");
+      toast.success(t("rescheduled"));
       router.push(`/booking/${result.token}`);
     });
   }
@@ -135,14 +141,14 @@ export function HourlyReschedulePanel({
   return (
     <div className="flex flex-col gap-3 rounded-md border p-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">Pick a new time</p>
+        <p className="text-sm font-medium">{t("pickNewTime")}</p>
         <Button variant="ghost" size="sm" onClick={onCancel} disabled={pending}>
-          Keep current time
+          {t("keepCurrentTime")}
         </Button>
       </div>
 
       {offering === null ? (
-        <p className="text-muted-foreground text-sm">{error ?? "Loading availability…"}</p>
+        <p className="text-muted-foreground text-sm">{error ?? t("loadingAvailability")}</p>
       ) : !slot ? (
         <TimeSlotGrid
           slots={slots.map((s) => s.startsAt)}
@@ -158,15 +164,15 @@ export function HourlyReschedulePanel({
         <div className="flex flex-col gap-3">
           <p className="text-sm">
             {durationMin
-              ? formatHourlyWhenLine(new Date(slot), new Date(new Date(slot).getTime() + durationMin * 60_000), timeZone)
+              ? formatHourlyWhenLine(new Date(slot), new Date(new Date(slot).getTime() + durationMin * 60_000), timeZone, intlLocale)
               : null}{" "}
             <button type="button" className="text-muted-foreground underline" onClick={backToTime}>
-              change
+              {tWidget("change")}
             </button>
           </p>
           {picksUnit ? (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="hourly-reschedule-unit">Unit</Label>
+              <Label htmlFor="hourly-reschedule-unit">{t("unit")}</Label>
               <UnitSelect
                 id="hourly-reschedule-unit"
                 units={units}
@@ -179,14 +185,12 @@ export function HourlyReschedulePanel({
             </div>
           ) : null}
           <Button onClick={confirm} disabled={pending}>
-            {pending ? "Rescheduling…" : "Confirm new time"}
+            {pending ? t("rescheduling") : t("confirmNewTime")}
           </Button>
         </div>
       )}
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
-      <p className="text-muted-foreground text-xs">
-        Times shown in the provider&rsquo;s timezone ({timeZone}).
-      </p>
+      <p className="text-muted-foreground text-xs">{tSlots("providerTz", { tz: timeZone })}</p>
     </div>
   );
 }

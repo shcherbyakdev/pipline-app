@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { moneyInfoLines, totalCents, depositCents, type MoneyFields } from "@/features/rentals/pricing";
@@ -24,20 +25,21 @@ export function BookingMoneySummary({
   onTermsChange: (v: boolean) => void;
   idPrefix?: string;
 }) {
+  const t = useTranslations("public.stay");
+  const tu = useTranslations("public.units");
   const total = units === null ? null : totalCents(offering, units);
   const deposit = depositCents(offering, total);
-  const lines = moneyInfoLines({
-    totalCents: total,
-    depositCents: deposit,
-    currency,
-    cancelWindowMin: offering.cancelWindowMin,
-  });
+  const lines = moneyInfoLines(
+    { totalCents: total, depositCents: deposit, currency, cancelWindowMin: offering.cancelWindowMin },
+    tu,
+  );
   if (lines.length === 0 && offering.termsText === null) return null;
   const termsId = `${idPrefix}terms-accepted`;
   return (
     <div className="flex flex-col gap-2 rounded-md border p-3 text-sm">
-      {lines.map((l) => (
-        <p key={l} className={l.startsWith("Total") ? "font-medium" : "text-muted-foreground"}>
+      {/* moneyInfoLines puts the total first whenever there is one. */}
+      {lines.map((l, i) => (
+        <p key={l} className={i === 0 && total !== null ? "font-medium" : "text-muted-foreground"}>
           {l}
         </p>
       ))}
@@ -52,11 +54,11 @@ export function BookingMoneySummary({
               className="mt-0.5"
             />
             <Label htmlFor={termsId} className="text-sm font-normal">
-              I accept the terms
+              {t("acceptTerms")}
             </Label>
           </div>
           <details className="ml-6">
-            <summary className="text-muted-foreground cursor-pointer text-xs">Show terms</summary>
+            <summary className="text-muted-foreground cursor-pointer text-xs">{t("showTerms")}</summary>
             <p className="text-muted-foreground mt-1 text-xs whitespace-pre-wrap">{offering.termsText}</p>
           </details>
         </div>

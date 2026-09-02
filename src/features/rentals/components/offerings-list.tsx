@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -33,6 +34,7 @@ function Row({
   currency: string;
   linkBase: LinkBase | null;
 }) {
+  const tu = useTranslations("public.units");
   const [pending, startTransition] = React.useTransition();
   // Delete is irreversible, so it takes two clicks — the same inline
   // Confirm/Keep step services-list.tsx and bookings-list.tsx use.
@@ -42,9 +44,9 @@ function Row({
   const [active, setActive] = React.useOptimistic(offering.active);
   const hourly = offering.rangeMode === "hours";
   const nightly = offering.rangeMode === "nights";
-  const priceLabel = formatOfferingPrice(offering, currency);
+  const priceLabel = formatOfferingPrice(offering, currency, tu);
   const schedule = hourly
-    ? `${formatDurationLabel(offering.minDurationMin!)}–${formatDurationLabel(offering.maxDurationMin!)} · every ${offering.slotIncrementMin} min`
+    ? `${formatDurationLabel(offering.minDurationMin!, tu)}–${formatDurationLabel(offering.maxDurationMin!, tu)} · every ${offering.slotIncrementMin} min`
     : nightly
       ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
       : `pickup ${offering.startTime} · return ${offering.endTime}`;

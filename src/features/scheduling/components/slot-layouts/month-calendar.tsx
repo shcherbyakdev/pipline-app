@@ -1,20 +1,23 @@
 "use client";
 
 import * as React from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { monthGrid, monthOf } from "@/features/rentals/calendar-grid";
 import type { SlotWindow } from "@/features/scheduling/slot-paging";
+import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
-import { dayFmt, timeLabel } from "./group";
-
-const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
-const dayAriaFmt = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+import { useSlotFormats } from "./use-slot-formats";
 
 /* Calendar + times (the default template): the window's month as a grid,
    days with a free time marked, the picked day's times beside the grid
    (below it on a narrow widget). The picked day resets with the window
    (the parent keys this component by window.from). */
 export function MonthCalendar({ byDay, window: w, today, onPick }: { byDay: Map<string, string[]>; window: SlotWindow; today: string; onPick: (iso: string) => void }) {
+  const t = useTranslations("public.slots");
+  const { dayFmt, timeLabel } = useSlotFormats();
+  const dayAriaFmt = new Intl.DateTimeFormat(INTL_LOCALES[useLocale()], { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+  const weekdays = t("weekdays").split(" ");
   const first = [...byDay.keys()].sort()[0] ?? null;
   const [picked, setPicked] = React.useState<string | null>(first);
   const day = picked && byDay.has(picked) ? picked : first;
@@ -23,11 +26,11 @@ export function MonthCalendar({ byDay, window: w, today, onPick }: { byDay: Map<
     <div className="grid gap-5 @md:grid-cols-[minmax(0,1fr)_minmax(0,11rem)]">
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-7 text-center">
-          {WEEKDAYS.map((wd) => (
+          {weekdays.map((wd) => (
             <span key={wd} className="text-muted-foreground py-1 text-xs font-medium">{wd}</span>
           ))}
         </div>
-        <div role="listbox" aria-label="Days with free times" className="grid grid-cols-7 gap-y-1">
+        <div role="listbox" aria-label={t("daysWithFreeTimes")} className="grid grid-cols-7 gap-y-1">
           {monthGrid(monthOf(w.from)).flat().map((cell, i) => {
             if (!cell) return <span key={`pad-${i}`} aria-hidden />;
             const free = byDay.has(cell);

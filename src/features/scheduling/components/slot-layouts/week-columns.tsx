@@ -1,16 +1,18 @@
 "use client";
 
+import { useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { shiftDays, type SlotWindow } from "@/features/scheduling/slot-paging";
+import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
-import { dayFmt, timeLabel } from "./group";
-
-const wdFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" });
+import { useSlotFormats } from "./use-slot-formats";
 
 /* Week columns: Monday to Sunday as columns, times stacked under each
    header. A widget narrower than ~28rem can't hold seven columns and shows
    the same week as day rows instead. */
 export function WeekColumns({ byDay, window: w, today, onPick }: { byDay: Map<string, string[]>; window: SlotWindow; today: string; onPick: (iso: string) => void }) {
+  const { dayFmt, timeLabel } = useSlotFormats();
+  const wdFmt = new Intl.DateTimeFormat(INTL_LOCALES[useLocale()], { weekday: "short", timeZone: "UTC" });
   const days = Array.from({ length: w.days }, (_, i) => shiftDays(w.from, i));
   const chip = (s: string, daySlots: string[], full: boolean) => (
     <Button key={s} variant="outline" size="sm" className={cn("wt-surface", full && "w-full px-1 text-xs")} onClick={() => onPick(s)} aria-label={`${dayFmt.format(new Date(s))}, ${timeLabel(s, daySlots)}`}>

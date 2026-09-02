@@ -6,6 +6,7 @@
 import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import { zonedParts } from "@/features/scheduling/calendar-geometry";
 import { formatDurationLabel } from "@/features/rentals/hourly";
+import type { UnitsT } from "@/i18n/translator";
 import { barSpan, turnoverSpan } from "./timeline-geometry";
 import { daysBetween } from "./range";
 import type { RangeMode } from "./range";
@@ -219,15 +220,15 @@ export function stayLengthLabel(
   b: { startsAt: Date; endsAt: Date },
   mode: RangeMode,
   timeZone: string,
+  t: UnitsT,
 ): string {
   if (mode === "hours") {
-    return formatDurationLabel(Math.round((b.endsAt.getTime() - b.startsAt.getTime()) / 60_000));
+    return formatDurationLabel(Math.round((b.endsAt.getTime() - b.startsAt.getTime()) / 60_000), t);
   }
   const start = dateInZone(b.startsAt, timeZone);
   const end = dateInZone(b.endsAt, timeZone);
   const n = mode === "nights" ? daysBetween(start, end) : daysBetween(start, end) + 1;
-  const unit = mode === "nights" ? "night" : "day";
-  return `${n} ${unit}${n === 1 ? "" : "s"}`;
+  return t(mode === "nights" ? "nights" : "days", { count: n });
 }
 
 /** Hourly bookings per window column, in start order; outside the window
