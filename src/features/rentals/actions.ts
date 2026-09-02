@@ -2,10 +2,10 @@
 
 import type { UpgradeDoor } from "@/lib/billing/refusal";
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { assertCanAddUnit } from "@/lib/billing/gates";
-import { SPACES } from "@/features/orgs/vocab";
 import { seedDefaultHours } from "@/features/scheduling/default-hours";
 import {
   offeringInput,
@@ -19,15 +19,20 @@ import {
   blackoutIdInput,
   BLACKOUT_ORDER_MSG,
   BLACKOUT_SPAN_MSG,
-  GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
 
-const HAS_BOOKINGS = "It has bookings — deactivate it instead.";
+// Error copy in the admin's language (i18n Wave 3): every refusal a client
+// shows comes out of `errors.*`, resolved per request.
+const errorsT = () => getTranslations("errors");
 
-function fail(context: string, error: unknown): { ok: false; error: string } {
+async function generic(): Promise<{ ok: false; error: string }> {
+  return { ok: false, error: (await errorsT())("generic") };
+}
+
+async function fail(context: string, error: unknown): Promise<{ ok: false; error: string }> {
   console.error(`[rentals] ${context}:`, error);
-  return { ok: false, error: GENERIC_WRITE_ERROR };
+  return generic();
 }
 
 // The session's single org — null while its `rentals` flag is off
@@ -96,9 +101,9 @@ function toOfferingRow(d: import("zod").infer<typeof offeringInput>) {
 
 export async function createOffering(input: unknown): Promise<ActionState> {
   const parsed = offeringInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return generic();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("rental_offerings")
@@ -128,7 +133,7 @@ export async function createOffering(input: unknown): Promise<ActionState> {
     });
     if (unitError) {
       console.error("[rentals] createOffering first unit:", unitError);
-      notice = SPACES.unitNotCreated;
+      notice = (await getTranslations("spaces"))("unitNotCreated");
     }
   }
   // An hourly space has no check-in/check-out times to fall back on, so with
@@ -140,7 +145,7 @@ export async function createOffering(input: unknown): Promise<ActionState> {
     const seedError = await seedDefaultHours(supabase, orgId, { rentalOfferingId: data.id });
     if (seedError) {
       console.error("[rentals] createOffering default hours:", seedError.message);
-      notice ??= SPACES.hoursNotSet;
+      notice ??= (await getTranslations("spaces"))("hoursNotSet");
     }
   }
   revalidatePath("/rentals");
@@ -150,9 +155,9 @@ export async function createOffering(input: unknown): Promise<ActionState> {
 
 export async function updateOffering(input: unknown): Promise<ActionState> {
   const parsed = updateOfferingInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return generic();
   const { id, ...rest } = parsed.data;
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -163,7 +168,7 @@ export async function updateOffering(input: unknown): Promise<ActionState> {
     .select("id")
     .maybeSingle();
   if (error) return fail("updateOffering", error);
-  if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!data) return generic();
   revalidatePath("/rentals");
   revalidatePath(`/rentals/${id}`);
   revalidatePath("/availability");
@@ -174,9 +179,9 @@ export async function updateOffering(input: unknown): Promise<ActionState> {
    gate posture as updateOffering (which already flips `active` ungated). */
 export async function setOfferingActive(input: unknown): Promise<ActionState> {
   const parsed = offeringActiveInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return generic();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("rental_offerings")
@@ -186,7 +191,7 @@ export async function setOfferingActive(input: unknown): Promise<ActionState> {
     .select("id")
     .maybeSingle();
   if (error) return fail("setOfferingActive", error);
-  if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!data) return generic();
   revalidatePath("/rentals");
   revalidatePath(`/rentals/${parsed.data.id}`);
   revalidatePath("/availability");
@@ -195,9 +200,9 @@ export async function setOfferingActive(input: unknown): Promise<ActionState> {
 
 export async function deleteOffering(input: unknown): Promise<ActionState> {
   const parsed = offeringIdInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return generic();
   const supabase = await createClient();
   const { error } = await supabase
     .from("rental_offerings")
@@ -205,7 +210,7 @@ export async function deleteOffering(input: unknown): Promise<ActionState> {
     .eq("id", parsed.data.id)
     .eq("org_id", orgId);
   if (error) {
-    if (error.code === "23503") return { ok: false, error: HAS_BOOKINGS };
+    if (error.code === "23503") return { ok: false, error: (await errorsT())("spaces.hasBookings") };
     return fail("deleteOffering", error);
   }
   revalidatePath("/rentals");
@@ -215,9 +220,9 @@ export async function deleteOffering(input: unknown): Promise<ActionState> {
 
 export async function createUnit(input: unknown): Promise<ActionState> {
   const parsed = unitInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return generic();
   const supabase = await createClient();
   // H5b: a unit spends the plan's resource budget like a person does.
   if (parsed.data.active) {
@@ -240,9 +245,9 @@ export async function createUnit(input: unknown): Promise<ActionState> {
 
 export async function updateUnit(input: unknown): Promise<ActionState> {
   const parsed = updateUnitInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return generic();
   const supabase = await createClient();
   // H5b: only a false → true flip spends a resource; editing an already
   // active unit's name at the cap must keep working. Mirrors setStaffActive.
@@ -254,7 +259,7 @@ export async function updateUnit(input: unknown): Promise<ActionState> {
       .eq("org_id", orgId)
       .maybeSingle();
     if (readError) return fail("updateUnit", readError);
-    if (!current) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!current) return generic();
     if (!current.active) {
       const refused = await assertCanAddUnit(orgId, supabase);
       if (refused) return refused;
@@ -272,7 +277,7 @@ export async function updateUnit(input: unknown): Promise<ActionState> {
     .select("id")
     .maybeSingle();
   if (error) return fail("updateUnit", error);
-  if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!data) return generic();
   revalidatePath("/rentals");
   revalidatePath(`/rentals/${parsed.data.offeringId}`);
   return { ok: true };
@@ -280,9 +285,9 @@ export async function updateUnit(input: unknown): Promise<ActionState> {
 
 export async function deleteUnit(input: unknown): Promise<ActionState> {
   const parsed = unitIdInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return generic();
   const supabase = await createClient();
   const { error } = await supabase
     .from("rental_units")
@@ -290,7 +295,7 @@ export async function deleteUnit(input: unknown): Promise<ActionState> {
     .eq("id", parsed.data.id)
     .eq("org_id", orgId);
   if (error) {
-    if (error.code === "23503") return { ok: false, error: HAS_BOOKINGS };
+    if (error.code === "23503") return { ok: false, error: (await errorsT())("spaces.hasBookings") };
     return fail("deleteUnit", error);
   }
   revalidatePath("/rentals");
@@ -301,13 +306,18 @@ export async function deleteUnit(input: unknown): Promise<ActionState> {
 export async function addBlackout(input: unknown): Promise<ActionState> {
   const parsed = blackoutInput.safeParse(input);
   if (!parsed.success) {
+    // The schema's refine sentinels (schema.ts) name which rule failed; the
+    // person reads the rule in their language.
     const messages = parsed.error.issues.map((i) => i.message);
-    if (messages.includes(BLACKOUT_SPAN_MSG)) return { ok: false, error: BLACKOUT_SPAN_MSG };
-    if (messages.includes(BLACKOUT_ORDER_MSG)) return { ok: false, error: BLACKOUT_ORDER_MSG };
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    const key = messages.includes(BLACKOUT_SPAN_MSG)
+      ? "spaces.blackoutSpan"
+      : messages.includes(BLACKOUT_ORDER_MSG)
+        ? "spaces.blackoutOrder"
+        : "generic";
+    return { ok: false, error: (await errorsT())(key) };
   }
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return generic();
   const supabase = await createClient();
   const { error } = await supabase.from("rental_unit_blackouts").insert({
     org_id: orgId,
@@ -324,9 +334,9 @@ export async function addBlackout(input: unknown): Promise<ActionState> {
 
 export async function deleteBlackout(input: unknown): Promise<ActionState> {
   const parsed = blackoutIdInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return generic();
   const supabase = await createClient();
   const { error } = await supabase
     .from("rental_unit_blackouts")

@@ -14,6 +14,12 @@ const state = vi.hoisted(() => ({
 const assertCanAddUnit = vi.hoisted(() => vi.fn(async () => null as Refused | null));
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// The action's copy comes from messages/en.json (i18n Wave 3); the
+// expectations below quote the English so a reworded notice is noticed.
+vi.mock("next-intl/server", async () => {
+  const { translatorFor } = await import("@/i18n/test-translator");
+  return { getTranslations: async (namespace: never) => translatorFor("en", namespace) };
+});
 vi.mock("@/lib/flags/resolve", () => ({ getDashboardFlags: async () => ({ rentals: true }) }));
 vi.mock("@/lib/billing/gates", () => ({ assertCanAddUnit }));
 import type { Refused } from "@/lib/billing/gates";

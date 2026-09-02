@@ -130,6 +130,15 @@
     "upgradeLabel": {
       "billing": "Open Billing",
       "waitlist": "Join the waitlist"
+    },
+    "spaces": {
+      "hasBookings": "It has bookings — deactivate it instead.",
+      "blackoutOrder": "End date must not precede the start date.",
+      "blackoutSpan": "Unavailable dates can span at most 2 years."
+    },
+    "clients": {
+      "createdNotAssigned": "Client created, but assigning failed. Pick them from the list.",
+      "copyFailed": "Couldn't copy — select the link text and copy manually."
     }
   },
   "public": {
@@ -446,6 +455,114 @@
     "scope": {
       "group": "Spaces",
       "all": "All spaces"
+    },
+    "emptyTitle": "Add your first space",
+    "mode": {
+      "hours": "Hourly",
+      "nights": "Nightly",
+      "days": "Daily"
+    },
+    "schedule": {
+      "hours": "{min}–{max} · every {step} min",
+      "nights": "check-in {start} · check-out {end}",
+      "days": "pickup {start} · return {end}"
+    },
+    "list": {
+      "type": "Type",
+      "price": "Price",
+      "actions": "Actions",
+      "unitCount": "{count, plural, one {# unit} other {# units}}",
+      "confirmDelete": "Confirm delete",
+      "keep": "Keep",
+      "deleteAria": "Delete {name}",
+      "bookableAria": "{name} is bookable",
+      "deleted": "Deleted"
+    },
+    "detail": {
+      "openingHours": "Opening hours",
+      "editHours": "Edit hours →",
+      "reactivateToEdit": "Reactivate to edit hours"
+    },
+    "dialog": {
+      "namePlaceholder": "Space name",
+      "description": "Description",
+      "descriptionPlaceholder": "Add a description…",
+      "section": {
+        "session": "Session",
+        "stay": "Stay",
+        "pricing": "Pricing"
+      },
+      "bookedBy": "Booked by",
+      "mode": {
+        "nights": "Nightly (check-in → check-out)",
+        "days": "Daily (pickup → return)",
+        "hours": "Hourly (booked by the hour)"
+      },
+      "slotIncrement": "Slot increment",
+      "minDuration": "Min duration (min)",
+      "maxDuration": "Max duration (min)",
+      "turnoverMinutes": "Turnover (minutes)",
+      "startTime": "Start time",
+      "endTime": "End time",
+      "minStay": "Min stay",
+      "maxStay": "Max stay",
+      "unlimited": "Unlimited",
+      "turnoverDays": "Turnover (days)",
+      "price": "Price ({currency})",
+      "unpriced": "Unpriced",
+      "pricingMode": "Pricing mode",
+      "perHour": "Per hour",
+      "perNight": "Per night",
+      "perDay": "Per day",
+      "flat": "Flat per booking",
+      "requireApproval": "Require approval",
+      "requireApprovalHint": "New bookings wait for your confirmation instead of confirming instantly.",
+      "rules": "Deposit, cancellation & booking rules",
+      "deposit": "Deposit",
+      "depositNone": "No deposit",
+      "depositFixed": "Fixed amount",
+      "depositPercent": "Percent of total",
+      "depositFull": "Full amount",
+      "depositAmount": "Deposit amount ({currency})",
+      "depositPercentLabel": "Deposit (%)",
+      "cancelWindowHours": "Free cancellation until (hours before start)",
+      "cancelWindowDays": "Free cancellation until (days before start)",
+      "noWindow": "No window",
+      "terms": "Terms",
+      "minNoticeMinutes": "Min notice (minutes)",
+      "minNoticeDays": "Min notice (days)",
+      "bookingWindow": "Booking window (days)",
+      "unitSelection": "Unit selection",
+      "unitAuto": "Assign a unit automatically",
+      "unitClientPicks": "Let the client pick a unit",
+      "create": "Create space",
+      "created": "Space created"
+    },
+    "units": {
+      "title": "Units",
+      "namePlaceholder": "Add a unit…",
+      "descriptionPlaceholder": "Description (optional)",
+      "newNameAria": "New unit name",
+      "newDescriptionAria": "New unit description",
+      "description": "Description",
+      "added": "Unit added",
+      "needsName": "A unit needs a name.",
+      "activated": "Unit is active",
+      "deactivated": "Unit is inactive",
+      "deleted": "Unit deleted",
+      "deleteAria": "Delete unit {name}",
+      "blackouts": {
+        "title": "Unavailable dates",
+        "none": "None — this unit is bookable all year.",
+        "from": "Unavailable from",
+        "until": "Unavailable until",
+        "reason": "Reason",
+        "reasonPlaceholder": "Reason (optional)",
+        "block": "Block dates",
+        "blocked": "Dates blocked",
+        "freed": "Dates freed up",
+        "removeAria": "Remove unavailable dates {range}"
+      }
     }
   },
   "appointments": {
@@ -477,5 +594,58 @@
       "rescheduled": "Rescheduled"
     },
     "fallbackTitle": "Appointment"
+  },
+  "clients": {
+    "emptyTitle": "No clients yet",
+    "emptyBody": "Clients appear here automatically after their first booking — with their bookings, notes and links in one place.",
+    "intro": "Everyone who has booked with you, and their history.",
+    "directory": {
+      "searchPlaceholder": "Search by name or email",
+      "searchAria": "Search clients",
+      "noMatch": "No clients match “{query}”.",
+      "bookingCount": "{count, plural, one {# booking} other {# bookings}}"
+    },
+    "detail": {
+      "back": "← Clients",
+      "noEmail": "No email on file",
+      "bookings": "Bookings ({count})",
+      "bookingsLast": "Bookings (last {count})",
+      "noBookings": "No bookings yet.",
+      "note": "“{note}”"
+    },
+    "header": {
+      "nameAria": "Client name",
+      "deleteButton": "Delete client",
+      "deleteTitle": "Delete this client?",
+      "deleteBody": "Bookings keep their history (name and email stay on each booking); the client entry itself is deleted."
+    },
+    "create": {
+      "title": "New client",
+      "chip": "Client",
+      "namePlaceholder": "Client name",
+      "submit": "Create client"
+    },
+    "assign": {
+      "prompt": "New client name",
+      "aria": "Assign client for {unit}",
+      "none": "No client",
+      "new": "+ New client…"
+    },
+    "portal": {
+      "title": "Portal links",
+      "issue": "Issue link",
+      "newLinkAria": "New link (shown once)",
+      "shownOnce": "Shown once — copy it now.",
+      "status": {
+        "active": "active",
+        "expired": "expired",
+        "revoked": "revoked"
+      },
+      "issued": "issued {date}",
+      "expires": "exp {date}",
+      "used": "used {date}",
+      "revokeAria": "Revoke portal link issued {date}",
+      "empty": "No links yet — issue one to give this client a read-only view of their units."
+    }
   }
 }
