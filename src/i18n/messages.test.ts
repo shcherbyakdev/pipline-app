@@ -4,12 +4,16 @@ import en from "../../messages/en.json";
 import uk from "../../messages/uk.json";
 import { LOCALES, type Locale } from "./config";
 import { deepMerge } from "./messages";
-import { FORBIDDEN_COPY } from "@/features/marketing/site";
 
-// Glossary's per-language forbidden list (messages/GLOSSARY.md); uk has no
-// FORBIDDEN_COPY-equivalent export to import, so it is spelled out here.
-const FORBIDDEN_UK = ["оренда", "офер", "пропустити"];
-const FORBIDDEN: Record<Locale, readonly string[]> = { en: FORBIDDEN_COPY, uk: FORBIDDEN_UK };
+// The glossary's per-language forbidden list (messages/GLOSSARY.md, spec
+// §6): the product never says "rental" or "offering" to a person, and
+// never offers to "skip". (The landing page's own FORBIDDEN_COPY — no
+// "payment", "stripe", "google" claims — is a marketing rule and applies to
+// the `marketing` namespace when Wave 5 adds it.)
+const FORBIDDEN: Record<Locale, readonly string[]> = {
+  en: ["rental", "offering", "skip"],
+  uk: ["оренда", "офер", "пропустити"],
+};
 
 /* The guards from spec 2026-09-02 §6. Every locale must carry every key,
    compile as ICU, name the same placeholders and tags as English, cover
@@ -19,7 +23,15 @@ const MESSAGES: Record<Locale, unknown> = { en, uk };
 
 // Values that are the same in every language on purpose: codes, brand,
 // examples. Anything else equal to English is an untranslated string.
-const SAME_IN_EVERY_LOCALE = new Set(["auth.emailPlaceholder"]);
+const SAME_IN_EVERY_LOCALE = new Set([
+  "auth.emailPlaceholder",
+  // Brand names of the link platforms; a pure-placeholder pattern.
+  "public.links.instagram",
+  "public.links.facebook",
+  "public.links.tiktok",
+  "public.links.whatsapp",
+  "public.units.summary",
+]);
 
 function flatten(value: unknown, prefix = "", out: Record<string, string> = {}): Record<string, string> {
   if (typeof value === "string") out[prefix] = value;
