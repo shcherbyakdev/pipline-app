@@ -42,6 +42,42 @@
       "title": "Language",
       "blurb": "For your admin. The language your clients see is set on your booking page.",
       "label": "Interface language"
+    },
+    "intro": "Your admin preferences and what your business offers.",
+    "sections": {
+      "interface": "Interface",
+      "business": "Business"
+    },
+    "appearance": {
+      "title": "Interface theme",
+      "blurb": "Applies to this browser only.",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "business": {
+      "title": "What you offer",
+      "blurb": "Turning one off hides it from your booking page and this admin. Existing bookings stay."
+    },
+    "copyRefused": "Couldn't copy — select the link and copy it manually.",
+    "bookingPage": {
+      "title": "Address, timezone & language",
+      "description": "Applies when you save.",
+      "saved": "Booking page saved",
+      "unpublishTitle": "Unpublish your booking page?",
+      "changeTitle": "Change your booking page address?",
+      "changeDescription": "Your old link and any website embed will stop working — update the snippet on Website embed.",
+      "unpublish": "Unpublish",
+      "changeAddress": "Change address",
+      "handle": "Booking page address",
+      "handleHint": "Lowercase letters, digits and hyphens, 3–50 characters. Empty unpublishes the page.",
+      "handlePlaceholder": "your-handle",
+      "copyLinkLabel": "Copy booking page link",
+      "timezone": "Timezone",
+      "timezoneHint": "Your availability is set in this timezone.",
+      "currency": "Currency",
+      "currencyHint": "Shown on prices and deposits.",
+      "language": "Language",
+      "languageHint": "What your clients see on your booking page. Visitors browsing from Ukraine get Ukrainian either way."
     }
   },
   "auth": {
@@ -156,6 +192,20 @@
       "handleReserved": "That address is reserved — pick another.",
       "handleFormat": "Use 3–50 lowercase letters, digits or hyphens.",
       "handleTaken": "That handle is already taken."
+    },
+    "orgs": {
+      "invalidInput": "Check the name (2–80 characters) and the page address.",
+      "timezoneUnknown": "That timezone isn't recognised — pick one from the list.",
+      "keepOne": "Keep at least one booking type on.",
+      "handleJustTaken": "That name was just taken — pick another."
+    },
+    "billing": {
+      "checkout": "Couldn't open checkout — try again.",
+      "usePortal": "Change plans in the billing portal.",
+      "complimentary": "Your plan is complimentary right now — there's nothing to buy until it ends.",
+      "founderEnded": "The Founder offer has ended — the regular price applies.",
+      "portal": "There's no subscription to manage yet.",
+      "portalUnavailable": "Couldn't open the billing portal — try again."
     }
   },
   "public": {
@@ -780,6 +830,201 @@
       "colourNamed": "Colour {hex}",
       "services": "Services",
       "inheritsHours": "Starts with {name}'s weekly hours — edit them on Availability."
+    }
+  },
+  "billing": {
+    "intro": "Your plan and what it covers. Invoices and card details are managed in the secure billing portal.",
+    "checkoutCancelled": "Checkout cancelled — nothing was charged.",
+    "complimentary": "Your plan is complimentary. Plans can be bought once it ends.",
+    "complimentaryUntil": "Your plan is complimentary until {date}. Plans can be bought once it ends.",
+    "activation": {
+      "waiting": "Activating your plan… this takes a few seconds.",
+      "timedOut": "Still waiting for the payment provider — refresh in a minute or contact support."
+    },
+    "current": {
+      "complimentary": "Complimentary",
+      "perMonth": "{price} / month",
+      "perMonthYearly": "{price} / month · billed yearly",
+      "noCard": "No card needed",
+      "until": "Until {date}",
+      "noExpiry": "No expiry",
+      "pastDue": "We couldn't charge your card — update it in the billing portal to keep your plan.",
+      "endedOn": "Ended on {date}",
+      "endsOn": "Ends on {date}",
+      "renewsOn": "Renews on {date}",
+      "manage": "Manage subscription"
+    },
+    "plans": {
+      "free": {
+        "blurb": "Everything two people — or two rooms — need to take bookings."
+      },
+      "pro": {
+        "blurb": "Your brand, unlimited services, reminders for every booking, up to three bookable people or units."
+      },
+      "team": {
+        "blurb": "Up to ten bookable people and units, auto-assigned."
+      }
+    },
+    "picker": {
+      "title": "Plans",
+      "interval": "Billing interval",
+      "yearly": "Yearly",
+      "monthly": "Monthly",
+      "current": "Current",
+      "perMo": "{price} / mo",
+      "freePrice": "Free",
+      "billedYearly": "billed yearly · {yearly} a year · save {percent}%",
+      "billedMonthly": "billed monthly",
+      "noCard": "no card needed",
+      "founderRibbon": "Founder price · {price}/mo for life",
+      "founderYearlyNote": "Founder price ({price}/mo for life) applies to monthly billing.",
+      "rows": {
+        "resources": "Bookable resources (people + units)",
+        "services": "Services on your booking page",
+        "unlimited": "Unlimited",
+        "reminders": "Reminder emails",
+        "everyBooking": "Every booking",
+        "firstBookings": "First {count} bookings a month",
+        "brand": "Your logo, colours, welcome text",
+        "included": "Included",
+        "badge": "Remove “Powered by Booklo”",
+        "team": "Team layer: per-person links, “Anyone available”, colours"
+      },
+      "currentPlan": "Current plan",
+      "includedEverywhere": "Included in every plan",
+      "upgradeTo": "Upgrade to {plan}",
+      "openingCheckout": "Opening checkout…",
+      "openingPortal": "Opening portal…",
+      "switchInPortal": "Switch in the billing portal"
+    },
+    "usage": {
+      "reminders": "Reminder bookings this month",
+      "everyBookingReminded": "every booking gets a reminder",
+      "remindersResume": "reminders resume next month",
+      "confirmationsAlways": "confirmations always send",
+      "resources": "Bookable resources",
+      "services": "Services",
+      "unlimitedServices": "unlimited on your plan",
+      "firstServicesPublic": "only the first {count} are offered publicly",
+      "servicesPublic": "offered on your booking page"
+    },
+    "meter": {
+      "bothOnOne": "your person takes the slot — spaces need a second resource",
+      "firstBookable": "only the first {count} are bookable publicly",
+      "onPage": "people and units on your booking page"
+    },
+    "banner": {
+      "managePlan": "Manage plan",
+      "upgrade": "Upgrade",
+      "resources": "Your plan allows {cap, plural, one {# bookable resource} other {# bookable resources}} (people and units); {hidden, plural, one {# isn't} other {# aren't}} bookable publicly.",
+      "remindersUsedAll": "You've used all {cap} free reminder bookings this month — bookings made now won't get a reminder until it rolls over.",
+      "remindersUsed": "You've used {used} of {cap} free reminder bookings this month."
+    },
+    "planTag": {
+      "srPrefix": "Plan:",
+      "waitlistTitle": "Premium via the waitlist, free while we build",
+      "planTitle": "{plan} plan"
+    },
+    "waitlist": {
+      "cardTitle": "Premium waitlist",
+      "cardBody": "Your brand, unlimited services, more people and spaces. Free while we build.",
+      "cardCta": "Join the waitlist",
+      "intro": "Premium is on its way. Join the waitlist and use everything it unlocks now, free while we build.",
+      "heading": "Unlock Premium early",
+      "sub": "Join the waitlist and your workspace switches to Premium right away. No card, nothing to cancel.",
+      "join": "Join the waitlist",
+      "joinedHeading": "You’re on the list",
+      "joinedSub": "Premium is unlocked for your workspace. We’ll email you before anything changes.",
+      "joinedJustNow": "Welcome aboard — everything below is yours now.",
+      "alreadyPremium": "Your plan already includes everything Premium unlocks.",
+      "error": "Couldn’t add you to the list right now. Please try again.",
+      "perksHeading": "What’s unlocked",
+      "perks": {
+        "resources": "Up to {count} bookable people or units",
+        "services": "Unlimited services on your booking page",
+        "reminders": "Reminders for every booking, not just the first {free} a month",
+        "badge": "No “Powered by Booklo” badge on your page and emails"
+      }
+    }
+  },
+  "onboarding": {
+    "heading": "Create your workspace",
+    "sub": "This is the address clients book you at. You can change it later.",
+    "nameLabel": "Your name or business",
+    "namePlaceholder": "Anna Studio",
+    "handleLabel": "Page address",
+    "handlePlaceholder": "your-name",
+    "handleHint": "3–50 characters: letters, numbers, dashes. Leave empty to choose later.",
+    "handleReserved": "That name can't be used — try another.",
+    "handleTaken": "{url} is taken",
+    "handleTakenSuggest": "try {suggestion}",
+    "handleCheckFailed": "Couldn't check right now — you can still continue.",
+    "timezoneLabel": "Timezone",
+    "modeLegend": "What are you booking?",
+    "modes": {
+      "spaces": {
+        "title": "Spaces",
+        "blurb": "Rooms, studios and gear, booked by the hour, night or day."
+      },
+      "appointments": {
+        "title": "Appointments",
+        "blurb": "Time on your calendar: consultations, sessions, classes."
+      },
+      "both": {
+        "title": "Both",
+        "blurb": "You book spaces and people."
+      }
+    },
+    "next": "Continue",
+    "notNow": "Not now",
+    "submit": "Create workspace",
+    "submitting": "Creating…",
+    "usingEmail": "Using {email}",
+    "useDifferentAccount": "Use a different account",
+    "stepOf": "Step {step} of {count}",
+    "wizard": {
+      "mode": {
+        "heading": "What are you booking?",
+        "sub": "You can change this any time in Settings."
+      },
+      "service": {
+        "heading": "Add your first service",
+        "sub": "What clients book with you. Add more on Services later.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Haircut",
+        "duration": "Duration",
+        "price": "Price (optional)",
+        "pricePlaceholder": "e.g. 120 {currency}"
+      },
+      "space": {
+        "heading": "Add your first space",
+        "sub": "A room, studio or item clients book. Its first unit comes with it.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Studio A",
+        "bookedBy": "Booked by",
+        "byHour": "the hour",
+        "byNight": "the night",
+        "byDay": "the day",
+        "price": "{per, select, hours {Price per hour} nights {Price per night} other {Price per day}} ({currency}, optional)",
+        "noticeHint": "The page can list this space once it has a unit — add one on Spaces. You can keep going and publish when it is bookable."
+      },
+      "hours": {
+        "heading": "Your weekly hours",
+        "sub": "When clients can book you. We started you with Mon–Fri, 9–5.",
+        "save": "Save hours",
+        "startFor": "{day} start",
+        "endFor": "{day} end"
+      },
+      "share": {
+        "heading": "Your page is live",
+        "sub": "Share the link anywhere clients find you.",
+        "almostHeading": "Almost live",
+        "almostSub": "Add what clients book and your page opens at:",
+        "noHandle": "Your workspace is ready.",
+        "noHandleSub": "Pick a page address on Booking page and you're bookable.",
+        "setUpPage": "Set up your booking page",
+        "finish": "Go to your bookings"
+      }
     }
   }
 }

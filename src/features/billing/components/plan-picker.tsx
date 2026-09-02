@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
+import type { Translator } from "@/i18n/translator";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -19,30 +21,29 @@ import {
 } from "@/lib/billing/plans";
 import { openPortal, startCheckout } from "../actions";
 
+type T = Translator<"billing.picker">;
+
 /* The ladder, rendered from PLANS — the only place prices and limits live
    (spec §7.3). The rows below read the same limits, so a number changed in
    plans.ts changes this table too. Two rows are prose because they aren't
    limits: the team layer (shipped in #39) and the brand basics every plan
    gets. Nothing here names an unshipped feature. */
-const PLAN_ROWS: { label: string; value: (plan: PlanDef) => string }[] = [
-  { label: "Bookable resources (people + units)", value: (p) => String(p.limits.bookableResources) },
+const PLAN_ROWS: { label: (t: T) => string; value: (t: T, plan: PlanDef) => string }[] = [
+  { label: (t) => t("rows.resources"), value: (_t, p) => String(p.limits.bookableResources) },
   {
-    label: "Services on your booking page",
-    value: (p) => (p.limits.publicServices === null ? "Unlimited" : String(p.limits.publicServices)),
+    label: (t) => t("rows.services"),
+    value: (t, p) => (p.limits.publicServices === null ? t("rows.unlimited") : String(p.limits.publicServices)),
   },
   {
-    label: "Reminder emails",
-    value: (p) =>
+    label: (t) => t("rows.reminders"),
+    value: (t, p) =>
       p.limits.reminderBookingsPerMonth === null
-        ? "Every booking"
-        : `First ${p.limits.reminderBookingsPerMonth} bookings a month`,
+        ? t("rows.everyBooking")
+        : t("rows.firstBookings", { count: p.limits.reminderBookingsPerMonth }),
   },
-  { label: "Your logo, colours, welcome text", value: () => "Included" },
-  { label: "Remove “Powered by Booklo”", value: (p) => (p.limits.hideBadge ? "Included" : "—") },
-  {
-    label: "Team layer: per-person links, “Anyone available”, colours",
-    value: (p) => (p.id === "team" ? "Included" : "—"),
-  },
+  { label: (t) => t("rows.brand"), value: (t) => t("rows.included") },
+  { label: (t) => t("rows.badge"), value: (t, p) => (p.limits.hideBadge ? t("rows.included") : "—") },
+  { label: (t) => t("rows.team"), value: (t, p) => (p.id === "team" ? t("rows.included") : "—") },
 ];
 
 const COLUMNS: PlanId[] = ["free", ...PAID_PLANS];
@@ -66,16 +67,17 @@ export function PlanPicker({
       would be refused the same way and loop back to the same line. */
   skipFounder?: boolean;
 }) {
+  const t = useTranslations("billing.picker");
   // Yearly first: it is the cheaper per-month number and the one we want read.
   const [interval, setBillingInterval] = React.useState<Interval>("year");
 
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">Plans</h2>
+        <h2 className="text-sm font-medium">{t("title")}</h2>
         <div
           role="group"
-          aria-label="Billing interval"
+          aria-label={t("interval")}
           className="border-border bg-muted/40 flex w-fit items-center gap-0.5 rounded-lg border p-0.5"
         >
           {(["year", "month"] as const).map((id) => (
@@ -91,7 +93,7 @@ export function PlanPicker({
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {id === "year" ? "Yearly" : "Monthly"}
+              {id === "year" ? t("yearly") : t("monthly")}
             </button>
           ))}
         </div>
@@ -126,6 +128,8 @@ function PlanColumn({
   founderEligible: boolean;
   skipFounder: boolean;
 }) {
+  const t = useTranslations("billing.picker");
+  const tb = useTranslations("billing");
   const current = plan.id === currentPlan;
   const paid = isPaidPlan(plan.id) ? plan.id : null;
   const showFounder = founderEligible && plan.id === "pro" && !current;
@@ -135,40 +139,38 @@ function PlanColumn({
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-2">
           <span className="font-medium">{plan.name}</span>
-          {current ? <span className="text-muted-foreground text-xs">Current</span> : null}
+          {current ? <span className="text-muted-foreground text-xs">{t("current")}</span> : null}
         </div>
         <span className="text-2xl font-semibold">
-          {paid ? `${formatUsd(pricePerMonth(paid, interval))} / mo` : "Free"}
+          {paid ? t("perMo", { price: formatUsd(pricePerMonth(paid, interval)) }) : t("freePrice")}
         </span>
         <span className="text-muted-foreground text-xs">
           {paid
             ? interval === "year"
-              ? `billed yearly · ${formatUsd(plan.yearly)} a year · save ${savingPercent(paid)}%`
-              : "billed monthly"
-            : "no card needed"}
+              ? t("billedYearly", { yearly: formatUsd(plan.yearly), percent: savingPercent(paid) })
+              : t("billedMonthly")
+            : t("noCard")}
         </span>
         {/* The coupon is 33.3 % off Pro MONTHLY, forever — so the ribbon only
             claims the price on the tab where it would actually apply, and the
             yearly tab says where to find it instead of implying it's included. */}
         {showFounder && interval === "month" ? (
           <span className="border-primary/40 text-primary mt-1 w-fit rounded-full border px-2 py-0.5 text-[11px] font-medium">
-            Founder price · {FOUNDER_MONTHLY}/mo for life
+            {t("founderRibbon", { price: FOUNDER_MONTHLY })}
           </span>
         ) : null}
         {showFounder && interval === "year" ? (
-          <span className="text-muted-foreground mt-1 text-[11px]">
-            Founder price ({FOUNDER_MONTHLY}/mo for life) applies to monthly billing.
-          </span>
+          <span className="text-muted-foreground mt-1 text-[11px]">{t("founderYearlyNote", { price: FOUNDER_MONTHLY })}</span>
         ) : null}
       </div>
 
-      <p className="text-muted-foreground text-sm">{plan.blurb}</p>
+      <p className="text-muted-foreground text-sm">{tb(`plans.${plan.id}.blurb`)}</p>
 
       <dl className="flex flex-col gap-1.5 text-xs">
-        {PLAN_ROWS.map((row) => (
-          <div key={row.label} className="flex items-start justify-between gap-3">
-            <dt className="text-muted-foreground">{row.label}</dt>
-            <dd className="shrink-0 text-right font-medium">{row.value(plan)}</dd>
+        {PLAN_ROWS.map((row, i) => (
+          <div key={i} className="flex items-start justify-between gap-3">
+            <dt className="text-muted-foreground">{row.label(t)}</dt>
+            <dd className="shrink-0 text-right font-medium">{row.value(t, plan)}</dd>
           </div>
         ))}
       </dl>
@@ -191,10 +193,11 @@ function PlanCta({
   currentPlan: PlanId;
   skipFounder: boolean;
 }) {
+  const t = useTranslations("billing.picker");
   if (plan.id === currentPlan) {
     return (
       <Button type="button" variant="secondary" disabled className="w-full">
-        Current plan
+        {t("currentPlan")}
       </Button>
     );
   }
@@ -202,7 +205,7 @@ function PlanCta({
   // which lives in the provider's portal — we build no downgrade screens
   // (spec §7.6).
   if (plan.id === "free") {
-    return <p className="text-muted-foreground text-center text-xs">Included in every plan</p>;
+    return <p className="text-muted-foreground text-center text-xs">{t("includedEverywhere")}</p>;
   }
   // Any paid → paid move, in EITHER direction, is a change to the
   // subscription this org already pays for: a proration the portal does and
@@ -221,25 +224,27 @@ function PlanCta({
       <input type="hidden" name="plan" value={plan.id} />
       <input type="hidden" name="interval" value={interval} />
       {skipFounder ? <input type="hidden" name="founder" value="skip" /> : null}
-      <CheckoutButton>Upgrade to {plan.name}</CheckoutButton>
+      <CheckoutButton>{t("upgradeTo", { plan: plan.name })}</CheckoutButton>
     </form>
   );
 }
 
 function CheckoutButton({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("billing.picker");
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} className="w-full">
-      {pending ? "Opening checkout…" : children}
+      {pending ? t("openingCheckout") : children}
     </Button>
   );
 }
 
 function PortalButton() {
+  const t = useTranslations("billing.picker");
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="secondary" disabled={pending} className="w-full">
-      {pending ? "Opening portal…" : "Switch in the billing portal"}
+      {pending ? t("openingPortal") : t("switchInPortal")}
     </Button>
   );
 }

@@ -32,8 +32,10 @@ export function bannerCta(
    nearly-spent reminder quota are different problems with different fixes —
    so both render, hidden resources first: that one is silent, because the
    people and units it names simply aren't bookable publicly. */
-export function PlanBanner({ ent, mode, usage, flags, waitlistLabel }: { ent: Entitlements; mode: OrgMode; usage: Usage; flags: Pick<Flags, "billing" | "premium_waitlist">; waitlistLabel: string }) {
-  const { hidden } = resourceMeter(usage, mode, ent);
+export async function PlanBanner({ ent, mode, usage, flags }: { ent: Entitlements; mode: OrgMode; usage: Usage; flags: Pick<Flags, "billing" | "premium_waitlist"> }) {
+  const [t, te] = await Promise.all([getTranslations("billing"), getTranslations("errors")]);
+  const waitlistLabel = te("upgradeLabel.waitlist");
+  const { hidden } = resourceMeter(t, usage, mode, ent);
   const cap = ent.reminderBookingsPerMonth;
   const overResources = hidden > 0;
   const nearQuota = cap !== null && usage.bookingsThisMonth >= REMINDER_WARN_AT;
@@ -41,12 +43,16 @@ export function PlanBanner({ ent, mode, usage, flags, waitlistLabel }: { ent: En
 
   return (
     <div className="mb-4 flex flex-col gap-2">
-      {overResources ? <Notice cta={bannerCta(flags, ent, "Manage plan", waitlistLabel)}>{resourceBannerText(hidden, ent.bookableResources)}</Notice> : null}
+      {overResources ? (
+        <Notice cta={bannerCta(flags, ent, t("banner.managePlan"), waitlistLabel)}>
+          {resourceBannerText(t, hidden, ent.bookableResources)}
+        </Notice>
+      ) : null}
       {nearQuota && cap !== null ? (
-        <Notice cta={bannerCta(flags, ent, "Upgrade", waitlistLabel)}>
+        <Notice cta={bannerCta(flags, ent, t("banner.upgrade"), waitlistLabel)}>
           {usage.bookingsThisMonth >= cap
-            ? `You've used all ${cap} free reminder bookings this month — bookings made now won't get a reminder until it rolls over.`
-            : `You've used ${usage.bookingsThisMonth} of ${cap} free reminder bookings this month.`}
+            ? t("banner.remindersUsedAll", { cap })
+            : t("banner.remindersUsed", { used: usage.bookingsThisMonth, cap })}
         </Notice>
       ) : null}
     </div>
@@ -75,9 +81,9 @@ function Notice({ children, cta }: { children: React.ReactNode; cta: { href: str
    plansEnforced(flags) before mounting it, so an unenforced org never reaches
    this read at all (the "run zero queries" guard this used to do lives there now). */
 export async function PlanBannerSlot({ flags }: { flags: Pick<Flags, "billing" | "premium_waitlist"> }) {
-  const [overview, t] = await Promise.all([overviewOrNull(), getTranslations("errors")]);
+  const overview = await overviewOrNull();
   if (!overview) return null;
-  return <PlanBanner ent={overview.entitlements} mode={overview.mode} usage={overview.usage} flags={flags} waitlistLabel={t("upgradeLabel.waitlist")} />;
+  return <PlanBanner ent={overview.entitlements} mode={overview.mode} usage={overview.usage} flags={flags} />;
 }
 
 // Separate from the component: JSX must not be constructed inside a try/catch

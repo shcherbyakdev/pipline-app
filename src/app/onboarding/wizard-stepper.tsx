@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { cn } from "@/lib/utils";
 
 /* The reference's dot row: 8px dots, the active one stretched into a 24px
@@ -9,7 +10,7 @@ import { cn } from "@/lib/utils";
    settle at 0.6 behind it, like the reference. Dots with an `href` (the
    post-org steps) are links; the rest are markers. Reduced motion keeps
    the opacity change and snaps the width. */
-export function WizardStepper({
+export async function WizardStepper({
   count,
   active,
   hrefs,
@@ -19,6 +20,7 @@ export function WizardStepper({
   /** Per-dot destination (index-aligned), null for inert dots. */
   hrefs?: ReadonlyArray<{ href: string; label: string } | null>;
 }) {
+  const t = await getTranslations("onboarding");
   const dots = Array.from({ length: count }, (_, i) => {
     const isActive = i === active;
     const opacity = isActive ? 1 : i < active ? 0.6 : Math.max(0.45, 0.85 - 0.15 * (i - active - 1));
@@ -56,7 +58,7 @@ export function WizardStepper({
   });
 
   return (
-    <nav aria-label={`Step ${active + 1} of ${count}`} className="flex items-center justify-center gap-1 pb-6">
+    <nav aria-label={t("stepOf", { step: active + 1, count })} className="flex items-center justify-center gap-1 pb-6">
       {dots}
     </nav>
   );

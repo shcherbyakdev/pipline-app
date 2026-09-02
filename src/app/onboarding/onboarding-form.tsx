@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { createOrgWithPage } from "@/features/orgs/actions";
 import type { OrgState } from "@/features/orgs/schema";
 import { HANDLE_RE, isReservedHandle, normalizeHandle, toDisplayName } from "@/features/scheduling/handle";
 import { useHandleCheck } from "@/features/scheduling/use-handle-check";
-import { ONBOARDING } from "@/features/marketing/site";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,7 @@ const getServerTimeZone = () => "UTC";
    choice lives in the wizard that follows (appointments preselected there),
    so this screen carries no dots — the stepper begins where skipping does. */
 export function OnboardingForm({ initialHandle, host }: { initialHandle: string | null; host: string }) {
+  const t = useTranslations("onboarding");
   const [state, action, pending] = useActionState(createOrgWithPage, initial);
   const [name, setName] = React.useState(initialHandle ? toDisplayName(initialHandle) : "");
   const [handle, setHandle] = React.useState(initialHandle ?? "");
@@ -37,7 +38,8 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
   const effectiveTimezone = timezone ?? detectedTimezone;
 
   const { result } = useHandleCheck(handle);
-  const url = `${host}/${handle || ONBOARDING.handlePlaceholder}`;
+  const hostPrefix = `${host}/`;
+  const url = `${host}/${handle || t("handlePlaceholder")}`;
 
   // Silent under the field by default (the reference shows nothing there) —
   // the line appears only for problems: malformed, taken, reserved, or a
@@ -45,25 +47,25 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
   let status: React.ReactNode = null;
   let tone = "text-destructive";
   if (handle && !HANDLE_RE.test(handle)) {
-    status = ONBOARDING.handleHint;
+    status = t("handleHint");
   } else if (result?.status === "taken") {
     status = (
       <>
-        {ONBOARDING.handleTaken(url)}
+        {t("handleTaken", { url })}
         {result.suggestion ? (
           <>
             {" — "}
             <button type="button" className="underline" onClick={() => setHandle(result.suggestion!)}>
-              {ONBOARDING.handleTakenSuggest(result.suggestion)}
+              {t("handleTakenSuggest", { suggestion: result.suggestion })}
             </button>
           </>
         ) : null}
       </>
     );
   } else if (result?.status === "invalid") {
-    status = isReservedHandle(handle) ? ONBOARDING.handleReserved : ONBOARDING.handleHint;
+    status = isReservedHandle(handle) ? t("handleReserved") : t("handleHint");
   } else if (result?.status === "error") {
-    status = ONBOARDING.handleCheckFailed;
+    status = t("handleCheckFailed");
     tone = "text-muted-foreground";
   }
 
@@ -72,11 +74,11 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
     // (gap-6), one extra breath before the CTA — the reference's rhythm.
     <form action={action} className="step-enter flex flex-col gap-6">
       <div className="mb-2 text-center">
-        <h1 className="text-xl font-semibold tracking-tight">{ONBOARDING.heading}</h1>
-        <p className="text-muted-foreground mt-1.5 text-sm text-pretty">{ONBOARDING.sub}</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t("heading")}</h1>
+        <p className="text-muted-foreground mt-1.5 text-sm text-pretty">{t("sub")}</p>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="name">{ONBOARDING.nameLabel}</Label>
+        <Label htmlFor="name">{t("nameLabel")}</Label>
         <Input
           id="name"
           name="name"
@@ -85,24 +87,24 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
           maxLength={80}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={ONBOARDING.namePlaceholder}
+          placeholder={t("namePlaceholder")}
           className="h-11 rounded-xl"
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="handle">{ONBOARDING.handleLabel}</Label>
+        <Label htmlFor="handle">{t("handleLabel")}</Label>
         {/* The host lives in a filled segment with its own divider (the
             reference's URL field), not as loose inline text. */}
         <InputGroup className="h-11 overflow-clip rounded-xl">
           <InputGroupAddon className="bg-muted h-full self-stretch border-r px-3">
-            <InputGroupText className="font-mono text-xs">{host}/</InputGroupText>
+            <InputGroupText className="font-mono text-xs">{hostPrefix}</InputGroupText>
           </InputGroupAddon>
           <InputGroupInput
             id="handle"
             name="handle"
             value={handle}
             onChange={(e) => setHandle(normalizeHandle(e.target.value))}
-            placeholder={ONBOARDING.handlePlaceholder}
+            placeholder={t("handlePlaceholder")}
             autoComplete="off"
             spellCheck={false}
             aria-describedby="handle-status"
@@ -116,7 +118,7 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
         </p>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="timezone">{ONBOARDING.timezoneLabel}</Label>
+        <Label htmlFor="timezone">{t("timezoneLabel")}</Label>
         <select
           id="timezone"
           name="timezone"
@@ -133,7 +135,7 @@ export function OnboardingForm({ initialHandle, host }: { initialHandle: string 
       </div>
       {state.error ? <p className="text-destructive text-sm">{state.error}</p> : null}
       <Button type="submit" disabled={pending} className="mt-3 h-11">
-        {pending ? ONBOARDING.submitting : ONBOARDING.submit}
+        {pending ? t("submitting") : t("submit")}
       </Button>
     </form>
   );
