@@ -73,6 +73,7 @@ export function BookingPageBuilder({
   mode,
   channel,
   publicReachable,
+  capped,
   crossLink,
   starter,
   badge,
@@ -89,6 +90,9 @@ export function BookingPageBuilder({
   mode: OrgMode;
   channel: PageChannel;
   publicReachable: boolean;
+  /** The plan hides this channel from the public page (channelReach); the
+      publish bar warns and points at the door. */
+  capped: { href: string | null } | null;
   crossLink: RenderContext["crossLink"];
   /** The starter (widget templates spec §5): opens on a fresh page;
       `needsFirstItem` when the page's channel has nothing bookable yet. */
@@ -207,6 +211,7 @@ export function BookingPageBuilder({
           draft.issues[""] ? Object.values(draft.issues[""])[0] : undefined
         }
         liveUrl={liveUrl}
+        capped={capped}
         onRetry={draft.retry}
         onPublish={() =>
           empties.length > 0 ? setConfirm("publish") : draft.publish()

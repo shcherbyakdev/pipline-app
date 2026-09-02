@@ -132,3 +132,14 @@ appointments. Links & embeds lists "Appointments page" and "Spaces page"
 rows for a both-channel org instead of a whole-catalogue row. The iframe
 title of a plain both-channel embed is "Book an appointment" (its front
 door).
+
+## 11. A capped channel warns in the studio (added 2026-09-02, user report)
+
+A Free org past its resource budget (people plus units) can have a space
+the public page never lists; that channel's public page is then a 404 by
+the "nothing bookable" rule. The studio now computes reachability from the
+same plan-limited roster the public page uses (`channelReach` in
+lib/booking/channel-pages.ts): a capped channel shows "Not on your public
+page — over your plan's limit, so clients would see a not-found page" with
+the upgrade door in the publish bar, and hides "View live page". The public
+404 stays.
