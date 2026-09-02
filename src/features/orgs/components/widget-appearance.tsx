@@ -1,8 +1,9 @@
 "use client";
 
+import type { Locale } from "@/i18n/config";
 import Link from "next/link";
 import * as React from "react";
-import { useTranslations } from "next-intl";
+import { NextIntlClientProvider, useTranslations, type AbstractIntlMessages } from "next-intl";
 import { toast } from "sonner";
 import { updateSurfaceTheme } from "@/features/orgs/actions";
 import { resolveLayout, resolveStayLayout, type WidgetThemeConfig } from "@/lib/widget-theme";
@@ -20,11 +21,12 @@ import { cn } from "@/lib/utils";
 import { embedSnippet, type EmbedTitles } from "./widget-embed-snippet";
 import { applyChannel, type Channel } from "@/lib/booking/channel";
 import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
-import { SPACES } from "@/features/orgs/vocab";
 import { PREVIEW_AVAILABILITY } from "@/features/rentals/preview-availability";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 
 export function WidgetAppearance({
+  previewIntl,
+  orgTimeZone,
   initial,
   accentColor,
   handle,
@@ -39,6 +41,10 @@ export function WidgetAppearance({
   canHideBadge = true,
   upgradeHref = null,
 }: {
+  /** The org's language and the public messages in it: the preview shows
+      what a client sees, like the studio's (booking-page/page.tsx). */
+  previewIntl: { locale: Locale; messages: AbstractIntlMessages };
+  orgTimeZone: string;
   initial: WidgetThemeConfig;
   accentColor: string | null;
   handle: string | null;
@@ -67,6 +73,7 @@ export function WidgetAppearance({
   upgradeHref?: string | null;
 }) {
   const t = useTranslations("embed");
+  const tShell = useTranslations("shell");
   const tc = useTranslations("common");
   const [config, setConfig] = React.useState<WidgetThemeConfig>(initial);
   const [pending, startTransition] = React.useTransition();
@@ -125,7 +132,7 @@ export function WidgetAppearance({
           <p className="text-muted-foreground text-sm font-medium">{t("snippet")}</p>
           {both ? (
             <div role="radiogroup" aria-label={t("whichWidget")} className={cn(SEGMENTED_NAV_CLASS, "w-fit")}>
-              {([["services", t("channelAppointments")], ["spaces", SPACES.widgetGroup]] as const).map(([value, label]) => (
+              {([["services", t("channelAppointments")], ["spaces", tShell("nav.spaces")]] as const).map(([value, label]) => (
                 <button key={value} type="button" role="radio" aria-checked={channel === value} onClick={() => setChannel(value)} className={segmentedItemClass(channel === value)}>
                   {label}
                 </button>
@@ -203,7 +210,9 @@ export function WidgetAppearance({
         {/* Sticks inside the shell panel's scroll container (the header row
             sits above it), so the offset is just the content padding. */}
         <div className="lg:sticky lg:top-6 lg:self-start">
+          <NextIntlClientProvider locale={previewIntl.locale} messages={previewIntl.messages} timeZone={orgTimeZone}>
           <EmbedPreviewFrame config={previewConfig} accentColor={accentColor}>
+            <div lang={previewIntl.locale} className="contents">
             <BookingWidget
               handle="preview"
               orgTimeZone="UTC"
@@ -214,7 +223,9 @@ export function WidgetAppearance({
               offerings={previewCatalog.offerings}
               preview={{ slots: PREVIEW_SLOTS, availability: PREVIEW_AVAILABILITY }}
             />
+            </div>
           </EmbedPreviewFrame>
+          </NextIntlClientProvider>
         </div>
       </div>
     </div>

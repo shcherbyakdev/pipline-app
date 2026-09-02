@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
+import { publicMessages } from "@/i18n/public-provider";
 import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
 import { WidgetAppearance } from "@/features/orgs/components/widget-appearance";
 import { LinksTable } from "@/features/orgs/components/links-table";
@@ -51,6 +52,8 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   // › Language), not the admin's — the booking-page preview's rule.
   const t = await getTranslations("embed");
   const tTitle = await getTranslations({ locale: schedulingSettings.locale, namespace: "public.embedTitle" });
+  // The preview widget speaks the org's language, like the studio's preview.
+  const previewIntl = { locale: schedulingSettings.locale, messages: publicMessages(await getMessages({ locale: schedulingSettings.locale })) };
   const titles = { appointment: tTitle("appointment"), space: tTitle("space") };
   // Solo orgs get no "Book with" choice at all (there is only one answer);
   // the Team page's "Embed…" link lands here with ?staff=<slug> preselected.
@@ -67,6 +70,8 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
       <PageIntro>{t("intro")}</PageIntro>
       <WidgetAppearance
+        previewIntl={previewIntl}
+        orgTimeZone={schedulingSettings.timezone}
         initial={parseWidgetTheme(settings.widgetTheme)}
         accentColor={settings.accentColor}
         handle={schedulingSettings.handle}
