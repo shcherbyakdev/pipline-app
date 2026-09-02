@@ -175,7 +175,7 @@ export function SchedulingSettingsForm({
       <SettingsRow
         label="Language"
         htmlFor="scheduling-locale"
-        hint="What your clients see on your booking page and in emails. Visitors browsing from Ukraine get Ukrainian either way."
+        hint="What your clients see on your booking page. Visitors browsing from Ukraine get Ukrainian either way."
       >
         <select
           id="scheduling-locale"

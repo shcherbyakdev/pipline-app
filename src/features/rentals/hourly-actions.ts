@@ -123,6 +123,8 @@ export async function getHourlySlots(
   if (await limited("slots")) return publicError(orgLocale, "tooManyRequests");
   const parsed = getHourlySlotsInput.safeParse(input);
   if (!parsed.success) return publicError(orgLocale, "generic");
+  // getBookingOrg is memoised per request: the loaders below re-use this read.
+  orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
   const { handle, offeringId, durationMin, fromDate, days, unitId } = parsed.data;
   try {
     // getSlots idiom (scheduling/public-actions.ts): fromDate is viewer-local;
@@ -132,7 +134,6 @@ export async function getHourlySlots(
     const span = days + 2;
     const ctx = await loadHourlyContext(handle, offeringId, from, span, { unitId: unitId ?? undefined });
     if (!ctx || !isHourlyOffering(ctx.offering)) return publicError(orgLocale, "generic");
-    orgLocale = ctx.org.locale;
     if (!durationOptions(ctx.offering).includes(durationMin)) {
       return publicError(orgLocale, "generic");
     }
@@ -164,6 +165,8 @@ export async function createRentalBookingHours(
   if (await limited("booking")) return publicError(orgLocale, "tooManyRequests");
   const parsed = createRentalBookingHoursInput.safeParse(input);
   if (!parsed.success) return publicError(orgLocale, "generic");
+  // getBookingOrg is memoised per request: the loaders below re-use this read.
+  orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
   const { handle, offeringId, unitId, startsAt, durationMin, name, email, note, termsAccepted } = parsed.data;
 
   try {
@@ -177,7 +180,6 @@ export async function createRentalBookingHours(
     // slot membership below, not assumed correct.
     const ctx = await loadHourlyContext(handle, offeringId, dateInZone(starts, "UTC"), 2);
     if (!ctx || !isHourlyOffering(ctx.offering)) return publicError(orgLocale, "generic");
-    orgLocale = ctx.org.locale;
     if (!durationOptions(ctx.offering).includes(durationMin)) {
       return publicError(orgLocale, "generic");
     }

@@ -140,6 +140,8 @@ export async function getSlots(
   if (await limited("slots")) return publicError(orgLocale, "tooManyRequests");
   const parsed = getSlotsInput.safeParse(input);
   if (!parsed.success) return publicError(orgLocale, "generic");
+  // getBookingOrg is memoised per request: the loaders below re-use this read.
+  orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
   const { handle, serviceId, fromDate, days, staffId } = parsed.data;
   try {
     // `fromDate` is the VIEWER's local date (the widget groups by viewer
@@ -151,7 +153,6 @@ export async function getSlots(
     const span = days + 2;
     const ctx = await loadSlotContext(handle, serviceId, from, span, staffId);
     if (!ctx) return publicError(orgLocale, "generic");
-    orgLocale = ctx.org.locale;
     const slots = unionSlots(slotsPerStaff(ctx, from, span));
     return { ok: true, slots: slots.map((s) => s.startsAt.toISOString()) };
   } catch (error) {
@@ -170,13 +171,14 @@ export async function createBooking(
   if (await limited("booking")) return publicError(orgLocale, "tooManyRequests");
   const parsed = createBookingInput.safeParse(input);
   if (!parsed.success) return publicError(orgLocale, "generic");
+  // getBookingOrg is memoised per request: the loaders below re-use this read.
+  orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
   const { handle, serviceId, startsAt, name, email, note, staffId } = parsed.data;
 
   try {
     const starts = new Date(startsAt);
     const ctx = await loadSlotContext(handle, serviceId, dateInZone(starts, "UTC"), 2, staffId);
     if (!ctx) return publicError(orgLocale, "generic");
-    orgLocale = ctx.org.locale;
 
     // Re-run the engine for the org-local day of the requested slot; the
     // requested instant must be in the union of the eligible staff's outputs.

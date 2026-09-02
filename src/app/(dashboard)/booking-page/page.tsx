@@ -4,7 +4,8 @@ import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { listOfferings } from "@/features/rentals/queries";
 import { effectiveMode, modeOf, presentMode } from "@/features/orgs/mode";
-import { getTranslations } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
+import { publicMessages } from "@/i18n/public-provider";
 import { isBookableOffering, toPreviewCatalog } from "@/lib/booking/preview-catalog";
 import { channelReach, frontDoor } from "@/lib/booking/channel-pages";
 import { loadPublicResources } from "@/lib/booking/public-offering";
@@ -58,7 +59,11 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
   // The preview's link to the other page: present when that channel is
   // declared AND has something bookable — the public page's rule (§3.5).
   const present = presentMode(declared, has);
-  const tCross = await getTranslations("public.crossLink");
+  // The preview shows what a CLIENT sees, so it speaks the org's language
+  // (Booking page › Settings › Language), not the admin's — the cross-link
+  // label here and the whole preview subtree via previewIntl below.
+  const tCross = await getTranslations({ locale: scheduling.locale, namespace: "public.crossLink" });
+  const previewIntl = { locale: scheduling.locale, messages: publicMessages(await getMessages({ locale: scheduling.locale })) };
   const crossLink =
     channel === "appointments" && present.offersRentals && has.spaces ? { href: "#", label: tCross("toSpaces") }
     : channel === "spaces" && present.offersAppointments && has.services ? { href: "#", label: tCross("toAppointments") }
@@ -122,6 +127,7 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
         starter={starter}
         badge={badge}
         crossLink={crossLink}
+        previewIntl={previewIntl}
         branding={branding}
         scheduling={scheduling}
         appUrl={env.NEXT_PUBLIC_APP_URL}

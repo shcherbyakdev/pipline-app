@@ -90,11 +90,12 @@ export async function getRangeAvailability(
   if (await limited()) return publicError(orgLocale, "tooManyRequests");
   const parsed = getRangeAvailabilityInput.safeParse(input);
   if (!parsed.success) return publicError(orgLocale, "generic");
+  // getBookingOrg is memoised per request: the loaders below re-use this read.
+  orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
   const { handle, offeringId, fromDate, days } = parsed.data;
   try {
     const ctx = await loadRangeContext(handle, offeringId, fromDate, days);
     if (!ctx) return publicError(orgLocale, "generic");
-    orgLocale = ctx.org.locale;
     const availability = computeRangeAvailability({
       offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
@@ -128,12 +129,13 @@ export async function createRentalBooking(
   if (await limited()) return publicError(orgLocale, "tooManyRequests");
   const parsed = createRentalBookingInput.safeParse(input);
   if (!parsed.success) return publicError(orgLocale, "generic");
+  // getBookingOrg is memoised per request: the loaders below re-use this read.
+  orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
   const { handle, offeringId, unitId, startDate, endDate, name, email, note, termsAccepted } = parsed.data;
 
   try {
     const org = await getBookingOrg(handle);
     if (!org) return publicError(orgLocale, "generic");
-    orgLocale = org.locale;
     if (!(await getOrgFlagsAdmin(org.orgId)).rentals) return publicError(orgLocale, "generic");
     const offering = await getPublicOfferingById(org.orgId, offeringId);
     if (!offering) return publicError(orgLocale, "generic");
