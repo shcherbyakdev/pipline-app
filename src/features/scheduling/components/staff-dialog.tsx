@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { toastRefusal } from "@/features/billing/refusal-toast";
@@ -56,6 +57,8 @@ export function StaffDialog({
       instead of a form that can only be refused. */
   gateHref?: string | null;
 }) {
+  const t = useTranslations("team");
+  const tCommon = useTranslations("common");
   const isEdit = Boolean(staff);
   const [open, setOpen] = React.useState(false);
   // Bumped on every open so the form's state initialisers re-run — reopening
@@ -72,7 +75,7 @@ export function StaffDialog({
   if (!isEdit && gateHref) {
     return (
       <Link href={gateHref} className={cn(buttonVariants({ size: "sm" }))}>
-        <Plus className="size-4" /> New team member
+        <Plus className="size-4" /> {t("newButton")}
       </Link>
     );
   }
@@ -85,20 +88,20 @@ export function StaffDialog({
             <Button
               size="sm"
               variant="outline"
-              aria-label={`Edit ${staff!.name}`}
+              aria-label={t("editNamed", { name: staff!.name })}
             >
-              <Pencil className="size-4" /> Edit
+              <Pencil className="size-4" /> {tCommon("edit")}
             </Button>
           ) : (
             <Button size="sm">
-              <Plus className="size-4" /> New team member
+              <Plus className="size-4" /> {t("newButton")}
             </Button>
           )
         }
       />
       <DialogContent className={cn(dialogPanelClass, "sm:max-w-md")}>
-        <DialogBreadcrumbHeader chip={<DialogChip>Team</DialogChip>}>
-          {isEdit ? `Edit ${staff!.name}` : "New team member"}
+        <DialogBreadcrumbHeader chip={<DialogChip>{t("chip")}</DialogChip>}>
+          {isEdit ? t("editNamed", { name: staff!.name }) : t("newButton")}
         </DialogBreadcrumbHeader>
         <StaffForm
           key={formKey}
@@ -129,8 +132,11 @@ function StaffForm({
   firstActiveStaffName?: string | null;
   onDone: () => void;
 }) {
+  const t = useTranslations("team");
+  const tCommon = useTranslations("common");
   const isEdit = Boolean(staff);
   const [pending, startTransition] = React.useTransition();
+  const linkPrefix = `${bookingPath(handle ?? "…")}/`;
   // Group headings (colour swatches, service checklist) are <p>s that a
   // role="group" points at — a <label> with no control is an a11y orphan.
   const colourGroupId = React.useId();
@@ -179,11 +185,11 @@ function StaffForm({
         ? await updateStaff({ id: staff.id, ...payload })
         : await createStaff(payload);
       if (!result.ok) {
-        toastRefusal(result.error);
+        toastRefusal(result.error, result.upgrade);
         return;
       }
       onDone();
-      toast.success("Saved");
+      toast.success(tCommon("saved"));
     });
   };
 
@@ -191,20 +197,20 @@ function StaffForm({
     <form onSubmit={onSubmit} className="flex flex-col">
       <div className="flex flex-col px-5 pt-4 pb-6">
         <input
-          aria-label="Name"
+          aria-label={tCommon("name")}
           required
           maxLength={80}
           value={name}
-          placeholder="Team member name"
+          placeholder={t("dialog.namePlaceholder")}
           className={cn(dialogBareInputClass, "text-[15px] font-medium")}
           onChange={(e) => onNameChange(e.target.value)}
           autoFocus
         />
         <input
-          aria-label="Email"
+          aria-label={tCommon("email")}
           type="email"
           maxLength={320}
-          placeholder="Email — optional, for booking notices"
+          placeholder={t("dialog.emailPlaceholder")}
           value={email}
           className={cn(dialogBareInputClass, "mt-3 text-sm")}
           onChange={(e) => setEmail(e.target.value)}
@@ -212,18 +218,16 @@ function StaffForm({
 
         <div className="mt-6 flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="staff-slug">Booking link</Label>
+            <Label htmlFor="staff-slug">{t("columns.link")}</Label>
             <div className="flex items-center gap-1">
-              <span className="text-muted-foreground shrink-0 font-mono text-xs">
-                {bookingPath(handle ?? "…")}/
-              </span>
+              <span className="text-muted-foreground shrink-0 font-mono text-xs">{linkPrefix}</span>
               <Input
                 id="staff-slug"
                 required
                 minLength={2}
                 maxLength={40}
                 pattern={SLUG_PATTERN}
-                title="Lowercase letters, numbers and dashes."
+                title={t("dialog.slugHint")}
                 value={slug}
                 onChange={(e) => {
                   setSlugTouched(true);
@@ -242,14 +246,14 @@ function StaffForm({
             className="flex flex-col gap-2"
           >
             <p id={colourGroupId} className="text-sm leading-none font-medium">
-              Colour
+              {t("dialog.colour")}
             </p>
             <div className="flex flex-wrap gap-2">
               {STAFF_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
-                  aria-label={`Colour ${c}`}
+                  aria-label={t("dialog.colourNamed", { hex: c })}
                   aria-pressed={color === c}
                   onClick={() => setColor(c)}
                   style={{ background: c }}
@@ -274,7 +278,7 @@ function StaffForm({
                 id={servicesGroupId}
                 className="text-sm leading-none font-medium"
               >
-                Services
+                {t("dialog.services")}
               </p>
               <ul className="flex flex-col gap-1.5">
                 {services.map((service) => (
@@ -292,7 +296,7 @@ function StaffForm({
                     >
                       {service.name}
                       {!service.active ? (
-                        <Badge variant="outline">Inactive</Badge>
+                        <Badge variant="outline">{tCommon("inactive")}</Badge>
                       ) : null}
                     </Label>
                   </li>
@@ -303,8 +307,7 @@ function StaffForm({
 
           {!isEdit && firstActiveStaffName ? (
             <p className="text-muted-foreground text-xs">
-              Starts with {firstActiveStaffName}&apos;s weekly hours — edit them
-              on Availability.
+              {t("dialog.inheritsHours", { name: firstActiveStaffName })}
             </p>
           ) : null}
         </div>
@@ -312,7 +315,7 @@ function StaffForm({
 
       <DialogFooterBar>
         <Button type="submit" size="sm" variant="brand" disabled={pending}>
-          {pending ? "Saving…" : "Save"}
+          {pending ? tCommon("saving") : tCommon("save")}
         </Button>
       </DialogFooterBar>
     </form>

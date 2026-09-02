@@ -40,12 +40,12 @@ describe("navItemsFor (flags × mode) — spec §1 table, fixed order, spaces fi
   });
   it("section labels: Offer and Share are labelled, main and account are not", () => {
     expect(NAV_SECTIONS).toEqual(["main", "offer", "share", "account"]);
-    expect(NAV_SECTION_LABELS).toEqual({ main: null, offer: "Offer", share: "Share", account: null });
+    expect(NAV_SECTION_LABELS).toEqual({ main: null, offer: "offer", share: "share", account: null });
   });
   it("the /rentals item is labelled Spaces (H5a vocabulary), and titles its page", () => {
     const item = navItemsFor(FLAGS, BOTH).find((i) => i.href === "/rentals");
-    expect(item?.label).toBe("Spaces");
-    expect(titleForPath("/rentals", navItemsFor(FLAGS, BOTH))).toBe("Spaces");
+    expect(item?.labelKey).toBe("spaces");
+    expect(titleForPath("/rentals", navItemsFor(FLAGS, BOTH))).toEqual({ key: "spaces" });
   });
   it("the rentals kill-switch beats the mode", () => {
     expect(hrefs({ ...FLAGS, rentals: false }, BOTH)).not.toContain("/rentals");
@@ -66,11 +66,11 @@ describe("titleForPath", () => {
   // rather than matching a real (post-restore) nav item.
   const items = navItemsFor({ ...FLAGS, billing: true }, APPTS_ONLY);
   it("matches an item and its sub-paths", () => {
-    expect(titleForPath("/billing", items)).toBe("Billing");
-    expect(titleForPath("/clients/abc", items)).toBe("Clients");
+    expect(titleForPath("/billing", items)).toEqual({ key: "billing" });
+    expect(titleForPath("/clients/abc", items)).toEqual({ key: "clients" });
   });
   it("falls back to the capitalised first segment", () => {
-    expect(titleForPath("/rentals/xyz", items)).toBe("Rentals");
-    expect(titleForPath("/", items)).toBe("");
+    expect(titleForPath("/rentals/xyz", items)).toEqual({ text: "Rentals" });
+    expect(titleForPath("/", items)).toEqual({ text: "" });
   });
 });

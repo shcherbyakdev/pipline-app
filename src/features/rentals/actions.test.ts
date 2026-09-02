@@ -11,11 +11,18 @@ const state = vi.hoisted(() => ({
   unitInsertError: null as null | { message: string },
   hoursInsertError: null as null | { message: string },
 }));
-const assertCanAddUnit = vi.hoisted(() => vi.fn(async () => null as string | null));
+const assertCanAddUnit = vi.hoisted(() => vi.fn(async () => null as Refused | null));
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// The action's copy comes from messages/en.json (i18n Wave 3); the
+// expectations below quote the English so a reworded notice is noticed.
+vi.mock("next-intl/server", async () => {
+  const { translatorFor } = await import("@/i18n/test-translator");
+  return { getTranslations: async (namespace: never) => translatorFor("en", namespace) };
+});
 vi.mock("@/lib/flags/resolve", () => ({ getDashboardFlags: async () => ({ rentals: true }) }));
 vi.mock("@/lib/billing/gates", () => ({ assertCanAddUnit }));
+import type { Refused } from "@/lib/billing/gates";
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     from(table: string) {
@@ -83,9 +90,14 @@ describe("createOffering — a space is bookable the moment it exists", () => {
   });
 
   it("when the plan refuses the unit, the space still exists and the owner is told why", async () => {
-    const refusal = "Free includes 1 bookable resource — one person or one unit. Upgrade in Billing to add more.";
+    const refusal: Refused = {
+      ok: false,
+      error: "Free includes 1 bookable resource — one person or one unit. Upgrade in Billing to add more.",
+      upgrade: { href: "/billing", label: "Open Billing" },
+    };
     assertCanAddUnit.mockResolvedValue(refusal);
-    expect(await createOffering(space)).toEqual({ ok: true, notice: refusal });
+    // The space landed; the refusal rides along as the notice, door included.
+    expect(await createOffering(space)).toEqual({ ok: true, notice: refusal.error, upgrade: refusal.upgrade });
     expect(state.inserts.map((i) => i.table)).toEqual(["rental_offerings"]);
   });
 

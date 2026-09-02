@@ -9,11 +9,28 @@ export type BookingKindRow = {
   rental_units?: { name: string } | null;
 };
 
-export function bookingTitle(row: BookingKindRow): string {
+/** `fallback` is the word for a row naming neither (unreachable under the
+    CHECK, kept for the type): admin surfaces pass `bookings.fallbackTitle`,
+    mails `emails.appointment` — in their own language. */
+export function bookingTitle(row: BookingKindRow, fallback: string): string {
   return (
     row.services?.name ??
     (row.rental_offerings && row.rental_units
       ? `${row.rental_offerings.name} · ${row.rental_units.name}`
-      : "Appointment")
+      : fallback)
   );
+}
+
+/** bookings.status.* key for a DB status; unknown statuses render as-is. */
+export const STATUS_KEY = {
+  confirmed: "confirmed",
+  pending: "pending",
+  declined: "declined",
+  cancelled_by_client: "cancelledByClient",
+  cancelled_by_provider: "cancelledByProvider",
+  rescheduled: "rescheduled",
+} as const;
+
+export function statusKey(status: string): (typeof STATUS_KEY)[keyof typeof STATUS_KEY] | null {
+  return status in STATUS_KEY ? STATUS_KEY[status as keyof typeof STATUS_KEY] : null;
 }

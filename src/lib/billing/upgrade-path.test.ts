@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { upgradeHref, upgradeHrefFromRefusal } from "./upgrade-path";
-import { planLimitResourceError, planLimitServicesError, GENERIC_WRITE_ERROR } from "@/features/scheduling/schema";
+import { hrefForHint, upgradeHref } from "./upgrade-path";
 
 describe("upgradeHref", () => {
   it("Billing while it is on, whatever the plan", () => {
@@ -14,11 +13,10 @@ describe("upgradeHref", () => {
   });
 });
 
-describe("upgradeHrefFromRefusal", () => {
-  it("reads the door back off the gate's copy", () => {
-    expect(upgradeHrefFromRefusal(planLimitResourceError(1, "waitlist"))).toBe("/waitlist");
-    expect(upgradeHrefFromRefusal(planLimitServicesError("billing"))).toBe("/billing");
-    expect(upgradeHrefFromRefusal(planLimitResourceError(3, "none"))).toBeNull();
-    expect(upgradeHrefFromRefusal(GENERIC_WRITE_ERROR)).toBeNull();
+describe("hrefForHint", () => {
+  it("maps the gate's hint back to the door", () => {
+    expect(hrefForHint("billing")).toBe("/billing");
+    expect(hrefForHint("waitlist")).toBe("/waitlist");
+    expect(hrefForHint("none")).toBeNull();
   });
 });

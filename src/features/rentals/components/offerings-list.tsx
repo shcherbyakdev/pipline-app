@@ -14,7 +14,6 @@ import { bookingLink } from "@/lib/booking/url";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CopyLinkButton, type LinkBase } from "@/components/copy-link-button";
-import { SPACES } from "@/features/orgs/vocab";
 import { cn } from "@/lib/utils";
 import { OfferingDialog } from "./offering-dialog";
 
@@ -34,6 +33,8 @@ function Row({
   currency: string;
   linkBase: LinkBase | null;
 }) {
+  const t = useTranslations("spaces");
+  const tc = useTranslations("common");
   const tu = useTranslations("public.units");
   const [pending, startTransition] = React.useTransition();
   // Delete is irreversible, so it takes two clicks — the same inline
@@ -42,20 +43,22 @@ function Row({
   // The switch moves the moment it's clicked and snaps back on its own if
   // the action fails (staff-list.tsx idiom).
   const [active, setActive] = React.useOptimistic(offering.active);
-  const hourly = offering.rangeMode === "hours";
-  const nightly = offering.rangeMode === "nights";
   const priceLabel = formatOfferingPrice(offering, currency, tu);
-  const schedule = hourly
-    ? `${formatDurationLabel(offering.minDurationMin!, tu)}–${formatDurationLabel(offering.maxDurationMin!, tu)} · every ${offering.slotIncrementMin} min`
-    : nightly
-      ? `check-in ${offering.startTime} · check-out ${offering.endTime}`
-      : `pickup ${offering.startTime} · return ${offering.endTime}`;
+  const modeLabel = t(`mode.${offering.rangeMode}`);
+  const schedule =
+    offering.rangeMode === "hours"
+      ? t("schedule.hours", {
+          min: formatDurationLabel(offering.minDurationMin!, tu),
+          max: formatDurationLabel(offering.maxDurationMin!, tu),
+          step: offering.slotIncrementMin!,
+        })
+      : t(`schedule.${offering.rangeMode}`, { start: offering.startTime!, end: offering.endTime! });
 
   const onToggle = (next: boolean) => {
     startTransition(async () => {
       setActive(next);
       const result = await setOfferingActive({ id: offering.id, active: next });
-      if (!result.ok) toastRefusal(result.error);
+      if (!result.ok) toastRefusal(result.error, result.upgrade);
     });
   };
 
@@ -67,7 +70,7 @@ function Row({
         toast.error(result.error);
         return;
       }
-      toast.success("Deleted");
+      toast.success(t("list.deleted"));
     });
   };
 
@@ -82,19 +85,19 @@ function Row({
             {offering.name}
           </Link>
           <span className="lg:hidden">
-            <Badge variant="outline">{hourly ? "Hourly" : nightly ? "Nightly" : "Daily"}</Badge>
+            <Badge variant="outline">{modeLabel}</Badge>
           </span>
-          {!offering.active ? <Badge variant="outline">Inactive</Badge> : null}
+          {!offering.active ? <Badge variant="outline">{tc("inactive")}</Badge> : null}
           {/* An active space with no active unit is invisible on the public
               page (listPublicOfferings) — say so where the owner is looking. */}
           {offering.active && offering.activeUnitCount === 0 ? (
-            <Badge variant="outline">{SPACES.notBookable}</Badge>
+            <Badge variant="outline">{t("notBookable")}</Badge>
           ) : null}
         </div>
         <p className="text-muted-foreground truncate text-xs">{schedule}</p>
       </div>
       <span role="cell" className="max-lg:hidden">
-        <Badge variant="outline">{hourly ? "Hourly" : nightly ? "Nightly" : "Daily"}</Badge>
+        <Badge variant="outline">{modeLabel}</Badge>
       </span>
       <span role="cell" className="text-muted-foreground text-xs tabular-nums max-lg:hidden">
         {offering.unitCount}
@@ -104,7 +107,7 @@ function Row({
       </span>
       {/* Below lg the columns collapse into one meta line. */}
       <p role="cell" className="text-muted-foreground text-xs lg:hidden">
-        {offering.unitCount} {offering.unitCount === 1 ? "unit" : "units"}
+        {t("list.unitCount", { count: offering.unitCount })}
         {priceLabel ? ` · ${priceLabel}` : ""}
       </p>
       <div role="cell" className="flex items-center gap-1 max-lg:flex-wrap lg:justify-end">
@@ -132,16 +135,16 @@ function Row({
             href={`/rentals/${offering.id}`}
             className={cn(buttonVariants({ variant: "ghost", size: "xs" }))}
           >
-            Units
+            {t("units.title")}
           </Link>
           <OfferingDialog offering={offering} currency={currency} />
           {confirming ? (
             <>
               <Button size="sm" variant="destructive" onClick={onDelete} disabled={pending}>
-                {pending ? "Deleting…" : "Confirm delete"}
+                {pending ? tc("deleting") : t("list.confirmDelete")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={pending}>
-                Keep
+                {t("list.keep")}
               </Button>
             </>
           ) : (
@@ -150,16 +153,16 @@ function Row({
               variant="ghost"
               onClick={() => setConfirming(true)}
               disabled={pending}
-              aria-label={`Delete ${offering.name}`}
+              aria-label={t("list.deleteAria", { name: offering.name })}
             >
-              Delete
+              {tc("delete")}
             </Button>
           )}
         </span>
         <Switch
           checked={active}
           onCheckedChange={onToggle}
-          aria-label={`${offering.name} is bookable`}
+          aria-label={t("list.bookableAria", { name: offering.name })}
           className="max-lg:absolute max-lg:top-2.5 max-lg:right-3"
         />
       </div>
@@ -176,10 +179,11 @@ export function OfferingsList({
   currency: string;
   linkBase: LinkBase | null;
 }) {
+  const t = useTranslations("spaces");
   return (
     // ARIA table grammar on the styled rows so type, units and price read in
     // their columns; the layout stays the responsive grid.
-    <div role="table" aria-label={SPACES.nav} className="flex flex-col gap-3">
+    <div role="table" aria-label={t("nav")} className="flex flex-col gap-3">
       <div
         role="row"
         className={cn(
@@ -187,12 +191,12 @@ export function OfferingsList({
           gridCols,
         )}
       >
-        <span role="columnheader">Space</span>
-        <span role="columnheader">Type</span>
-        <span role="columnheader">Units</span>
-        <span role="columnheader">Price</span>
+        <span role="columnheader">{t("field")}</span>
+        <span role="columnheader">{t("list.type")}</span>
+        <span role="columnheader">{t("units.title")}</span>
+        <span role="columnheader">{t("list.price")}</span>
         <span role="columnheader">
-          <span className="sr-only">Actions</span>
+          <span className="sr-only">{t("list.actions")}</span>
         </span>
       </div>
       <ol role="rowgroup" className="flex flex-col max-lg:divide-y">

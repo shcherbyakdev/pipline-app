@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Menu01Icon } from "@hugeicons/core-free-icons";
 import type { Flags } from "@/lib/flags";
@@ -30,10 +31,11 @@ export function MobileNav({
   planStatus: PlanStatus | null;
 }) {
   const [open, setOpen] = useState(false);
+  const t = useTranslations("shell");
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
-        aria-label="Open navigation"
+        aria-label={t("openNavigation")}
         className="text-muted-foreground hover:text-foreground -ml-1 flex size-8 items-center justify-center rounded-md md:hidden"
       >
         <HugeiconsIcon icon={Menu01Icon} size={20} />
@@ -42,7 +44,7 @@ export function MobileNav({
         side="left"
         className="bg-sidebar text-sidebar-foreground flex w-[260px] flex-col p-0"
       >
-        <SheetTitle className="sr-only">Navigation</SheetTitle>
+        <SheetTitle className="sr-only">{t("navigation")}</SheetTitle>
         <SidebarBody
           org={org}
           userEmail={userEmail}

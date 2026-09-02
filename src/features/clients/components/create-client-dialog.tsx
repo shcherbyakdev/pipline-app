@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +20,8 @@ import {
 import { cn } from "@/lib/utils";
 
 export function CreateClientDialog() {
+  const t = useTranslations("clients.create");
+  const tc = useTranslations("common");
   const searchParams = useSearchParams();
   const router = useRouter();
   const urlOpen = searchParams.get("new") === "1";
@@ -51,29 +54,29 @@ export function CreateClientDialog() {
       <DialogTrigger
         render={
           <Button size="sm">
-            <Plus className="size-4" /> New client
+            <Plus className="size-4" /> {t("title")}
           </Button>
         }
       />
       <DialogContent className={dialogPanelClass}>
-        <DialogBreadcrumbHeader chip={<DialogChip>Client</DialogChip>}>
-          New client
+        <DialogBreadcrumbHeader chip={<DialogChip>{t("chip")}</DialogChip>}>
+          {t("title")}
         </DialogBreadcrumbHeader>
         <form onSubmit={onSubmit} className="flex flex-col">
           <div className="flex flex-col px-5 pt-4 pb-6">
             <input
-              aria-label="Name"
+              aria-label={tc("name")}
               name="name"
               required
               maxLength={120}
-              placeholder="Client name"
+              placeholder={t("namePlaceholder")}
               className={cn(dialogBareInputClass, "text-[15px] font-medium")}
               autoFocus
             />
           </div>
           <DialogFooterBar>
             <Button type="submit" size="sm" variant="brand" disabled={pending}>
-              {pending ? "Creating…" : "Create client"}
+              {pending ? tc("creating") : t("submit")}
             </Button>
           </DialogFooterBar>
         </form>

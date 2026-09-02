@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { assertCanAddService } from "@/lib/billing/gates";
 import { seedDefaultHours } from "./default-hours";
@@ -16,9 +17,7 @@ import {
   blockTimeInput,
   reopenDayInput,
   schedulingSettingsInput,
-  GENERIC_WRITE_ERROR,
   type ActionState,
-  OVERLAP_ERROR,
   updateRuleInput,
   copyDayHoursInput,
   dateOverrideInput,
@@ -27,9 +26,24 @@ import {
 import { effectiveWindows, subtractRange, addRange } from "./day-windows";
 import { HANDLE_RE, isReservedHandle } from "./handle";
 
-function fail(context: string, error: unknown): { ok: false; error: string } {
+type Refusal = { ok: false; error: string };
+
+// Every refusal a person reads is resolved here in the admin's language
+// (i18n Wave 3): `invalid` for a bad input or a missing row, `fail` when a
+// write blew up (logged; the person gets the same generic line).
+async function invalid(): Promise<Refusal> {
+  const t = await getTranslations("errors");
+  return { ok: false, error: t("generic") };
+}
+
+async function fail(context: string, error: unknown): Promise<Refusal> {
   console.error(`[scheduling] ${context}:`, error);
-  return { ok: false, error: GENERIC_WRITE_ERROR };
+  return invalid();
+}
+
+async function overlap(): Promise<Refusal> {
+  const t = await getTranslations("errors");
+  return { ok: false, error: t("availability.overlap") };
 }
 
 async function currentOrgId(): Promise<string | null> {
@@ -116,12 +130,12 @@ function revalidateServices() {
 
 export async function createService(input: unknown): Promise<ActionState> {
   const parsed = serviceInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   const refused = await assertCanAddService(orgId, supabase);
-  if (refused) return { ok: false, error: refused };
+  if (refused) return refused;
 
   // Solo path: the dialog only asks who can be booked once a second person is
   // active, so an omitted `staffIds` means "everyone" — read the roster here
@@ -161,9 +175,9 @@ export async function createService(input: unknown): Promise<ActionState> {
 
 export async function updateService(input: unknown): Promise<ActionState> {
   const parsed = updateServiceInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const { id, staffIds, ...rest } = parsed.data;
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -176,7 +190,7 @@ export async function updateService(input: unknown): Promise<ActionState> {
     .select("id")
     .maybeSingle();
   if (error) return fail("updateService", error);
-  if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!data) return invalid();
 
   // Reconcile the team checklist only when the dialog rendered it: a solo
   // org's edit sends no `staffIds` and must leave the existing links alone.
@@ -246,9 +260,9 @@ export async function updateService(input: unknown): Promise<ActionState> {
 
 export async function deleteService(input: unknown): Promise<ActionState> {
   const parsed = serviceIdInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   const { error } = await supabase
     .from("services")
@@ -257,7 +271,8 @@ export async function deleteService(input: unknown): Promise<ActionState> {
     .eq("org_id", orgId);
   if (error) {
     if (error.code === "23503") {
-      return { ok: false, error: "Service has bookings — deactivate it instead." };
+      const t = await getTranslations("errors");
+      return { ok: false, error: t("services.hasBookings") };
     }
     return fail("deleteService", error);
   }
@@ -269,9 +284,9 @@ export async function deleteService(input: unknown): Promise<ActionState> {
    gate posture as updateService (which already flips `active` ungated). */
 export async function setServiceActive(input: unknown): Promise<ActionState> {
   const parsed = serviceActiveInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
@@ -281,7 +296,7 @@ export async function setServiceActive(input: unknown): Promise<ActionState> {
     .select("id")
     .maybeSingle();
   if (error) return fail("setServiceActive", error);
-  if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!data) return invalid();
   revalidateServices();
   return { ok: true };
 }
@@ -289,8 +304,6 @@ export async function setServiceActive(input: unknown): Promise<ActionState> {
 // EXCLUDE-guard violations (0035) — the DB is the authority on overlaps;
 // map to the same message the client shows.
 const OVERLAP_DB_CODE = "23P01";
-
-const HANDLE_FORMAT_ERROR = "Use 3–50 lowercase letters, digits or hyphens.";
 
 // Shape of an availability_exceptions row as the actions below write it.
 type ExceptionInsert = {
@@ -386,12 +399,12 @@ async function replaceDayExceptions(
 // resolved through RLS-visible staff rows elsewhere).
 export async function addAvailabilityRule(input: unknown): Promise<ActionState> {
   const parsed = availabilityRuleInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return invalid();
   }
   const { error } = await supabase.from("availability_rules").insert({
     org_id: orgId,
@@ -401,7 +414,7 @@ export async function addAvailabilityRule(input: unknown): Promise<ActionState> 
     end_time: parsed.data.endTime,
   });
   if (error) {
-    if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    if (error.code === OVERLAP_DB_CODE) return overlap();
     return fail("addAvailabilityRule", error);
   }
   revalidateOwner(parsed.data);
@@ -417,16 +430,16 @@ export async function addAvailabilityRule(input: unknown): Promise<ActionState> 
 // click hits 0035's EXCLUDE guard and gets the shared overlap copy.
 export async function applyDefaultHours(input: unknown): Promise<ActionState> {
   const parsed = availabilityOwnerInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return invalid();
   }
   const error = await seedDefaultHours(supabase, orgId, parsed.data);
   if (error) {
-    if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    if (error.code === OVERLAP_DB_CODE) return overlap();
     return fail("applyDefaultHours", error);
   }
   revalidateOwner(parsed.data);
@@ -442,12 +455,12 @@ export async function applyDefaultHours(input: unknown): Promise<ActionState> {
 // or the wizard itself can refill.
 export async function setWeeklyHours(input: unknown): Promise<ActionState> {
   const parsed = weeklyHoursInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return invalid();
   }
   const { error: deleteError } = await ownerEq(
     supabase.from("availability_rules").delete().eq("org_id", orgId),
@@ -464,7 +477,7 @@ export async function setWeeklyHours(input: unknown): Promise<ActionState> {
     })),
   );
   if (error) {
-    if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    if (error.code === OVERLAP_DB_CODE) return overlap();
     return fail("setWeeklyHours", error);
   }
   revalidateOwner(parsed.data);
@@ -474,9 +487,9 @@ export async function setWeeklyHours(input: unknown): Promise<ActionState> {
 
 export async function deleteAvailabilityRule(input: unknown): Promise<ActionState> {
   const parsed = ruleIdInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   // Row-id-keyed (no owner on the input — the row already knows whose it
   // is); reading it back off the delete tells `revalidateOwner` which page
@@ -506,9 +519,9 @@ export async function deleteAvailabilityRule(input: unknown): Promise<ActionStat
 // non-atomic window negligible (spec).
 export async function blockTimeRange(input: unknown): Promise<ActionState> {
   const parsed = blockTimeInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   const { staffId, date, startTime, endTime } = parsed.data;
 
@@ -551,9 +564,9 @@ export async function blockTimeRange(input: unknown): Promise<ActionState> {
 // clean rules instead of carrying an equivalent override.
 export async function unblockTimeRange(input: unknown): Promise<ActionState> {
   const parsed = blockTimeInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   const { staffId, date, startTime, endTime } = parsed.data;
 
@@ -598,12 +611,12 @@ export async function unblockTimeRange(input: unknown): Promise<ActionState> {
 // Delete a date's exceptions, restoring the weekly rules (spec: "Reopen day").
 export async function reopenDay(input: unknown): Promise<ActionState> {
   const parsed = reopenDayInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return invalid();
   }
   const { error } = await ownerEq(
     supabase.from("availability_exceptions").delete().eq("org_id", orgId),
@@ -619,14 +632,15 @@ export async function updateSchedulingSettings(input: unknown): Promise<ActionSt
   const parsed = schedulingSettingsInput.safeParse(input);
   if (!parsed.success) {
     const h = typeof (input as { handle?: unknown })?.handle === "string" ? ((input as { handle: string }).handle).trim() : "";
-    if (isReservedHandle(h)) return { ok: false, error: "That address is reserved — pick another." };
+    const t = await getTranslations("errors");
+    if (isReservedHandle(h)) return { ok: false, error: t("settings.handleReserved") };
     // The one refusal a person can actually act on: the form normalises as
     // you type, so this is a too-short handle or a trailing dash.
-    if (h !== "" && !HANDLE_RE.test(h)) return { ok: false, error: HANDLE_FORMAT_ERROR };
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (h !== "" && !HANDLE_RE.test(h)) return { ok: false, error: t("settings.handleFormat") };
+    return invalid();
   }
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_org_scheduling", {
     p_org_id: orgId,
@@ -636,7 +650,10 @@ export async function updateSchedulingSettings(input: unknown): Promise<ActionSt
     p_locale: parsed.data.locale,
   });
   if (error) {
-    if (error.code === "23505") return { ok: false, error: "That handle is already taken." };
+    if (error.code === "23505") {
+      const t = await getTranslations("errors");
+      return { ok: false, error: t("settings.handleTaken") };
+    }
     return fail("updateSchedulingSettings", error);
   }
   revalidatePath("/booking-page");
@@ -646,9 +663,9 @@ export async function updateSchedulingSettings(input: unknown): Promise<ActionSt
 
 export async function updateAvailabilityRule(input: unknown): Promise<ActionState> {
   const parsed = updateRuleInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("availability_rules")
@@ -659,7 +676,7 @@ export async function updateAvailabilityRule(input: unknown): Promise<ActionStat
     .select("id, staff_id, rental_offering_id")
     .maybeSingle();
   if (error) {
-    if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    if (error.code === OVERLAP_DB_CODE) return overlap();
     return fail("updateAvailabilityRule", error);
   }
   if (!data) return fail("updateAvailabilityRule", "rule not visible");
@@ -675,12 +692,12 @@ export async function updateAvailabilityRule(input: unknown): Promise<ActionStat
 // and retryable, accepted for a single-editor solo product (spec).
 export async function copyDayHours(input: unknown): Promise<ActionState> {
   const parsed = copyDayHoursInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return invalid();
   }
   const { data: source, error: readError } = await ownerEq(
     supabase.from("availability_rules").select("start_time, end_time").eq("org_id", orgId),
@@ -715,12 +732,12 @@ export async function copyDayHours(input: unknown): Promise<ActionState> {
 // the day emptier (more open) than it was.
 export async function setDateOverride(input: unknown): Promise<ActionState> {
   const parsed = dateOverrideInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return invalid();
   }
   const { data: prior, error: readError } = await ownerEq(
     supabase.from("availability_exceptions").select("id, closed").eq("org_id", orgId),
@@ -755,7 +772,7 @@ export async function setDateOverride(input: unknown): Promise<ActionState> {
   if (error) {
     // Only the new rows' own overlaps can trip the guard now — the bridge
     // pattern never inserts an open row next to one it is replacing.
-    if (error.code === OVERLAP_DB_CODE) return { ok: false, error: OVERLAP_ERROR };
+    if (error.code === OVERLAP_DB_CODE) return overlap();
     return fail("setDateOverride", error);
   }
   revalidateOwner(parsed.data);
@@ -765,12 +782,12 @@ export async function setDateOverride(input: unknown): Promise<ActionState> {
 
 export async function deleteDateOverride(input: unknown): Promise<ActionState> {
   const parsed = deleteOverrideInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   if (!(await ownerBelongsToOrg(supabase, orgId, parsed.data))) {
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return invalid();
   }
   const { error } = await ownerEq(
     supabase.from("availability_exceptions").delete().eq("org_id", orgId),

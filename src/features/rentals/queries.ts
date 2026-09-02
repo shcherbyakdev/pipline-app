@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import type { RangeMode } from "./range";
 import { addDaysISO, wallTimeToUtc } from "@/features/scheduling/slots";
@@ -259,6 +260,8 @@ export async function listTimelineData(
   timeZone: string,
   days: number = TIMELINE_DAYS,
 ): Promise<{ offerings: TimelineOffering[]; blackouts: TimelineBlackout[]; bookings: AdminBooking[] }> {
+  // A deleted service leaves no name; the word is the admin's (bookings.fallbackTitle).
+  const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
   const supabase = await createClient();
   const lastDate = addDaysISO(fromDate, days - 1);
   const exclusiveToDate = addDaysISO(fromDate, days);
@@ -311,7 +314,7 @@ export async function listTimelineData(
   if (blackoutsRes.error) throw blackoutsRes.error;
   if (bookingsRes.error) throw bookingsRes.error;
 
-  const bookings = ((bookingsRes.data ?? []) as unknown as BookingRow[]).map(toAdminBooking);
+  const bookings = ((bookingsRes.data ?? []) as unknown as BookingRow[]).map((b) => toAdminBooking(b, fallbackTitle));
   const bookedUnitIds = new Set(bookings.map((b) => b.rentalUnitId).filter((id): id is string => id !== null));
   const bookedOfferingIds = new Set(
     bookings.map((b) => b.rentalOfferingId).filter((id): id is string => id !== null),

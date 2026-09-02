@@ -33,7 +33,9 @@ export async function publicErrors(orgLocale: OrgLocaleSource) {
   return getTranslations({ locale: await publicLocale(resolved), namespace: "errors" });
 }
 
-export type PublicErrorKey = keyof Messages["errors"];
+// Leaf keys only: `errors` also holds the nested upgrade hints/labels.
+type Leaves<T> = { [K in keyof T]: T[K] extends string ? K : never }[keyof T];
+export type PublicErrorKey = Leaves<Messages["errors"]>;
 
 /** A failed public action's result, its message in the page's language.
     `orgLocale` is null until the org is loaded (see publicErrors). */

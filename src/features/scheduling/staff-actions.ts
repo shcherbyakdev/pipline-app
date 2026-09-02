@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { assertCanAddStaff } from "@/lib/billing/gates";
@@ -8,17 +9,22 @@ import {
   staffInput,
   updateStaffInput,
   staffActiveInput,
-  LAST_ACTIVE_STAFF_ERROR,
-  STAFF_SLUG_TAKEN_ERROR,
   STAFF_SLUG_RESERVED_ISSUE,
-  staffFutureBookingsError,
-  GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
 
-function fail(context: string, error: unknown): { ok: false; error: string } {
+type Refusal = { ok: false; error: string };
+
+// Refusals resolve in the admin's language here (i18n Wave 3) — the
+// scheduling/actions.ts idiom.
+async function refuse(key: "generic" | "staff.lastActive" | "staff.slugTaken"): Promise<Refusal> {
+  const t = await getTranslations("errors");
+  return { ok: false, error: t(key) };
+}
+
+async function fail(context: string, error: unknown): Promise<Refusal> {
   console.error(`[scheduling] ${context}:`, error);
-  return { ok: false, error: GENERIC_WRITE_ERROR };
+  return refuse("generic");
 }
 
 async function currentOrgId(): Promise<string | null> {
@@ -48,14 +54,14 @@ export async function createStaff(input: unknown): Promise<ActionState> {
   if (!parsed.success) {
     // A reserved link name reads as "taken" to the owner — it is, by the page.
     const reserved = parsed.error.issues.some((i) => i.path[0] === "slug" && i.message === STAFF_SLUG_RESERVED_ISSUE);
-    return { ok: false, error: reserved ? STAFF_SLUG_TAKEN_ERROR : GENERIC_WRITE_ERROR };
+    return refuse(reserved ? "staff.slugTaken" : "generic");
   }
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return refuse("generic");
   const { name, slug, email, color, serviceIds } = parsed.data;
   const supabase = await createClient();
   const refused = await assertCanAddStaff(orgId, supabase);
-  if (refused) return { ok: false, error: refused };
+  if (refused) return refused;
   // The RPC does what a plain insert can't: copy the first active staff's
   // weekly hours + future overrides, and fan out service_staff in one txn.
   const { error } = await supabase.rpc("create_staff", {
@@ -67,7 +73,7 @@ export async function createStaff(input: unknown): Promise<ActionState> {
     p_service_ids: serviceIds,
   });
   if (error) {
-    if (error.code === UNIQUE_VIOLATION) return { ok: false, error: STAFF_SLUG_TAKEN_ERROR };
+    if (error.code === UNIQUE_VIOLATION) return refuse("staff.slugTaken");
     return fail("createStaff", error);
   }
   revalidateStaff();
@@ -79,10 +85,10 @@ export async function updateStaff(input: unknown): Promise<ActionState> {
   if (!parsed.success) {
     // A reserved link name reads as "taken" to the owner — it is, by the page.
     const reserved = parsed.error.issues.some((i) => i.path[0] === "slug" && i.message === STAFF_SLUG_RESERVED_ISSUE);
-    return { ok: false, error: reserved ? STAFF_SLUG_TAKEN_ERROR : GENERIC_WRITE_ERROR };
+    return refuse(reserved ? "staff.slugTaken" : "generic");
   }
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return refuse("generic");
   const { id, name, slug, email, color, serviceIds } = parsed.data;
   const supabase = await createClient();
 
@@ -98,10 +104,10 @@ export async function updateStaff(input: unknown): Promise<ActionState> {
     .select("id")
     .maybeSingle();
   if (error) {
-    if (error.code === UNIQUE_VIOLATION) return { ok: false, error: STAFF_SLUG_TAKEN_ERROR };
+    if (error.code === UNIQUE_VIOLATION) return refuse("staff.slugTaken");
     return fail("updateStaff", error);
   }
-  if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!data) return refuse("generic");
 
   // Reconcile the service checklist: service_staff has no update path (insert
   // + delete policies only), so diff it rather than replacing the set — a
@@ -139,14 +145,14 @@ export async function updateStaff(input: unknown): Promise<ActionState> {
 
 export async function setStaffActive(input: unknown): Promise<ActionState> {
   const parsed = staffActiveInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return refuse("generic");
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return refuse("generic");
   const { id, active } = parsed.data;
   const supabase = await createClient();
   if (active) {
     const refused = await assertCanAddStaff(orgId, supabase);
-    if (refused) return { ok: false, error: refused };
+    if (refused) return refused;
   }
   const { data, error } = await supabase
     .from("staff")
@@ -159,7 +165,7 @@ export async function setStaffActive(input: unknown): Promise<ActionState> {
     // staff_guard_update (0041) is the authority on whether someone can be
     // taken off the roster; it raises a bare sentinel that we translate here.
     if (isRpcSentinel(error, "last_active_staff")) {
-      return { ok: false, error: LAST_ACTIVE_STAFF_ERROR };
+      return refuse("staff.lastActive");
     }
     if (isRpcSentinel(error, "has_future_bookings")) {
       const { data: person } = await supabase
@@ -168,11 +174,12 @@ export async function setStaffActive(input: unknown): Promise<ActionState> {
         .eq("id", id)
         .eq("org_id", orgId)
         .maybeSingle();
-      return { ok: false, error: staffFutureBookingsError(person?.name ?? "This person") };
+      const t = await getTranslations("errors");
+      return { ok: false, error: t("staff.futureBookings", { name: person?.name ?? t("staff.someone") }) };
     }
     return fail("setStaffActive", error);
   }
-  if (!data) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!data) return refuse("generic");
   revalidateStaff();
   return { ok: true };
 }

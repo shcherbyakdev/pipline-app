@@ -152,34 +152,6 @@ export const staffInput = z.object({
 export const updateStaffInput = staffInput.extend({ id: z.uuid() });
 export const staffActiveInput = z.object({ id: z.uuid(), active: z.boolean() });
 
-export const LAST_ACTIVE_STAFF_ERROR = "You need at least one active team member.";
-/** The way past a plan cap, as the second sentence of every refusal. Which
-    one applies is the gate's call (lib/billing/gates.ts upgradeHint): Billing
-    while it is on, the waitlist while that is the upgrade path, and honesty
-    when neither can help. */
-export const UPGRADE_HINTS = {
-  billing: "Upgrade in Billing to add more.",
-  waitlist: "Join the Premium waitlist to add more.",
-  none: "Higher limits come with paid plans.",
-} as const;
-export type UpgradeHint = keyof typeof UPGRADE_HINTS;
-export function planLimitServicesError(how: UpgradeHint): string {
-  return `Free includes 3 services. ${UPGRADE_HINTS[how]}`;
-}
-/** The resource refusal, told by the cap the plan allows (H5b): people and
-    units share one budget, so the sentence names both. One = Free, where the
-    budget itself is the news; more = the org already pays and filled it. */
-export function planLimitResourceError(max: number, how: UpgradeHint): string {
-  const cap = max === 1
-    ? "Free includes 1 bookable resource — one person or one unit."
-    : `Your plan allows ${max} bookable resources — people and units together.`;
-  return `${cap} ${UPGRADE_HINTS[how]}`;
-}
-export const STAFF_SLUG_TAKEN_ERROR = "That link name is already used.";
-export function staffFutureBookingsError(name: string): string {
-  return `${name} has upcoming bookings or pending requests — move or resolve them first.`;
-}
-
 // Team (multi-staff): the public surface either names a staff member or asks
 // for "any" (auto-assign). Defaulted rather than required so a solo org's
 // widget — and any caller predating the team slice — keeps working; the
@@ -260,6 +232,8 @@ export const adminCreateBookingInput = z.object({
   note: z.string().trim().max(2000).optional(),
 });
 
+// A zod issue message only (parse failures map to the generic error); the
+// copy a person sees is `errors.availability.overlap`.
 export const OVERLAP_ERROR = "Times overlap with another set of times.";
 
 export const updateRuleInput = z

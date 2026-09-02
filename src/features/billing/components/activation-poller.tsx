@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 const EVERY_MS = 3_000;
 const FOR_MS = 30_000;
@@ -18,6 +19,7 @@ const FOR_MS = 30_000;
    would read as a hang. router.refresh() keeps client state, so `timedOut`
    survives every re-render the poll triggers. */
 export function ActivationPoller({ active }: { active: boolean }) {
+  const t = useTranslations("billing.activation");
   const router = useRouter();
   const [timedOut, setTimedOut] = React.useState(false);
 
@@ -38,9 +40,7 @@ export function ActivationPoller({ active }: { active: boolean }) {
   if (!active) return null;
   return (
     <p role="status" className="text-muted-foreground text-sm">
-      {timedOut
-        ? "Still waiting for the payment provider — refresh in a minute or contact support."
-        : "Activating your plan… this takes a few seconds."}
+      {timedOut ? t("timedOut") : t("waiting")}
     </p>
   );
 }

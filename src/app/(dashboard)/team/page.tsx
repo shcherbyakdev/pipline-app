@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
@@ -11,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { plansEnforced } from "@/lib/flags";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { evaluateResourceGate } from "@/lib/billing/gates";
-import { upgradeHrefFromRefusal } from "@/lib/billing/upgrade-path";
+import { hrefForHint } from "@/lib/billing/upgrade-path";
 import { env } from "@/env";
 
 /** Would the plan refuse one more person right now? The page asks the SAME
@@ -21,7 +22,7 @@ async function addGateHref(orgId: string): Promise<string | null> {
   const flags = await getDashboardFlags(orgId);
   if (!plansEnforced(flags)) return null;
   const refused = await evaluateResourceGate(orgId, await createClient(), flags);
-  return refused ? upgradeHrefFromRefusal(refused) : null;
+  return refused ? hrefForHint(refused.how) : null;
 }
 
 /* Team: the roster. Always visible, even for a solo provider — they see one
@@ -40,6 +41,7 @@ export default async function TeamPage() {
     addGateHref(org.id),
   ]);
   if (!scheduling) notFound();
+  const t = await getTranslations("team");
   const publicStaffIds = resources ? resources.staff.map((s) => s.id) : null;
 
   // The new person inherits the first active member's weekly hours (the RPC
@@ -49,9 +51,7 @@ export default async function TeamPage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <PageIntro>
-          Your bookable people. Each has their own hours, services and booking link.
-        </PageIntro>
+        <PageIntro>{t("intro")}</PageIntro>
         <StaffDialog
           services={services}
           usedColors={staff.map((s) => s.color)}

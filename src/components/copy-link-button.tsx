@@ -1,10 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Link01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
-import { COPY_REFUSED, copyText } from "@/lib/clipboard";
+import { copyText } from "@/lib/clipboard";
 
 /** What a list row needs to build its own booking link; null when the org
     has no handle yet (then no row shows a button). */
@@ -16,14 +17,16 @@ export type LinkBase = { appUrl: string; handle: string };
    page can have many of these rows, and "Copy link" alone would not tell
    them apart. */
 export function CopyLinkButton({ url, name }: { url: string; name: string }) {
+  const t = useTranslations("common");
+  const refused = useTranslations("settings")("copyRefused");
   const copy = async () => {
-    if (await copyText(url)) toast.success("Link copied");
-    else toast.error(COPY_REFUSED);
+    if (await copyText(url)) toast.success(t("linkCopied"));
+    else toast.error(refused);
   };
   return (
-    <Button variant="ghost" size="xs" onClick={copy} aria-label={`Copy link — ${name}`}>
+    <Button variant="ghost" size="xs" onClick={copy} aria-label={`${t("copyLink")} — ${name}`}>
       <HugeiconsIcon icon={Link01Icon} size={14} className="shrink-0" aria-hidden />
-      Copy link
+      {t("copyLink")}
     </Button>
   );
 }

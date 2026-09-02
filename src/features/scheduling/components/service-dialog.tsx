@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { toastRefusal } from "@/features/billing/refusal-toast";
@@ -37,6 +38,9 @@ export function ServiceDialog({
       the create trigger links to the door instead. */
   gateHref?: string | null;
 }) {
+  const t = useTranslations("services");
+  const tCommon = useTranslations("common");
+  const tAppointments = useTranslations("appointments");
   const isEdit = Boolean(service);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -110,7 +114,7 @@ export function ServiceDialog({
       bookingWindowDays < 1 ||
       bookingWindowDays > 365
     ) {
-      setWindowError("Enter how many days ahead clients can book — 1 to 365.");
+      setWindowError(t("dialog.windowError"));
       return;
     }
     const payload = {
@@ -134,11 +138,11 @@ export function ServiceDialog({
         ? await updateService({ id: service!.id, ...payload })
         : await createService(payload);
       if (!result.ok) {
-        toastRefusal(result.error);
+        toastRefusal(result.error, result.upgrade);
         return;
       }
       onOpenChange(false);
-      toast.success(isEdit ? "Saved" : "Service created");
+      toast.success(isEdit ? tCommon("saved") : t("dialog.created"));
     });
   };
 
@@ -146,7 +150,7 @@ export function ServiceDialog({
   if (!isEdit && gateHref) {
     return (
       <Link href={gateHref} className={cn(buttonVariants({ size: "sm" }))}>
-        <Plus className="size-4" /> New service
+        <Plus className="size-4" /> {t("newButton")}
       </Link>
     );
   }
@@ -157,46 +161,46 @@ export function ServiceDialog({
         render={
           isEdit ? (
             <Button size="sm" variant="outline">
-              <Pencil className="size-4" /> Edit
+              <Pencil className="size-4" /> {tCommon("edit")}
             </Button>
           ) : (
             <Button size="sm">
-              <Plus className="size-4" /> New service
+              <Plus className="size-4" /> {t("newButton")}
             </Button>
           )
         }
       />
       <DialogContent className={cn(dialogPanelClass, "sm:max-w-lg")}>
         <DialogBreadcrumbHeader
-          chip={<DialogChip tone="time">Service</DialogChip>}
+          chip={<DialogChip tone="time">{tAppointments("field")}</DialogChip>}
         >
-          {isEdit ? "Edit service" : "New service"}
+          {isEdit ? t("dialog.editTitle") : t("newButton")}
         </DialogBreadcrumbHeader>
         <form onSubmit={onSubmit} className="flex flex-col">
           <div className="flex flex-col px-5 pt-4 pb-6">
             <input
-              aria-label="Name"
+              aria-label={tCommon("name")}
               name="name"
               required
               maxLength={200}
               defaultValue={service?.name}
-              placeholder="Service name"
+              placeholder={t("dialog.namePlaceholder")}
               className={cn(dialogBareInputClass, "text-[15px] font-medium")}
               autoFocus
             />
             <textarea
-              aria-label="Description"
+              aria-label={t("dialog.description")}
               name="description"
               maxLength={2000}
               rows={2}
               defaultValue={service?.description ?? ""}
-              placeholder="Add a description…"
+              placeholder={t("dialog.descriptionPlaceholder")}
               className={cn(dialogBareInputClass, "mt-3 resize-none text-sm")}
             />
             <div className="mt-6 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="service-duration">Duration (min)</Label>
+                  <Label htmlFor="service-duration">{t("dialog.duration")}</Label>
                   <Input
                     id="service-duration"
                     name="durationMin"
@@ -208,21 +212,19 @@ export function ServiceDialog({
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="service-price-label">Price label</Label>
+                  <Label htmlFor="service-price-label">{t("dialog.priceLabel")}</Label>
                   <Input
                     id="service-price-label"
                     name="priceLabel"
                     maxLength={100}
-                    placeholder="e.g. €50"
+                    placeholder={t("dialog.pricePlaceholder")}
                     defaultValue={service?.priceLabel ?? ""}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="service-buffer-before">
-                    Buffer before (min)
-                  </Label>
+                  <Label htmlFor="service-buffer-before">{t("dialog.bufferBefore")}</Label>
                   <Input
                     id="service-buffer-before"
                     name="bufferBeforeMin"
@@ -233,9 +235,7 @@ export function ServiceDialog({
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="service-buffer-after">
-                    Buffer after (min)
-                  </Label>
+                  <Label htmlFor="service-buffer-after">{t("dialog.bufferAfter")}</Label>
                   <Input
                     id="service-buffer-after"
                     name="bufferAfterMin"
@@ -248,7 +248,7 @@ export function ServiceDialog({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="service-min-notice">Min notice (min)</Label>
+                  <Label htmlFor="service-min-notice">{t("dialog.minNotice")}</Label>
                   <Input
                     id="service-min-notice"
                     name="minNoticeMin"
@@ -259,22 +259,20 @@ export function ServiceDialog({
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="service-max-per-day">Max per day</Label>
+                  <Label htmlFor="service-max-per-day">{t("dialog.maxPerDay")}</Label>
                   <Input
                     id="service-max-per-day"
                     name="maxPerDay"
                     type="number"
                     min={1}
                     max={100}
-                    placeholder="Unlimited"
+                    placeholder={t("dialog.unlimited")}
                     defaultValue={service?.maxPerDay ?? ""}
                   />
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="service-booking-window">
-                  Booking window (days)
-                </Label>
+                <Label htmlFor="service-booking-window">{t("dialog.bookingWindow")}</Label>
                 <Input
                   id="service-booking-window"
                   name="bookingWindowDays"
@@ -313,7 +311,7 @@ export function ServiceDialog({
                     id={staffGroupId}
                     className="text-sm leading-none font-medium"
                   >
-                    Team members
+                    {t("dialog.teamMembers")}
                   </p>
                   <ul className="flex flex-col gap-1.5">
                     {activeStaff.map((person) => (
@@ -339,13 +337,11 @@ export function ServiceDialog({
                       </li>
                     ))}
                   </ul>
-                  <p className="text-muted-foreground text-xs">
-                    Only these people are offered for this service.
-                  </p>
+                  <p className="text-muted-foreground text-xs">{t("dialog.teamHint")}</p>
                 </div>
               ) : null}
               <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="service-active">Active</Label>
+                <Label htmlFor="service-active">{tCommon("active")}</Label>
                 <Switch
                   id="service-active"
                   checked={active}
@@ -354,13 +350,8 @@ export function ServiceDialog({
               </div>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-col">
-                  <Label htmlFor="service-requires-approval">
-                    Require approval
-                  </Label>
-                  <span className="text-muted-foreground text-xs">
-                    New bookings wait for your confirmation instead of
-                    confirming instantly.
-                  </span>
+                  <Label htmlFor="service-requires-approval">{t("dialog.requireApproval")}</Label>
+                  <span className="text-muted-foreground text-xs">{t("dialog.requireApprovalHint")}</span>
                 </div>
                 <Switch
                   id="service-requires-approval"
@@ -374,11 +365,11 @@ export function ServiceDialog({
             <Button type="submit" size="sm" variant="brand" disabled={pending}>
               {pending
                 ? isEdit
-                  ? "Saving…"
-                  : "Creating…"
+                  ? tCommon("saving")
+                  : tCommon("creating")
                 : isEdit
-                  ? "Save"
-                  : "Create service"}
+                  ? tCommon("save")
+                  : t("dialog.create")}
             </Button>
           </DialogFooterBar>
         </form>

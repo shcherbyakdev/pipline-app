@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Plus, Copy, Trash2 } from "lucide-react";
 
@@ -15,8 +16,8 @@ import {
   deleteAvailabilityRule,
   copyDayHours,
 } from "@/features/scheduling/actions";
-import { DEFAULT_WEEK_LABEL } from "@/features/scheduling/default-hours";
-import { OVERLAP_ERROR, type AvailabilityOwner } from "@/features/scheduling/schema";
+import { DEFAULT_START_TIME, DEFAULT_END_TIME } from "@/features/scheduling/default-hours";
+import type { AvailabilityOwner } from "@/features/scheduling/schema";
 import {
   TIME_OPTIONS,
   endOptions,
@@ -27,20 +28,9 @@ import {
 import type { RuleRow } from "@/features/scheduling/queries";
 import { TimeCombobox } from "./time-combobox";
 
-// Local to this file (the old editor's copies went with it). The only
-// other weekday labels are hours-summary.ts's three-letter set for the
-// space detail card's one-line summary.
+// Monday-first rows; the day names come from `availability.weekdaysLong` /
+// `weekdaysShort` (Sunday first, like `weekday` on the rows).
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
-const WEEKDAY_LABELS_FULL = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-const WEEKDAY_LABELS_SHORT = ["Sun.", "Mon.", "Tue.", "Wed.", "Thu.", "Fri.", "Sat."];
 
 type Conflict = { ruleId: string; message: string } | null;
 
@@ -71,6 +61,7 @@ export function WeeklyHours({ owner, rules }: { owner: AvailabilityOwner; rules:
 }
 
 function DefaultHoursPrompt({ owner }: { owner: AvailabilityOwner }) {
+  const t = useTranslations("availability.defaultPrompt");
   const [pending, startTransition] = React.useTransition();
 
   function onApply() {
@@ -83,11 +74,11 @@ function DefaultHoursPrompt({ owner }: { owner: AvailabilityOwner }) {
   return (
     <div className="bg-card flex flex-wrap items-center gap-3 rounded-lg border p-3">
       <div className="mr-auto">
-        <p className="text-sm font-medium">No hours set — nothing can be booked yet.</p>
-        <p className="text-muted-foreground text-xs">Start with {DEFAULT_WEEK_LABEL} and adjust from there.</p>
+        <p className="text-sm font-medium">{t("title")}</p>
+        <p className="text-muted-foreground text-xs">{t("blurb", { start: DEFAULT_START_TIME, end: DEFAULT_END_TIME })}</p>
       </div>
       <Button type="button" size="sm" disabled={pending} onClick={onApply}>
-        {pending ? "Setting hours…" : "Use default hours"}
+        {pending ? t("applying") : t("apply")}
       </Button>
     </div>
   );
@@ -104,13 +95,16 @@ function DayRow({
   rules: RuleRow[];
   isLast: boolean;
 }) {
+  const t = useTranslations("availability");
+  const tErrors = useTranslations("errors");
   const [pending, startTransition] = React.useTransition();
   const [conflict, setConflict] = React.useState<Conflict>(null);
   const [copyOpen, setCopyOpen] = React.useState(false);
   const [targets, setTargets] = React.useState<Set<number>>(new Set());
 
-  const fullLabel = WEEKDAY_LABELS_FULL[weekday];
-  const shortLabel = WEEKDAY_LABELS_SHORT[weekday];
+  const weekdaysLong = t("weekdaysLong").split(" ");
+  const fullLabel = weekdaysLong[weekday];
+  const shortLabel = t("weekdaysShort").split(" ")[weekday];
   const sortedRules = React.useMemo(
     () => [...rules].sort((a, b) => a.startTime.localeCompare(b.startTime)),
     [rules],
@@ -128,14 +122,14 @@ function DayRow({
       endTime: patch.endTime ?? rule.endTime,
     };
     if (candidate.startTime >= candidate.endTime) {
-      setConflict({ ruleId: rule.id, message: "End must be after start." });
+      setConflict({ ruleId: rule.id, message: t("endAfterStart") });
       return;
     }
     const siblings: Interval[] = rules
       .filter((r) => r.id !== rule.id)
       .map((r) => ({ startTime: r.startTime, endTime: r.endTime }));
     if (overlapsSiblings(candidate, siblings)) {
-      setConflict({ ruleId: rule.id, message: OVERLAP_ERROR });
+      setConflict({ ruleId: rule.id, message: tErrors("availability.overlap") });
       return;
     }
     setConflict(null);
@@ -199,7 +193,7 @@ function DayRow({
       <span className="w-12 shrink-0 pt-2 text-sm font-medium">{shortLabel}</span>
       <div className="flex flex-1 flex-col gap-2">
         {sortedRules.length === 0 ? (
-          <p className="pt-2 text-sm text-muted-foreground">Unavailable</p>
+          <p className="pt-2 text-sm text-muted-foreground">{t("unavailable")}</p>
         ) : (
           sortedRules.map((rule) => (
             <IntervalLine
@@ -220,9 +214,9 @@ function DayRow({
           type="button"
           size="icon-xs"
           variant="ghost"
-          aria-label={`Add interval to ${fullLabel}`}
+          aria-label={t("day.addInterval", { day: fullLabel })}
           disabled={pending || !next}
-          title={!next ? "No room left after the last interval" : undefined}
+          title={!next ? t("day.noRoom") : undefined}
           onClick={onAdd}
         >
           <Plus />
@@ -234,14 +228,14 @@ function DayRow({
                 type="button"
                 size="icon-xs"
                 variant="ghost"
-                aria-label={`Copy ${fullLabel} hours to other days`}
+                aria-label={t("day.copyHours", { day: fullLabel })}
               >
                 <Copy />
               </Button>
             }
           />
           <PopoverContent align="end" className="w-56">
-            <p className="mb-2 text-sm font-medium">Copy hours to…</p>
+            <p className="mb-2 text-sm font-medium">{t("day.copyTo")}</p>
             <div className="flex flex-col gap-2">
               {otherWeekdays.map((day) => (
                 <label key={day} className="flex items-center gap-2 text-sm font-normal">
@@ -249,7 +243,7 @@ function DayRow({
                     checked={targets.has(day)}
                     onCheckedChange={(checked) => toggleTarget(day, checked === true)}
                   />
-                  {WEEKDAY_LABELS_FULL[day]}
+                  {weekdaysLong[day]}
                 </label>
               ))}
             </div>
@@ -260,7 +254,7 @@ function DayRow({
               disabled={targets.size === 0 || pending}
               onClick={onApplyCopy}
             >
-              Apply
+              {t("day.apply")}
             </Button>
           </PopoverContent>
         </Popover>
@@ -286,6 +280,7 @@ function IntervalLine({
   onCommitEnd: (hm: string) => void;
   onDelete: () => void;
 }) {
+  const t = useTranslations("availability.day");
   const messageId = `rule-conflict-${rule.id}`;
   const invalid = conflict !== null;
   return (
@@ -295,7 +290,7 @@ function IntervalLine({
           value={rule.startTime}
           options={TIME_OPTIONS}
           onCommit={onCommitStart}
-          label={`${fullLabel} start time`}
+          label={t("startTime", { day: fullLabel })}
           invalid={invalid}
           describedBy={invalid ? messageId : undefined}
           disabled={pending}
@@ -307,7 +302,7 @@ function IntervalLine({
           value={rule.endTime}
           options={endOptions(rule.startTime)}
           onCommit={onCommitEnd}
-          label={`${fullLabel} end time`}
+          label={t("endTime", { day: fullLabel })}
           invalid={invalid}
           describedBy={invalid ? messageId : undefined}
           disabled={pending}
@@ -316,7 +311,7 @@ function IntervalLine({
           type="button"
           size="icon-xs"
           variant="ghost"
-          aria-label={`Remove ${fullLabel} ${rule.startTime}–${rule.endTime}`}
+          aria-label={t("removeInterval", { day: fullLabel, start: rule.startTime, end: rule.endTime })}
           disabled={pending}
           onClick={onDelete}
         >

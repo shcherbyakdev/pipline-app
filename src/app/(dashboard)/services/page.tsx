@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { ServicesList } from "@/features/scheduling/components/services-list";
@@ -10,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { plansEnforced } from "@/lib/flags";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { evaluateServiceGate } from "@/lib/billing/gates";
-import { upgradeHrefFromRefusal } from "@/lib/billing/upgrade-path";
+import { hrefForHint } from "@/lib/billing/upgrade-path";
 import { env } from "@/env";
 
 /** Team page idiom: ask the gate createService asks, and send a capped org
@@ -19,11 +20,12 @@ async function addGateHref(orgId: string): Promise<string | null> {
   const flags = await getDashboardFlags(orgId);
   if (!plansEnforced(flags)) return null;
   const refused = await evaluateServiceGate(orgId, await createClient(), flags);
-  return refused ? upgradeHrefFromRefusal(refused) : null;
+  return refused ? hrefForHint(refused.how) : null;
 }
 
 export default async function ServicesPage() {
   const { org } = await requireOrg();
+  const t = await getTranslations("services");
   // Team (multi-staff): the roster comes along so each service can say who
   // offers it. The whole roster, not just the active part — an edit must not
   // silently drop a deactivated person's assignment.
@@ -41,9 +43,8 @@ export default async function ServicesPage() {
   if (services.length === 0) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-        <EmptyState title="Add your first service" action={<ServiceDialog staff={staff} gateHref={gateHref} />}>
-          A service is what clients pick on your booking page — its name, duration, buffers and
-          price label.
+        <EmptyState title={t("emptyTitle")} action={<ServiceDialog staff={staff} gateHref={gateHref} />}>
+          {t("emptyBody")}
         </EmptyState>
       </div>
     );
@@ -52,7 +53,7 @@ export default async function ServicesPage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <PageIntro>What clients pick on your booking page.</PageIntro>
+        <PageIntro>{t("intro")}</PageIntro>
         <ServiceDialog staff={staff} gateHref={gateHref} />
       </div>
       <ServicesList services={services} staff={staff} linkBase={linkBase} />

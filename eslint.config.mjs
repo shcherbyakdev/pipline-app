@@ -50,11 +50,25 @@ const eslintConfig = defineConfig([
       "src/features/rentals/components/next-free-stays.tsx",
       "src/features/rentals/components/booking-money-summary.tsx",
       "src/features/rentals/components/unit-select.tsx",
+      // Wave 3 — the admin. Studio (booking-page/**, embed/**, orgs/components/
+      // widget-*, links-table, appearance/branding forms) waits for Wave 4;
+      // parked surfaces (programs, templates, utils, dev, p, portal) stay English.
+      "src/app/(dashboard)/layout.tsx",
+      "src/app/(dashboard)/{overview,bookings,availability,services,rentals,team,clients,settings,billing,waitlist}/**/*.tsx",
+      "src/app/onboarding/**/*.tsx",
+      "src/components/shell/**/*.tsx",
+      "src/components/{command-menu,copy-link-button,settings-row}.tsx",
+      "src/components/shared/**/*.tsx",
+      "src/features/scheduling/components/**/*.tsx",
+      "src/features/rentals/components/**/*.tsx",
+      "src/features/clients/components/**/*.tsx",
+      "src/features/billing/components/**/*.tsx",
+      "src/features/orgs/components/{appearance-settings,business-settings,language-settings}.tsx",
     ],
     rules: {
       "react/jsx-no-literals": [
         "error",
-        { noStrings: true, ignoreProps: true, allowedStrings: [" ", "…", "·", "—", "→", "←", "–"] },
+        { noStrings: true, ignoreProps: true, allowedStrings: [" ", "…", "·", "—", "→", "←", "–", "⌘K"] },
       ],
     },
   },

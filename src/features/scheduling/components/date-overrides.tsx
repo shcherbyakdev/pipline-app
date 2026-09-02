@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -15,7 +16,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { setDateOverride, deleteDateOverride } from "@/features/scheduling/actions";
-import { OVERLAP_ERROR, type AvailabilityOwner } from "@/features/scheduling/schema";
+import type { AvailabilityOwner } from "@/features/scheduling/schema";
+import { INTL_LOCALES, type Locale } from "@/i18n/config";
 import { effectiveWindows } from "@/features/scheduling/day-windows";
 import { dateInZone } from "@/features/scheduling/slots";
 import {
@@ -37,14 +39,14 @@ function todayISO(timeZone: string): string {
   return dateInZone(new Date(), timeZone);
 }
 
-function formatDateLabel(date: string): string {
+function formatDateLabel(date: string, locale: Locale): string {
   // Noon UTC avoids DST/offset edge cases pushing the date field itself
   // across a day boundary when rendered in the browser's local time.
   const d = new Date(`${date}T12:00:00Z`);
-  // en-GB pinned: `undefined` lets the server's and browser's locales
-  // disagree — a hydration mismatch on every override row (units-editor's
-  // formatDate had the same bug).
-  return new Intl.DateTimeFormat("en-GB", {
+  // The admin's locale, pinned: `undefined` lets the server's and browser's
+  // locales disagree — a hydration mismatch on every override row
+  // (units-editor's formatDate had the same bug).
+  return new Intl.DateTimeFormat(INTL_LOCALES[locale], {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -88,6 +90,7 @@ export function DateOverrides({
   rules: RuleRow[];
   exceptions: ExceptionRow[];
 }) {
+  const t = useTranslations("availability.overrides");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   // Bumped on every openNew/openEdit call so <OverrideDialog> — keyed on
   // it — remounts and re-derives fresh initial state from current props,
@@ -112,11 +115,9 @@ export function DateOverrides({
   return (
     <section className="flex flex-col gap-3">
       <div>
-        <h2 className="text-sm font-semibold">Date overrides</h2>
+        <h2 className="text-sm font-semibold">{t("title")}</h2>
         <p className="text-muted-foreground text-xs">
-          {owner.rentalOfferingId !== undefined
-            ? "Days when this space's availability differs from its weekly hours."
-            : "Days when your availability differs from your weekly hours."}
+          {owner.rentalOfferingId !== undefined ? t("blurbSpace") : t("blurbYou")}
         </p>
       </div>
       {groups.length > 0 ? (
@@ -138,7 +139,7 @@ export function DateOverrides({
         className="self-start"
         onClick={openNew}
       >
-        <Plus /> Add a date override
+        <Plus /> {t("add")}
       </Button>
       <OverrideDialog
         key={dialogKey}
@@ -163,8 +164,10 @@ function OverrideRow({
   group: Group;
   onEdit: () => void;
 }) {
+  const t = useTranslations("availability");
+  const locale = useLocale() as Locale;
   const [pending, startTransition] = React.useTransition();
-  const label = formatDateLabel(group.date);
+  const label = formatDateLabel(group.date, locale);
 
   function onDelete(e: React.MouseEvent) {
     e.stopPropagation();
@@ -174,7 +177,7 @@ function OverrideRow({
         toast.error(result.error);
         return;
       }
-      toast.success("Override removed");
+      toast.success(t("overrides.removed"));
     });
   }
 
@@ -188,7 +191,7 @@ function OverrideRow({
         <span className="text-sm font-medium">{label}</span>
         <span className="text-muted-foreground text-xs">
           {group.closed
-            ? "Unavailable"
+            ? t("unavailable")
             : group.windows
                 .map((w) => `${formatTime(w.startTime)}–${formatTime(w.endTime)}`)
                 .join(", ")}
@@ -200,7 +203,7 @@ function OverrideRow({
         variant="ghost"
         className="mr-2 shrink-0"
         disabled={pending}
-        aria-label={`Remove override for ${label}`}
+        aria-label={t("overrides.removeFor", { date: label })}
         onClick={onDelete}
       >
         <Trash2 />
@@ -226,6 +229,9 @@ function OverrideDialog({
   rules: RuleRow[];
   exceptions: ExceptionRow[];
 }) {
+  const t = useTranslations("availability");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
   const isEditing = date !== null;
   const today = todayISO(timeZone);
   const initialDate = date ?? today;
@@ -281,11 +287,11 @@ function OverrideDialog({
 
   function validate(): string | null {
     if (closed) return null;
-    if (windows.length === 0) return "Add at least one time window, or mark the day unavailable.";
+    if (windows.length === 0) return t("overrides.needWindow");
     for (const w of windows) {
-      if (w.startTime >= w.endTime) return "End must be after start.";
+      if (w.startTime >= w.endTime) return t("endAfterStart");
     }
-    if (hasOverlap(windows)) return OVERLAP_ERROR;
+    if (hasOverlap(windows)) return tErrors("availability.overlap");
     return null;
   }
 
@@ -306,7 +312,7 @@ function OverrideDialog({
         toast.error(result.error);
         return;
       }
-      toast.success(isEditing ? "Override updated" : "Override added");
+      toast.success(isEditing ? t("overrides.updated") : t("overrides.added"));
       onOpenChange(false);
     });
   }
@@ -315,16 +321,16 @@ function OverrideDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit date override" : "Add a date override"}</DialogTitle>
+          <DialogTitle>{isEditing ? t("overrides.editTitle") : t("overrides.add")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="override-date" className="text-sm font-medium">
-              Date
+              {t("overrides.date")}
             </label>
             <DatePicker
               id="override-date"
-              label="Date"
+              label={t("overrides.date")}
               min={today}
               value={draftDate}
               onCommit={onDateChange}
@@ -335,7 +341,7 @@ function OverrideDialog({
           </div>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={closed} onCheckedChange={(c) => onToggleClosed(c === true)} />
-            Unavailable
+            {t("unavailable")}
           </label>
           {!closed ? (
             <div className="flex flex-col gap-2">
@@ -345,7 +351,7 @@ function OverrideDialog({
                     value={w.startTime}
                     options={TIME_OPTIONS}
                     onCommit={(hm) => updateWindow(i, { startTime: hm })}
-                    label={`Window ${i + 1} start time`}
+                    label={t("overrides.windowStart", { n: i + 1 })}
                     invalid={error !== null}
                     describedBy={error !== null ? errorId : undefined}
                   />
@@ -356,7 +362,7 @@ function OverrideDialog({
                     value={w.endTime}
                     options={endOptions(w.startTime)}
                     onCommit={(hm) => updateWindow(i, { endTime: hm })}
-                    label={`Window ${i + 1} end time`}
+                    label={t("overrides.windowEnd", { n: i + 1 })}
                     invalid={error !== null}
                     describedBy={error !== null ? errorId : undefined}
                   />
@@ -364,7 +370,7 @@ function OverrideDialog({
                     type="button"
                     size="icon-xs"
                     variant="ghost"
-                    aria-label={`Remove window ${i + 1}`}
+                    aria-label={t("overrides.removeWindow", { n: i + 1 })}
                     onClick={() => removeWindow(i)}
                   >
                     <Trash2 />
@@ -379,7 +385,7 @@ function OverrideDialog({
                 disabled={addDisabled}
                 onClick={addWindow}
               >
-                <Plus /> Add interval
+                <Plus /> {t("overrides.addWindow")}
               </Button>
             </div>
           ) : null}
@@ -391,10 +397,10 @@ function OverrideDialog({
         </div>
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {tCommon("cancel")}
           </Button>
           <Button type="button" disabled={pending} onClick={onSave}>
-            {pending ? "Saving…" : "Save"}
+            {pending ? tCommon("saving") : tCommon("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
