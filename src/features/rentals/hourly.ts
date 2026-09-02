@@ -1,6 +1,7 @@
 // Pure helpers for hourly-mode rentals (H2) — no DB, no clock reads. Mirrors
 // the doctrine of slots.ts / range.ts: date-math primitives only, `now`
 // injected by the caller.
+import type { UnitsT } from "@/i18n/translator";
 import {
   wallTimeToUtc,
   addDaysISO,
@@ -77,8 +78,8 @@ export function unionUnitSlots(
   }));
 }
 
-export function formatDurationLabel(min: number): string {
+export function formatDurationLabel(min: number, t: UnitsT): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return h === 0 ? `${m} min` : m === 0 ? `${h} h` : `${h} h ${m} min`;
+  return h === 0 ? t("minutes", { count: m }) : m === 0 ? t("hoursShort", { count: h }) : t("hoursMinutes", { hours: h, minutes: m });
 }

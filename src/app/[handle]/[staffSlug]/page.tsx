@@ -14,19 +14,27 @@ import { bookShellClass } from "@/lib/book-shell";
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import { getPublishedPage } from "@/features/booking-page/queries";
-import { pageMetadata } from "@/features/booking-page/metadata";
+import { metaDescription, pageMetadata } from "@/features/booking-page/metadata";
 import { resolveInitialService } from "@/features/booking-page/initial-service";
 import type { RenderContext } from "@/features/booking-page/render/context";
 import { PageRenderer, pageContainerClass } from "@/features/booking-page/render/page-renderer";
-
 import { HANDLE_RE } from "@/features/scheduling/handle";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { langParam, publicLocale, withLang } from "@/i18n/public";
+import { PublicIntl } from "@/i18n/public-provider";
 
-export async function generateMetadata({ params }: PageProps<"/[handle]/[staffSlug]">): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps<"/[handle]/[staffSlug]">): Promise<Metadata> {
   const { handle, staffSlug } = await params;
   if (!HANDLE_RE.test(handle) || !STAFF_SLUG_RE.test(staffSlug)) return {};
   const org = await getBookingOrg(handle);
   if (!org) return {};
-  return pageMetadata(await getPublishedPage(org.orgId, "appointments"), org, env.NEXT_PUBLIC_SUPABASE_URL, "appointments");
+  const locale = await publicLocale(org.locale, await searchParams);
+  return pageMetadata(
+    await getPublishedPage(org.orgId, "appointments"),
+    org,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    await metaDescription(locale, "appointments", org.orgName),
+  );
 }
 
 // One team member's own booking link: the org's published page with the
@@ -51,10 +59,14 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
   // A rentals-only org has no public people — this page IS the appointments
   // channel, so its own mode gates it the same way listPublicCatalog would.
   if (!org.offersAppointments) notFound();
-  const [offering, branding, doc] = await Promise.all([
+  const sp = await searchParams;
+  const locale = await publicLocale(org.locale, sp);
+  setRequestLocale(locale);
+  const [offering, branding, doc, t] = await Promise.all([
     loadPublicOffering(org.orgId),
     getOrgBranding(org.orgId),
     getPublishedPage(org.orgId, "appointments"),
+    getTranslations("public.crossLink"),
   ]);
   // The roster is active-only AND plan-limited, so both a deactivated person
   // and one the plan no longer offers publicly 404 here — the link stays valid
@@ -65,7 +77,7 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
   // Nothing they can be booked for is not a page worth rendering.
   if (services.length === 0) notFound();
   const theme = parseWidgetTheme(branding.pageThemeRaw);
-  const initialServiceId = resolveInitialService(services, (await searchParams).service);
+  const initialServiceId = resolveInitialService(services, sp.service);
   const ctx: RenderContext = {
     org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency },
     branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
@@ -78,9 +90,10 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public",
     // Not a channel page, but not a dead end either: the header hosts a way
     // back to the org's own page.
-    crossLink: { href: bookingPath(handle), label: `← Back to ${org.orgName}` },
+    crossLink: { href: withLang(bookingPath(handle), langParam(sp)), label: t("backTo", { orgName: org.orgName }) },
   };
   return (
+    <PublicIntl locale={locale} timeZone={org.timeZone}>
     <div className={bookShellClass(theme.theme)}>
       <WidgetTheme config={theme} accentColor={branding.accentColor} transparent className="flex flex-1 flex-col">
         <main className={cn("mx-auto flex w-full flex-col gap-6 px-6 pt-10 pb-8", pageContainerClass(doc.layout))}>
@@ -90,5 +103,6 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
         </main>
       </WidgetTheme>
     </div>
+    </PublicIntl>
   );
 }

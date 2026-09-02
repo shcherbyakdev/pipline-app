@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
@@ -37,6 +38,8 @@ export function RentalReschedulePanel({
   onCancel: () => void;
 }) {
   const router = useRouter();
+  const t = useTranslations("public.manage");
+  const tSlots = useTranslations("public.slots");
   const [month, setMonth] = React.useState(() => monthOf(dateInZone(new Date(), timeZone)));
   const [availability, setAvailability] = React.useState<RangeAvailability | null>(null);
   const [offering, setOffering] = React.useState<PublicOffering | null>(null);
@@ -139,7 +142,7 @@ export function RentalReschedulePanel({
         return;
       }
       // New booking, new token: the manage link changes.
-      toast.success("Stay rescheduled");
+      toast.success(t("stayRescheduled"));
       router.push(`/booking/${result.token}`);
     });
   }
@@ -147,14 +150,14 @@ export function RentalReschedulePanel({
   return (
     <div className="flex flex-col gap-3 rounded-md border p-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">Pick new dates</p>
+        <p className="text-sm font-medium">{t("pickNewDates")}</p>
         <Button variant="ghost" size="sm" onClick={onCancel} disabled={pending}>
-          Keep current dates
+          {t("keepCurrentDates")}
         </Button>
       </div>
 
       {offering === null ? (
-        <p className="text-muted-foreground text-sm">{error ?? "Loading availability…"}</p>
+        <p className="text-muted-foreground text-sm">{error ?? t("loadingAvailability")}</p>
       ) : (
         <div className="flex flex-col gap-4">
           <RangePicker
@@ -173,7 +176,7 @@ export function RentalReschedulePanel({
             <>
               {picksUnit ? (
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="rental-reschedule-unit">Unit</Label>
+                  <Label htmlFor="rental-reschedule-unit">{t("unit")}</Label>
                   <UnitSelect
                     id="rental-reschedule-unit"
                     units={units}
@@ -186,16 +189,14 @@ export function RentalReschedulePanel({
                 </div>
               ) : null}
               <Button onClick={confirm} disabled={pending || !stay?.ok}>
-                {pending ? "Rescheduling…" : "Confirm new dates"}
+                {pending ? t("rescheduling") : t("confirmNewDates")}
               </Button>
             </>
           ) : null}
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
         </div>
       )}
-      <p className="text-muted-foreground text-xs">
-        Times shown in the provider&rsquo;s timezone ({timeZone}).
-      </p>
+      <p className="text-muted-foreground text-xs">{tSlots("providerTz", { tz: timeZone })}</p>
     </div>
   );
 }

@@ -7,9 +7,22 @@ import { windowEnd } from "@/features/scheduling/slot-paging";
    label rules TimeSlotGrid (the week list) keeps for itself. */
 
 export const viewerDayKey = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
-export const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
-export const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
-const tzShortFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+
+/** The viewer-facing formatters for one Intl locale (INTL_LOCALES[locale]);
+    the client layouts get them through useSlotFormats(). */
+export function slotFormats(intlLocale: string) {
+  const dayFmt = new Intl.DateTimeFormat(intlLocale, { weekday: "short", day: "2-digit", month: "short" });
+  const timeFmt = new Intl.DateTimeFormat(intlLocale, { hour: "2-digit", minute: "2-digit" });
+  const tzShortFmt = new Intl.DateTimeFormat(intlLocale, { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+  /** A DST fall-back day shows the same HH:MM twice (02:00 CEST, 02:00 CET);
+      disambiguate those labels with the zone name, and only those. */
+  const timeLabel = (iso: string, daySlots: string[]): string => {
+    const base = timeFmt.format(new Date(iso));
+    const dup = daySlots.some((o) => o !== iso && timeFmt.format(new Date(o)) === base);
+    return dup ? `${base} ${tzShortFmt.format(new Date(iso)).split(" ").pop()}` : base;
+  };
+  return { dayFmt, timeFmt, timeLabel };
+}
 
 /** Only the window's viewer-local days: the server pads its window a day
     each side so no day is missed across the org/viewer offset. */
@@ -22,12 +35,4 @@ export function groupByViewerDay(slots: string[], w: SlotWindow): Map<string, st
     byDay.set(day, [...(byDay.get(day) ?? []), s]);
   }
   return byDay;
-}
-
-/** A DST fall-back day shows the same HH:MM twice (02:00 CEST, 02:00 CET);
-    disambiguate those labels with the zone name, and only those. */
-export function timeLabel(iso: string, daySlots: string[]): string {
-  const base = timeFmt.format(new Date(iso));
-  const dup = daySlots.some((o) => o !== iso && timeFmt.format(new Date(o)) === base);
-  return dup ? `${base} ${tzShortFmt.format(new Date(iso)).split(" ").pop()}` : base;
 }

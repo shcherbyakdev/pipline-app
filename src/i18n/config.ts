@@ -8,6 +8,11 @@ export const DEFAULT_LOCALE: Locale = "en";
 /** Each language named in itself. Shown in the switcher; never translated. */
 export const LOCALE_NAMES: Record<Locale, string> = { en: "English", uk: "Українська" };
 
+/** The BCP 47 tag handed to Intl.* for each locale. Plain "en" would format
+    US-style (12-hour clock, month first); the product has always shown
+    24-hour times and day-month order (spec §5), which "en-GB" keeps. */
+export const INTL_LOCALES: Record<Locale, string> = { en: "en-GB", uk: "uk" };
+
 export function isLocale(value: unknown): value is Locale {
   return typeof value === "string" && (LOCALES as readonly string[]).includes(value);
 }

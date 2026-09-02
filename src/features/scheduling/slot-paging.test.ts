@@ -87,8 +87,8 @@ describe("firstDayBeyond — the first look's jump", () => {
 
 describe("relativeDayLabel", () => {
   it("names today and tomorrow, nothing else", () => {
-    expect(relativeDayLabel(TODAY, TODAY)).toBe("Today");
-    expect(relativeDayLabel("2026-09-03", TODAY)).toBe("Tomorrow");
+    expect(relativeDayLabel(TODAY, TODAY)).toBe("today");
+    expect(relativeDayLabel("2026-09-03", TODAY)).toBe("tomorrow");
     expect(relativeDayLabel("2026-09-04", TODAY)).toBeNull();
     expect(relativeDayLabel("2026-09-01", TODAY)).toBeNull();
   });

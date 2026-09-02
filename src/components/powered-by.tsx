@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { env } from "@/env";
 
 /* The growth loop (spec §5): every public booking surface carries the badge
@@ -5,6 +6,7 @@ import { env } from "@/env";
    lib/billing/entitlements.ts holds that rule; this component only renders).
    `?ref=badge&org=` makes the loop measurable: which org sent the visitor. */
 export function PoweredBy({ handle }: { handle: string }) {
+  const t = useTranslations("public");
   return (
     <p className="mt-4 text-center text-xs opacity-60">
       <a
@@ -12,7 +14,7 @@ export function PoweredBy({ handle }: { handle: string }) {
         target="_blank"
         rel="noopener noreferrer"
       >
-        Powered by Booklo
+        {t("poweredBy")}
       </a>
     </p>
   );

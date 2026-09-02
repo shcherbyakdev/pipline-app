@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import * as React from "react";
 import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
@@ -383,6 +384,7 @@ function StayBar({
   style: React.CSSProperties;
   onSelect: (b: AdminBooking) => void;
 }) {
+  const tu = useTranslations("public.units");
   const mode = offering.rangeMode;
   const accent = serviceAccent(b.rentalOfferingId ?? "");
   // Bars adapt by measured width; chips have their own thresholds below.
@@ -390,7 +392,7 @@ function StayBar({
   const phase = now ? stayPhase({ startsAt, endsAt }, now) : "upcoming";
   // Where the window cuts a bar, the glyph gets words for screen readers.
   const cont = continuationLabels({ startsAt, endsAt }, timeZone, { clippedLeft, clippedRight });
-  const length = stayLengthLabel({ startsAt, endsAt }, mode, timeZone);
+  const length = stayLengthLabel({ startsAt, endsAt }, mode, timeZone, tu);
   const startDate = dateInZone(startsAt, timeZone);
   const endDate = dateInZone(endsAt, timeZone);
   const dates = mode === "hours"

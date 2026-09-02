@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { enTranslator } from "@/i18n/test-translator";
+
+const t = enTranslator("public.units");
 import {
   stayUnits, totalCents, depositCents, formatOfferingPrice,
   formatCancelWindow, moneyInfoLines, stayHint, type MoneyFields,
@@ -38,30 +41,30 @@ describe("depositCents", () => {
 
 describe("formatOfferingPrice", () => {
   it("per-unit names the unit from rangeMode", () => {
-    expect(formatOfferingPrice({ priceCents: 12000, pricingMode: "per_unit", rangeMode: "hours" }, "PLN"))
+    expect(formatOfferingPrice({ priceCents: 12000, pricingMode: "per_unit", rangeMode: "hours" }, "PLN", t))
       .toBe("120 zł / hour");
-    expect(formatOfferingPrice({ priceCents: 12000, pricingMode: "per_unit", rangeMode: "nights" }, "PLN"))
+    expect(formatOfferingPrice({ priceCents: 12000, pricingMode: "per_unit", rangeMode: "nights" }, "PLN", t))
       .toBe("120 zł / night");
-    expect(formatOfferingPrice({ priceCents: 12000, pricingMode: "per_unit", rangeMode: "days" }, "PLN"))
+    expect(formatOfferingPrice({ priceCents: 12000, pricingMode: "per_unit", rangeMode: "days" }, "PLN", t))
       .toBe("120 zł / day");
   });
   it("flat is bare", () =>
-    expect(formatOfferingPrice({ priceCents: 50000, pricingMode: "flat", rangeMode: "hours" }, "PLN"))
+    expect(formatOfferingPrice({ priceCents: 50000, pricingMode: "flat", rangeMode: "hours" }, "PLN", t))
       .toBe("500 zł"));
   it("unpriced → null", () =>
-    expect(formatOfferingPrice({ priceCents: null, pricingMode: "flat", rangeMode: "days" }, "PLN")).toBeNull());
+    expect(formatOfferingPrice({ priceCents: null, pricingMode: "flat", rangeMode: "days" }, "PLN", t)).toBeNull());
 });
 
 describe("formatCancelWindow", () => {
-  it("whole days say days", () => expect(formatCancelWindow(2880)).toBe("2 days"));
-  it("one day singular", () => expect(formatCancelWindow(1440)).toBe("1 day"));
-  it("sub-day says hours", () => expect(formatCancelWindow(90)).toBe("1.5 hours"));
-  it("one hour singular", () => expect(formatCancelWindow(60)).toBe("1 hour"));
+  it("whole days say days", () => expect(formatCancelWindow(2880, t)).toBe("2 days"));
+  it("one day singular", () => expect(formatCancelWindow(1440, t)).toBe("1 day"));
+  it("sub-day says hours", () => expect(formatCancelWindow(90, t)).toBe("1.5 hours"));
+  it("one hour singular", () => expect(formatCancelWindow(60, t)).toBe("1 hour"));
 });
 
 describe("moneyInfoLines", () => {
   it("emits total, deposit, venue note and policy", () => {
-    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 1440 })).toEqual([
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 1440 }, t)).toEqual([
       "Total: 300 zł",
       "Deposit due: 60 zł",
       "Payment: pay at the venue",
@@ -69,23 +72,23 @@ describe("moneyInfoLines", () => {
     ]);
   });
   it("no money → only the policy line when a window is set", () =>
-    expect(moneyInfoLines({ totalCents: null, depositCents: null, currency: null, cancelWindowMin: 120 }))
+    expect(moneyInfoLines({ totalCents: null, depositCents: null, currency: null, cancelWindowMin: 120 }, t))
       .toEqual(["Free cancellation until 2 hours before start"]));
   it("nothing set → empty", () =>
-    expect(moneyInfoLines({ totalCents: null, depositCents: null, currency: null, cancelWindowMin: 0 })).toEqual([]));
+    expect(moneyInfoLines({ totalCents: null, depositCents: null, currency: null, cancelWindowMin: 0 }, t)).toEqual([]));
 });
 
 describe("stayHint", () => {
   it("hourly: the duration range", () => {
-    expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: 60, maxDurationMin: 240 })).toBe("1 h–4 h");
-    expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: 90, maxDurationMin: 150 })).toBe("1 h 30 min–2 h 30 min");
+    expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: 60, maxDurationMin: 240 }, t)).toBe("1 h–4 h");
+    expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: 90, maxDurationMin: 150 }, t)).toBe("1 h 30 min–2 h 30 min");
   });
   it("nights/days: the minimum stay when it is more than one", () => {
-    expect(stayHint({ rangeMode: "nights", minStay: 2, minDurationMin: null, maxDurationMin: null })).toBe("min 2 nights");
-    expect(stayHint({ rangeMode: "days", minStay: 3, minDurationMin: null, maxDurationMin: null })).toBe("min 3 days");
+    expect(stayHint({ rangeMode: "nights", minStay: 2, minDurationMin: null, maxDurationMin: null }, t)).toBe("min 2 nights");
+    expect(stayHint({ rangeMode: "days", minStay: 3, minDurationMin: null, maxDurationMin: null }, t)).toBe("min 3 days");
   });
   it("nothing to say: one-night minimum, or an hourly row missing its grid", () => {
-    expect(stayHint({ rangeMode: "nights", minStay: 1, minDurationMin: null, maxDurationMin: null })).toBeNull();
-    expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: null, maxDurationMin: null })).toBeNull();
+    expect(stayHint({ rangeMode: "nights", minStay: 1, minDurationMin: null, maxDurationMin: null }, t)).toBeNull();
+    expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: null, maxDurationMin: null }, t)).toBeNull();
   });
 });

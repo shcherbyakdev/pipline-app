@@ -22,6 +22,13 @@ export const orgs = pgTable("orgs", {
   // H3: one settlement currency per org (H4 Stripe constraint). Whitelist
   // CHECK in 0058; written ONLY via update_org_scheduling.
   currency: text("currency").default("PLN").notNull(),
+  // The language the org's clients see (hosted page, embed, manage page,
+  // every email the org sends — i18n spec 2026-09-02 D2/§8). Format CHECK
+  // in 0069 (`^[a-z]{2,3}(-[A-Z]{2})?$`); the app validates against LOCALES,
+  // so a new language never needs a migration. Written ONLY via
+  // update_org_scheduling; seeded from the creator's interface locale by
+  // create_org_with_page.
+  locale: text("locale").default("en").notNull(),
   // Widget appearance (S3). Written ONLY via update_org_widget_theme
   // (same select-only-orgs discipline as branding). Null = all defaults.
   widgetTheme: jsonb("widget_theme"),

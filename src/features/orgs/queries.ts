@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/config";
 import { createClient } from "@/lib/supabase/server";
 import { publicLogoUrl } from "@/lib/storage/branding";
 
@@ -39,13 +40,22 @@ export async function getSchedulingSettings(): Promise<{
   handle: string | null;
   timezone: string;
   currency: string;
+  locale: Locale;
 } | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("orgs")
-    .select("id, handle, timezone, currency")
+    .select("id, handle, timezone, currency, locale")
     .limit(1)
     .maybeSingle();
   if (!data) return null;
-  return { orgId: data.id, handle: data.handle, timezone: data.timezone, currency: data.currency };
+  return {
+    orgId: data.id,
+    handle: data.handle,
+    timezone: data.timezone,
+    currency: data.currency,
+    // The column's CHECK is format-only (0069); a code the app does not
+    // speak yet reads as the default rather than as an unlisted option.
+    locale: isLocale(data.locale) ? data.locale : DEFAULT_LOCALE,
+  };
 }

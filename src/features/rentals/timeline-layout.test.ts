@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { enTranslator } from "@/i18n/test-translator";
 import {
   laneLayout,
   stayInterval,
@@ -161,11 +162,11 @@ describe("stayPhase", () => {
 
 describe("stayLengthLabel", () => {
   it("nights, days, hours", () => {
-    expect(stayLengthLabel(stay("a", "2027-05-03", "2027-05-04"), "nights", TZ)).toBe("1 night");
-    expect(stayLengthLabel(stay("a", "2027-05-03", "2027-05-06"), "nights", TZ)).toBe("3 nights");
-    expect(stayLengthLabel(dayStay("a", "2027-05-03", "2027-05-03"), "days", TZ)).toBe("1 day");
-    expect(stayLengthLabel(dayStay("a", "2027-05-03", "2027-05-05"), "days", TZ)).toBe("3 days");
-    expect(stayLengthLabel(hourly("a", "2027-05-03", "10:00", "11:30"), "hours", TZ)).toBe("1 h 30 min");
+    expect(stayLengthLabel(stay("a", "2027-05-03", "2027-05-04"), "nights", TZ, enTranslator("public.units"))).toBe("1 night");
+    expect(stayLengthLabel(stay("a", "2027-05-03", "2027-05-06"), "nights", TZ, enTranslator("public.units"))).toBe("3 nights");
+    expect(stayLengthLabel(dayStay("a", "2027-05-03", "2027-05-03"), "days", TZ, enTranslator("public.units"))).toBe("1 day");
+    expect(stayLengthLabel(dayStay("a", "2027-05-03", "2027-05-05"), "days", TZ, enTranslator("public.units"))).toBe("3 days");
+    expect(stayLengthLabel(hourly("a", "2027-05-03", "10:00", "11:30"), "hours", TZ, enTranslator("public.units"))).toBe("1 h 30 min");
   });
 });
 

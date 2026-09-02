@@ -1,10 +1,12 @@
 "use server";
 
+import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl, resolveBookingToken } from "@/lib/tokens/booking";
+import { getOrgLocale } from "@/lib/booking/public";
 import {
   getBookingOfferingId,
   getPublicOfferingById,
@@ -39,11 +41,6 @@ import {
   manageHourlySlotsInput,
   rescheduleRentalInput,
   rescheduleRentalHoursInput,
-  CHECK_IN_PASSED,
-  DATES_TAKEN,
-  SLOT_TAKEN_HOURLY,
-  STAY_STARTED,
-  GENERIC_WRITE_ERROR,
 } from "./schema";
 
 // The rental half of scheduling/manage-actions.ts: token-authenticated,
@@ -51,8 +48,6 @@ import {
 // cancel_booking speaks for stays too) — only the reschedule path needs a
 // range engine instead of a slot grid.
 
-const NOT_CHANGEABLE = "This booking can no longer be changed online.";
-const TOO_MANY = "Too many requests — slow down.";
 
 async function limited(): Promise<boolean> {
   const key = clientKeyFrom(await headers());
@@ -73,9 +68,9 @@ async function resolveActionable(token: string) {
   return { ...booking, rentalUnitId };
 }
 
-function fail(context: string, error: unknown): { ok: false; error: string } {
+function fail(context: string, error: unknown, orgLocale: OrgLocaleSource) {
   console.error(`[rentals] ${context}:`, error);
-  return { ok: false, error: GENERIC_WRITE_ERROR };
+  return publicError(orgLocale, "generic");
 }
 
 // 'taken' is the RPC's own "no unit survives turnover/blackouts"; 23P01 is
@@ -100,23 +95,25 @@ export async function getManageRangeAvailability(input: unknown): Promise<
     }
   | { ok: false; error: string }
 > {
-  if (await limited()) return { ok: false, error: TOO_MANY };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited()) return publicError(orgLocale, "tooManyRequests");
   const parsed = manageRangeAvailabilityInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
   const { token, fromDate, days } = parsed.data;
   try {
     const booking = await resolveActionable(token);
-    if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    if (!booking) return publicError(orgLocale, "notChangeable");
+    orgLocale = () => getOrgLocale(booking.orgId);
     // Rentals are on by default since H1; the org's `rentals` flag is a kill
     // switch — this is the server-side defence while it's off
     // (public-actions.ts idiom).
-    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return publicError(orgLocale, "generic");
     const offeringId = await getBookingOfferingId(booking.id);
-    if (offeringId === null) return { ok: false, error: NOT_CHANGEABLE };
+    if (offeringId === null) return publicError(orgLocale, "notChangeable");
     const ctx = await loadOrgRangeContext(booking.orgId, offeringId, fromDate, days, {
       excludeBookingId: booking.id,
     });
-    if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
+    if (!ctx) return publicError(orgLocale, "notChangeable");
     const availability = computeRangeAvailability({
       offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
@@ -140,26 +137,28 @@ export async function getManageRangeAvailability(input: unknown): Promise<
       startDate: dateInZone(booking.startsAt, booking.orgTimezone),
     };
   } catch (error) {
-    return fail("getManageRangeAvailability", error);
+    return fail("getManageRangeAvailability", error, orgLocale);
   }
 }
 
 export async function rescheduleRentalBooking(
   input: unknown,
 ): Promise<{ ok: true; token: string } | { ok: false; error: string; datesTaken?: boolean }> {
-  if (await limited()) return { ok: false, error: TOO_MANY };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited()) return publicError(orgLocale, "tooManyRequests");
   const parsed = rescheduleRentalInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
   const { token, unitId, startDate, endDate } = parsed.data;
   try {
     const booking = await resolveActionable(token);
-    if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    if (!booking) return publicError(orgLocale, "notChangeable");
+    orgLocale = () => getOrgLocale(booking.orgId);
     // Same flag gate as getManageRangeAvailability: the move is a write.
-    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return publicError(orgLocale, "generic");
     const offeringId = await getBookingOfferingId(booking.id);
-    if (offeringId === null) return { ok: false, error: NOT_CHANGEABLE };
+    if (offeringId === null) return publicError(orgLocale, "notChangeable");
     const offering = await getPublicOfferingById(booking.orgId, offeringId);
-    if (!offering) return { ok: false, error: NOT_CHANGEABLE };
+    if (!offering) return publicError(orgLocale, "notChangeable");
 
     // createRentalBooking's span idiom: the stay plus its turnover tail,
     // capped at the booking window (validateStay rejects anything past it as
@@ -172,7 +171,7 @@ export async function rescheduleRentalBooking(
     const ctx = await loadOrgRangeContext(booking.orgId, offeringId, startDate, span, {
       excludeBookingId: booking.id,
     });
-    if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
+    if (!ctx) return publicError(orgLocale, "notChangeable");
 
     // Which unit serves the stay is the provider's business unless the
     // offering lets the client pick, so drop any unit the payload names on an
@@ -187,7 +186,7 @@ export async function rescheduleRentalBooking(
     // offering here is never hours) — startTime is set (0056 CHECK).
     const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime!, booking.orgTimezone);
     if (startsAt.getTime() <= Date.now()) {
-      return { ok: false, error: CHECK_IN_PASSED, datesTaken: true };
+      return publicError(orgLocale, "checkInPassed", { datesTaken: true });
     }
 
     // Engine re-check (createRentalBooking idiom): the friendly-error pass
@@ -208,11 +207,11 @@ export async function rescheduleRentalBooking(
       // order/min_stay/max_stay/window mean the panel let a bad range
       // through — picking again won't help.
       return stay.reason === "unavailable"
-        ? { ok: false, error: DATES_TAKEN, datesTaken: true }
-        : { ok: false, error: GENERIC_WRITE_ERROR };
+        ? publicError(orgLocale, "datesTaken", { datesTaken: true })
+        : publicError(orgLocale, "generic");
     }
     if (pickedUnitId !== null && !stay.unitIds.includes(pickedUnitId)) {
-      return { ok: false, error: DATES_TAKEN, datesTaken: true };
+      return publicError(orgLocale, "datesTaken", { datesTaken: true });
     }
 
     const fresh = generateAccessToken();
@@ -227,10 +226,10 @@ export async function rescheduleRentalBooking(
       p_new_token_hash: fresh.tokenHash,
     });
     if (error) {
-      if (isStarted(error)) return { ok: false, error: STAY_STARTED };
-      if (isTaken(error)) return { ok: false, error: DATES_TAKEN, datesTaken: true };
+      if (isStarted(error)) return publicError(orgLocale, "stayStarted");
+      if (isTaken(error)) return publicError(orgLocale, "datesTaken", { datesTaken: true });
       console.error("[rentals] rescheduleRentalBooking:", error.code || "rpc error");
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return publicError(orgLocale, "generic");
     }
     const moved = (data as Array<{
       new_booking_id: string;
@@ -248,7 +247,7 @@ export async function rescheduleRentalBooking(
       dates_changed: boolean;
     }> | null)?.[0];
     // A token miss comes back as no rows (resolver doctrine), never a raise.
-    if (!moved) return { ok: false, error: NOT_CHANGEABLE };
+    if (!moved) return publicError(orgLocale, "notChangeable");
 
     // Best-effort notifications — the move is already committed. The client
     // always gets one when they have an address on file, even if nothing
@@ -306,7 +305,7 @@ export async function rescheduleRentalBooking(
 
     return { ok: true, token: fresh.token };
   } catch (error) {
-    return fail("rescheduleRentalBooking", error);
+    return fail("rescheduleRentalBooking", error, orgLocale);
   }
 }
 
@@ -331,17 +330,19 @@ export async function getManageHourlySlots(input: unknown): Promise<
     }
   | { ok: false; error: string }
 > {
-  if (await limited()) return { ok: false, error: TOO_MANY };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited()) return publicError(orgLocale, "tooManyRequests");
   const parsed = manageHourlySlotsInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
   const { token, fromDate, days } = parsed.data;
   try {
     const booking = await resolveActionable(token);
-    if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    if (!booking) return publicError(orgLocale, "notChangeable");
+    orgLocale = () => getOrgLocale(booking.orgId);
     // Same flag gate as getManageRangeAvailability: rentals is a kill switch.
-    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return publicError(orgLocale, "generic");
     const offeringId = await getBookingOfferingId(booking.id);
-    if (offeringId === null) return { ok: false, error: NOT_CHANGEABLE };
+    if (offeringId === null) return publicError(orgLocale, "notChangeable");
 
     // Duration comes ONLY from the existing row — never from client input.
     // A reschedule may move the booking, not stretch or shrink it (mirrors
@@ -356,7 +357,7 @@ export async function getManageHourlySlots(input: unknown): Promise<
     const ctx = await loadOrgHourlyContext(booking.orgId, offeringId, booking.orgTimezone, from, span, {
       excludeBookingId: booking.id,
     });
-    if (!ctx || !isHourlyOffering(ctx.offering)) return { ok: false, error: NOT_CHANGEABLE };
+    if (!ctx || !isHourlyOffering(ctx.offering)) return publicError(orgLocale, "notChangeable");
 
     const service = hourlySlotService(ctx.offering, durationMin);
     const now = new Date();
@@ -384,24 +385,26 @@ export async function getManageHourlySlots(input: unknown): Promise<
       currentUnitId: booking.rentalUnitId,
     };
   } catch (error) {
-    return fail("getManageHourlySlots", error);
+    return fail("getManageHourlySlots", error, orgLocale);
   }
 }
 
 export async function rescheduleRentalBookingHours(
   input: unknown,
 ): Promise<{ ok: true; token: string } | { ok: false; error: string; datesTaken?: boolean }> {
-  if (await limited()) return { ok: false, error: TOO_MANY };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited()) return publicError(orgLocale, "tooManyRequests");
   const parsed = rescheduleRentalHoursInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
   const { token, unitId, startsAt } = parsed.data;
   try {
     const booking = await resolveActionable(token);
-    if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    if (!booking) return publicError(orgLocale, "notChangeable");
+    orgLocale = () => getOrgLocale(booking.orgId);
     // Same flag gate as getManageHourlySlots: the move is a write.
-    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!(await getOrgFlagsAdmin(booking.orgId)).rentals) return publicError(orgLocale, "generic");
     const offeringId = await getBookingOfferingId(booking.id);
-    if (offeringId === null) return { ok: false, error: NOT_CHANGEABLE };
+    if (offeringId === null) return publicError(orgLocale, "notChangeable");
 
     // Same-duration ruling, computed here (not taken from the client) so the
     // engine pre-check below and the RPC (which copies it server-side from
@@ -415,7 +418,7 @@ export async function rescheduleRentalBookingHours(
     const ctx = await loadOrgHourlyContext(booking.orgId, offeringId, booking.orgTimezone, localDate, 2, {
       excludeBookingId: booking.id,
     });
-    if (!ctx || !isHourlyOffering(ctx.offering)) return { ok: false, error: NOT_CHANGEABLE };
+    if (!ctx || !isHourlyOffering(ctx.offering)) return publicError(orgLocale, "notChangeable");
 
     // Which unit serves the booking is the provider's business unless the
     // offering lets the client pick, so drop any unit the payload names on
@@ -445,7 +448,7 @@ export async function rescheduleRentalBookingHours(
     );
     const match = slots.find((s) => s.startsAt.getTime() === starts.getTime());
     if (!match || (pickedUnitId !== null && !match.unitIds.includes(pickedUnitId))) {
-      return { ok: false, error: SLOT_TAKEN_HOURLY, datesTaken: true };
+      return publicError(orgLocale, "slotTaken", { datesTaken: true });
     }
 
     const fresh = generateAccessToken();
@@ -460,10 +463,10 @@ export async function rescheduleRentalBookingHours(
       p_new_token_hash: fresh.tokenHash,
     });
     if (error) {
-      if (isStarted(error)) return { ok: false, error: STAY_STARTED };
-      if (isTaken(error)) return { ok: false, error: SLOT_TAKEN_HOURLY, datesTaken: true };
+      if (isStarted(error)) return publicError(orgLocale, "stayStarted");
+      if (isTaken(error)) return publicError(orgLocale, "slotTaken", { datesTaken: true });
       console.error("[rentals] rescheduleRentalBookingHours:", error.code || "rpc error");
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return publicError(orgLocale, "generic");
     }
     const moved = (data as Array<{
       new_booking_id: string;
@@ -481,7 +484,7 @@ export async function rescheduleRentalBookingHours(
       dates_changed: boolean;
     }> | null)?.[0];
     // A token miss comes back as no rows (resolver doctrine), never a raise.
-    if (!moved) return { ok: false, error: NOT_CHANGEABLE };
+    if (!moved) return publicError(orgLocale, "notChangeable");
 
     // Best-effort notifications, copied wholesale from rescheduleRentalBooking
     // (provider notice IS sent on client reschedules — R2's admin-only-silence
@@ -542,6 +545,6 @@ export async function rescheduleRentalBookingHours(
 
     return { ok: true, token: fresh.token };
   } catch (error) {
-    return fail("rescheduleRentalBookingHours", error);
+    return fail("rescheduleRentalBookingHours", error, orgLocale);
   }
 }

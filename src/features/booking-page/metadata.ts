@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
+import type { Locale } from "@/i18n/config";
 import type { PageDocument } from "./schema";
 import { pageImageUrl } from "./images";
-import { bookingDescription } from "@/features/orgs/vocab";
-import { pageChannelMode, type PageChannel } from "./channel";
+import type { PageChannel } from "./channel";
 
 /** Spec precedence: hero headline → header tagline → first line of about → fallback. Hidden sections never leak. */
 export function pageDescription(doc: PageDocument, fallback: string): string {
@@ -21,18 +22,24 @@ export function heroImagePath(doc: PageDocument): string | null {
   return hero?.type === "hero" ? hero.imagePath ?? null : null;
 }
 
+/** The fallback description in the page's locale. The page's own channel
+    (spec 2026-08-28 §3.6): a spaces page says "Book a space at X" whatever
+    else the org sells. */
+export async function metaDescription(locale: Locale, channel: PageChannel, orgName: string): Promise<string> {
+  const t = await getTranslations({ locale, namespace: "public.meta" });
+  return t("description", { channel, orgName });
+}
+
 export function pageMetadata(
   doc: PageDocument,
   org: { orgName: string },
   supabaseUrl: string,
-  channel: PageChannel,
+  fallbackDescription: string,
 ): Metadata {
   const image = heroImagePath(doc);
-  // The page's own channel (spec 2026-08-28 §3.6): a spaces page says
-  // "Book a space at X" whatever else the org sells.
   return {
     title: org.orgName,
-    description: pageDescription(doc, bookingDescription(pageChannelMode(channel), org.orgName)),
+    description: pageDescription(doc, fallbackDescription),
     ...(image ? { openGraph: { images: [pageImageUrl(supabaseUrl, image)] } } : {}),
   };
 }

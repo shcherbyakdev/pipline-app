@@ -11,7 +11,9 @@ import type { listPublicCatalog } from "@/lib/booking/catalog";
 import { applyChannel } from "@/lib/booking/channel";
 import { bookingPath, channelPath } from "@/lib/booking/url";
 import type { ChannelPage } from "@/lib/booking/channel-pages";
-import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { langParam, publicLocale, withLang } from "@/i18n/public";
+import { PublicIntl } from "@/i18n/public-provider";
 import { getPublishedPage } from "../queries";
 import { toCatalogChannel } from "../channel";
 import { resolveInitialOffering, resolveInitialService } from "../initial-service";
@@ -29,10 +31,19 @@ export async function renderChannelPage({
   org, handle, page, catalogue, searchParams,
 }: {
   org: BookingOrg; handle: string; page: ChannelPage; catalogue: Catalogue;
-  searchParams: { service?: string | string[]; space?: string | string[] };
+  searchParams: { service?: string | string[]; space?: string | string[]; lang?: string | string[] };
 }) {
   const { offering, offerings } = catalogue;
-  const [branding, doc] = await Promise.all([getOrgBranding(org.orgId), getPublishedPage(org.orgId, page.channel)]);
+  // The page's language (spec §4 + region): decided once here, before any
+  // translation runs, and handed to the client tree by PublicIntl below.
+  const locale = await publicLocale(org.locale, searchParams);
+  setRequestLocale(locale);
+  const lang = langParam(searchParams);
+  const [branding, doc, t] = await Promise.all([
+    getOrgBranding(org.orgId),
+    getPublishedPage(org.orgId, page.channel),
+    getTranslations("public.crossLink"),
+  ]);
   const theme = parseWidgetTheme(branding.pageThemeRaw);
   // The page's channel is forced — no longer a query — before the widget,
   // its headings and the builder's Services / Spaces / Staff sections read
@@ -42,11 +53,13 @@ export async function renderChannelPage({
     toCatalogChannel(page.channel),
   );
   // The other channel's page, when it has something to book (§3.5).
+  // An explicit ?lang= travels with the visitor (withLang); a locale that
+  // came from the region or the org resolves the same way on the next page.
   const crossLink: RenderContext["crossLink"] =
     page.channel === "appointments" && offerings.length > 0
-      ? { href: channelPath(handle, "spaces"), label: SPACES.crossLink }
+      ? { href: withLang(channelPath(handle, "spaces"), lang), label: t("toSpaces") }
       : page.channel === "spaces" && offering.services.length > 0
-        ? { href: bookingPath(handle), label: APPOINTMENTS.crossLink }
+        ? { href: withLang(bookingPath(handle), lang), label: t("toAppointments") }
         : null;
   const ctx: RenderContext = {
     org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency },
@@ -55,9 +68,10 @@ export async function renderChannelPage({
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public", crossLink,
   };
   return (
-    // The whole page takes the org's widget theme (light / dark / auto), so
-    // the transparent widget always sits on a matching surface — the same
-    // guarantee the embed can't give on a third-party site.
+    <PublicIntl locale={locale} timeZone={org.timeZone}>
+    {/* The whole page takes the org's widget theme (light / dark / auto), so
+        the transparent widget always sits on a matching surface — the same
+        guarantee the embed can't give on a third-party site. */}
     <div className={bookShellClass(theme.theme)}>
       {/* Theme tokens (font, radius, accent, text, lines) for every section;
           always transparent — the shell paints the ground. The booking
@@ -76,5 +90,6 @@ export async function renderChannelPage({
         </main>
       </WidgetTheme>
     </div>
+    </PublicIntl>
   );
 }

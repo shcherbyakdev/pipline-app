@@ -30,6 +30,13 @@ A term missing here is added here first, then used.
 | handle (page address) | адреса сторінки | |
 | Free / Pro | Free / Pro | plan names stay |
 | Booklo | Booklo | |
+| the venue / the provider (client-facing) | заклад | what the client calls the business: "у часовому поясі закладу", "зверніться до закладу" |
+| team member (client-facing "with Anna") | спеціаліст | "(спеціаліст: Анна)", "Спеціаліст: Анна" — sidesteps name declension; never "майстер" |
+| anyone (staff switch) | будь-хто | |
+| night / day / hour (counts) | ніч, ночі, ночей · день, дні, днів · година, години, годин | four ICU forms (one/few/many/other) — `public.units.*` |
+| min / h (short units) | хв / год | "60 хв", "1 год 30 хв" |
+| Powered by Booklo | Працює на Booklo | |
+| pickup / return (day stays) | отримання / повернення | |
 
 ## Style — uk
 

@@ -21,6 +21,8 @@ import {
   type WidgetThemeConfig,
 } from "@/lib/widget-theme";
 import { WidgetTheme } from "@/components/widget-theme";
+import { NextIntlClientProvider, type AbstractIntlMessages } from "next-intl";
+import type { Locale } from "@/i18n/config";
 import {
   LivePreview,
   PreviewNotice,
@@ -61,6 +63,7 @@ type SchedulingSettings = NonNullable<
    a visitor will see it on the right — the same PageRenderer + WidgetTheme
    composition as /[handle], fed by the draft and the unsaved settings. */
 export function BookingPageBuilder({
+  previewIntl,
   branding,
   scheduling,
   appUrl,
@@ -78,6 +81,9 @@ export function BookingPageBuilder({
   starter,
   badge,
 }: {
+  /** The org's language and the public messages in it: the preview renders
+      what a client sees (src/app/(dashboard)/booking-page/page.tsx). */
+  previewIntl: { locale: Locale; messages: AbstractIntlMessages };
   branding: BrandingSettings;
   scheduling: SchedulingSettings;
   appUrl: string;
@@ -368,14 +374,18 @@ export function BookingPageBuilder({
             }
           >
             <SelectionProvider value={selection}>
-              <WidgetTheme
-                config={previewTheme}
-                accentColor={accent}
-                transparent
-                className="flex flex-col"
-              >
-                <PageRenderer doc={draft.doc} ctx={ctx} />
-              </WidgetTheme>
+              <NextIntlClientProvider locale={previewIntl.locale} messages={previewIntl.messages} timeZone={scheduling.timezone}>
+                <WidgetTheme
+                  config={previewTheme}
+                  accentColor={accent}
+                  transparent
+                  className="flex flex-col"
+                >
+                  <div lang={previewIntl.locale} className="contents">
+                    <PageRenderer doc={draft.doc} ctx={ctx} />
+                  </div>
+                </WidgetTheme>
+              </NextIntlClientProvider>
             </SelectionProvider>
           </LivePreview>
         </div>

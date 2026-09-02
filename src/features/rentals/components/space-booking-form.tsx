@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -51,6 +52,7 @@ export function SpaceBookingForm({
   timeZone: string;
   onDone: () => void;
 }) {
+  const tu = useTranslations("public.units");
   const router = useRouter();
   const offeringId = offering.id;
   const grid = hourlyGrid(offering);
@@ -306,7 +308,7 @@ export function SpaceBookingForm({
                       size="sm"
                       onClick={() => changeDuration(d)}
                     >
-                      {formatDurationLabel(d)}
+                      {formatDurationLabel(d, tu)}
                     </Button>
                   ))}
                 </div>
@@ -322,7 +324,7 @@ export function SpaceBookingForm({
                   </option>
                   {hourOptions.map((d) => (
                     <option key={d} value={d}>
-                      {formatDurationLabel(d)}
+                      {formatDurationLabel(d, tu)}
                     </option>
                   ))}
                 </select>
@@ -340,7 +342,7 @@ export function SpaceBookingForm({
               regionRef={slotsRegionRef}
               headerSlot={
                 <p className="text-sm font-medium">
-                  {formatDurationLabel(durationMin)}{" "}
+                  {formatDurationLabel(durationMin, tu)}{" "}
                   <button
                     type="button"
                     className="text-muted-foreground underline"
@@ -354,7 +356,7 @@ export function SpaceBookingForm({
           ) : (
             <form action={submit} className="flex flex-col gap-3">
               <p className="text-sm">
-                {formatDurationLabel(durationMin)} ·{" "}
+                {formatDurationLabel(durationMin, tu)} ·{" "}
                 {new Intl.DateTimeFormat("en-GB", {
                   weekday: "short",
                   day: "2-digit",

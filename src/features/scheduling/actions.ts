@@ -633,6 +633,7 @@ export async function updateSchedulingSettings(input: unknown): Promise<ActionSt
     p_handle: parsed.data.handle,
     p_timezone: parsed.data.timezone,
     p_currency: parsed.data.currency,
+    p_locale: parsed.data.locale,
   });
   if (error) {
     if (error.code === "23505") return { ok: false, error: "That handle is already taken." };

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -61,6 +62,7 @@ export function MoveRentalDialog({
   // that row is stale (the RPC writes a new one), so it closes itself.
   onMoved?: () => void;
 }) {
+  const tu = useTranslations("public.units");
   const router = useRouter();
   const offeringId = booking.rentalOfferingId;
   const hourly = booking.rangeMode === "hours";
@@ -333,14 +335,14 @@ export function MoveRentalDialog({
                   regionRef={slotsRegionRef}
                   headerSlot={
                     <p className="text-sm font-medium">
-                      {formatDurationLabel(durationMin)}
+                      {formatDurationLabel(durationMin, tu)}
                     </p>
                   }
                 />
               ) : (
                 <>
                   <p className="text-sm">
-                    {formatDurationLabel(durationMin)} ·{" "}
+                    {formatDurationLabel(durationMin, tu)} ·{" "}
                     {new Intl.DateTimeFormat("en-GB", {
                       weekday: "short",
                       day: "2-digit",

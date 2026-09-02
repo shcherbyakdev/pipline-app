@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isAllowedLogoType, matchesLogoMagicBytes, logoPathFor, LOGO_MAX_BYTES } from "@/lib/storage/logo";
@@ -60,6 +61,9 @@ export async function createOrgWithPage(
     p_timezone: parsed.data.timezone,
     p_offers_appointments: true,
     p_offers_rentals: false,
+    // The org speaks its creator's language until the Booking page Settings
+    // tab says otherwise (i18n spec §8).
+    p_locale: await getLocale(),
   });
   if (error) {
     if (error.code === "23505") return { error: ONBOARDING.justTaken };

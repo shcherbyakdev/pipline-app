@@ -17,7 +17,7 @@ describe("starter copy (spec 2026-08-28 §1, §5)", () => {
       ...strings(STARTER),
       ...WIDGET_LAYOUT_OPTIONS.flatMap((o) => [o.label, o.description]),
       ...STAY_LAYOUT_OPTIONS.flatMap((o) => [o.label, o.description]),
-      APPOINTMENTS.page, SPACES.page, APPOINTMENTS.crossLink, SPACES.crossLink,
+      APPOINTMENTS.page, SPACES.page,
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);
   });

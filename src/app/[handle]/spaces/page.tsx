@@ -6,23 +6,30 @@ import { listPublicCatalog, catalogueHas } from "@/lib/booking/catalog";
 import { resolveChannelPage, type Has } from "@/lib/booking/channel-pages";
 import { env } from "@/env";
 import { getPublishedPage } from "@/features/booking-page/queries";
-import { pageMetadata } from "@/features/booking-page/metadata";
+import { metaDescription, pageMetadata } from "@/features/booking-page/metadata";
 import { renderChannelPage } from "@/features/booking-page/render/channel-page";
 import { HANDLE_RE } from "@/features/scheduling/handle";
+import { publicLocale } from "@/i18n/public";
 
 // The spaces page (spec 2026-08-28 §3.3): always the spaces channel while a
 // space is bookable, so a shared link never breaks when the org later adds
 // a service and the root moves. Next matches this static segment before
 // /[handle]/[staffSlug] — hence "spaces" is a reserved staff slug.
-export async function generateMetadata({ params }: PageProps<"/[handle]/spaces">): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps<"/[handle]/spaces">): Promise<Metadata> {
   const { handle } = await params;
   if (!HANDLE_RE.test(handle)) return {};
   const org = await getBookingOrg(handle);
   if (!org) return {};
   const page = resolveChannelPage("spaces", catalogueHas(await listPublicCatalog(org)));
   if (!page) return {};
+  const locale = await publicLocale(org.locale, await searchParams);
   return {
-    ...pageMetadata(await getPublishedPage(org.orgId, page.channel), org, env.NEXT_PUBLIC_SUPABASE_URL, page.channel),
+    ...pageMetadata(
+      await getPublishedPage(org.orgId, page.channel),
+      org,
+      env.NEXT_PUBLIC_SUPABASE_URL,
+      await metaDescription(locale, page.channel, org.orgName),
+    ),
     // A spaces-only org's spaces page IS the root: say so to crawlers.
     alternates: { canonical: channelUrl(env.NEXT_PUBLIC_APP_URL, handle, page.canonical === "root" ? "appointments" : "spaces") },
   };

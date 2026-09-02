@@ -131,27 +131,31 @@ describe("availabilityRuleInput", () => {
 describe("schedulingSettingsInput", () => {
   it("accepts a valid handle + timezone", () => {
     expect(
-      schedulingSettingsInput.safeParse({ handle: "demo-studio", timezone: "Europe/Berlin", currency: "PLN" })
+      schedulingSettingsInput.safeParse({ handle: "demo-studio", timezone: "Europe/Berlin", currency: "PLN", locale: "en" })
         .success,
     ).toBe(true);
   });
   it("rejects bad handles", () => {
     for (const handle of ["ab", "-bad", "bad-", "Bad", "has space", "a".repeat(51)]) {
-      expect(schedulingSettingsInput.safeParse({ handle, timezone: "UTC", currency: "PLN" }).success).toBe(false);
+      expect(schedulingSettingsInput.safeParse({ handle, timezone: "UTC", currency: "PLN", locale: "en" }).success).toBe(false);
     }
   });
   it("rejects a reserved handle", () => {
     expect(
-      schedulingSettingsInput.safeParse({ handle: "login", timezone: "Europe/Warsaw", currency: "PLN" }).success,
+      schedulingSettingsInput.safeParse({ handle: "login", timezone: "Europe/Warsaw", currency: "PLN", locale: "en" }).success,
     ).toBe(false);
     expect(
-      schedulingSettingsInput.safeParse({ handle: "anna", timezone: "Europe/Warsaw", currency: "PLN" }).success,
+      schedulingSettingsInput.safeParse({ handle: "anna", timezone: "Europe/Warsaw", currency: "PLN", locale: "en" }).success,
     ).toBe(true);
   });
   it("scheduling settings require a whitelisted currency", () => {
-    expect(schedulingSettingsInput.safeParse({ handle: "my-org", timezone: "Europe/Warsaw", currency: "PLN" }).success).toBe(true);
-    expect(schedulingSettingsInput.safeParse({ handle: "my-org", timezone: "Europe/Warsaw", currency: "JPY" }).success).toBe(false);
+    expect(schedulingSettingsInput.safeParse({ handle: "my-org", timezone: "Europe/Warsaw", currency: "PLN", locale: "en" }).success).toBe(true);
+    expect(schedulingSettingsInput.safeParse({ handle: "my-org", timezone: "Europe/Warsaw", currency: "JPY", locale: "en" }).success).toBe(false);
     expect(schedulingSettingsInput.safeParse({ handle: "my-org", timezone: "Europe/Warsaw" }).success).toBe(false);
+    expect(schedulingSettingsInput.safeParse({ handle: "my-org", timezone: "Europe/Warsaw", currency: "PLN", locale: "uk" }).success).toBe(true);
+    // The org locale is one the product speaks (LOCALES), never a bare format check.
+    expect(schedulingSettingsInput.safeParse({ handle: "my-org", timezone: "Europe/Warsaw", currency: "PLN", locale: "ua" }).success).toBe(false);
+    expect(schedulingSettingsInput.safeParse({ handle: "my-org", timezone: "Europe/Warsaw", currency: "PLN" }).success).toBe(false);
   });
 });
 
@@ -198,17 +202,17 @@ describe("public inputs", () => {
 
 describe("schedulingSettingsInput handle clearing", () => {
   it("maps empty and whitespace handle to null", () => {
-    expect(schedulingSettingsInput.parse({ handle: "", timezone: "UTC", currency: "PLN" }).handle).toBeNull();
-    expect(schedulingSettingsInput.parse({ handle: "  ", timezone: "UTC", currency: "PLN" }).handle).toBeNull();
+    expect(schedulingSettingsInput.parse({ handle: "", timezone: "UTC", currency: "PLN", locale: "en" }).handle).toBeNull();
+    expect(schedulingSettingsInput.parse({ handle: "  ", timezone: "UTC", currency: "PLN", locale: "en" }).handle).toBeNull();
   });
   it("still rejects a malformed non-empty handle", () => {
     expect(
-      schedulingSettingsInput.safeParse({ handle: "Bad Handle!", timezone: "UTC", currency: "PLN" }).success,
+      schedulingSettingsInput.safeParse({ handle: "Bad Handle!", timezone: "UTC", currency: "PLN", locale: "en" }).success,
     ).toBe(false);
   });
   it("passes a valid handle through", () => {
     expect(
-      schedulingSettingsInput.parse({ handle: "my-studio", timezone: "UTC", currency: "PLN" }).handle,
+      schedulingSettingsInput.parse({ handle: "my-studio", timezone: "UTC", currency: "PLN", locale: "en" }).handle,
     ).toBe("my-studio");
   });
 });

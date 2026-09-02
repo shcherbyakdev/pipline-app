@@ -1,13 +1,16 @@
 "use client";
 
 import * as React from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 import type { PublicOffering } from "@/lib/booking/public";
 import type { RangeValue } from "./range-picker";
 
 // Org-local dates: pinned to UTC like every formatter around the range
 // picker so the viewer's zone never shifts a day.
-const fieldFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+const fieldFormatter = (intlLocale: string) =>
+  new Intl.DateTimeFormat(intlLocale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const utcDate = (d: string) => new Date(`${d}T00:00:00Z`);
 
 /* The "Check-in and check-out fields" template (spec §8): two fields at the
@@ -23,8 +26,12 @@ export function StayFields({
   open?: boolean;
   children: React.ReactNode;
 }) {
+  const locale = useLocale();
+  const t = useTranslations("public.stay");
+  const fieldFmt = React.useMemo(() => fieldFormatter(INTL_LOCALES[locale]), [locale]);
   const [open, setOpen] = React.useState(openByDefault);
-  const [inLabel, outLabel] = offering.rangeMode === "nights" ? ["Check-in", "Check-out"] : ["Pickup", "Return"];
+  const [inLabel, outLabel] =
+    offering.rangeMode === "nights" ? [t("checkIn"), t("checkOut")] : [t("pickup"), t("return")];
   const field = (label: string, date: string | null, active: boolean) => (
     <button
       type="button"
@@ -41,7 +48,7 @@ export function StayFields({
       )}
     >
       <span className="text-muted-foreground text-xs">{label}</span>
-      <span className={cn("text-sm", date ? "font-medium" : "text-muted-foreground")}>{date ? fieldFmt.format(utcDate(date)) : "Add date"}</span>
+      <span className={cn("text-sm", date ? "font-medium" : "text-muted-foreground")}>{date ? fieldFmt.format(utcDate(date)) : t("addDate")}</span>
     </button>
   );
   const picking = value.start !== null && value.end === null;

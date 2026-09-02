@@ -93,9 +93,10 @@ export function firstDayBeyond(slots: string[], w: SlotWindow, dayOf: (iso: stri
   return earliestLater;
 }
 
-/** "Today" / "Tomorrow" for the next-available list; null for any other day. */
-export function relativeDayLabel(day: string, today: string): "Today" | "Tomorrow" | null {
-  if (day === today) return "Today";
-  if (day === shiftDays(today, 1)) return "Tomorrow";
+/** The `public.slots` key for today / tomorrow in the next-available list
+    (the caller renders `t(key)`); null for any other day. */
+export function relativeDayLabel(day: string, today: string): "today" | "tomorrow" | null {
+  if (day === today) return "today";
+  if (day === shiftDays(today, 1)) return "tomorrow";
   return null;
 }
