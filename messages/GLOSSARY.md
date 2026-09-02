@@ -38,7 +38,8 @@ A term missing here is added here first, then used.
 | Powered by Booklo | Працює на Booklo | |
 | pickup / return (day stays) | отримання / повернення | |
 | Overview (admin page, named in provider mails) | «Огляд» | provisional until Wave 3 names the admin nav |
-| booked / cancelled / moved (a client, unknown gender) | забронював(ла) / скасував(ла) / переніс(ла) | provider-facing mails; the parenthesised feminine ending avoids guessing |
+| booked / cancelled / moved (a client, unknown gender) | забронював(ла) / скасував(ла) / змінив(ла) час | provider-facing mails; only verbs whose feminine is stem + ла take the (ла) ending — never переніс(ла), whose feminine is перенесла |
+| an org as the subject of a verb | Заклад {orgName} … | anchors the verb to a masculine noun, since org names are mostly feminine/neuter (Студія, Клініка) |
 
 ## Style — uk
 

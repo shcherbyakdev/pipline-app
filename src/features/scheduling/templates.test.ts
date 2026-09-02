@@ -448,7 +448,9 @@ describe("Ukrainian mails (i18n Wave 2, spec D4)", () => {
 
   it("every mail reads Ukrainian end to end — no English sentence survives outside URLs and names", () => {
     for (const m of mails) {
-      const body = `${m.subject}\n${m.text}`.replace(/https?:\/\/\S+/g, "").replace(/ivan@example\.com|Booklo|GMT\+2/g, "");
+      const body = `${m.subject}\n${m.text}\n${m.html.replace(/<[^>]+>/g, " ")}`
+        .replace(/https?:\/\/\S+/g, "")
+        .replace(/ivan@example\.com|Booklo|GMT\+2/g, "");
       expect(body, m.subject).toMatch(/[А-Яа-яІіЇїЄєҐґ]/);
       expect(body, m.subject).not.toMatch(/\b(booking|your|with|the|link|calendar|request|cancelled|reminder)\b/i);
       // H5b's rule in Ukrainian: spaces book too, so never "запис" (appointment) or "слот".
@@ -460,5 +462,7 @@ describe("Ukrainian mails (i18n Wave 2, spec D4)", () => {
     const m = providerCancelledEmail(U, { ...base, clientName: "Іван <b>" });
     expect(m.html).toContain("<strong>Іван &lt;b&gt;</strong> скасував(ла) бронювання.");
     expect(m.text).toContain("Іван <b> скасував(ла) бронювання.");
+    // Org names are mostly feminine or neuter: the verb agrees with «Заклад», never with the name.
+    expect(bookingCancelledEmail(U, { ...base, cancelledBy: "provider" }).text).toContain("Заклад Студія Анна мусив скасувати");
   });
 });
