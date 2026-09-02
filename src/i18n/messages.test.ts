@@ -4,6 +4,12 @@ import en from "../../messages/en.json";
 import uk from "../../messages/uk.json";
 import { LOCALES, type Locale } from "./config";
 import { deepMerge } from "./messages";
+import { FORBIDDEN_COPY } from "@/features/marketing/site";
+
+// Glossary's per-language forbidden list (messages/GLOSSARY.md); uk has no
+// FORBIDDEN_COPY-equivalent export to import, so it is spelled out here.
+const FORBIDDEN_UK = ["оренда", "офер", "пропустити"];
+const FORBIDDEN: Record<Locale, readonly string[]> = { en: FORBIDDEN_COPY, uk: FORBIDDEN_UK };
 
 /* The guards from spec 2026-09-02 §6. Every locale must carry every key,
    compile as ICU, name the same placeholders and tags as English, cover
@@ -61,6 +67,15 @@ describe("messages", () => {
       for (const [k, v] of Object.entries(flat)) {
         for (const p of cardinalPlurals(new IntlMessageFormat(v, locale).getAst() as Node[])) {
           for (const cat of needed) expect(Object.keys(p.options ?? {}), `${k} lacks "${cat}"`).toContain(cat);
+        }
+      }
+    });
+
+    it(`${locale}: no message contains a forbidden word`, () => {
+      for (const [k, v] of Object.entries(flat)) {
+        const lower = v.toLowerCase();
+        for (const word of FORBIDDEN[locale]) {
+          expect(lower.includes(word), `${k} contains forbidden word "${word}"`).toBe(false);
         }
       }
     });

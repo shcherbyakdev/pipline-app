@@ -42,7 +42,8 @@ vi.mock("next/navigation", () => ({
 // assert which message an action picks.
 vi.mock("next-intl/server", () => ({
   getLocale: async () => "en",
-  getTranslations: async () => Object.assign((key: string) => key, { has: () => true }),
+  getTranslations: async () =>
+    Object.assign((key: string) => key, { has: (k: string) => k.startsWith("errors.") }),
 }));
 
 import {
@@ -215,6 +216,19 @@ describe("updatePassword", () => {
       form({ password: "12345678", confirm: "12345678" }),
     );
     expect(state.error).toBe("errors.updateFailed");
+  });
+
+  it("resolves an errors.-prefixed issue key but falls back to a generic key otherwise", async () => {
+    // The mismatch refine issue is one of ours (starts with "errors.") — t.has() says yes.
+    const mismatch = await updatePassword({}, form({ password: "12345678", confirm: "different" }));
+    expect(mismatch.error).toBe("errors.passwordsMismatch");
+
+    // Both fields absent fails zod's base string check before the min()/refine
+    // messages apply, leaving zod's own default message ("Invalid input:
+    // expected string, received null") — not an "errors." key, so it must
+    // never reach t.has(); the fallback key is used instead.
+    const empty = await updatePassword({}, form({}));
+    expect(empty.error).toBe("errors.passwordInvalid");
   });
 });
 

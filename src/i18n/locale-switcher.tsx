@@ -23,7 +23,9 @@ export function LocaleSwitcher({ label }: { label: string }) {
           lang={locale}
           aria-checked={current === locale}
           disabled={pending}
-          onClick={() => startTransition(() => setLocale(locale))}
+          onClick={() => {
+            if (locale !== current) startTransition(() => setLocale(locale));
+          }}
           className={segmentedItemClass(current === locale)}
         >
           {LOCALE_NAMES[locale]}

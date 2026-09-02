@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isLocale, type Locale } from "./config";
@@ -22,5 +22,11 @@ export async function setLocale(locale: Locale): Promise<void> {
     // next device its seed. Trace it, don't fail the switch.
     if (error) console.error("[i18n] updateUser locale:", error.message);
   }
-  revalidatePath("/", "layout");
+  // Scoped to the current page, not `("/", "layout")`: this action runs for
+  // anonymous visitors too, and a site-wide layout revalidation would purge
+  // the statically prerendered marketing pages. The page the switch happened
+  // on is all that must re-render in this roundtrip; the proxy stamps its
+  // path onto every request (src/lib/supabase/middleware.ts).
+  const path = (await headers()).get("x-pathname")?.split("?")[0] ?? "/";
+  revalidatePath(path);
 }

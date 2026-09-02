@@ -18,12 +18,15 @@ import type en from "../../../messages/en.json";
 type AuthT = Awaited<ReturnType<typeof getTranslations<"auth">>>;
 type AuthErrorKey = `errors.${keyof (typeof en)["auth"]["errors"]}`;
 
-// Zod issue messages are keys (schema.ts). An issue we did not write a key
-// for falls back to the action's generic message. t.has() is the runtime
-// check; the cast is the one place a checked string meets the typed t.
+// Zod issue messages are keys (schema.ts) — but only ones we wrote: a schema
+// gap can also leave zod's own default message ("Invalid input: expected
+// string, received null") in `issue.message`, which is not a key at all. The
+// `errors.` prefix check keeps that default from ever being handed to t();
+// t.has() is the runtime check that it is one of ours; the cast is the one
+// place a checked string meets the typed t.
 function issueMessage(t: AuthT, issue: { message: string } | undefined, fallback: AuthErrorKey): string {
   const key = issue?.message;
-  return key && t.has(key as AuthErrorKey) ? t(key as AuthErrorKey) : t(fallback);
+  return key && key.startsWith("errors.") && t.has(key as AuthErrorKey) ? t(key as AuthErrorKey) : t(fallback);
 }
 
 export async function sendMagicLink(

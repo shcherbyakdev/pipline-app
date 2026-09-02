@@ -4,11 +4,13 @@ const auth = vi.hoisted(() => ({ getUser: vi.fn(), updateUser: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({ auth })) }));
 
 const jar = vi.hoisted(() => new Map<string, { value: string; options?: unknown }>());
+const pathHeader = vi.hoisted(() => ({ value: "/settings?tab=1" as string | null }));
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (name: string) => jar.get(name) && { name, value: jar.get(name)!.value },
     set: (name: string, value: string, options?: unknown) => void jar.set(name, { value, options }),
   }),
+  headers: async () => ({ get: (name: string) => (name === "x-pathname" ? pathHeader.value : null) }),
 }));
 
 const revalidatePath = vi.hoisted(() => vi.fn());
@@ -20,6 +22,7 @@ import { setLocale } from "./actions";
 beforeEach(() => {
   jar.clear();
   vi.clearAllMocks();
+  pathHeader.value = "/settings?tab=1";
   auth.updateUser.mockResolvedValue({ error: null });
 });
 
@@ -30,7 +33,14 @@ describe("setLocale", () => {
     expect(jar.get("NEXT_LOCALE")?.value).toBe("uk");
     expect(jar.get("NEXT_LOCALE")?.options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/" });
     expect(auth.updateUser).toHaveBeenCalledWith({ data: { locale: "uk" } });
-    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+    expect(revalidatePath).toHaveBeenCalledWith("/settings");
+  });
+
+  it("revalidates \"/\" when the proxy sent no x-pathname header", async () => {
+    pathHeader.value = null;
+    auth.getUser.mockResolvedValue({ data: { user: null } });
+    await setLocale("uk");
+    expect(revalidatePath).toHaveBeenCalledWith("/");
   });
 
   it("skips the metadata write when it already matches", async () => {
