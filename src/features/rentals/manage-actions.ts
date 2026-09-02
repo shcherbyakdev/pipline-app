@@ -1,5 +1,6 @@
 "use server";
 
+import { emailTranslators } from "@/i18n/emails";
 import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -253,19 +254,22 @@ export async function rescheduleRentalBooking(
     // always gets one when they have an address on file, even if nothing
     // moved: the old link is dead, and this email carries the new one.
     try {
+      const mail = await emailTranslators(await getOrgLocale(booking.orgId));
       const tz = moved.org_timezone;
       const oldWhenLine = formatRangeWhenLine(
         new Date(moved.old_starts_at),
         new Date(moved.old_ends_at),
         tz,
+        mail.intlLocale,
       );
       const whenLine = formatRangeWhenLine(
         new Date(moved.new_starts_at),
         new Date(moved.new_ends_at),
         tz,
+        mail.intlLocale,
       );
       if (moved.client_email) {
-        const msg = bookingRescheduledEmail({
+        const msg = bookingRescheduledEmail(mail.t, {
           orgName: moved.org_name,
           serviceName: moved.service_name,
           oldWhenLine,
@@ -285,7 +289,7 @@ export async function rescheduleRentalBooking(
       // dates, same unit) reissues the client's link and nothing else.
       const providerEmail = moved.dates_changed ? await getProviderEmail(moved.org_id) : null;
       if (providerEmail) {
-        const notice = providerRescheduledEmail({
+        const notice = providerRescheduledEmail(mail.t, {
           serviceName: moved.service_name,
           oldWhenLine,
           whenLine,
@@ -493,19 +497,22 @@ export async function rescheduleRentalBookingHours(
     // gets one when they have an address on file, even if nothing moved: the
     // old link is dead, and this email carries the new one.
     try {
+      const mail = await emailTranslators(await getOrgLocale(booking.orgId));
       const tz = moved.org_timezone;
       const oldWhenLine = formatHourlyWhenLine(
         new Date(moved.old_starts_at),
         new Date(moved.old_ends_at),
         tz,
+        mail.intlLocale,
       );
       const whenLine = formatHourlyWhenLine(
         new Date(moved.new_starts_at),
         new Date(moved.new_ends_at),
         tz,
+        mail.intlLocale,
       );
       if (moved.client_email) {
-        const msg = bookingRescheduledEmail({
+        const msg = bookingRescheduledEmail(mail.t, {
           orgName: moved.org_name,
           serviceName: moved.service_name,
           oldWhenLine,
@@ -525,7 +532,7 @@ export async function rescheduleRentalBookingHours(
       // time, same unit) reissues the client's link and nothing else.
       const providerEmail = moved.dates_changed ? await getProviderEmail(moved.org_id) : null;
       if (providerEmail) {
-        const notice = providerRescheduledEmail({
+        const notice = providerRescheduledEmail(mail.t, {
           serviceName: moved.service_name,
           oldWhenLine,
           whenLine,

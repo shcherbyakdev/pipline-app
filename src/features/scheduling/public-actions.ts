@@ -1,5 +1,6 @@
 "use server";
 
+import { emailTranslators } from "@/i18n/emails";
 import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -251,7 +252,8 @@ export async function createBooking(
     // rule, and degrades to the unnamed copy if the count blows up — past this
     // point the booking EXISTS and nothing may fail the action).
     const staffName = await resolveClientStaffName(ctx.org.orgId, row.staff_name);
-    const whenLine = formatWhenLine(starts, ctx.org.timeZone);
+    const mail = await emailTranslators(ctx.org.locale);
+    const whenLine = formatWhenLine(starts, ctx.org.timeZone, mail.intlLocale);
     const idempotencyKey = bookingIdempotencyKey(row.booking_id);
     // Best-effort like everything below: a null provider address only means
     // the client's mail carries no reply-to and the provider copy is skipped.
@@ -266,7 +268,7 @@ export async function createBooking(
     try {
       const manageUrl = buildBookingManageUrl(token);
       const msg = isPending
-        ? bookingRequestReceivedEmail({
+        ? bookingRequestReceivedEmail(mail.t, {
             orgName: ctx.org.orgName,
             serviceName: ctx.service.name,
             whenLine,
@@ -274,7 +276,7 @@ export async function createBooking(
             staffName,
             badgeUrl: await emailBadgeUrl(ctx.org.orgId),
           })
-        : bookingConfirmationEmail({
+        : bookingConfirmationEmail(mail.t, {
             orgName: ctx.org.orgName,
             serviceName: ctx.service.name,
             whenLine,
@@ -304,7 +306,7 @@ export async function createBooking(
     // Its own try so a failed client mail can't skip it.
     if (providerEmail) {
       try {
-        const notice = providerNewBookingEmail({
+        const notice = providerNewBookingEmail(mail.t, {
           serviceName: ctx.service.name,
           clientName: name,
           clientEmail: email,

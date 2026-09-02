@@ -1,5 +1,6 @@
 "use server";
 
+import { emailTranslators } from "@/i18n/emails";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardFlags } from "@/lib/flags/resolve";
@@ -79,9 +80,9 @@ function fail(context: string, error: unknown): { ok: false; error: string } {
 // default since H1, and the flag is a kill switch, so every caller's null
 // branch (the generic error) is the server-side defence while it's off
 // (public-actions.ts idiom).
-async function currentOrg(): Promise<{ id: string; name: string; timezone: string } | null> {
+async function currentOrg(): Promise<{ id: string; name: string; timezone: string; locale: string } | null> {
   const supabase = await createClient();
-  const { data } = await supabase.from("orgs").select("id, name, timezone").limit(1).maybeSingle();
+  const { data } = await supabase.from("orgs").select("id, name, timezone, locale").limit(1).maybeSingle();
   if (!data) return null;
   if (!(await getDashboardFlags(data.id)).rentals) return null;
   return data;
@@ -275,20 +276,23 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
       moved.client_email !== null && (moved.dates_changed || (moved.unit_changed && clientPicks));
     // The move already happened — never fail the action on a send.
     let emailed = false;
+    const mail = await emailTranslators(org.locale);
     const tz = moved.org_timezone;
     const oldWhenLine = formatRangeWhenLine(
       new Date(moved.old_starts_at),
       new Date(moved.old_ends_at),
       tz,
+      mail.intlLocale,
     );
     const whenLine = formatRangeWhenLine(
       new Date(moved.new_starts_at),
       new Date(moved.new_ends_at),
       tz,
+      mail.intlLocale,
     );
     if (notifyClient) {
       try {
-        const msg = bookingRescheduledEmail({
+        const msg = bookingRescheduledEmail(mail.t, {
           orgName: moved.org_name,
           serviceName: moved.service_name,
           oldWhenLine,
@@ -391,10 +395,11 @@ export async function createRentalBookingAdmin(
         // Nights/days-only action (as above) — endTime is set (0056 CHECK).
         const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
         const unitName = await getBookingUnitName(bookingId as string);
-        const msg = bookingConfirmationEmail({
+        const mail = await emailTranslators(org.locale);
+        const msg = bookingConfirmationEmail(mail.t, {
           orgName: org.name,
           serviceName: unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name,
-          whenLine: formatRangeWhenLine(startsAt, ends, tz),
+          whenLine: formatRangeWhenLine(startsAt, ends, tz, mail.intlLocale),
           manageUrl: buildBookingManageUrl(token),
           icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
         });
@@ -545,10 +550,11 @@ export async function createRentalBookingHoursAdmin(
         const tz = org.timezone;
         const ends = new Date(starts.getTime() + durationMin * 60_000);
         const unitName = await getBookingUnitName(bookingId as string);
-        const msg = bookingConfirmationEmail({
+        const mail = await emailTranslators(org.locale);
+        const msg = bookingConfirmationEmail(mail.t, {
           orgName: org.name,
           serviceName: unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name,
-          whenLine: formatHourlyWhenLine(starts, ends, tz),
+          whenLine: formatHourlyWhenLine(starts, ends, tz, mail.intlLocale),
           manageUrl: buildBookingManageUrl(token),
           icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
         });
@@ -689,16 +695,18 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
       moved.client_email !== null && (moved.dates_changed || (moved.unit_changed && clientPicks));
     // The move already happened — never fail the action on a send.
     let emailed = false;
+    const mail = await emailTranslators(org.locale);
     const tz = moved.org_timezone;
     const oldWhenLine = formatHourlyWhenLine(
       new Date(moved.old_starts_at),
       new Date(moved.old_ends_at),
       tz,
+      mail.intlLocale,
     );
-    const whenLine = formatHourlyWhenLine(new Date(moved.new_starts_at), new Date(moved.new_ends_at), tz);
+    const whenLine = formatHourlyWhenLine(new Date(moved.new_starts_at), new Date(moved.new_ends_at), tz, mail.intlLocale);
     if (notifyClient) {
       try {
-        const msg = bookingRescheduledEmail({
+        const msg = bookingRescheduledEmail(mail.t, {
           orgName: moved.org_name,
           serviceName: moved.service_name,
           oldWhenLine,

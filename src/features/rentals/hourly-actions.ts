@@ -1,7 +1,7 @@
 "use server";
 
+import { emailTranslators } from "@/i18n/emails";
 import { publicError, type OrgLocaleSource } from "@/i18n/public";
-import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
@@ -251,6 +251,8 @@ export async function createRentalBookingHours(
     // own errors AND the whole block is wrapped below — a throw here (e.g.
     // formatHourlyWhenLine, totalCents) must not report a committed booking
     // as failed to the caller.
+    // The org's language for both mails (spec D4).
+    const mail = await emailTranslators(ctx.org.locale);
     let prep: {
       whenLine: string;
       serviceName: string;
@@ -260,7 +262,7 @@ export async function createRentalBookingHours(
     try {
       const tz = ctx.org.timeZone;
       const ends = new Date(starts.getTime() + durationMin * 60_000);
-      const whenLine = formatHourlyWhenLine(starts, ends, tz);
+      const whenLine = formatHourlyWhenLine(starts, ends, tz, mail.intlLocale);
       const unitName = await getBookingUnitName(bookingId as string).catch((e) => {
         console.error("[rentals] getBookingUnitName:", e);
         return null;
@@ -275,14 +277,12 @@ export async function createRentalBookingHours(
       // H3: total / deposit / pay-at-venue / cancellation-policy lines, shared
       // by the client confirmation and the provider's copy below.
       const total = totalCents(ctx.offering, durationMin / 60);
-      // Wave 2 hands the org locale in here; until then the mails read English.
-      const tUnits = await getTranslations({ locale: "en", namespace: "public.units" });
       const infoLines = moneyInfoLines({
         totalCents: total,
         depositCents: depositCents(ctx.offering, total),
         currency: ctx.org.currency,
         cancelWindowMin: ctx.offering.cancelWindowMin,
-      }, tUnits);
+      }, mail.tUnits);
       prep = { whenLine, serviceName, infoLines, providerEmail };
     } catch (error) {
       console.error("[rentals] post-booking mail prep failed:", error);
@@ -295,7 +295,7 @@ export async function createRentalBookingHours(
     try {
       const manageUrl = buildBookingManageUrl(token);
       const msg = isPending
-        ? bookingRequestReceivedEmail({
+        ? bookingRequestReceivedEmail(mail.t, {
             orgName: ctx.org.orgName,
             serviceName,
             whenLine,
@@ -303,7 +303,7 @@ export async function createRentalBookingHours(
             badgeUrl: await emailBadgeUrl(ctx.org.orgId),
             infoLines,
           })
-        : bookingConfirmationEmail({
+        : bookingConfirmationEmail(mail.t, {
             orgName: ctx.org.orgName,
             serviceName,
             whenLine,
@@ -333,7 +333,7 @@ export async function createRentalBookingHours(
     // Its own try so a failed client mail can't skip it.
     if (providerEmail) {
       try {
-        const notice = providerNewBookingEmail({
+        const notice = providerNewBookingEmail(mail.t, {
           serviceName,
           clientName: name,
           clientEmail: email,

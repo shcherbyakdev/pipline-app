@@ -37,6 +37,8 @@ A term missing here is added here first, then used.
 | min / h (short units) | хв / год | "60 хв", "1 год 30 хв" |
 | Powered by Booklo | Працює на Booklo | |
 | pickup / return (day stays) | отримання / повернення | |
+| Overview (admin page, named in provider mails) | «Огляд» | provisional until Wave 3 names the admin nav |
+| booked / cancelled / moved (a client, unknown gender) | забронював(ла) / скасував(ла) / переніс(ла) | provider-facing mails; the parenthesised feminine ending avoids guessing |
 
 ## Style — uk
 
