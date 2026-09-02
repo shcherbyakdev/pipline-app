@@ -1,5 +1,6 @@
 "use server";
 
+import { emailTranslators } from "@/i18n/emails";
 import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -138,6 +139,8 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     // Everything below is post-RPC: the cancellation is already committed, so
     // nothing here may turn into a failed action. Both of these are safe by
     // construction — whenLineFor is pure, resolveClientStaffName swallows.
+    // The org's language, not the visitor's (spec D4).
+    const mail = await emailTranslators(await getOrgLocale(row.org_id));
     const whenLine = whenLineFor(
       {
         startsAt: new Date(row.starts_at),
@@ -145,6 +148,7 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
         isRental: row.rental_unit_id !== null,
       },
       row.org_timezone,
+      mail.intlLocale,
     );
     const staffName = await resolveClientStaffName(row.org_id, row.staff_name);
 
@@ -153,7 +157,7 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     // skips the other.
     const providerEmail = await getProviderEmail(row.org_id).catch(() => null);
     try {
-      const msg = bookingCancelledEmail({
+      const msg = bookingCancelledEmail(mail.t, {
         orgName: row.org_name,
         serviceName: row.service_name,
         whenLine,
@@ -176,7 +180,7 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     }
     if (providerEmail) {
       try {
-        const notice = providerCancelledEmail({
+        const notice = providerCancelledEmail(mail.t, {
           serviceName: row.service_name,
           whenLine,
           clientName: row.client_name,
@@ -292,13 +296,14 @@ export async function rescheduleBooking(
 
     // Post-RPC: the move is committed. See cancelBooking — neither of these
     // can throw.
-    const oldWhenLine = formatWhenLine(new Date(row.old_starts_at), row.org_timezone);
-    const whenLine = formatWhenLine(new Date(row.new_starts_at), row.org_timezone);
+    const mail = await emailTranslators(await getOrgLocale(booking.orgId));
+    const oldWhenLine = formatWhenLine(new Date(row.old_starts_at), row.org_timezone, mail.intlLocale);
+    const whenLine = formatWhenLine(new Date(row.new_starts_at), row.org_timezone, mail.intlLocale);
     const staffName = await resolveClientStaffName(row.org_id, row.staff_name);
 
     const providerEmail = await getProviderEmail(row.org_id).catch(() => null);
     try {
-      const msg = bookingRescheduledEmail({
+      const msg = bookingRescheduledEmail(mail.t, {
         orgName: row.org_name,
         serviceName: row.service_name,
         oldWhenLine,
@@ -321,7 +326,7 @@ export async function rescheduleBooking(
     }
     if (providerEmail) {
       try {
-        const notice = providerRescheduledEmail({
+        const notice = providerRescheduledEmail(mail.t, {
           serviceName: row.service_name,
           oldWhenLine,
           whenLine,

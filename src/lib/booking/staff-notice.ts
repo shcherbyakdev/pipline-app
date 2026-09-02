@@ -1,3 +1,4 @@
+import { emailTranslators } from "@/i18n/emails";
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -46,14 +47,13 @@ export async function sendStaffNotice(input: StaffNoticeInput): Promise<void> {
       .maybeSingle();
     if (!staff?.email) return;
 
+    // The org's language for every kind (spec D4), its name for the "new" one.
+    const { data: org } = await admin.from("orgs").select("name, locale").eq("id", input.orgId).maybeSingle();
+    const mail = await emailTranslators(org?.locale);
+
     let msg: { subject: string; html: string; text: string };
     if (input.kind === "new") {
-      const { data: org } = await admin
-        .from("orgs")
-        .select("name")
-        .eq("id", input.orgId)
-        .maybeSingle();
-      msg = staffNewBookingEmail({
+      msg = staffNewBookingEmail(mail.t, {
         staffName: staff.name,
         orgName: org?.name ?? "",
         serviceName: input.serviceName,
@@ -61,13 +61,13 @@ export async function sendStaffNotice(input: StaffNoticeInput): Promise<void> {
         whenLine: input.whenLine,
       });
     } else if (input.kind === "cancelled") {
-      msg = providerCancelledEmail({
+      msg = providerCancelledEmail(mail.t, {
         serviceName: input.serviceName,
         clientName: input.clientName,
         whenLine: input.whenLine,
       });
     } else {
-      msg = providerRescheduledEmail({
+      msg = providerRescheduledEmail(mail.t, {
         serviceName: input.serviceName,
         clientName: input.clientName,
         whenLine: input.whenLine,

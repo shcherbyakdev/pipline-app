@@ -258,5 +258,78 @@
       "payAtVenue": "Payment: pay at the venue",
       "freeCancellation": "Free cancellation until {window} before start"
     }
+  },
+  "emails": {
+    "with": "With {name}",
+    "poweredBy": "Powered by Booklo",
+    "addToCalendar": "Add to calendar (.ics)",
+    "addToCalendarText": "Add to calendar: {url}",
+    "viewOrManage": "View or manage this booking",
+    "viewOrManageText": "View or manage: {url}",
+    "viewOrWithdraw": "View or withdraw this request",
+    "viewOrWithdrawText": "View or withdraw: {url}",
+    "was": "Was: {when}",
+    "now": "Now: {when}",
+    "quoted": "“{note}”",
+    "confirmation": {
+      "subject": "Booking confirmed — {service}, {when}",
+      "lead": "Your booking is confirmed.",
+      "keep": "Keep this email — the link above is your access to the booking."
+    },
+    "manageLink": {
+      "subjectBooking": "Your booking link — {service} with {orgName}",
+      "subjectRequest": "Your request link — {service} with {orgName}",
+      "intro": "Here is a fresh link to view, reschedule, or cancel your booking ({when}). Any previous link no longer works.",
+      "introNoReschedule": "Here is a fresh link to view or cancel your booking ({when}). Any previous link no longer works.",
+      "introRequest": "Here is a fresh link to view or withdraw your booking request ({when}). Any previous link no longer works.",
+      "keep": "Keep this email — the link above replaces any previous manage link."
+    },
+    "cancelled": {
+      "subject": "Booking cancelled — {service}, {when}",
+      "leadClient": "Your booking has been cancelled as requested.",
+      "leadProvider": "{orgName} had to cancel your booking.",
+      "rebook": "Want to rebook? You can book again any time on the booking page."
+    },
+    "requestReceived": {
+      "subject": "Request received — {service}, {when}",
+      "lead": "Your booking request was sent. You'll get an email once {orgName} confirms it.",
+      "keep": "Keep this email — the link above is your access to the request."
+    },
+    "declined": {
+      "subject": "Request declined — {service}, {when}",
+      "lead": "{orgName} couldn't take your booking request.",
+      "again": "You're welcome to request another time on the booking page."
+    },
+    "rescheduled": {
+      "subject": "Booking rescheduled — {service}, {when}",
+      "lead": "Your booking has been moved.",
+      "keep": "Keep this email — the link above replaces your previous manage link."
+    },
+    "reminder": {
+      "subject": "Reminder — {service}, {when}",
+      "lead": "A reminder about your upcoming booking.",
+      "change": "Need to change or cancel? Use the link in your confirmation email."
+    },
+    "staffNew": {
+      "subject": "New booking — {service}, {when}",
+      "lead": "Hi {name}, you have a new booking."
+    },
+    "providerNew": {
+      "subject": "New booking — {service}, {when}",
+      "subjectRequest": "New booking request — {service}, {when}",
+      "lead": "<b>{client}</b> booked with you.",
+      "leadRequest": "<b>{client}</b> requested a booking with you.",
+      "footer": "It's on your calendar; the client got their confirmation.",
+      "footerRequest": "Accept or decline it from your Overview page — the slot is held until you do."
+    },
+    "providerCancelled": {
+      "subject": "Cancelled by client — {service}, {when}",
+      "lead": "<b>{client}</b> cancelled their booking.",
+      "open": "The time is open again."
+    },
+    "providerRescheduled": {
+      "subject": "Rescheduled by client — {service}, {when}",
+      "lead": "<b>{client}</b> moved their booking."
+    }
   }
 }

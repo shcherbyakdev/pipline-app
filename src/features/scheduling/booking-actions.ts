@@ -1,6 +1,6 @@
 "use server";
 
-import { getTranslations } from "next-intl/server";
+import { emailTranslators } from "@/i18n/emails";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { generateAccessToken } from "@/lib/tokens";
@@ -47,9 +47,9 @@ function fail(context: string, error: unknown): { ok: false; error: string } {
   return { ok: false, error: GENERIC_WRITE_ERROR };
 }
 
-async function currentOrg(): Promise<{ id: string; name: string; timezone: string } | null> {
+async function currentOrg(): Promise<{ id: string; name: string; timezone: string; locale: string } | null> {
   const supabase = await createClient();
-  const { data } = await supabase.from("orgs").select("id, name, timezone").limit(1).maybeSingle();
+  const { data } = await supabase.from("orgs").select("id, name, timezone, locale").limit(1).maybeSingle();
   return data ?? null;
 }
 
@@ -101,6 +101,7 @@ export async function cancelBookingAdmin(
     let emailed = false;
     let noEmail = false;
     try {
+      const mail = await emailTranslators(org.locale);
       const serviceName = bookingTitle(row);
       const whenLine = whenLineFor(
         {
@@ -109,6 +110,7 @@ export async function cancelBookingAdmin(
           isRental: row.rental_unit_id !== null,
         },
         org.timezone,
+        mail.intlLocale,
       );
       const idempotencyKey = bookingLifecycleKey(row.id, "cancelled");
 
@@ -117,7 +119,7 @@ export async function cancelBookingAdmin(
       } else {
         emailed = true;
         try {
-          const msg = bookingCancelledEmail({
+          const msg = bookingCancelledEmail(mail.t, {
             orgName: org.name,
             serviceName,
             whenLine,
@@ -291,8 +293,9 @@ export async function rescheduleBookingAdmin(
         | null)?.[0];
       if (!row) console.error("[scheduling] rescheduleBookingAdmin: rpc returned no row");
       movedToStaffName = row?.staff_changed ? row.staff_name : null;
-      const oldWhenLine = formatWhenLine(new Date(booking.starts_at), org.timezone);
-      const whenLine = formatWhenLine(starts, org.timezone);
+      const mail = await emailTranslators(org.locale);
+      const oldWhenLine = formatWhenLine(new Date(booking.starts_at), org.timezone, mail.intlLocale);
+      const whenLine = formatWhenLine(starts, org.timezone, mail.intlLocale);
       // Keyed on the NEW id, never the old one. A reschedule writes a new row,
       // so "booking/<old>/rescheduled" is NOT collision-free: after a client
       // move A→B, an admin move B→C would reuse B's key with a different
@@ -306,7 +309,7 @@ export async function rescheduleBookingAdmin(
       } else {
         emailed = true;
         try {
-          const msg = bookingRescheduledEmail({
+          const msg = bookingRescheduledEmail(mail.t, {
             orgName: org.name,
             serviceName: ctx.service.name,
             oldWhenLine,
@@ -422,7 +425,8 @@ export async function resendManageLink(
     };
     let emailed = true;
     try {
-      const msg = bookingManageLinkEmail({
+      const mail = await emailTranslators(org.locale);
+      const msg = bookingManageLinkEmail(mail.t, {
         orgName: org.name,
         serviceName: bookingTitle(row),
         whenLine: whenLineFor(
@@ -432,6 +436,7 @@ export async function resendManageLink(
             isRental: row.rental_unit_id !== null,
           },
           org.timezone,
+          mail.intlLocale,
         ),
         manageUrl: buildBookingManageUrl(fresh.token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
@@ -498,7 +503,8 @@ export async function createBookingAdmin(
     // the outer one (which returns `ok: false`).
     let emailed: "sent" | "failed" | "none" = "none";
     try {
-      const whenLine = formatWhenLine(new Date(parsed.data.startsAt), org.timezone);
+      const mail = await emailTranslators(org.locale);
+      const whenLine = formatWhenLine(new Date(parsed.data.startsAt), org.timezone, mail.intlLocale);
       const idempotencyKey = bookingIdempotencyKey(bookingId as string);
       const { data: svc } = await supabase
         .from("services").select("name").eq("id", parsed.data.serviceId).maybeSingle();
@@ -508,7 +514,7 @@ export async function createBookingAdmin(
         const { data: person } = await supabase
           .from("staff").select("name").eq("id", parsed.data.staffId).maybeSingle();
         try {
-          const msg = bookingConfirmationEmail({
+          const msg = bookingConfirmationEmail(mail.t, {
             orgName: org.name,
             serviceName,
             whenLine,
@@ -628,6 +634,7 @@ export async function acceptBookingRequest(
       if (!row) {
         noEmail = true;
       } else {
+        const mail = await emailTranslators(org.locale);
         const serviceName = bookingTitle(row);
         const whenLine = whenLineFor(
           {
@@ -637,6 +644,7 @@ export async function acceptBookingRequest(
             rangeMode: row.rental_offerings?.range_mode ?? null,
           },
           org.timezone,
+          mail.intlLocale,
         );
         const idempotencyKey = bookingLifecycleKey(row.id, "manage-accept");
 
@@ -657,8 +665,6 @@ export async function acceptBookingRequest(
           } else {
             emailed = true;
             try {
-              // Wave 2 hands the org locale in here; until then the mails read English.
-              const tUnits = await getTranslations({ locale: "en", namespace: "public.units" });
               const infoLines =
                 row.rental_unit_id !== null
                   ? moneyInfoLines(
@@ -668,10 +674,10 @@ export async function acceptBookingRequest(
                         currency: row.currency,
                         cancelWindowMin: row.rental_offerings?.cancel_window_min ?? 0,
                       },
-                      tUnits,
+                      mail.tUnits,
                     )
                   : [];
-              const msg = bookingConfirmationEmail({
+              const msg = bookingConfirmationEmail(mail.t, {
                 orgName: org.name,
                 serviceName,
                 whenLine,
@@ -773,7 +779,8 @@ export async function declineBookingRequest(
       } else {
         emailed = true;
         try {
-          const msg = bookingDeclinedEmail({
+          const mail = await emailTranslators(org.locale);
+          const msg = bookingDeclinedEmail(mail.t, {
             orgName: org.name,
             serviceName: bookingTitle(row),
             whenLine: whenLineFor(
@@ -784,6 +791,7 @@ export async function declineBookingRequest(
                 rangeMode: row.rental_offerings?.range_mode ?? null,
               },
               org.timezone,
+              mail.intlLocale,
             ),
             // The provider's own words, straight from the parsed input — the
             // RPC stored the same value (trimmed) in decline_note.

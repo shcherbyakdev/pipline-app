@@ -1,7 +1,7 @@
 "use server";
 
+import { emailTranslators } from "@/i18n/emails";
 import { publicError, type OrgLocaleSource } from "@/i18n/public";
-import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
@@ -248,6 +248,8 @@ export async function createRentalBooking(
     // own errors AND the whole block is wrapped below — a throw here (e.g.
     // formatRangeWhenLine, totalCents) must not report a committed booking
     // as failed to the caller.
+    // The org's language for both mails (spec D4).
+    const mail = await emailTranslators(org.locale);
     let prep: {
       whenLine: string;
       serviceName: string;
@@ -259,7 +261,7 @@ export async function createRentalBooking(
       // Nights/days-only flow (as above) — both are set (0056 CHECK).
       const starts = wallTimeToUtc(startDate, ctx.offering.startTime!, tz);
       const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
-      const whenLine = formatRangeWhenLine(starts, ends, tz);
+      const whenLine = formatRangeWhenLine(starts, ends, tz, mail.intlLocale);
       const unitName = await getBookingUnitName(bookingId as string).catch((e) => {
         console.error("[rentals] getBookingUnitName:", e);
         return null;
@@ -269,14 +271,12 @@ export async function createRentalBooking(
         ctx.offering,
         stayUnits(ctx.offering.rangeMode as "nights" | "days", startDate, endDate),
       );
-      // Wave 2 hands the org locale in here; until then the mails read English.
-      const tUnits = await getTranslations({ locale: "en", namespace: "public.units" });
       const infoLines = moneyInfoLines({
         totalCents: total,
         depositCents: depositCents(ctx.offering, total),
         currency: org.currency,
         cancelWindowMin: ctx.offering.cancelWindowMin,
-      }, tUnits);
+      }, mail.tUnits);
       const providerEmail = await getProviderEmail(org.orgId).catch((e) => {
         console.error("[rentals] getProviderEmail:", e);
         return null;
@@ -293,14 +293,14 @@ export async function createRentalBooking(
     try {
       const manageUrl = buildBookingManageUrl(token);
       const msg = isPending
-        ? bookingRequestReceivedEmail({
+        ? bookingRequestReceivedEmail(mail.t, {
             orgName: org.orgName,
             serviceName,
             whenLine,
             manageUrl,
             infoLines,
           })
-        : bookingConfirmationEmail({
+        : bookingConfirmationEmail(mail.t, {
             orgName: org.orgName,
             serviceName,
             whenLine,
@@ -324,7 +324,7 @@ export async function createRentalBooking(
     // Its own try so a failed client mail can't skip it.
     if (providerEmail) {
       try {
-        const notice = providerNewBookingEmail({
+        const notice = providerNewBookingEmail(mail.t, {
           serviceName,
           clientName: name,
           clientEmail: email,
