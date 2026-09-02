@@ -17,12 +17,11 @@ import { embedSrc, type LinkTarget } from "@/lib/booking/url";
 // have always pasted.
 //
 // The iframe `title` is the widget's accessible name on the host page. With
-// a target it names that target's channel; without one it follows the org's
-// channels (embedTitle), and omitting `mode` keeps the historical
-// appointments title.
+// a target it names that target's channel; without one it names the org's
+// front door (embedChannel: appointments whenever there are services, else
+// spaces), and omitting `mode` keeps the historical appointments title.
 export function embedTitle(mode?: OrgMode): string {
-  if (!mode || (mode.offersAppointments && !mode.offersRentals)) return "Book an appointment";
-  return mode.offersRentals && !mode.offersAppointments ? "Book a space" : "Book online";
+  return mode && mode.offersRentals && !mode.offersAppointments ? "Book a space" : "Book an appointment";
 }
 
 function snippetTitle(target: LinkTarget | undefined, mode: OrgMode | undefined): string {

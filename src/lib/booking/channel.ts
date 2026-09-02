@@ -11,12 +11,36 @@ export function resolveChannelParam(param: string | string[] | undefined): Chann
   return param === "services" || param === "spaces" ? param : null;
 }
 
+/** What an embed URL asks for: `?channel=` first; else a per-space or
+    per-service deep link implies its channel, so snippets pasted before
+    embeds became one channel keep opening on their space or service. */
+export function requestedEmbedChannel(sp: { channel?: string | string[]; space?: string | string[]; service?: string | string[] }): Channel | null {
+  const explicit = resolveChannelParam(sp.channel);
+  if (explicit) return explicit;
+  if (typeof sp.space === "string" && sp.space !== "") return "spaces";
+  if (typeof sp.service === "string" && sp.service !== "") return "services";
+  return null;
+}
+
 export type ChannelCatalog<S, T, O> = {
   services: S[];
   staff: T[];
   serviceStaffIds: Record<string, string[]>;
   offerings: O[];
 };
+
+/** The embed is always ONE channel (2026-09-02 ruling — the hosted pages
+    are), so `?channel=` never falls back to the whole catalogue: the
+    requested channel when it has something bookable, else the front door
+    (appointments when a service is bookable, else spaces — the hosted
+    root's rule), else null when nothing is bookable at all. */
+export function embedChannel(has: { services: boolean; spaces: boolean }, requested: Channel | null): Channel | null {
+  if (requested === "spaces" && has.spaces) return "spaces";
+  if (requested === "services" && has.services) return "services";
+  if (has.services) return "services";
+  if (has.spaces) return "spaces";
+  return null;
+}
 
 export function applyChannel<S, T, O>(cat: ChannelCatalog<S, T, O>, channel: Channel | null): ChannelCatalog<S, T, O> {
   if (channel === "services" && cat.services.length > 0) return { ...cat, offerings: [] };

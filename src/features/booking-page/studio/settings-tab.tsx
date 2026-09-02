@@ -1,43 +1,57 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import type { BrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
-import { updateWidgetTheme } from "@/features/orgs/actions";
+import { updateSurfaceTheme } from "@/features/orgs/actions";
+import { AppearanceFields, contrastOf } from "@/features/orgs/components/appearance-fields";
 import { BrandingForm } from "@/features/orgs/components/branding-form";
 import { SchedulingSettingsForm } from "@/features/scheduling/components/scheduling-settings-form";
-import { SettingsCard, SettingsRow } from "@/components/settings-row";
+import { SettingsCard } from "@/components/settings-row";
 import { GENERIC_WRITE_ERROR } from "@/lib/actions";
-import { WIDGET_THEME_OPTIONS, type WidgetThemeConfig } from "@/lib/widget-theme";
-import { SELECT_CLASS } from "./fields";
+import type { WidgetThemeConfig } from "@/lib/widget-theme";
 
 type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSettings>>>;
 
 /* Saved-as-you-go settings: address + timezone, logo + accent, and the
-   theme (shared with Website embed; saved on change, optimistic with
-   rollback — the old studio's changeTheme). */
+   booking page's own widget appearance (spec 2026-09-02 §9 — the website
+   embed keeps its own; saved on change, optimistic with rollback). */
 export function SettingsTab({
-  branding, scheduling, appUrl, theme, onTheme, onPreviewAccent, onHandleInput,
+  branding, scheduling, appUrl, theme, onTheme, offersRentals, badge, onPreviewAccent, onHandleInput,
 }: {
   branding: BrandingSettings; scheduling: SchedulingSettings; appUrl: string;
   theme: WidgetThemeConfig; onTheme: (next: WidgetThemeConfig) => void;
+  /** Shows the stays layout: only an org that rents by the night or day has one. */
+  offersRentals: boolean;
+  /** Whether the badge may be hidden, and the door when it may not (lib/billing/badge-toggle.ts). */
+  badge: { canHideBadge: boolean; upgradeHref: string | null };
   onPreviewAccent: (hex: string | null) => void; onHandleInput: (handle: string) => void;
 }) {
   const [savingTheme, startSaveTheme] = React.useTransition();
-  const changeTheme = (value: WidgetThemeConfig["theme"]) => {
-    const previous = theme;
-    const next = { ...theme, theme: value };
+  // What the server holds — the rollback point, and the colours kept while
+  // a blocked pair is on screen.
+  const savedRef = React.useRef<WidgetThemeConfig>(theme);
+  // One optimistic saver for the whole appearance. A colour pair below the
+  // 3:1 floor previews but is not sent (the server would refuse it) — the
+  // row's own hint says why — while every other field still saves, with the
+  // last saved colours in its place.
+  const change = (next: WidgetThemeConfig) => {
+    const previous = savedRef.current;
     onTheme(next);
+    const toSave = contrastOf(next).blocked ? { ...next, background: previous.background, text: previous.text } : next;
+    if (JSON.stringify(toSave) === JSON.stringify(previous)) return;
     startSaveTheme(async () => {
       try {
-        const result = await updateWidgetTheme(next);
+        const result = await updateSurfaceTheme({ surface: "page", theme: toSave });
         if (!result.ok) {
           onTheme(previous);
           toast.error(result.error);
-        } else toast.success("Theme saved");
+        } else {
+          savedRef.current = toSave;
+          toast.success("Saved");
+        }
       } catch (error) {
-        console.error("[booking-page] changeTheme threw:", error);
+        console.error("[booking-page] change threw:", error);
         onTheme(previous);
         toast.error(GENERIC_WRITE_ERROR);
       }
@@ -46,24 +60,19 @@ export function SettingsTab({
   return (
     <div className="flex flex-col gap-4">
       <SchedulingSettingsForm settings={scheduling} appUrl={appUrl} onHandleInput={onHandleInput} />
-      <SettingsCard title="Look" description="Saved as you go.">
+      <SettingsCard title="Look" description="Logo and accent colour. Saved as you go.">
         <BrandingForm settings={branding} onPreviewAccent={onPreviewAccent} />
-        <SettingsRow
-          label="Theme"
-          htmlFor="bp-theme"
-          hint={
-            <>
-              Shared with the website embed; corner radius, font and colour overrides are on{" "}
-              <Link href="/embed" className="hover:text-foreground underline underline-offset-3">Website embed</Link>.
-            </>
-          }
-        >
-          <select id="bp-theme" className={SELECT_CLASS} value={theme.theme} disabled={savingTheme} onChange={(e) => changeTheme(e.target.value as WidgetThemeConfig["theme"])}>
-            {WIDGET_THEME_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </SettingsRow>
+      </SettingsCard>
+      <SettingsCard title="Booking page widget" description="This page's own style. The website embed has its own on Website embed. Saved as you go.">
+        <AppearanceFields
+          idPrefix="bp"
+          config={theme}
+          onChange={change}
+          pending={savingTheme}
+          offersRentals={offersRentals}
+          canHideBadge={badge.canHideBadge}
+          upgradeHref={badge.upgradeHref}
+        />
       </SettingsCard>
     </div>
   );

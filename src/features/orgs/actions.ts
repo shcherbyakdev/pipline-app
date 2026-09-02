@@ -16,7 +16,7 @@ import {
   createOrgWithPageSchema,
   updateAccentInput,
   updateOrgModesInput,
-  widgetThemeInput,
+  surfaceThemeInput,
   GENERIC_WRITE_ERROR,
   type OrgState,
   type ActionState,
@@ -151,10 +151,12 @@ export async function updateAccent(input: unknown): Promise<ActionState> {
   return { ok: true };
 }
 
-export async function updateWidgetTheme(input: unknown): Promise<ActionState> {
-  const parsed = widgetThemeInput.safeParse(input);
+/** One appearance per surface (spec 2026-09-02 §9): `page` is the hosted
+    booking page, `embed` the widget on the org's own site. */
+export async function updateSurfaceTheme(input: unknown): Promise<ActionState> {
+  const parsed = surfaceThemeInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
-  const cfg = parsed.data;
+  const { surface, theme: cfg } = parsed.data;
   // Server-side contrast floor (mirrors the form's block threshold).
   // effectiveContrast fills in whichever side (bg/text) isn't overridden
   // with that theme's default, so a lone override that collides with the
@@ -164,14 +166,15 @@ export async function updateWidgetTheme(input: unknown): Promise<ActionState> {
     return { ok: false, error: CONTRAST_BLOCK };
   }
   const { org, error: orgError } = await currentOrgBranding();
-  if (!org) return brandingFail("updateWidgetTheme", orgError ?? "no org");
+  if (!org) return brandingFail("updateSurfaceTheme", orgError ?? "no org");
   const supabase = await createClient();
-  const { error } = await supabase.rpc("update_org_widget_theme", {
+  const { error } = await supabase.rpc("update_org_surface_theme", {
     p_org_id: org.id,
+    p_surface: surface,
     p_theme: cfg,
   });
-  if (error) return brandingFail("updateWidgetTheme", error);
-  revalidatePath("/embed");
+  if (error) return brandingFail("updateSurfaceTheme", error);
+  revalidatePath(surface === "embed" ? "/embed" : "/booking-page");
   revalidatePath("/bookings");
   return { ok: true };
 }

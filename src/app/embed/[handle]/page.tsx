@@ -7,11 +7,11 @@ import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
 import { resolveInitialOffering, resolveInitialService } from "@/features/booking-page/initial-service";
 import { initialRequest } from "@/features/booking-page/render/page-request";
-import { applyChannel, resolveChannelParam } from "@/lib/booking/channel";
+import { applyChannel, embedChannel, requestedEmbedChannel } from "@/lib/booking/channel";
 import { badgeVisible } from "@/lib/billing/entitlements";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
-import { parseWidgetTheme } from "@/lib/widget-theme";
+import { parseWidgetTheme, resolveLayout, resolveStayLayout } from "@/lib/widget-theme";
 import { EmbedResizeReporter } from "@/features/scheduling/components/embed-resize-reporter";
 import { PoweredBy } from "@/components/powered-by";
 
@@ -39,12 +39,14 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
   ]);
   if (offering.services.length === 0 && offerings.length === 0) notFound();
   const sp = await searchParams;
-  // `?channel=` first (spec §5): the pin below only sees the channel this
-  // snippet shows, so `?channel=spaces&staff=anna` is a spaces widget with
-  // no lock. A channel with nothing in it degrades to the whole catalogue.
+  // ONE channel, always (2026-09-02 ruling — the hosted pages are one
+  // channel each): `?channel=` when it has something bookable, else the
+  // front door. Decided first (spec §5): the pin below only sees the channel
+  // this snippet shows, so `?channel=spaces&staff=anna` is a spaces widget
+  // with no lock.
   const cat = applyChannel(
     { services: offering.services, staff: offering.staff, serviceStaffIds: offering.serviceStaffIds, offerings },
-    resolveChannelParam(sp.channel),
+    embedChannel({ services: offering.services.length > 0, spaces: offerings.length > 0 }, requestedEmbedChannel(sp)),
   );
   const { services: orgServices, staff, serviceStaffIds } = cat;
   // `?staff=` pins the embed to one team member. Unlike /[handle]/[staffSlug]
@@ -107,6 +109,8 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
         handle={handle}
         orgTimeZone={org.timeZone}
         currency={org.currency}
+        layout={resolveLayout(theme)}
+        stayLayout={resolveStayLayout(theme)}
         services={services}
         offerings={embedOfferings}
         staff={staff}

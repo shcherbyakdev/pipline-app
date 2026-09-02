@@ -7,7 +7,7 @@ import type {
   BrandingSettings,
   getSchedulingSettings,
 } from "@/features/orgs/queries";
-import { updateWidgetTheme } from "@/features/orgs/actions";
+import { updateSurfaceTheme } from "@/features/orgs/actions";
 import type { OrgMode } from "@/features/orgs/mode";
 import type {
   PublicOffering,
@@ -41,7 +41,6 @@ import type { PageChannel } from "../channel";
 import type { RenderContext } from "../render/context";
 import { PageRenderer, pageContainerClass } from "../render/page-renderer";
 import { SelectionProvider } from "../render/selection";
-import type { TemplateSkin } from "../templates";
 import { STARTER } from "../copy";
 import { usePageDraft } from "./use-page-draft";
 import { StudioTabs, type StudioTab } from "./studio-tabs";
@@ -50,8 +49,9 @@ import { PublishBar } from "./publish-bar";
 import { SectionsPanel } from "./sections-panel";
 import { SectionInspector } from "./section-inspector";
 import { SettingsTab } from "./settings-tab";
-import { StarterDialog } from "./starter-dialog";
-import { skinDefault } from "./starter-state";
+import { GENERIC_WRITE_ERROR } from "@/lib/actions";
+import { StarterDialog, type LayoutPatch } from "./starter-dialog";
+import { PREVIEW_OFFERING_ID } from "@/lib/booking/preview-catalog";
 
 type SchedulingSettings = NonNullable<
   Awaited<ReturnType<typeof getSchedulingSettings>>
@@ -75,6 +75,7 @@ export function BookingPageBuilder({
   publicReachable,
   crossLink,
   starter,
+  badge,
 }: {
   branding: BrandingSettings;
   scheduling: SchedulingSettings;
@@ -89,10 +90,11 @@ export function BookingPageBuilder({
   channel: PageChannel;
   publicReachable: boolean;
   crossLink: RenderContext["crossLink"];
-  /** The starter (spec §5): opens on a fresh page; `needsFirstItem` when the
-      page's channel has nothing bookable yet; `anyPublished` decides the
-      look checkbox's default. */
-  starter: { fresh: boolean; needsFirstItem: boolean; anyPublished: boolean };
+  /** The starter (widget templates spec §5): opens on a fresh page;
+      `needsFirstItem` when the page's channel has nothing bookable yet. */
+  starter: { fresh: boolean; needsFirstItem: boolean };
+  /** Badge toggle state for the Settings tab (lib/billing/badge-toggle.ts). */
+  badge: { canHideBadge: boolean; upgradeHref: string | null };
 }) {
   const draft = usePageDraft(initialPage, channel);
   // Where focus lands once the starter closes (M4): the left panel itself,
@@ -113,7 +115,7 @@ export function BookingPageBuilder({
   // the visitor's system, which the preview lets you flip.
   const [scheme, setScheme] = React.useState<Scheme>("light");
   const [theme, setTheme] = React.useState<WidgetThemeConfig>(() =>
-    parseWidgetTheme(branding.widgetTheme),
+    parseWidgetTheme(branding.pageTheme),
   );
   const resolved: Scheme = theme.theme === "auto" ? scheme : theme.theme;
   // Auto resolved to the preview's scheme: `wt-auto` follows the admin's real
@@ -130,34 +132,26 @@ export function BookingPageBuilder({
     [selectedId, select, hoveredId],
   );
 
-  const [, startSaveSkin] = React.useTransition();
-  const applySkin = (skin: TemplateSkin) => {
-    // Theme/radius/font from the template; accent, logo, the badge setting
-    // and any bg/text colour overrides (set on Website embed) stay the org's
-    // own unless the skin itself defines them — this saves to the LIVE look,
-    // so it must not silently wipe what the embed page was tuned to.
+  const [, startSaveLayout] = React.useTransition();
+  // The widget templates are this page's own setting (spec §9) — they save
+  // to the LIVE page at once (the page document is untouched).
+  const onApplyLayout = (patch: LayoutPatch) => {
     const previous = theme;
-    const next: WidgetThemeConfig = { ...theme, ...skin };
+    const next: WidgetThemeConfig = { ...theme, ...patch };
     setTheme(next);
-    startSaveSkin(async () => {
+    startSaveLayout(async () => {
       try {
-        const result = await updateWidgetTheme(next);
+        const result = await updateSurfaceTheme({ surface: "page", theme: next });
         if (!result.ok) {
           setTheme(previous);
-          toast.error("Template applied, but the look couldn't be saved.");
-        }
+          toast.error(result.error);
+        } else toast.success(STARTER.applied);
       } catch (error) {
-        console.error("[booking-page] applySkin threw:", error);
+        console.error("[booking-page] onApplyLayout threw:", error);
         setTheme(previous);
-        toast.error("Template applied, but the look couldn't be saved.");
+        toast.error(GENERIC_WRITE_ERROR);
       }
     });
-  };
-  const onApplyTemplate = (next: PageDocument, skin: TemplateSkin | null) => {
-    draft.update(next);
-    setSelectedId(null);
-    if (skin) applySkin(skin);
-    toast.success(STARTER.applied);
   };
 
   const host = hostLabel(appUrl);
@@ -251,13 +245,12 @@ export function BookingPageBuilder({
           <StarterDialog
             variant="starter"
             channel={channel}
-            doc={draft.doc}
             ctx={ctx}
-            mode={mode}
+            layout={theme.layout}
+            stayLayout={theme.stayLayout}
             needsFirstItem={starter.needsFirstItem}
-            applyLookDefault={skinDefault(starter.anyPublished)}
             currency={scheduling.currency}
-            onApply={onApplyTemplate}
+            onApply={onApplyLayout}
             finalFocus={panelRef}
           />
         ) : null}
@@ -270,6 +263,8 @@ export function BookingPageBuilder({
               appUrl={appUrl}
               theme={theme}
               onTheme={setTheme}
+              offersRentals={mode.offersRentals}
+              badge={badge}
               onPreviewAccent={setAccent}
               onHandleInput={setHandle}
             />
@@ -291,17 +286,20 @@ export function BookingPageBuilder({
               pageSections={pageSections}
               mode={mode}
               templatePicker={
-                <StarterDialog
-                  variant="picker"
-                  channel={channel}
-                  doc={draft.doc}
-                  ctx={ctx}
-                  mode={mode}
-                  needsFirstItem={starter.needsFirstItem}
-                  applyLookDefault={false}
-                  currency={scheduling.currency}
-                  onApply={onApplyTemplate}
-                />
+                // A spaces page has layouts to pick once it has a real space
+                // (spec §8); before that the starter's first-space step is it.
+                channel === "appointments" || previewOfferings.some((o) => o.id !== PREVIEW_OFFERING_ID) ? (
+                  <StarterDialog
+                    variant="picker"
+                    channel={channel}
+                    ctx={ctx}
+                    layout={theme.layout}
+                    stayLayout={theme.stayLayout}
+                    needsFirstItem={starter.needsFirstItem}
+                    currency={scheduling.currency}
+                    onApply={onApplyLayout}
+                  />
+                ) : null
               }
             />
           )}

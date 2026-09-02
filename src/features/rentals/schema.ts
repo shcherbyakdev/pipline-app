@@ -239,7 +239,9 @@ export const getHourlySlotsInput = z.object({
   offeringId: z.uuid(),
   durationMin: z.number().int().min(5).max(1440),
   fromDate: z.string().regex(DATE_RE),
-  days: z.number().int().min(1).max(10),
+  // 31 like getSlotsInput: the widget's month window (widget templates
+  // spec §8) — one context load, in-memory compute, same as appointments.
+  days: z.number().int().min(1).max(31),
   unitId: z.uuid().nullable().default(null),
 });
 export const createRentalBookingHoursInput = z.object({

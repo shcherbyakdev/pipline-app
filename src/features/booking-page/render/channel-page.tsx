@@ -33,7 +33,7 @@ export async function renderChannelPage({
 }) {
   const { offering, offerings } = catalogue;
   const [branding, doc] = await Promise.all([getOrgBranding(org.orgId), getPublishedPage(org.orgId, page.channel)]);
-  const theme = parseWidgetTheme(branding.themeRaw);
+  const theme = parseWidgetTheme(branding.pageThemeRaw);
   // The page's channel is forced — no longer a query — before the widget,
   // its headings and the builder's Services / Spaces / Staff sections read
   // it, so they all agree (publicSections drops the emptied sections).

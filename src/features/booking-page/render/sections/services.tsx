@@ -5,9 +5,10 @@ import type { SectionOf } from "../../schema";
 import type { RenderContext } from "../context";
 import { Ghost } from "../ghost";
 import { usePageState } from "../page-state";
+import { CARD, H2, PICK_CARD } from "../type";
 
 export function ServicesSection({ section, ctx }: { section: SectionOf<"services">; ctx: RenderContext }) {
-  const { selectService } = usePageState();
+  const { selectService, requested } = usePageState();
   if (ctx.services.length === 0) return <Ghost mode={ctx.mode} label="Add a service and it shows here" />;
   const pick = (id: string) => {
     selectService(id);
@@ -15,33 +16,33 @@ export function ServicesSection({ section, ctx }: { section: SectionOf<"services
     if (ctx.mode === "public") document.getElementById("book")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const cards = section.style === "cards";
+  const picked = requested?.kind === "service" ? requested.id : null;
   return (
     // `id`: the cover's Book button lands here when this section is the
     // page's picker (pickers.ts).
-    <section id="services" className="flex scroll-mt-6 flex-col gap-3">
-      {section.title.trim() ? <h2 className="text-xl font-semibold tracking-tight">{section.title}</h2> : null}
-      <ul className={cn(cards ? "grid gap-3 sm:grid-cols-2" : "flex flex-col divide-y rounded-[var(--widget-radius)] border")}>
-        {ctx.services.map((s) => {
-          const meta = [section.showDurations ? `${s.durationMin} min` : null, section.showPrices ? s.priceLabel : null]
-            .filter(Boolean)
-            .join(" · ");
-          return (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => pick(s.id)}
-                className={cn(
-                  "wt-surface flex w-full flex-col items-start gap-1 text-left",
-                  cards ? "h-full rounded-[var(--widget-radius)] border p-4" : "px-4 py-3",
-                )}
-              >
+    <section id="services" className="flex scroll-mt-6 flex-col gap-5">
+      {section.title.trim() ? <h2 className={H2}>{section.title}</h2> : null}
+      <ul className={cn(cards ? "grid gap-3 sm:grid-cols-2" : cn(CARD, "flex flex-col divide-y"))}>
+        {ctx.services.map((s) => (
+          <li key={s.id}>
+            <button
+              type="button"
+              onClick={() => pick(s.id)}
+              aria-pressed={s.id === picked}
+              className={cn(
+                "flex w-full flex-col gap-2 text-left",
+                cards ? cn(PICK_CARD, "h-full p-5") : "wt-surface px-5 py-4 aria-pressed:bg-muted",
+              )}
+            >
+              <span className="flex w-full items-baseline justify-between gap-4">
                 <span className="font-medium">{s.name}</span>
-                {s.description ? <span className="text-muted-foreground text-sm">{s.description}</span> : null}
-                {meta ? <span className="text-muted-foreground text-xs">{meta}</span> : null}
-              </button>
-            </li>
-          );
-        })}
+                {section.showPrices && s.priceLabel ? <span className="shrink-0 font-medium tabular-nums">{s.priceLabel}</span> : null}
+              </span>
+              {s.description ? <span className="text-muted-foreground text-sm leading-relaxed">{s.description}</span> : null}
+              {section.showDurations ? <span className="text-muted-foreground mt-auto text-xs tabular-nums">{s.durationMin} min</span> : null}
+            </button>
+          </li>
+        ))}
       </ul>
     </section>
   );

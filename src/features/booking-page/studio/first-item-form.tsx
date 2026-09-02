@@ -27,7 +27,7 @@ function FormError({ message }: { message: string | null }) {
   return message ? <p role="alert" className="text-destructive text-sm">{message}</p> : null;
 }
 
-export function FirstServiceForm({ currency, onCreated, onBack }: { currency: string; onCreated: () => void; onBack: () => void }) {
+export function FirstServiceForm({ currency, onCreated, onBack }: { currency: string; onCreated: () => void; onBack?: () => void }) {
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
   const nameId = React.useId();
@@ -77,7 +77,7 @@ export function FirstServiceForm({ currency, onCreated, onBack }: { currency: st
       </div>
       <FormError message={error} />
       <div className="flex items-center justify-between gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={pending}>{STARTER.back}</Button>
+        {onBack ? <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={pending}>{STARTER.back}</Button> : null}
         <Button type="submit" size="sm" disabled={pending}>{STARTER.firstService.submit}</Button>
       </div>
     </form>
@@ -90,7 +90,7 @@ const MODES: ReadonlyArray<{ value: RangeMode; label: string; per: string }> = [
   { value: "days", label: STARTER.firstSpace.days, per: "day" },
 ];
 
-export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: string; onCreated: () => void; onBack: () => void }) {
+export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: string; onCreated: () => void; onBack?: () => void }) {
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
   // A notice means the space saved but its first unit or hours did not (plan
@@ -142,7 +142,7 @@ export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: stri
         <p role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">{notice}</p>
         <p className="text-muted-foreground text-sm">{STARTER.firstSpace.noticeHint}</p>
         <div className="flex items-center justify-between gap-2">
-          <Button type="button" variant="ghost" size="sm" onClick={onBack}>{STARTER.back}</Button>
+          {onBack ? <Button type="button" variant="ghost" size="sm" onClick={onBack}>{STARTER.back}</Button> : null}
           <Button type="button" size="sm" onClick={onCreated}>{STARTER.continue}</Button>
         </div>
       </div>
@@ -182,7 +182,7 @@ export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: stri
       </div>
       <FormError message={error} />
       <div className="flex items-center justify-between gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={pending}>{STARTER.back}</Button>
+        {onBack ? <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={pending}>{STARTER.back}</Button> : null}
         <Button type="submit" size="sm" disabled={pending}>{STARTER.firstSpace.submit}</Button>
       </div>
     </form>

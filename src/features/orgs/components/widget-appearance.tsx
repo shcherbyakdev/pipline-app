@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { updateWidgetTheme } from "@/features/orgs/actions";
-import { effectiveContrast, WIDGET_THEME_OPTIONS, type WidgetThemeConfig } from "@/lib/widget-theme";
+import { updateSurfaceTheme } from "@/features/orgs/actions";
+import { resolveLayout, resolveStayLayout, type WidgetThemeConfig } from "@/lib/widget-theme";
+import { AppearanceFields, SELECT_CLASS, contrastOf } from "./appearance-fields";
 // Pure module (no server-only import, no DB) — safe in a client component.
 import { badgeShows } from "@/lib/billing/entitlements";
 import { EmbedPreviewFrame } from "./embed-preview-frame";
@@ -14,25 +14,14 @@ import type { PublicOffering, PublicService } from "@/lib/booking/public";
 import type { OrgMode } from "@/features/orgs/mode";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { SettingsCard, SettingsRow } from "@/components/settings-row";
+import { SettingsCard } from "@/components/settings-row";
 import { cn } from "@/lib/utils";
 import { embedSnippet } from "./widget-embed-snippet";
+import { applyChannel, type Channel } from "@/lib/booking/channel";
+import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
+import { SPACES } from "@/features/orgs/vocab";
+import { PREVIEW_AVAILABILITY } from "@/features/rentals/preview-availability";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
-
-const RADIUS_OPTIONS: Array<{ value: WidgetThemeConfig["radius"]; label: string }> = [
-  { value: "none", label: "None" },
-  { value: "subtle", label: "Subtle" },
-  { value: "round", label: "Round" },
-];
-
-const FONT_OPTIONS: Array<{ value: WidgetThemeConfig["font"]; label: string }> = [
-  { value: "system", label: "System" },
-  { value: "inter", label: "Inter" },
-  { value: "dm-sans", label: "DM Sans" },
-  { value: "lora", label: "Lora" },
-  { value: "space-grotesk", label: "Space Grotesk" },
-  { value: "ibm-plex-mono", label: "IBM Plex Mono" },
-];
 
 export function WidgetAppearance({
   initial,
@@ -77,15 +66,19 @@ export function WidgetAppearance({
   const [pending, startTransition] = React.useTransition();
   // "" = the whole team (the org-wide flow, byte-identical to the old snippet).
   const [staffSlug, setStaffSlug] = React.useState<string>(initialStaffSlug ?? "");
-  const snippet = handle ? embedSnippet(appUrl, handle, staffSlug ? { staff: staffSlug } : null, mode) : "";
+  // An embed is ONE channel (2026-09-02 ruling): a both-channel org picks
+  // which one here — the snippet names it explicitly and the preview shows
+  // only it. A single-channel org's snippet stays the plain one.
+  const both = mode.offersAppointments && mode.offersRentals;
+  const [channel, setChannel] = React.useState<Channel>(mode.offersAppointments ? "services" : "spaces");
+  const target = channel === "services" && staffSlug ? { staff: staffSlug } : both ? { channel } : null;
+  const snippet = handle ? embedSnippet(appUrl, handle, target, mode) : "";
+  const previewCatalog = applyChannel(
+    { services: previewServices, staff: [] as never[], serviceStaffIds: {}, offerings: previewOfferings },
+    both ? channel : null,
+  );
 
-  // Show/guard the ratio as soon as EITHER side is overridden — a lone
-  // override still gets checked against the theme's default for the other
-  // side (effectiveContrast), not skipped until both are set.
-  const hasOverride = Boolean(config.background || config.text);
-  const ratio = hasOverride ? effectiveContrast(config) : null;
-  const contrastBlocked = ratio !== null && ratio < 3;
-  const contrastWarn = ratio !== null && ratio < 4.5;
+  const { blocked: contrastBlocked } = contrastOf(config);
 
   // What the PUBLIC page will actually render: badgeShows is the same rule
   // the page and the emails apply, so a saved "hide" the plan no longer
@@ -93,11 +86,10 @@ export function WidgetAppearance({
   // there — the studio must not promise a badge-free widget the visitor never
   // sees. The stored config is untouched: upgrade and the tick works again.
   const previewConfig = { ...config, hidePoweredBy: !badgeShows(config.hidePoweredBy, canHideBadge) };
-  const router = useRouter();
 
   const save = () => {
     startTransition(async () => {
-      const result = await updateWidgetTheme(config);
+      const result = await updateSurfaceTheme({ surface: "embed", theme: config });
       if (!result.ok) toast.error(result.error);
       else toast.success("Widget appearance saved");
     });
@@ -116,44 +108,7 @@ export function WidgetAppearance({
   };
 
   const dirty = JSON.stringify(config) !== JSON.stringify(initial);
-  const selectClass =
-    "border-input h-8 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50";
-
-  const colourRow = (
-    key: "background" | "text",
-    id: string,
-    label: string,
-    fallback: string,
-  ) => (
-    <SettingsRow label={label} htmlFor={id}>
-      <div className="flex items-center gap-2">
-        <input
-          id={id}
-          type="color"
-          className="size-8 shrink-0 cursor-pointer rounded border bg-transparent p-0.5"
-          value={config[key] ?? fallback}
-          disabled={pending}
-          onChange={(e) => setConfig((c) => ({ ...c, [key]: e.target.value }))}
-        />
-        {config[key] ? (
-          <>
-            <span className="font-mono text-xs">{config[key]}</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              disabled={pending}
-              onClick={() => setConfig((c) => ({ ...c, [key]: undefined }))}
-            >
-              Clear
-            </Button>
-          </>
-        ) : (
-          <span className="text-muted-foreground text-xs">Theme default</span>
-        )}
-      </div>
-    </SettingsRow>
-  );
+  const selectClass = SELECT_CLASS;
 
   return (
     <div className="flex flex-col gap-6">
@@ -162,7 +117,16 @@ export function WidgetAppearance({
       {handle ? (
         <div className="flex flex-col gap-2">
           <p className="text-muted-foreground text-sm font-medium">Embed snippet</p>
-          {staffOptions.length > 0 ? (
+          {both ? (
+            <div role="radiogroup" aria-label="Which widget" className={cn(SEGMENTED_NAV_CLASS, "w-fit")}>
+              {([["services", "Appointments"], ["spaces", SPACES.widgetGroup]] as const).map(([value, label]) => (
+                <button key={value} type="button" role="radio" aria-checked={channel === value} onClick={() => setChannel(value)} className={segmentedItemClass(channel === value)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {staffOptions.length > 0 && channel === "services" ? (
             <div className="flex items-center gap-2">
               <Label htmlFor="wt-staff" className="text-xs font-medium">
                 Book with
@@ -210,7 +174,7 @@ export function WidgetAppearance({
       <div className="grid gap-8 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
         <SettingsCard
           title="Widget style"
-          description="Theme is shared with the booking page."
+          description="The widget on your own site. The booking page has its own style."
           footer={
             <>
               {dirty ? <span className="text-muted-foreground mr-auto text-xs">Unsaved changes</span> : null}
@@ -220,139 +184,15 @@ export function WidgetAppearance({
             </>
           }
         >
-          <SettingsRow label="Theme" htmlFor="wt-theme">
-            <select
-              id="wt-theme"
-              className={selectClass}
-              value={config.theme}
-              disabled={pending}
-              onChange={(e) => setConfig((c) => ({ ...c, theme: e.target.value as WidgetThemeConfig["theme"] }))}
-            >
-              {WIDGET_THEME_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </SettingsRow>
-          <div className="grid grid-cols-2 divide-x">
-            <SettingsRow label="Corner radius" htmlFor="wt-radius">
-              <select
-                id="wt-radius"
-                className={selectClass}
-                value={config.radius}
-                disabled={pending}
-                onChange={(e) => setConfig((c) => ({ ...c, radius: e.target.value as WidgetThemeConfig["radius"] }))}
-              >
-                {RADIUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </SettingsRow>
-            <SettingsRow label="Font" htmlFor="wt-font">
-              <select
-                id="wt-font"
-                className={selectClass}
-                value={config.font}
-                disabled={pending}
-                onChange={(e) => setConfig((c) => ({ ...c, font: e.target.value as WidgetThemeConfig["font"] }))}
-              >
-                {FONT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </SettingsRow>
-          </div>
-          {colourRow("background", "wt-background", "Background override", "#ffffff")}
-          <SettingsRow
-            label="Text override"
-            htmlFor="wt-text"
-            hint={
-              ratio !== null ? (
-                <span
-                  className={cn(
-                    contrastBlocked ? "text-destructive" : contrastWarn ? "text-amber-600 dark:text-amber-500" : undefined,
-                  )}
-                >
-                  Contrast {ratio.toFixed(1)}:1
-                  {contrastBlocked
-                    ? " — below 3:1, blocked. Pick more distinct colours."
-                    : contrastWarn
-                      ? " — below 4.5:1 (AA body text)."
-                      : ""}
-                </span>
-              ) : (
-                "Overrides paint the widget's own surface, so it no longer takes the host page's."
-              )
-            }
-          >
-            <div className="flex items-center gap-2">
-              <input
-                id="wt-text"
-                type="color"
-                className="size-8 shrink-0 cursor-pointer rounded border bg-transparent p-0.5"
-                value={config.text ?? "#0f172a"}
-                disabled={pending}
-                onChange={(e) => setConfig((c) => ({ ...c, text: e.target.value }))}
-              />
-              {config.text ? (
-                <>
-                  <span className="font-mono text-xs">{config.text}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="xs"
-                    disabled={pending}
-                    onClick={() => setConfig((c) => ({ ...c, text: undefined }))}
-                  >
-                    Clear
-                  </Button>
-                </>
-              ) : (
-                <span className="text-muted-foreground text-xs">Theme default</span>
-              )}
-            </div>
-          </SettingsRow>
-          <div className="flex items-center gap-2 px-4 py-3">
-            {/* A capped org's click on the box is a request to lift the cap,
-                so it goes to the door instead of toggling (preventDefault
-                keeps the box unchecked); a disabled input would swallow the
-                click and teach nothing. No door = plainly disabled. */}
-            <input
-              id="wt-hide-powered-by"
-              type="checkbox"
-              className="size-4"
-              checked={config.hidePoweredBy}
-              disabled={pending || (!canHideBadge && !upgradeHref)}
-              aria-describedby={canHideBadge ? undefined : "wt-hide-powered-by-plan"}
-              onClick={(e) => {
-                if (canHideBadge || !upgradeHref) return;
-                e.preventDefault();
-                router.push(upgradeHref);
-              }}
-              onChange={(e) => setConfig((c) => ({ ...c, hidePoweredBy: e.target.checked }))}
-            />
-            <Label htmlFor="wt-hide-powered-by" className="text-xs font-medium">
-              Hide &quot;Powered by Booklo&quot;
-            </Label>
-            {canHideBadge ? null : upgradeHref ? (
-              <Link
-                id="wt-hide-powered-by-plan"
-                href={upgradeHref}
-                className="border-brand/40 text-brand-text hover:bg-brand/10 rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
-              >
-                Premium
-              </Link>
-            ) : (
-              <span id="wt-hide-powered-by-plan" className="border-brand/40 text-brand-text rounded-full border px-1.5 py-0.5 text-[10px] font-medium">
-                Premium
-              </span>
-            )}
-          </div>
+          <AppearanceFields
+            idPrefix="wt"
+            config={config}
+            onChange={setConfig}
+            pending={pending}
+            offersRentals={mode.offersRentals}
+            canHideBadge={canHideBadge}
+            upgradeHref={upgradeHref}
+          />
         </SettingsCard>
         {/* Sticks inside the shell panel's scroll container (the header row
             sits above it), so the offset is just the content padding. */}
@@ -362,9 +202,11 @@ export function WidgetAppearance({
               handle="preview"
               orgTimeZone="UTC"
               currency={currency}
-              services={previewServices}
-              offerings={previewOfferings}
-              preview={{ slots: PREVIEW_SLOTS }}
+              layout={resolveLayout(previewConfig)}
+              stayLayout={resolveStayLayout(previewConfig)}
+              services={previewCatalog.services}
+              offerings={previewCatalog.offerings}
+              preview={{ slots: PREVIEW_SLOTS, availability: PREVIEW_AVAILABILITY }}
             />
           </EmbedPreviewFrame>
         </div>

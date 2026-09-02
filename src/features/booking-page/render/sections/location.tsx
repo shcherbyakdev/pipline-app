@@ -1,6 +1,7 @@
 import { HTTPS_RE, type SectionOf } from "../../schema";
 import type { RenderContext } from "../context";
 import { Ghost } from "../ghost";
+import { H2 } from "../type";
 
 export function LocationSection({ section, ctx }: { section: SectionOf<"location">; ctx: RenderContext }) {
   const address = section.address.trim();
@@ -8,10 +9,10 @@ export function LocationSection({ section, ctx }: { section: SectionOf<"location
   // bad URLs and only validated documents render publicly.
   const maps = HTTPS_RE.test(section.mapsUrl.trim()) ? section.mapsUrl.trim() : "";
   if (!address && !maps) return <Ghost mode={ctx.mode} label="Add your address" />;
-  const link = "text-sm font-medium underline underline-offset-3";
+  const link = "w-fit text-sm font-medium underline underline-offset-3";
   return (
-    <section className="flex flex-col gap-2 rounded-[var(--widget-radius)] border p-4">
-      <h2 className="text-sm font-semibold">Where to find us</h2>
+    <section className="flex flex-col gap-3">
+      <h2 className={H2}>Where to find us</h2>
       {address ? <address className="text-muted-foreground whitespace-pre-line not-italic leading-relaxed">{address}</address> : null}
       {maps ? (
         ctx.mode === "preview" ? (

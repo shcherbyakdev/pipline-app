@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { createOrgSchema, updateAccentInput, createOrgWithPageSchema, modeToFlags, updateOrgModesInput } from "./schema";
+import { createOrgSchema, updateAccentInput, createOrgWithPageSchema, modeToFlags, updateOrgModesInput, surfaceThemeInput,
+  widgetThemeInput,
+} from "./schema";
 
 describe("createOrgSchema", () => {
   it("accepts a valid name", () => {
@@ -69,5 +71,20 @@ describe("updateOrgModesInput", () => {
   it("rejects both false and non-booleans", () => {
     expect(updateOrgModesInput.safeParse({ offersAppointments: false, offersRentals: false }).success).toBe(false);
     expect(updateOrgModesInput.safeParse({ offersAppointments: "yes", offersRentals: true }).success).toBe(false);
+  });
+});
+
+
+describe("surfaceThemeInput (spec 2026-09-02 §9: one appearance per surface)", () => {
+  const theme = { theme: "light", radius: "subtle", font: "geist", layout: "calendar", stayLayout: "one-month", hidePoweredBy: false };
+  it("names the surface — the hosted page or the website embed — and carries a full theme", () => {
+    expect(surfaceThemeInput.safeParse({ surface: "page", theme }).success).toBe(true);
+    expect(surfaceThemeInput.safeParse({ surface: "embed", theme }).success).toBe(true);
+    expect(surfaceThemeInput.safeParse({ surface: "email", theme }).success).toBe(false);
+    expect(surfaceThemeInput.safeParse({ theme }).success).toBe(false);
+  });
+  it("the theme half is exactly the widget theme input", () => {
+    expect(widgetThemeInput.safeParse({ ...theme, layout: "carousel" }).success).toBe(false);
+    expect(surfaceThemeInput.safeParse({ surface: "page", theme: { ...theme, layout: "carousel" } }).success).toBe(false);
   });
 });

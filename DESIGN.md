@@ -116,6 +116,12 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 - **Outfit 500 for landing display type** (`font-display`): the hero (54px
   desktop, 32px phones) and section H2s (44px desktop) on the marketing
   pages only. Admin headlines stay Inter.
+- **Hosted booking pages** (`features/booking-page/render/type.ts`, 2026-09-02,
+  gumloop.com-referenced: type and colour only, the page stays a booking
+  page) set display at weight 500 with -0.025em tracking in the org's own
+  widget font — the Main template's skin picks **Geist** (the reference's
+  UI face; `widget-fonts.ts`), and an org may choose any other: cover H1
+  32/40px, section H2 24px, lead and quotes 17px, body 16/400.
 - **Outfit Semibold for the "booklo" wordmark** (`BookloWordmark`).
 - **Geist Mono only where a value is a value** (handle URLs, kbd hints, tick
   labels). Monospace is never a "technical" costume.
@@ -137,7 +143,13 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
   visible. Row hover is `bg-muted/50`; per-row actions are opacity-revealed
   on hover/focus-within. Page column is `max-w-6xl`.
 - Public booking pages: `px-6 pt-10 pb-8` column, width from
-  `pageContainerClass`.
+  `pageContainerClass`. They take the reference's **neutrals** instead of
+  the app's lavender (`.book-page` in globals.css: ground #fcfcfc, ink
+  #17171a, panels #f2f2f5, hairlines 10% ink) so the org's own accent is
+  the only colour on its page; the night set is unchanged. Catalogue picks
+  are white hairline cards with the price on the right and an accent ring
+  on the pick; the cover's Book button is the accent fill, the sibling-
+  channel link the outlined twin beside it.
 
 ## Elevation & Depth
 
@@ -165,6 +177,11 @@ switches, search), **10–14px for fragments** (inputs 10px, cards/menus 14px),
 **18px+ for panels** (dialogs, auth card). Checkboxes/switches keep their
 small radii. Inside button/input groups, pills square off to the group's
 radius.
+
+Hosted booking pages derive every shape from the org's corner setting
+(`--widget-radius`, 0/6/12px): controls r, cards 2r (`wt-r2`), discs
+`wt-round`. The widget theme squares every `rounded-*` to r (globals.css),
+so those two classes are the only way to another radius on a public page.
 
 ## Components
 

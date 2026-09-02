@@ -1,48 +1,44 @@
+import type { SlotLayout, StayLayout } from "@/lib/widget-theme";
 import { DEFAULT_PAGE } from "../defaults";
 import { deepEqual } from "../doc-ops";
 import type { PageDocument } from "../schema";
-import type { BusinessType } from "../business-types";
 
 /* The starter's decisions, kept pure so they are testable without React
-   (spec 2026-08-28 §5.1, §5.3). StarterDialog renders this; it decides
-   nothing on its own. */
+   (widget templates spec 2026-09-02 §5, §8). StarterDialog renders this;
+   it decides nothing on its own. */
 
-/** A page nobody has touched: never published, still the default composition. */
-export function isFreshPage(page: { draft: PageDocument; published: PageDocument | null }): boolean {
-  return page.published === null && deepEqual(page.draft, DEFAULT_PAGE);
+/** A page nobody has touched: never published, still the default
+    composition, and — the widget templates being org settings — a layout
+    still unchosen (the caller says which groups the page asks about). */
+export function isFreshPage(page: { draft: PageDocument; published: PageDocument | null }, layoutChosen: boolean): boolean {
+  return !layoutChosen && page.published === null && deepEqual(page.draft, DEFAULT_PAGE);
 }
 
-/** "Also apply this look" default: on only while the org-wide look is
-    unclaimed — no page of the org is published on any channel. Applying
-    the skin saves to the live widget theme, which the other page and the
-    embed share. */
-export function skinDefault(anyPublished: boolean): boolean {
-  return !anyPublished;
-}
-
-export type StarterStep = "type" | "firstItem" | "done";
-export type StarterState = { step: StarterStep; type: BusinessType | null; applyLook: boolean };
+export type StarterStep = "layout" | "firstItem" | "done";
+/** One pick per group the page shows: times (appointments and hourly
+    spaces) and stays. A group the page does not show stays null. */
+export type StarterState = { step: StarterStep; layout: SlotLayout | null; stayLayout: StayLayout | null };
 export type StarterAction =
-  | { kind: "choose"; type: BusinessType; needsFirstItem: boolean }
+  | { kind: "choose"; layout: SlotLayout | null; stayLayout: StayLayout | null; needsFirstItem: boolean }
   | { kind: "created" }
-  | { kind: "back" }
-  | { kind: "toggleLook"; value: boolean };
+  | { kind: "back" };
 
-export function initialStarterState(opts: { applyLook: boolean }): StarterState {
-  return { step: "type", type: null, applyLook: opts.applyLook };
+/** Appointments start on the layout step; a spaces page with nothing to
+    rent yet has no layout to pick and opens straight on its first-space step. */
+export function initialStarterState(step: "layout" | "firstItem"): StarterState {
+  return { step, layout: null, stayLayout: null };
 }
 
-/** type → (firstItem when the channel has nothing bookable) → done. No
-    skip (ruling 2): the only way past firstItem is `created`. */
+/** layout → (firstItem when the channel has nothing bookable) → done. No
+    skip (ruling 2): the only way past firstItem is `created`. Back returns
+    to the layout step only when there was one. */
 export function starterReducer(state: StarterState, action: StarterAction): StarterState {
   switch (action.kind) {
     case "choose":
-      return { ...state, type: action.type, step: action.needsFirstItem ? "firstItem" : "done" };
+      return { layout: action.layout, stayLayout: action.stayLayout, step: action.needsFirstItem ? "firstItem" : "done" };
     case "created":
       return state.step === "firstItem" ? { ...state, step: "done" } : state;
     case "back":
-      return state.step === "firstItem" ? { ...state, step: "type" } : state;
-    case "toggleLook":
-      return { ...state, applyLook: action.value };
+      return state.step === "firstItem" && (state.layout !== null || state.stayLayout !== null) ? { ...state, step: "layout" } : state;
   }
 }

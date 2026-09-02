@@ -1,13 +1,54 @@
 import React from "react";
 
+/* How the appointment widget shows free times — the widget "template"
+   (spec 2026-09-02). An org setting shared by the hosted page and the
+   website embed, next to theme / radius / font. */
+export const SLOT_LAYOUTS = ["calendar", "week-list", "week-columns", "next-available"] as const;
+export type SlotLayout = (typeof SLOT_LAYOUTS)[number];
+
+/* How a stay (nights or days) is picked — the stays template (spec §8).
+   Hourly spaces show start times, so they take SlotLayout instead. */
+export const STAY_LAYOUTS = ["one-month", "two-months", "fields", "next-free"] as const;
+export type StayLayout = (typeof STAY_LAYOUTS)[number];
+
 export type WidgetThemeConfig = {
   theme: "light" | "dark" | "auto";
   radius: "none" | "subtle" | "round";
-  font: "system" | "inter" | "dm-sans" | "lora" | "space-grotesk" | "ibm-plex-mono";
+  font: "system" | "geist" | "inter" | "dm-sans" | "lora" | "space-grotesk" | "ibm-plex-mono";
+  /** Absent = never chosen (the studio starter opens); resolveLayout
+      renders it as the calendar. */
+  layout?: SlotLayout;
+  /** Same contract for stays; resolveStayLayout renders it as one month. */
+  stayLayout?: StayLayout;
   background?: string; // #rrggbb
   text?: string; // #rrggbb
   hidePoweredBy: boolean;
 };
+
+/** The default template: calendar + times. */
+export function resolveLayout(config: Pick<WidgetThemeConfig, "layout">): SlotLayout {
+  return config.layout ?? "calendar";
+}
+
+/** The default stays template: one month. */
+export function resolveStayLayout(config: Pick<WidgetThemeConfig, "stayLayout">): StayLayout {
+  return config.stayLayout ?? "one-month";
+}
+
+export const STAY_LAYOUT_OPTIONS: ReadonlyArray<{ value: StayLayout; label: string; description: string }> = [
+  { value: "one-month", label: "One month", description: "A month grid; tap check-in, then check-out." },
+  { value: "two-months", label: "Two months", description: "Two months side by side, the same two taps." },
+  { value: "fields", label: "Check-in and check-out fields", description: "Two date fields; tapping one opens the month grid." },
+  { value: "next-free", label: "Next free stays", description: "The soonest free windows that fit the minimum stay, one tap each." },
+];
+
+/** The starter's cards and the settings selects, calendar first. */
+export const WIDGET_LAYOUT_OPTIONS: ReadonlyArray<{ value: SlotLayout; label: string; description: string }> = [
+  { value: "calendar", label: "Calendar + times", description: "A month to pick a day, then that day's free times." },
+  { value: "week-list", label: "Week list", description: "Seven days at a time, each day's times in a row." },
+  { value: "week-columns", label: "Week columns", description: "A week as columns, times stacked under each day." },
+  { value: "next-available", label: "Next available", description: "The soonest free times first, no browsing." },
+];
 
 export const WIDGET_THEME_DEFAULTS: WidgetThemeConfig = {
   theme: "auto",
@@ -35,6 +76,7 @@ export const WIDGET_THEME_DEFAULT_COLORS = {
 
 export const WIDGET_FONT_IDS = [
   "system",
+  "geist",
   "inter",
   "dm-sans",
   "lora",
@@ -89,6 +131,14 @@ export function parseWidgetTheme(raw: unknown): WidgetThemeConfig {
     result.font = input.font as WidgetThemeConfig["font"];
   }
 
+  // Validate layouts — left absent (not defaulted) when never chosen.
+  if (typeof input.layout === "string" && SLOT_LAYOUTS.includes(input.layout as SlotLayout)) {
+    result.layout = input.layout as SlotLayout;
+  }
+  if (typeof input.stayLayout === "string" && STAY_LAYOUTS.includes(input.stayLayout as StayLayout)) {
+    result.stayLayout = input.stayLayout as StayLayout;
+  }
+
   // Validate background
   if (typeof input.background === "string" && HEX_REGEX.test(input.background)) {
     result.background = input.background;
@@ -115,7 +165,9 @@ export function themeCssVars(
 
   // Always include radius and accent (with fallback)
   vars["--widget-radius"] = RADIUS_MAP[config.radius];
-  vars["--widget-accent"] = accentColor || "#0f172a";
+  // No accent set: ink (the hosted page's --foreground, gumloop.com's
+  // button), not a blue-leaning slate.
+  vars["--widget-accent"] = accentColor || "#17171a";
 
   // Only include background and text if overridden
   if (config.background) {

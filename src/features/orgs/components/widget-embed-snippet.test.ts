@@ -44,7 +44,8 @@ describe("embedSnippet iframe title", () => {
   it("no target: follows the org's channels, historical default without a mode", () => {
     expect(embedSnippet(APP, "acme", null, APPTS_ONLY)).toContain('title="Book an appointment"');
     expect(embedSnippet(APP, "acme", null, RENTALS_ONLY)).toContain('title="Book a space"');
-    expect(embedSnippet(APP, "acme", null, BOTH)).toContain('title="Book online"');
+    // A both-channel org's plain embed is its front door — appointments.
+    expect(embedSnippet(APP, "acme", null, BOTH)).toContain('title="Book an appointment"');
     expect(embedSnippet(APP, "acme")).toContain('title="Book an appointment"');
   });
   it("a target names its own channel, whatever the org's mode", () => {

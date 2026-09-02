@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   WIDGET_THEME_DEFAULTS, parseWidgetTheme, themeCssVars, contrastRatio, effectiveContrast,
-  hostContrast,
-} from "./widget-theme";
+  hostContrast, resolveLayout, WIDGET_LAYOUT_OPTIONS, resolveStayLayout, STAY_LAYOUT_OPTIONS } from "./widget-theme";
 
 describe("parseWidgetTheme", () => {
   it("null → defaults", () => {
@@ -29,7 +28,7 @@ describe("themeCssVars", () => {
     );
     expect(vars["--widget-bg" as keyof typeof vars]).toBe("#101010");
     expect(vars["--widget-text" as keyof typeof vars]).toBe("#fafafa");
-    expect(vars["--widget-accent" as keyof typeof vars]).toBe("#0f172a");
+    expect(vars["--widget-accent" as keyof typeof vars]).toBe("#17171a");
   });
 });
 
@@ -106,5 +105,46 @@ describe("hostContrast", () => {
   it("a text override is what meets the host", () => {
     const r = hostContrast({ ...base, theme: "dark", text: "#111111" }, "dark", "#111214");
     expect(r).toBeLessThan(1.5);
+  });
+});
+
+describe("widget layout (widget templates, 2026-09-02)", () => {
+  it("parses a known layout, drops an unknown one, and leaves it absent when never chosen", () => {
+    expect(parseWidgetTheme({ layout: "week-columns" }).layout).toBe("week-columns");
+    expect(parseWidgetTheme({ layout: "carousel" }).layout).toBeUndefined();
+    expect(parseWidgetTheme({}).layout).toBeUndefined();
+    expect(parseWidgetTheme(null).layout).toBeUndefined();
+  });
+  it("resolves to the calendar when nothing was chosen — the default template", () => {
+    expect(resolveLayout(parseWidgetTheme({}))).toBe("calendar");
+    expect(resolveLayout(parseWidgetTheme({ layout: "next-available" }))).toBe("next-available");
+  });
+  it("offers the four presentations, calendar first, each with a name and a one-line description", () => {
+    expect(WIDGET_LAYOUT_OPTIONS.map((o) => o.value)).toEqual(["calendar", "week-list", "week-columns", "next-available"]);
+    for (const o of WIDGET_LAYOUT_OPTIONS) {
+      expect(o.label.trim()).toBeTruthy();
+      expect(o.description.trim()).toBeTruthy();
+      expect(`${o.label} ${o.description}`).not.toMatch(/[—–]/);
+    }
+  });
+});
+
+describe("stays layout (widget templates spec §8)", () => {
+  it("parses a known stays layout, drops an unknown one, leaves it absent when never chosen", () => {
+    expect(parseWidgetTheme({ stayLayout: "fields" }).stayLayout).toBe("fields");
+    expect(parseWidgetTheme({ stayLayout: "three-months" }).stayLayout).toBeUndefined();
+    expect(parseWidgetTheme({}).stayLayout).toBeUndefined();
+  });
+  it("resolves to one month when nothing was chosen", () => {
+    expect(resolveStayLayout(parseWidgetTheme({}))).toBe("one-month");
+    expect(resolveStayLayout(parseWidgetTheme({ stayLayout: "next-free" }))).toBe("next-free");
+  });
+  it("offers the four stays presentations, one month first, each named and described", () => {
+    expect(STAY_LAYOUT_OPTIONS.map((o) => o.value)).toEqual(["one-month", "two-months", "fields", "next-free"]);
+    for (const o of STAY_LAYOUT_OPTIONS) {
+      expect(o.label.trim()).toBeTruthy();
+      expect(o.description.trim()).toBeTruthy();
+      expect(`${o.label} ${o.description}`).not.toMatch(/[—–]/);
+    }
   });
 });
