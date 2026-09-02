@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createBookingAdmin } from "@/features/scheduling/booking-actions";
@@ -44,6 +45,9 @@ export function AppointmentBookingForm({
   drag: DragPrefill | null;
   onDone: () => void;
 }) {
+  const t = useTranslations("bookings");
+  const tCommon = useTranslations("common");
+  const tUnits = useTranslations("public.units");
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const service = services.find((s) => s.id === serviceId);
@@ -135,10 +139,10 @@ export function AppointmentBookingForm({
         else toast.error(result.error);
         return;
       }
-      if (result.emailed === "sent") toast.success("Booking created — the client has been emailed");
+      if (result.emailed === "sent") toast.success(t("create.doneEmailed"));
       else if (result.emailed === "failed")
-        toast.warning("Booking created — but the confirmation email failed. Contact the client directly.");
-      else toast.success("Booking created.");
+        toast.warning(t("create.doneEmailFailed"));
+      else toast.success(t("create.done"));
       onDone();
       router.refresh();
     });
@@ -148,29 +152,29 @@ export function AppointmentBookingForm({
     <form onSubmit={submit} className="flex flex-col">
       <div className="flex flex-col px-5 pt-5 pb-6">
         <input
-          aria-label="Client name"
+          aria-label={t("form.clientName")}
           required
           maxLength={200}
           value={name}
-          placeholder="Client name"
+          placeholder={t("form.clientName")}
           className={cn(bareInputClass, "text-[15px] font-medium")}
           onChange={(e) => { setName(e.target.value); clearOverlap(); }}
         />
         <input
-          aria-label="Email (optional — confirmation is sent only if given)"
+          aria-label={t("form.email")}
           type="email"
           maxLength={320}
           value={email}
-          placeholder="Email — optional, confirmation is sent only if given"
+          placeholder={t("form.email")}
           className={cn(bareInputClass, "mt-3 text-sm")}
           onChange={(e) => { setEmail(e.target.value); clearOverlap(); }}
         />
         <textarea
-          aria-label="Note (optional)"
+          aria-label={t("form.note")}
           maxLength={2000}
           rows={2}
           value={note}
-          placeholder="Add a note…"
+          placeholder={t("form.notePlaceholder")}
           className={cn(bareInputClass, "mt-3 resize-none text-sm")}
           onChange={(e) => { setNote(e.target.value); clearOverlap(); }}
         />
@@ -178,13 +182,13 @@ export function AppointmentBookingForm({
             inputs wore browser chrome no theme could reach. */}
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <DatePicker
-            label="Date"
+            label={t("form.date")}
             value={date}
             className={pillClass}
             onCommit={(d) => { setDate(d); clearOverlap(); }}
           />
           <TimeCombobox
-            label={`Starts at (${timeZone})`}
+            label={t("form.startsAt", { tz: timeZone })}
             value={startTime}
             options={TIME_OPTIONS}
             className={cn(pillClass, "w-20 text-center")}
@@ -192,7 +196,7 @@ export function AppointmentBookingForm({
           />
           <span aria-hidden className="text-muted-foreground text-xs">–</span>
           <TimeCombobox
-            label="Ends at"
+            label={t("form.endsAt")}
             value={effectiveEndTime}
             options={endOptions(startTime)}
             className={cn(pillClass, "w-20 text-center")}
@@ -201,7 +205,7 @@ export function AppointmentBookingForm({
           {activeStaff.length > 1 ? (
             <span className="relative inline-flex">
               <select
-                aria-label="Team member"
+                aria-label={t("teamMember")}
                 className={cn(pillClass, "appearance-none pr-6")}
                 value={staffId}
                 disabled={eligible.length === 0}
@@ -215,33 +219,32 @@ export function AppointmentBookingForm({
             </span>
           ) : null}
           <span className="text-muted-foreground text-xs">
-            {durationMin > 0 ? `${durationMin} min` : "—"} · {timeZone}
+            {durationMin > 0 ? tUnits("minutes", { count: durationMin }) : "—"} · {timeZone}
           </span>
         </div>
         {outsideHours ? (
           <p className="mt-3 text-xs text-amber-600 dark:text-amber-500">
-            Outside your open hours — allowed for bookings you create yourself.
+            {t("form.outsideHours")}
           </p>
         ) : null}
         {insideNotice && !tooFarPast ? (
           <p className="mt-3 text-xs text-amber-600 dark:text-amber-500">
-            Inside this service’s minimum-notice window — allowed for bookings you create yourself.
+            {t("form.insideNotice")}
           </p>
         ) : null}
         {tooFarPast ? (
           <p className="text-destructive mt-3 text-xs">
-            This time is more than 24 hours in the past — bookings can’t be recorded that far
-            back. Pick a slot from the last day, or a future one.
+            {t("form.tooFarPast")}
           </p>
         ) : null}
         {invalidDuration ? (
           <p className="text-destructive mt-3 text-xs">
-            End must be after the start — between 5 minutes and 8 hours long.
+            {t("form.invalidDuration")}
           </p>
         ) : null}
         {serviceId && !staffId ? (
           <p className="text-destructive mt-3 text-xs">
-            Nobody on the team offers this service yet — assign someone on the Services page.
+            {t("form.nobodyOffers")}
           </p>
         ) : null}
         {overlapError ? <p className="text-destructive mt-3 text-xs">{overlapError}</p> : null}
@@ -253,7 +256,7 @@ export function AppointmentBookingForm({
           variant="brand"
           disabled={pending || !serviceId || !staffId || tooFarPast || invalidDuration || !validDate || !validStart}
         >
-          {pending ? "Creating…" : "Create booking"}
+          {pending ? tCommon("creating") : t("create.button")}
         </Button>
       </DialogFooter>
     </form>

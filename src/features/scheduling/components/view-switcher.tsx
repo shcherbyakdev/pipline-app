@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { viewSwitcherItems, type BookingsView } from "@/features/scheduling/bookings-views";
 import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
 
@@ -6,7 +7,7 @@ import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segment
    navigation, not state, so the view survives a refresh and can be shared).
    Rendered by every branch of the Bookings page so the three words never
    drift again (admin IA spec §2). */
-export function ViewSwitcher({
+export async function ViewSwitcher({
   current,
   showTimeline,
   scopeQuery,
@@ -16,9 +17,10 @@ export function ViewSwitcher({
   /** "show=…" from bookings-scope.ts — Week and List carry it, Timeline drops it. */
   scopeQuery?: string;
 }) {
+  const t = await getTranslations("bookings");
   const items = viewSwitcherItems({ current, showTimeline, scopeQuery });
   return (
-    <nav aria-label="Bookings view" className={SEGMENTED_NAV_CLASS}>
+    <nav aria-label={t("view.label")} className={SEGMENTED_NAV_CLASS}>
       {items.map((item) => (
         <Link
           key={item.view}
@@ -26,7 +28,7 @@ export function ViewSwitcher({
           aria-current={item.current ? "page" : undefined}
           className={segmentedItemClass(item.current)}
         >
-          {item.label}
+          {t(`view.${item.view}`)}
         </Link>
       ))}
     </nav>

@@ -8,9 +8,9 @@ const sel = { date: "2026-08-25", startMin: 600, endMin: 660 };
 
 describe("pickerLabel", () => {
   it("names both, one, or the other", () => {
-    expect(pickerLabel(true, true)).toBe("Space or service");
-    expect(pickerLabel(true, false)).toBe("Service");
-    expect(pickerLabel(false, true)).toBe("Space");
+    expect(pickerLabel(true, true)).toBe("spaces.pickerBoth");
+    expect(pickerLabel(true, false)).toBe("appointments.field");
+    expect(pickerLabel(false, true)).toBe("spaces.field");
   });
 });
 

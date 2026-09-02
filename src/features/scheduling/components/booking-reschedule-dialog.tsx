@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
+import { INTL_LOCALES } from "@/i18n/config";
 import { ChevronDownIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -30,16 +32,16 @@ const todayISO = (timeZone: string) => dateInZone(new Date(), timeZone);
 
 // "Week of Mon 24 Aug": noon UTC pins the calendar date whatever the
 // browser's offset (date-overrides.tsx precedent).
-const weekLabel = (date: string) =>
-  new Intl.DateTimeFormat(undefined, {
+const weekLabel = (date: string, intlLocale: string) =>
+  new Intl.DateTimeFormat(intlLocale, {
     weekday: "short",
     day: "numeric",
     month: "short",
     timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00Z`));
 
-const slotLabel = (iso: string) =>
-  new Intl.DateTimeFormat(undefined, {
+const slotLabel = (iso: string, intlLocale: string) =>
+  new Intl.DateTimeFormat(intlLocale, {
     weekday: "short",
     day: "2-digit",
     month: "short",
@@ -62,6 +64,9 @@ export function BookingRescheduleDialog({
   // one down to the pixel.
   eligibleStaff: StaffRow[];
 }) {
+  const t = useTranslations("bookings");
+  const tCommon = useTranslations("common");
+  const intlLocale = INTL_LOCALES[useLocale()];
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const [fromDate, setFromDate] = React.useState(() => todayISO(timeZone));
@@ -124,17 +129,10 @@ export function BookingRescheduleDialog({
         toast.error(res.error);
         if ("slotTaken" in res && res.slotTaken) loadSlots(fromDate, staffId);
       } else {
-        const moved = res.movedToStaffName ? ` to ${res.movedToStaffName}` : "";
-        if (res.noEmail)
-          toast.success(
-            `Booking moved${moved} — no email on file for this client.`,
-          );
-        else if (res.emailed)
-          toast.success(`Booking moved${moved} — the client has been emailed`);
-        else
-          toast.warning(
-            "Booking moved — but the email with the new manage link failed. Contact the client directly.",
-          );
+        const name = res.movedToStaffName ?? "none";
+        if (res.noEmail) toast.success(t("reschedule.movedNoEmail", { name }));
+        else if (res.emailed) toast.success(t("reschedule.movedEmailed", { name }));
+        else toast.warning(t("reschedule.movedEmailFailed"));
         setOpen(false);
       }
     });
@@ -144,7 +142,7 @@ export function BookingRescheduleDialog({
       <DialogTrigger
         render={
           <Button variant="outline" size="sm">
-            Reschedule
+            {t("reschedule.button")}
           </Button>
         }
       />
@@ -152,12 +150,12 @@ export function BookingRescheduleDialog({
         <DialogBreadcrumbHeader
           chip={<DialogChip tone="time">{booking.serviceName}</DialogChip>}
         >
-          Move for {booking.clientName}
+          {t("reschedule.title", { name: booking.clientName })}
         </DialogBreadcrumbHeader>
         <div className="flex flex-col gap-4 px-5 pt-4 pb-6">
           {eligibleStaff.length > 1 ? (
             <div className="flex items-center gap-2">
-              <Label htmlFor="rs-staff">Move to</Label>
+              <Label htmlFor="rs-staff">{t("reschedule.moveTo")}</Label>
               <span className="relative inline-flex">
                 <select
                   id="rs-staff"
@@ -181,7 +179,7 @@ export function BookingRescheduleDialog({
           ) : null}
           <div className="flex items-center justify-between">
             <p className="text-muted-foreground text-sm">
-              Week of {weekLabel(fromDate)}
+              {t("reschedule.weekOf", { date: weekLabel(fromDate, intlLocale) })}
             </p>
             <div className="flex gap-1">
               <Button
@@ -189,7 +187,7 @@ export function BookingRescheduleDialog({
                 size="sm"
                 onClick={() => nav(-7)}
                 disabled={pending || fromDate <= todayISO(timeZone)}
-                aria-label="Previous week"
+                aria-label={t("prevWeek")}
               >
                 ←
               </Button>
@@ -198,18 +196,16 @@ export function BookingRescheduleDialog({
                 size="sm"
                 onClick={() => nav(7)}
                 disabled={pending}
-                aria-label="Next week"
+                aria-label={t("nextWeek")}
               >
                 →
               </Button>
             </div>
           </div>
           {slots === null ? (
-            <p className="text-muted-foreground text-sm">Loading…</p>
+            <p className="text-muted-foreground text-sm">{tCommon("loading")}</p>
           ) : slots.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No free times this week.
-            </p>
+            <p className="text-muted-foreground text-sm">{t("reschedule.noFreeTimes")}</p>
           ) : (
             <div className="grid max-h-64 grid-cols-2 gap-2 overflow-y-auto">
               {slots.map((s) => (
@@ -220,14 +216,12 @@ export function BookingRescheduleDialog({
                   disabled={pending}
                   onClick={() => pick(s)}
                 >
-                  {slotLabel(s)}
+                  {slotLabel(s, intlLocale)}
                 </Button>
               ))}
             </div>
           )}
-          <p className="text-muted-foreground text-xs">
-            Times in your browser timezone; org timezone: {timeZone}.
-          </p>
+          <p className="text-muted-foreground text-xs">{t("reschedule.tzNote", { tz: timeZone })}</p>
         </div>
       </DialogContent>
     </Dialog>

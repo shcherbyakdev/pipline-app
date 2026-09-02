@@ -47,13 +47,8 @@ import {
   adminHourlySlotsInput,
   createRentalHoursAdminInput,
   rescheduleRentalHoursAdminInput,
-  CHECK_IN_PASSED,
-  DATES_TAKEN,
-  STAY_STARTED,
-  SESSION_STARTED,
-  SLOT_TAKEN_HOURLY,
-  GENERIC_WRITE_ERROR,
 } from "./schema";
+import { getTranslations } from "next-intl/server";
 
 // Admin posture (Task 10, the R2 ignoreLimits equivalent): the provider is
 // not bound by their own offering's notice/booking-window policy — occupancy
@@ -64,13 +59,14 @@ function adminHourlyService(offering: HourlyOffering, durationMin: number) {
   return { ...hourlySlotService(offering, durationMin), minNoticeMin: 0, bookingWindowDays: 366 };
 }
 
-// An offering that is no longer active comes back as the same uniform 'not
-// found' raise as everything else; say what actually went wrong.
-const OFFERING_INACTIVE = "This offering is inactive — reactivate it to move its stays.";
-
-function fail(context: string, error: unknown): { ok: false; error: string } {
+// Every refusal is an `errors.*` key resolved in the admin's language (i18n
+// Wave 3): each action takes `t` up front; fail() resolves its own generic.
+// A space that is no longer active comes back as the same uniform 'not
+// found' raise as everything else — `bookings.spaceInactive` says what
+// actually went wrong.
+async function fail(context: string, error: unknown): Promise<{ ok: false; error: string }> {
   console.error(`[rentals] ${context}:`, error);
-  return { ok: false, error: GENERIC_WRITE_ERROR };
+  return { ok: false, error: (await getTranslations("errors"))("generic") };
 }
 
 // booking-actions.ts (scheduling) idiom: the session's single org. Every
@@ -115,19 +111,20 @@ export async function getAdminRangeAvailability(input: unknown): Promise<
   | { ok: true; availability: RangeAvailability; units: PublicUnit[]; offering: PublicOffering }
   | { ok: false; error: string }
 > {
+  const t = await getTranslations("errors");
   const parsed = adminRangeAvailabilityInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   const { offeringId, fromDate, days, excludeBookingId } = parsed.data;
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const ctx = await loadOrgRangeContext(org.id, offeringId, fromDate, days, {
       includeInactiveUnits: true,
     });
     if (!ctx) {
       return (await offeringIsInactive(org.id, offeringId))
-        ? { ok: false, error: OFFERING_INACTIVE }
-        : { ok: false, error: GENERIC_WRITE_ERROR };
+        ? { ok: false, error: t("bookings.spaceInactive") }
+        : { ok: false, error: t("generic") };
     }
     const availability = computeRangeAvailability({
       offering: asEngineOffering(ctx.offering),
@@ -161,12 +158,13 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
   | { ok: true; unitChanged: boolean; datesChanged: boolean; emailed: boolean }
   | { ok: false; error: string; datesTaken?: boolean }
 > {
+  const t = await getTranslations("errors");
   const parsed = rescheduleRentalAdminInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   const { id, unitId, startDate, endDate } = parsed.data;
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
     const { data: booking, error: readError } = await supabase
       .from("bookings")
@@ -185,11 +183,11 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
       rental_offerings: { unit_selection: "auto" | "client_picks" } | null;
     } | null;
     if (!row || row.rental_offering_id === null) {
-      return { ok: false, error: "Only a confirmed stay can be moved." };
+      return { ok: false, error: t("bookings.stayNotMovable") };
     }
     // Same rule as the RPC's 'started' raise, said before the round trip.
     if (new Date(row.starts_at).getTime() <= Date.now()) {
-      return { ok: false, error: STAY_STARTED };
+      return { ok: false, error: t("stayStarted") };
     }
 
     const span = engineSpan(startDate, endDate);
@@ -199,8 +197,8 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
     });
     if (!ctx) {
       return (await offeringIsInactive(org.id, row.rental_offering_id))
-        ? { ok: false, error: OFFERING_INACTIVE }
-        : { ok: false, error: GENERIC_WRITE_ERROR };
+        ? { ok: false, error: t("bookings.spaceInactive") }
+        : { ok: false, error: t("generic") };
     }
 
     // A same-day move past today's check-in time can never be cancelled, so
@@ -209,7 +207,7 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
     // never an hours offering here) — startTime is set (0056 CHECK).
     const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime!, org.timezone);
     if (startsAt.getTime() <= Date.now()) {
-      return { ok: false, error: CHECK_IN_PASSED, datesTaken: true };
+      return { ok: false, error: t("checkInPassed"), datesTaken: true };
     }
 
     const availability = computeRangeAvailability({
@@ -229,11 +227,11 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
       // order/min_stay/max_stay/window mean the dialog let a bad range
       // through — picking again won't help.
       return stay.reason === "unavailable"
-        ? { ok: false, error: DATES_TAKEN, datesTaken: true }
-        : { ok: false, error: GENERIC_WRITE_ERROR };
+        ? { ok: false, error: t("datesTaken"), datesTaken: true }
+        : { ok: false, error: t("generic") };
     }
     if (unitId !== null && !stay.unitIds.includes(unitId)) {
-      return { ok: false, error: DATES_TAKEN, datesTaken: true };
+      return { ok: false, error: t("datesTaken"), datesTaken: true };
     }
 
     const fresh = generateAccessToken();
@@ -245,8 +243,8 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
       p_new_token_hash: fresh.tokenHash,
     });
     if (error) {
-      if (isStarted(error)) return { ok: false, error: STAY_STARTED };
-      if (isTaken(error)) return { ok: false, error: DATES_TAKEN, datesTaken: true };
+      if (isStarted(error)) return { ok: false, error: t("stayStarted") };
+      if (isTaken(error)) return { ok: false, error: t("datesTaken"), datesTaken: true };
       return fail("rescheduleRentalBookingAdmin", error);
     }
     const moved = (data as Array<{
@@ -264,7 +262,7 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
       unit_changed: boolean;
       dates_changed: boolean;
     }> | null)?.[0];
-    if (!moved) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!moved) return { ok: false, error: t("generic") };
 
     // Notification rules (R2 spec): the client hears about a date change; a
     // unit swap only matters to a client who chose the unit themselves; an
@@ -328,26 +326,27 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
 export async function createRentalBookingAdmin(
   input: unknown,
 ): Promise<{ ok: true; emailed: boolean } | { ok: false; error: string; datesTaken?: boolean }> {
+  const t = await getTranslations("errors");
   const parsed = createRentalAdminInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   const { offeringId, unitId, startDate, endDate, name, email, note } = parsed.data;
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const span = engineSpan(startDate, endDate);
     const ctx = await loadOrgRangeContext(org.id, offeringId, startDate, span, {
       includeInactiveUnits: true,
     });
     if (!ctx) {
       return (await offeringIsInactive(org.id, offeringId))
-        ? { ok: false, error: OFFERING_INACTIVE }
-        : { ok: false, error: GENERIC_WRITE_ERROR };
+        ? { ok: false, error: t("bookings.spaceInactive") }
+        : { ok: false, error: t("generic") };
     }
 
     // Nights/days-only action (as above) — startTime is set (0056 CHECK).
     const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime!, org.timezone);
     if (startsAt.getTime() <= Date.now()) {
-      return { ok: false, error: CHECK_IN_PASSED, datesTaken: true };
+      return { ok: false, error: t("checkInPassed"), datesTaken: true };
     }
 
     const availability = computeRangeAvailability({
@@ -364,11 +363,11 @@ export async function createRentalBookingAdmin(
     const stay = validateStay(asEngineOffering(ctx.offering), availability, startDate, endDate);
     if (!stay.ok) {
       return stay.reason === "unavailable"
-        ? { ok: false, error: DATES_TAKEN, datesTaken: true }
-        : { ok: false, error: GENERIC_WRITE_ERROR };
+        ? { ok: false, error: t("datesTaken"), datesTaken: true }
+        : { ok: false, error: t("generic") };
     }
     if (unitId !== null && !stay.unitIds.includes(unitId)) {
-      return { ok: false, error: DATES_TAKEN, datesTaken: true };
+      return { ok: false, error: t("datesTaken"), datesTaken: true };
     }
 
     const supabase = await createClient();
@@ -384,7 +383,7 @@ export async function createRentalBookingAdmin(
       p_token_hash: tokenHash,
     });
     if (error) {
-      if (isTaken(error)) return { ok: false, error: DATES_TAKEN, datesTaken: true };
+      if (isTaken(error)) return { ok: false, error: t("datesTaken"), datesTaken: true };
       return fail("createRentalBookingAdmin", error);
     }
 
@@ -432,12 +431,13 @@ export async function getAdminHourlySlots(input: unknown): Promise<
   | { ok: true; slots: { startsAt: string; unitIds: string[] }[]; units: PublicUnit[] }
   | { ok: false; error: string }
 > {
+  const t = await getTranslations("errors");
   const parsed = adminHourlySlotsInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   const { offeringId, durationMin, fromDate, days, unitId, excludeBookingId } = parsed.data;
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const ctx = await loadOrgHourlyContext(org.id, offeringId, org.timezone, fromDate, days, {
       unitId: unitId ?? undefined,
       excludeBookingId: excludeBookingId ?? undefined,
@@ -445,11 +445,11 @@ export async function getAdminHourlySlots(input: unknown): Promise<
     });
     if (!ctx || !isHourlyOffering(ctx.offering)) {
       return (await offeringIsInactive(org.id, offeringId))
-        ? { ok: false, error: OFFERING_INACTIVE }
-        : { ok: false, error: GENERIC_WRITE_ERROR };
+        ? { ok: false, error: t("bookings.spaceInactive") }
+        : { ok: false, error: t("generic") };
     }
     if (!durationOptions(ctx.offering).includes(durationMin)) {
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return { ok: false, error: t("generic") };
     }
     const service = adminHourlyService(ctx.offering, durationMin);
     const now = new Date();
@@ -481,12 +481,13 @@ export async function getAdminHourlySlots(input: unknown): Promise<
 export async function createRentalBookingHoursAdmin(
   input: unknown,
 ): Promise<{ ok: true; emailed: boolean } | { ok: false; error: string; slotTaken?: boolean }> {
+  const t = await getTranslations("errors");
   const parsed = createRentalHoursAdminInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   const { offeringId, unitId, startsAt, durationMin, name, email, note } = parsed.data;
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const starts = new Date(startsAt);
     const localDate = dateInZone(starts, org.timezone);
     const ctx = await loadOrgHourlyContext(org.id, offeringId, org.timezone, localDate, 2, {
@@ -494,11 +495,11 @@ export async function createRentalBookingHoursAdmin(
     });
     if (!ctx || !isHourlyOffering(ctx.offering)) {
       return (await offeringIsInactive(org.id, offeringId))
-        ? { ok: false, error: OFFERING_INACTIVE }
-        : { ok: false, error: GENERIC_WRITE_ERROR };
+        ? { ok: false, error: t("bookings.spaceInactive") }
+        : { ok: false, error: t("generic") };
     }
     if (!durationOptions(ctx.offering).includes(durationMin)) {
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return { ok: false, error: t("generic") };
     }
 
     // Engine re-check (createRentalBookingAdmin idiom): the friendly-error
@@ -524,7 +525,7 @@ export async function createRentalBookingHoursAdmin(
     );
     const match = slots.find((s) => s.startsAt.getTime() === starts.getTime());
     if (!match || (unitId !== null && !match.unitIds.includes(unitId))) {
-      return { ok: false, error: SLOT_TAKEN_HOURLY, slotTaken: true };
+      return { ok: false, error: t("slotTaken"), slotTaken: true };
     }
 
     const supabase = await createClient();
@@ -540,7 +541,7 @@ export async function createRentalBookingHoursAdmin(
       p_token_hash: tokenHash,
     });
     if (error) {
-      if (isTaken(error)) return { ok: false, error: SLOT_TAKEN_HOURLY, slotTaken: true };
+      if (isTaken(error)) return { ok: false, error: t("slotTaken"), slotTaken: true };
       return fail("createRentalBookingHoursAdmin", error);
     }
 
@@ -582,12 +583,13 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
   | { ok: true; unitChanged: boolean; datesChanged: boolean; emailed: boolean }
   | { ok: false; error: string; datesTaken?: boolean }
 > {
+  const t = await getTranslations("errors");
   const parsed = rescheduleRentalHoursAdminInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   const { id, unitId, startsAt } = parsed.data;
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
     const { data: booking, error: readError } = await supabase
       .from("bookings")
@@ -609,11 +611,11 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
       rental_offerings: { unit_selection: "auto" | "client_picks" } | null;
     } | null;
     if (!row || row.rental_offering_id === null) {
-      return { ok: false, error: "Only a confirmed booking can be moved." };
+      return { ok: false, error: t("bookings.notMovable") };
     }
     // Same rule as the RPC's own 'started' raise, said before the round trip.
     if (new Date(row.starts_at).getTime() <= Date.now()) {
-      return { ok: false, error: SESSION_STARTED };
+      return { ok: false, error: t("bookings.alreadyStarted") };
     }
 
     // Same-duration ruling: the new booking's span is the OLD booking's
@@ -631,8 +633,8 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
     });
     if (!ctx || !isHourlyOffering(ctx.offering)) {
       return (await offeringIsInactive(org.id, row.rental_offering_id))
-        ? { ok: false, error: OFFERING_INACTIVE }
-        : { ok: false, error: GENERIC_WRITE_ERROR };
+        ? { ok: false, error: t("bookings.spaceInactive") }
+        : { ok: false, error: t("generic") };
     }
 
     const service = adminHourlyService(ctx.offering, durationMin);
@@ -653,7 +655,7 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
     );
     const match = slots.find((s) => s.startsAt.getTime() === starts.getTime());
     if (!match || (unitId !== null && !match.unitIds.includes(unitId))) {
-      return { ok: false, error: SLOT_TAKEN_HOURLY, datesTaken: true };
+      return { ok: false, error: t("slotTaken"), datesTaken: true };
     }
 
     const fresh = generateAccessToken();
@@ -664,8 +666,8 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
       p_new_token_hash: fresh.tokenHash,
     });
     if (error) {
-      if (isStarted(error)) return { ok: false, error: SESSION_STARTED };
-      if (isTaken(error)) return { ok: false, error: SLOT_TAKEN_HOURLY, datesTaken: true };
+      if (isStarted(error)) return { ok: false, error: t("bookings.alreadyStarted") };
+      if (isTaken(error)) return { ok: false, error: t("slotTaken"), datesTaken: true };
       return fail("rescheduleRentalHoursAdmin", error);
     }
     const moved = (data as Array<{
@@ -683,7 +685,7 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
       unit_changed: boolean;
       dates_changed: boolean;
     }> | null)?.[0];
-    if (!moved) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!moved) return { ok: false, error: t("generic") };
 
     // Same notification rules as rescheduleRentalBookingAdmin (R2 spec): the
     // client hears about a time change; a unit swap only matters to a

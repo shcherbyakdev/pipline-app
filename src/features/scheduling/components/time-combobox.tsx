@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useTranslations } from "next-intl"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { CheckIcon } from "lucide-react"
 
@@ -45,6 +46,7 @@ export function TimeCombobox({
   /** Input overrides — e.g. the dialog pill (dialogPillClass). */
   className?: string
 }) {
+  const t = useTranslations("bookings")
   const reactId = React.useId()
   const listboxId = `${reactId}-listbox`
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -219,7 +221,7 @@ export function TimeCombobox({
             <ul id={listboxId} role="listbox" aria-label={label} className="flex flex-col gap-0.5">
               {filtered.length === 0 ? (
                 <li className="px-2 py-1.5 text-center text-sm text-muted-foreground">
-                  No matches
+                  {t("timeCombobox.noMatches")}
                 </li>
               ) : (
                 filtered.map((opt, i) => {

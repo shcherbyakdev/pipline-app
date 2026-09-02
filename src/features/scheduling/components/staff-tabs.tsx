@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 
 /* The segmented idiom now lives in components/ui/segmented.ts (one look for
@@ -17,7 +18,7 @@ import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segment
    renders nothing at all and the page looks exactly as it did before the team
    slice. Guarded here too, so no caller can accidentally show a one-tab
    switcher. */
-export function StaffTabs({
+export async function StaffTabs({
   staff,
   current,
   hrefFor,
@@ -27,8 +28,9 @@ export function StaffTabs({
   hrefFor: (id: string) => string;
 }) {
   if (staff.length < 2) return null;
+  const t = await getTranslations("bookings");
   return (
-    <nav aria-label="Team member" className={SEGMENTED_NAV_CLASS}>
+    <nav aria-label={t("teamMember")} className={SEGMENTED_NAV_CLASS}>
       {staff.map((person) => {
         const active = person.id === current;
         return (

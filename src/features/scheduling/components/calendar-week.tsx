@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
@@ -20,11 +21,10 @@ import { BookingDetailDialog } from "./booking-detail-dialog";
 import { NewBookingDialog } from "./new-booking-dialog";
 import { defaultSlotLength, dragInitial } from "@/features/scheduling/booking-kinds";
 import type { OfferingOption } from "@/features/rentals/offering-option";
-import { SPACES } from "@/features/orgs/vocab";
+import { INTL_LOCALES } from "@/i18n/config";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { House01Icon } from "@hugeicons/core-free-icons";
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HATCH: React.CSSProperties = {
   backgroundImage:
     "repeating-linear-gradient(45deg, transparent, transparent 5px, var(--border) 5px, var(--border) 6px)",
@@ -99,9 +99,15 @@ export function CalendarWeek({
   prevHref: string;
   nextHref: string;
 }) {
+  const t = useTranslations("bookings");
+  const tSpaces = useTranslations("spaces");
+  const intlLocale = INTL_LOCALES[useLocale()];
+  // "Mon" in the admin's language; noon UTC pins the calendar date.
+  const weekdayFmt = new Intl.DateTimeFormat(intlLocale, { weekday: "short", timeZone: "UTC" });
+  const weekday = (d: string) => weekdayFmt.format(new Date(`${d}T12:00:00Z`));
   const isTeam = staff.length > 1;
   const requireOneStaff = () => {
-    toast.info("Pick one team member to block time.");
+    toast.info(t("week.pickOneToBlock"));
   };
   const days = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
   const windowsByDay = days.map((d) => effectiveWindows(d, rules, exceptions));
@@ -258,7 +264,7 @@ export function CalendarWeek({
         endTime: minToTime(selection.endMin),
       });
       if (!result.ok) toast.error(result.error);
-      else toast.success("Time blocked.");
+      else toast.success(t("week.timeBlocked"));
       setSelection(null);
       router.refresh();
     });
@@ -275,7 +281,7 @@ export function CalendarWeek({
         endTime: minToTime(selection.endMin),
       });
       if (!result.ok) toast.error(result.error);
-      else toast.success("Time unblocked.");
+      else toast.success(t("week.timeUnblocked"));
       setSelection(null);
       router.refresh();
     });
@@ -286,7 +292,7 @@ export function CalendarWeek({
     startBusy(async () => {
       const result = await reopenDay({ staffId: editStaffId, date });
       if (!result.ok) toast.error(result.error);
-      else toast.success("Day reopened — weekly hours restored.");
+      else toast.success(t("week.dayReopened"));
       setSelection(null);
       router.refresh();
     });
@@ -340,7 +346,7 @@ export function CalendarWeek({
         <div className={cn("grid shrink-0 pb-2", GRID_COLS)}>
           <Link
             href={prevHref}
-            aria-label="Previous week"
+            aria-label={t("prevWeek")}
             className={cn(
               buttonVariants({ variant: "outline", size: "sm" }),
               "size-7 self-center justify-self-center p-0",
@@ -348,7 +354,7 @@ export function CalendarWeek({
           >
             <ChevronLeft className="size-4" />
           </Link>
-          {days.map((d, i) => {
+          {days.map((d) => {
             const isToday = nowParts?.date === d;
             return (
               <div key={d} className="flex items-center justify-center py-2">
@@ -359,7 +365,7 @@ export function CalendarWeek({
                   )}
                 >
                   <span className={cn("text-xs", isToday ? "text-primary-foreground/75" : "text-muted-foreground")}>
-                    {DAY_LABELS[(i + 1) % 7]}
+                    {weekday(d)}
                   </span>
                   <span className="text-sm font-semibold">{Number(d.slice(8, 10))}</span>
                 </span>
@@ -368,7 +374,7 @@ export function CalendarWeek({
           })}
           <Link
             href={nextHref}
-            aria-label="Next week"
+            aria-label={t("nextWeek")}
             className={cn(
               buttonVariants({ variant: "outline", size: "sm" }),
               "size-7 self-center justify-self-center p-0",
@@ -402,7 +408,7 @@ export function CalendarWeek({
                     style={{ borderLeft: `3px solid ${serviceAccent(b.rentalOfferingId ?? "")}` }}
                   >
                     {b.serviceName}
-                    {b.status === "pending" ? <span className="sr-only"> · Pending</span> : null}
+                    {b.status === "pending" ? <span className="sr-only"> · {t("status.pending")}</span> : null}
                   </button>
                 ))}
               </div>
@@ -476,7 +482,7 @@ export function CalendarWeek({
                   type="button"
                   data-cal-tile={`${di}:${h}`}
                   tabIndex={focusCell.di === di && focusCell.h === h ? 0 : -1}
-                  aria-label={`${DAY_LABELS[(di + 1) % 7]} ${Number(d.slice(8, 10))}, ${String(h).padStart(2, "0")}:00${tile.fullyClosed ? " (closed hours)" : ""}`}
+                  aria-label={`${weekday(d)} ${Number(d.slice(8, 10))}, ${String(h).padStart(2, "0")}:00${tile.fullyClosed ? ` (${t("week.closedHours")})` : ""}`}
                   onFocus={() => setFocusCell({ di, h })}
                   onClick={(e) => {
                     // Keyboard activation only (detail 0) — a pointer click's
@@ -603,7 +609,7 @@ export function CalendarWeek({
                         {isSpace ? (
                           <>
                             <HugeiconsIcon icon={House01Icon} size={12} className="inline-block shrink-0 align-[-1px]" aria-hidden />
-                            <span className="sr-only">{SPACES.badge} · </span>{" "}
+                            <span className="sr-only">{tSpaces("badge")} · </span>{" "}
                           </>
                         ) : null}
                         {b.serviceName}
@@ -614,7 +620,7 @@ export function CalendarWeek({
                       {isSpace ? (
                         <>
                           <HugeiconsIcon icon={House01Icon} size={12} className="inline-block shrink-0 align-[-1px]" aria-hidden />
-                          <span className="sr-only">{SPACES.badge} · </span>{" "}
+                          <span className="sr-only">{tSpaces("badge")} · </span>{" "}
                         </>
                       ) : null}
                       {b.serviceName}
@@ -631,7 +637,7 @@ export function CalendarWeek({
                   {/* The word, not just the dashes: a sliver of a card has no
                       room for it on screen but still owes it to a reader. */}
                   {b.status === "pending" ? (
-                    <span className={cn("text-muted-foreground", compact ? "sr-only" : "block")}>Pending</span>
+                    <span className={cn("text-muted-foreground", compact ? "sr-only" : "block")}>{t("status.pending")}</span>
                   ) : null}
                 </button>
               );
@@ -659,22 +665,22 @@ export function CalendarWeek({
                       </span>
                       {dragPrefill ? (
                         <Button size="sm" className="h-7" onClick={() => setCreateOpen(true)}>
-                          New booking
+                          {t("new.title")}
                         </Button>
                       ) : null}
                       {blockable && touchesOpen ? (
                         <Button size="sm" variant="ghost" className="h-7" onClick={blockSelected} disabled={busy}>
-                          Block
+                          {t("week.block")}
                         </Button>
                       ) : null}
                       {blockable && touchesBlocked ? (
                         <Button size="sm" variant="ghost" className="h-7" onClick={unblockSelected} disabled={busy}>
-                          Unblock
+                          {t("week.unblock")}
                         </Button>
                       ) : null}
                       {blockable && dayHasExceptions(d) ? (
                         <Button size="sm" variant="ghost" className="h-7" onClick={() => reopenSelected(d)} disabled={busy}>
-                          Reopen day
+                          {t("week.reopenDay")}
                         </Button>
                       ) : null}
                     </div>
@@ -693,7 +699,7 @@ export function CalendarWeek({
                 className="absolute left-1.5 -translate-y-1/2 text-[11px] text-muted-foreground"
                 style={{ top: `${pct((startHour + i) * 60 + 30)}%` }}
               >
-                {`${String(startHour + i).padStart(2, "0")}:00`}
+                {minToTime((startHour + i) * 60)}
               </div>
             ))}
           </div>
@@ -710,15 +716,15 @@ export function CalendarWeek({
             className="border-border h-3.5 w-5 shrink-0 rounded-[3px] border"
             style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 3px, var(--input) 3px, var(--input) 4px)" }}
           />
-          Closed hours
+          {t("week.closedHours")}
         </span>
-        <span>Click or drag on the grid to add a booking{blockable ? " or block time" : ""}.</span>
+        <span>{blockable ? t("week.hintBlockable") : t("week.hint")}</span>
       </div>
       {/* Screen-reader narration for the pointer-free path: what got
           selected and how to act on it. */}
       <div aria-live="polite" className="sr-only">
         {selection && !dragging
-          ? `Selected ${minToTime(selection.startMin)} to ${minToTime(selection.endMin)} on ${selection.date}. Tab to actions, Shift plus arrow keys to resize, Escape to cancel.`
+          ? t("week.selected", { start: minToTime(selection.startMin), end: minToTime(selection.endMin), date: selection.date })
           : ""}
       </div>
       <BookingDetailDialog

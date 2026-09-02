@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { hourlyGrid, type OfferingOption } from "@/features/rentals/offering-opt
 import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
 import { durationOptions, formatDurationLabel } from "@/features/rentals/hourly";
 import { dateInZone } from "@/features/scheduling/slots";
+import { INTL_LOCALES } from "@/i18n/config";
 import {
   getAdminRangeAvailability,
   createRentalBookingAdmin,
@@ -53,6 +54,9 @@ export function SpaceBookingForm({
   onDone: () => void;
 }) {
   const tu = useTranslations("public.units");
+  const t = useTranslations("bookings");
+  const tCommon = useTranslations("common");
+  const intlLocale = INTL_LOCALES[useLocale()];
   const router = useRouter();
   const offeringId = offering.id;
   const grid = hourlyGrid(offering);
@@ -244,12 +248,12 @@ export function SpaceBookingForm({
           }
           return;
         }
-        if (result.emailed) toast.success("Booking created — confirmation emailed");
+        if (result.emailed) toast.success(t("create.doneEmailed"));
         else if (email)
           toast.warning(
-            "Booking created — but the confirmation email failed. Contact the client directly.",
+            t("create.doneEmailFailed"),
           );
-        else toast.success("Booking created (no email on file)");
+        else toast.success(t("create.doneNoEmail"));
         onDone();
         router.refresh();
       });
@@ -280,12 +284,12 @@ export function SpaceBookingForm({
         }
         return;
       }
-      if (result.emailed) toast.success("Booking created — confirmation emailed");
+      if (result.emailed) toast.success(t("create.doneEmailed"));
       else if (email)
         toast.warning(
-          "Booking created — but the confirmation email failed. Contact the client directly.",
+          t("create.doneEmailFailed"),
         );
-      else toast.success("Booking created (no email on file)");
+      else toast.success(t("create.doneNoEmail"));
       onDone();
       router.refresh();
     });
@@ -297,7 +301,7 @@ export function SpaceBookingForm({
         <div className="flex flex-col gap-4">
           {durationMin === null ? (
             <div className="flex flex-col gap-2">
-              <p className="text-muted-foreground text-sm">How long?</p>
+              <p className="text-muted-foreground text-sm">{t("form.howLong")}</p>
               {hourOptions.length <= MAX_PILL_OPTIONS ? (
                 <div className="flex flex-wrap gap-2">
                   {hourOptions.map((d) => (
@@ -314,13 +318,13 @@ export function SpaceBookingForm({
                 </div>
               ) : (
                 <select
-                  aria-label="Duration"
+                  aria-label={t("form.duration")}
                   className={selectClass}
                   defaultValue=""
                   onChange={(e) => changeDuration(Number(e.target.value))}
                 >
                   <option value="" disabled>
-                    Choose a duration
+                    {t("form.chooseDuration")}
                   </option>
                   {hourOptions.map((d) => (
                     <option key={d} value={d}>
@@ -348,7 +352,7 @@ export function SpaceBookingForm({
                     className="text-muted-foreground underline"
                     onClick={() => changeDuration(null)}
                   >
-                    change
+                    {t("form.change")}
                   </button>
                 </p>
               }
@@ -357,7 +361,7 @@ export function SpaceBookingForm({
             <form action={submit} className="flex flex-col gap-3">
               <p className="text-sm">
                 {formatDurationLabel(durationMin, tu)} ·{" "}
-                {new Intl.DateTimeFormat("en-GB", {
+                {new Intl.DateTimeFormat(intlLocale, {
                   weekday: "short",
                   day: "2-digit",
                   month: "short",
@@ -365,11 +369,11 @@ export function SpaceBookingForm({
                   minute: "2-digit",
                 }).format(new Date(slot))}{" "}
                 <button type="button" className="text-muted-foreground underline" onClick={backToTime}>
-                  change
+                  {t("form.change")}
                 </button>
               </p>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="new-rental-hour-unit">Unit</Label>
+                <Label htmlFor="new-rental-hour-unit">{t("form.unit")}</Label>
                 <UnitSelect
                   id="new-rental-hour-unit"
                   units={hourUnits}
@@ -380,14 +384,14 @@ export function SpaceBookingForm({
               </div>
               <ClientDetailsFields emailOptional idPrefix="new-rental-hour-" />
               <Button type="submit" disabled={pending}>
-                {pending ? "Creating…" : "Create booking"}
+                {pending ? tCommon("creating") : t("create.button")}
               </Button>
             </form>
           )}
           {error ? <p className="text-destructive text-sm">{error}</p> : null}
         </div>
       ) : loaded === null ? (
-        <p className="text-muted-foreground text-sm">{error ?? "Loading availability…"}</p>
+        <p className="text-muted-foreground text-sm">{error ?? t("form.loadingAvailability")}</p>
       ) : (
         <div className="flex flex-col gap-4">
           <RangePicker
@@ -405,7 +409,7 @@ export function SpaceBookingForm({
           {range.start && range.end ? (
             <form action={submit} className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="new-rental-unit">Unit</Label>
+                <Label htmlFor="new-rental-unit">{t("form.unit")}</Label>
                 <UnitSelect
                   id="new-rental-unit"
                   units={units}
@@ -416,7 +420,7 @@ export function SpaceBookingForm({
               </div>
               <ClientDetailsFields emailOptional idPrefix="new-rental-" />
               <Button type="submit" disabled={pending || !stay?.ok}>
-                {pending ? "Creating…" : "Create booking"}
+                {pending ? tCommon("creating") : t("create.button")}
               </Button>
             </form>
           ) : null}

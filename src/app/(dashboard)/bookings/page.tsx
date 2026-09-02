@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { getLocale, getTranslations } from "next-intl/server";
 import {
   listBookings,
   listCalendarBookingsBetween,
@@ -35,6 +36,7 @@ import {
   scopeQuery,
   scopeSides,
   scopedSpace,
+  type ScopeText,
 } from "@/features/scheduling/bookings-scope";
 import type { BookingsView } from "@/features/scheduling/bookings-views";
 import { mondayOf } from "@/features/scheduling/calendar-geometry";
@@ -44,6 +46,7 @@ import { SETUP_DISMISSED_COOKIE, setupChecklist, showWelcome, type ChecklistItem
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
+import { INTL_LOCALES } from "@/i18n/config";
 import { WelcomeBanner } from "@/features/scheduling/components/welcome-banner";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -76,8 +79,16 @@ export default async function BookingsPage({
     staff?: string;
   }>;
 }) {
-  const params = await searchParams;
-  const settings = await getSchedulingSettings();
+  const [t, tRoot, locale, params, settings] = await Promise.all([
+    getTranslations("bookings"),
+    getTranslations(),
+    getLocale(),
+    searchParams,
+    getSchedulingSettings(),
+  ]);
+  // bookings-scope.ts hands back names, keys and counts; the page renders them.
+  const scopeText = (x: ScopeText) =>
+    "name" in x ? x.name : "count" in x ? t("scope.selected", { count: x.count }) : tRoot(x.key);
   const timeZone = settings?.timezone ?? "UTC";
   const today = dateInZone(new Date(), timeZone);
   const { org } = await requireOrg();
@@ -215,19 +226,19 @@ export default async function BookingsPage({
     const arrow = cn(buttonVariants({ variant: "outline", size: "sm" }), "size-7 p-0");
     const nav = (
       <>
-        <nav aria-label="Timeline window" className="flex items-center gap-1">
-          <Link href={`${base}&from=${addDaysISO(fromDate, -shift)}`} aria-label={`Back ${shift} days`} className={arrow}>
+        <nav aria-label={t("timeline.window")} className="flex items-center gap-1">
+          <Link href={`${base}&from=${addDaysISO(fromDate, -shift)}`} aria-label={t("timeline.back", { count: shift })} className={arrow}>
             <ChevronLeft className="size-4" />
           </Link>
-          <span className="text-muted-foreground px-1 text-sm tabular-nums">{windowLabel(fromDate, days)}</span>
-          <Link href={`${base}&from=${addDaysISO(fromDate, shift)}`} aria-label={`Forward ${shift} days`} className={arrow}>
+          <span className="text-muted-foreground px-1 text-sm tabular-nums">{windowLabel(fromDate, days, INTL_LOCALES[locale])}</span>
+          <Link href={`${base}&from=${addDaysISO(fromDate, shift)}`} aria-label={t("timeline.forward", { count: shift })} className={arrow}>
             <ChevronRight className="size-4" />
           </Link>
         </nav>
         <Link href={base} className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
-          Today
+          {tRoot("common.today")}
         </Link>
-        <nav aria-label="Timeline zoom" className={SEGMENTED_NAV_CLASS}>
+        <nav aria-label={t("timeline.zoom")} className={SEGMENTED_NAV_CLASS}>
           {ZOOMS.map((z) => (
             <Link
               key={z}
@@ -235,7 +246,7 @@ export default async function BookingsPage({
               aria-current={z === days ? "page" : undefined}
               className={segmentedItemClass(z === days)}
             >
-              {z / 7} wk
+              {t("timeline.weeks", { count: z / 7 })}
             </Link>
           ))}
         </nav>
@@ -274,7 +285,7 @@ export default async function BookingsPage({
           mode={eff}
           // The "Space" badge tells kinds apart — only where there are two to tell.
           showKind={eff.offersAppointments && sides.people}
-          scopeLabel={scope.kind === "all" ? null : scopeLabel(scope, people, spaces)}
+          scopeLabel={scope.kind === "all" ? null : scopeText(scopeLabel(scope, people, spaces))}
         />
       </div>
     );
@@ -354,7 +365,7 @@ export default async function BookingsPage({
         "week",
         defaultStaffId,
         <Link href={todayHref} className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
-          Today
+          {tRoot("common.today")}
         </Link>,
       )}
       <CalendarWeek

@@ -188,22 +188,29 @@ export function labelDensity(widthPx: number): LabelDensity {
   return "initials";
 }
 
-const DAY_MONTH = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-const MONTH_YEAR = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
-const DAY_MONTH_YEAR = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+// `intlLocale` is the Intl tag (INTL_LOCALES[locale]) — every ruler word
+// follows the admin's language.
+const dayMonthFmt = (intlLocale: string) =>
+  new Intl.DateTimeFormat(intlLocale, { day: "numeric", month: "short", timeZone: "UTC" });
+const monthYearFmt = (intlLocale: string) =>
+  new Intl.DateTimeFormat(intlLocale, { month: "long", year: "numeric", timeZone: "UTC" });
+const dayMonthYearFmt = (intlLocale: string) =>
+  new Intl.DateTimeFormat(intlLocale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const atNoon = (date: string) => new Date(`${date}T12:00:00Z`);
 /** "20 Apr" for an org-local date string. */
-export const dayMonth = (date: string) => DAY_MONTH.format(atNoon(date));
+export const dayMonth = (date: string, intlLocale: string) => dayMonthFmt(intlLocale).format(atNoon(date));
 
-/** A bar the window cuts says where it really starts and ends. */
+/** A bar the window cuts says where it really starts and ends — the dates
+    beyond the edge; the lane wraps them in "from …" / "to …". */
 export function continuationLabels(
   b: { startsAt: Date; endsAt: Date },
   timeZone: string,
   bar: { clippedLeft: boolean; clippedRight: boolean },
+  intlLocale: string,
 ): { left: string | null; right: string | null } {
   return {
-    left: bar.clippedLeft ? `from ${dayMonth(dateInZone(b.startsAt, timeZone))}` : null,
-    right: bar.clippedRight ? `to ${dayMonth(dateInZone(b.endsAt, timeZone))}` : null,
+    left: bar.clippedLeft ? dayMonth(dateInZone(b.startsAt, timeZone), intlLocale) : null,
+    right: bar.clippedRight ? dayMonth(dateInZone(b.endsAt, timeZone), intlLocale) : null,
   };
 }
 
@@ -254,22 +261,27 @@ export function hourlyByDay<T extends { startsAt: Date }>(
 // ---------- header words
 
 /** The reference's month strip over the day columns: one band per month. */
-export function monthBands(days: readonly string[]): { label: string; colStart: number; colSpan: number }[] {
+export function monthBands(
+  days: readonly string[],
+  intlLocale: string,
+): { label: string; colStart: number; colSpan: number }[] {
+  const fmt = monthYearFmt(intlLocale);
   const bands: { label: string; colStart: number; colSpan: number }[] = [];
   days.forEach((d, i) => {
     const key = d.slice(0, 7);
     const last = bands[bands.length - 1];
     if (last && days[i - 1]?.slice(0, 7) === key) last.colSpan += 1;
-    else bands.push({ label: MONTH_YEAR.format(atNoon(d)), colStart: i, colSpan: 1 });
+    else bands.push({ label: fmt.format(atNoon(d)), colStart: i, colSpan: 1 });
   });
   return bands;
 }
 
 /** "1 May – 28 May 2027", or both years across a year boundary. */
-export function windowLabel(from: string, days: number): string {
+export function windowLabel(from: string, days: number, intlLocale: string): string {
   const last = addDaysISO(from, days - 1);
-  if (from.slice(0, 4) === last.slice(0, 4)) return `${dayMonth(from)} – ${DAY_MONTH_YEAR.format(atNoon(last))}`;
-  return `${DAY_MONTH_YEAR.format(atNoon(from))} – ${DAY_MONTH_YEAR.format(atNoon(last))}`;
+  const full = dayMonthYearFmt(intlLocale);
+  if (from.slice(0, 4) === last.slice(0, 4)) return `${dayMonth(from, intlLocale)} – ${full.format(atNoon(last))}`;
+  return `${full.format(atNoon(from))} – ${full.format(atNoon(last))}`;
 }
 
 // ---------- zoom

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import type { ServiceRow } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
@@ -25,11 +26,12 @@ export function NewBookingButton({
   timeZone: string;
   initial?: Initial;
 }) {
+  const t = useTranslations("bookings");
   const [open, setOpen] = React.useState(false);
   return (
     <>
       <Button size="sm" onClick={() => setOpen(true)}>
-        <Plus className="size-4" /> New booking
+        <Plus className="size-4" /> {t("new.title")}
       </Button>
       {open ? (
         <NewBookingDialog
