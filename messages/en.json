@@ -139,6 +139,23 @@
     "clients": {
       "createdNotAssigned": "Client created, but assigning failed. Pick them from the list.",
       "copyFailed": "Couldn't copy — select the link text and copy manually."
+    },
+    "availability": {
+      "overlap": "Times overlap with another set of times."
+    },
+    "services": {
+      "hasBookings": "Service has bookings — deactivate it instead."
+    },
+    "staff": {
+      "lastActive": "You need at least one active team member.",
+      "slugTaken": "That link name is already used.",
+      "futureBookings": "{name} has upcoming bookings or pending requests — move or resolve them first.",
+      "someone": "This person"
+    },
+    "settings": {
+      "handleReserved": "That address is reserved — pick another.",
+      "handleFormat": "Use 3–50 lowercase letters, digits or hyphens.",
+      "handleTaken": "That handle is already taken."
     }
   },
   "public": {
@@ -646,6 +663,123 @@
       "used": "used {date}",
       "revokeAria": "Revoke portal link issued {date}",
       "empty": "No links yet — issue one to give this client a read-only view of their units."
+    }
+  },
+  "availability": {
+    "weekdaysShort": "Sun Mon Tue Wed Thu Fri Sat",
+    "weekdaysLong": "Sunday Monday Tuesday Wednesday Thursday Friday Saturday",
+    "noHours": "Closed — no hours set",
+    "noActive": "Nobody on the team is active right now. <link>Reactivate someone</link> to set hours.",
+    "openSpaces": "Open Spaces →",
+    "timezoneNote": "Times are shown in {timezone} · <link>Change on Booking page</link>",
+    "unavailable": "Unavailable",
+    "endAfterStart": "End must be after start.",
+    "defaultPrompt": {
+      "title": "No hours set — nothing can be booked yet.",
+      "blurb": "Start with Mon–Fri, {start}–{end} and adjust from there.",
+      "apply": "Use default hours",
+      "applying": "Setting hours…"
+    },
+    "day": {
+      "addInterval": "Add interval to {day}",
+      "noRoom": "No room left after the last interval",
+      "copyHours": "Copy {day} hours to other days",
+      "copyTo": "Copy hours to…",
+      "apply": "Apply",
+      "startTime": "{day} start time",
+      "endTime": "{day} end time",
+      "removeInterval": "Remove {day} {start}–{end}"
+    },
+    "overrides": {
+      "title": "Date overrides",
+      "blurbSpace": "Days when this space's availability differs from its weekly hours.",
+      "blurbYou": "Days when your availability differs from your weekly hours.",
+      "add": "Add a date override",
+      "editTitle": "Edit date override",
+      "date": "Date",
+      "removeFor": "Remove override for {date}",
+      "removed": "Override removed",
+      "updated": "Override updated",
+      "added": "Override added",
+      "needWindow": "Add at least one time window, or mark the day unavailable.",
+      "windowStart": "Window {n} start time",
+      "windowEnd": "Window {n} end time",
+      "removeWindow": "Remove window {n}",
+      "addWindow": "Add interval"
+    }
+  },
+  "services": {
+    "intro": "What clients pick on your booking page.",
+    "emptyTitle": "Add your first service",
+    "emptyBody": "A service is what clients pick on your booking page — its name, duration, buffers and price label.",
+    "newButton": "New service",
+    "table": "Services",
+    "columns": {
+      "service": "Service",
+      "duration": "Duration",
+      "price": "Price",
+      "actions": "Actions"
+    },
+    "noTeam": "No team members",
+    "teamCount": "{assigned} of {total} team members",
+    "deleted": "Deleted",
+    "confirmDelete": "Confirm delete",
+    "keep": "Keep",
+    "deleteNamed": "Delete {name}",
+    "bookableSwitch": "{name} is bookable",
+    "dialog": {
+      "editTitle": "Edit service",
+      "namePlaceholder": "Service name",
+      "description": "Description",
+      "descriptionPlaceholder": "Add a description…",
+      "duration": "Duration (min)",
+      "priceLabel": "Price label",
+      "pricePlaceholder": "e.g. €50",
+      "bufferBefore": "Buffer before (min)",
+      "bufferAfter": "Buffer after (min)",
+      "minNotice": "Min notice (min)",
+      "maxPerDay": "Max per day",
+      "unlimited": "Unlimited",
+      "bookingWindow": "Booking window (days)",
+      "windowError": "Enter how many days ahead clients can book — 1 to 365.",
+      "teamMembers": "Team members",
+      "teamHint": "Only these people are offered for this service.",
+      "requireApproval": "Require approval",
+      "requireApprovalHint": "New bookings wait for your confirmation instead of confirming instantly.",
+      "create": "Create service",
+      "created": "Service created"
+    }
+  },
+  "team": {
+    "intro": "Your bookable people. Each has their own hours, services and booking link.",
+    "newButton": "New team member",
+    "chip": "Team",
+    "table": "Team members",
+    "columns": {
+      "link": "Booking link",
+      "role": "Role",
+      "actions": "Actions"
+    },
+    "noHandle": "Set your booking page handle first on <link>Booking page</link> — then everyone gets their own link.",
+    "servicesCount": "{count, plural, =0 {No services} one {# service} other {# services}}",
+    "owner": "Owner",
+    "member": "Member",
+    "overLimit": "Over plan limit",
+    "overLimitTitle": "Not on your public page — over your plan's limit",
+    "overLimitSr": ": not shown on your public page because it is over your plan's limit",
+    "hours": "Hours",
+    "embed": "Embed…",
+    "copyFailed": "Couldn't copy — select the link text and copy manually.",
+    "bookableSwitch": "{name} is bookable",
+    "editNamed": "Edit {name}",
+    "dialog": {
+      "namePlaceholder": "Team member name",
+      "emailPlaceholder": "Email — optional, for booking notices",
+      "slugHint": "Lowercase letters, numbers and dashes.",
+      "colour": "Colour",
+      "colourNamed": "Colour {hex}",
+      "services": "Services",
+      "inheritsHours": "Starts with {name}'s weekly hours — edit them on Availability."
     }
   }
 }

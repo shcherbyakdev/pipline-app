@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { toastRefusal } from "@/features/billing/refusal-toast";
 import { Switch } from "@/components/ui/switch";
@@ -15,11 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { StaffDialog } from "./staff-dialog";
-
-function serviceLabel(count: number): string {
-  if (count === 0) return "No services";
-  return count === 1 ? "1 service" : `${count} services`;
-}
 
 /* Shared column template so the header row and every member row align:
    Name | Booking link | Role | actions. The fixed tracks (110px + 360px)
@@ -45,6 +41,8 @@ function Row({
       beyond the cap has a 404ing URL, so their link isn't offered either. */
   isPublic: boolean;
 }) {
+  const t = useTranslations("team");
+  const tCommon = useTranslations("common");
   const [, startTransition] = React.useTransition();
   // The switch moves the moment it's clicked and snaps back on its own if the
   // action fails (a deactivation blocked by the offboarding guard).
@@ -70,9 +68,9 @@ function Row({
     if (!path) return;
     try {
       await navigator.clipboard.writeText(`${appUrl}${path}`);
-      toast.success("Copied");
+      toast.success(tCommon("linkCopied"));
     } catch {
-      toast.error("Couldn't copy — select the link text and copy manually.");
+      toast.error(t("copyFailed"));
     }
   };
 
@@ -81,9 +79,9 @@ function Row({
   // never user-editable. Replace with a real role once invites land.
   const role =
     staff.sortOrder === 0 ? (
-      <Badge variant="secondary">Owner</Badge>
+      <Badge variant="secondary">{t("owner")}</Badge>
     ) : (
-      <span className="text-muted-foreground text-xs">Member</span>
+      <span className="text-muted-foreground text-xs">{t("member")}</span>
     );
 
   return (
@@ -110,22 +108,16 @@ function Row({
           <div className="flex items-center gap-2">
             <span className="truncate text-[13px] font-medium">{staff.name}</span>
             <span className="lg:hidden">{role}</span>
-            {!staff.active ? <Badge variant="outline">Inactive</Badge> : null}
+            {!staff.active ? <Badge variant="outline">{tCommon("inactive")}</Badge> : null}
             {overPlanLimit ? (
-              <Badge
-                variant="destructive"
-                title="Not on your public page — over your plan's limit"
-              >
-                Over plan limit
-                <span className="sr-only">
-                  : not shown on your public page because it is over your
-                  plan&apos;s limit
-                </span>
+              <Badge variant="destructive" title={t("overLimitTitle")}>
+                {t("overLimit")}
+                <span className="sr-only">{t("overLimitSr")}</span>
               </Badge>
             ) : null}
           </div>
           <p className="text-muted-foreground truncate text-xs">
-            {serviceLabel(staff.serviceIds.length)}
+            {t("servicesCount", { count: staff.serviceIds.length })}
           </p>
         </div>
       </div>
@@ -148,13 +140,13 @@ function Row({
               href={ownerHref({ kind: "staff", id: staff.id })}
               className={cn(buttonVariants({ variant: "ghost", size: "xs" }))}
             >
-              Hours
+              {t("hours")}
             </Link>
           ) : null}
           {path ? (
             <>
               <Button variant="ghost" size="xs" onClick={copyLink}>
-                Copy link
+                {tCommon("copyLink")}
               </Button>
               {/*
                 A plain styled Link, not <Button render={<Link .../>}>: base-ui's
@@ -166,7 +158,7 @@ function Row({
                 href={`/embed?staff=${staff.slug}`}
                 className={cn(buttonVariants({ variant: "ghost", size: "xs" }))}
               >
-                Embed…
+                {t("embed")}
               </Link>
             </>
           ) : null}
@@ -180,7 +172,7 @@ function Row({
         <Switch
           checked={active}
           onCheckedChange={onToggle}
-          aria-label={`${staff.name} is bookable`}
+          aria-label={t("bookableSwitch", { name: staff.name })}
           className="max-lg:absolute max-lg:top-2.5 max-lg:right-3"
         />
       </div>
@@ -202,21 +194,25 @@ export function StaffList({
   /** The plan's public roster ids; null = no cap applies, flag nobody. */
   publicStaffIds: string[] | null;
 }) {
+  const t = useTranslations("team");
+  const tCommon = useTranslations("common");
   const usedColors = staff.map((s) => s.color);
   return (
     <div className="flex flex-col gap-3">
       {handle ? null : (
         <p className="text-muted-foreground text-sm">
-          Set your booking page handle first on{" "}
-          <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
-            Booking page
-          </Link>{" "}
-          — then everyone gets their own link.
+          {t.rich("noHandle", {
+            link: (chunks) => (
+              <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
       )}
       {/* ARIA table grammar on the styled rows so "Owner" and the link read
           in their columns; the layout stays the responsive grid. */}
-      <div role="table" aria-label="Team members" className="flex flex-col gap-3">
+      <div role="table" aria-label={t("table")} className="flex flex-col gap-3">
         <div
           role="row"
           className={cn(
@@ -224,11 +220,11 @@ export function StaffList({
             gridCols
           )}
         >
-          <span role="columnheader">Name</span>
-          <span role="columnheader">Booking link</span>
-          <span role="columnheader">Role</span>
+          <span role="columnheader">{tCommon("name")}</span>
+          <span role="columnheader">{t("columns.link")}</span>
+          <span role="columnheader">{t("columns.role")}</span>
           <span role="columnheader">
-            <span className="sr-only">Actions</span>
+            <span className="sr-only">{t("columns.actions")}</span>
           </span>
         </div>
         <ol role="rowgroup" className="flex flex-col max-lg:divide-y">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { House01Icon } from "@hugeicons/core-free-icons";
 import { getAvailabilityAdmin, getOfferingAvailabilityAdmin } from "@/features/scheduling/queries";
@@ -8,7 +9,6 @@ import { getSchedulingSettings } from "@/features/orgs/queries";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { effectiveMode, modeOf } from "@/features/orgs/mode";
-import { SPACES } from "@/features/orgs/vocab";
 import { availabilityOwnerOf, resolveOwner } from "@/features/scheduling/availability-owner";
 import { WeeklyHours } from "@/features/scheduling/components/weekly-hours";
 import { DateOverrides } from "@/features/scheduling/components/date-overrides";
@@ -30,6 +30,8 @@ export default async function AvailabilityPage({
   const { org } = await requireOrg();
   const flags = await getDashboardFlags(org.id);
   const eff = effectiveMode(flags, modeOf(org));
+  const t = await getTranslations("availability");
+  const tSpaces = await getTranslations("spaces");
 
   // People are owners only where the org sells appointments: every org has
   // a staff row (0041 backfill), but a spaces-only org's is not bookable
@@ -53,18 +55,20 @@ export default async function AvailabilityPage({
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
         {eff.offersAppointments ? (
           <p className="text-muted-foreground text-sm">
-            Nobody on the team is active right now.{" "}
-            <Link href="/team" className="hover:text-foreground underline underline-offset-3">
-              Reactivate someone
-            </Link>{" "}
-            to set hours.
+            {t.rich("noActive", {
+              link: (chunks) => (
+                <Link href="/team" className="hover:text-foreground underline underline-offset-3">
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
         ) : (
           <p className="text-muted-foreground text-sm">
-            {SPACES.hoursNightsOnly}{" "}
+            {tSpaces("hoursNightsOnly")}{" "}
             {eff.offersRentals ? (
               <Link href="/rentals" className="hover:text-foreground underline underline-offset-3">
-                Open {SPACES.nav} →
+                {t("openSpaces")}
               </Link>
             ) : null}
           </p>
@@ -86,13 +90,17 @@ export default async function AvailabilityPage({
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-3">
         <p className="text-muted-foreground text-sm">
-          Times are shown in {timezone} ·{" "}
-          <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
-            Change on Booking page
-          </Link>
+          {t.rich("timezoneNote", {
+            timezone,
+            link: (chunks) => (
+              <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
         {owner.kind === "space" && hasRangeSpaces ? (
-          <p className="text-muted-foreground text-sm">{SPACES.hoursNote}</p>
+          <p className="text-muted-foreground text-sm">{tSpaces("hoursNote")}</p>
         ) : null}
         {/* Solo rule: one owner in total ⇒ no switcher (OwnerTabs renders
             nothing) and the page is identical to the pre-team one — except a

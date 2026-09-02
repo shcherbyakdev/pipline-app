@@ -152,12 +152,6 @@ export const staffInput = z.object({
 export const updateStaffInput = staffInput.extend({ id: z.uuid() });
 export const staffActiveInput = z.object({ id: z.uuid(), active: z.boolean() });
 
-export const LAST_ACTIVE_STAFF_ERROR = "You need at least one active team member.";
-export const STAFF_SLUG_TAKEN_ERROR = "That link name is already used.";
-export function staffFutureBookingsError(name: string): string {
-  return `${name} has upcoming bookings or pending requests — move or resolve them first.`;
-}
-
 // Team (multi-staff): the public surface either names a staff member or asks
 // for "any" (auto-assign). Defaulted rather than required so a solo org's
 // widget — and any caller predating the team slice — keeps working; the
@@ -238,6 +232,8 @@ export const adminCreateBookingInput = z.object({
   note: z.string().trim().max(2000).optional(),
 });
 
+// A zod issue message only (parse failures map to the generic error); the
+// copy a person sees is `errors.availability.overlap`.
 export const OVERLAP_ERROR = "Times overlap with another set of times.";
 
 export const updateRuleInput = z
