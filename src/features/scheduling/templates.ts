@@ -40,8 +40,9 @@ export function bookingIdempotencyKey(bookingId: string): string {
   return `booking/${bookingId}/confirmation`;
 }
 
-// `intlLocale` is the Intl tag (INTL_LOCALES[locale], emailTranslators().intlLocale).
-export function formatWhenLine(starts: Date, timeZone: string, intlLocale = "en-GB"): string {
+// `intlLocale` is the Intl tag (INTL_LOCALES[locale], emailTranslators().intlLocale)
+// — required, so no caller can silently fall back to English.
+export function formatWhenLine(starts: Date, timeZone: string, intlLocale: string): string {
   return new Intl.DateTimeFormat(intlLocale, {
     weekday: "short",
     day: "2-digit",
@@ -57,7 +58,7 @@ export function formatWhenLine(starts: Date, timeZone: string, intlLocale = "en-
 // Rentals (R1): a stay spans two instants, so the when-line carries both
 // ends in the org zone with a single trailing tz suffix (repeating "CEST"
 // on both halves reads as noise).
-export function formatRangeWhenLine(starts: Date, ends: Date, timeZone: string, intlLocale = "en-GB"): string {
+export function formatRangeWhenLine(starts: Date, ends: Date, timeZone: string, intlLocale: string): string {
   const f = new Intl.DateTimeFormat(intlLocale, {
     weekday: "short",
     day: "2-digit",
@@ -77,7 +78,7 @@ export function formatRangeWhenLine(starts: Date, ends: Date, timeZone: string, 
 // Hourly rentals (H2): a booking spans two instants within one day, so the
 // when-line is formatRangeWhenLine's construction with the date printed once
 // and an en-dash time range instead of the arrow between two full dates.
-export function formatHourlyWhenLine(starts: Date, ends: Date, timeZone: string, intlLocale = "en-GB"): string {
+export function formatHourlyWhenLine(starts: Date, ends: Date, timeZone: string, intlLocale: string): string {
   const dateFmt = new Intl.DateTimeFormat(intlLocale, {
     weekday: "short",
     day: "2-digit",
@@ -101,7 +102,7 @@ export function formatHourlyWhenLine(starts: Date, ends: Date, timeZone: string,
 export function whenLineFor(
   b: { startsAt: Date; endsAt: Date; isRental: boolean; rangeMode?: RangeMode | null },
   timeZone: string,
-  intlLocale = "en-GB",
+  intlLocale: string,
 ): string {
   if (!b.isRental) return formatWhenLine(b.startsAt, timeZone, intlLocale);
   return b.rangeMode === "hours"

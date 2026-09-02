@@ -101,6 +101,17 @@ describe("messages", () => {
     }
   }
 
+  // Six components split these on a space into seven column headings; a
+  // translator's stray space or a two-word day would leave a hole silently.
+  it("every weekday list has exactly seven single tokens in every locale", () => {
+    for (const locale of LOCALES) {
+      const flat = flatten(MESSAGES[locale]);
+      for (const k of ["availability.weekdaysShort", "availability.weekdaysLong", "bookings.weekdays", "public.slots.weekdays"]) {
+        expect(flat[k]?.split(" "), `${locale} ${k}`).toHaveLength(7);
+      }
+    }
+  });
+
   it("deepMerge keeps English underneath a partial locale (spec D8)", () => {
     expect(deepMerge({ a: { x: "en-x", y: "en-y" }, b: "en-b" }, { a: { x: "uk-x" } })).toEqual({
       a: { x: "uk-x", y: "en-y" },

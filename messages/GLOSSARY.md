@@ -41,6 +41,9 @@ A term missing here is added here first, then used.
 | booked / cancelled / moved (a client, unknown gender) | забронював(ла) / скасував(ла) / змінив(ла) час | provider-facing mails; only verbs whose feminine is stem + ла take the (ла) ending — never переніс(ла), whose feminine is перенесла |
 | admin nav | Огляд · Бронювання · Клієнти · Простори · Послуги · Команда · Графік · Сторінка бронювання · Код для сайту · Оплата · Налаштування | sidebar sections: Пропозиція (Offer), Поширення (Share) |
 | overview / availability / billing (pages) | Огляд / Графік / Оплата | |
+| nightly / daily (a space's mode) | на ніч / на день | never «подобово/поденно» |
+| require approval (toggle) | Потрібне підтвердження | the same label on services and spaces |
+| booking window (days) | Вікно бронювання (днів) | |
 | request (booking approval, admin) | запит | "Очікує підтвердження" for the pending status |
 | an org as the subject of a verb | Заклад {orgName} … | anchors the verb to a masculine noun, since org names are mostly feminine/neuter (Студія, Клініка) |
 

@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { type StatsBookingRow } from "./stats";
 import { bookingTitle } from "./booking-label";
@@ -232,14 +233,14 @@ export type BookingRow = {
   rental_units: { name: string } | null;
 };
 
-export function toAdminBooking(b: BookingRow): AdminBooking {
+export function toAdminBooking(b: BookingRow, fallbackTitle: string): AdminBooking {
   return {
     id: b.id,
     serviceId: b.service_id,
     rentalOfferingId: b.rental_offering_id,
     rentalUnitId: b.rental_unit_id,
     rangeMode: b.rental_offerings?.range_mode ?? null,
-    serviceName: bookingTitle(b),
+    serviceName: bookingTitle(b, fallbackTitle),
     clientName: b.client_name,
     clientEmail: b.client_email,
     startsAt: b.starts_at,
@@ -256,6 +257,8 @@ export function toAdminBooking(b: BookingRow): AdminBooking {
 }
 
 export async function listBookings(): Promise<{ upcoming: AdminBooking[]; past: AdminBooking[] }> {
+  // A deleted service leaves no name; the word is the admin's (bookings.fallbackTitle).
+  const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
   const [upcomingRes, pastRes] = await Promise.all([
@@ -284,8 +287,8 @@ export async function listBookings(): Promise<{ upcoming: AdminBooking[]; past: 
   if (upcomingRes.error) throw upcomingRes.error;
   if (pastRes.error) throw pastRes.error;
   return {
-    upcoming: ((upcomingRes.data ?? []) as unknown as BookingRow[]).map(toAdminBooking),
-    past: ((pastRes.data ?? []) as unknown as BookingRow[]).map(toAdminBooking),
+    upcoming: ((upcomingRes.data ?? []) as unknown as BookingRow[]).map((b) => toAdminBooking(b, fallbackTitle)),
+    past: ((pastRes.data ?? []) as unknown as BookingRow[]).map((b) => toAdminBooking(b, fallbackTitle)),
   };
 }
 
@@ -298,6 +301,8 @@ export async function listCalendarBookingsBetween(
   toIso: string,
   staffIds?: string[],
 ): Promise<AdminBooking[]> {
+  // A deleted service leaves no name; the word is the admin's (bookings.fallbackTitle).
+  const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
   const supabase = await createClient();
   const base = supabase
     .from("bookings")
@@ -314,7 +319,7 @@ export async function listCalendarBookingsBetween(
     { ascending: true },
   );
   if (error) throw error;
-  return ((data ?? []) as unknown as BookingRow[]).map(toAdminBooking);
+  return ((data ?? []) as unknown as BookingRow[]).map((b) => toAdminBooking(b, fallbackTitle));
 }
 
 /** Overrides in a date window — every owner's at once (one org-week of
@@ -364,6 +369,8 @@ export async function listStatsBookings(fromIso: string, toIso: string): Promise
 
 /** Live pending requests, oldest start first — the Overview inbox feed. */
 export async function listPendingRequests(): Promise<AdminBooking[]> {
+  // A deleted service leaves no name; the word is the admin's (bookings.fallbackTitle).
+  const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("bookings")
@@ -372,7 +379,7 @@ export async function listPendingRequests(): Promise<AdminBooking[]> {
     .gt("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true });
   if (error) throw error;
-  return ((data ?? []) as unknown as BookingRow[]).map(toAdminBooking);
+  return ((data ?? []) as unknown as BookingRow[]).map((b) => toAdminBooking(b, fallbackTitle));
 }
 
 /** Cheap head-count of live pending requests — the sidebar badge. */

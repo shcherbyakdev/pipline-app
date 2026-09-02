@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { createClient as createSupabase } from "@/lib/supabase/server";
 import { bookingTitle } from "@/features/scheduling/booking-label";
 import type { RangeMode } from "@/features/rentals/range";
@@ -168,9 +169,11 @@ export async function listClientBookings(clientId: string): Promise<ClientBookin
     rental_offerings: { name: string; range_mode: RangeMode } | null;
     rental_units: { name: string } | null;
   };
+  // A deleted service leaves no name; the word is the admin's (bookings.fallbackTitle).
+  const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
   return ((data ?? []) as unknown as Row[]).map((b) => ({
     id: b.id,
-    serviceName: bookingTitle(b),
+    serviceName: bookingTitle(b, fallbackTitle),
     startsAt: b.starts_at,
     endsAt: b.ends_at,
     rentalUnitId: b.rental_unit_id,

@@ -231,7 +231,7 @@ export async function rescheduleBookingAdmin(
     // Rentals R1: a stay has no service and no slot grid — the appointment
     // engine below cannot speak for it. (The UI hides the button too.)
     if (booking.service_id === null) {
-      return { ok: false, error: "Rental stays can't be moved here — cancel and rebook." };
+      return { ok: false, error: t("bookings.stayNotReschedulable") };
     }
     // Team (multi-staff): a move may also hand the booking to someone else.
     // Everything below — the engine re-check included — is about the TARGET

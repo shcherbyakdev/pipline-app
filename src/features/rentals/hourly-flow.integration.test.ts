@@ -17,6 +17,8 @@
  * before src/env.ts parses it, one client IP per test against the shared
  * rate limiters). Requires the local Supabase stack (npm run setup).
  */
+import { enTranslator } from "@/i18n/test-translator";
+const ERR = enTranslator("errors");
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -35,7 +37,7 @@ try {
 // Dynamic imports so env is loaded before src/env.ts parses it.
 const hourlyActions = await import("./hourly-actions");
 const rentalManage = await import("./manage-actions");
-const { GENERIC_WRITE_ERROR, SLOT_TAKEN_HOURLY, TERMS_REQUIRED } = await import("./schema");
+const { GENERIC_WRITE_ERROR } = await import("./schema");
 const { addDaysISO, dateInZone, wallTimeToUtc } = await import("@/features/scheduling/slots");
 const { resolveBookingToken } = await import("@/lib/tokens/booking");
 
@@ -241,7 +243,7 @@ describe("hourly public booking flow (action layer)", () => {
     expect(second.ok).toBe(false);
     if (second.ok) return;
     expect(second.slotTaken).toBe(true);
-    expect(second.error).toBe(SLOT_TAKEN_HOURLY);
+    expect(second.error).toBe(ERR("slotTaken"));
   });
 
   it("manage page (token path): reschedules a booking, same duration, old row dead, new token live", async () => {
@@ -440,7 +442,7 @@ describe("hourly public booking flow: client_picks unit membership", () => {
     expect(second.ok).toBe(false);
     if (second.ok) return;
     expect(second.slotTaken).toBe(true);
-    expect(second.error).toBe(SLOT_TAKEN_HOURLY);
+    expect(second.error).toBe(ERR("slotTaken"));
     const { data: rows } = await admin
       .from("bookings")
       .select("id")
@@ -572,7 +574,7 @@ describe("terms acceptance gate (hourly action layer)", () => {
       name: "Terms Client",
       email,
     });
-    expect(result).toEqual({ ok: false, error: TERMS_REQUIRED });
+    expect(result).toEqual({ ok: false, error: ERR("termsRequired") });
     const { data: rows } = await admin
       .from("bookings")
       .select("id")

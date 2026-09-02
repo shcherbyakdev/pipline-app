@@ -213,6 +213,7 @@ describe("booking lifecycle templates", () => {
       new Date("2027-09-10T13:00:00Z"),
       new Date("2027-09-13T09:00:00Z"),
       "Europe/Berlin",
+      "en-GB",
     );
     expect(s).toBe("Fri, 10 Sept 2027, 15:00 → Mon, 13 Sept 2027, 11:00 (CEST)");
   });
@@ -222,28 +223,29 @@ describe("booking lifecycle templates", () => {
       new Date("2026-09-07T08:00:00Z"),
       new Date("2026-09-07T10:00:00Z"),
       "Europe/Warsaw",
+      "en-GB",
     );
     expect(s).toBe("Mon, 07 Sept 2026, 10:00–12:00 (CEST)");
   });
 
   it("whenLineFor dispatches on isRental", () => {
     const b = { startsAt: new Date("2027-09-10T13:00:00Z"), endsAt: new Date("2027-09-13T09:00:00Z") };
-    expect(whenLineFor({ ...b, isRental: false }, "Europe/Berlin")).toBe(
-      formatWhenLine(b.startsAt, "Europe/Berlin"),
+    expect(whenLineFor({ ...b, isRental: false }, "Europe/Berlin", "en-GB")).toBe(
+      formatWhenLine(b.startsAt, "Europe/Berlin", "en-GB"),
     );
-    expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin")).toContain("→");
+    expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin", "en-GB")).toContain("→");
   });
 
   it("whenLineFor renders an hourly rental (rangeMode: 'hours') via formatHourlyWhenLine, not the nights/days range", () => {
     const b = { startsAt: new Date("2027-09-10T08:00:00Z"), endsAt: new Date("2027-09-10T10:00:00Z") };
-    expect(whenLineFor({ ...b, isRental: true, rangeMode: "hours" }, "Europe/Berlin")).toBe(
-      formatHourlyWhenLine(b.startsAt, b.endsAt, "Europe/Berlin"),
+    expect(whenLineFor({ ...b, isRental: true, rangeMode: "hours" }, "Europe/Berlin", "en-GB")).toBe(
+      formatHourlyWhenLine(b.startsAt, b.endsAt, "Europe/Berlin", "en-GB"),
     );
-    expect(whenLineFor({ ...b, isRental: true, rangeMode: "hours" }, "Europe/Berlin")).not.toContain("→");
+    expect(whenLineFor({ ...b, isRental: true, rangeMode: "hours" }, "Europe/Berlin", "en-GB")).not.toContain("→");
     // A nights/days rental (or one that never passes rangeMode at all —
     // every pre-H2 caller) still gets the two-date range.
-    expect(whenLineFor({ ...b, isRental: true, rangeMode: "nights" }, "Europe/Berlin")).toContain("→");
-    expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin")).toContain("→");
+    expect(whenLineFor({ ...b, isRental: true, rangeMode: "nights" }, "Europe/Berlin", "en-GB")).toContain("→");
+    expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin", "en-GB")).toContain("→");
   });
 
   it("client and provider copy never says appointment or slot (H5b: spaces book too)", () => {

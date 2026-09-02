@@ -1,3 +1,4 @@
+import { statusKey } from "@/features/scheduling/booking-label";
 import { getLocale, getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,16 +14,6 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 // Booking statuses → `bookings.status.*` keys; anything unknown shows its
 // raw status rather than a blank badge (booking/[token]/page.tsx idiom).
-const STATUS_KEY = {
-  confirmed: "confirmed",
-  pending: "pending",
-  declined: "declined",
-  cancelled_by_client: "cancelledByClient",
-  cancelled_by_provider: "cancelledByProvider",
-  rescheduled: "rescheduled",
-} as const;
-type StatusKey = (typeof STATUS_KEY)[keyof typeof STATUS_KEY];
-
 export default async function ClientDetailPage({ params }: PageProps<"/clients/[id]">) {
   const { id } = await params;
   // Shape-guard before querying: a malformed id would surface as a Postgres
@@ -73,7 +64,7 @@ export default async function ClientDetailPage({ params }: PageProps<"/clients/[
         ) : (
           <ol className="flex flex-col gap-2">
             {bookings.map((b) => {
-              const statusKey = (STATUS_KEY as Partial<Record<string, StatusKey>>)[b.status];
+              const key = statusKey(b.status);
               return (
                 <li key={b.id} className="flex flex-col gap-1 rounded-md border p-3 text-sm">
                   <div className="flex items-center justify-between gap-2">
@@ -83,7 +74,7 @@ export default async function ClientDetailPage({ params }: PageProps<"/clients/[
                         <Badge variant="outline">{ts("badge")}</Badge>
                       ) : null}
                     </p>
-                    <Badge variant="secondary">{statusKey ? tb(`status.${statusKey}`) : b.status}</Badge>
+                    <Badge variant="secondary">{key ? tb(`status.${key}`) : b.status}</Badge>
                   </div>
                   <p>
                     {whenLineFor(
