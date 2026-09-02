@@ -48,9 +48,10 @@ export function UnitsEditor({
   // owner asks to split it, this page speaks of the space, not its unit:
   // just the dates it can't be booked. Local state, not a column: opening
   // the editor is a page-level intent, and once a second unit exists the
-  // split is a fact the data carries on its own.
-  const [split, setSplit] = React.useState(units.length !== 1);
-  const sole = units.length === 1 ? units[0] : undefined;
+  // split is a fact the data carries on its own. An inactive sole unit
+  // opens the editor too — its Active checkbox is the only way back.
+  const sole = units.length === 1 && units[0].active ? units[0] : undefined;
+  const [split, setSplit] = React.useState(sole === undefined);
   if (!split && sole) {
     return (
       <section className="flex flex-col gap-4">
