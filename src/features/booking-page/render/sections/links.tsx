@@ -8,7 +8,7 @@ const PILL = "bg-card hover:bg-muted inline-flex h-10 items-center gap-2 rounded
 export function LinksSection({ section, ctx }: { section: SectionOf<"links">; ctx: RenderContext }) {
   const t = useTranslations("public.links");
   const items = section.items.filter((i) => i.label.trim() && i.url.trim());
-  if (items.length === 0) return <Ghost mode={ctx.mode} label="Add a link" />;
+  if (items.length === 0) return <Ghost ctx={ctx} text="link" />;
   return (
     <section className="flex flex-wrap gap-2">
       {items.map((item, i) => {

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Upload04Icon } from "@hugeicons/core-free-icons";
@@ -26,6 +27,8 @@ export function BrandingForm({
   // preview track the unsaved colour live.
   onPreviewAccent?: (hex: string | null) => void;
 }) {
+  const t = useTranslations("studio.branding");
+  const tc = useTranslations("common");
   const [accent, setAccent] = React.useState(settings.accentColor ?? "");
   const [pending, startTransition] = React.useTransition();
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -33,14 +36,14 @@ export function BrandingForm({
   const persistAccent = (raw: string) => {
     const value = raw.trim();
     if (value !== "" && !HEX_RE.test(value)) {
-      toast.error("Accent must be a #rrggbb hex colour.");
+      toast.error(t("accentInvalid"));
       return;
     }
     if ((value === "" ? null : value.toLowerCase()) === settings.accentColor) return;
     startTransition(async () => {
       const result = await updateAccent({ accentColor: value === "" ? null : value });
       if (!result.ok) toast.error(result.error);
-      else toast.success("Accent saved");
+      else toast.success(t("accentSaved"));
     });
   };
 
@@ -50,12 +53,12 @@ export function BrandingForm({
     // Pre-check before any bytes move (participant-flow precedent); the
     // server re-validates against the buffered bytes.
     if (!isAllowedLogoType(file.type)) {
-      toast.error("PNG, JPEG or WebP only.");
+      toast.error(t("logoType"));
       e.target.value = "";
       return;
     }
     if (file.size > LOGO_MAX_BYTES) {
-      toast.error("Logo must be 1 MB or less.");
+      toast.error(t("logoTooBig"));
       e.target.value = "";
       return;
     }
@@ -64,7 +67,7 @@ export function BrandingForm({
     startTransition(async () => {
       const result = await uploadLogo(formData);
       if (!result.ok) toast.error(result.error);
-      else toast.success("Logo updated");
+      else toast.success(t("logoUpdated"));
       if (fileRef.current) fileRef.current.value = "";
     });
   };
@@ -73,7 +76,7 @@ export function BrandingForm({
     startTransition(async () => {
       const result = await removeLogo();
       if (!result.ok) toast.error(result.error);
-      else toast.success("Logo removed");
+      else toast.success(t("logoRemoved"));
     });
 
   const previewAccent = HEX_RE.test(accent.trim()) ? accent.trim().toLowerCase() : settings.accentColor;
@@ -84,13 +87,13 @@ export function BrandingForm({
 
   return (
     <>
-      <SettingsRow label="Logo" hint="PNG, JPEG or WebP · max 1 MB.">
+      <SettingsRow label={t("logo")} hint={t("logoHint")}>
         <div className="flex items-center gap-2">
           {settings.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={settings.logoUrl}
-              alt="Current logo"
+              alt={t("logoAlt")}
               className="bg-background h-8 w-auto max-w-28 rounded border object-contain px-1"
             />
           ) : null}
@@ -105,21 +108,21 @@ export function BrandingForm({
           />
           <Button variant="outline" size="sm" disabled={pending} onClick={() => fileRef.current?.click()}>
             <HugeiconsIcon icon={Upload04Icon} size={14} />
-            {settings.logoUrl ? "Replace" : "Upload"}
+            {settings.logoUrl ? t("replace") : t("upload")}
           </Button>
           {settings.logoUrl ? (
             <Button variant="ghost" size="sm" disabled={pending} onClick={remove}>
-              Remove
+              {tc("remove")}
             </Button>
           ) : null}
         </div>
       </SettingsRow>
-      <SettingsRow label="Accent colour" htmlFor="branding-accent" hint="Used on the booking page and in the website embed.">
+      <SettingsRow label={t("accent")} htmlFor="branding-accent" hint={t("accentHint")}>
         <div className="flex items-center gap-2">
           {/* Native picker as the swatch: click to pick, or type a hex. */}
           <input
             type="color"
-            aria-label="Pick accent colour"
+            aria-label={t("pickAccent")}
             value={previewAccent ?? "#0f766e"}
             disabled={pending}
             onChange={(e) => onAccentInput(e.target.value)}

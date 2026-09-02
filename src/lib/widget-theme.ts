@@ -35,19 +35,23 @@ export function resolveStayLayout(config: Pick<WidgetThemeConfig, "stayLayout">)
   return config.stayLayout ?? "one-month";
 }
 
-export const STAY_LAYOUT_OPTIONS: ReadonlyArray<{ value: StayLayout; label: string; description: string }> = [
-  { value: "one-month", label: "One month", description: "A month grid; tap check-in, then check-out." },
-  { value: "two-months", label: "Two months", description: "Two months side by side, the same two taps." },
-  { value: "fields", label: "Check-in and check-out fields", description: "Two date fields; tapping one opens the month grid." },
-  { value: "next-free", label: "Next free stays", description: "The soonest free windows that fit the minimum stay, one tap each." },
+/* The option tables below carry values only; their names and one-line
+   descriptions live in messages (`studio.stayLayouts.<value>.*`,
+   `studio.layouts.<value>.*`, `studio.themes.<value>`), read by the
+   consumers through useTranslations("studio"). */
+export const STAY_LAYOUT_OPTIONS: ReadonlyArray<{ value: StayLayout }> = [
+  { value: "one-month" },
+  { value: "two-months" },
+  { value: "fields" },
+  { value: "next-free" },
 ];
 
 /** The starter's cards and the settings selects, calendar first. */
-export const WIDGET_LAYOUT_OPTIONS: ReadonlyArray<{ value: SlotLayout; label: string; description: string }> = [
-  { value: "calendar", label: "Calendar + times", description: "A month to pick a day, then that day's free times." },
-  { value: "week-list", label: "Week list", description: "Seven days at a time, each day's times in a row." },
-  { value: "week-columns", label: "Week columns", description: "A week as columns, times stacked under each day." },
-  { value: "next-available", label: "Next available", description: "The soonest free times first, no browsing." },
+export const WIDGET_LAYOUT_OPTIONS: ReadonlyArray<{ value: SlotLayout }> = [
+  { value: "calendar" },
+  { value: "week-list" },
+  { value: "week-columns" },
+  { value: "next-available" },
 ];
 
 export const WIDGET_THEME_DEFAULTS: WidgetThemeConfig = {
@@ -63,10 +67,10 @@ export const WIDGET_THEME_DEFAULTS: WidgetThemeConfig = {
 // pair the org didn't override, so a lone override can't slip an unreadable
 // combination past the guard.
 /** Theme choices as shown in the admin (Website embed and Booking page). */
-export const WIDGET_THEME_OPTIONS: ReadonlyArray<{ value: WidgetThemeConfig["theme"]; label: string }> = [
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-  { value: "auto", label: "Auto (match visitor's system)" },
+export const WIDGET_THEME_OPTIONS: ReadonlyArray<{ value: WidgetThemeConfig["theme"] }> = [
+  { value: "light" },
+  { value: "dark" },
+  { value: "auto" },
 ];
 
 export const WIDGET_THEME_DEFAULT_COLORS = {

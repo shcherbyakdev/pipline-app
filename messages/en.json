@@ -197,7 +197,8 @@
       "invalidInput": "Check the name (2–80 characters) and the page address.",
       "timezoneUnknown": "That timezone isn't recognised — pick one from the list.",
       "keepOne": "Keep at least one booking type on.",
-      "handleJustTaken": "That name was just taken — pick another."
+      "handleJustTaken": "That name was just taken — pick another.",
+      "contrast": "Text and background contrast is below 3:1 — pick more distinct colours."
     },
     "billing": {
       "checkout": "Couldn't open checkout — try again.",
@@ -221,6 +222,12 @@
       "notMovable": "Only a confirmed booking can be moved.",
       "alreadyStarted": "This booking has already started.",
       "spaceInactive": "This space is inactive — reactivate it to move its bookings."
+    },
+    "studio": {
+      "pageTooLarge": "This page is too large to save — remove some content or images.",
+      "imageRejected": "Use a PNG, JPEG or WebP image under 4 MB.",
+      "imageLimit": "This page has reached its image limit. Publish or discard the draft to clear unused images, then try again.",
+      "pageGated": "Some sections on this page need a higher plan. Hide or remove them to publish."
     }
   },
   "public": {
@@ -394,6 +401,16 @@
       "depositDue": "Deposit due: {amount}",
       "payAtVenue": "Payment: pay at the venue",
       "freeCancellation": "Free cancellation until {window} before start"
+    },
+    "embedTitle": {
+      "appointment": "Book an appointment",
+      "space": "Book a space"
+    },
+    "seed": {
+      "bookNow": "Book now",
+      "services": "Services",
+      "team": "Team",
+      "spaces": "Spaces"
     }
   },
   "emails": {
@@ -1252,5 +1269,456 @@
     "members": "Members",
     "teamMembers": "Team members ({count})",
     "goTo": "Go to"
+  },
+  "studio": {
+    "layouts": {
+      "calendar": {
+        "label": "Calendar + times",
+        "description": "A month to pick a day, then that day's free times."
+      },
+      "week-list": {
+        "label": "Week list",
+        "description": "Seven days at a time, each day's times in a row."
+      },
+      "week-columns": {
+        "label": "Week columns",
+        "description": "A week as columns, times stacked under each day."
+      },
+      "next-available": {
+        "label": "Next available",
+        "description": "The soonest free times first, no browsing."
+      }
+    },
+    "stayLayouts": {
+      "one-month": {
+        "label": "One month",
+        "description": "A month grid; tap check-in, then check-out."
+      },
+      "two-months": {
+        "label": "Two months",
+        "description": "Two months side by side, the same two taps."
+      },
+      "fields": {
+        "label": "Check-in and check-out fields",
+        "description": "Two date fields; tapping one opens the month grid."
+      },
+      "next-free": {
+        "label": "Next free stays",
+        "description": "The soonest free windows that fit the minimum stay, one tap each."
+      }
+    },
+    "themes": {
+      "light": "Light",
+      "dark": "Dark",
+      "auto": "Auto (match visitor's system)"
+    },
+    "latinOnly": "Latin only",
+    "sections": {
+      "header": {
+        "label": "Header",
+        "description": "Your logo, name and an optional tagline."
+      },
+      "hero": {
+        "label": "Cover",
+        "description": "A big headline with an optional cover image."
+      },
+      "about": {
+        "label": "About",
+        "description": "Who you are, with a photo."
+      },
+      "services": {
+        "label": "Services",
+        "description": "What you offer, from your service list."
+      },
+      "staff": {
+        "label": "Team",
+        "description": "Your bookable team members."
+      },
+      "spaces": {
+        "label": "Spaces",
+        "description": "Your rooms, studios and gear, with photos and prices."
+      },
+      "gallery": {
+        "label": "Gallery",
+        "description": "A grid of photos."
+      },
+      "testimonials": {
+        "label": "Testimonials",
+        "description": "Quotes from happy clients."
+      },
+      "faq": {
+        "label": "FAQ",
+        "description": "Common questions, answered."
+      },
+      "links": {
+        "label": "Links",
+        "description": "Instagram, WhatsApp, your website…"
+      },
+      "location": {
+        "label": "Location",
+        "description": "Your address and a maps link."
+      },
+      "booking": {
+        "label": "Booking",
+        "description": "The booking widget. Always on the page."
+      }
+    },
+    "ghost": {
+      "headline": "Add a headline",
+      "cover": "Add a cover image",
+      "about": "Write a few lines about yourself",
+      "services": "Add a service and it shows here",
+      "spaces": "Add a space and it shows here",
+      "staff": "Shows once two or more team members are bookable",
+      "address": "Add your address",
+      "link": "Add a link",
+      "faq": "Add a question and its answer",
+      "gallery": "Add photos to the gallery",
+      "testimonial": "Add a client quote"
+    },
+    "frame": {
+      "edit": "Edit {section} section",
+      "hidden": "hidden"
+    },
+    "starter": {
+      "title": "How should clients pick a time?",
+      "titleSpaces": "How should clients pick dates and times?",
+      "sub": "Pick how this page's widget shows what is free. It applies straight away, and you can change it any time on Settings.",
+      "firstService": {
+        "title": "Add your first service",
+        "sub": "It goes straight onto your page. Add more on Services whenever you like.",
+        "why": "A layout needs at least one service to show — add one and the page fills in.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Haircut",
+        "duration": "Duration",
+        "price": "Price (optional)",
+        "pricePlaceholder": "e.g. 120 {currency}",
+        "submit": "Add service"
+      },
+      "firstSpace": {
+        "title": "Add your first space",
+        "sub": "It goes straight onto your page, with one unit. Add more on Spaces whenever you like.",
+        "why": "A layout needs at least one bookable space to show — add one and the page fills in.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Studio A",
+        "bookedBy": "Booked by",
+        "hours": "the hour",
+        "nights": "the night",
+        "days": "the day",
+        "priceHour": "Price per hour ({currency}, optional)",
+        "priceNight": "Price per night ({currency}, optional)",
+        "priceDay": "Price per day ({currency}, optional)",
+        "submit": "Add space",
+        "noticeHint": "The page can list this space once it has a unit — add one on Spaces. You can keep going and publish when it is bookable."
+      },
+      "back": "Back",
+      "leave": "Leave for now",
+      "continue": "Continue",
+      "picker": {
+        "trigger": "Widget layout",
+        "title": "Widget layout",
+        "sub": "Change how this page shows what is free. It applies straight away; the website embed has its own layout.",
+        "use": "Use this layout"
+      },
+      "applied": "Widget layout saved",
+      "current": "current",
+      "times": "Times",
+      "stays": "Stays"
+    },
+    "pageSwitch": {
+      "appointments": "Appointments page",
+      "spaces": "Spaces page",
+      "label": "Which page"
+    },
+    "appearance": {
+      "theme": "Theme",
+      "radius": "Corner radius",
+      "radiusOptions": {
+        "none": "None",
+        "subtle": "Subtle",
+        "round": "Round"
+      },
+      "layout": "Widget layout",
+      "stayLayout": "Stays layout",
+      "font": "Font",
+      "fontSystem": "System",
+      "background": "Background override",
+      "text": "Text override",
+      "clear": "Clear",
+      "themeDefault": "Theme default",
+      "contrast": "Contrast {ratio}:1",
+      "contrastBlocked": "Contrast {ratio}:1 — below 3:1, blocked. Pick more distinct colours.",
+      "contrastWarn": "Contrast {ratio}:1 — below 4.5:1 (AA body text).",
+      "overridesHint": "Overrides paint the widget's own surface, so it no longer takes the host page's.",
+      "hideBadge": "Hide “Powered by Booklo”",
+      "premium": "Premium"
+    },
+    "branding": {
+      "logo": "Logo",
+      "logoHint": "PNG, JPEG or WebP · max 1 MB.",
+      "logoAlt": "Current logo",
+      "upload": "Upload",
+      "replace": "Replace",
+      "accent": "Accent colour",
+      "accentHint": "Used on the booking page and in the website embed.",
+      "pickAccent": "Pick accent colour",
+      "accentInvalid": "Accent must be a #rrggbb hex colour.",
+      "accentSaved": "Accent saved",
+      "logoType": "PNG, JPEG or WebP only.",
+      "logoTooBig": "Logo must be 1 MB or less.",
+      "logoUpdated": "Logo updated",
+      "logoRemoved": "Logo removed"
+    },
+    "name": "Booking page",
+    "intro": "The page clients book you on. Arrange its sections, brand it, then publish.",
+    "tabs": {
+      "sections": "Sections",
+      "settings": "Settings"
+    },
+    "layout": {
+      "label": "Layout",
+      "column": "Column",
+      "columnHint": "One column, like today's page",
+      "split": "Split",
+      "splitHint": "Booking docks to the right on wide screens"
+    },
+    "defaultPageHint": "This is the default page. Pick a template or add sections.",
+    "addSection": "Add section",
+    "proBadge": "Pro",
+    "addRefused": {
+      "max": "Pages hold at most {max} sections.",
+      "alreadyOn": "Already on the page."
+    },
+    "row": {
+      "reorder": "Reorder {section}",
+      "required": "Required",
+      "show": "Show section",
+      "hide": "Hide section",
+      "remove": "Remove section"
+    },
+    "summary": {
+      "header": "Logo and name",
+      "noHeadline": "No headline yet",
+      "nothingWritten": "Nothing written yet",
+      "staff": "Bookable team members",
+      "noAddress": "No address yet",
+      "images": "{count, plural, one {# image} other {# images}}",
+      "quotes": "{count, plural, one {# quote} other {# quotes}}",
+      "questions": "{count, plural, one {# question} other {# questions}}",
+      "links": "{count, plural, one {# link} other {# links}}"
+    },
+    "issues": {
+      "httpsLink": "Use an https:// link (tel: for phone, mailto: for email).",
+      "httpsOnly": "Use an https:// link.",
+      "oneBooking": "The page needs exactly one booking section.",
+      "onlyOne": "Only one {section} section is allowed.",
+      "onePhotoPerSpace": "One photo per space.",
+      "uniqueIds": "Section ids must be unique.",
+      "tooManyImages": "At most {max} images per page."
+    },
+    "publishBar": {
+      "notPublished": "Not published yet",
+      "unpublished": "Unpublished changes",
+      "live": "Live",
+      "saveFailed": "Couldn't save",
+      "fixErrors": "Fix errors to save",
+      "retry": "Retry",
+      "capped": "Not on your public page — over your plan's limit, so clients would see a not-found page.",
+      "liftLimit": "Lift the limit",
+      "viewLive": "View live page",
+      "discard": "Discard changes",
+      "publish": "Publish"
+    },
+    "draft": {
+      "fixFields": "Fix the highlighted fields before publishing.",
+      "published": "Page published",
+      "discarded": "Draft discarded"
+    },
+    "discard": {
+      "title": "Discard changes?",
+      "toPublished": "Your draft goes back to the published page.",
+      "toDefault": "Your draft goes back to the default page.",
+      "confirm": "Discard"
+    },
+    "publishEmpty": {
+      "title": "{count, plural, one {# section is empty} other {# sections are empty}}",
+      "description": "{sections} won't show on the published page. Publish anyway?"
+    },
+    "preview": {
+      "title": "Live preview",
+      "light": "Light",
+      "dark": "Dark",
+      "device": "Device",
+      "desktop": "Desktop",
+      "mobile": "Mobile",
+      "systemTheme": "Visitor's system theme",
+      "lightSystem": "Light system",
+      "darkSystem": "Dark system",
+      "themeFixedLight": "Theme is fixed to Light — every visitor sees this. Set Theme to Auto to preview both.",
+      "themeFixedDark": "Theme is fixed to Dark — every visitor sees this. Set Theme to Auto to preview both."
+    },
+    "notice": {
+      "contrastUnreadable": "The widget's colour overrides give {ratio}:1 contrast — unreadable. Adjust them on <link>Website embed</link>.",
+      "contrastLow": "The widget's colour overrides give {ratio}:1 contrast — below 4.5:1 (AA body text). Adjust them on <link>Website embed</link>.",
+      "embedRiskLight": "This page is always readable — it paints its own light ground. But Theme is shared with the website embed, which takes your site's surface: on a dark site its text becomes unreadable. If your site is dark, choose Dark (or Auto), or set a background colour on <link>Website embed</link>.",
+      "embedRiskDark": "This page is always readable — it paints its own dark ground. But Theme is shared with the website embed, which takes your site's surface: on a light site its text becomes unreadable. If your site is light, choose Light (or Auto), or set a background colour on <link>Website embed</link>.",
+      "auto": "Auto follows each visitor's system setting. This page always matches, so both variants are readable (use the toggle above). The website embed only matches if your site does too — check it there."
+    },
+    "settings": {
+      "look": "Look",
+      "lookHint": "Logo and accent colour. Saved as you go.",
+      "widget": "Booking page widget",
+      "widgetHint": "This page's own style. The website embed has its own on Website embed. Saved as you go."
+    },
+    "image": {
+      "hint": "PNG, JPEG or WebP · max 4 MB · best under 2000 px wide.",
+      "typeOnly": "PNG, JPEG or WebP only.",
+      "tooLarge": "Images must be 4 MB or less.",
+      "uploading": "Uploading…",
+      "upload": "Upload",
+      "replace": "Replace"
+    },
+    "list": {
+      "moveUp": "Move item {n} up",
+      "moveDown": "Move item {n} down",
+      "remove": "Remove item {n}"
+    },
+    "forms": {
+      "title": "Title",
+      "style": "Style",
+      "list": "List",
+      "cards": "Cards",
+      "showPrices": "Show prices",
+      "header": {
+        "tagline": "Tagline",
+        "taglinePlaceholder": "Colour specialist in Kraków",
+        "taglineHint": "Shown under your name. Logo and accent are on the Settings tab."
+      },
+      "hero": {
+        "image": "Cover image",
+        "headline": "Headline",
+        "headlinePlaceholder": "Hair & colour by Anna",
+        "subheadline": "Subheadline",
+        "align": "Alignment",
+        "left": "Left",
+        "center": "Centered",
+        "button": "Button",
+        "buttonPlaceholder": "Book now",
+        "buttonHint": "Jumps to the booking widget. Leave blank for no button."
+      },
+      "about": {
+        "photo": "Photo",
+        "titlePlaceholder": "About me",
+        "text": "Text",
+        "textHint": "Blank line = new paragraph."
+      },
+      "services": {
+        "showDurations": "Show durations"
+      },
+      "staff": {
+        "hint": "Shows once two or more team members are bookable; clicking a person opens their own booking link."
+      },
+      "spaces": {
+        "showStay": "Show stay / duration",
+        "addFirst": "Add a space first — <link>Manage spaces</link>.",
+        "editedOn": "Spaces themselves are edited on <link>Manage spaces</link>."
+      },
+      "gallery": {
+        "columns": "Columns",
+        "two": "Two",
+        "three": "Three",
+        "photos": "Photos",
+        "upTo": "Up to {max}.",
+        "addPhotos": "Add photos",
+        "altPlaceholder": "Describe the photo (alt text)",
+        "altAria": "Photo {n} description"
+      },
+      "testimonials": {
+        "add": "Add quote",
+        "quotePlaceholder": "What did they say?",
+        "authorPlaceholder": "Who said it",
+        "quoteAria": "Quote {n}",
+        "authorAria": "Quote {n} author"
+      },
+      "faq": {
+        "add": "Add question",
+        "question": "Question",
+        "answer": "Answer",
+        "questionAria": "Question {n}",
+        "answerAria": "Answer {n}"
+      },
+      "links": {
+        "add": "Add link",
+        "label": "Label",
+        "typeAria": "Link {n} type",
+        "labelAria": "Link {n} label",
+        "addressAria": "Link {n} address",
+        "icon": {
+          "instagram": "Instagram",
+          "facebook": "Facebook",
+          "tiktok": "TikTok",
+          "whatsapp": "WhatsApp",
+          "website": "Website",
+          "phone": "Phone",
+          "email": "Email",
+          "other": "Other"
+        }
+      },
+      "location": {
+        "address": "Address",
+        "addressPlaceholder": "Main St 1\n00-001 Warsaw",
+        "maps": "Maps link",
+        "mapsHint": "Shown as “Open in Maps”."
+      },
+      "booking": {
+        "titlePlaceholder": "Book a time",
+        "hint": "The widget itself is styled on the Settings tab and on Website embed."
+      }
+    }
+  },
+  "embed": {
+    "rows": {
+      "bookingPage": "Booking page",
+      "appointmentsPage": "Appointments page",
+      "spacesPage": "Spaces page"
+    },
+    "badge": {
+      "space": "Space",
+      "team": "Team",
+      "service": "Service"
+    },
+    "intro": "Add booking to your own site. Style the widget against the live preview, then paste the snippet into your page. Logo and accent colour come from Booking page › Branding.",
+    "snippet": "Embed snippet",
+    "whichWidget": "Which widget",
+    "channelAppointments": "Appointments",
+    "bookWith": "Book with",
+    "wholeTeam": "Whole team",
+    "staffOnly": "This snippet books that person only.",
+    "clientsPick": "Clients pick who they book.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyRefused": "Couldn't copy — select the snippet and copy manually.",
+    "noHandle": "Set a booking page address on <link>Booking page</link> to get your embed code.",
+    "style": {
+      "title": "Widget style",
+      "description": "The widget on your own site. The booking page has its own style."
+    },
+    "saved": "Widget appearance saved",
+    "preview": {
+      "hostPage": "Host page",
+      "lightPage": "Light page",
+      "darkPage": "Dark page",
+      "clash": "On {host, select, dark {a dark page} other {a light page}} the {theme, select, dark {Dark theme's} other {Light theme's}} text is unreadable ({ratio}:1) — the embed paints no background of its own. If your site is like this {host, select, dark {dark page} other {light page}}, choose {theme, select, dark {the Light theme} other {the Dark theme}} (or Auto), or set a background colour so the widget brings its own surface.",
+      "fixedRisk": "{theme, select, dark {Dark theme} other {Light theme}} with no background: the widget takes your site's surface, so on {theme, select, dark {a light site} other {a dark site}} its text becomes unreadable. Fine if your site is like this {host, select, dark {dark page} other {light page}} — otherwise choose {theme, select, dark {the Light theme} other {the Dark theme}}, or set a background colour. Preview {theme, select, dark {a light page} other {a dark page}} above to see it.",
+      "autoRisk": "Auto follows each visitor's system setting, not your site's colours. On a site that is always light or always dark, some visitors will get the mismatched variant. Pick the theme that matches your site, or set a background colour. Switch the host page above to see both."
+    },
+    "links": {
+      "title": "Links & embeds",
+      "description": "A link opens your booking page on that thing; an embed is the snippet for it.",
+      "copyEmbed": "Copy embed",
+      "copyLinkFor": "Copy link — {name}",
+      "copyEmbedFor": "Copy embed — {name}",
+      "embedCopied": "Embed copied"
+    }
   }
 }

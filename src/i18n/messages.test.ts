@@ -31,7 +31,20 @@ const SAME_IN_EVERY_LOCALE = new Set([
   "public.links.tiktok",
   "public.links.whatsapp",
   "public.units.summary",
+  "studio.forms.links.icon.instagram",
+  "studio.forms.links.icon.facebook",
+  "studio.forms.links.icon.tiktok",
+  "studio.forms.links.icon.whatsapp",
+  // A plan name.
+  "studio.proBadge",
 ]);
+
+// The studio never offers to "skip" or do something "later" (widget
+// templates spec 2026-09-02 §5, ruling 2) — the former copy.test.ts guard.
+const STUDIO_FORBIDDEN: Record<Locale, readonly string[]> = {
+  en: ["skip", "later"],
+  uk: ["пропустити", "пізніше"],
+};
 
 function flatten(value: unknown, prefix = "", out: Record<string, string> = {}): Record<string, string> {
   if (typeof value === "string") out[prefix] = value;
@@ -89,6 +102,21 @@ describe("messages", () => {
         for (const word of FORBIDDEN[locale]) {
           expect(lower.includes(word), `${k} contains forbidden word "${word}"`).toBe(false);
         }
+      }
+    });
+
+    it(`${locale}: the studio never offers a skip or a later`, () => {
+      for (const [k, v] of Object.entries(flat)) {
+        if (!k.startsWith("studio.")) continue;
+        for (const word of STUDIO_FORBIDDEN[locale]) expect(v.toLowerCase().includes(word), `${k} says "${word}"`).toBe(false);
+      }
+    });
+
+    // The layout cards are a name and a one-line description each; a dash
+    // would read as a second clause (the former widget-theme.test.ts rule).
+    it(`${locale}: no widget layout card carries a dash`, () => {
+      for (const [k, v] of Object.entries(flat)) {
+        if (k.startsWith("studio.layouts.") || k.startsWith("studio.stayLayouts.")) expect(v, k).not.toMatch(/[—–]/);
       }
     });
 

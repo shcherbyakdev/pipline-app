@@ -18,7 +18,7 @@ import { CARD, H2, PICK_CARD } from "../type";
 export function SpacesSection({ section, ctx }: { section: SectionOf<"spaces">; ctx: RenderContext }) {
   const { selectOffering, requested } = usePageState();
   const tu = useTranslations("public.units");
-  if (ctx.offerings.length === 0) return <Ghost mode={ctx.mode} label="Add a space and it shows here" />;
+  if (ctx.offerings.length === 0) return <Ghost ctx={ctx} text="spaces" />;
   const photoFor = new Map(section.photos.map((p) => [p.offeringId, p.path] as const));
   const pick = (id: string) => {
     selectOffering(id);

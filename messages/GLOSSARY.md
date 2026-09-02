@@ -45,6 +45,11 @@ A term missing here is added here first, then used.
 | require approval (toggle) | Потрібне підтвердження | the same label on services and spaces |
 | booking window (days) | Вікно бронювання (днів) | |
 | request (booking approval, admin) | запит | "Очікує підтвердження" for the pending status |
+| layout (widget template) | макет | |
+| section (of the booking page) | розділ | |
+| cover (hero section) | обкладинка | |
+| publish / draft | опублікувати / чернетка | |
+| Latin only (font note) | Лише латиниця | Geist, DM Sans, Space Grotesk |
 | an org as the subject of a verb | Заклад {orgName} … | anchors the verb to a masculine noun, since org names are mostly feminine/neuter (Студія, Клініка) |
 
 ## Style — uk

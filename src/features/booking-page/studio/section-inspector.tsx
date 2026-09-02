@@ -1,10 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SettingsCard } from "@/components/settings-row";
 import type { PublicOffering } from "@/lib/booking/public";
-import { SECTION_META } from "../defaults";
 import type { Section } from "../schema";
 import { HeaderForm } from "./forms/header";
 import { HeroForm } from "./forms/hero";
@@ -27,6 +27,7 @@ export function SectionInspector({
   section: Section; issues: Record<string, string>; supabaseUrl: string; offerings: PublicOffering[];
   onChange: (next: Section) => void; onBack: () => void;
 }) {
+  const t = useTranslations("studio");
   const common = { issues, supabaseUrl, onChange };
   const form = (() => {
     switch (section.type) {
@@ -47,9 +48,9 @@ export function SectionInspector({
   return (
     <div className="flex flex-col gap-3">
       <Button size="xs" variant="ghost" className="w-fit" onClick={onBack}>
-        <ChevronLeft className="size-3.5" /> Sections
+        <ChevronLeft className="size-3.5" /> {t("tabs.sections")}
       </Button>
-      <SettingsCard title={SECTION_META[section.type].label} description={SECTION_META[section.type].description}>
+      <SettingsCard title={t(`sections.${section.type}.label`)} description={t(`sections.${section.type}.description`)}>
         {form}
       </SettingsCard>
     </div>

@@ -21,7 +21,7 @@ export function HeroSection({ section, ctx, pickers, crossLink, ctaHidden = fals
         {section.headline.trim() ? (
           <h1 className={H1}>{section.headline}</h1>
         ) : (
-          <Ghost mode={ctx.mode} label="Add a headline" />
+          <Ghost ctx={ctx} text="headline" />
         )}
         {section.subheadline.trim() ? <p className={cn(LEAD, "max-w-[44ch]")}>{section.subheadline}</p> : null}
       </div>
@@ -36,7 +36,7 @@ export function HeroSection({ section, ctx, pickers, crossLink, ctaHidden = fals
       {src ? (
         <img src={src} alt="" loading="lazy" decoding="async" className={cn("aspect-[16/9] w-full object-cover", R_CARD)} />
       ) : (
-        <Ghost mode={ctx.mode} kind="image" label="Add a cover image" />
+        <Ghost ctx={ctx} kind="image" text="cover" />
       )}
     </section>
   );

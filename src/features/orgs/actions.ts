@@ -21,8 +21,6 @@ import {
   type ActionState,
 } from "./schema";
 
-const CONTRAST_BLOCK = "Text and background contrast is below 3:1 — pick more distinct colours.";
-
 // One-step onboarding: org + handle + timezone via create_org_with_page (0051).
 // A handle race surfaces as 23505 → specific copy, everything else generic.
 // (The pre-0051 two-step createOrg action was deleted in the 2026-08-24
@@ -167,7 +165,8 @@ export async function updateSurfaceTheme(input: unknown): Promise<ActionState> {
   // theme's default for the other side is still caught — not just pairs
   // where both are overridden.
   if (effectiveContrast(cfg) < 3) {
-    return { ok: false, error: CONTRAST_BLOCK };
+    const t = await getTranslations("errors");
+    return { ok: false, error: t("orgs.contrast") };
   }
   const { org, error: orgError } = await currentOrgBranding();
   if (!org) return brandingFail("updateSurfaceTheme", orgError ?? "no org");

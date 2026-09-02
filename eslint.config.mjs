@@ -64,11 +64,17 @@ const eslintConfig = defineConfig([
       "src/features/clients/components/**/*.tsx",
       "src/features/billing/components/**/*.tsx",
       "src/features/orgs/components/{appearance-settings,business-settings,language-settings}.tsx",
+      // Wave 4 — the Share section: the booking-page studio and the Website embed.
+      "src/app/(dashboard)/{booking-page,embed}/**/*.tsx",
+      "src/features/booking-page/studio/**/*.tsx",
+      "src/features/booking-page/render/**/*.tsx",
+      "src/components/live-preview/**/*.tsx",
+      "src/features/orgs/components/{appearance-fields,branding-form,widget-appearance,embed-preview-frame,links-table}.tsx",
     ],
     rules: {
       "react/jsx-no-literals": [
         "error",
-        { noStrings: true, ignoreProps: true, allowedStrings: [" ", "…", "·", "—", "→", "←", "–", "⌘K"] },
+        { noStrings: true, ignoreProps: true, allowedStrings: [" ", "…", "·", "—", "→", "←", "–", "⌘K", "+", "“", "”"] },
       ],
     },
   },

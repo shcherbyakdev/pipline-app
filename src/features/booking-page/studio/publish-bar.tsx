@@ -1,13 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SaveStatus } from "./use-page-draft";
-
-const STATUS_LABEL: Record<SaveStatus, string | null> = {
-  idle: null, saving: "Saving…", saved: "Saved", error: "Couldn't save", invalid: "Fix errors to save",
-};
 
 /* Slim persistent header row (the Framer/Webflow pattern): draft state on the
    left, the way out — view live, discard, publish — on the right. Rendered by
@@ -24,28 +21,35 @@ export function PublishBar({
   capped?: { href: string | null } | null;
   onRetry: () => void; onPublish: () => void; onDiscard: () => void;
 }) {
-  const label = STATUS_LABEL[status];
+  const t = useTranslations("studio.publishBar");
+  const tCommon = useTranslations("common");
+  const label =
+    status === "saving" ? tCommon("saving")
+    : status === "saved" ? tCommon("saved")
+    : status === "error" ? t("saveFailed")
+    : status === "invalid" ? t("fixErrors")
+    : null;
   const bad = status === "error" || status === "invalid";
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b pb-4">
       <div className="flex flex-wrap items-center gap-2">
         {neverPublished ? (
-          <Badge variant="secondary">Not published yet</Badge>
+          <Badge variant="secondary">{t("notPublished")}</Badge>
         ) : unpublished ? (
-          <Badge variant="secondary">Unpublished changes</Badge>
+          <Badge variant="secondary">{t("unpublished")}</Badge>
         ) : (
-          <Badge variant="outline">Live</Badge>
+          <Badge variant="outline">{t("live")}</Badge>
         )}
         {label ? <span role="status" className={cn("text-xs", bad ? "text-destructive" : "text-muted-foreground")}>{label}</span> : null}
-        {status === "error" ? <Button size="xs" variant="ghost" onClick={onRetry}>Retry</Button> : null}
+        {status === "error" ? <Button size="xs" variant="ghost" onClick={onRetry}>{t("retry")}</Button> : null}
         {pageIssue ? <span className="text-destructive text-xs">{pageIssue}</span> : null}
         {capped ? (
           <span role="status" className="text-amber-700 dark:text-amber-400 text-xs">
-            Not on your public page — over your plan&apos;s limit, so clients would see a not-found page.
+            {t("capped")}
             {capped.href ? (
               <>
                 {" "}
-                <a href={capped.href} className="underline underline-offset-3">Lift the limit</a>
+                <a href={capped.href} className="underline underline-offset-3">{t("liftLimit")}</a>
               </>
             ) : null}
           </span>
@@ -54,11 +58,11 @@ export function PublishBar({
       <div className="flex items-center gap-2">
         {liveUrl ? (
           <a href={liveUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-3">
-            View live page
+            {t("viewLive")}
           </a>
         ) : null}
-        <Button size="sm" variant="ghost" onClick={onDiscard} disabled={busy || !unpublished}>Discard changes</Button>
-        <Button size="sm" variant="brand" onClick={onPublish} disabled={busy || status === "invalid" || !unpublished}>Publish</Button>
+        <Button size="sm" variant="ghost" onClick={onDiscard} disabled={busy || !unpublished}>{t("discard")}</Button>
+        <Button size="sm" variant="brand" onClick={onPublish} disabled={busy || status === "invalid" || !unpublished}>{t("publish")}</Button>
       </div>
     </div>
   );

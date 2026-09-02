@@ -11,7 +11,7 @@ import { CARD, H2, PICK_CARD } from "../type";
 export function ServicesSection({ section, ctx }: { section: SectionOf<"services">; ctx: RenderContext }) {
   const { selectService, requested } = usePageState();
   const tu = useTranslations("public.units");
-  if (ctx.services.length === 0) return <Ghost mode={ctx.mode} label="Add a service and it shows here" />;
+  if (ctx.services.length === 0) return <Ghost ctx={ctx} text="services" />;
   const pick = (id: string) => {
     selectService(id);
     // The preview sits inside the admin page: no scrolling there.

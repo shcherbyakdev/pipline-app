@@ -1,28 +1,27 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
 
 export type StudioTab = "sections" | "settings";
-const TABS: ReadonlyArray<{ id: StudioTab; label: string }> = [
-  { id: "sections", label: "Sections" },
-  { id: "settings", label: "Settings" },
-];
+const TABS: readonly StudioTab[] = ["sections", "settings"];
 
 /* Local-state tab strip (staff-tabs.tsx look; there is no Tabs primitive).
    Sections = the draft → Publish model; Settings = saved-as-you-go. */
 export function StudioTabs({ value, onChange }: { value: StudioTab; onChange: (tab: StudioTab) => void }) {
+  const t = useTranslations("studio");
   return (
-    <div role="tablist" aria-label="Booking page" className={SEGMENTED_NAV_CLASS}>
-      {TABS.map((t) => (
+    <div role="tablist" aria-label={t("name")} className={SEGMENTED_NAV_CLASS}>
+      {TABS.map((id) => (
         <button
-          key={t.id}
+          key={id}
           type="button"
           role="tab"
-          aria-selected={value === t.id}
-          onClick={() => onChange(t.id)}
-          className={segmentedItemClass(value === t.id)}
+          aria-selected={value === id}
+          onClick={() => onChange(id)}
+          className={segmentedItemClass(value === id)}
         >
-          {t.label}
+          {t(`tabs.${id}`)}
         </button>
       ))}
     </div>

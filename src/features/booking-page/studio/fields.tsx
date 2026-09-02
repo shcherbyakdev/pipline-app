@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -82,6 +83,7 @@ export function ListEditor<T>({
   /** Gallery: rows are added by uploading, not by a blank row. */
   hideAdd?: boolean;
 }) {
+  const t = useTranslations("studio.list");
   const move = (i: number, dir: -1 | 1) => {
     const j = i + dir;
     if (j < 0 || j >= items.length) return;
@@ -95,9 +97,9 @@ export function ListEditor<T>({
         <div key={i} className="flex flex-col gap-2 rounded-md border p-2">
           {render(item, (next) => onChange(items.map((it, k) => (k === i ? next : it))), i)}
           <div className="flex items-center justify-end gap-1">
-            <Button size="icon-xs" variant="ghost" aria-label={`Move item ${i + 1} up`} disabled={i === 0} onClick={() => move(i, -1)}><ChevronUp className="size-3.5" /></Button>
-            <Button size="icon-xs" variant="ghost" aria-label={`Move item ${i + 1} down`} disabled={i === items.length - 1} onClick={() => move(i, 1)}><ChevronDown className="size-3.5" /></Button>
-            <Button size="icon-xs" variant="ghost" aria-label={`Remove item ${i + 1}`} onClick={() => onChange(items.filter((_, k) => k !== i))}><Trash2 className="size-3.5" /></Button>
+            <Button size="icon-xs" variant="ghost" aria-label={t("moveUp", { n: i + 1 })} disabled={i === 0} onClick={() => move(i, -1)}><ChevronUp className="size-3.5" /></Button>
+            <Button size="icon-xs" variant="ghost" aria-label={t("moveDown", { n: i + 1 })} disabled={i === items.length - 1} onClick={() => move(i, 1)}><ChevronDown className="size-3.5" /></Button>
+            <Button size="icon-xs" variant="ghost" aria-label={t("remove", { n: i + 1 })} onClick={() => onChange(items.filter((_, k) => k !== i))}><Trash2 className="size-3.5" /></Button>
           </div>
         </div>
       ))}
