@@ -55,7 +55,7 @@ function Row({
     startTransition(async () => {
       setActive(next);
       const result = await setOfferingActive({ id: offering.id, active: next });
-      if (!result.ok) toastRefusal(result.error);
+      if (!result.ok) toastRefusal(result.error, result.upgrade);
     });
   };
 

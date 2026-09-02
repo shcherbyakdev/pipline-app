@@ -180,14 +180,14 @@ export function OfferingDialog({
         ? await updateOffering({ id: offering!.id, ...payload })
         : await createOffering(payload);
       if (!result.ok) {
-        toastRefusal(result.error);
+        toastRefusal(result.error, result.upgrade);
         return;
       }
       onOpenChange(false);
       // A notice means the space saved but its first unit did not (plan cap
       // or a failed insert): the space is not bookable yet — a warning, not
       // "Saved", so the owner knows to visit the space's page.
-      if (result.notice) toastRefusal(result.notice, "warning");
+      if (result.notice) toastRefusal(result.notice, result.upgrade, "warning");
       else toast.success(isEdit ? "Saved" : "Space created");
     });
   };

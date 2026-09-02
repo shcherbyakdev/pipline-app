@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { plansEnforced } from "@/lib/flags";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { evaluateServiceGate } from "@/lib/billing/gates";
-import { upgradeHrefFromRefusal } from "@/lib/billing/upgrade-path";
+import { hrefForHint } from "@/lib/billing/upgrade-path";
 import { env } from "@/env";
 
 /** Team page idiom: ask the gate createService asks, and send a capped org
@@ -19,7 +19,7 @@ async function addGateHref(orgId: string): Promise<string | null> {
   const flags = await getDashboardFlags(orgId);
   if (!plansEnforced(flags)) return null;
   const refused = await evaluateServiceGate(orgId, await createClient(), flags);
-  return refused ? upgradeHrefFromRefusal(refused) : null;
+  return refused ? hrefForHint(refused.how) : null;
 }
 
 export default async function ServicesPage() {

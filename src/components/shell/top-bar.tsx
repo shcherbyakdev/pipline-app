@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { Flags } from "@/lib/flags";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { PlanStatus } from "@/features/billing/queries";
@@ -29,7 +30,9 @@ export function TopBar({
   planStatus: PlanStatus | null;
 }) {
   const pathname = usePathname();
-  const title = titleForPath(pathname, navItemsFor(flags, mode));
+  const t = useTranslations("shell");
+  const hit = titleForPath(pathname, navItemsFor(flags, mode));
+  const title = "key" in hit ? t(`nav.${hit.key}`) : hit.text;
   return (
     <header className="flex h-11 shrink-0 items-center gap-2 border-b px-4 md:px-6">
       <MobileNav org={org} userEmail={userEmail} flags={flags} mode={mode} pendingRequests={pendingRequests} planStatus={planStatus} />

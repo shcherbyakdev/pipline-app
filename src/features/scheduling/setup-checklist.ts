@@ -1,6 +1,4 @@
 import type { OrgMode } from "@/features/orgs/mode";
-import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
-import { WELCOME } from "@/features/marketing/site";
 
 /* The welcome banner's setup chips (admin IA spec §4). Pure: the Bookings
    page gathers the counts on every load until the list is done, and every
@@ -17,9 +15,12 @@ export type ChecklistInput = {
   ownersWithHours: number;   // team members or hourly spaces with ≥1 weekly rule
 };
 
+/** `bookings.checklist.*` keys (messages/en.json); the banner renders them. */
+export type ChecklistLabelKey = "addSpace" | "addUnit" | "addService" | "setHours";
+
 export type ChecklistItem = {
   id: "service" | "space" | "hours";
-  label: string;
+  labelKey: ChecklistLabelKey;
   href: string;
   done: boolean;
 };
@@ -34,18 +35,18 @@ export function setupChecklist(i: ChecklistInput): ChecklistItem[] {
     const needsUnit = !bookable && i.unitlessSpaceId !== null;
     items.push({
       id: "space",
-      label: needsUnit ? SPACES.addUnit : SPACES.add,
+      labelKey: needsUnit ? "addUnit" : "addSpace",
       href: needsUnit ? `/rentals/${i.unitlessSpaceId}` : "/rentals?new=1",
       done: bookable,
     });
   }
   if (i.mode.offersAppointments) {
-    items.push({ id: "service", label: APPOINTMENTS.add, href: "/services?new=1", done: i.serviceCount > 0 });
+    items.push({ id: "service", labelKey: "addService", href: "/services?new=1", done: i.serviceCount > 0 });
   }
   // Hours exist for team members and hourly spaces (spec §3, ruling 4);
   // a nights/days-only org sets check-in/out times on the space instead.
   if (i.mode.offersAppointments || i.hourlySpaceCount > 0) {
-    items.push({ id: "hours", label: WELCOME.setHours, href: "/availability", done: i.ownersWithHours > 0 });
+    items.push({ id: "hours", labelKey: "setHours", href: "/availability", done: i.ownersWithHours > 0 });
   }
   // No "publish" chip: /[handle] renders a default page document the moment
   // the catalogue has something bookable (renderChannelPage), so the chips

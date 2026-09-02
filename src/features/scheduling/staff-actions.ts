@@ -55,7 +55,7 @@ export async function createStaff(input: unknown): Promise<ActionState> {
   const { name, slug, email, color, serviceIds } = parsed.data;
   const supabase = await createClient();
   const refused = await assertCanAddStaff(orgId, supabase);
-  if (refused) return { ok: false, error: refused };
+  if (refused) return refused;
   // The RPC does what a plain insert can't: copy the first active staff's
   // weekly hours + future overrides, and fan out service_staff in one txn.
   const { error } = await supabase.rpc("create_staff", {
@@ -146,7 +146,7 @@ export async function setStaffActive(input: unknown): Promise<ActionState> {
   const supabase = await createClient();
   if (active) {
     const refused = await assertCanAddStaff(orgId, supabase);
-    if (refused) return { ok: false, error: refused };
+    if (refused) return refused;
   }
   const { data, error } = await supabase
     .from("staff")

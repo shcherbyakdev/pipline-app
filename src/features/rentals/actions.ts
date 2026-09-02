@@ -1,5 +1,6 @@
 "use server";
 
+import type { UpgradeDoor } from "@/lib/billing/refusal";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardFlags } from "@/lib/flags/resolve";
@@ -112,9 +113,11 @@ export async function createOffering(input: unknown): Promise<ActionState> {
   // editor still serves multi-unit spaces. Same plan gate as createUnit: if
   // the plan refuses, the space is still saved and the owner told why.
   let notice: string | undefined;
+  let upgrade: UpgradeDoor | null = null;
   const refused = await assertCanAddUnit(orgId, supabase);
   if (refused) {
-    notice = refused;
+    notice = refused.error;
+    upgrade = refused.upgrade;
   } else {
     const { error: unitError } = await supabase.from("rental_units").insert({
       org_id: orgId,
@@ -142,7 +145,7 @@ export async function createOffering(input: unknown): Promise<ActionState> {
   }
   revalidatePath("/rentals");
   revalidatePath("/availability");
-  return notice ? { ok: true, notice } : { ok: true };
+  return notice ? { ok: true, notice, ...(upgrade ? { upgrade } : {}) } : { ok: true };
 }
 
 export async function updateOffering(input: unknown): Promise<ActionState> {
@@ -219,7 +222,7 @@ export async function createUnit(input: unknown): Promise<ActionState> {
   // H5b: a unit spends the plan's resource budget like a person does.
   if (parsed.data.active) {
     const refused = await assertCanAddUnit(orgId, supabase);
-    if (refused) return { ok: false, error: refused };
+    if (refused) return refused;
   }
   const { error } = await supabase.from("rental_units").insert({
     org_id: orgId,
@@ -254,7 +257,7 @@ export async function updateUnit(input: unknown): Promise<ActionState> {
     if (!current) return { ok: false, error: GENERIC_WRITE_ERROR };
     if (!current.active) {
       const refused = await assertCanAddUnit(orgId, supabase);
-      if (refused) return { ok: false, error: refused };
+      if (refused) return refused;
     }
   }
   const { data, error } = await supabase

@@ -179,7 +179,7 @@ function StaffForm({
         ? await updateStaff({ id: staff.id, ...payload })
         : await createStaff(payload);
       if (!result.ok) {
-        toastRefusal(result.error);
+        toastRefusal(result.error, result.upgrade);
         return;
       }
       onDone();

@@ -134,7 +134,7 @@ export function ServiceDialog({
         ? await updateService({ id: service!.id, ...payload })
         : await createService(payload);
       if (!result.ok) {
-        toastRefusal(result.error);
+        toastRefusal(result.error, result.upgrade);
         return;
       }
       onOpenChange(false);

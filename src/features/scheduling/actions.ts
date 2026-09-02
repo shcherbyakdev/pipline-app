@@ -121,7 +121,7 @@ export async function createService(input: unknown): Promise<ActionState> {
   if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
   const supabase = await createClient();
   const refused = await assertCanAddService(orgId, supabase);
-  if (refused) return { ok: false, error: refused };
+  if (refused) return refused;
 
   // Solo path: the dialog only asks who can be booked once a second person is
   // active, so an omitted `staffIds` means "everyone" — read the roster here

@@ -59,7 +59,7 @@ function Row({
     startTransition(async () => {
       setActive(next);
       const result = await setStaffActive({ id: staff.id, active: next });
-      if (!result.ok) toastRefusal(result.error);
+      if (!result.ok) toastRefusal(result.error, result.upgrade);
     });
   };
 

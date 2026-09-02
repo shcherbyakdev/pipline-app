@@ -59,7 +59,7 @@ function Row({
     startTransition(async () => {
       setActive(next);
       const result = await setServiceActive({ id: service.id, active: next });
-      if (!result.ok) toastRefusal(result.error);
+      if (!result.ok) toastRefusal(result.error, result.upgrade);
     });
   };
 

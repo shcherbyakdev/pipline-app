@@ -1,7 +1,41 @@
 {
   "common": {
     "language": "Language",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "close": "Close",
+    "back": "Back",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "edit": "Edit",
+    "add": "Add",
+    "remove": "Remove",
+    "done": "Done",
+    "create": "Create",
+    "creating": "Creating…",
+    "search": "Search",
+    "none": "None",
+    "optional": "optional",
+    "yes": "Yes",
+    "no": "No",
+    "unsavedChanges": "Unsaved changes",
+    "name": "Name",
+    "email": "Email",
+    "active": "Active",
+    "inactive": "Inactive",
+    "new": "New",
+    "open": "Open",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "today": "Today",
+    "previous": "Previous",
+    "next": "Next",
+    "all": "All",
+    "min": "min",
+    "notFound": "Not found"
   },
   "settings": {
     "language": {
@@ -84,7 +118,19 @@
     "stayStarted": "This stay has already started.",
     "checkInPassed": "That check-in time has already passed — pick a later date.",
     "cancelWindowPassed": "The free-cancellation window has passed — contact the venue to cancel.",
-    "notChangeable": "This booking can no longer be changed online."
+    "notChangeable": "This booking can no longer be changed online.",
+    "planLimitServices": "Free includes 3 services.",
+    "planLimitResourceOne": "Free includes 1 bookable resource — one person or one unit.",
+    "planLimitResources": "Your plan allows {max} bookable resources — people and units together.",
+    "upgradeHint": {
+      "billing": "Upgrade in Billing to add more.",
+      "waitlist": "Join the Premium waitlist to add more.",
+      "none": "Higher limits come with paid plans."
+    },
+    "upgradeLabel": {
+      "billing": "Open Billing",
+      "waitlist": "Join the waitlist"
+    }
   },
   "public": {
     "meta": {
@@ -330,6 +376,106 @@
     "providerRescheduled": {
       "subject": "Rescheduled by client — {service}, {when}",
       "lead": "<b>{client}</b> moved their booking."
+    },
+    "appointment": "Appointment"
+  },
+  "shell": {
+    "nav": {
+      "overview": "Overview",
+      "bookings": "Bookings",
+      "clients": "Clients",
+      "spaces": "Spaces",
+      "services": "Services",
+      "team": "Team",
+      "availability": "Availability",
+      "bookingPage": "Booking page",
+      "embed": "Website embed",
+      "billing": "Billing",
+      "settings": "Settings"
+    },
+    "section": {
+      "offer": "Offer",
+      "share": "Share"
+    },
+    "search": "Search",
+    "workspace": "Workspace",
+    "requestsWaiting": "{count, plural, one {# request waiting} other {# requests waiting}}",
+    "signOut": "Sign out",
+    "openNavigation": "Open navigation",
+    "navigation": "Navigation",
+    "command": {
+      "placeholder": "Type a command or search…",
+      "noResults": "No results found.",
+      "navigate": "Navigate",
+      "clients": "Clients",
+      "actions": "Actions",
+      "preferences": "Preferences",
+      "newService": "New service",
+      "newSpace": "New space",
+      "toggleTheme": "Toggle theme"
     }
+  },
+  "spaces": {
+    "nav": "Spaces",
+    "one": "space",
+    "newButton": "New space",
+    "dialogTitle": {
+      "new": "New space",
+      "edit": "Edit space"
+    },
+    "back": "← Spaces",
+    "addUnit": "Add a unit to your space",
+    "intro": "Rooms, studios and gear, booked by the hour, night or day.",
+    "empty": "No spaces yet — a space is a room, studio or item clients book by the hour, night or day. Add one, then add its units.",
+    "timelineEmpty": "No spaces yet — add a space and its units under",
+    "unitsHint": "Units are the individual rooms or items a client is assigned — one per room.",
+    "unitsEmpty": "No units yet — the space won't appear on your booking page until it has an active unit.",
+    "field": "Space",
+    "pickerBoth": "Space or service",
+    "badge": "Space",
+    "settings": {
+      "label": "Spaces",
+      "blurb": "Rooms, studios and gear, booked by the hour, night or day."
+    },
+    "add": "Add a space",
+    "unitNotCreated": "Saved the space, but couldn't add its first unit — add one on the space's page.",
+    "hoursNotSet": "Saved the space, but couldn't set its default hours — set them on Availability.",
+    "notBookable": "Not bookable — add a unit",
+    "hoursNote": "Nightly and daily spaces use check-in and check-out times instead — set those on the space.",
+    "hoursNightsOnly": "Nightly and daily spaces use check-in and check-out times, set on each space. Hourly spaces and team members set their weekly hours here.",
+    "scope": {
+      "group": "Spaces",
+      "all": "All spaces"
+    }
+  },
+  "appointments": {
+    "settings": {
+      "label": "Appointments",
+      "blurb": "Services booked as time slots with your team."
+    },
+    "add": "Add a service",
+    "field": "Service",
+    "badge": "Appointment",
+    "scope": {
+      "group": "Appointments",
+      "all": "All appointments"
+    }
+  },
+  "bookings": {
+    "checklist": {
+      "addSpace": "Add a space",
+      "addUnit": "Add a unit to your space",
+      "addService": "Add a service",
+      "setHours": "Set hours"
+    },
+    "status": {
+      "confirmed": "Confirmed",
+      "pending": "Pending approval",
+      "declined": "Declined",
+      "cancelledByClient": "Cancelled by client",
+      "cancelledByProvider": "Cancelled by you",
+      "rescheduled": "Rescheduled"
+    },
+    "fallbackTitle": "Appointment"
   }
 }

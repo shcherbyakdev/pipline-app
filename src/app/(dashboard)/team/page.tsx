@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { plansEnforced } from "@/lib/flags";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { evaluateResourceGate } from "@/lib/billing/gates";
-import { upgradeHrefFromRefusal } from "@/lib/billing/upgrade-path";
+import { hrefForHint } from "@/lib/billing/upgrade-path";
 import { env } from "@/env";
 
 /** Would the plan refuse one more person right now? The page asks the SAME
@@ -21,7 +21,7 @@ async function addGateHref(orgId: string): Promise<string | null> {
   const flags = await getDashboardFlags(orgId);
   if (!plansEnforced(flags)) return null;
   const refused = await evaluateResourceGate(orgId, await createClient(), flags);
-  return refused ? upgradeHrefFromRefusal(refused) : null;
+  return refused ? hrefForHint(refused.how) : null;
 }
 
 /* Team: the roster. Always visible, even for a solo provider — they see one

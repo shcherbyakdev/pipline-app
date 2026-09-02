@@ -17,7 +17,7 @@ import { UserMultipleIcon } from "@hugeicons/core-free-icons";
 import type { NavItem } from "@/components/shell/nav";
 import type { OrgMode } from "@/features/orgs/mode";
 import { clientsForCommandMenu } from "@/features/clients/actions";
-import { SPACES } from "@/features/orgs/vocab";
+import { useTranslations } from "next-intl";
 
 /** Dispatched on `window` by the top bar's search button; the menu toggles on it
     just like ⌘K. */
@@ -26,6 +26,7 @@ export const OPEN_COMMAND_MENU_EVENT = "booklo:open-command-menu";
 export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
+  const t = useTranslations("shell");
   const { resolvedTheme, setTheme } = useTheme();
 
   React.useEffect(() => {
@@ -64,10 +65,10 @@ export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Type a command or search…" />
+      <CommandInput placeholder={t("command.placeholder")} />
       <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Navigate">
+        <CommandEmpty>{t("command.noResults")}</CommandEmpty>
+        <CommandGroup heading={t("command.navigate")}>
           {/* Sourced from the same navItemsFor list as the sidebar so the two
               lists can't drift again (this slice is what caused Settings to
               be in one but not the other). Actions below stays hand-listed —
@@ -75,12 +76,12 @@ export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }
               Settings, so there's no drift risk to guard against there. */}
           {items.map((item) => (
             <CommandItem key={item.href} onSelect={() => go(item.href)}>
-              <HugeiconsIcon icon={item.icon} size={16} /> {item.label}
+              <HugeiconsIcon icon={item.icon} size={16} /> {t(`nav.${item.labelKey}`)}
             </CommandItem>
           ))}
         </CommandGroup>
         {clients && clients.length > 0 ? (
-          <CommandGroup heading="Clients">
+          <CommandGroup heading={t("command.clients")}>
             {clients.map((c) => (
               <CommandItem
                 key={c.id}
@@ -93,19 +94,19 @@ export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }
             ))}
           </CommandGroup>
         ) : null}
-        <CommandGroup heading="Actions">
+        <CommandGroup heading={t("command.actions")}>
           {mode.offersAppointments && (
             <CommandItem onSelect={() => go("/services?new=1")}>
-              <Plus className="size-4" /> New service
+              <Plus className="size-4" /> {t("command.newService")}
             </CommandItem>
           )}
           {mode.offersRentals && (
             <CommandItem onSelect={() => go("/rentals?new=1")}>
-              <Plus className="size-4" /> {SPACES.command}
+              <Plus className="size-4" /> {t("command.newSpace")}
             </CommandItem>
           )}
         </CommandGroup>
-        <CommandGroup heading="Preferences">
+        <CommandGroup heading={t("command.preferences")}>
           <CommandItem
             onSelect={() => {
               setTheme(resolvedTheme === "dark" ? "light" : "dark");
@@ -113,7 +114,7 @@ export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }
             }}
           >
             {resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            Toggle theme
+            {t("command.toggleTheme")}
           </CommandItem>
         </CommandGroup>
       </CommandList>

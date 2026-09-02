@@ -11,6 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { ChecklistItem } from "@/features/scheduling/setup-checklist";
+import { useTranslations } from "next-intl";
 import { dismissWelcome } from "@/features/scheduling/setup-actions";
 
 // Shown on every Bookings load until the checklist is done or the owner
@@ -31,6 +32,7 @@ export function WelcomeBanner({
   mode: OrgMode;
   checklist: ChecklistItem[];
 }) {
+  const tChecklist = useTranslations("bookings.checklist");
   const [copied, setCopied] = React.useState(false);
   // Optimistic: the banner goes at once; the action's cookie write
   // re-renders the page so it stays gone on the next load.
@@ -102,7 +104,7 @@ export function WelcomeBanner({
             <li key={item.id}>
               <Link
                 href={item.href}
-                aria-label={item.done ? `${item.label} — done` : item.label}
+                aria-label={item.done ? `${tChecklist(item.labelKey)} — done` : tChecklist(item.labelKey)}
                 className={cn(buttonVariants({ size: "sm", variant: item.done ? "ghost" : "outline" }))}
               >
                 <HugeiconsIcon
@@ -110,7 +112,7 @@ export function WelcomeBanner({
                   size={14}
                   className={item.done ? "text-primary" : "text-muted-foreground"}
                 />
-                <span className={item.done ? "line-through opacity-70" : undefined}>{item.label}</span>
+                <span className={item.done ? "line-through opacity-70" : undefined}>{tChecklist(item.labelKey)}</span>
               </Link>
             </li>
           ))}
