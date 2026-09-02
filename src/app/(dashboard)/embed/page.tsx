@@ -10,29 +10,10 @@ import { effectiveMode, modeOf, presentMode } from "@/features/orgs/mode";
 import { isBookableOffering, toPreviewCatalog } from "@/lib/booking/preview-catalog";
 import { requireOrg } from "@/lib/auth/session";
 import { parseWidgetTheme } from "@/lib/widget-theme";
-import { createClient } from "@/lib/supabase/server";
-import { getEntitlements } from "@/lib/billing/queries";
-import { upgradeHref } from "@/lib/billing/upgrade-path";
-import { getPlanStatus } from "@/features/billing/queries";
-import { plansEnforced } from "@/lib/flags";
+import { badgeToggle } from "@/lib/billing/badge-toggle";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { env } from "@/env";
 import { PageIntro } from "@/components/shell/page-header";
-
-async function badgeToggleEnabled(orgId: string): Promise<boolean> {
-  try {
-    // BOTH reads sit inside the try: a flags hiccup on this page fails OPEN
-    // exactly like the entitlement read does. getDashboardFlags degrades to
-    // FLAG_DEFAULTS on its own now, so this is belt-and-braces — but leaving
-    // one of the two reads able to 500 the page while the other cannot is
-    // the asymmetry worth removing.
-    if (!plansEnforced(await getDashboardFlags(orgId))) return true;
-    return (await getEntitlements(orgId, await createClient())).hideBadge;
-  } catch (error) {
-    console.error("[billing] embed badge-toggle read failed — toggle stays enabled:", error);
-    return true;
-  }
-}
 
 /* Website embed: the second booking channel — the widget on the org's own
    site. Style it against a live preview, then copy the snippet. */
@@ -61,10 +42,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   // fails OPEN (toggle stays usable) rather than 500-ing this page: the same
   // ruling loadPublicOffering follows, and the badge itself is enforced
   // server-side regardless (badgeVisible / emailBadgeUrl).
-  const canHideBadge = await badgeToggleEnabled(settings.orgId);
-  // Where the toggle sends a capped org (its chip and the box itself).
-  const flags = await getDashboardFlags(org.id);
-  const badgeUpgradeHref = canHideBadge ? null : upgradeHref(flags, (await getPlanStatus()).plan);
+  const { canHideBadge, upgradeHref: badgeUpgradeHref } = await badgeToggle(settings.orgId);
 
   const catalog = toPreviewCatalog({ mode, services, offerings });
   // Solo orgs get no "Book with" choice at all (there is only one answer);

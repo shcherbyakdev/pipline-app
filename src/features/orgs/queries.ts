@@ -7,7 +7,10 @@ export type BrandingSettings = {
   accentColor: string | null;
   logoPath: string | null;
   logoUrl: string | null;
+  /** The website embed's appearance. */
   widgetTheme: unknown;
+  /** The hosted booking page's own appearance (0068). */
+  pageTheme: unknown;
 };
 
 // RLS-scoped; single-org assumption matches the currentOrgId convention.
@@ -15,7 +18,7 @@ export async function getBrandingSettings(): Promise<BrandingSettings | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("orgs")
-    .select("id, name, accent_color, logo_path, widget_theme")
+    .select("id, name, accent_color, logo_path, widget_theme, page_theme")
     .limit(1)
     .maybeSingle();
   if (error) throw error;
@@ -27,6 +30,7 @@ export async function getBrandingSettings(): Promise<BrandingSettings | null> {
     logoPath: data.logo_path,
     logoUrl: data.logo_path ? publicLogoUrl(data.logo_path) : null,
     widgetTheme: data.widget_theme,
+    pageTheme: data.page_theme,
   };
 }
 

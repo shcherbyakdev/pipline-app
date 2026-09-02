@@ -174,10 +174,14 @@ export async function emailBadgeUrl(orgId: string): Promise<string | null> {
     `${env.NEXT_PUBLIC_APP_URL}/?ref=badge${handle ? `&org=${encodeURIComponent(handle)}` : ""}`;
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin.from("orgs").select("widget_theme, handle").eq("id", orgId).maybeSingle();
+    // Emails belong to neither surface (their links land on the manage
+    // page): the badge hides when the org hid it on EITHER the hosted page
+    // or the website embed — an embed-only org's tick counts too.
+    const { data, error } = await admin.from("orgs").select("page_theme, widget_theme, handle").eq("id", orgId).maybeSingle();
     if (error) throw error;
     const hideAllowed = plansEnforced(await getOrgFlagsAdmin(orgId)) ? (await getEntitlementsAdmin(orgId)).hideBadge : true;
-    return badgeShows(parseWidgetTheme(data?.widget_theme).hidePoweredBy, hideAllowed) ? url(data?.handle) : null;
+    const hidden = parseWidgetTheme(data?.page_theme).hidePoweredBy || parseWidgetTheme(data?.widget_theme).hidePoweredBy;
+    return badgeShows(hidden, hideAllowed) ? url(data?.handle) : null;
   } catch (error) {
     console.error("[billing] emailBadgeUrl:", error);
     return url(null);

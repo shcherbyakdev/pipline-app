@@ -122,6 +122,34 @@ describe("update_org_widget_theme", () => {
     }
   });
 
+  it("stores the widget templates and the Geist font (0067), and rejects an unknown layout", async () => {
+    const theme = { theme: "light", radius: "subtle", font: "geist", layout: "week-columns", stayLayout: "next-free", hidePoweredBy: false };
+    const { error } = await owner.rpc("update_org_widget_theme", { p_org_id: orgId, p_theme: theme });
+    expect(error).toBeNull();
+    const { data } = await admin.from("orgs").select("widget_theme").eq("id", orgId).single();
+    expect(data!.widget_theme).toEqual(theme);
+    for (const bad of [{ layout: "carousel" }, { stayLayout: "three-months" }]) {
+      const { error: badErr } = await owner.rpc("update_org_widget_theme", { p_org_id: orgId, p_theme: bad });
+      expect(badErr, JSON.stringify(bad)).not.toBeNull();
+    }
+  });
+
+  it("0068: each surface has its own theme — page and embed are written independently, the old name still means the embed", async () => {
+    const page = { theme: "dark", radius: "round", font: "geist", layout: "week-columns", hidePoweredBy: false };
+    const embed = { theme: "light", radius: "none", font: "system", layout: "next-available", hidePoweredBy: true };
+    expect((await owner.rpc("update_org_surface_theme", { p_org_id: orgId, p_surface: "page", p_theme: page })).error).toBeNull();
+    expect((await owner.rpc("update_org_surface_theme", { p_org_id: orgId, p_surface: "embed", p_theme: embed })).error).toBeNull();
+    const { data } = await admin.from("orgs").select("page_theme, widget_theme").eq("id", orgId).single();
+    expect(data!.page_theme).toEqual(page);
+    expect(data!.widget_theme).toEqual(embed);
+    expect((await owner.rpc("update_org_widget_theme", { p_org_id: orgId, p_theme: null })).error).toBeNull();
+    const { data: after } = await admin.from("orgs").select("page_theme, widget_theme").eq("id", orgId).single();
+    expect(after!.widget_theme).toBeNull();
+    expect(after!.page_theme).toEqual(page);
+    expect((await owner.rpc("update_org_surface_theme", { p_org_id: orgId, p_surface: "email", p_theme: page })).error).not.toBeNull();
+    expect((await stranger.rpc("update_org_surface_theme", { p_org_id: orgId, p_surface: "page", p_theme: page })).error).not.toBeNull();
+  });
+
   it("rejects a non-member", async () => {
     const { error } = await stranger.rpc("update_org_widget_theme", {
       p_org_id: orgId, p_theme: { theme: "dark" },

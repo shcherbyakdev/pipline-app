@@ -57,6 +57,7 @@ export function RangePicker({
   canGoBack,
   timeZone,
   variant = "widget",
+  months = 2,
 }: {
   offering: PublicOffering;
   availability: RangeAvailability | null;
@@ -71,6 +72,8 @@ export function RangePicker({
   // shell, where `wt-surface`/`wt-primary` and `--widget-accent` resolve to
   // nothing — they take the app's own palette instead.
   variant?: "widget" | "admin";
+  /** The stays templates (spec §8): one grid, or two side by side. */
+  months?: 1 | 2;
 }) {
   const { start, end } = value;
   const picking = start !== null && end === null;
@@ -159,8 +162,8 @@ export function RangePicker({
         {loading ? <p className="text-muted-foreground text-sm">Loading availability…</p> : null}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {[month, addMonths(month, 1)].map((m) => (
+      <div className={cn("grid gap-6", months === 2 && "md:grid-cols-2")}>
+        {(months === 2 ? [month, addMonths(month, 1)] : [month]).map((m) => (
           <div key={m} className="flex flex-col gap-2">
             <p className="text-center text-sm font-medium">
               {monthLabelFmt.format(utcDate(`${m}-01`))}

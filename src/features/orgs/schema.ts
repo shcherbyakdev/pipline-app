@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SLOT_LAYOUTS, STAY_LAYOUTS, WIDGET_FONT_IDS } from "@/lib/widget-theme";
 import { HANDLE_RE, isReservedHandle } from "@/features/scheduling/handle";
 import type { OrgMode } from "./mode";
 
@@ -47,11 +48,20 @@ const hexField = z.string().regex(/^#[0-9a-f]{6}$/);
 export const widgetThemeInput = z.object({
   theme: z.enum(["light", "dark", "auto"]),
   radius: z.enum(["none", "subtle", "round"]),
-  font: z.enum(["system", "inter", "dm-sans", "lora", "space-grotesk", "ibm-plex-mono"]),
+  font: z.enum(WIDGET_FONT_IDS),
+  layout: z.enum(SLOT_LAYOUTS).optional(),
+  stayLayout: z.enum(STAY_LAYOUTS).optional(),
   background: hexField.optional(),
   text: hexField.optional(),
   hidePoweredBy: z.boolean(),
 });
+
+/** One appearance per surface (spec 2026-09-02 §9): the hosted booking page
+    and the website embed each keep their own theme, layouts and badge
+    setting; they share only the widget UI. */
+export const SURFACES = ["page", "embed"] as const;
+export type Surface = (typeof SURFACES)[number];
+export const surfaceThemeInput = z.object({ surface: z.enum(SURFACES), theme: widgetThemeInput });
 
 export const updateOrgModesInput = z
   .object({ offersAppointments: z.boolean(), offersRentals: z.boolean() })

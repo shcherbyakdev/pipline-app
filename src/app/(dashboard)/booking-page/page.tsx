@@ -10,8 +10,10 @@ import { frontDoor } from "@/lib/booking/channel-pages";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { pageChannelMode, parsePageChannel, type PageChannel } from "@/features/booking-page/channel";
-import { EMPTY_PAGE_STATE, getPageStates, getPageSectionsEntitlement, type PageDraftState } from "@/features/booking-page/queries";
+import { EMPTY_PAGE_STATE, getPageStates, getPageSectionsEntitlement } from "@/features/booking-page/queries";
 import { isFreshPage } from "@/features/booking-page/studio/starter-state";
+import { parseWidgetTheme } from "@/lib/widget-theme";
+import { badgeToggle } from "@/lib/billing/badge-toggle";
 import { BookingPageBuilder } from "@/features/booking-page/studio/booking-page-builder";
 import { PageSwitch } from "@/features/booking-page/studio/page-switch";
 import { PageIntro } from "@/components/shell/page-header";
@@ -65,13 +67,24 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
     getPageSectionsEntitlement(branding.orgId),
   ]);
   const page = pages[channel] ?? EMPTY_PAGE_STATE;
-  // The starter (spec §5): a page nobody touched opens it; the channel with
-  // nothing bookable makes it ask for the first service/space; the look
-  // checkbox defaults on only while nothing is published anywhere.
+  // The starter (widget templates spec §5): a fresh appointments page —
+  // nothing published, the default composition, no widget layout chosen
+  // yet — opens it on the layout step; a fresh spaces page has no layout to
+  // pick and opens it only to ask for the first space.
+  const theme = parseWidgetTheme(branding.pageTheme);
+  const badge = await badgeToggle(branding.orgId);
+  const bookable = offerings.filter(isBookableOffering);
+  const hasHourly = bookable.some((o) => o.rangeMode === "hours");
+  const hasStays = bookable.some((o) => o.rangeMode !== "hours");
+  // Every group this page asks about answered: times for appointments (and
+  // hourly spaces), stays for nights/days (spec §8).
+  const layoutChosen =
+    channel === "appointments" ? theme.layout !== undefined : (!hasHourly || theme.layout !== undefined) && (!hasStays || theme.stayLayout !== undefined);
+  const needsFirstItem = channel === "appointments" ? !has.services : !has.spaces;
   const starter = {
-    fresh: isFreshPage(page),
-    needsFirstItem: channel === "appointments" ? !has.services : !has.spaces,
-    anyPublished: Object.values(pages).some((p: PageDraftState) => p.published !== null),
+    // Nothing bookable yet: the starter opens for the first item regardless.
+    fresh: isFreshPage(page, needsFirstItem ? false : layoutChosen),
+    needsFirstItem,
   };
   const switchable = declared.offersAppointments && declared.offersRentals;
 
@@ -87,6 +100,7 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
         channel={channel}
         publicReachable={publicReachable}
         starter={starter}
+        badge={badge}
         crossLink={crossLink}
         branding={branding}
         scheduling={scheduling}

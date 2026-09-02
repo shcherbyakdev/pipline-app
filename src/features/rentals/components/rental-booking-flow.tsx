@@ -4,10 +4,14 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
-import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
+import { addMonths, monthOf } from "@/features/rentals/calendar-grid";
 import { formatOfferingPrice, stayUnits } from "@/features/rentals/pricing";
 import { getRangeAvailability, createRentalBooking } from "@/features/rentals/public-actions";
 import { RangePicker, staySummary, type RangeValue } from "./range-picker";
+import { NextFreeStays } from "./next-free-stays";
+import { stayFetchWindow } from "@/features/rentals/stay-window";
+import { StayFields } from "./stay-fields";
+import type { StayLayout } from "@/lib/widget-theme";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { BookingMoneySummary } from "./booking-money-summary";
@@ -16,28 +20,27 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Two rendered months never exceed 62 days; the turnover tail has to come
-// along or validateStay would read a missing day as "unavailable" at the far
-// edge. The action's own input cap is 93.
-function windowDays(offering: PublicOffering): number {
-  return Math.min(93, 62 + offering.turnoverDays);
-}
-
 export function RentalBookingFlow({
   handle,
   orgTimeZone,
   offering,
   currency,
   onBack,
+  stayLayout = "one-month",
+  preview,
 }: {
   handle: string;
   orgTimeZone: string;
   offering: PublicOffering;
   currency: string;
   onBack: (() => void) | null;
+  /** How the stay is picked — the stays template (spec §8). */
+  stayLayout?: StayLayout;
+  /** Admin live previews: canned availability, never a fetch. */
+  preview?: { availability: RangeAvailability };
 }) {
-  const [month, setMonth] = React.useState(() => monthOf(todayISO()));
-  const [availability, setAvailability] = React.useState<RangeAvailability | null>(null);
+  const [month, setMonth] = React.useState(() => monthOf(preview ? preview.availability.notBefore : todayISO()));
+  const [availability, setAvailability] = React.useState<RangeAvailability | null>(preview?.availability ?? null);
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
   const [range, setRange] = React.useState<RangeValue>({ start: null, end: null });
   const [unitId, setUnitId] = React.useState<string | null>(null);
@@ -52,18 +55,28 @@ export function RentalBookingFlow({
   // before the first resolves — only the most recent request may ever apply
   // its result.
   const seqRef = React.useRef(0);
+  // The window the current availability covers: a re-render that needs the
+  // same window (a check-in picked inside the shown month) does not refetch.
+  const fetchedRef = React.useRef<string | null>(null);
+  const months: 1 | 2 = stayLayout === "two-months" ? 2 : 1;
 
   // Deliberately does NOT clear `error`: the datesTaken path re-loads
-  // availability *and* wants its message to survive the reload.
+  // availability *and* wants its message to survive the reload. `force`
+  // is that path: the same window, fetched again.
   const load = React.useCallback(
-    (m: string) => {
+    (m: string, start: string | null, force = false) => {
+      if (preview) return;
+      const w = stayFetchWindow({ shown: m, months, start, turnoverDays: offering.turnoverDays });
+      const key = `${w.from}:${w.days}`;
+      if (!force && fetchedRef.current === key) return;
+      fetchedRef.current = key;
       startTransition(async () => {
         const seq = ++seqRef.current;
         const result = await getRangeAvailability({
           handle,
           offeringId: offering.id,
-          fromDate: firstOfMonth(m),
-          days: windowDays(offering),
+          fromDate: w.from,
+          days: w.days,
         });
         if (seq !== seqRef.current) return;
         if (result.ok) {
@@ -75,14 +88,12 @@ export function RentalBookingFlow({
         }
       });
     },
-    // `offering` is a stable prop object per selection; depending on the
-    // whole thing keeps windowDays honest without listing its fields.
-    [handle, offering],
+    [handle, offering.id, offering.turnoverDays, months, preview],
   );
 
   React.useEffect(() => {
-    load(month);
-  }, [month, load]);
+    load(month, range.start);
+  }, [month, range.start, load]);
 
   function changeMonth(m: string) {
     setError(null);
@@ -105,7 +116,7 @@ export function RentalBookingFlow({
 
   function submit(formData: FormData) {
     const { start, end } = range;
-    if (!start || !end) return;
+    if (!start || !end || preview) return;
     startTransition(async () => {
       setError(null);
       const result = await createRentalBooking({
@@ -129,7 +140,7 @@ export function RentalBookingFlow({
         setRange({ start: null, end: null });
         setUnitId(null);
         setTermsAccepted(false);
-        load(month);
+        load(month, null, true);
       }
     });
   }
@@ -152,7 +163,11 @@ export function RentalBookingFlow({
     );
   }
 
-  const needsUnitStep = offering.unitSelection === "client_picks" && !unitId;
+  // Preview has no units (canned availability only): the details form
+  // follows the dates directly, as it does for an auto-assigned space.
+  const needsUnitStep = !preview && offering.unitSelection === "client_picks" && !unitId;
+  // The earliest month the picker may show: this one — or the canned one.
+  const homeMonth = monthOf(preview ? preview.availability.notBefore : todayISO());
 
   return (
     <div className="flex flex-col gap-6">
@@ -171,17 +186,44 @@ export function RentalBookingFlow({
       </div>
 
       {!range.end ? (
-        <RangePicker
-          offering={offering}
-          availability={availability}
-          loading={pending}
-          month={month}
-          onMonthChange={changeMonth}
-          value={range}
-          onChange={changeRange}
-          canGoBack={month > monthOf(todayISO())}
-          timeZone={orgTimeZone}
-        />
+        stayLayout === "next-free" ? (
+          <NextFreeStays
+            offering={offering}
+            availability={availability}
+            loading={pending}
+            onPick={(start, end) => changeRange({ start, end })}
+            onLater={() => changeMonth(addMonths(month, 2))}
+            onSooner={month > homeMonth ? () => changeMonth(homeMonth) : null}
+          />
+        ) : stayLayout === "fields" ? (
+          <StayFields offering={offering} value={range} onChange={changeRange} open={!!preview}>
+            <RangePicker
+              offering={offering}
+              availability={availability}
+              loading={pending}
+              month={month}
+              onMonthChange={changeMonth}
+              value={range}
+              onChange={changeRange}
+              canGoBack={month > homeMonth}
+              timeZone={orgTimeZone}
+              months={1}
+            />
+          </StayFields>
+        ) : (
+          <RangePicker
+            offering={offering}
+            availability={availability}
+            loading={pending}
+            month={month}
+            onMonthChange={changeMonth}
+            value={range}
+            onChange={changeRange}
+            canGoBack={month > homeMonth}
+            timeZone={orgTimeZone}
+            months={months}
+          />
+        )
       ) : needsUnitStep ? (
         <div className="flex flex-col gap-3">
           <p className="text-sm">

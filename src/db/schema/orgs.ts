@@ -25,6 +25,9 @@ export const orgs = pgTable("orgs", {
   // Widget appearance (S3). Written ONLY via update_org_widget_theme
   // (same select-only-orgs discipline as branding). Null = all defaults.
   widgetTheme: jsonb("widget_theme"),
+  // The hosted booking page's own appearance (0068) — the embed keeps
+  // widget_theme. Written ONLY via update_org_surface_theme. Null = defaults.
+  pageTheme: jsonb("page_theme"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   // What the org sells (H1 org modes). Both default true; onboarding sets
   // them explicitly. Written ONLY via create_org / create_org_with_page /

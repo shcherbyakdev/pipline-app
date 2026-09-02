@@ -1,12 +1,11 @@
-/* Every string the starter and the picker show (spec 2026-08-28 §5). Kept
-   out of the components so copy.test.ts can guard it the way site.test.ts
-   guards the funnel: no "rental", no "offering", no skip. The "Something
-   else" cards and the per-type words live in business-types.ts. */
+/* Every string the starter and the picker show (widget templates spec
+   2026-09-02 §5). Kept out of the components so copy.test.ts can guard it
+   the way site.test.ts guards the funnel: no "rental", no "offering", no
+   skip. The layout cards' words live in WIDGET_LAYOUT_OPTIONS. */
 export const STARTER = {
-  title: "What kind of business is this?",
-  sub: "Pick the closest match — your page starts from a layout that fits, and you can change everything after.",
-  look: "Also apply this look (theme, font, corners)",
-  lookHint: "Unlike the sections, this changes the live page and website embed immediately.",
+  title: "How should clients pick a time?",
+  titleSpaces: "How should clients pick dates and times?",
+  sub: "Pick how this page's widget shows what is free. It applies straight away, and you can change it any time on Settings.",
   firstService: {
     title: "Add your first service",
     sub: "It goes straight onto your page. Add more on Services whenever you like.",
@@ -36,15 +35,10 @@ export const STARTER = {
   leave: "Leave for now",
   continue: "Continue",
   picker: {
-    trigger: "Start from a template",
-    title: "Start from a template",
-    sub: "Pick the closest match, then make it yours. Your published page stays until you publish.",
-    use: "Use this template",
+    trigger: "Widget layout",
+    title: "Widget layout",
+    sub: "Change how this page shows what is free. It applies straight away; the website embed has its own layout.",
+    use: "Use this layout",
   },
-  replace: {
-    title: "Replace your current draft?",
-    description: "Your published page stays until you publish.",
-    confirm: "Replace",
-  },
-  applied: "Template applied",
+  applied: "Widget layout saved",
 } as const;

@@ -470,6 +470,20 @@
       "when": 1788291314597,
       "tag": "0066_premium_waitlist_security",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1788340674230,
+      "tag": "0067_widget_layouts",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1788340674661,
+      "tag": "0068_surface_themes",
+      "breakpoints": true
     }
   ]
 }

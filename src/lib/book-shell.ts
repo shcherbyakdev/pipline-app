@@ -7,5 +7,6 @@ import type { WidgetThemeConfig } from "@/lib/widget-theme";
     preview so it composes the page exactly like /book. */
 export function bookShellClass(theme: WidgetThemeConfig["theme"]): string {
   const scope = theme === "auto" ? "book-auto" : theme;
-  return `${scope} bg-background text-foreground flex flex-1 flex-col`;
+  // `book-page`: the hosted page's neutral palette (globals.css).
+  return `book-page ${scope} bg-background text-foreground flex flex-1 flex-col`;
 }

@@ -9,7 +9,9 @@ import { formatOfferingPrice, totalCents } from "@/features/rentals/pricing";
 import { formatMoney } from "@/lib/money";
 import { getHourlySlots, createRentalBookingHours } from "@/features/rentals/hourly-actions";
 import { formatHourlyWhenLine } from "@/features/scheduling/templates";
-import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
+import { SlotPicker } from "@/features/scheduling/components/slot-layouts/slot-picker";
+import { firstDayBeyond, firstLookDays, homeWindow, windowAround, type SlotWindow } from "@/features/scheduling/slot-paging";
+import type { SlotLayout } from "@/lib/widget-theme";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { BookingMoneySummary } from "./booking-money-summary";
@@ -22,10 +24,10 @@ const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text
 // draws the same line at a handful of options.
 const MAX_PILL_OPTIONS = 8;
 
+const viewerDayFmt = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
+const viewerDay = (iso: string) => viewerDayFmt.format(new Date(iso));
 function todayISO(): string {
-  return new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(
-    new Date(),
-  );
+  return viewerDayFmt.format(new Date());
 }
 
 type HourlySlot = { startsAt: string; unitIds: string[] };
@@ -36,12 +38,18 @@ export function HourlyBookingFlow({
   offering,
   currency,
   onBack,
+  layout = "calendar",
+  preview,
 }: {
   handle: string;
   orgTimeZone: string;
   offering: PublicOffering;
   currency: string;
   onBack: (() => void) | null;
+  /** How start times are shown — shared with the appointment widget (spec §8). */
+  layout?: SlotLayout;
+  /** Admin live previews: canned start times, never a fetch. */
+  preview?: { slots: string[] };
 }) {
   // The widget branch only ever hands this component an hours offering
   // (booking-widget.tsx's rangeMode check) — the trio is guaranteed set
@@ -49,11 +57,25 @@ export function HourlyBookingFlow({
   const hourly = offering as HourlyOffering;
   const options = React.useMemo(() => durationOptions(hourly), [hourly]);
 
+  // Preview opens straight on the times (the shortest duration): the cards
+  // are about how times show, not about the duration step.
   const [durationMin, setDurationMin] = React.useState<number | null>(
-    options.length === 1 ? options[0] : null,
+    options.length === 1 || preview ? options[0] : null,
   );
-  const [fromDate, setFromDate] = React.useState(todayISO());
-  const [slots, setSlots] = React.useState<HourlySlot[]>([]);
+  // The layout's home window — or, in preview, the one holding the canned
+  // slots (booking-widget.tsx's home()).
+  const home = (): SlotWindow => {
+    const today = todayISO();
+    if (!preview) return homeWindow(layout, today);
+    const first = firstDayBeyond(preview.slots, homeWindow(layout, today), viewerDay) ?? today;
+    return windowAround(layout, first, today);
+  };
+  const [win, setWin] = React.useState<SlotWindow>(home);
+  // False until the visitor pages (or the first look jumped ahead): the
+  // fetch for a fresh duration spans firstLookDays and may move the window
+  // to the one holding the first free time (booking-widget.tsx's rule).
+  const [navigated, setNavigated] = React.useState(false);
+  const [slots, setSlots] = React.useState<HourlySlot[]>(() => (preview ? preview.slots.map((startsAt) => ({ startsAt, unitIds: [] })) : []));
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
   const [slot, setSlot] = React.useState<string | null>(null);
   const [unitId, setUnitId] = React.useState<string | null>(null);
@@ -74,31 +96,51 @@ export function HourlyBookingFlow({
   // slotTaken retry below re-loads times *and* wants its message to survive
   // the reload.
   const load = React.useCallback(() => {
-    if (!durationMin) return;
+    if (!durationMin || preview) return;
     startTransition(async () => {
       const seq = ++seqRef.current;
+      const firstLook = !navigated;
       const res = await getHourlySlots({
         handle,
         offeringId: offering.id,
         durationMin,
-        fromDate,
-        days: 7,
+        fromDate: win.from,
+        days: firstLook ? firstLookDays(win) : win.days,
         unitId: offering.unitSelection === "client_picks" ? unitId : null,
       });
       if (seq !== seqRef.current) return;
       if (res.ok) {
         setSlots(res.slots);
         setUnits(res.units);
+        // Booked out here? Open on the window holding the first free time —
+        // one round trip instead of a "try the next" click per empty page.
+        if (firstLook) {
+          const target = firstDayBeyond(res.slots.map((s) => s.startsAt), win, viewerDay);
+          if (target) {
+            setWin(windowAround(layout, target, todayISO()));
+            setNavigated(true);
+          }
+        }
       } else {
         setSlots([]);
         setError(res.error);
       }
     });
-  }, [handle, offering.id, offering.unitSelection, durationMin, fromDate, unitId]);
+  }, [handle, offering.id, offering.unitSelection, durationMin, win, navigated, unitId, preview, layout]);
 
   React.useEffect(() => {
     load();
   }, [load]);
+
+  // A layout change (the studio's previews switch it live) opens the fresh
+  // layout on its own home window — booking-widget.tsx's render-time adjust.
+  const [appliedLayout, setAppliedLayout] = React.useState(layout);
+  if (layout !== appliedLayout) {
+    setAppliedLayout(layout);
+    setWin(home());
+    setNavigated(false);
+    setSlot(null);
+  }
 
   // A duration pick mounts the slot grid in its place (this component's own
   // conditional render below) — flushSync (booking-widget.tsx's staff-pick
@@ -120,13 +162,17 @@ export function HourlyBookingFlow({
       setSlot(null);
       setUnitId(null);
       setTermsAccepted(false);
+      // A fresh duration takes a fresh first look from the home window.
+      setWin(home());
+      setNavigated(false);
     });
     slotsRegionRef.current?.focus();
   }
 
-  function navigate(next: string) {
+  function navigate(next: SlotWindow) {
     setError(null);
-    setFromDate(next);
+    setWin(next);
+    setNavigated(true);
   }
 
   function backToTime() {
@@ -138,10 +184,12 @@ export function HourlyBookingFlow({
 
   const matchingSlot = slot ? slots.find((s) => s.startsAt === slot) : undefined;
   const eligibleUnits = matchingSlot ? units.filter((u) => matchingSlot.unitIds.includes(u.id)) : [];
-  const needsUnitStep = offering.unitSelection === "client_picks" && !!slot && !unitId;
+  // Preview has no units (canned slots only): the details form follows the
+  // time directly, as it does for an auto-assigned space.
+  const needsUnitStep = !preview && offering.unitSelection === "client_picks" && !!slot && !unitId;
 
   function submit(formData: FormData) {
-    if (!slot || !durationMin) return;
+    if (!slot || !durationMin || preview) return;
     startTransition(async () => {
       setError(null);
       const result = await createRentalBookingHours({
@@ -261,10 +309,11 @@ export function HourlyBookingFlow({
           )}
         </div>
       ) : !slot ? (
-        <TimeSlotGrid
+        <SlotPicker
+          layout={layout}
           slots={slots.map((s) => s.startsAt)}
-          fromDate={fromDate}
-          todayISO={todayISO()}
+          window={win}
+          today={todayISO()}
           pending={pending}
           orgTimeZone={orgTimeZone}
           onNavigate={navigate}
@@ -347,8 +396,8 @@ export function HourlyBookingFlow({
             onTermsChange={setTermsAccepted}
             idPrefix="hourly-"
           />
-          <Button type="submit" className="wt-primary" disabled={pending}>
-            {pending ? "Sending…" : offering.requiresApproval ? "Request to book" : "Confirm booking"}
+          <Button type="submit" className="wt-primary" disabled={pending || !!preview}>
+            {preview ? "Preview" : pending ? "Sending…" : offering.requiresApproval ? "Request to book" : "Confirm booking"}
           </Button>
         </form>
       )}

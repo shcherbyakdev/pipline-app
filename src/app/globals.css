@@ -324,6 +324,60 @@
   }
 }
 
+/* Hosted booking pages (`.book-page`, 2026-09-02, gumloop.com-referenced):
+   the reference's neutrals instead of the app's lavender — near-white
+   ground, near-black ink, grey panels, hairlines at 10% ink — so the org's
+   own accent is the only colour on its page. Light values only; the night
+   set above stays the night set. `.book-auto` takes them under the same
+   light condition its dark block negates. */
+.book-page.light,
+.book-page.light .light {
+  --background: #fcfcfc;
+  --foreground: #17171a;
+  --card: #ffffff;
+  --card-foreground: #17171a;
+  --popover: #ffffff;
+  --popover-foreground: #17171a;
+  --primary: #17171a;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f2f5;
+  --secondary-foreground: #17171a;
+  --muted: #f2f2f5;
+  --muted-foreground: #5f5f66;
+  --subtle: #6b6b72;
+  --accent: #ececef;
+  --accent-foreground: #17171a;
+  --border: rgb(23 23 26 / 0.1);
+  --input: rgb(23 23 26 / 0.14);
+  --ring: #17171a;
+  --shadow-card: 0 1px 2px rgb(23 23 26 / 0.04), 0 16px 40px -20px rgb(23 23 26 / 0.16);
+  --shadow-lift: 0 1px 2px rgb(23 23 26 / 0.05), 0 6px 16px -8px rgb(23 23 26 / 0.12);
+}
+@media (prefers-color-scheme: light) {
+  .book-page.book-auto {
+    --background: #fcfcfc;
+    --foreground: #17171a;
+    --card: #ffffff;
+    --card-foreground: #17171a;
+    --popover: #ffffff;
+    --popover-foreground: #17171a;
+    --primary: #17171a;
+    --primary-foreground: #ffffff;
+    --secondary: #f2f2f5;
+    --secondary-foreground: #17171a;
+    --muted: #f2f2f5;
+    --muted-foreground: #5f5f66;
+    --subtle: #6b6b72;
+    --accent: #ececef;
+    --accent-foreground: #17171a;
+    --border: rgb(23 23 26 / 0.1);
+    --input: rgb(23 23 26 / 0.14);
+    --ring: #17171a;
+    --shadow-card: 0 1px 2px rgb(23 23 26 / 0.04), 0 16px 40px -20px rgb(23 23 26 / 0.16);
+    --shadow-lift: 0 1px 2px rgb(23 23 26 / 0.05), 0 6px 16px -8px rgb(23 23 26 / 0.12);
+  }
+}
+
 /* Marketing landing: a product-first, soft world, fourth cut (direction
    contract in app/layout.tsx; references gumloop.com and family.co). Warm
    off-white ground, soft grey panels, near-black type at weight 500,
@@ -558,6 +612,10 @@
 .widget-theme :is(button, input, textarea, select, [class*="rounded"]) {
   border-radius: var(--widget-radius);
 }
+/* The hosted page's cards derive from the same setting (2r) and discs stay
+   discs. Declared after the rule above so they win at equal specificity. */
+.widget-theme .wt-r2 { border-radius: calc(var(--widget-radius) * 2); }
+.widget-theme .wt-round { border-radius: 9999px; }
 .wt-light { --widget-bg: #ffffff; --widget-text: #18181b; --widget-line: #e4e4e7; }
 .wt-dark  { --widget-bg: #18181b; --widget-text: #fafafa; --widget-line: #3f3f46; }
 .wt-auto  { --widget-bg: #ffffff; --widget-text: #18181b; --widget-line: #e4e4e7; }

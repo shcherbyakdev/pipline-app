@@ -6,7 +6,7 @@ const ICON_LABEL: Record<LinkIcon, string> = {
   instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", whatsapp: "WhatsApp",
   website: "Website", phone: "Phone", email: "Email", other: "Link",
 };
-const PILL = "wt-surface inline-flex h-9 items-center gap-2 rounded-[var(--widget-radius)] border px-3.5 text-sm font-medium";
+const PILL = "bg-card hover:bg-muted inline-flex h-10 items-center gap-2 rounded-[var(--widget-radius)] border px-4 text-sm font-medium transition-colors duration-150";
 
 export function LinksSection({ section, ctx }: { section: SectionOf<"links">; ctx: RenderContext }) {
   const items = section.items.filter((i) => i.label.trim() && i.url.trim());

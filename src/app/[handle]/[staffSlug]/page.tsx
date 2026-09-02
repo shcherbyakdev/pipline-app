@@ -64,7 +64,7 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
   const services = filterBookableServices(offering.services, offering.serviceStaffIds, [person], person.id);
   // Nothing they can be booked for is not a page worth rendering.
   if (services.length === 0) notFound();
-  const theme = parseWidgetTheme(branding.themeRaw);
+  const theme = parseWidgetTheme(branding.pageThemeRaw);
   const initialServiceId = resolveInitialService(services, (await searchParams).service);
   const ctx: RenderContext = {
     org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency },
