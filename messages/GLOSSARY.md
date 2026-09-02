@@ -39,6 +39,9 @@ A term missing here is added here first, then used.
 | pickup / return (day stays) | отримання / повернення | |
 | Overview (admin page, named in provider mails) | «Огляд» | provisional until Wave 3 names the admin nav |
 | booked / cancelled / moved (a client, unknown gender) | забронював(ла) / скасував(ла) / змінив(ла) час | provider-facing mails; only verbs whose feminine is stem + ла take the (ла) ending — never переніс(ла), whose feminine is перенесла |
+| admin nav | Огляд · Бронювання · Клієнти · Простори · Послуги · Команда · Графік · Сторінка бронювання · Код для сайту · Оплата · Налаштування | sidebar sections: Пропозиція (Offer), Поширення (Share) |
+| overview / availability / billing (pages) | Огляд / Графік / Оплата | |
+| request (booking approval, admin) | запит | "Очікує підтвердження" for the pending status |
 | an org as the subject of a verb | Заклад {orgName} … | anchors the verb to a masculine noun, since org names are mostly feminine/neuter (Студія, Клініка) |
 
 ## Style — uk
