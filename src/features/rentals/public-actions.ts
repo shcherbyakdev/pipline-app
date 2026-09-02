@@ -1,5 +1,7 @@
 "use server";
 
+import { publicError, type OrgLocaleSource } from "@/i18n/public";
+import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
@@ -38,10 +40,6 @@ import { moneyInfoLines, totalCents, depositCents, stayUnits } from "./pricing";
 import {
   getRangeAvailabilityInput,
   createRentalBookingInput,
-  CHECK_IN_PASSED,
-  DATES_TAKEN,
-  GENERIC_WRITE_ERROR,
-  TERMS_REQUIRED,
 } from "./schema";
 
 async function limited(): Promise<boolean> {
@@ -88,13 +86,15 @@ export async function getRangeAvailability(
 ): Promise<
   { ok: true; availability: RangeAvailability; units: PublicUnit[] } | { ok: false; error: string }
 > {
-  if (await limited()) return { ok: false, error: "Too many requests — slow down." };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited()) return publicError(orgLocale, "tooManyRequests");
   const parsed = getRangeAvailabilityInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
   const { handle, offeringId, fromDate, days } = parsed.data;
   try {
     const ctx = await loadRangeContext(handle, offeringId, fromDate, days);
-    if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!ctx) return publicError(orgLocale, "generic");
+    orgLocale = ctx.org.locale;
     const availability = computeRangeAvailability({
       offering: asEngineOffering(ctx.offering),
       units: ctx.rangeUnits,
@@ -108,7 +108,7 @@ export async function getRangeAvailability(
     return { ok: true, availability, units: ctx.units };
   } catch (error) {
     console.error("[rentals] getRangeAvailability:", error);
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return publicError(orgLocale, "generic");
   }
 }
 
@@ -124,21 +124,23 @@ export async function createRentalBooking(
 ): Promise<
   { ok: true; token: string; pending: boolean } | { ok: false; error: string; datesTaken?: boolean }
 > {
-  if (await limited()) return { ok: false, error: "Too many requests — slow down." };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited()) return publicError(orgLocale, "tooManyRequests");
   const parsed = createRentalBookingInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
   const { handle, offeringId, unitId, startDate, endDate, name, email, note, termsAccepted } = parsed.data;
 
   try {
     const org = await getBookingOrg(handle);
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
-    if (!(await getOrgFlagsAdmin(org.orgId)).rentals) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return publicError(orgLocale, "generic");
+    orgLocale = org.locale;
+    if (!(await getOrgFlagsAdmin(org.orgId)).rentals) return publicError(orgLocale, "generic");
     const offering = await getPublicOfferingById(org.orgId, offeringId);
-    if (!offering) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!offering) return publicError(orgLocale, "generic");
     // H3: the RPC stamps terms_accepted_at on its own whenever the offering
     // carries terms_text — this is the actual enforcement in front of it.
     if (offering.termsText !== null && !termsAccepted) {
-      return { ok: false, error: TERMS_REQUIRED };
+      return publicError(orgLocale, "termsRequired");
     }
     // The span the stay occupies plus its turnover tail — capped at the
     // booking window, since validateStay rejects anything past it ("window")
@@ -149,7 +151,7 @@ export async function createRentalBooking(
       offering.turnoverDays +
       2;
     const raw = await loadOrgRangeContext(org.orgId, offeringId, startDate, span);
-    if (!raw) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!raw) return publicError(orgLocale, "generic");
     const ctx = await capRangeUnits(org.orgId, raw);
 
     // The RPC rejects a stay whose check-in has already passed (a booking that
@@ -160,7 +162,7 @@ export async function createRentalBooking(
     // never resolves an hours offering) — startTime is set (0056 CHECK).
     const startsAt = wallTimeToUtc(startDate, ctx.offering.startTime!, org.timeZone);
     if (startsAt.getTime() <= Date.now()) {
-      return { ok: false, error: CHECK_IN_PASSED, datesTaken: true };
+      return publicError(orgLocale, "checkInPassed", { datesTaken: true });
     }
 
     // Re-run the engine over the requested stay; the RPC re-checks the same
@@ -180,11 +182,11 @@ export async function createRentalBooking(
       // order/min_stay/max_stay/window can only appear if the UI let a bad
       // range through — nothing the client can fix by picking again.
       return stay.reason === "unavailable"
-        ? { ok: false, error: DATES_TAKEN, datesTaken: true }
-        : { ok: false, error: GENERIC_WRITE_ERROR };
+        ? publicError(orgLocale, "datesTaken", { datesTaken: true })
+        : publicError(orgLocale, "generic");
     }
     if (unitId !== null && !stay.unitIds.includes(unitId)) {
-      return { ok: false, error: DATES_TAKEN, datesTaken: true };
+      return publicError(orgLocale, "datesTaken", { datesTaken: true });
     }
 
     const { token, tokenHash } = generateAccessToken();
@@ -219,16 +221,16 @@ export async function createRentalBooking(
     //                                   ever saw allowed units).
     const attempts: (string | null)[] =
       unitId !== null ? [unitId] : ctx.capped ? stay.unitIds : [null, null];
-    if (attempts.length === 0) return { ok: false, error: DATES_TAKEN, datesTaken: true };
+    if (attempts.length === 0) return publicError(orgLocale, "datesTaken", { datesTaken: true });
     let result = await call(attempts[0]);
     for (let i = 1; i < attempts.length && result.error && isTaken(result.error); i++) {
       result = await call(attempts[i]);
     }
     const { data: bookingId, error } = result;
     if (error) {
-      if (isTaken(error)) return { ok: false, error: DATES_TAKEN, datesTaken: true };
+      if (isTaken(error)) return publicError(orgLocale, "datesTaken", { datesTaken: true });
       console.error("[rentals] createRentalBooking:", error.code || "rpc error");
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return publicError(orgLocale, "generic");
     }
 
     // The RPC decided under the flag it read at insert time — one select
@@ -265,12 +267,14 @@ export async function createRentalBooking(
         ctx.offering,
         stayUnits(ctx.offering.rangeMode as "nights" | "days", startDate, endDate),
       );
+      // Wave 2 hands the org locale in here; until then the mails read English.
+      const tUnits = await getTranslations({ locale: "en", namespace: "public.units" });
       const infoLines = moneyInfoLines({
         totalCents: total,
         depositCents: depositCents(ctx.offering, total),
         currency: org.currency,
         cancelWindowMin: ctx.offering.cancelWindowMin,
-      });
+      }, tUnits);
       const providerEmail = await getProviderEmail(org.orgId).catch((e) => {
         console.error("[rentals] getProviderEmail:", e);
         return null;
@@ -343,6 +347,6 @@ export async function createRentalBooking(
     return { ok: true, token, pending: isPending };
   } catch (error) {
     console.error("[rentals] createRentalBooking:", error);
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return publicError(orgLocale, "generic");
   }
 }

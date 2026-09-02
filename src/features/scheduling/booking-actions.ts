@@ -1,5 +1,6 @@
 "use server";
 
+import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { generateAccessToken } from "@/lib/tokens";
@@ -656,14 +657,19 @@ export async function acceptBookingRequest(
           } else {
             emailed = true;
             try {
+              // Wave 2 hands the org locale in here; until then the mails read English.
+              const tUnits = await getTranslations({ locale: "en", namespace: "public.units" });
               const infoLines =
                 row.rental_unit_id !== null
-                  ? moneyInfoLines({
-                      totalCents: row.price_cents,
-                      depositCents: row.deposit_cents,
-                      currency: row.currency,
-                      cancelWindowMin: row.rental_offerings?.cancel_window_min ?? 0,
-                    })
+                  ? moneyInfoLines(
+                      {
+                        totalCents: row.price_cents,
+                        depositCents: row.deposit_cents,
+                        currency: row.currency,
+                        cancelWindowMin: row.rental_offerings?.cancel_window_min ?? 0,
+                      },
+                      tUnits,
+                    )
                   : [];
               const msg = bookingConfirmationEmail({
                 orgName: org.name,
