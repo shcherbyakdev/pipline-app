@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { BrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
 import { updateSurfaceTheme } from "@/features/orgs/actions";
@@ -8,7 +9,6 @@ import { AppearanceFields, contrastOf } from "@/features/orgs/components/appeara
 import { BrandingForm } from "@/features/orgs/components/branding-form";
 import { SchedulingSettingsForm } from "@/features/scheduling/components/scheduling-settings-form";
 import { SettingsCard } from "@/components/settings-row";
-import { GENERIC_WRITE_ERROR } from "@/lib/actions";
 import type { WidgetThemeConfig } from "@/lib/widget-theme";
 
 type SchedulingSettings = NonNullable<Awaited<ReturnType<typeof getSchedulingSettings>>>;
@@ -27,6 +27,9 @@ export function SettingsTab({
   badge: { canHideBadge: boolean; upgradeHref: string | null };
   onPreviewAccent: (hex: string | null) => void; onHandleInput: (handle: string) => void;
 }) {
+  const t = useTranslations("studio.settings");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
   const [savingTheme, startSaveTheme] = React.useTransition();
   // What the server holds — the rollback point, and the colours kept while
   // a blocked pair is on screen.
@@ -48,22 +51,22 @@ export function SettingsTab({
           toast.error(result.error);
         } else {
           savedRef.current = toSave;
-          toast.success("Saved");
+          toast.success(tCommon("saved"));
         }
       } catch (error) {
         console.error("[booking-page] change threw:", error);
         onTheme(previous);
-        toast.error(GENERIC_WRITE_ERROR);
+        toast.error(tErrors("generic"));
       }
     });
   };
   return (
     <div className="flex flex-col gap-4">
       <SchedulingSettingsForm settings={scheduling} appUrl={appUrl} onHandleInput={onHandleInput} />
-      <SettingsCard title="Look" description="Logo and accent colour. Saved as you go.">
+      <SettingsCard title={t("look")} description={t("lookHint")}>
         <BrandingForm settings={branding} onPreviewAccent={onPreviewAccent} />
       </SettingsCard>
-      <SettingsCard title="Booking page widget" description="This page's own style. The website embed has its own on Website embed. Saved as you go.">
+      <SettingsCard title={t("widget")} description={t("widgetHint")}>
         <AppearanceFields
           idPrefix="bp"
           config={theme}

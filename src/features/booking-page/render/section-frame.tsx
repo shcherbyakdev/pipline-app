@@ -2,17 +2,20 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { SECTION_META } from "../defaults";
 import type { SectionType } from "../schema";
+import type { PreviewChrome } from "./context";
 import { useSelection } from "./selection";
 
 /* Preview wrapper: hover outline, click-anywhere to select, accent outline +
    type chip when selected, dimmed when the section is hidden. Scrolls
-   itself into view when selected from the list. */
+   itself into view when selected from the list. The chip's words arrive as
+   `chrome` (ctx.preview): this subtree's provider speaks the org's language,
+   not the admin's. */
 export function SectionFrame({
-  id, type, hidden, className, style, children,
+  id, type, hidden, chrome, className, style, children,
 }: {
-  id: string; type: SectionType; hidden: boolean; className?: string; style?: React.CSSProperties; children: React.ReactNode;
+  id: string; type: SectionType; hidden: boolean; chrome: PreviewChrome | undefined;
+  className?: string; style?: React.CSSProperties; children: React.ReactNode;
 }) {
   const { selectedId, select, hoveredId } = useSelection();
   const selected = selectedId === id;
@@ -21,7 +24,7 @@ export function SectionFrame({
   React.useEffect(() => {
     if (selected) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selected]);
-  const label = SECTION_META[type].label;
+  const chip = chrome?.sections[type] ?? { label: type, edit: type };
   return (
     // Click anywhere selects (builder convention). The wrapper carries no
     // role: it contains the section's own buttons, links and form fields,
@@ -44,7 +47,7 @@ export function SectionFrame({
     >
       <button
         type="button"
-        aria-label={`Edit ${label} section`}
+        aria-label={chip.edit}
         aria-current={selected ? "true" : undefined}
         onClick={(e) => {
           e.stopPropagation();
@@ -56,8 +59,8 @@ export function SectionFrame({
         )}
         style={{ background: "var(--widget-accent)" }}
       >
-        {label}
-        {hidden ? " · hidden" : ""}
+        {chip.label}
+        {hidden && chrome ? ` · ${chrome.hidden}` : ""}
       </button>
       {children}
     </div>

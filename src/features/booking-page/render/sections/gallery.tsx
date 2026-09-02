@@ -7,7 +7,7 @@ import { Ghost } from "../ghost";
 import { R_CARD } from "../type";
 
 export function GallerySection({ section, ctx }: { section: SectionOf<"gallery">; ctx: RenderContext }) {
-  if (section.images.length === 0) return <Ghost mode={ctx.mode} kind="image" label="Add photos to the gallery" />;
+  if (section.images.length === 0) return <Ghost ctx={ctx} kind="image" text="gallery" />;
   return (
     <section className={cn("grid gap-3", section.columns === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3")}>
       {section.images.map((img, i) => (

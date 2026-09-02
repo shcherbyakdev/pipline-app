@@ -3,27 +3,38 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
-import { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
+import type { ActionState } from "@/lib/actions";
 import { matchesLogoMagicBytes } from "@/lib/storage/logo";
 import { BRANDING_BUCKET, uploadBrandingObject } from "@/lib/storage/branding";
 import { getPageStates, getPageSectionsEntitlement } from "./queries";
 import { gatedVisibleSections } from "./gating";
 import { PAGE_CHANNELS, type PageChannel } from "./channel";
-import {
-  parsePageDocument, PAGE_TOO_LARGE_ERROR, IMAGE_REJECTED_ERROR, IMAGE_LIMIT_ERROR, PAGE_GATED_ERROR, type PageDocument,
-} from "./schema";
+import { parsePageDocument, type PageDocument } from "./schema";
 import {
   PAGE_IMAGE_MAX_BYTES, PAGE_IMAGE_MAX_OBJECTS, isAllowedPageImageType, pageImagePathFor, pageImagePrefix,
   imagePathsIn, orphanPaths,
 } from "./images";
 import { DEFAULT_PAGE } from "./defaults";
 
-function fail(context: string, error: unknown): { ok: false; error: string } {
+type Refusal = { ok: false; error: string };
+
+// Every refusal a person reads is resolved here in the admin's language
+// (scheduling/actions.ts idiom): `refuse` names one under `errors.*`,
+// `invalid` is the generic line, `fail` logs first.
+async function refuse(key: "generic" | "studio.pageTooLarge" | "studio.imageRejected" | "studio.imageLimit" | "studio.pageGated"): Promise<Refusal> {
+  const t = await getTranslations("errors");
+  return { ok: false, error: t(key) };
+}
+
+const invalid = () => refuse("generic");
+
+async function fail(context: string, error: unknown): Promise<Refusal> {
   console.error(`[booking-page] ${context}:`, error);
-  return { ok: false, error: GENERIC_WRITE_ERROR };
+  return invalid();
 }
 
 async function currentOrgId(): Promise<string | null> {
@@ -42,7 +53,7 @@ async function saveDraft(orgId: string, channel: PageChannel, doc: PageDocument)
   const supabase = await createClient();
   const { error } = await supabase.rpc("save_booking_page_draft", { p_org_id: orgId, p_channel: channel, p_doc: doc });
   if (error) {
-    if (isRpcSentinel(error, "too large")) return { ok: false, error: PAGE_TOO_LARGE_ERROR };
+    if (isRpcSentinel(error, "too large")) return refuse("studio.pageTooLarge");
     return fail("saveDraft", error);
   }
   return { ok: true };
@@ -50,24 +61,24 @@ async function saveDraft(orgId: string, channel: PageChannel, doc: PageDocument)
 
 export async function saveBookingPageDraft(input: unknown): Promise<ActionState> {
   const parsed = pageWriteInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const doc = parsePageDocument(parsed.data.doc, orgId);
-  if (!doc) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!doc) return invalid();
   return saveDraft(orgId, parsed.data.channel, doc);
 }
 
 /** Saves, then publishes — never depends on a pending autosave or an existing row. */
 export async function publishBookingPage(input: unknown): Promise<ActionState> {
   const parsed = pageWriteInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const doc = parsePageDocument(parsed.data.doc, orgId);
-  if (!doc) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!doc) return invalid();
   const pageSections = await getPageSectionsEntitlement(orgId);
-  if (gatedVisibleSections(doc, { pageSections }).length > 0) return { ok: false, error: PAGE_GATED_ERROR };
+  if (gatedVisibleSections(doc, { pageSections }).length > 0) return refuse("studio.pageGated");
   const saved = await saveDraft(orgId, parsed.data.channel, doc);
   if (!saved.ok) return saved;
   const supabase = await createClient();
@@ -80,9 +91,9 @@ export async function publishBookingPage(input: unknown): Promise<ActionState> {
 
 export async function discardBookingPageDraft(input: unknown): Promise<ActionState> {
   const parsed = pageChannelInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const supabase = await createClient();
   const { error } = await supabase.rpc("discard_booking_page_draft", {
     p_org_id: orgId, p_channel: parsed.data.channel, p_fallback: DEFAULT_PAGE,
@@ -100,32 +111,32 @@ export type UploadResult = { ok: true; path: string } | { ok: false; error: stri
     → size → buffered size → magic bytes → content-hashed path → upsert. */
 export async function uploadPageImage(formData: FormData): Promise<UploadResult> {
   const file = formData.get("file");
-  if (!(file instanceof File)) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!(file instanceof File)) return invalid();
   if (file.size === 0 || file.size > PAGE_IMAGE_MAX_BYTES || !isAllowedPageImageType(file.type)) {
-    return { ok: false, error: IMAGE_REJECTED_ERROR };
+    return refuse("studio.imageRejected");
   }
   const orgId = await currentOrgId();
-  if (!orgId) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!orgId) return invalid();
   const bytes = await file.arrayBuffer();
   // Re-check the buffered bytes, not just the File's reported size.
-  if (bytes.byteLength === 0 || bytes.byteLength > PAGE_IMAGE_MAX_BYTES) return { ok: false, error: IMAGE_REJECTED_ERROR };
+  if (bytes.byteLength === 0 || bytes.byteLength > PAGE_IMAGE_MAX_BYTES) return refuse("studio.imageRejected");
   // `branding` is a public, directly-navigable bucket: a relabeled file (SVG
   // as image/png) must be caught here, before it ever reaches storage.
-  if (!matchesLogoMagicBytes(new Uint8Array(bytes), file.type)) return { ok: false, error: IMAGE_REJECTED_ERROR };
+  if (!matchesLogoMagicBytes(new Uint8Array(bytes), file.type)) return refuse("studio.imageRejected");
   const checksum = createHash("sha256").update(Buffer.from(bytes)).digest("hex");
   const path = pageImagePathFor(orgId, checksum, file.type);
-  if (!path) return { ok: false, error: IMAGE_REJECTED_ERROR };
+  if (!path) return refuse("studio.imageRejected");
   // Per-org ceiling. Re-uploading bytes already stored is a no-op upsert on
   // the same path, so it is never refused. Orphans are NOT swept here: an
   // image uploaded seconds ago may be referenced only by the client's
   // not-yet-autosaved draft, and a sweep against the saved one would delete
   // it — publish/discard are the safe moments (they see the final document).
   const listed = await listPageObjects(orgId);
-  if (listed === null) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (listed === null) return invalid();
   if (listed.length >= PAGE_IMAGE_MAX_OBJECTS && !listed.includes(path)) {
-    return { ok: false, error: IMAGE_LIMIT_ERROR };
+    return refuse("studio.imageLimit");
   }
-  if (!(await uploadBrandingObject(path, bytes, file.type))) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!(await uploadBrandingObject(path, bytes, file.type))) return invalid();
   return { ok: true, path };
 }
 

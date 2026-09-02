@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { saveBookingPageDraft, publishBookingPage, discardBookingPageDraft } from "../actions";
-import { GENERIC_WRITE_ERROR } from "@/lib/actions";
 import { pageDocumentSchema, type PageDocument } from "../schema";
 import { DEFAULT_PAGE } from "../defaults";
 import { deepEqual, hasUnpublishedChanges, issuesBySection, type IssueMap } from "../doc-ops";
@@ -20,6 +20,9 @@ const AUTOSAVE_MS = 800;
    The page's channel rides every write; the hook never switches pages — the
    builder is re-mounted per ?page= (booking-page/page.tsx). */
 export function usePageDraft(initial: { draft: PageDocument; published: PageDocument | null }, channel: PageChannel) {
+  const t = useTranslations("studio.draft");
+  const tStudio = useTranslations("studio");
+  const tErrors = useTranslations("errors");
   const [doc, setDoc] = React.useState(initial.draft);
   const [published, setPublished] = React.useState(initial.published);
   const [status, setStatus] = React.useState<SaveStatus>("idle");
@@ -51,10 +54,10 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
       setIssues({});
       return parsed.data;
     }
-    setIssues(issuesBySection(candidate, parsed.error.issues));
+    setIssues(issuesBySection(candidate, parsed.error.issues, tStudio));
     setStatus("invalid");
     return null;
-  }, []);
+  }, [tStudio]);
 
   // Unmount path: no state, no transition — just get the bytes to the server.
   // Invalid documents are dropped (the RPC would refuse them anyway).
@@ -95,7 +98,7 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
       } catch (error) {
         console.error("[booking-page] autosave threw:", error);
         setStatus("error");
-        toast.error(GENERIC_WRITE_ERROR);
+        toast.error(tErrors("generic"));
       } finally {
         inFlight.current = null;
         if (flushAgain.current) {
@@ -112,7 +115,7 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
     startTransition(async () => {
       await run;
     });
-  }, [validate, clearTimer, startTransition, saveDetached, channel]);
+  }, [validate, clearTimer, startTransition, saveDetached, channel, tErrors]);
 
   // Wait for whatever autosave is running (and any re-run it queues) before a
   // write that must not be overtaken. A queued re-flush is dropped first:
@@ -167,7 +170,7 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
     clearTimer();
     const valid = validate(docRef.current);
     if (!valid) {
-      toast.error("Fix the highlighted fields before publishing.");
+      toast.error(t("fixFields"));
       return;
     }
     setStatus("saving");
@@ -183,14 +186,14 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
         lastSaved.current = valid;
         setPublished(valid);
         setStatus(deepEqual(docRef.current, valid) ? "saved" : "idle");
-        toast.success("Page published");
+        toast.success(t("published"));
       } catch (error) {
         console.error("[booking-page] publish threw:", error);
         setStatus("error");
-        toast.error(GENERIC_WRITE_ERROR);
+        toast.error(tErrors("generic"));
       }
     });
-  }, [validate, clearTimer, startTransition, settle, channel]);
+  }, [validate, clearTimer, startTransition, settle, channel, t, tErrors]);
 
   const discard = React.useCallback(() => {
     clearTimer();
@@ -209,13 +212,13 @@ export function usePageDraft(initial: { draft: PageDocument; published: PageDocu
         setDoc(restored);
         setIssues({});
         setStatus("saved");
-        toast.success("Draft discarded");
+        toast.success(t("discarded"));
       } catch (error) {
         console.error("[booking-page] discard threw:", error);
-        toast.error(GENERIC_WRITE_ERROR);
+        toast.error(tErrors("generic"));
       }
     });
-  }, [published, clearTimer, startTransition, settle, channel]);
+  }, [published, clearTimer, startTransition, settle, channel, t, tErrors]);
 
   return {
     doc, update, published, status, issues, busy,
