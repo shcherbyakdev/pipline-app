@@ -396,9 +396,11 @@ export function Timeline({
                       >
                         <span className="text-sm font-medium">{offering.name}</span>
                         <Badge variant="outline">{t(`timeline.mode.${offering.rangeMode}`)}</Badge>
-                        <span className="text-muted-foreground text-xs">
-                          {t("timeline.units", { count: offering.units.length })}
-                        </span>
+                        {offering.units.length > 1 ? (
+                          <span className="text-muted-foreground text-xs">
+                            {t("timeline.units", { count: offering.units.length })}
+                          </span>
+                        ) : null}
                         {conflictCount > 0 ? (
                           <Badge variant="outline" className="border-destructive/50 text-destructive gap-1">
                             <TriangleAlert className="size-3" aria-hidden />

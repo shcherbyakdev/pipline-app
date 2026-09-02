@@ -15,6 +15,7 @@ import {
 } from "@/lib/booking/public";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
+import { withUnit } from "@/features/rentals/unit-label";
 import { wallTimeToUtc, dateInZone, computeSlots } from "@/features/scheduling/slots";
 import {
   bookingConfirmationEmail,
@@ -397,7 +398,7 @@ export async function createRentalBookingAdmin(
         const mail = await emailTranslators(org.locale);
         const msg = bookingConfirmationEmail(mail.t, {
           orgName: org.name,
-          serviceName: unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name,
+          serviceName: withUnit(ctx.offering.name, unitName),
           whenLine: formatRangeWhenLine(startsAt, ends, tz, mail.intlLocale),
           manageUrl: buildBookingManageUrl(token),
           icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
@@ -554,7 +555,7 @@ export async function createRentalBookingHoursAdmin(
         const mail = await emailTranslators(org.locale);
         const msg = bookingConfirmationEmail(mail.t, {
           orgName: org.name,
-          serviceName: unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name,
+          serviceName: withUnit(ctx.offering.name, unitName),
           whenLine: formatHourlyWhenLine(starts, ends, tz, mail.intlLocale),
           manageUrl: buildBookingManageUrl(token),
           icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,

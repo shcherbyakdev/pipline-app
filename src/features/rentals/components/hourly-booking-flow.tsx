@@ -191,8 +191,11 @@ export function HourlyBookingFlow({
   const matchingSlot = slot ? slots.find((s) => s.startsAt === slot) : undefined;
   const eligibleUnits = matchingSlot ? units.filter((u) => matchingSlot.unitIds.includes(u.id)) : [];
   // Preview has no units (canned slots only): the details form follows the
-  // time directly, as it does for an auto-assigned space.
-  const needsUnitStep = !preview && offering.unitSelection === "client_picks" && !!slot && !unitId;
+  // time directly, as it does for an auto-assigned space — and for a
+  // single-unit one, which has nothing to pick (`!== 1` so a multi-unit
+  // space keeps the step while its units load; see rental-booking-flow).
+  const needsUnitStep =
+    !preview && offering.unitSelection === "client_picks" && units.length !== 1 && !!slot && !unitId;
 
   function submit(formData: FormData) {
     if (!slot || !durationMin || preview) return;

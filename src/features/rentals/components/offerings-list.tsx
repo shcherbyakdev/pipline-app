@@ -99,16 +99,19 @@ function Row({
       <span role="cell" className="max-lg:hidden">
         <Badge variant="outline">{modeLabel}</Badge>
       </span>
+      {/* A space is one bookable thing until it's split; only then is the
+          count news. */}
       <span role="cell" className="text-muted-foreground text-xs tabular-nums max-lg:hidden">
-        {offering.unitCount}
+        {offering.unitCount > 1 ? offering.unitCount : "—"}
       </span>
       <span role="cell" className="text-muted-foreground truncate text-xs max-lg:hidden">
         {priceLabel ?? "—"}
       </span>
       {/* Below lg the columns collapse into one meta line. */}
       <p role="cell" className="text-muted-foreground text-xs lg:hidden">
-        {t("list.unitCount", { count: offering.unitCount })}
-        {priceLabel ? ` · ${priceLabel}` : ""}
+        {[offering.unitCount > 1 ? t("list.unitCount", { count: offering.unitCount }) : null, priceLabel]
+          .filter(Boolean)
+          .join(" · ") || "—"}
       </p>
       <div role="cell" className="flex items-center gap-1 max-lg:flex-wrap lg:justify-end">
         {/* Row actions surface on hover/focus (always visible below lg, and
@@ -135,7 +138,7 @@ function Row({
             href={`/rentals/${offering.id}`}
             className={cn(buttonVariants({ variant: "ghost", size: "xs" }))}
           >
-            {t("units.title")}
+            {t("list.details")}
           </Link>
           <OfferingDialog offering={offering} currency={currency} />
           {confirming ? (

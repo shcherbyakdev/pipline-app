@@ -10,6 +10,7 @@ import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext, type PublicUnit } from "@/lib/booking/public";
 import { loadPublicResources } from "@/lib/booking/public-offering";
 import { getProviderEmail } from "@/lib/booking/provider";
+import { withUnit } from "@/features/rentals/unit-label";
 import { selectTransport } from "@/lib/email/transport";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { env } from "@/env";
@@ -267,7 +268,7 @@ export async function createRentalBookingHours(
         console.error("[rentals] getBookingUnitName:", e);
         return null;
       });
-      const serviceName = unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name;
+      const serviceName = withUnit(ctx.offering.name, unitName);
       // Best-effort like everything below: a null provider address only means
       // the provider gets no copy of this booking.
       const providerEmail = await getProviderEmail(ctx.org.orgId).catch((e) => {

@@ -7,6 +7,7 @@ import { TriangleAlert } from "lucide-react";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { TimelineOffering, TimelineBlackout } from "@/features/rentals/queries";
 import { barSpan, blackoutSpan, turnoverSpan } from "@/features/rentals/timeline-geometry";
+import { withUnit } from "@/features/rentals/unit-label";
 import {
   continuationLabels,
   dayMonth,
@@ -170,7 +171,8 @@ export function TimelineLane({
         className="bg-background border-border/60 sticky left-0 z-20 flex items-center gap-2 border-b pr-3 pl-6"
         style={{ ...RAIL_PAN_STYLE, minHeight: laneHeight }}
       >
-        <span className="truncate text-sm">{unit.name}</span>
+        {/* A single-unit space is named once, in the header above its lane. */}
+        {offering.units.length > 1 ? <span className="truncate text-sm">{unit.name}</span> : null}
         {unit.active ? null : (
           <Badge variant="outline" className="shrink-0">
             {tCommon("inactive")}
@@ -510,7 +512,7 @@ function StayBar({
         <span className="font-medium">{b.clientName}</span>
         <span>{when}</span>
         <span className="opacity-70">
-          {length} · {offering.name} · {unitName}
+          {length} · {withUnit(offering.name, unitName)}
         </span>
         {b.clientEmail ? <span className="opacity-70">{b.clientEmail}</span> : null}
         {note ? <span className="opacity-70">{note}</span> : null}

@@ -43,6 +43,34 @@ export function UnitsEditor({
   units: UnitWithBlackouts[];
 }) {
   const t = useTranslations("spaces");
+  // A space starts as one unit named after itself (actions.ts
+  // createOffering) and most stay that way — a flat is a flat. Until the
+  // owner asks to split it, this page speaks of the space, not its unit:
+  // just the dates it can't be booked. Local state, not a column: opening
+  // the editor is a page-level intent, and once a second unit exists the
+  // split is a fact the data carries on its own.
+  const [split, setSplit] = React.useState(units.length !== 1);
+  const sole = units.length === 1 ? units[0] : undefined;
+  if (!split && sole) {
+    return (
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-sm font-semibold">{t("units.blackouts.title")}</h2>
+          <p className="text-muted-foreground text-xs">{t("blackoutsHint")}</p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <UnitBlackouts offeringId={offeringId} unit={sole} />
+        </div>
+        <button
+          type="button"
+          onClick={() => setSplit(true)}
+          className="text-muted-foreground hover:text-foreground w-fit text-xs underline underline-offset-3"
+        >
+          {t("splitIntoUnits")}
+        </button>
+      </section>
+    );
+  }
   return (
     <section className="flex flex-col gap-4">
       <div>
@@ -258,18 +286,29 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
 
       <div className="flex flex-col gap-2 border-t border-border pt-3">
         <h3 className="text-muted-foreground text-xs font-medium">{t("blackouts.title")}</h3>
-        {unit.blackouts.length > 0 ? (
-          <ul className="flex flex-col gap-1">
-            {unit.blackouts.map((blackout) => (
-              <BlackoutItem key={blackout.id} offeringId={offeringId} blackout={blackout} />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-muted-foreground text-xs">{t("blackouts.none")}</p>
-        )}
-        <AddBlackoutForm offeringId={offeringId} unitId={unit.id} />
+        <UnitBlackouts offeringId={offeringId} unit={unit} />
       </div>
     </li>
+  );
+}
+
+/* One unit's blocked dates and the form to add more — the single-unit view
+   shows exactly this under the space's own heading. */
+function UnitBlackouts({ offeringId, unit }: { offeringId: string; unit: UnitWithBlackouts }) {
+  const t = useTranslations("spaces.units.blackouts");
+  return (
+    <>
+      {unit.blackouts.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {unit.blackouts.map((blackout) => (
+            <BlackoutItem key={blackout.id} offeringId={offeringId} blackout={blackout} />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-muted-foreground text-xs">{t("none")}</p>
+      )}
+      <AddBlackoutForm offeringId={offeringId} unitId={unit.id} />
+    </>
   );
 }
 
