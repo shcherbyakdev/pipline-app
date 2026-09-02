@@ -394,6 +394,16 @@
       "depositDue": "Deposit due: {amount}",
       "payAtVenue": "Payment: pay at the venue",
       "freeCancellation": "Free cancellation until {window} before start"
+    },
+    "embedTitle": {
+      "appointment": "Book an appointment",
+      "space": "Book a space"
+    },
+    "seed": {
+      "bookNow": "Book now",
+      "services": "Services",
+      "team": "Team",
+      "spaces": "Spaces"
     }
   },
   "emails": {
@@ -1249,5 +1259,174 @@
     "members": "Members",
     "teamMembers": "Team members ({count})",
     "goTo": "Go to"
+  },
+  "studio": {
+    "layouts": {
+      "calendar": {
+        "label": "Calendar + times",
+        "description": "A month to pick a day, then that day's free times."
+      },
+      "week-list": {
+        "label": "Week list",
+        "description": "Seven days at a time, each day's times in a row."
+      },
+      "week-columns": {
+        "label": "Week columns",
+        "description": "A week as columns, times stacked under each day."
+      },
+      "next-available": {
+        "label": "Next available",
+        "description": "The soonest free times first, no browsing."
+      }
+    },
+    "stayLayouts": {
+      "one-month": {
+        "label": "One month",
+        "description": "A month grid; tap check-in, then check-out."
+      },
+      "two-months": {
+        "label": "Two months",
+        "description": "Two months side by side, the same two taps."
+      },
+      "fields": {
+        "label": "Check-in and check-out fields",
+        "description": "Two date fields; tapping one opens the month grid."
+      },
+      "next-free": {
+        "label": "Next free stays",
+        "description": "The soonest free windows that fit the minimum stay, one tap each."
+      }
+    },
+    "themes": {
+      "light": "Light",
+      "dark": "Dark",
+      "auto": "Auto (match visitor's system)"
+    },
+    "latinOnly": "Latin only",
+    "sections": {
+      "header": {
+        "label": "Header",
+        "description": "Your logo, name and an optional tagline."
+      },
+      "hero": {
+        "label": "Cover",
+        "description": "A big headline with an optional cover image."
+      },
+      "about": {
+        "label": "About",
+        "description": "Who you are, with a photo."
+      },
+      "services": {
+        "label": "Services",
+        "description": "What you offer, from your service list."
+      },
+      "staff": {
+        "label": "Team",
+        "description": "Your bookable team members."
+      },
+      "spaces": {
+        "label": "Spaces",
+        "description": "Your rooms, studios and gear, with photos and prices."
+      },
+      "gallery": {
+        "label": "Gallery",
+        "description": "A grid of photos."
+      },
+      "testimonials": {
+        "label": "Testimonials",
+        "description": "Quotes from happy clients."
+      },
+      "faq": {
+        "label": "FAQ",
+        "description": "Common questions, answered."
+      },
+      "links": {
+        "label": "Links",
+        "description": "Instagram, WhatsApp, your website…"
+      },
+      "location": {
+        "label": "Location",
+        "description": "Your address and a maps link."
+      },
+      "booking": {
+        "label": "Booking",
+        "description": "The booking widget. Always on the page."
+      }
+    },
+    "ghost": {
+      "headline": "Add a headline",
+      "cover": "Add a cover image",
+      "about": "Write a few lines about yourself",
+      "services": "Add a service and it shows here",
+      "spaces": "Add a space and it shows here",
+      "staff": "Shows once two or more team members are bookable",
+      "address": "Add your address",
+      "link": "Add a link",
+      "faq": "Add a question and its answer",
+      "gallery": "Add photos to the gallery",
+      "testimonial": "Add a client quote"
+    },
+    "frame": {
+      "edit": "Edit {section} section",
+      "hidden": "hidden"
+    },
+    "starter": {
+      "title": "How should clients pick a time?",
+      "titleSpaces": "How should clients pick dates and times?",
+      "sub": "Pick how this page's widget shows what is free. It applies straight away, and you can change it any time on Settings.",
+      "firstService": {
+        "title": "Add your first service",
+        "sub": "It goes straight onto your page. Add more on Services whenever you like.",
+        "why": "A layout needs at least one service to show — add one and the page fills in.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Haircut",
+        "duration": "Duration",
+        "price": "Price (optional)",
+        "pricePlaceholder": "e.g. 120 {currency}",
+        "submit": "Add service"
+      },
+      "firstSpace": {
+        "title": "Add your first space",
+        "sub": "It goes straight onto your page, with one unit. Add more on Spaces whenever you like.",
+        "why": "A layout needs at least one bookable space to show — add one and the page fills in.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Studio A",
+        "bookedBy": "Booked by",
+        "hours": "the hour",
+        "nights": "the night",
+        "days": "the day",
+        "priceHour": "Price per hour ({currency}, optional)",
+        "priceNight": "Price per night ({currency}, optional)",
+        "priceDay": "Price per day ({currency}, optional)",
+        "submit": "Add space",
+        "noticeHint": "The page can list this space once it has a unit — add one on Spaces. You can keep going and publish when it is bookable."
+      },
+      "back": "Back",
+      "leave": "Leave for now",
+      "continue": "Continue",
+      "picker": {
+        "trigger": "Widget layout",
+        "title": "Widget layout",
+        "sub": "Change how this page shows what is free. It applies straight away; the website embed has its own layout.",
+        "use": "Use this layout"
+      },
+      "applied": "Widget layout saved"
+    },
+    "pageSwitch": {
+      "appointments": "Appointments page",
+      "spaces": "Spaces page"
+    }
+  },
+  "embed": {
+    "rows": {
+      "bookingPage": "Booking page",
+      "appointmentsPage": "Appointments page",
+      "spacesPage": "Spaces page"
+    },
+    "badge": {
+      "space": "Space",
+      "team": "Team",
+      "service": "Service"
+    }
   }
 }
