@@ -136,10 +136,6 @@ export const blackoutInput = z
   });
 export const blackoutIdInput = z.object({ id: z.uuid(), offeringId: z.uuid() });
 
-// Lives here, not in public-actions.ts: a file-level "use server" module may
-// only export async functions, and the public booking UI needs this string to
-// recognise a lost-dates failure.
-export const DATES_TAKEN = "Those dates were just taken — please pick again.";
 
 export const getRangeAvailabilityInput = z.object({
   handle: z.string().regex(HANDLE_RE),
@@ -159,21 +155,11 @@ export const createRentalBookingInput = z.object({
   termsAccepted: z.boolean().default(false),
 });
 
-// H3: an offering with terms_text set refuses a create action whose caller
-// didn't check the box — the RPC stamps terms_accepted_at on its own
-// regardless, so this guard is the actual enforcement.
-export const TERMS_REQUIRED = "Please accept the terms to book.";
 
 // ---------- Reschedule (R2), client + admin. Same reasons as DATES_TAKEN:
 // a "use server" module may only export async functions, so the shared copy
 // lives here where both the actions and their dialogs can reach it.
 
-// A stay that has begun is immovable (0039 raises 'started').
-export const STAY_STARTED = "This stay has already started.";
-// The RPCs also refuse a stay whose check-in has already passed (`v_starts
-// <= now()`), which comes back as the uniform 'not found' raise — the app
-// says what actually went wrong where it can tell.
-export const CHECK_IN_PASSED = "That check-in time has already passed — pick a later date.";
 
 // Token-scoped manage surface: the booking is identified by its cancel
 // token, so neither shape carries a handle or an offering id.
@@ -255,7 +241,6 @@ export const createRentalBookingHoursInput = z.object({
   note: z.string().trim().max(2000).optional(),
   termsAccepted: z.boolean().default(false),
 });
-export const SLOT_TAKEN_HOURLY = "That time was just taken — please pick another.";
 
 // ---------- Hourly mode (H2), admin (Task 10). Same shapes as the admin
 // range trio (adminRangeAvailabilityInput / createRentalAdminInput /
@@ -288,9 +273,6 @@ export const rescheduleRentalHoursAdminInput = z.object({
   startsAt: z.iso.datetime(),
 });
 
-// A booking that has begun is immovable — STAY_STARTED's hourly twin
-// (0056's reschedule_rental_hours_apply raises the same 'started' sentinel).
-export const SESSION_STARTED = "This booking has already started.";
 
 // H3: cancel_booking raises this sentinel once the offering's free-cancel
 // window has elapsed — the manage page also gates the cancel button on the

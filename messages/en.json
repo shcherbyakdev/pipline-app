@@ -58,7 +58,7 @@
       "title": "What you offer",
       "blurb": "Turning one off hides it from your booking page and this admin. Existing bookings stay."
     },
-    "copyRefused": "Couldn't copy — select the link and copy it manually.",
+    "copyRefused": "Couldn't copy — select the link text and copy manually.",
     "bookingPage": {
       "title": "Address, timezone & language",
       "description": "Applies when you save.",

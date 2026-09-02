@@ -11,6 +11,8 @@
  * Emails are best-effort inside the actions; transport failures must not
  * fail either flow. Requires the local Supabase stack (npm run setup).
  */
+import { enTranslator } from "@/i18n/test-translator";
+const ERR = enTranslator("errors");
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -35,7 +37,7 @@ const rentalManage = await import("./manage-actions");
 const manageActions = await import("@/features/scheduling/manage-actions");
 const { resolveBookingToken } = await import("@/lib/tokens/booking");
 const { addDaysISO, dateInZone } = await import("@/features/scheduling/slots");
-const { GENERIC_WRITE_ERROR, TERMS_REQUIRED } = await import("./schema");
+const { GENERIC_WRITE_ERROR } = await import("./schema");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -455,7 +457,7 @@ describe("terms acceptance gate (date-range action layer)", () => {
       name: "Terms Client",
       email,
     });
-    expect(result).toEqual({ ok: false, error: TERMS_REQUIRED });
+    expect(result).toEqual({ ok: false, error: ERR("termsRequired") });
     const { data: rows } = await admin
       .from("bookings")
       .select("id")

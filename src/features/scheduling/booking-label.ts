@@ -12,7 +12,7 @@ export type BookingKindRow = {
 /** `fallback` is the word for a row naming neither (unreachable under the
     CHECK, kept for the type): admin surfaces pass `bookings.fallbackTitle`,
     mails `emails.appointment` — in their own language. */
-export function bookingTitle(row: BookingKindRow, fallback = "Appointment"): string {
+export function bookingTitle(row: BookingKindRow, fallback: string): string {
   return (
     row.services?.name ??
     (row.rental_offerings && row.rental_units

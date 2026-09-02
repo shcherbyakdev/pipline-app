@@ -7,6 +7,8 @@
  * A second org without the billing flag proves the uncapped path is
  * untouched. Requires the local Supabase stack (npm run setup).
  */
+import { enTranslator } from "@/i18n/test-translator";
+const ERR = enTranslator("errors");
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -36,7 +38,7 @@ const { listPublicCatalog } = await import("./catalog");
 const { getBookingOrg } = await import("./public");
 const { loadPublicOffering } = await import("./public-offering");
 const { addDaysISO, dateInZone } = await import("@/features/scheduling/slots");
-const { DATES_TAKEN } = await import("@/features/rentals/schema");
+
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -152,7 +154,7 @@ describe("H5b resource cap: Free spaces-only org, three units, billing on", () =
     });
     expect(third.ok).toBe(false);
     if (third.ok) return;
-    expect(third.error).toBe(DATES_TAKEN);
+    expect(third.error).toBe(ERR("datesTaken"));
 
     const { data: rows } = await admin
       .from("bookings")

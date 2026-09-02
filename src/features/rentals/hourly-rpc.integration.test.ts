@@ -5,6 +5,8 @@
  * (0039) with duration-based occupancy instead of date ranges.
  * Requires the local Supabase stack (npm run setup).
  */
+import { enTranslator } from "@/i18n/test-translator";
+const ERR = enTranslator("errors");
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -37,7 +39,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 // (booking-actions.ts's own import) parses it (hourly-flow.integration.test.ts
 // idiom).
 const bookingActions = await import("./booking-actions");
-const { SESSION_STARTED } = await import("./schema");
+
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -891,6 +893,6 @@ describe("hourly admin actions (Task 10, action layer)", () => {
       unitId: null,
       startsAt: iso(`${d(4)}T10:00`),
     });
-    expect(result).toEqual({ ok: false, error: SESSION_STARTED });
+    expect(result).toEqual({ ok: false, error: ERR("bookings.alreadyStarted") });
   });
 });
