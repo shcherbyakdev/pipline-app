@@ -27,18 +27,18 @@ describe("pageMetadata", () => {
   const APPTS = { orgName: "Anna's", offersAppointments: true, offersRentals: false };
   it("sets title, description and an OG image only when the hero has one", () => {
     const hero = { ...newSection("hero"), headline: "Hair by Anna", imagePath: IMG };
-    const meta = pageMetadata({ ...DEFAULT_PAGE, sections: [header, hero, booking] }, APPTS, "http://127.0.0.1:54351", "appointments");
+    const meta = pageMetadata({ ...DEFAULT_PAGE, sections: [header, hero, booking] }, APPTS, "http://127.0.0.1:54351", "Book an appointment with Anna's.");
     expect(meta.title).toBe("Anna's");
     expect(meta.description).toBe("Hair by Anna");
     expect(meta.openGraph?.images).toEqual([`http://127.0.0.1:54351/storage/v1/object/public/branding/${IMG}`]);
-    const plain = pageMetadata(DEFAULT_PAGE, APPTS, "http://x", "appointments");
+    const plain = pageMetadata(DEFAULT_PAGE, APPTS, "http://x", "Book an appointment with Anna's.");
     expect(plain.description).toBe("Book an appointment with Anna's.");
     expect(plain.openGraph).toBeUndefined();
     expect(heroImagePath(DEFAULT_PAGE)).toBeNull();
   });
   it("the fallback description is the PAGE's channel, not the org's declared mix (spec 2026-08-28 §3.6)", () => {
     const BOTH = { orgName: "Anna's", offersAppointments: true, offersRentals: true };
-    expect(pageMetadata(DEFAULT_PAGE, BOTH, "http://127.0.0.1:54351", "appointments").description).toBe("Book an appointment with Anna's.");
-    expect(pageMetadata(DEFAULT_PAGE, BOTH, "http://127.0.0.1:54351", "spaces").description).toBe("Book a space at Anna's.");
+    expect(pageMetadata(DEFAULT_PAGE, BOTH, "http://127.0.0.1:54351", "Book an appointment with Anna's.").description).toBe("Book an appointment with Anna's.");
+    expect(pageMetadata(DEFAULT_PAGE, BOTH, "http://127.0.0.1:54351", "Book a space at Anna's.").description).toBe("Book a space at Anna's.");
   });
 });

@@ -4,7 +4,7 @@ import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { listOfferings } from "@/features/rentals/queries";
 import { effectiveMode, modeOf, presentMode } from "@/features/orgs/mode";
-import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
+import { getTranslations } from "next-intl/server";
 import { isBookableOffering, toPreviewCatalog } from "@/lib/booking/preview-catalog";
 import { channelReach, frontDoor } from "@/lib/booking/channel-pages";
 import { loadPublicResources } from "@/lib/booking/public-offering";
@@ -58,9 +58,10 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
   // The preview's link to the other page: present when that channel is
   // declared AND has something bookable — the public page's rule (§3.5).
   const present = presentMode(declared, has);
+  const tCross = await getTranslations("public.crossLink");
   const crossLink =
-    channel === "appointments" && present.offersRentals && has.spaces ? { href: "#", label: SPACES.crossLink }
-    : channel === "spaces" && present.offersAppointments && has.services ? { href: "#", label: APPOINTMENTS.crossLink }
+    channel === "appointments" && present.offersRentals && has.spaces ? { href: "#", label: tCross("toSpaces") }
+    : channel === "spaces" && present.offersAppointments && has.services ? { href: "#", label: tCross("toAppointments") }
     : null;
   // The live page 404s until the channel has something bookable —
   // resolveChannelPage's rule.

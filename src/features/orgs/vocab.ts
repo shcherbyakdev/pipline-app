@@ -1,5 +1,3 @@
-import type { OrgMode } from "./mode";
-
 /* The one place the rentals channel is named for people (H5a ruling:
    "Spaces" — rooms, studios and gear alike, whatever the range mode). Code
    identifiers (rental_*, offersRentals, /rentals) never change; every
@@ -7,7 +5,8 @@ import type { OrgMode } from "./mode";
 export const SPACES = {
   /** Sidebar item for /rentals; the admin page title follows via titleForPath. */
   nav: "Spaces",
-  /** Widget group heading above the rental cards (shown only next to services). */
+  /** Group heading above the space cards in the admin's and the landing's
+      demo widgets; the public widget reads `public.widget.spaces` instead. */
   widgetGroup: "Spaces",
   /** Page-builder section label + description (SECTION_META.spaces). */
   section: { label: "Spaces", description: "Your rooms, studios and gear, with photos and prices." },
@@ -64,8 +63,6 @@ export const SPACES = {
     "Nightly and daily spaces use check-in and check-out times, set on each space. Hourly spaces and team members set their weekly hours here.",
   /** Links & embeds row: the widget restricted to this channel (?channel=spaces). */
   only: "Spaces only",
-  /** The appointments page's link to the spaces page (render/cross-link.tsx). */
-  crossLink: "Looking for a room? Book a space →",
   /** The builder's page switch (studio/page-switch.tsx) for a both-channel org. */
   page: "Spaces page",
   /** Bookings scope selector: the group heading and its every-space entry. */
@@ -81,17 +78,8 @@ export const APPOINTMENTS = {
   field: "Service",
   /** Links & embeds row: the widget restricted to this channel (?channel=services). */
   only: "Appointments only",
-  /** The spaces page's link to the appointments page (render/cross-link.tsx). */
-  crossLink: "Need an appointment? Book a time →",
   /** The builder's page switch for a both-channel org. */
   page: "Appointments page",
   /** Bookings scope selector: the group heading and its every-person entry. */
   scope: { group: "Appointments", all: "All appointments" },
 } as const;
-
-/** The hosted page's fallback meta description, per channel mix. */
-export function bookingDescription(mode: OrgMode, orgName: string): string {
-  if (mode.offersRentals && !mode.offersAppointments) return `Book a space at ${orgName}.`;
-  if (mode.offersRentals && mode.offersAppointments) return `Book with ${orgName}.`;
-  return `Book an appointment with ${orgName}.`;
-}
