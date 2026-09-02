@@ -64,6 +64,8 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
   // label here and the whole preview subtree via previewIntl below.
   const tCross = await getTranslations({ locale: scheduling.locale, namespace: "public.crossLink" });
   const previewIntl = { locale: scheduling.locale, messages: publicMessages(await getMessages({ locale: scheduling.locale })) };
+  const tSeed = await getTranslations({ locale: scheduling.locale, namespace: "seed" });
+  const seed = { bookNow: tSeed("bookNow"), services: tSeed("services"), team: tSeed("team"), spaces: tSeed("spaces") };
   const crossLink =
     channel === "appointments" && present.offersRentals && has.spaces ? { href: "#", label: tCross("toSpaces") }
     : channel === "spaces" && present.offersAppointments && has.services ? { href: "#", label: tCross("toAppointments") }
@@ -129,6 +131,7 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
         badge={badge}
         crossLink={crossLink}
         previewIntl={previewIntl}
+        seed={seed}
         branding={branding}
         scheduling={scheduling}
         appUrl={env.NEXT_PUBLIC_APP_URL}

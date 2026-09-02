@@ -140,6 +140,10 @@ describe("messages", () => {
     }
   });
 
+  it("the starter asks the one question the spec asks (2026-08-28 §1)", () => {
+    expect(flatten(en)["studio.starter.title"]).toBe("How should clients pick a time?");
+  });
+
   it("deepMerge keeps English underneath a partial locale (spec D8)", () => {
     expect(deepMerge({ a: { x: "en-x", y: "en-y" }, b: "en-b" }, { a: { x: "uk-x" } })).toEqual({
       a: { x: "uk-x", y: "en-y" },

@@ -21,8 +21,7 @@ import {
   type WidgetThemeConfig,
 } from "@/lib/widget-theme";
 import { WidgetTheme } from "@/components/widget-theme";
-import { createTranslator, NextIntlClientProvider, useTranslations, type AbstractIntlMessages } from "next-intl";
-import type { Messages } from "use-intl/core";
+import { NextIntlClientProvider, useTranslations, type AbstractIntlMessages } from "next-intl";
 import type { Locale } from "@/i18n/config";
 import {
   LivePreview,
@@ -63,6 +62,7 @@ type SchedulingSettings = NonNullable<
    composition as /[handle], fed by the draft and the unsaved settings. */
 export function BookingPageBuilder({
   previewIntl,
+  seed,
   branding,
   scheduling,
   appUrl,
@@ -83,6 +83,8 @@ export function BookingPageBuilder({
   /** The org's language and the public messages in it: the preview renders
       what a client sees (src/app/(dashboard)/booking-page/page.tsx). */
   previewIntl: { locale: Locale; messages: AbstractIntlMessages };
+  /** What a new section starts with, in the org's language (defaults.ts SectionSeed). */
+  seed: SectionSeed;
   branding: BrandingSettings;
   scheduling: SchedulingSettings;
   appUrl: string;
@@ -126,10 +128,7 @@ export function BookingPageBuilder({
   );
   // What a new section starts with is the org's content, so it is seeded in
   // the org's language — the preview's own messages, not the admin's.
-  const seed = React.useMemo<SectionSeed>(() => {
-    const tSeed = createTranslator({ locale: previewIntl.locale, messages: previewIntl.messages as Messages, namespace: "public.seed" });
-    return { bookNow: tSeed("bookNow"), services: tSeed("services"), team: tSeed("team"), spaces: tSeed("spaces") };
-  }, [previewIntl]);
+  // (resolved by the page from the `seed` namespace — never shipped to visitors).
   // Where focus lands once the starter closes (M4): the left panel itself,
   // not wherever the trap happened to leave it.
   const panelRef = React.useRef<HTMLDivElement>(null);
@@ -279,6 +278,7 @@ export function BookingPageBuilder({
       <div className="grid gap-8 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
         {starter.fresh ? (
           <StarterDialog
+            previewIntl={previewIntl}
             variant="starter"
             channel={channel}
             ctx={ctx}
@@ -327,6 +327,7 @@ export function BookingPageBuilder({
                 // (spec §8); before that the starter's first-space step is it.
                 channel === "appointments" || previewOfferings.some((o) => o.id !== PREVIEW_OFFERING_ID) ? (
                   <StarterDialog
+                    previewIntl={previewIntl}
                     variant="picker"
                     channel={channel}
                     ctx={ctx}
@@ -366,7 +367,7 @@ export function BookingPageBuilder({
               overrideRatio !== null && overrideRatio < 4.5 ? (
                 <PreviewNotice tone={overrideRatio < 3 ? "error" : "warn"}>
                   {t.rich(overrideRatio < 3 ? "notice.contrastUnreadable" : "notice.contrastLow", {
-                    ratio: overrideRatio.toFixed(1),
+                    ratio: overrideRatio,
                     ...embedLink,
                   })}
                 </PreviewNotice>

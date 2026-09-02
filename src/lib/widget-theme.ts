@@ -39,21 +39,6 @@ export function resolveStayLayout(config: Pick<WidgetThemeConfig, "stayLayout">)
    descriptions live in messages (`studio.stayLayouts.<value>.*`,
    `studio.layouts.<value>.*`, `studio.themes.<value>`), read by the
    consumers through useTranslations("studio"). */
-export const STAY_LAYOUT_OPTIONS: ReadonlyArray<{ value: StayLayout }> = [
-  { value: "one-month" },
-  { value: "two-months" },
-  { value: "fields" },
-  { value: "next-free" },
-];
-
-/** The starter's cards and the settings selects, calendar first. */
-export const WIDGET_LAYOUT_OPTIONS: ReadonlyArray<{ value: SlotLayout }> = [
-  { value: "calendar" },
-  { value: "week-list" },
-  { value: "week-columns" },
-  { value: "next-available" },
-];
-
 export const WIDGET_THEME_DEFAULTS: WidgetThemeConfig = {
   theme: "auto",
   radius: "subtle",
@@ -66,13 +51,6 @@ export const WIDGET_THEME_DEFAULTS: WidgetThemeConfig = {
 // globals.css. Used by effectiveContrast() to fill in whichever side of the
 // pair the org didn't override, so a lone override can't slip an unreadable
 // combination past the guard.
-/** Theme choices as shown in the admin (Website embed and Booking page). */
-export const WIDGET_THEME_OPTIONS: ReadonlyArray<{ value: WidgetThemeConfig["theme"] }> = [
-  { value: "light" },
-  { value: "dark" },
-  { value: "auto" },
-];
-
 export const WIDGET_THEME_DEFAULT_COLORS = {
   light: { background: "#ffffff", text: "#18181b" },
   dark: { background: "#18181b", text: "#fafafa" },
@@ -88,7 +66,9 @@ export const WIDGET_FONT_IDS = [
   "ibm-plex-mono",
 ] as const;
 
-const THEME_VALUES = ["light", "dark", "auto"] as const;
+/** Theme choices, in the order the admin lists them (labels: studio.themes.*). */
+export const WIDGET_THEMES = ["light", "dark", "auto"] as const;
+const THEME_VALUES = WIDGET_THEMES;
 const RADIUS_VALUES = ["none", "subtle", "round"] as const;
 
 const RADIUS_MAP: Record<WidgetThemeConfig["radius"], string> = {

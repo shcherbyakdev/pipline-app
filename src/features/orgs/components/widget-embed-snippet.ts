@@ -17,7 +17,7 @@ import { embedSrc, type LinkTarget } from "@/lib/booking/url";
 // have always pasted.
 //
 // The iframe `title` is the widget's accessible name on the host page, and
-// public copy: it reads in the ORG's language (`public.embedTitle.*`,
+// public copy: it reads in the ORG's language (`embedTitle.*`,
 // resolved by the page for the org's locale), not the admin's. With a target
 // it names that target's channel; without one it names the org's front door
 // (embedChannel: appointments whenever there are services, else spaces), and

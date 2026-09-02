@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { SettingsRow } from "@/components/settings-row";
 import { cn } from "@/lib/utils";
 import {
-  effectiveContrast, STAY_LAYOUT_OPTIONS, WIDGET_LAYOUT_OPTIONS, WIDGET_THEME_OPTIONS, resolveLayout, resolveStayLayout, type WidgetThemeConfig,
+  effectiveContrast, SLOT_LAYOUTS, STAY_LAYOUTS, WIDGET_THEMES, resolveLayout, resolveStayLayout, type WidgetThemeConfig,
 } from "@/lib/widget-theme";
 
 const RADIUS_VALUES: ReadonlyArray<WidgetThemeConfig["radius"]> = ["none", "subtle", "round"];
@@ -99,24 +99,24 @@ export function AppearanceFields({
   );
   const contrastHint =
     ratio === null ? t("appearance.overridesHint")
-    : blocked ? t("appearance.contrastBlocked", { ratio: ratio.toFixed(1) })
-    : warn ? t("appearance.contrastWarn", { ratio: ratio.toFixed(1) })
-    : t("appearance.contrast", { ratio: ratio.toFixed(1) });
+    : blocked ? t("appearance.contrastBlocked", { ratio: ratio })
+    : warn ? t("appearance.contrastWarn", { ratio: ratio })
+    : t("appearance.contrast", { ratio: ratio });
   return (
     <>
       <SettingsRow label={t("appearance.theme")} htmlFor={id("theme")}>
-        {select("theme", "theme", config.theme, WIDGET_THEME_OPTIONS.map((o) => ({ value: o.value, label: t(`themes.${o.value}`) })))}
+        {select("theme", "theme", config.theme, WIDGET_THEMES.map((value) => ({ value, label: t(`themes.${value}`) })))}
       </SettingsRow>
       <div className="grid grid-cols-2 divide-x">
         <SettingsRow label={t("appearance.radius")} htmlFor={id("radius")}>
           {select("radius", "radius", config.radius, RADIUS_VALUES.map((value) => ({ value, label: t(`appearance.radiusOptions.${value}`) })))}
         </SettingsRow>
         <SettingsRow label={t("appearance.layout")} htmlFor={id("layout")}>
-          {select("layout", "layout", resolveLayout(config), WIDGET_LAYOUT_OPTIONS.map((o) => ({ value: o.value, label: t(`layouts.${o.value}.label`) })))}
+          {select("layout", "layout", resolveLayout(config), SLOT_LAYOUTS.map((value) => ({ value, label: t(`layouts.${value}.label`) })))}
         </SettingsRow>
         {offersRentals ? (
           <SettingsRow label={t("appearance.stayLayout")} htmlFor={id("stay-layout")}>
-            {select("stayLayout", "stay-layout", resolveStayLayout(config), STAY_LAYOUT_OPTIONS.map((o) => ({ value: o.value, label: t(`stayLayouts.${o.value}.label`) })))}
+            {select("stayLayout", "stay-layout", resolveStayLayout(config), STAY_LAYOUTS.map((value) => ({ value, label: t(`stayLayouts.${value}.label`) })))}
           </SettingsRow>
         ) : null}
         <SettingsRow label={t("appearance.font")} htmlFor={id("font")}>

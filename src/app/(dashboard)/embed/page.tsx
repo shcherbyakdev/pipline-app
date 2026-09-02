@@ -51,7 +51,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   // the org's site, so it speaks the org's language (Booking page › Settings
   // › Language), not the admin's — the booking-page preview's rule.
   const t = await getTranslations("embed");
-  const tTitle = await getTranslations({ locale: schedulingSettings.locale, namespace: "public.embedTitle" });
+  const tTitle = await getTranslations({ locale: schedulingSettings.locale, namespace: "embedTitle" });
   // The preview widget speaks the org's language, like the studio's preview.
   const previewIntl = { locale: schedulingSettings.locale, messages: publicMessages(await getMessages({ locale: schedulingSettings.locale })) };
   const titles = { appointment: tTitle("appointment"), space: tTitle("space") };

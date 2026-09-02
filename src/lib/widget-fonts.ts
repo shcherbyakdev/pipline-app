@@ -10,20 +10,20 @@ import type { WidgetThemeConfig } from "@/lib/widget-theme";
 // preloading all six would ship unused font preload links to every embed.
 // Geist: the Main template's face (gumloop.com sets its UI and body in it).
 const widgetGeist = Geist({ subsets: ["latin"], variable: "--widget-font-geist", preload: false });
-const widgetInter = Inter({ subsets: ["latin"], variable: "--widget-font-inter", preload: false });
+const widgetInter = Inter({ subsets: ["latin", "cyrillic"], variable: "--widget-font-inter", preload: false });
 const widgetDmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--widget-font-dm-sans",
   preload: false,
 });
-const widgetLora = Lora({ subsets: ["latin"], variable: "--widget-font-lora", preload: false });
+const widgetLora = Lora({ subsets: ["latin", "cyrillic"], variable: "--widget-font-lora", preload: false });
 const widgetSpaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   variable: "--widget-font-space-grotesk",
   preload: false,
 });
 const widgetIbmPlexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
+  subsets: ["latin", "cyrillic"],
   weight: ["400", "500", "600"],
   variable: "--widget-font-ibm-plex-mono",
   preload: false,

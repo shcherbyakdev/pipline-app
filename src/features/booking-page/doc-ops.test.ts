@@ -76,7 +76,7 @@ describe("canAddSection / insertSection", () => {
     expect(pageDocumentSchema.safeParse(b.doc).success).toBe(true);
   });
   it("seeds the new section's words in the org's language, not the admin's", () => {
-    const tSeed = translatorFor("uk", "public.seed");
+    const tSeed = translatorFor("uk", "seed");
     const seed = { bookNow: tSeed("bookNow"), services: tSeed("services"), team: tSeed("team"), spaces: tSeed("spaces") };
     const hero = insertSection(DEFAULT_PAGE, "hero", null, seed).doc.sections[2] as Extract<Section, { type: "hero" }>;
     expect(hero.cta).toBe("Забронювати");

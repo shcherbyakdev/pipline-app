@@ -210,8 +210,10 @@ export function WidgetAppearance({
         {/* Sticks inside the shell panel's scroll container (the header row
             sits above it), so the offset is just the content padding. */}
         <div className="lg:sticky lg:top-6 lg:self-start">
-          <NextIntlClientProvider locale={previewIntl.locale} messages={previewIntl.messages} timeZone={orgTimeZone}>
           <EmbedPreviewFrame config={previewConfig} accentColor={accentColor}>
+            {/* Only the widget speaks the org's language; the frame around it
+                is admin chrome and keeps the admin's messages. */}
+            <NextIntlClientProvider locale={previewIntl.locale} messages={previewIntl.messages} timeZone={orgTimeZone}>
             <div lang={previewIntl.locale} className="contents">
             <BookingWidget
               handle="preview"
@@ -224,8 +226,8 @@ export function WidgetAppearance({
               preview={{ slots: PREVIEW_SLOTS, availability: PREVIEW_AVAILABILITY }}
             />
             </div>
+            </NextIntlClientProvider>
           </EmbedPreviewFrame>
-          </NextIntlClientProvider>
         </div>
       </div>
     </div>

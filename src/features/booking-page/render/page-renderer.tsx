@@ -96,7 +96,7 @@ export function PageRenderer({
             const docked = split && section.type === "booking";
             const inner = renderSection(section, ctx, pickers, host?.sectionId === section.id ? ctx.crossLink : null, heroCtaHidden);
             return ctx.mode === "preview" ? (
-              <SectionFrame key={section.id} id={section.id} type={section.type} hidden={section.hidden} chrome={ctx.preview} className={cn(docked && DOCKED)}>
+              <SectionFrame key={section.id} id={section.id} type={section.type} hidden={section.hidden} chrome={ctx.preview! /* every preview ctx carries its chrome (booking-page-builder.tsx) */} className={cn(docked && DOCKED)}>
                 {inner}
               </SectionFrame>
             ) : (

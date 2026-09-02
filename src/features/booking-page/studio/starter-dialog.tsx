@@ -1,5 +1,10 @@
 "use client";
 
+import { NextIntlClientProvider, type AbstractIntlMessages } from "next-intl";
+import type { Locale } from "@/i18n/config";
+
+/** The org's language and the public messages in it (booking-page/page.tsx previewIntl). */
+export type PreviewIntl = { locale: Locale; messages: AbstractIntlMessages };
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -35,7 +40,7 @@ export type LayoutPatch = { layout?: SlotLayout; stayLayout?: StayLayout };
    get. `inert` keeps the widget inside from taking focus or clicks. CSS
    `zoom` (not transform scale) so the shrunk page keeps a real layout
    height and the pane scrolls naturally. */
-function LayoutPreview({ group, times, stays, ctx, channel }: { group: Group; times: SlotLayout; stays: StayLayout; ctx: RenderContext; channel: PageChannel }) {
+function LayoutPreview({ group, times, stays, ctx, channel, previewIntl }: { group: Group; times: SlotLayout; stays: StayLayout; ctx: RenderContext; channel: PageChannel; previewIntl: PreviewIntl }) {
   const scheme = ctx.theme.theme === "auto" ? "light" : ctx.theme.theme;
   const theme: WidgetThemeConfig = { ...ctx.theme, theme: scheme, layout: times, stayLayout: stays };
   const offering = ctx.offerings.find((o) => (group === "stays" ? o.rangeMode !== "hours" : o.rangeMode === "hours"));
@@ -47,13 +52,18 @@ function LayoutPreview({ group, times, stays, ctx, channel }: { group: Group; ti
       <div className={cn("pointer-events-none w-[760px] p-8", scheme, "bg-background text-foreground")} style={{ zoom: 0.8 }} aria-hidden inert>
         <WidgetTheme config={theme} accentColor={ctx.branding.accentColor} transparent>
           <div className={cn("mx-auto", pageContainerClass("column"))}>
-            <PageRenderer
-              key={`${group}-${channel}`}
-              doc={DEFAULT_PAGE}
-              ctx={{ ...ctx, theme, mode: "preview", crossLink: null }}
-              initialServiceId={channel === "appointments" ? (ctx.services[0]?.id ?? null) : null}
-              initialOfferingId={channel === "spaces" ? (offering?.id ?? null) : null}
-            />
+            {/* What you see IS the widget you get — so it speaks the org's language. */}
+            <NextIntlClientProvider locale={previewIntl.locale} messages={previewIntl.messages}>
+              <div lang={previewIntl.locale} className="contents">
+                <PageRenderer
+                  key={`${group}-${channel}`}
+                  doc={DEFAULT_PAGE}
+                  ctx={{ ...ctx, theme, mode: "preview", crossLink: null }}
+                  initialServiceId={channel === "appointments" ? (ctx.services[0]?.id ?? null) : null}
+                  initialOfferingId={channel === "spaces" ? (offering?.id ?? null) : null}
+                />
+              </div>
+            </NextIntlClientProvider>
           </div>
         </WidgetTheme>
       </div>
@@ -73,8 +83,9 @@ function LayoutPreview({ group, times, stays, ctx, channel }: { group: Group; ti
    Picker: a trigger button, dismissable; the layouts are org settings
    saved at once, so there is no draft to confirm replacing. */
 export function StarterDialog({
-  variant, channel, ctx, layout, stayLayout, needsFirstItem, currency, onApply, finalFocus,
+  variant, channel, ctx, layout, stayLayout, needsFirstItem, currency, onApply, finalFocus, previewIntl,
 }: {
+  previewIntl: PreviewIntl;
   variant: "starter" | "picker";
   channel: PageChannel;
   ctx: RenderContext;
@@ -250,7 +261,7 @@ export function StarterDialog({
                   {groups.includes("stays") ? cardList("stays", staysOptions, stays, stayLayout, setStays, t("starter.stays")) : null}
                 </div>
                 <div className="min-h-64 min-w-0 flex-1">
-                  <LayoutPreview group={activeGroup} times={times} stays={stays} ctx={ctx} channel={channel} />
+                  <LayoutPreview group={activeGroup} times={times} stays={stays} ctx={ctx} channel={channel} previewIntl={previewIntl} />
                 </div>
               </div>
             </div>

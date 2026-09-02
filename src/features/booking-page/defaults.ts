@@ -14,7 +14,7 @@ export function newSectionId(): string {
 }
 
 /** The words a new section starts with — content of the org's document,
-    so the studio hands in `public.seed` in the ORG's language (the words a
+    so the studio hands in the `seed` words in the ORG's language (the words a
     client reads), never the admin's. */
 export type SectionSeed = { bookNow: string; services: string; team: string; spaces: string };
 /** English, for DEFAULT_PAGE (header + booking read none of these) and tests. */

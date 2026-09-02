@@ -79,7 +79,7 @@ describe("embedSnippet attribute safety", () => {
   });
   it("no locale's titles carry a double quote, so the count above holds for every org language", () => {
     for (const messages of [en, uk]) {
-      for (const title of Object.values(messages.public.embedTitle)) expect(title).not.toContain('"');
+      for (const title of Object.values(messages.embedTitle)) expect(title).not.toContain('"');
     }
   });
 });

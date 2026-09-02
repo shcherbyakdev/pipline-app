@@ -9,8 +9,8 @@ import { describe, it, expect } from "vitest";
 // Since i18n Wave 3 the admin's words live in messages, guarded by
 // src/i18n/messages.test.ts (rental / offering / skip in both locales), and
 // the jsx-no-literals ratchet keeps new literals out. What is left for this
-// source scan is the label-prop rule (the ratchet ignores props) on the one
-// admin surface still outside the ratchet until Wave 4 moves it.
+// source scan is the label-prop rule: the ratchet runs with ignoreProps, so a
+// re-inlined aria-label="… rental …" is only caught here.
 export const SURFACES = [
   "src/features/orgs/components/links-table.tsx",
 ];

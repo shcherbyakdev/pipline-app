@@ -14,7 +14,7 @@ import { useSelection } from "./selection";
 export function SectionFrame({
   id, type, hidden, chrome, className, style, children,
 }: {
-  id: string; type: SectionType; hidden: boolean; chrome: PreviewChrome | undefined;
+  id: string; type: SectionType; hidden: boolean; chrome: PreviewChrome;
   className?: string; style?: React.CSSProperties; children: React.ReactNode;
 }) {
   const { selectedId, select, hoveredId } = useSelection();
@@ -24,7 +24,7 @@ export function SectionFrame({
   React.useEffect(() => {
     if (selected) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selected]);
-  const chip = chrome?.sections[type] ?? { label: type, edit: type };
+  const chip = chrome.sections[type];
   return (
     // Click anywhere selects (builder convention). The wrapper carries no
     // role: it contains the section's own buttons, links and form fields,
@@ -60,7 +60,7 @@ export function SectionFrame({
         style={{ background: "var(--widget-accent)" }}
       >
         {chip.label}
-        {hidden && chrome ? ` · ${chrome.hidden}` : ""}
+        {hidden ? ` · ${chrome.hidden}` : ""}
       </button>
       {children}
     </div>
