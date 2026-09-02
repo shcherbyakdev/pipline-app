@@ -1,0 +1,75 @@
+{
+  "common": {
+    "language": "Language",
+    "loading": "Loading…"
+  },
+  "settings": {
+    "language": {
+      "title": "Language",
+      "blurb": "For your admin. The language your clients see is set on your booking page.",
+      "label": "Interface language"
+    }
+  },
+  "auth": {
+    "email": "Email",
+    "emailPlaceholder": "you@company.com",
+    "password": "Password",
+    "passwordHint": "At least 8 characters.",
+    "login": {
+      "title": "Sign in",
+      "expiredLink": "That link is invalid or has expired — request a new one.",
+      "noAccount": "Don't have an account? <link>Sign up</link>",
+      "forgot": "Forgot password?",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "useMagic": "Email me a magic link instead",
+      "usePassword": "Sign in with a password instead",
+      "magicSent": "Check your email for a magic link to sign in.",
+      "sendMagic": "Send magic link",
+      "sending": "Sending…"
+    },
+    "signup": {
+      "title": "Create your account",
+      "blurb": "You'll confirm your email before signing in.",
+      "claiming": "Claiming <handle>{claimed}</handle>",
+      "sent": "Check your email to confirm your account.",
+      "sentClaimed": "Check your email to confirm your account and claim {claimed}.",
+      "submit": "Create account",
+      "submitting": "Creating account…",
+      "haveAccount": "Already have an account? <link>Sign in</link>"
+    },
+    "forgot": {
+      "title": "Reset your password",
+      "blurb": "We'll email you a link to set a new one.",
+      "expired": "That reset link was already used or has expired — request a new one.",
+      "sent": "If an account exists for that address, you'll receive a password reset link.",
+      "submit": "Send reset link",
+      "sending": "Sending…",
+      "back": "Back to sign in"
+    },
+    "reset": {
+      "title": "Set a new password",
+      "blurb": "You're signed in via your reset link — choose a new password.",
+      "newPassword": "New password",
+      "confirm": "Confirm new password",
+      "submit": "Set new password",
+      "saving": "Saving…"
+    },
+    "errors": {
+      "emailInvalid": "Enter a valid email address.",
+      "credentialsInvalid": "Enter a valid email and password.",
+      "signInFailed": "Invalid email or password.",
+      "linkFailed": "Could not send the link. Try again shortly.",
+      "passwordMin": "Password must be at least 8 characters.",
+      "passwordsMismatch": "Passwords don't match.",
+      "passwordInvalid": "Enter a valid password.",
+      "passwordWeak": "That password is too common or has appeared in a data breach — choose another.",
+      "tooManyAttempts": "Too many attempts — wait a few minutes and try again.",
+      "signUpFailed": "Could not create your account. Try again.",
+      "handleInvalid": "That page name isn't valid.",
+      "handleUnavailable": "That page name isn't available.",
+      "resetExpired": "Your reset link has expired — request a new one.",
+      "updateFailed": "Could not update your password. Request a new reset link."
+    }
+  }
+}
