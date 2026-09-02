@@ -72,7 +72,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
             <h2 id="opening-hours" className="text-sm font-medium">
               {t("detail.openingHours")}
             </h2>
-            <p className="text-muted-foreground text-sm">{summarizeWeekly(rules)}</p>
+            <p className="text-muted-foreground text-sm">{summarizeWeekly(rules, await getTranslations("availability"))}</p>
           </div>
           {/* /availability lists ACTIVE hourly spaces only, so an inactive
               one would silently land on another owner's hours — say so
