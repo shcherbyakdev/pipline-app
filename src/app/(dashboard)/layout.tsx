@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale } from "next-intl/server";
 import { requireOrg } from "@/lib/auth/session";
 import { plansEnforced } from "@/lib/flags";
 import { getDashboardFlags } from "@/lib/flags/resolve";
@@ -15,6 +17,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // shell is client-rendered and cannot read the DB itself.
   const flags = await getDashboardFlags(org.id);
   const mode = modeOf(org);
+  const locale = await getLocale();
   // Badge on the Overview row. Gated on the flag so an opted-out org runs
   // exactly the queries it ran before: none. A decorative badge must never
   // take down the layout, so a query error is swallowed to 0.
@@ -30,25 +33,31 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const planStatus = plansEnforced(flags) ? await getPlanStatus() : null;
 
   return (
-    <Providers flags={flags} mode={mode}>
-      <AppShell
-        org={org.name}
-        userEmail={user.email ?? ""}
-        flags={flags}
-        mode={mode}
-        pendingRequests={pendingRequests}
-        planStatus={planStatus}
-      >
-        {/* Enforcement checked here as well as inside the slot so the
-            unenforced org runs exactly the queries it ran before billing:
-            none. Suspended so the billing read never delays the shell. */}
-        {plansEnforced(flags) ? (
-          <Suspense fallback={null}>
-            <PlanBannerSlot flags={flags} />
-          </Suspense>
-        ) : null}
-        {children}
-      </AppShell>
-    </Providers>
+    // lang on the wrapper, not <html>: the root layout stays static for the
+    // marketing pages until Wave 5 decides how they render (spec §3).
+    <div lang={locale} className="contents">
+      <NextIntlClientProvider>
+        <Providers flags={flags} mode={mode}>
+          <AppShell
+            org={org.name}
+            userEmail={user.email ?? ""}
+            flags={flags}
+            mode={mode}
+            pendingRequests={pendingRequests}
+            planStatus={planStatus}
+          >
+            {/* Enforcement checked here as well as inside the slot so the
+                unenforced org runs exactly the queries it ran before billing:
+                none. Suspended so the billing read never delays the shell. */}
+            {plansEnforced(flags) ? (
+              <Suspense fallback={null}>
+                <PlanBannerSlot flags={flags} />
+              </Suspense>
+            ) : null}
+            {children}
+          </AppShell>
+        </Providers>
+      </NextIntlClientProvider>
+    </div>
   );
 }

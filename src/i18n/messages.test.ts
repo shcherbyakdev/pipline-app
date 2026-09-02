@@ -1,0 +1,98 @@
+import { describe, it, expect } from "vitest";
+import IntlMessageFormat from "intl-messageformat";
+import en from "../../messages/en.json";
+import uk from "../../messages/uk.json";
+import { LOCALES, type Locale } from "./config";
+import { deepMerge } from "./messages";
+import { FORBIDDEN_COPY } from "@/features/marketing/site";
+
+// Glossary's per-language forbidden list (messages/GLOSSARY.md); uk has no
+// FORBIDDEN_COPY-equivalent export to import, so it is spelled out here.
+const FORBIDDEN_UK = ["оренда", "офер", "пропустити"];
+const FORBIDDEN: Record<Locale, readonly string[]> = { en: FORBIDDEN_COPY, uk: FORBIDDEN_UK };
+
+/* The guards from spec 2026-09-02 §6. Every locale must carry every key,
+   compile as ICU, name the same placeholders and tags as English, cover
+   every plural category its language has, and actually be translated. */
+
+const MESSAGES: Record<Locale, unknown> = { en, uk };
+
+// Values that are the same in every language on purpose: codes, brand,
+// examples. Anything else equal to English is an untranslated string.
+const SAME_IN_EVERY_LOCALE = new Set(["auth.emailPlaceholder"]);
+
+function flatten(value: unknown, prefix = "", out: Record<string, string> = {}): Record<string, string> {
+  if (typeof value === "string") out[prefix] = value;
+  else if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value)) flatten(v, prefix ? `${prefix}.${k}` : k, out);
+  }
+  return out;
+}
+
+const placeholders = (msg: string) => [...msg.matchAll(/\{(\w+)[,}]/g)].map((m) => m[1]).sort();
+const tags = (msg: string) => [...msg.matchAll(/<(\w+)>/g)].map((m) => m[1]).sort();
+
+// formatjs AST: 6 = plural, 5 = select (both carry `options`), 8 = tag (`children`).
+type Node = { type: number; pluralType?: string; options?: Record<string, { value: Node[] }>; children?: Node[] };
+function cardinalPlurals(nodes: Node[], out: Node[] = []): Node[] {
+  for (const n of nodes) {
+    if (n.type === 6 && n.pluralType !== "ordinal") out.push(n);
+    for (const opt of Object.values(n.options ?? {})) cardinalPlurals(opt.value, out);
+    if (n.children) cardinalPlurals(n.children, out);
+  }
+  return out;
+}
+
+describe("messages", () => {
+  const flatEn = flatten(en);
+
+  for (const locale of LOCALES) {
+    const flat = flatten(MESSAGES[locale]);
+
+    it(`${locale}: has exactly en's keys and no empty values`, () => {
+      expect(Object.keys(flat).sort()).toEqual(Object.keys(flatEn).sort());
+      for (const [k, v] of Object.entries(flat)) expect(v.trim(), k).not.toBe("");
+    });
+
+    it(`${locale}: every message compiles and names en's placeholders and tags`, () => {
+      for (const [k, v] of Object.entries(flat)) {
+        expect(() => new IntlMessageFormat(v, locale), k).not.toThrow();
+        expect(placeholders(v), k).toEqual(placeholders(flatEn[k] ?? ""));
+        expect(tags(v), k).toEqual(tags(flatEn[k] ?? ""));
+      }
+    });
+
+    it(`${locale}: every plural covers the categories the language needs`, () => {
+      const needed = new Intl.PluralRules(locale).resolvedOptions().pluralCategories;
+      for (const [k, v] of Object.entries(flat)) {
+        for (const p of cardinalPlurals(new IntlMessageFormat(v, locale).getAst() as Node[])) {
+          for (const cat of needed) expect(Object.keys(p.options ?? {}), `${k} lacks "${cat}"`).toContain(cat);
+        }
+      }
+    });
+
+    it(`${locale}: no message contains a forbidden word`, () => {
+      for (const [k, v] of Object.entries(flat)) {
+        const lower = v.toLowerCase();
+        for (const word of FORBIDDEN[locale]) {
+          expect(lower.includes(word), `${k} contains forbidden word "${word}"`).toBe(false);
+        }
+      }
+    });
+
+    if (locale !== "en") {
+      it(`${locale}: nothing is left in English`, () => {
+        for (const [k, v] of Object.entries(flat)) {
+          if (!SAME_IN_EVERY_LOCALE.has(k)) expect(v, k).not.toBe(flatEn[k]);
+        }
+      });
+    }
+  }
+
+  it("deepMerge keeps English underneath a partial locale (spec D8)", () => {
+    expect(deepMerge({ a: { x: "en-x", y: "en-y" }, b: "en-b" }, { a: { x: "uk-x" } })).toEqual({
+      a: { x: "uk-x", y: "en-y" },
+      b: "en-b",
+    });
+  });
+});

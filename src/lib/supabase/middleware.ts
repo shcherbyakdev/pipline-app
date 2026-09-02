@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { env } from "@/env";
 import { isProtectedPath } from "@/lib/auth/next-path";
+import { isLocale } from "@/i18n/config";
+import { LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS } from "@/i18n/cookie";
 
 // Refreshes the Supabase auth session on every request and keeps the
 // session cookie in sync between the request and the response. Also the
@@ -43,6 +45,19 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Interface locale (spec §8): a signed-in person whose browser has no
+  // NEXT_LOCALE yet gets it from user_metadata, so a choice made on one
+  // device holds on the next. Same request/response dance as setAll above,
+  // so the seeded cookie reaches this request's server components too.
+  const saved = user?.user_metadata?.locale;
+  if (isLocale(saved) && !request.cookies.has(LOCALE_COOKIE)) {
+    request.cookies.set(LOCALE_COOKIE, saved);
+    const seeded = NextResponse.next({ request });
+    supabaseResponse.cookies.getAll().forEach((c) => seeded.cookies.set(c));
+    seeded.cookies.set(LOCALE_COOKIE, saved, LOCALE_COOKIE_OPTIONS);
+    supabaseResponse = seeded;
+  }
 
   if (!user && isProtectedPath(request.nextUrl.pathname)) {
     const url = request.nextUrl.clone();

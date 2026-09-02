@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { updatePassword } from "@/features/auth/actions";
 import type { AuthState } from "@/features/auth/schema";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,12 @@ const initial: AuthState = {};
 
 export function ResetPasswordForm() {
   const [state, action, pending] = useActionState(updatePassword, initial);
+  const t = useTranslations("auth");
 
   return (
     <form action={action} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">New password</Label>
+        <Label htmlFor="password">{t("reset.newPassword")}</Label>
         <PasswordInput
           id="password"
           name="password"
@@ -24,10 +26,10 @@ export function ResetPasswordForm() {
           autoComplete="new-password"
           className="h-11 rounded-xl"
         />
-        <p className="text-muted-foreground text-xs">At least 8 characters.</p>
+        <p className="text-muted-foreground text-xs">{t("passwordHint")}</p>
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="confirm">Confirm new password</Label>
+        <Label htmlFor="confirm">{t("reset.confirm")}</Label>
         <PasswordInput
           id="confirm"
           name="confirm"
@@ -41,7 +43,7 @@ export function ResetPasswordForm() {
         <p className="text-destructive text-sm">{state.error}</p>
       ) : null}
       <Button type="submit" disabled={pending} className="h-11">
-        {pending ? "Saving…" : "Set new password"}
+        {pending ? t("reset.saving") : t("reset.submit")}
       </Button>
     </form>
   );

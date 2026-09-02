@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getOptionalUser } from "@/lib/auth/session";
 import { afterLogin, safeNextPath } from "@/lib/auth/next-path";
 import { LoginForm } from "./login-form";
@@ -14,22 +15,24 @@ export default async function LoginPage({
   // a bookmark). Straight to where they were headed.
   if (await getOptionalUser()) redirect(afterLogin(next));
   const nextPath = safeNextPath(next);
+  const t = await getTranslations("auth.login");
 
   return (
     <div>
       {/* The wordmark above already says Booklo — the heading doesn't repeat it. */}
-      <h1 className="mb-6 text-center text-lg font-semibold tracking-tight">Sign in</h1>
+      <h1 className="mb-6 text-center text-lg font-semibold tracking-tight">{t("title")}</h1>
       {error === "auth" ? (
-        <p className="text-destructive mb-4 text-center text-sm">
-          That link is invalid or has expired — request a new one.
-        </p>
+        <p className="text-destructive mb-4 text-center text-sm">{t("expiredLink")}</p>
       ) : null}
       <LoginForm next={nextPath} />
       <p className="text-muted-foreground mt-7 text-center text-sm">
-        Don&apos;t have an account?{" "}
-        <Link href="/signup" className="text-foreground hover:underline">
-          Sign up
-        </Link>
+        {t.rich("noAccount", {
+          link: (chunks) => (
+            <Link href="/signup" className="text-foreground hover:underline">
+              {chunks}
+            </Link>
+          ),
+        })}
       </p>
     </div>
   );
