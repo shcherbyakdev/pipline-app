@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   DEFAULT_END_TIME,
   DEFAULT_START_TIME,
-  DEFAULT_WEEK_LABEL,
   defaultHourRows,
   seedDefaultHours,
 } from "./default-hours";
@@ -28,12 +27,6 @@ describe("defaultHourRows", () => {
     const weekdays = defaultHourRows("org-1", STAFF).map((r) => r.weekday);
     expect(weekdays).not.toContain(0);
     expect(weekdays).not.toContain(6);
-  });
-
-  it("names itself the same way the editor's prompt offers it", () => {
-    // 24h, not locale-formatted: the prompt renders on the server too, so a
-    // formatTime label would risk a hydration mismatch.
-    expect(DEFAULT_WEEK_LABEL).toBe("Mon–Fri, 09:00–17:00");
   });
 
   it("uses the same window the '+' button gives an empty day", () => {

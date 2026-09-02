@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
@@ -40,6 +41,7 @@ export default async function TeamPage() {
     addGateHref(org.id),
   ]);
   if (!scheduling) notFound();
+  const t = await getTranslations("team");
   const publicStaffIds = resources ? resources.staff.map((s) => s.id) : null;
 
   // The new person inherits the first active member's weekly hours (the RPC
@@ -49,9 +51,7 @@ export default async function TeamPage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <PageIntro>
-          Your bookable people. Each has their own hours, services and booking link.
-        </PageIntro>
+        <PageIntro>{t("intro")}</PageIntro>
         <StaffDialog
           services={services}
           usedColors={staff.map((s) => s.color)}

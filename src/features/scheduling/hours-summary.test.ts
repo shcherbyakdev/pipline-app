@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { NO_HOURS, summarizeWeekly } from "./hours-summary";
+import { enTranslator } from "@/i18n/test-translator";
+import { summarizeWeekly as summarize } from "./hours-summary";
+
+const t = enTranslator("availability");
+const summarizeWeekly = (rules: Parameters<typeof summarize>[0]) => summarize(rules, t);
 
 const w = (weekday: number, startTime: string, endTime: string) => ({ weekday, startTime, endTime });
 const NINE_TO_FIVE = (d: number) => w(d, "09:00", "17:00");
@@ -7,7 +11,6 @@ const NINE_TO_FIVE = (d: number) => w(d, "09:00", "17:00");
 describe("summarizeWeekly (spec §3 — the space detail card)", () => {
   it("no rules → the closed line", () => {
     expect(summarizeWeekly([])).toBe("Closed — no hours set");
-    expect(NO_HOURS).toBe("Closed — no hours set");
   });
   it("groups consecutive weekdays with identical windows; runs are joined with a middle dot", () => {
     const rules = [1, 2, 3, 4, 5].map(NINE_TO_FIVE).concat(w(6, "10:00", "14:00"));
