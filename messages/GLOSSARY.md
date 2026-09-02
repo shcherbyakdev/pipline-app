@@ -36,7 +36,7 @@ A term missing here is added here first, then used.
 - Formal **ви**, lowercase in running text.
 - Command buttons use the infinitive ("Зберегти", "Скасувати", "Увійти"); instructions and errors use the ви-imperative ("Оберіть", "Спробуйте", "Перевірте").
 - No exclamation marks. Sentence case. One idea per sentence.
-- Typographic apostrophe `'` inside words (з'являвся), em dash `—` with spaces.
+- Typographic apostrophe `’` inside words (з’являвся), em dash `—` with spaces.
 - Forbidden words (the `FORBIDDEN_COPY` guard, per locale): оренда, офер, пропустити.
 
 ## Never translated
