@@ -218,6 +218,26 @@ describe("booking guards (0037)", () => {
     expect(c.service_name).toBe("Studio · U2");
   });
 
+  // 0070: a single-unit space's unit is named after the space (the app keeps
+  // it so), and a unit that merely repeats the space's name is not a title.
+  it("resolve_booking_token and cancel_booking drop a unit named after its space", async () => {
+    const twin = await newUnit(offeringId, "Studio");
+    const { token, tokenHash } = generateAccessToken();
+    const { error } = await admin.from("bookings").insert({
+      ...base(),
+      cancel_token_hash: tokenHash,
+      rental_offering_id: offeringId,
+      rental_unit_id: twin,
+      starts_at: "2027-09-01T13:00:00Z",
+      ends_at: "2027-09-03T09:00:00Z",
+    });
+    expect(error).toBeNull();
+    const { data } = await anon.rpc("resolve_booking_token", { p_token: token });
+    expect((data as Array<Record<string, unknown>>)[0].service_name).toBe("Studio");
+    const { data: cancelled } = await admin.rpc("cancel_booking", { p_token: token });
+    expect((cancelled as Array<Record<string, unknown>>)[0].service_name).toBe("Studio");
+  });
+
   it("reschedule_booking refuses a rental token", async () => {
     const { token, tokenHash } = generateAccessToken();
     const { error } = await admin.from("bookings").insert({
