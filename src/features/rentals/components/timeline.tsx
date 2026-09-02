@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { TriangleAlert } from "lucide-react";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { TimelineOffering, TimelineBlackout } from "@/features/rentals/queries";
@@ -26,8 +27,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { SPACES } from "@/features/orgs/vocab";
-import { TimelineLane, MODE_LABEL, RAIL_PX, RAIL_PAN_STYLE, isWeekend, zoomInHref, type NewStay } from "./timeline-lane";
+import { INTL_LOCALES } from "@/i18n/config";
+import { TimelineLane, RAIL_PX, RAIL_PAN_STYLE, isWeekend, zoomInHref, type NewStay } from "./timeline-lane";
 import { usePanChart } from "./use-pan-chart";
 
 /* The tape chart: every space, one lane per unit, one column per day.
@@ -46,7 +47,6 @@ import { usePanChart } from "./use-pan-chart";
    the server follow in a transition, and when the server's answer lands
    it is the same window recentred in a fresh buffer, so nothing jumps. */
 
-const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 // A day column never gets narrower than this; below it the visible window
 // overflows (clipped) rather than turning into unreadable slivers.
 const MIN_CELL_PX = 14;
@@ -77,6 +77,11 @@ export function Timeline({
       drag through time appends the day it lands on. */
   hrefBase: string;
 }) {
+  const t = useTranslations("bookings");
+  const tSpaces = useTranslations("spaces");
+  const intlLocale = INTL_LOCALES[useLocale()];
+  // Mon-first two-letter weekdays; the header indexes them by UTC day.
+  const weekdays = t("weekdays").split(" ");
   const router = useRouter();
   const [, startTransition] = React.useTransition();
 
@@ -92,7 +97,7 @@ export function Timeline({
 
   const cols = days * 3;
   const bufferDays = React.useMemo(() => windowDays(bufferFrom, cols), [bufferFrom, cols]);
-  const bands = React.useMemo(() => monthBands(bufferDays), [bufferDays]);
+  const bands = React.useMemo(() => monthBands(bufferDays, intlLocale), [bufferDays, intlLocale]);
   const visIdx = visibleOffset(bufferFrom, from);
   const columns = `${RAIL_PX}px repeat(${cols}, minmax(0, 1fr))`;
 
@@ -235,11 +240,10 @@ export function Timeline({
   if (offerings.length === 0) {
     return (
       <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-        {SPACES.timelineEmpty}{" "}
+        {tSpaces("timelineEmpty")}{" "}
         <Link href="/rentals" className="underline">
-          {SPACES.nav}
+          {tSpaces("nav")}
         </Link>
-        .
       </div>
     );
   }
@@ -254,10 +258,10 @@ export function Timeline({
           >
             <TriangleAlert className="size-4 shrink-0" aria-hidden />
             <span>
-              {summary.count} booking{summary.count === 1 ? "" : "s"} in conflict in this window
+              {t("timeline.conflicts", { count: summary.count })}
             </span>
             <Button variant="ghost" size="sm" className="text-destructive ml-auto h-7" onClick={showFirstConflict}>
-              Show
+              {t("timeline.show")}
             </Button>
           </div>
         ) : null}
@@ -341,7 +345,7 @@ export function Timeline({
                               isToday ? "text-primary-foreground/75" : isWeekend(d) ? "text-muted-foreground/60" : "text-muted-foreground",
                             )}
                           >
-                            {DAY_LABELS[new Date(`${d}T12:00:00Z`).getUTCDay()]}
+                            {weekdays[(new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7]}
                           </span>
                         ) : null}
                         <span className={cn("text-xs font-semibold tabular-nums", !isToday && isWeekend(d) && "text-muted-foreground")}>
@@ -391,14 +395,14 @@ export function Timeline({
                         style={RAIL_PAN_STYLE}
                       >
                         <span className="text-sm font-medium">{offering.name}</span>
-                        <Badge variant="outline">{MODE_LABEL[offering.rangeMode]}</Badge>
+                        <Badge variant="outline">{t(`timeline.mode.${offering.rangeMode}`)}</Badge>
                         <span className="text-muted-foreground text-xs">
-                          {offering.units.length} unit{offering.units.length === 1 ? "" : "s"}
+                          {t("timeline.units", { count: offering.units.length })}
                         </span>
                         {conflictCount > 0 ? (
                           <Badge variant="outline" className="border-destructive/50 text-destructive gap-1">
                             <TriangleAlert className="size-3" aria-hidden />
-                            {conflictCount} in conflict
+                            {t("timeline.inConflict", { count: conflictCount })}
                           </Badge>
                         ) : null}
                       </div>
@@ -466,11 +470,12 @@ export function Timeline({
 }
 
 function Legend() {
+  const t = useTranslations("bookings");
   return (
-    <ul className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]" aria-label="Legend">
+    <ul className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]" aria-label={t("timeline.legend")}>
       <li className="flex items-center gap-1.5">
         <span aria-hidden className="bg-card inline-block h-3 w-5 rounded-sm border border-l-[3px] border-l-primary" />
-        Stay
+        {t("timeline.stay")}
       </li>
       <li className="flex items-center gap-1.5">
         <span
@@ -478,21 +483,21 @@ function Legend() {
           className="border-border bg-muted/50 inline-block h-3 w-5 rounded-sm border"
           style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 3px, var(--border) 3px, var(--border) 4px)" }}
         />
-        Unavailable
+        {t("timeline.unavailable")}
       </li>
       <li className="flex items-center gap-1.5">
         <span aria-hidden className="border-muted-foreground/40 bg-muted/40 inline-block h-3 w-5 rounded-r-sm border border-l-0 border-dashed" />
-        Turnover
+        {t("timeline.turnover")}
       </li>
       <li className="flex items-center gap-1.5">
         <TriangleAlert className="text-destructive size-3" aria-hidden />
-        Conflict
+        {t("timeline.conflict")}
       </li>
       <li className="flex items-center gap-1.5">
         <span aria-hidden className="bg-primary inline-block h-3 w-0.5" />
-        Now
+        {t("timeline.now")}
       </li>
-      <li>Drag sideways to move through time.</li>
+      <li>{t("timeline.dragHint")}</li>
     </ul>
   );
 }

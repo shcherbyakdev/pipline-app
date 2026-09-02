@@ -1,4 +1,3 @@
-import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { AvailabilityOwner } from "@/features/scheduling/schema";
 
@@ -23,8 +22,19 @@ export type ScopeParams = { show?: string; staff?: string };
 export type PersonLike = { id: string; name: string; color: string };
 export type SpaceLike = { id: string; name: string; rangeMode?: string };
 
+/** Words this module hands the UI, unrendered (i18n Wave 3): a person's or
+    space's name as-is, a group or "All bookings" as a root message key, and
+    "{n} selected" as a count for `bookings.scope.selected`. */
+export type ScopeKey =
+  | "bookings.scope.all"
+  | "appointments.scope.group"
+  | "appointments.scope.all"
+  | "spaces.scope.group"
+  | "spaces.scope.all";
+export type ScopeText = { name: string } | { key: ScopeKey } | { count: number };
+
 const ALL: Scope = { kind: "all" };
-export const ALL_BOOKINGS = "All bookings";
+const ALL_BOOKINGS: ScopeText = { key: "bookings.scope.all" };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -122,16 +132,16 @@ export function scopeSides(
 /** The names a scope selects — a whole group is one name, except that a
     sole space keeps its own (it is listed by name on the menu); a sole
     person stays the kind (U3: the sole person stays nameless). */
-function scopeNames(scope: Scope, people: readonly PersonLike[], spaces: readonly SpaceLike[]): string[] {
+function scopeNames(scope: Scope, people: readonly PersonLike[], spaces: readonly SpaceLike[]): ScopeText[] {
   if (scope.kind === "all") return [];
-  const names: string[] = [];
+  const names: ScopeText[] = [];
   if (scope.people === "all") {
-    if (people.length > 0) names.push(APPOINTMENTS.scope.group);
-  } else names.push(...people.filter((p) => scope.people.includes(p.id)).map((p) => p.name));
+    if (people.length > 0) names.push({ key: "appointments.scope.group" });
+  } else names.push(...people.filter((p) => scope.people.includes(p.id)).map((p) => ({ name: p.name })));
   if (scope.spaces === "all") {
-    if (spaces.length === 1) names.push(spaces[0].name);
-    else if (spaces.length > 1) names.push(SPACES.scope.group);
-  } else names.push(...spaces.filter((s) => scope.spaces.includes(s.id)).map((s) => s.name));
+    if (spaces.length === 1) names.push({ name: spaces[0].name });
+    else if (spaces.length > 1) names.push({ key: "spaces.scope.group" });
+  } else names.push(...spaces.filter((s) => scope.spaces.includes(s.id)).map((s) => ({ name: s.name })));
   return names;
 }
 
@@ -140,17 +150,17 @@ export function scopeLabel(
   scope: Scope,
   people: readonly PersonLike[],
   spaces: readonly SpaceLike[],
-): string {
+): ScopeText {
   const names = scopeNames(scope, people, spaces);
   if (names.length === 0) return ALL_BOOKINGS;
   if (names.length === 1) return names[0];
-  return `${names.length} selected`;
+  return { count: names.length };
 }
 
 type ScopeItemBase = {
   /** Stable key for React and the tests. */
   key: string;
-  label: string;
+  label: ScopeText;
   /** A person's colour dot. */
   color?: string;
   /** Marked with the house icon. */
@@ -163,7 +173,7 @@ export type ScopeItem =
   | (ScopeItemBase & { kind: "appointments"; id?: undefined })
   | (ScopeItemBase & { kind: "spaces"; id?: undefined })
   | (ScopeItemBase & { kind: "staff" | "space"; id: string });
-export type ScopeGroup = { label: string | null; items: ScopeItem[] };
+export type ScopeGroup = { label: ScopeText | null; items: ScopeItem[] };
 
 /** The menu, per org shape (the solo rule, generalised): a group's
     "All appointments"/"All spaces" entry only when the OTHER channel is
@@ -181,18 +191,18 @@ export function scopeItems(
   if (people.length > 0) {
     const items: ScopeItem[] = [];
     if (people.length === 1) {
-      items.push({ key: "appointments", label: APPOINTMENTS.scope.group, kind: "appointments" });
+      items.push({ key: "appointments", label: { key: "appointments.scope.group" }, kind: "appointments" });
     } else {
-      if (both) items.push({ key: "appointments", label: APPOINTMENTS.scope.all, kind: "appointments" });
-      for (const p of people) items.push({ key: `staff:${p.id}`, label: p.name, kind: "staff", id: p.id, color: p.color });
+      if (both) items.push({ key: "appointments", label: { key: "appointments.scope.all" }, kind: "appointments" });
+      for (const p of people) items.push({ key: `staff:${p.id}`, label: { name: p.name }, kind: "staff", id: p.id, color: p.color });
     }
-    groups.push({ label: both ? APPOINTMENTS.scope.group : null, items });
+    groups.push({ label: both ? { key: "appointments.scope.group" } : null, items });
   }
   if (spaces.length > 0) {
     const items: ScopeItem[] = [];
-    if (both && spaces.length > 1) items.push({ key: "spaces", label: SPACES.scope.all, kind: "spaces" });
-    for (const s of spaces) items.push({ key: `space:${s.id}`, label: s.name, kind: "space", id: s.id, space: true });
-    groups.push({ label: both ? SPACES.scope.group : null, items });
+    if (both && spaces.length > 1) items.push({ key: "spaces", label: { key: "spaces.scope.all" }, kind: "spaces" });
+    for (const s of spaces) items.push({ key: `space:${s.id}`, label: { name: s.name }, kind: "space", id: s.id, space: true });
+    groups.push({ label: both ? { key: "spaces.scope.group" } : null, items });
   }
   const count = groups.reduce((n, g) => n + g.items.length, 0);
   if (count < 3) return null;

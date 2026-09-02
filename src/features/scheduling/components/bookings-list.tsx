@@ -2,18 +2,19 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { whenLineFor, STATUS_LABEL } from "@/features/scheduling/templates";
+import { whenLineFor } from "@/features/scheduling/templates";
 import {
   acceptBookingRequest, cancelBookingAdmin, resendManageLink,
 } from "@/features/scheduling/booking-actions";
 import { isExpiredRequest } from "@/features/scheduling/requests";
+import { statusKey } from "@/features/scheduling/booking-label";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { OrgMode } from "@/features/orgs/mode";
-import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
+import { INTL_LOCALES } from "@/i18n/config";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
-import { RESEND_STARTED_HINT } from "./booking-detail-dialog";
 import { DeclineRequestDialog } from "./requests-inbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,9 @@ function Row({
   actionable: boolean;
   showKind: boolean;
 }) {
+  const t = useTranslations("bookings");
+  const tSpaces = useTranslations("spaces");
+  const intlLocale = INTL_LOCALES[useLocale()];
   const [pending, startTransition] = React.useTransition();
   const [confirming, setConfirming] = React.useState(false);
   const [declining, setDeclining] = React.useState(false);
@@ -61,19 +65,16 @@ function Row({
   // manage link can only be reissued before the start (rotate_booking_token).
   const started = nowMs !== null && new Date(booking.startsAt).getTime() <= nowMs;
   const resendBlocked = !booking.clientEmail || started;
-  const resendHint = !booking.clientEmail ? "No email on file" : started ? RESEND_STARTED_HINT : undefined;
+  const resendHint = !booking.clientEmail ? t("noEmailShort") : started ? t("resendStartedHint") : undefined;
+  const status = statusKey(booking.status);
 
   const cancel = () =>
     startTransition(async () => {
       const result = await cancelBookingAdmin({ id: booking.id });
       if (!result.ok) toast.error(result.error);
-      else if (result.noEmail)
-        toast.success("Booking cancelled — no email on file for this client.");
-      else if (result.emailed) toast.success("Booking cancelled — the client has been emailed");
-      else
-        toast.warning(
-          "Booking cancelled — but the email to the client failed. Contact them directly.",
-        );
+      else if (result.noEmail) toast.success(t("cancel.doneNoEmail"));
+      else if (result.emailed) toast.success(t("cancel.doneEmailed"));
+      else toast.warning(t("cancel.doneEmailFailed"));
       setConfirming(false);
     });
 
@@ -81,18 +82,15 @@ function Row({
     startTransition(async () => {
       const result = await acceptBookingRequest({ id: booking.id });
       if (!result.ok) toast.error(result.error);
-      else toast.success(result.emailed ? "Accepted — confirmation sent." : "Accepted.");
+      else toast.success(result.emailed ? t("requests.acceptedEmailed") : t("requests.accepted"));
     });
 
   const resend = () =>
     startTransition(async () => {
       const result = await resendManageLink({ id: booking.id });
       if (!result.ok) toast.error(result.error);
-      else if (result.emailed) toast.success("A fresh link is on its way to the client.");
-      else
-        toast.warning(
-          "Link was reset, but the email failed — the old link no longer works. Contact the client directly.",
-        );
+      else if (result.emailed) toast.success(t("resend.sent"));
+      else toast.warning(t("resend.failed"));
     });
 
   return (
@@ -100,16 +98,16 @@ function Row({
       <div className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-2 font-medium">
           {booking.serviceName}
-          {showKind && booking.rentalUnitId !== null ? <Badge variant="outline">{SPACES.badge}</Badge> : null}
+          {showKind && booking.rentalUnitId !== null ? <Badge variant="outline">{tSpaces("badge")}</Badge> : null}
         </p>
         {liveRequest ? (
-          <Badge variant="secondary">{STATUS_LABEL.pending}</Badge>
+          <Badge variant="secondary">{t("status.pending")}</Badge>
         ) : lapsedRequest ? (
           // "Pending approval" would be a lie in the history list — this one
           // ran out of time.
-          <Badge variant="secondary">Request expired</Badge>
+          <Badge variant="secondary">{t("requestExpired")}</Badge>
         ) : actionable ? null : (
-          <Badge variant="secondary">{STATUS_LABEL[booking.status] ?? booking.status}</Badge>
+          <Badge variant="secondary">{status ? t(`status.${status}`) : booking.status}</Badge>
         )}
       </div>
       <p>
@@ -121,6 +119,7 @@ function Row({
             rangeMode: booking.rangeMode,
           },
           timeZone,
+          intlLocale,
         )}
       </p>
       {/* Team (multi-staff): whose appointment this is. Solo orgs never see
@@ -147,16 +146,16 @@ function Row({
       {liveRequest ? (
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={accept} disabled={pending}>
-            Accept
+            {t("requests.accept")}
           </Button>
           <Button variant="outline" size="sm" onClick={() => setDeclining(true)} disabled={pending}>
-            Decline…
+            {t("requests.decline")}
           </Button>
           <DeclineRequestDialog bookingId={booking.id} open={declining} onOpenChange={setDeclining} />
         </div>
       ) : actionable && !lapsedRequest ? (
         <div className="flex items-center gap-2">
-          {/* Rentals have no slot grid to move to — cancel/rebook instead. */}
+          {/* Stays have no slot grid to move to — cancel/rebook instead. */}
           {booking.serviceId === null ? null : (
             <BookingRescheduleDialog
               booking={{ ...booking, serviceId: booking.serviceId }}
@@ -172,20 +171,20 @@ function Row({
             focusableWhenDisabled={resendBlocked}
             title={resendHint}
           >
-            Resend link
+            {t("resendLink")}
           </Button>
           {confirming ? (
             <>
               <Button variant="ghost" size="sm" onClick={cancel} disabled={pending}>
-                Confirm cancel
+                {t("cancel.confirm")}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={pending}>
-                Keep
+                {t("keep")}
               </Button>
             </>
           ) : (
             <Button variant="ghost" size="sm" onClick={() => setConfirming(true)} disabled={pending}>
-              Cancel booking
+              {t("cancel.button")}
             </Button>
           )}
         </div>
@@ -215,30 +214,32 @@ export function BookingsList({
   // everything, else the words the toolbar's trigger reads.
   scopeLabel: string | null;
 }) {
+  const t = useTranslations("bookings");
+  const emptyKey =
+    mode.offersAppointments && mode.offersRentals
+      ? "list.emptyBoth"
+      : mode.offersAppointments
+        ? "list.emptyServices"
+        : mode.offersRentals
+          ? "list.emptySpaces"
+          : "list.empty";
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium">Upcoming</h2>
+        <h2 className="text-sm font-medium">{t("list.upcoming")}</h2>
         {upcoming.length === 0 && scopeLabel !== null ? (
           <p className="text-muted-foreground text-sm">
-            No upcoming bookings for {scopeLabel}.{" "}
+            {t("list.emptyScoped", { scope: scopeLabel })}{" "}
             <Link href="/bookings?view=list" className="underline">
-              Show all bookings
+              {t("list.showAll")}
             </Link>
           </p>
         ) : upcoming.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            No upcoming bookings.{" "}
-            {mode.offersAppointments ? (
-              <Link href="/services" className="underline">{APPOINTMENTS.add}</Link>
-            ) : null}
-            {mode.offersAppointments && mode.offersRentals ? " or " : null}
-            {mode.offersRentals ? (
-              <Link href="/rentals" className="underline">
-                {mode.offersAppointments ? SPACES.add.toLowerCase() : SPACES.add}
-              </Link>
-            ) : null}
-            , then share your booking page.
+            {t.rich(emptyKey, {
+              services: (chunks) => <Link href="/services" className="underline">{chunks}</Link>,
+              spaces: (chunks) => <Link href="/rentals" className="underline">{chunks}</Link>,
+            })}
           </p>
         ) : (
           <ol className="flex flex-col gap-2">
@@ -256,10 +257,10 @@ export function BookingsList({
         )}
       </section>
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium">Past &amp; cancelled</h2>
+        <h2 className="text-sm font-medium">{t("list.past")}</h2>
         {past.length === 0 ? (
           <p className="text-muted-foreground text-sm">
-            {scopeLabel !== null ? `Nothing here yet for ${scopeLabel}.` : "Nothing here yet."}
+            {scopeLabel !== null ? t("list.pastEmptyScoped", { scope: scopeLabel }) : t("list.pastEmpty")}
           </p>
         ) : (
           <ol className="flex flex-col gap-2">

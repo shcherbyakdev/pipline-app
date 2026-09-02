@@ -171,7 +171,7 @@ export async function runReminderDrain(deps: {
         const mail = await emailTranslators(row.orgs?.locale);
         const msg = bookingReminderEmail(mail.t, {
           orgName: row.orgs?.name ?? "",
-          serviceName: bookingTitle(row),
+          serviceName: bookingTitle(row, mail.t("appointment")),
           whenLine: whenLineFor(
             {
               startsAt: new Date(row.starts_at),

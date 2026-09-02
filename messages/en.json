@@ -206,6 +206,21 @@
       "founderEnded": "The Founder offer has ended — the regular price applies.",
       "portal": "There's no subscription to manage yet.",
       "portalUnavailable": "Couldn't open the billing portal — try again."
+    },
+    "bookings": {
+      "notCancellable": "Only a confirmed, upcoming booking can be cancelled.",
+      "notReschedulable": "Only a confirmed booking can be rescheduled.",
+      "stayNotReschedulable": "Stays can't be moved here — cancel and rebook.",
+      "noManageLink": "Only an upcoming booking or request has a manage link.",
+      "noEmail": "No email on file for this client.",
+      "overlap": "That time overlaps an existing booking.",
+      "staffNotOffering": "That team member doesn't offer this service.",
+      "notPendingAccept": "Only a live pending request can be accepted.",
+      "notPendingDecline": "Only a live pending request can be declined.",
+      "stayNotMovable": "Only a confirmed stay can be moved.",
+      "notMovable": "Only a confirmed booking can be moved.",
+      "alreadyStarted": "This booking has already started.",
+      "spaceInactive": "This space is inactive — reactivate it to move its bookings."
     }
   },
   "public": {
@@ -660,7 +675,200 @@
       "cancelledByProvider": "Cancelled by you",
       "rescheduled": "Rescheduled"
     },
-    "fallbackTitle": "Appointment"
+    "fallbackTitle": "Appointment",
+    "weekdays": "Mo Tu We Th Fr Sa Su",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "teamMember": "Team member",
+    "keep": "Keep",
+    "resendLink": "Resend link",
+    "resendStartedHint": "The booking has already started — the link can't be reissued.",
+    "noEmailShort": "No email on file",
+    "requestExpired": "Request expired",
+    "ended": "This booking has ended.",
+    "view": {
+      "label": "Bookings view",
+      "week": "Week",
+      "timeline": "Timeline",
+      "list": "List"
+    },
+    "scope": {
+      "show": "Show",
+      "all": "All bookings",
+      "selected": "{count} selected"
+    },
+    "ownerTabs": {
+      "label": "Whose hours",
+      "people": "People"
+    },
+    "list": {
+      "upcoming": "Upcoming",
+      "past": "Past & cancelled",
+      "empty": "No upcoming bookings.",
+      "emptyBoth": "No upcoming bookings. <services>Add a service</services> or <spaces>add a space</spaces>, then share your booking page.",
+      "emptyServices": "No upcoming bookings. <services>Add a service</services>, then share your booking page.",
+      "emptySpaces": "No upcoming bookings. <spaces>Add a space</spaces>, then share your booking page.",
+      "emptyScoped": "No upcoming bookings for {scope}.",
+      "showAll": "Show all bookings",
+      "pastEmpty": "Nothing here yet.",
+      "pastEmptyScoped": "Nothing here yet for {scope}."
+    },
+    "requests": {
+      "title": "Requests",
+      "chip": "Request",
+      "accept": "Accept",
+      "decline": "Decline…",
+      "acceptFrom": "Accept request from {name}",
+      "declineFrom": "Decline request from {name}",
+      "accepted": "Accepted.",
+      "acceptedEmailed": "Accepted — confirmation sent.",
+      "declineTitle": "Decline request",
+      "declineBody": "The time is released and the client is emailed that you can't take it.",
+      "declineNote": "Message to the client (optional)",
+      "declineNotePlaceholder": "Message to the client (optional) — e.g. We're fully booked that morning, happy to take you at 14:00.",
+      "declining": "Declining…",
+      "declined": "Request declined.",
+      "lapsed": "This request lapsed before it was answered."
+    },
+    "cancel": {
+      "button": "Cancel booking",
+      "confirm": "Confirm cancel",
+      "doneNoEmail": "Booking cancelled — no email on file for this client.",
+      "doneEmailed": "Booking cancelled — the client has been emailed.",
+      "doneEmailFailed": "Booking cancelled — but the email to the client failed. Contact them directly."
+    },
+    "resend": {
+      "sent": "A fresh link is on its way to the client.",
+      "failed": "Link was reset, but the email failed — the old link no longer works. Contact the client directly."
+    },
+    "reschedule": {
+      "button": "Reschedule",
+      "title": "Move for {name}",
+      "moveTo": "Move to",
+      "weekOf": "Week of {date}",
+      "noFreeTimes": "No free times this week.",
+      "tzNote": "Times in your browser timezone; your business's timezone: {tz}.",
+      "movedNoEmail": "Booking moved{name, select, none {} other { to {name}}} — no email on file for this client.",
+      "movedEmailed": "Booking moved{name, select, none {} other { to {name}}} — the client has been emailed.",
+      "movedEmailFailed": "Booking moved — but the email with the new manage link failed. Contact the client directly."
+    },
+    "move": {
+      "button": "Move…",
+      "title": "Move booking",
+      "stayTitle": "Move stay",
+      "moving": "Moving…",
+      "done": "Booking moved.",
+      "doneEmailed": "Booking moved — the client has been emailed.",
+      "stayDone": "Stay moved.",
+      "stayDoneEmailed": "Stay moved — the client has been emailed.",
+      "unitChanged": "Unit changed.",
+      "unitChangedEmailed": "Unit changed — the client has been emailed."
+    },
+    "new": {
+      "title": "New booking",
+      "blurb": "Recorded on your behalf — notice and booking-window limits don’t apply.",
+      "services": "Services"
+    },
+    "create": {
+      "button": "Create booking",
+      "done": "Booking created.",
+      "doneNoEmail": "Booking created — no email on file for this client.",
+      "doneEmailed": "Booking created — the client has been emailed.",
+      "doneEmailFailed": "Booking created — but the confirmation email failed. Contact the client directly."
+    },
+    "form": {
+      "clientName": "Client name",
+      "email": "Email — optional, confirmation is sent only if given",
+      "note": "Note (optional)",
+      "notePlaceholder": "Add a note…",
+      "date": "Date",
+      "startsAt": "Starts at ({tz})",
+      "endsAt": "Ends at",
+      "outsideHours": "Outside your open hours — allowed for bookings you create yourself.",
+      "insideNotice": "Inside this service’s minimum-notice window — allowed for bookings you create yourself.",
+      "tooFarPast": "This time is more than 24 hours in the past — bookings can’t be recorded that far back. Pick a time from the last day, or a future one.",
+      "invalidDuration": "End must be after the start — between 5 minutes and 8 hours long.",
+      "nobodyOffers": "Nobody on the team offers this service yet — assign someone on the Services page.",
+      "howLong": "How long?",
+      "duration": "Duration",
+      "chooseDuration": "Choose a duration",
+      "change": "change",
+      "unit": "Unit",
+      "loadingAvailability": "Loading availability…"
+    },
+    "week": {
+      "pickOneToBlock": "Pick one team member to block time.",
+      "timeBlocked": "Time blocked.",
+      "timeUnblocked": "Time unblocked.",
+      "dayReopened": "Day reopened — weekly hours restored.",
+      "block": "Block",
+      "unblock": "Unblock",
+      "reopenDay": "Reopen day",
+      "closedHours": "Closed hours",
+      "hint": "Click or drag on the grid to add a booking.",
+      "hintBlockable": "Click or drag on the grid to add a booking or block time.",
+      "selected": "Selected {start} to {end} on {date}. Tab to actions, Shift plus arrow keys to resize, Escape to cancel."
+    },
+    "timeline": {
+      "window": "Timeline window",
+      "back": "{count, plural, one {Back # day} other {Back # days}}",
+      "forward": "{count, plural, one {Forward # day} other {Forward # days}}",
+      "zoom": "Timeline zoom",
+      "weeks": "{count} wk",
+      "conflicts": "{count, plural, one {# booking} other {# bookings}} in conflict in this window",
+      "show": "Show",
+      "mode": {
+        "nights": "Nightly",
+        "days": "Daily",
+        "hours": "Hourly"
+      },
+      "units": "{count, plural, one {# unit} other {# units}}",
+      "inConflict": "{count} in conflict",
+      "legend": "Legend",
+      "stay": "Stay",
+      "unavailable": "Unavailable",
+      "turnover": "Turnover",
+      "conflict": "Conflict",
+      "now": "Now",
+      "dragHint": "Drag sideways to move through time.",
+      "newHere": "New booking, {unit}, {date}",
+      "unavailableRange": "Unavailable {from} to {to}",
+      "unavailableRangeReason": "Unavailable {from} to {to}, {reason}",
+      "editOnSpacePage": "Click to edit on the space page",
+      "turnoverAfter": "Turnover after {name}",
+      "continuesFrom": "from {date}",
+      "continuesTo": "to {date}",
+      "inHouse": "In house",
+      "inHouseNow": "In house now",
+      "ended": "Ended",
+      "countPill": "{count, plural, one {# booking} other {# bookings}} on {date}, {unit} — zoom in",
+      "zoomIn": "Click to zoom in",
+      "conflictBlackout": "Unavailable {from}–{to}{reason, select, none {} other { ({reason})}} overlaps this booking",
+      "conflictTurnover": "Turnover after {name} runs into this check-in",
+      "conflictOverlap": "Overlaps {name}’s booking"
+    },
+    "welcome": {
+      "owned": "{url} is yours.",
+      "sub": "Add a service and set your hours to go live.",
+      "subSpaces": "Add a space and its units to go live.",
+      "subBoth": "Add what you offer and set hours — then share your link.",
+      "noHandle": "Your workspace is ready.",
+      "noHandleSub": "Pick a page address and you're bookable.",
+      "setUpPage": "Set up your booking page",
+      "dismiss": "Dismiss",
+      "copyFailed": "Couldn't copy — select the link text and copy manually.",
+      "dismissFailed": "Couldn't dismiss — try again.",
+      "checklist": "Setup checklist",
+      "done": "{label} — done"
+    },
+    "datePicker": {
+      "pick": "Pick a date",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month"
+    },
+    "timeCombobox": {
+      "noMatches": "No matches"
+    }
   },
   "clients": {
     "emptyTitle": "No clients yet",
@@ -1026,5 +1234,20 @@
         "finish": "Go to your bookings"
       }
     }
+  },
+  "overview": {
+    "activity": "Activity",
+    "summary": "{count, plural, one {# appointment} other {# appointments}}{pending, plural, =0 {} one { · # pending} other { · # pending}} in {year}",
+    "appointmentCount": "{count, plural, one {# appointment} other {# appointments}}",
+    "pendingCount": "{count} pending",
+    "year": "Year",
+    "showYear": "Show {year}",
+    "less": "Less",
+    "more": "More",
+    "legendPending": "pending request",
+    "legendToday": "today",
+    "members": "Members",
+    "teamMembers": "Team members ({count})",
+    "goTo": "Go to"
   }
 }

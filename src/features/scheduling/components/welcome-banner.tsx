@@ -5,7 +5,6 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon, CheckmarkCircle01Icon, CircleIcon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
-import { WELCOME } from "@/features/marketing/site";
 import { bookingUrl, hostLabel } from "@/lib/booking/url";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,6 +31,8 @@ export function WelcomeBanner({
   mode: OrgMode;
   checklist: ChecklistItem[];
 }) {
+  const t = useTranslations("bookings.welcome");
+  const tCommon = useTranslations("common");
   const tChecklist = useTranslations("bookings.checklist");
   const [copied, setCopied] = React.useState(false);
   // Optimistic: the banner goes at once; the action's cookie write
@@ -41,10 +42,10 @@ export function WelcomeBanner({
   const url = handle ? bookingUrl(appUrl, handle) : null;
   const sub =
     mode.offersAppointments && mode.offersRentals
-      ? WELCOME.subBoth
+      ? t("subBoth")
       : mode.offersAppointments
-        ? WELCOME.sub
-        : WELCOME.subRentals;
+        ? t("sub")
+        : t("subSpaces");
 
   // Awaited: a refused clipboard write must not flip the button to "Copied"
   // (portal-links-panel.tsx precedent).
@@ -77,21 +78,21 @@ export function WelcomeBanner({
       <div className="flex flex-wrap items-center gap-3">
         <div className="mr-auto">
           <p className="text-sm font-medium">
-            {url ? WELCOME.owned(`${hostLabel(appUrl)}/${handle}`) : WELCOME.noHandle}
+            {url ? t("owned", { url: `${hostLabel(appUrl)}/${handle}` }) : t("noHandle")}
           </p>
-          <p className="text-muted-foreground text-xs">{url ? sub : WELCOME.noHandleSub}</p>
+          <p className="text-muted-foreground text-xs">{url ? sub : t("noHandleSub")}</p>
         </div>
         {url ? (
           <Button size="sm" variant="outline" onClick={copy}>
             <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} size={14} />
-            {copied ? WELCOME.copied : WELCOME.copyLink}
+            {copied ? tCommon("linkCopied") : tCommon("copyLink")}
           </Button>
         ) : (
           <Link href="/booking-page" className={cn(buttonVariants({ size: "sm" }))}>
-            {WELCOME.setUpPage}
+            {t("setUpPage")}
           </Link>
         )}
-        <Button size="sm" variant="ghost" aria-label={WELCOME.dismiss} onClick={dismiss}>
+        <Button size="sm" variant="ghost" aria-label={t("dismiss")} onClick={dismiss}>
           <HugeiconsIcon icon={Cancel01Icon} size={14} />
         </Button>
       </div>
@@ -99,12 +100,12 @@ export function WelcomeBanner({
           A done item stays visible (struck through) so the row reads as
           progress, not as a shrinking to-do list. */}
       {url && checklist.length > 0 ? (
-        <ul aria-label="Setup checklist" className="flex flex-wrap items-center gap-2">
+        <ul aria-label={t("checklist")} className="flex flex-wrap items-center gap-2">
           {checklist.map((item) => (
             <li key={item.id}>
               <Link
                 href={item.href}
-                aria-label={item.done ? `${tChecklist(item.labelKey)} — done` : tChecklist(item.labelKey)}
+                aria-label={item.done ? t("done", { label: tChecklist(item.labelKey) }) : tChecklist(item.labelKey)}
                 className={cn(buttonVariants({ size: "sm", variant: item.done ? "ghost" : "outline" }))}
               >
                 <HugeiconsIcon

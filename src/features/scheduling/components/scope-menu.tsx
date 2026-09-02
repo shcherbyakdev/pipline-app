@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ChevronDown } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { House01Icon } from "@hugeicons/core-free-icons";
@@ -24,6 +25,7 @@ import {
   type Scope,
   type ScopeGroup,
   type ScopeItem,
+  type ScopeText,
   type SpaceLike,
 } from "@/features/scheduling/bookings-scope";
 
@@ -60,10 +62,16 @@ export function ScopeMenu({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // Root translator: the module hands back keys across namespaces
+  // (bookings-scope.ts ScopeText) — names render as-is.
+  const tRoot = useTranslations();
+  const t = useTranslations("bookings");
+  const text = (x: ScopeText) =>
+    "name" in x ? x.name : "count" in x ? t("scope.selected", { count: x.count }) : tRoot(x.key);
   const [shown, setShown] = React.useOptimistic(scope);
   const [, startTransition] = React.useTransition();
   const items = groups.flatMap((g) => g.items);
-  const label = scopeLabel(shown, people, spaces);
+  const label = text(scopeLabel(shown, people, spaces));
   // One named thing ticked ⇒ its mark on the trigger; a group or several ⇒ none.
   const ticked = items.filter((i) => i.kind !== "all" && scopeItemChecked(shown, i));
   const mark = ticked.length === 1 ? ticked[0] : undefined;
@@ -89,7 +97,7 @@ export function ScopeMenu({
       <DropdownMenuTrigger
         render={
           <Button variant="outline" size="sm">
-            <span className="text-muted-foreground font-normal">Show</span>
+            <span className="text-muted-foreground font-normal">{t("scope.show")}</span>
             <Mark item={mark} />
             {label}
             <ChevronDown className="text-muted-foreground" data-icon="inline-end" />
@@ -98,10 +106,10 @@ export function ScopeMenu({
       />
       <DropdownMenuContent align="end" className="w-auto min-w-48">
         {groups.map((group, gi) => (
-          <React.Fragment key={group.label ?? gi}>
+          <React.Fragment key={gi}>
             {gi > 0 ? <DropdownMenuSeparator /> : null}
             <DropdownMenuGroup>
-              {group.label ? <DropdownMenuLabel>{group.label}</DropdownMenuLabel> : null}
+              {group.label ? <DropdownMenuLabel>{text(group.label)}</DropdownMenuLabel> : null}
               {group.items.map((item) => (
                 <DropdownMenuCheckboxItem
                   key={item.key}
@@ -112,7 +120,7 @@ export function ScopeMenu({
                   closeOnClick={item.kind === "all"}
                 >
                   <Mark item={item} />
-                  {item.label}
+                  {text(item.label)}
                 </DropdownMenuCheckboxItem>
               ))}
             </DropdownMenuGroup>

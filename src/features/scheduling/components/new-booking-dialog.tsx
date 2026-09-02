@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { ChevronDownIcon } from "lucide-react";
 import type { ServiceRow } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import type { OfferingOption } from "@/features/rentals/offering-option";
-import { SPACES } from "@/features/orgs/vocab";
 import {
   defaultSelection,
   parseSelection,
@@ -49,10 +49,15 @@ export function NewBookingDialog({
   timeZone: string;
   initial?: Initial;
 }) {
+  // Root translator: the picker's label is a key across namespaces
+  // (booking-kinds.ts pickerLabel).
+  const tRoot = useTranslations();
+  const t = useTranslations("bookings");
+  const tUnits = useTranslations("public.units");
   const [selected, setSelected] = React.useState<KindSelection | null>(() =>
     defaultSelection(services, spaces, initial),
   );
-  const label = pickerLabel(services.length > 0, spaces.length > 0);
+  const label = tRoot(pickerLabel(services.length > 0, spaces.length > 0));
   const close = () => onOpenChange(false);
   const space =
     selected?.kind === "space"
@@ -88,7 +93,7 @@ export function NewBookingDialog({
                 onChange={(e) => setSelected(parseSelection(e.target.value))}
               >
                 {spaces.length > 0 ? (
-                  <optgroup label={SPACES.nav}>
+                  <optgroup label={tRoot("spaces.nav")}>
                     {spaces.map((o) => (
                       <option
                         key={o.id}
@@ -100,15 +105,15 @@ export function NewBookingDialog({
                   </optgroup>
                 ) : null}
                 {services.length > 0 ? (
-                  <optgroup label="Services">
-                    {services.map((s) => (
-                      <option
-                        key={s.id}
-                        value={selectionValue({ kind: "service", id: s.id })}
-                      >
-                        {s.name} ({s.durationMin} min)
-                      </option>
-                    ))}
+                  <optgroup label={t("new.services")}>
+                    {services.map((s) => {
+                      const text = `${s.name} (${tUnits("minutes", { count: s.durationMin })})`;
+                      return (
+                        <option key={s.id} value={selectionValue({ kind: "service", id: s.id })}>
+                          {text}
+                        </option>
+                      );
+                    })}
                   </optgroup>
                 ) : null}
               </select>
@@ -124,12 +129,9 @@ export function NewBookingDialog({
             </span>
           }
         >
-          New booking
+          {t("new.title")}
         </DialogBreadcrumbHeader>
-        <DialogDescription className="px-5 pt-2 text-xs">
-          Recorded on your behalf — notice and booking-window limits don’t
-          apply.
-        </DialogDescription>
+        <DialogDescription className="px-5 pt-2 text-xs">{t("new.blurb")}</DialogDescription>
         {selected?.kind === "service" ? (
           <AppointmentBookingForm
             key={selected.id}

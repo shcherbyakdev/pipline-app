@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { whenLineFor } from "@/features/scheduling/templates";
 import {
@@ -9,6 +10,7 @@ import {
   declineBookingRequest,
 } from "@/features/scheduling/booking-actions";
 import type { AdminBooking } from "@/features/scheduling/queries";
+import { INTL_LOCALES } from "@/i18n/config";
 import { formatMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +40,7 @@ export function DeclineRequestDialog({
   onOpenChange: (open: boolean) => void;
   onDeclined?: () => void;
 }) {
+  const t = useTranslations("bookings");
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [note, setNote] = React.useState("");
@@ -59,7 +62,7 @@ export function DeclineRequestDialog({
         toast.error(result.error);
         return;
       }
-      toast.success("Request declined.");
+      toast.success(t("requests.declined"));
       change(false);
       onDeclined?.();
       router.refresh();
@@ -69,23 +72,20 @@ export function DeclineRequestDialog({
     <Dialog open={open} onOpenChange={change}>
       <DialogContent className={dialogPanelClass}>
         <DialogBreadcrumbHeader
-          chip={<DialogChip tone="time">Request</DialogChip>}
+          chip={<DialogChip tone="time">{t("requests.chip")}</DialogChip>}
         >
-          Decline request
+          {t("requests.declineTitle")}
         </DialogBreadcrumbHeader>
         <div className="flex flex-col px-5 pt-4 pb-6">
-          <DialogDescription>
-            The time is released and the client is emailed that you can&apos;t
-            take it.
-          </DialogDescription>
+          <DialogDescription>{t("requests.declineBody")}</DialogDescription>
           <textarea
             id={noteId}
-            aria-label="Message to the client (optional)"
+            aria-label={t("requests.declineNote")}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={500}
             rows={3}
-            placeholder="Message to the client (optional) — e.g. We're fully booked that morning, happy to take you at 14:00."
+            placeholder={t("requests.declineNotePlaceholder")}
             className={cn(dialogBareInputClass, "mt-4 resize-none text-sm")}
           />
         </div>
@@ -96,7 +96,7 @@ export function DeclineRequestDialog({
             onClick={() => change(false)}
             disabled={pending}
           >
-            Keep
+            {t("keep")}
           </Button>
           <Button
             variant="destructive"
@@ -104,7 +104,7 @@ export function DeclineRequestDialog({
             onClick={decline}
             disabled={pending}
           >
-            {pending ? "Declining…" : "Decline request"}
+            {pending ? t("requests.declining") : t("requests.declineTitle")}
           </Button>
         </DialogFooterBar>
       </DialogContent>
@@ -119,6 +119,8 @@ function RequestRow({
   booking: AdminBooking;
   timeZone: string;
 }) {
+  const t = useTranslations("bookings");
+  const intlLocale = INTL_LOCALES[useLocale()];
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [declining, setDeclining] = React.useState(false);
@@ -127,10 +129,7 @@ function RequestRow({
     startTransition(async () => {
       const result = await acceptBookingRequest({ id: booking.id });
       if (!result.ok) toast.error(result.error);
-      else
-        toast.success(
-          result.emailed ? "Accepted — confirmation sent." : "Accepted.",
-        );
+      else toast.success(result.emailed ? t("requests.acceptedEmailed") : t("requests.accepted"));
       router.refresh();
     });
 
@@ -142,6 +141,7 @@ function RequestRow({
       rangeMode: booking.rangeMode,
     },
     timeZone,
+    intlLocale,
   );
   const detail = [
     when,
@@ -173,18 +173,18 @@ function RequestRow({
           size="sm"
           onClick={accept}
           disabled={pending}
-          aria-label={`Accept request from ${booking.clientName}`}
+          aria-label={t("requests.acceptFrom", { name: booking.clientName })}
         >
-          Accept
+          {t("requests.accept")}
         </Button>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setDeclining(true)}
           disabled={pending}
-          aria-label={`Decline request from ${booking.clientName}`}
+          aria-label={t("requests.declineFrom", { name: booking.clientName })}
         >
-          Decline…
+          {t("requests.decline")}
         </Button>
       </div>
       <DeclineRequestDialog
@@ -206,11 +206,12 @@ export function RequestsInbox({
   requests: AdminBooking[];
   timeZone: string;
 }) {
+  const t = useTranslations("bookings");
   if (requests.length === 0) return null;
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2">
-        <h2 className="text-sm font-medium">Requests</h2>
+        <h2 className="text-sm font-medium">{t("requests.title")}</h2>
         <span className="text-muted-foreground text-xs">{requests.length}</span>
       </div>
       <ul className="bg-card divide-y rounded-xl border">

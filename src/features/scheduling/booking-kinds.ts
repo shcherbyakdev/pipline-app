@@ -1,6 +1,5 @@
 import type { DayWindow } from "@/features/scheduling/day-windows";
 import type { OfferingOption } from "@/features/rentals/offering-option";
-import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 
 /* What a walk-in is for. One entry point, the kind is a field (admin IA
    spec §2, ruling 5): these helpers decide the picker's label, what it
@@ -22,9 +21,13 @@ export type Initial =
 
 type Row = { id: string };
 
-export function pickerLabel(hasServices: boolean, hasSpaces: boolean): string {
-  if (hasServices && hasSpaces) return SPACES.pickerBoth;
-  return hasSpaces ? SPACES.field : APPOINTMENTS.field;
+/** The picker's label as a message key (root namespace); the dialog renders it. */
+export function pickerLabel(
+  hasServices: boolean,
+  hasSpaces: boolean,
+): "spaces.pickerBoth" | "spaces.field" | "appointments.field" {
+  if (hasServices && hasSpaces) return "spaces.pickerBoth";
+  return hasSpaces ? "spaces.field" : "appointments.field";
 }
 
 export function canCreateWalkIn(services: readonly Row[], spaces: readonly Row[]): boolean {

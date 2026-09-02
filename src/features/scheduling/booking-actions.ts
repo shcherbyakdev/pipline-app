@@ -1,6 +1,7 @@
 "use server";
 
 import { emailTranslators } from "@/i18n/emails";
+import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { generateAccessToken } from "@/lib/tokens";
@@ -32,19 +33,17 @@ import {
   adminRescheduleInput,
   adminSlotsInput,
   adminCreateBookingInput,
-  GENERIC_WRITE_ERROR,
 } from "./schema";
 
-const SLOT_TAKEN = "That time was just taken — please pick another.";
-const OVERLAP = "That time overlaps an existing booking.";
-// Team (multi-staff): the RPCs raise a bare `staff_unavailable` when the named
-// person is inactive or isn't linked to the service. The dialogs only offer
-// eligible people, so this is the "someone changed it in another tab" case.
-const STAFF_UNAVAILABLE = "That team member doesn't offer this service.";
-
-function fail(context: string, error: unknown): { ok: false; error: string } {
+// Every refusal is an `errors.*` key resolved in the admin's language (i18n
+// Wave 3): each action takes `t` up front, and fail() — the generic write
+// error after a logged failure — resolves its own. Team (multi-staff): the
+// RPCs raise a bare `staff_unavailable` when the named person is inactive or
+// isn't linked to the service; the dialogs only offer eligible people, so
+// that is the "someone changed it in another tab" case (staffNotOffering).
+async function fail(context: string, error: unknown): Promise<{ ok: false; error: string }> {
   console.error(`[scheduling] ${context}:`, error);
-  return { ok: false, error: GENERIC_WRITE_ERROR };
+  return { ok: false, error: (await getTranslations("errors"))("generic") };
 }
 
 async function currentOrg(): Promise<{ id: string; name: string; timezone: string; locale: string } | null> {
@@ -58,11 +57,12 @@ export async function cancelBookingAdmin(
 ): Promise<
   { ok: true; emailed: boolean; noEmail?: boolean } | { ok: false; error: string }
 > {
+  const t = await getTranslations("errors");
   const parsed = bookingIdInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
     // Column-scoped seam from 0028: only confirmed → cancelled_by_provider
     // can succeed; the org filter is defense-in-depth on top of RLS. Future
@@ -93,7 +93,7 @@ export async function cancelBookingAdmin(
       rental_offerings: { name: string } | null;
       rental_units: { name: string } | null;
     }>)?.[0];
-    if (!row) return { ok: false, error: "Only a confirmed, upcoming booking can be cancelled." };
+    if (!row) return { ok: false, error: t("bookings.notCancellable") };
 
     // Past this line the cancel is APPLIED — nothing below may turn into a
     // failed action, so the whole tail sits in its own catch rather than
@@ -102,7 +102,7 @@ export async function cancelBookingAdmin(
     let noEmail = false;
     try {
       const mail = await emailTranslators(org.locale);
-      const serviceName = bookingTitle(row);
+      const serviceName = bookingTitle(row, mail.t("appointment"));
       const whenLine = whenLineFor(
         {
           startsAt: new Date(row.starts_at),
@@ -172,11 +172,12 @@ export async function cancelBookingAdmin(
 export async function getAdminSlots(
   input: unknown,
 ): Promise<{ ok: true; slots: string[] } | { ok: false; error: string }> {
+  const t = await getTranslations("errors");
   const parsed = adminSlotsInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     // One person's grid: the walk-in and move dialogs both name whose slots
     // they are showing, so `perStaff` holds exactly that one member. The
     // service may be deactivated (hidden from the public page) and still have
@@ -188,7 +189,7 @@ export async function getAdminSlots(
       parsed.data.days,
       { staffId: parsed.data.staffId, includeInactive: true },
     );
-    if (!ctx) return { ok: false, error: STAFF_UNAVAILABLE };
+    if (!ctx) return { ok: false, error: t("bookings.staffNotOffering") };
     const slots = computeSlots({
       service: ctx.service,
       rules: ctx.perStaff[0].rules,
@@ -211,11 +212,12 @@ export async function rescheduleBookingAdmin(
   | { ok: true; emailed: boolean; noEmail?: boolean; movedToStaffName?: string | null }
   | { ok: false; error: string; slotTaken?: boolean }
 > {
+  const t = await getTranslations("errors");
   const parsed = adminRescheduleInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
     const { data: booking, error: readError } = await supabase
       .from("bookings")
@@ -225,7 +227,7 @@ export async function rescheduleBookingAdmin(
       .eq("status", "confirmed")
       .maybeSingle();
     if (readError) return fail("rescheduleBookingAdmin", readError);
-    if (!booking) return { ok: false, error: "Only a confirmed booking can be rescheduled." };
+    if (!booking) return { ok: false, error: t("bookings.notReschedulable") };
     // Rentals R1: a stay has no service and no slot grid — the appointment
     // engine below cannot speak for it. (The UI hides the button too.)
     if (booking.service_id === null) {
@@ -249,7 +251,7 @@ export async function rescheduleBookingAdmin(
     // Null here means the target is not an active member offering this
     // service (deactivated, or the service unlinked, since the dialog
     // rendered) — the same condition the RPC would raise on.
-    if (!ctx) return { ok: false, error: STAFF_UNAVAILABLE };
+    if (!ctx) return { ok: false, error: t("bookings.staffNotOffering") };
     const slots = computeSlots({
       service: ctx.service,
       rules: ctx.perStaff[0].rules,
@@ -261,7 +263,7 @@ export async function rescheduleBookingAdmin(
       days: 1,
     });
     if (!slots.some((s) => s.getTime() === starts.getTime())) {
-      return { ok: false, error: SLOT_TAKEN, slotTaken: true };
+      return { ok: false, error: t("slotTaken"), slotTaken: true };
     }
 
     const fresh = generateAccessToken();
@@ -273,9 +275,9 @@ export async function rescheduleBookingAdmin(
       p_staff_id: parsed.data.staffId ?? null,
     });
     if (error) {
-      if (error.code === "23P01") return { ok: false, error: SLOT_TAKEN, slotTaken: true };
+      if (error.code === "23P01") return { ok: false, error: t("slotTaken"), slotTaken: true };
       if (isRpcSentinel(error, "staff_unavailable")) {
-        return { ok: false, error: STAFF_UNAVAILABLE };
+        return { ok: false, error: t("bookings.staffNotOffering") };
       }
       return fail("rescheduleBookingAdmin", error);
     }
@@ -381,11 +383,12 @@ export async function rescheduleBookingAdmin(
 export async function resendManageLink(
   input: unknown,
 ): Promise<{ ok: true; emailed: boolean } | { ok: false; error: string; noEmail?: boolean }> {
+  const t = await getTranslations("errors");
   const parsed = bookingIdInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
     const { data: booking, error: readError } = await supabase
       .from("bookings")
@@ -399,9 +402,9 @@ export async function resendManageLink(
       .in("status", ["confirmed", "pending"])
       .maybeSingle();
     if (readError) return fail("resendManageLink", readError);
-    if (!booking) return { ok: false, error: "Only an upcoming booking or request has a manage link." };
+    if (!booking) return { ok: false, error: t("bookings.noManageLink") };
     if (!booking.client_email) {
-      return { ok: false, error: "No email on file for this client.", noEmail: true };
+      return { ok: false, error: t("bookings.noEmail"), noEmail: true };
     }
 
     // Rotate first — the old link is dead the moment this succeeds, whether
@@ -428,7 +431,7 @@ export async function resendManageLink(
       const mail = await emailTranslators(org.locale);
       const msg = bookingManageLinkEmail(mail.t, {
         orgName: org.name,
-        serviceName: bookingTitle(row),
+        serviceName: bookingTitle(row, mail.t("appointment")),
         whenLine: whenLineFor(
           {
             startsAt: new Date(row.starts_at),
@@ -472,11 +475,12 @@ export async function resendManageLink(
 export async function createBookingAdmin(
   input: unknown,
 ): Promise<{ ok: true; emailed: "sent" | "failed" | "none" } | { ok: false; error: string; overlap?: boolean }> {
+  const t = await getTranslations("errors");
   const parsed = adminCreateBookingInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
     const { token, tokenHash } = generateAccessToken();
     const { data: bookingId, error } = await supabase.rpc("create_booking_admin", {
@@ -492,9 +496,9 @@ export async function createBookingAdmin(
       p_staff_id: parsed.data.staffId,
     });
     if (error) {
-      if (error.code === "23P01") return { ok: false, error: OVERLAP, overlap: true };
+      if (error.code === "23P01") return { ok: false, error: t("bookings.overlap"), overlap: true };
       if (isRpcSentinel(error, "staff_unavailable")) {
-        return { ok: false, error: STAFF_UNAVAILABLE };
+        return { ok: false, error: t("bookings.staffNotOffering") };
       }
       return fail("createBookingAdmin", error);
     }
@@ -508,7 +512,7 @@ export async function createBookingAdmin(
       const idempotencyKey = bookingIdempotencyKey(bookingId as string);
       const { data: svc } = await supabase
         .from("services").select("name").eq("id", parsed.data.serviceId).maybeSingle();
-      const serviceName = svc?.name ?? "Appointment";
+      const serviceName = svc?.name ?? mail.t("appointment");
 
       if (parsed.data.email) {
         const { data: person } = await supabase
@@ -569,20 +573,19 @@ export async function createBookingAdmin(
 // row for the email tail. The RPC is the commit point — everything after it
 // follows cancelBookingAdmin's committed-tail discipline.
 
-/** Both RPCs raise a bare 'not found' for every guard they hold (not this
-    org's row / not pending / already started), so the action cannot tell
-    them apart — one friendly line covers all of them. */
-const NOT_PENDING_ACCEPT = "Only a live pending request can be accepted.";
-const NOT_PENDING_DECLINE = "Only a live pending request can be declined.";
+// Both RPCs raise a bare 'not found' for every guard they hold (not this
+// org's row / not pending / already started), so the action cannot tell
+// them apart — one friendly line (errors.bookings.notPending*) covers all.
 
 export async function acceptBookingRequest(
   input: unknown,
 ): Promise<{ ok: true; emailed: boolean; noEmail?: boolean } | { ok: false; error: string }> {
+  const t = await getTranslations("errors");
   const parsed = bookingIdInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
     // pending -> confirmed cannot 23P01: the row already holds its slot under
     // the widened EXCLUDE (0062). Guards (live pending, this org) are the RPC's.
@@ -595,7 +598,7 @@ export async function acceptBookingRequest(
       // a partial deploy) arrives as `{ error }` too, and must not be
       // relabelled as a resolved request — fail() logs the whole thing.
       return isRpcSentinel(rpcError, "not found")
-        ? { ok: false, error: NOT_PENDING_ACCEPT }
+        ? { ok: false, error: t("bookings.notPendingAccept") }
         : fail("acceptBookingRequest", rpcError);
     }
 
@@ -635,7 +638,7 @@ export async function acceptBookingRequest(
         noEmail = true;
       } else {
         const mail = await emailTranslators(org.locale);
-        const serviceName = bookingTitle(row);
+        const serviceName = bookingTitle(row, mail.t("appointment"));
         const whenLine = whenLineFor(
           {
             startsAt: new Date(row.starts_at),
@@ -730,11 +733,12 @@ export async function acceptBookingRequest(
 export async function declineBookingRequest(
   input: unknown,
 ): Promise<{ ok: true; emailed: boolean; noEmail?: boolean } | { ok: false; error: string }> {
+  const t = await getTranslations("errors");
   const parsed = declineBookingInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return { ok: false, error: t("generic") };
   try {
     const org = await currentOrg();
-    if (!org) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
     // The RPC stores the note (nullif(btrim(...), '')) — decline_note carries
     // no column grant, so the action never writes it itself.
@@ -745,7 +749,7 @@ export async function declineBookingRequest(
     if (rpcError) {
       // Sentinel-only mapping, same reasoning as accept above.
       return isRpcSentinel(rpcError, "not found")
-        ? { ok: false, error: NOT_PENDING_DECLINE }
+        ? { ok: false, error: t("bookings.notPendingDecline") }
         : fail("declineBookingRequest", rpcError);
     }
 
@@ -782,7 +786,7 @@ export async function declineBookingRequest(
           const mail = await emailTranslators(org.locale);
           const msg = bookingDeclinedEmail(mail.t, {
             orgName: org.name,
-            serviceName: bookingTitle(row),
+            serviceName: bookingTitle(row, mail.t("appointment")),
             whenLine: whenLineFor(
               {
                 startsAt: new Date(row.starts_at),

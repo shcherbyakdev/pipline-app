@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { whenLineFor, STATUS_LABEL } from "@/features/scheduling/templates";
+import { whenLineFor } from "@/features/scheduling/templates";
 import {
   acceptBookingRequest,
   cancelBookingAdmin,
@@ -11,6 +12,7 @@ import {
 import { isExpiredRequest } from "@/features/scheduling/requests";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
+import { INTL_LOCALES } from "@/i18n/config";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { DeclineRequestDialog } from "./requests-inbox";
 import { MoveRentalDialog } from "@/features/rentals/components/move-rental-dialog";
@@ -25,12 +27,6 @@ import {
   DialogFooterBar,
   dialogPanelClass,
 } from "@/components/ui/dialog";
-
-// Hint on the disabled "Resend link": rotate_booking_token (the RPC behind
-// it) only accepts a booking that hasn't started, so the button says why
-// rather than failing with the generic error.
-export const RESEND_STARTED_HINT =
-  "The appointment has already started — the link can't be reissued.";
 
 // `Date.now()` is impure and react-hooks/purity forbids it during render;
 // `useState(fn)` runs the initialiser once at mount, which is fine — and the
@@ -80,6 +76,10 @@ function DetailBody({
   staff: StaffRow[];
   onClose: () => void;
 }) {
+  const t = useTranslations("bookings");
+  const tSpaces = useTranslations("spaces");
+  const tAppointments = useTranslations("appointments");
+  const intlLocale = INTL_LOCALES[useLocale()];
   const [pending, startTransition] = React.useTransition();
   const [confirming, setConfirming] = React.useState(false);
   const [moveOpen, setMoveOpen] = React.useState(false);
@@ -101,9 +101,7 @@ function DetailBody({
         toast.error(result.error);
         return;
       }
-      toast.success(
-        result.emailed ? "Accepted — confirmation sent." : "Accepted.",
-      );
+      toast.success(result.emailed ? t("requests.acceptedEmailed") : t("requests.accepted"));
       onClose();
     });
 
@@ -111,14 +109,9 @@ function DetailBody({
     startTransition(async () => {
       const result = await cancelBookingAdmin({ id: booking.id });
       if (!result.ok) toast.error(result.error);
-      else if (result.noEmail)
-        toast.success("Booking cancelled — no email on file for this client.");
-      else if (result.emailed)
-        toast.success("Booking cancelled — the client has been emailed");
-      else
-        toast.warning(
-          "Booking cancelled — but the email to the client failed. Contact them directly.",
-        );
+      else if (result.noEmail) toast.success(t("cancel.doneNoEmail"));
+      else if (result.emailed) toast.success(t("cancel.doneEmailed"));
+      else toast.warning(t("cancel.doneEmailFailed"));
       onClose();
     });
 
@@ -127,28 +120,27 @@ function DetailBody({
       const result = await resendManageLink({ id: booking.id });
       if (!result.ok) toast.error(result.error);
       // Neutral wording: this handler serves both a booking and a request.
-      else if (result.emailed)
-        toast.success("A fresh link is on its way to the client.");
-      else
-        toast.warning(
-          "Link was reset, but the email failed — the old link no longer works. Contact the client directly.",
-        );
+      else if (result.emailed) toast.success(t("resend.sent"));
+      else toast.warning(t("resend.failed"));
     });
 
   const resendBlocked = !booking.clientEmail || started;
   const resendHint = !booking.clientEmail
-    ? "No email on file"
+    ? t("noEmailShort")
     : started
-      ? RESEND_STARTED_HINT
+      ? t("resendStartedHint")
       : undefined;
 
   const isRental = booking.rentalUnitId !== null;
+  const contact = [booking.clientName, booking.clientEmail ?? t("noEmailShort"), booking.note ? `“${booking.note}”` : null]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <>
       <DialogBreadcrumbHeader
         chip={
           <DialogChip tone={isRental ? "space" : "time"}>
-            {isRental ? "Space" : "Appointment"}
+            {isRental ? tSpaces("badge") : tAppointments("badge")}
           </DialogChip>
         }
       >
@@ -164,6 +156,7 @@ function DetailBody({
               rangeMode: booking.rangeMode,
             },
             timeZone,
+            intlLocale,
           )}
         </DialogDescription>
         {staff.length > 1 && booking.staffName ? (
@@ -178,30 +171,20 @@ function DetailBody({
             {booking.staffName}
           </p>
         ) : null}
-        <p className="text-sm text-muted-foreground">
-          {booking.clientName}
-          {booking.clientEmail
-            ? ` · ${booking.clientEmail}`
-            : " · no email on file"}
-          {booking.note ? ` · “${booking.note}”` : null}
-        </p>
+        <p className="text-sm text-muted-foreground">{contact}</p>
         {liveRequest ? (
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">{STATUS_LABEL.pending}</Badge>
+            <Badge variant="secondary">{t("status.pending")}</Badge>
           </div>
         ) : expiredRequest ? (
           <>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary">Request expired</Badge>
+              <Badge variant="secondary">{t("requestExpired")}</Badge>
             </div>
-            <p className="text-muted-foreground text-xs">
-              This request lapsed before it was answered.
-            </p>
+            <p className="text-muted-foreground text-xs">{t("requests.lapsed")}</p>
           </>
         ) : ended ? (
-          <p className="text-muted-foreground text-xs">
-            This appointment has ended.
-          </p>
+          <p className="text-muted-foreground text-xs">{t("ended")}</p>
         ) : null}
       </div>
       {/* Only the actions branch on status — everything above is the same
@@ -216,7 +199,7 @@ function DetailBody({
             focusableWhenDisabled={resendBlocked}
             title={resendHint}
           >
-            Resend link
+            {t("resendLink")}
           </Button>
           <Button
             variant="outline"
@@ -224,10 +207,10 @@ function DetailBody({
             onClick={() => setDeclining(true)}
             disabled={pending}
           >
-            Decline…
+            {t("requests.decline")}
           </Button>
           <Button variant="brand" size="sm" onClick={accept} disabled={pending}>
-            Accept
+            {t("requests.accept")}
           </Button>
         </DialogFooterBar>
       ) : expiredRequest || ended ? null : (
@@ -249,7 +232,7 @@ function DetailBody({
               size="sm"
               onClick={() => setMoveOpen(true)}
             >
-              Move…
+              {t("move.button")}
             </Button>
           )}
           <Button
@@ -260,7 +243,7 @@ function DetailBody({
             focusableWhenDisabled={resendBlocked}
             title={resendHint}
           >
-            Resend link
+            {t("resendLink")}
           </Button>
           {confirming ? (
             <>
@@ -270,7 +253,7 @@ function DetailBody({
                 onClick={cancel}
                 disabled={pending}
               >
-                Confirm cancel
+                {t("cancel.confirm")}
               </Button>
               <Button
                 variant="ghost"
@@ -278,7 +261,7 @@ function DetailBody({
                 onClick={() => setConfirming(false)}
                 disabled={pending}
               >
-                Keep
+                {t("keep")}
               </Button>
             </>
           ) : (
@@ -288,7 +271,7 @@ function DetailBody({
               onClick={() => setConfirming(true)}
               disabled={pending}
             >
-              Cancel booking
+              {t("cancel.button")}
             </Button>
           )}
         </DialogFooterBar>
