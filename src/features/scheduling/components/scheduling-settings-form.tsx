@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
@@ -33,6 +34,8 @@ export function SchedulingSettingsForm({
   // Typed (unsaved) handle, so a page-level preview can show the URL live.
   onHandleInput?: (handle: string) => void;
 }) {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const [handle, setHandle] = React.useState(settings.handle ?? "");
   // Always the stored timezone. Seeding from the browser when no handle was
   // set yet made ANY save (even a handle-only one) silently move the org's
@@ -56,7 +59,7 @@ export function SchedulingSettingsForm({
   // A handle that is already out in the world (saved, non-empty) is about to
   // change or go away: the old link and any embed snippet die with it.
   const handleChanging = saved.handle !== "" && handle !== saved.handle;
-  const host = hostLabel(appUrl);
+  const hostPrefix = `${hostLabel(appUrl)}/`;
 
   const save = () => {
     setConfirmingChange(false);
@@ -64,7 +67,7 @@ export function SchedulingSettingsForm({
       const result = await updateSchedulingSettings({ handle, timezone, currency, locale });
       if (!result.ok) toast.error(result.error);
       else {
-        toast.success("Booking page saved");
+        toast.success(t("bookingPage.saved"));
         setSaved({ handle, timezone, currency, locale });
       }
     });
@@ -80,25 +83,25 @@ export function SchedulingSettingsForm({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast.error("Couldn't copy — select the address and copy manually.");
+      toast.error(t("copyRefused"));
     }
   };
 
   return (
     <SettingsCard
-      title="Address, timezone & language"
-      description="Applies when you save."
+      title={t("bookingPage.title")}
+      description={t("bookingPage.description")}
       footer={
         <>
-          {dirty ? <span className="text-muted-foreground mr-auto text-xs">Unsaved changes</span> : null}
+          {dirty ? <span className="text-muted-foreground mr-auto text-xs">{tc("unsavedChanges")}</span> : null}
           <Button size="sm" onClick={onSaveClick} disabled={pending || !dirty}>
-            {pending ? "Saving…" : "Save"}
+            {pending ? tc("saving") : tc("save")}
           </Button>
           <ConfirmDialog
             open={confirmingChange}
-            title={handle === "" ? "Unpublish your booking page?" : "Change your booking page address?"}
-            description="Your old link and any website embed will stop working — update the snippet on Website embed."
-            confirmLabel={handle === "" ? "Unpublish" : "Change address"}
+            title={handle === "" ? t("bookingPage.unpublishTitle") : t("bookingPage.changeTitle")}
+            description={t("bookingPage.changeDescription")}
+            confirmLabel={handle === "" ? t("bookingPage.unpublish") : t("bookingPage.changeAddress")}
             destructive
             onConfirm={save}
             onClose={() => setConfirmingChange(false)}
@@ -106,14 +109,10 @@ export function SchedulingSettingsForm({
         </>
       }
     >
-      <SettingsRow
-        label="Booking page address"
-        htmlFor="scheduling-handle"
-        hint="Lowercase letters, digits and hyphens, 3–50 characters. Empty unpublishes the page."
-      >
+      <SettingsRow label={t("bookingPage.handle")} htmlFor="scheduling-handle" hint={t("bookingPage.handleHint")}>
         <InputGroup>
           <InputGroupAddon>
-            <InputGroupText className="font-mono text-xs">{host}/</InputGroupText>
+            <InputGroupText className="font-mono text-xs">{hostPrefix}</InputGroupText>
           </InputGroupAddon>
           <InputGroupInput
             id="scheduling-handle"
@@ -126,19 +125,19 @@ export function SchedulingSettingsForm({
               onHandleInput?.(next);
             }}
             disabled={pending}
-            placeholder="your-handle"
+            placeholder={t("bookingPage.handlePlaceholder")}
             className="font-mono text-xs"
           />
           {saved.handle && handle === saved.handle ? (
             <InputGroupAddon align="inline-end">
-              <InputGroupButton aria-label="Copy booking page link" title="Copy link" onClick={copyLink}>
+              <InputGroupButton aria-label={t("bookingPage.copyLinkLabel")} title={tc("copyLink")} onClick={copyLink}>
                 <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} size={14} />
               </InputGroupButton>
             </InputGroupAddon>
           ) : null}
         </InputGroup>
       </SettingsRow>
-      <SettingsRow label="Timezone" htmlFor="scheduling-timezone" hint="Your availability is set in this timezone.">
+      <SettingsRow label={t("bookingPage.timezone")} htmlFor="scheduling-timezone" hint={t("bookingPage.timezoneHint")}>
         <select
           id="scheduling-timezone"
           value={timezone}
@@ -153,11 +152,7 @@ export function SchedulingSettingsForm({
           ))}
         </select>
       </SettingsRow>
-      <SettingsRow
-        label="Currency"
-        htmlFor="scheduling-currency"
-        hint="Shown on prices and deposits."
-      >
+      <SettingsRow label={t("bookingPage.currency")} htmlFor="scheduling-currency" hint={t("bookingPage.currencyHint")}>
         <select
           id="scheduling-currency"
           value={currency}
@@ -172,11 +167,8 @@ export function SchedulingSettingsForm({
           ))}
         </select>
       </SettingsRow>
-      <SettingsRow
-        label="Language"
-        htmlFor="scheduling-locale"
-        hint="What your clients see on your booking page. Visitors browsing from Ukraine get Ukrainian either way."
-      >
+      <SettingsRow label={t("bookingPage.language")} htmlFor="scheduling-locale" hint={t("bookingPage.languageHint")}>
+        {/* LOCALE_NAMES: each language named in itself, never translated. */}
         <select
           id="scheduling-locale"
           value={locale}

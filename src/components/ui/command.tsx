@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
+import { useTranslations } from "next-intl"
 
 import { cn } from "@/lib/utils"
 import {
@@ -34,8 +35,8 @@ function Command({
 }
 
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
+  title,
+  description,
   children,
   className,
   showCloseButton = false,
@@ -47,6 +48,9 @@ function CommandDialog({
   showCloseButton?: boolean
   children: React.ReactNode
 }) {
+  // The sr-only title/description default to the shell's own words — the
+  // palette is only ever mounted inside the dashboard's intl provider.
+  const t = useTranslations()
   return (
     <Dialog {...props}>
       <DialogContent
@@ -58,8 +62,8 @@ function CommandDialog({
       >
         {/* Inside DialogContent so Base UI can wire the aria association. */}
         <DialogHeader className="sr-only">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>{title ?? t("common.search")}</DialogTitle>
+          <DialogDescription>{description ?? t("shell.command.placeholder")}</DialogDescription>
         </DialogHeader>
         {/* The cmdk root: Input/List/Item read its store from context — without
             this wrapper the palette crashes on open (undefined.subscribe). */}

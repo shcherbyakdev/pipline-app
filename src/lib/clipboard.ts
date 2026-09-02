@@ -11,4 +11,6 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/** English fallback for the studio's links table (Wave 4 moves it to
+    `settings.copyRefused`, which the admin's copy-link controls read). */
 export const COPY_REFUSED = "Couldn't copy — select the link text and copy manually.";
