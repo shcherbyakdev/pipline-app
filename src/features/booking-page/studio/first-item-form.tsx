@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { createService } from "@/features/scheduling/actions";
 import { createOffering } from "@/features/rentals/actions";
 import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
@@ -9,8 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { GENERIC_WRITE_ERROR } from "@/lib/actions";
-import { STARTER } from "../copy";
 
 /* The starter's second step (spec 2026-08-28 §5.3): the fewest fields that
    make one bookable thing, through the same actions the Services and
@@ -28,6 +27,9 @@ function FormError({ message }: { message: string | null }) {
 }
 
 export function FirstServiceForm({ currency, onCreated, onBack }: { currency: string; onCreated: () => void; onBack?: () => void }) {
+  const t = useTranslations("studio.starter");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
   const nameId = React.useId();
@@ -52,7 +54,7 @@ export function FirstServiceForm({ currency, onCreated, onBack }: { currency: st
         onCreated();
       } catch (error) {
         console.error("[booking-page] first item threw:", error);
-        setError(GENERIC_WRITE_ERROR);
+        setError(tErrors("generic"));
       }
     });
   };
@@ -60,37 +62,36 @@ export function FirstServiceForm({ currency, onCreated, onBack }: { currency: st
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor={nameId}>{STARTER.firstService.name}</Label>
-        <Input id={nameId} name="name" required maxLength={200} placeholder={STARTER.firstService.namePlaceholder} autoFocus />
+        <Label htmlFor={nameId}>{t("firstService.name")}</Label>
+        <Input id={nameId} name="name" required maxLength={200} placeholder={t("firstService.namePlaceholder")} autoFocus />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor={durationId}>{STARTER.firstService.duration}</Label>
+          <Label htmlFor={durationId}>{t("firstService.duration")}</Label>
           <select id={durationId} name="durationMin" defaultValue={60} className={selectClass}>
-            {DURATIONS.map((d) => <option key={d} value={d}>{d} min</option>)}
+            {DURATIONS.map((d) => <option key={d} value={d}>{d} {tCommon("min")}</option>)}
           </select>
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor={priceId}>{STARTER.firstService.price}</Label>
-          <Input id={priceId} name="priceLabel" maxLength={100} placeholder={STARTER.firstService.pricePlaceholder(currency)} />
+          <Label htmlFor={priceId}>{t("firstService.price")}</Label>
+          <Input id={priceId} name="priceLabel" maxLength={100} placeholder={t("firstService.pricePlaceholder", { currency })} />
         </div>
       </div>
       <FormError message={error} />
       <div className="flex items-center justify-between gap-2">
-        {onBack ? <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={pending}>{STARTER.back}</Button> : null}
-        <Button type="submit" size="sm" disabled={pending}>{STARTER.firstService.submit}</Button>
+        {onBack ? <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={pending}>{t("back")}</Button> : null}
+        <Button type="submit" size="sm" disabled={pending}>{t("firstService.submit")}</Button>
       </div>
     </form>
   );
 }
 
-const MODES: ReadonlyArray<{ value: RangeMode; label: string; per: string }> = [
-  { value: "hours", label: STARTER.firstSpace.hours, per: "hour" },
-  { value: "nights", label: STARTER.firstSpace.nights, per: "night" },
-  { value: "days", label: STARTER.firstSpace.days, per: "day" },
-];
+const MODES: readonly RangeMode[] = ["hours", "nights", "days"];
+const PRICE_LABEL = { hours: "priceHour", nights: "priceNight", days: "priceDay" } as const;
 
 export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: string; onCreated: () => void; onBack?: () => void }) {
+  const t = useTranslations("studio.starter");
+  const tErrors = useTranslations("errors");
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
   // A notice means the space saved but its first unit or hours did not (plan
@@ -101,7 +102,6 @@ export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: stri
   const [rangeMode, setRangeMode] = React.useState<RangeMode>("hours");
   const nameId = React.useId();
   const priceId = React.useId();
-  const per = MODES.find((m) => m.value === rangeMode)!.per;
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -131,7 +131,7 @@ export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: stri
         onCreated();
       } catch (error) {
         console.error("[booking-page] first item threw:", error);
-        setError(GENERIC_WRITE_ERROR);
+        setError(tErrors("generic"));
       }
     });
   };
@@ -140,10 +140,10 @@ export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: stri
     return (
       <div className="flex flex-col gap-4">
         <p role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">{notice}</p>
-        <p className="text-muted-foreground text-sm">{STARTER.firstSpace.noticeHint}</p>
+        <p className="text-muted-foreground text-sm">{t("firstSpace.noticeHint")}</p>
         <div className="flex items-center justify-between gap-2">
-          {onBack ? <Button type="button" variant="ghost" size="sm" onClick={onBack}>{STARTER.back}</Button> : null}
-          <Button type="button" size="sm" onClick={onCreated}>{STARTER.continue}</Button>
+          {onBack ? <Button type="button" variant="ghost" size="sm" onClick={onBack}>{t("back")}</Button> : null}
+          <Button type="button" size="sm" onClick={onCreated}>{t("continue")}</Button>
         </div>
       </div>
     );
@@ -152,38 +152,38 @@ export function FirstSpaceForm({ currency, onCreated, onBack }: { currency: stri
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <Label htmlFor={nameId}>{STARTER.firstSpace.name}</Label>
-        <Input id={nameId} name="name" required maxLength={200} placeholder={STARTER.firstSpace.namePlaceholder} autoFocus />
+        <Label htmlFor={nameId}>{t("firstSpace.name")}</Label>
+        <Input id={nameId} name="name" required maxLength={200} placeholder={t("firstSpace.namePlaceholder")} autoFocus />
       </div>
       {/* Native radios in label-cards (the onboarding picker's idiom). */}
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">{STARTER.firstSpace.bookedBy}</legend>
+        <legend className="mb-2 text-sm font-medium">{t("firstSpace.bookedBy")}</legend>
         <div className="grid grid-cols-3 gap-2">
           {MODES.map((m) => {
-            const selected = rangeMode === m.value;
+            const selected = rangeMode === m;
             return (
               <label
-                key={m.value}
+                key={m}
                 className={cn(
                   "flex cursor-pointer items-center justify-center rounded-md border p-2 text-sm transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring/50",
                   selected ? "border-foreground/40 bg-accent font-medium" : "hover:bg-accent/60",
                 )}
               >
-                <input type="radio" name="rangeMode" value={m.value} className="sr-only" checked={selected} onChange={() => setRangeMode(m.value)} />
-                {m.label}
+                <input type="radio" name="rangeMode" value={m} className="sr-only" checked={selected} onChange={() => setRangeMode(m)} />
+                {t(`firstSpace.${m}`)}
               </label>
             );
           })}
         </div>
       </fieldset>
       <div className="flex flex-col gap-2">
-        <Label htmlFor={priceId}>{STARTER.firstSpace.price(per, currency)}</Label>
+        <Label htmlFor={priceId}>{t(`firstSpace.${PRICE_LABEL[rangeMode]}`, { currency })}</Label>
         <Input id={priceId} name="price" type="number" min={0} step="0.01" inputMode="decimal" />
       </div>
       <FormError message={error} />
       <div className="flex items-center justify-between gap-2">
-        {onBack ? <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={pending}>{STARTER.back}</Button> : null}
-        <Button type="submit" size="sm" disabled={pending}>{STARTER.firstSpace.submit}</Button>
+        {onBack ? <Button type="button" variant="ghost" size="sm" onClick={onBack} disabled={pending}>{t("back")}</Button> : null}
+        <Button type="submit" size="sm" disabled={pending}>{t("firstSpace.submit")}</Button>
       </div>
     </form>
   );

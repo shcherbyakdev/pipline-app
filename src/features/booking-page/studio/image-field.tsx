@@ -1,22 +1,22 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Upload04Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { SettingsRow } from "@/components/settings-row";
-import { GENERIC_WRITE_ERROR } from "@/lib/actions";
 import { cn } from "@/lib/utils";
 import { uploadPageImage } from "../actions";
 import { PAGE_IMAGE_ACCEPT, PAGE_IMAGE_MAX_BYTES, isAllowedPageImageType, pageImageUrl } from "../images";
 import { FieldError } from "./fields";
 
-export const IMAGE_HINT = "PNG, JPEG or WebP · max 4 MB · best under 2000 px wide.";
-
-/** Client-side pre-check before any bytes move (branding-form precedent); the server re-validates the buffered bytes. */
-export function preCheckImage(file: File): string | null {
-  if (!isAllowedPageImageType(file.type)) return "PNG, JPEG or WebP only.";
-  if (file.size > PAGE_IMAGE_MAX_BYTES) return "Images must be 4 MB or less.";
+/** Client-side pre-check before any bytes move (branding-form precedent);
+    the server re-validates the buffered bytes. Returns the `studio.image`
+    key of the refusal, if any. */
+export function preCheckImage(file: File): "typeOnly" | "tooLarge" | null {
+  if (!isAllowedPageImageType(file.type)) return "typeOnly";
+  if (file.size > PAGE_IMAGE_MAX_BYTES) return "tooLarge";
   return null;
 }
 
@@ -27,6 +27,9 @@ export function ImageField({
   id: string; label: string; path: string | undefined; supabaseUrl: string;
   onChange: (path: string | undefined) => void; shape?: "wide" | "square";
 }) {
+  const t = useTranslations("studio.image");
+  const tCommon = useTranslations("common");
+  const tErrors = useTranslations("errors");
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -36,7 +39,7 @@ export function ImageField({
     if (!file) return;
     const problem = preCheckImage(file);
     if (problem) {
-      setError(problem);
+      setError(t(problem));
       e.target.value = "";
       return;
     }
@@ -50,7 +53,7 @@ export function ImageField({
         else onChange(result.path);
       } catch (error) {
         console.error("[booking-page] image upload threw:", error);
-        setError(GENERIC_WRITE_ERROR);
+        setError(tErrors("generic"));
       } finally {
         if (fileRef.current) fileRef.current.value = "";
       }
@@ -58,7 +61,7 @@ export function ImageField({
   };
 
   return (
-    <SettingsRow label={label} htmlFor={id} hint={IMAGE_HINT}>
+    <SettingsRow label={label} htmlFor={id} hint={t("hint")}>
       <div className="flex items-center gap-2">
         {path ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -67,10 +70,10 @@ export function ImageField({
         <input ref={fileRef} id={id} type="file" accept={PAGE_IMAGE_ACCEPT} onChange={onFile} disabled={pending} className="sr-only" />
         <Button variant="outline" size="sm" disabled={pending} onClick={() => fileRef.current?.click()}>
           <HugeiconsIcon icon={Upload04Icon} size={14} />
-          {pending ? "Uploading…" : path ? "Replace" : "Upload"}
+          {pending ? t("uploading") : path ? t("replace") : t("upload")}
         </Button>
         {path ? (
-          <Button variant="ghost" size="sm" disabled={pending} onClick={() => onChange(undefined)}>Remove</Button>
+          <Button variant="ghost" size="sm" disabled={pending} onClick={() => onChange(undefined)}>{tCommon("remove")}</Button>
         ) : null}
       </div>
       <FieldError message={error ?? undefined} />

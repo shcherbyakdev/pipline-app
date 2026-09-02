@@ -111,12 +111,13 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
     needsFirstItem,
   };
   const switchable = declared.offersAppointments && declared.offersRentals;
+  const t = await getTranslations("studio");
 
   return (
     // Wider than the other settings pages: the preview must be able to show
     // the split layout (≥ 48rem of page column) at desktop.
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 p-6">
-      <PageIntro>The page clients book you on. Arrange its sections, brand it, then publish.</PageIntro>
+      <PageIntro>{t("intro")}</PageIntro>
       {switchable ? <PageSwitch value={channel} /> : null}
       <BookingPageBuilder
         // Re-mount per page: the draft hook is seeded once from its props.

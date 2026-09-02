@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ComputerIcon, Moon02Icon, SmartPhone01Icon, Sun01Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
@@ -66,7 +67,7 @@ export function SchemeToggle({
   label,
   value,
   onChange,
-  optionLabels = { light: "Light", dark: "Dark" },
+  optionLabels,
   disabled,
   disabledReason,
 }: {
@@ -77,6 +78,7 @@ export function SchemeToggle({
   disabled?: boolean;
   disabledReason?: string;
 }) {
+  const t = useTranslations("studio.preview");
   return (
     <Segmented
       label={label}
@@ -85,22 +87,23 @@ export function SchemeToggle({
       disabled={disabled}
       disabledReason={disabledReason}
       options={[
-        { value: "light", label: optionLabels.light, icon: Sun01Icon },
-        { value: "dark", label: optionLabels.dark, icon: Moon02Icon },
+        { value: "light", label: optionLabels?.light ?? t("light"), icon: Sun01Icon },
+        { value: "dark", label: optionLabels?.dark ?? t("dark"), icon: Moon02Icon },
       ]}
     />
   );
 }
 
 export function DeviceToggle({ value, onChange }: { value: Device; onChange: (v: Device) => void }) {
+  const t = useTranslations("studio.preview");
   return (
     <Segmented
-      label="Device"
+      label={t("device")}
       value={value}
       onChange={onChange}
       options={[
-        { value: "desktop", label: "Desktop", icon: ComputerIcon },
-        { value: "mobile", label: "Mobile", icon: SmartPhone01Icon },
+        { value: "desktop", label: t("desktop"), icon: ComputerIcon },
+        { value: "mobile", label: t("mobile"), icon: SmartPhone01Icon },
       ]}
     />
   );

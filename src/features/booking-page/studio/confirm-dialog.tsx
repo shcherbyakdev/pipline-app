@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -11,6 +12,7 @@ export function ConfirmDialog({
   open: boolean; title: string; description: string; confirmLabel: string; destructive?: boolean;
   onConfirm: () => void; onClose: () => void;
 }) {
+  const tCommon = useTranslations("common");
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
       <DialogContent>
@@ -19,7 +21,7 @@ export function ConfirmDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>{tCommon("cancel")}</Button>
           <Button variant={destructive ? "destructive" : "default"} size="sm" onClick={onConfirm}>{confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>

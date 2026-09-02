@@ -222,6 +222,12 @@
       "notMovable": "Only a confirmed booking can be moved.",
       "alreadyStarted": "This booking has already started.",
       "spaceInactive": "This space is inactive — reactivate it to move its bookings."
+    },
+    "studio": {
+      "pageTooLarge": "This page is too large to save — remove some content or images.",
+      "imageRejected": "Use a PNG, JPEG or WebP image under 4 MB.",
+      "imageLimit": "This page has reached its image limit. Publish or discard the draft to clear unused images, then try again.",
+      "pageGated": "Some sections on this page need a higher plan. Hide or remove them to publish."
     }
   },
   "public": {
@@ -1411,11 +1417,15 @@
         "sub": "Change how this page shows what is free. It applies straight away; the website embed has its own layout.",
         "use": "Use this layout"
       },
-      "applied": "Widget layout saved"
+      "applied": "Widget layout saved",
+      "current": "current",
+      "times": "Times",
+      "stays": "Stays"
     },
     "pageSwitch": {
       "appointments": "Appointments page",
-      "spaces": "Spaces page"
+      "spaces": "Spaces page",
+      "label": "Which page"
     },
     "appearance": {
       "theme": "Theme",
@@ -1455,6 +1465,212 @@
       "logoTooBig": "Logo must be 1 MB or less.",
       "logoUpdated": "Logo updated",
       "logoRemoved": "Logo removed"
+    },
+    "name": "Booking page",
+    "intro": "The page clients book you on. Arrange its sections, brand it, then publish.",
+    "tabs": {
+      "sections": "Sections",
+      "settings": "Settings"
+    },
+    "layout": {
+      "label": "Layout",
+      "column": "Column",
+      "columnHint": "One column, like today's page",
+      "split": "Split",
+      "splitHint": "Booking docks to the right on wide screens"
+    },
+    "defaultPageHint": "This is the default page. Pick a template or add sections.",
+    "addSection": "Add section",
+    "proBadge": "Pro",
+    "addRefused": {
+      "max": "Pages hold at most {max} sections.",
+      "alreadyOn": "Already on the page."
+    },
+    "row": {
+      "reorder": "Reorder {section}",
+      "required": "Required",
+      "show": "Show section",
+      "hide": "Hide section",
+      "remove": "Remove section"
+    },
+    "summary": {
+      "header": "Logo and name",
+      "noHeadline": "No headline yet",
+      "nothingWritten": "Nothing written yet",
+      "staff": "Bookable team members",
+      "noAddress": "No address yet",
+      "images": "{count, plural, one {# image} other {# images}}",
+      "quotes": "{count, plural, one {# quote} other {# quotes}}",
+      "questions": "{count, plural, one {# question} other {# questions}}",
+      "links": "{count, plural, one {# link} other {# links}}"
+    },
+    "issues": {
+      "httpsLink": "Use an https:// link (tel: for phone, mailto: for email).",
+      "httpsOnly": "Use an https:// link.",
+      "oneBooking": "The page needs exactly one booking section.",
+      "onlyOne": "Only one {section} section is allowed.",
+      "onePhotoPerSpace": "One photo per space.",
+      "uniqueIds": "Section ids must be unique.",
+      "tooManyImages": "At most {max} images per page."
+    },
+    "publishBar": {
+      "notPublished": "Not published yet",
+      "unpublished": "Unpublished changes",
+      "live": "Live",
+      "saveFailed": "Couldn't save",
+      "fixErrors": "Fix errors to save",
+      "retry": "Retry",
+      "capped": "Not on your public page — over your plan's limit, so clients would see a not-found page.",
+      "liftLimit": "Lift the limit",
+      "viewLive": "View live page",
+      "discard": "Discard changes",
+      "publish": "Publish"
+    },
+    "draft": {
+      "fixFields": "Fix the highlighted fields before publishing.",
+      "published": "Page published",
+      "discarded": "Draft discarded"
+    },
+    "discard": {
+      "title": "Discard changes?",
+      "toPublished": "Your draft goes back to the published page.",
+      "toDefault": "Your draft goes back to the default page.",
+      "confirm": "Discard"
+    },
+    "publishEmpty": {
+      "title": "{count, plural, one {# section is empty} other {# sections are empty}}",
+      "description": "{sections} won't show on the published page. Publish anyway?"
+    },
+    "preview": {
+      "title": "Live preview",
+      "light": "Light",
+      "dark": "Dark",
+      "device": "Device",
+      "desktop": "Desktop",
+      "mobile": "Mobile",
+      "systemTheme": "Visitor's system theme",
+      "lightSystem": "Light system",
+      "darkSystem": "Dark system",
+      "themeFixedLight": "Theme is fixed to Light — every visitor sees this. Set Theme to Auto to preview both.",
+      "themeFixedDark": "Theme is fixed to Dark — every visitor sees this. Set Theme to Auto to preview both."
+    },
+    "notice": {
+      "contrastUnreadable": "The widget's colour overrides give {ratio}:1 contrast — unreadable. Adjust them on <link>Website embed</link>.",
+      "contrastLow": "The widget's colour overrides give {ratio}:1 contrast — below 4.5:1 (AA body text). Adjust them on <link>Website embed</link>.",
+      "embedRiskLight": "This page is always readable — it paints its own light ground. But Theme is shared with the website embed, which takes your site's surface: on a dark site its text becomes unreadable. If your site is dark, choose Dark (or Auto), or set a background colour on <link>Website embed</link>.",
+      "embedRiskDark": "This page is always readable — it paints its own dark ground. But Theme is shared with the website embed, which takes your site's surface: on a light site its text becomes unreadable. If your site is light, choose Light (or Auto), or set a background colour on <link>Website embed</link>.",
+      "auto": "Auto follows each visitor's system setting. This page always matches, so both variants are readable (use the toggle above). The website embed only matches if your site does too — check it there."
+    },
+    "settings": {
+      "look": "Look",
+      "lookHint": "Logo and accent colour. Saved as you go.",
+      "widget": "Booking page widget",
+      "widgetHint": "This page's own style. The website embed has its own on Website embed. Saved as you go."
+    },
+    "image": {
+      "hint": "PNG, JPEG or WebP · max 4 MB · best under 2000 px wide.",
+      "typeOnly": "PNG, JPEG or WebP only.",
+      "tooLarge": "Images must be 4 MB or less.",
+      "uploading": "Uploading…",
+      "upload": "Upload",
+      "replace": "Replace"
+    },
+    "list": {
+      "moveUp": "Move item {n} up",
+      "moveDown": "Move item {n} down",
+      "remove": "Remove item {n}"
+    },
+    "forms": {
+      "title": "Title",
+      "style": "Style",
+      "list": "List",
+      "cards": "Cards",
+      "showPrices": "Show prices",
+      "header": {
+        "tagline": "Tagline",
+        "taglinePlaceholder": "Colour specialist in Kraków",
+        "taglineHint": "Shown under your name. Logo and accent are on the Settings tab."
+      },
+      "hero": {
+        "image": "Cover image",
+        "headline": "Headline",
+        "headlinePlaceholder": "Hair & colour by Anna",
+        "subheadline": "Subheadline",
+        "align": "Alignment",
+        "left": "Left",
+        "center": "Centered",
+        "button": "Button",
+        "buttonPlaceholder": "Book now",
+        "buttonHint": "Jumps to the booking widget. Leave blank for no button."
+      },
+      "about": {
+        "photo": "Photo",
+        "titlePlaceholder": "About me",
+        "text": "Text",
+        "textHint": "Blank line = new paragraph."
+      },
+      "services": {
+        "showDurations": "Show durations"
+      },
+      "staff": {
+        "hint": "Shows once two or more team members are bookable; clicking a person opens their own booking link."
+      },
+      "spaces": {
+        "showStay": "Show stay / duration",
+        "addFirst": "Add a space first — <link>Manage spaces</link>.",
+        "editedOn": "Spaces themselves are edited on <link>Manage spaces</link>."
+      },
+      "gallery": {
+        "columns": "Columns",
+        "two": "Two",
+        "three": "Three",
+        "photos": "Photos",
+        "upTo": "Up to {max}.",
+        "addPhotos": "Add photos",
+        "altPlaceholder": "Describe the photo (alt text)",
+        "altAria": "Photo {n} description"
+      },
+      "testimonials": {
+        "add": "Add quote",
+        "quotePlaceholder": "What did they say?",
+        "authorPlaceholder": "Who said it",
+        "quoteAria": "Quote {n}",
+        "authorAria": "Quote {n} author"
+      },
+      "faq": {
+        "add": "Add question",
+        "question": "Question",
+        "answer": "Answer",
+        "questionAria": "Question {n}",
+        "answerAria": "Answer {n}"
+      },
+      "links": {
+        "add": "Add link",
+        "label": "Label",
+        "typeAria": "Link {n} type",
+        "labelAria": "Link {n} label",
+        "addressAria": "Link {n} address",
+        "icon": {
+          "instagram": "Instagram",
+          "facebook": "Facebook",
+          "tiktok": "TikTok",
+          "whatsapp": "WhatsApp",
+          "website": "Website",
+          "phone": "Phone",
+          "email": "Email",
+          "other": "Other"
+        }
+      },
+      "location": {
+        "address": "Address",
+        "addressPlaceholder": "Main St 1\n00-001 Warsaw",
+        "maps": "Maps link",
+        "mapsHint": "Shown as “Open in Maps”."
+      },
+      "booking": {
+        "titlePlaceholder": "Book a time",
+        "hint": "The widget itself is styled on the Settings tab and on Website embed."
+      }
     }
   },
   "embed": {

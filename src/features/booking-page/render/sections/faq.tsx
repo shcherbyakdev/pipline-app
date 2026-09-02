@@ -6,7 +6,7 @@ import { CARD } from "../type";
 
 export function FaqSection({ section, ctx }: { section: SectionOf<"faq">; ctx: RenderContext }) {
   const items = section.items.filter((i) => i.q.trim() && i.a.trim());
-  if (items.length === 0) return <Ghost mode={ctx.mode} label="Add a question and its answer" />;
+  if (items.length === 0) return <Ghost ctx={ctx} text="faq" />;
   return (
     <section className={cn(CARD, "flex flex-col divide-y")}>
       {items.map((item, i) => (

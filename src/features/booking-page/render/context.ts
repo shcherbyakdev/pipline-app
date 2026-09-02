@@ -1,5 +1,20 @@
 import type { PublicOffering, PublicService, PublicStaff } from "@/lib/booking/public";
 import type { WidgetThemeConfig } from "@/lib/widget-theme";
+import type { SectionType } from "../schema";
+
+/** The empty-field placeholders the preview shows (`studio.ghost.*`). */
+export const GHOST_KEYS = ["headline", "cover", "about", "services", "spaces", "staff", "address", "link", "faq", "gallery", "testimonial"] as const;
+export type GhostKey = (typeof GHOST_KEYS)[number];
+
+/** Studio chrome drawn INSIDE the preview — the section chips and the ghost
+    placeholders. Resolved by the builder in the ADMIN's language: the preview
+    subtree's own provider speaks the org's (public messages only), so nothing
+    in here may call useTranslations("studio"). Plain strings, per type. */
+export type PreviewChrome = {
+  sections: Record<SectionType, { label: string; edit: string }>;
+  hidden: string;
+  ghost: Record<GhostKey, string>;
+};
 
 /** Everything a section may need — and nothing a client component can't
     receive from a server one (plain data only, no functions). */
@@ -21,4 +36,6 @@ export type RenderContext = {
   crossLink: { href: string; label: string } | null;
   /** Preview only: canned slots so the widget never fetches. */
   previewSlots?: string[];
+  /** Preview only: the studio's chrome, in the admin's words. */
+  preview?: PreviewChrome;
 };

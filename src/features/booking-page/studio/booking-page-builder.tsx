@@ -21,7 +21,8 @@ import {
   type WidgetThemeConfig,
 } from "@/lib/widget-theme";
 import { WidgetTheme } from "@/components/widget-theme";
-import { NextIntlClientProvider, type AbstractIntlMessages } from "next-intl";
+import { createTranslator, NextIntlClientProvider, useTranslations, type AbstractIntlMessages } from "next-intl";
+import type { Messages } from "use-intl/core";
 import type { Locale } from "@/i18n/config";
 import {
   LivePreview,
@@ -32,18 +33,17 @@ import {
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 import { cn } from "@/lib/utils";
 import { channelPath, channelUrl, hostLabel } from "@/lib/booking/url";
-import type { PageDocument } from "../schema";
+import { SECTION_TYPES, type PageDocument } from "../schema";
 import {
   emptyVisibleSections,
   replaceSection,
   type EmptyContext,
 } from "../doc-ops";
-import { SECTION_META } from "../defaults";
+import type { SectionSeed } from "../defaults";
 import type { PageChannel } from "../channel";
-import type { RenderContext } from "../render/context";
+import { GHOST_KEYS, type PreviewChrome, type RenderContext } from "../render/context";
 import { PageRenderer, pageContainerClass } from "../render/page-renderer";
 import { SelectionProvider } from "../render/selection";
-import { STARTER } from "../copy";
 import { usePageDraft } from "./use-page-draft";
 import { StudioTabs, type StudioTab } from "./studio-tabs";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -51,7 +51,6 @@ import { PublishBar } from "./publish-bar";
 import { SectionsPanel } from "./sections-panel";
 import { SectionInspector } from "./section-inspector";
 import { SettingsTab } from "./settings-tab";
-import { GENERIC_WRITE_ERROR } from "@/lib/actions";
 import { StarterDialog, type LayoutPatch } from "./starter-dialog";
 import { PREVIEW_OFFERING_ID } from "@/lib/booking/preview-catalog";
 
@@ -106,7 +105,31 @@ export function BookingPageBuilder({
   /** Badge toggle state for the Settings tab (lib/billing/badge-toggle.ts). */
   badge: { canHideBadge: boolean; upgradeHref: string | null };
 }) {
+  const t = useTranslations("studio");
+  const tErrors = useTranslations("errors");
   const draft = usePageDraft(initialPage, channel);
+  // The studio's chrome inside the preview — section chips and ghost
+  // placeholders — in the ADMIN's words, handed down as data: the preview
+  // subtree's provider speaks the org's language (public messages only).
+  const chrome = React.useMemo<PreviewChrome>(
+    () => ({
+      sections: Object.fromEntries(
+        SECTION_TYPES.map((type) => {
+          const label = t(`sections.${type}.label`);
+          return [type, { label, edit: t("frame.edit", { section: label }) }];
+        }),
+      ) as PreviewChrome["sections"],
+      hidden: t("frame.hidden"),
+      ghost: Object.fromEntries(GHOST_KEYS.map((key) => [key, t(`ghost.${key}`)])) as PreviewChrome["ghost"],
+    }),
+    [t],
+  );
+  // What a new section starts with is the org's content, so it is seeded in
+  // the org's language — the preview's own messages, not the admin's.
+  const seed = React.useMemo<SectionSeed>(() => {
+    const tSeed = createTranslator({ locale: previewIntl.locale, messages: previewIntl.messages as Messages, namespace: "public.seed" });
+    return { bookNow: tSeed("bookNow"), services: tSeed("services"), team: tSeed("team"), spaces: tSeed("spaces") };
+  }, [previewIntl]);
   // Where focus lands once the starter closes (M4): the left panel itself,
   // not wherever the trap happened to leave it.
   const panelRef = React.useRef<HTMLDivElement>(null);
@@ -155,11 +178,11 @@ export function BookingPageBuilder({
         if (!result.ok) {
           setTheme(previous);
           toast.error(result.error);
-        } else toast.success(STARTER.applied);
+        } else toast.success(t("starter.applied"));
       } catch (error) {
         console.error("[booking-page] onApplyLayout threw:", error);
         setTheme(previous);
-        toast.error(GENERIC_WRITE_ERROR);
+        toast.error(tErrors("generic"));
       }
     });
   };
@@ -185,6 +208,7 @@ export function BookingPageBuilder({
     mode: "preview",
     previewSlots: PREVIEW_SLOTS,
     crossLink,
+    preview: chrome,
   };
   const selected = draft.doc.sections.find((s) => s.id === selectedId) ?? null;
   const emptyContext: EmptyContext = {
@@ -203,8 +227,13 @@ export function BookingPageBuilder({
   const overrideRatio =
     theme.background || theme.text ? effectiveContrast(theme) : null;
   const embedRisk = !theme.background && theme.theme !== "auto";
-  const oppositeScheme: Scheme = theme.theme === "light" ? "dark" : "light";
-  const oppositeLabel = theme.theme === "light" ? "Dark" : "Light";
+  const embedLink = {
+    link: (chunks: React.ReactNode) => (
+      <Link href="/embed" className="underline underline-offset-3">
+        {chunks}
+      </Link>
+    ),
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -226,13 +255,9 @@ export function BookingPageBuilder({
       />
       <ConfirmDialog
         open={confirm === "discard"}
-        title="Discard changes?"
-        description={
-          draft.published
-            ? "Your draft goes back to the published page."
-            : "Your draft goes back to the default page."
-        }
-        confirmLabel="Discard"
+        title={t("discard.title")}
+        description={draft.published ? t("discard.toPublished") : t("discard.toDefault")}
+        confirmLabel={t("discard.confirm")}
         destructive
         onConfirm={() => {
           setConfirm(null);
@@ -242,9 +267,9 @@ export function BookingPageBuilder({
       />
       <ConfirmDialog
         open={confirm === "publish"}
-        title={`${empties.length} ${empties.length === 1 ? "section is" : "sections are"} empty`}
-        description={`${empties.map((s) => SECTION_META[s.type].label).join(", ")} won't show on the published page. Publish anyway?`}
-        confirmLabel="Publish"
+        title={t("publishEmpty.title", { count: empties.length })}
+        description={t("publishEmpty.description", { sections: empties.map((s) => chrome.sections[s.type].label).join(", ") })}
+        confirmLabel={t("publishBar.publish")}
         onConfirm={() => {
           setConfirm(null);
           draft.publish();
@@ -296,6 +321,7 @@ export function BookingPageBuilder({
               onHover={setHoveredId}
               pageSections={pageSections}
               mode={mode}
+              seed={seed}
               templatePicker={
                 // A spaces page has layouts to pick once it has a real space
                 // (spec §8); before that the starter's first-space step is it.
@@ -328,48 +354,28 @@ export function BookingPageBuilder({
             desktopMaxWidth={pageContainerClass(draft.doc.layout)}
             controls={
               <SchemeToggle
-                label="Visitor's system theme"
+                label={t("preview.systemTheme")}
                 value={resolved}
                 onChange={setScheme}
-                optionLabels={{ light: "Light system", dark: "Dark system" }}
+                optionLabels={{ light: t("preview.lightSystem"), dark: t("preview.darkSystem") }}
                 disabled={theme.theme !== "auto"}
-                disabledReason={`Theme is fixed to ${theme.theme === "light" ? "Light" : "Dark"} — every visitor sees this. Set Theme to Auto to preview both.`}
+                disabledReason={theme.theme === "light" ? t("preview.themeFixedLight") : t("preview.themeFixedDark")}
               />
             }
             notices={
               overrideRatio !== null && overrideRatio < 4.5 ? (
                 <PreviewNotice tone={overrideRatio < 3 ? "error" : "warn"}>
-                  The widget&apos;s colour overrides give{" "}
-                  {overrideRatio.toFixed(1)}:1 contrast
-                  {overrideRatio < 3
-                    ? " — unreadable"
-                    : " — below 4.5:1 (AA body text)"}
-                  . Adjust them on{" "}
-                  <Link href="/embed" className="underline underline-offset-3">
-                    Website embed
-                  </Link>
-                  .
+                  {t.rich(overrideRatio < 3 ? "notice.contrastUnreadable" : "notice.contrastLow", {
+                    ratio: overrideRatio.toFixed(1),
+                    ...embedLink,
+                  })}
                 </PreviewNotice>
               ) : embedRisk ? (
                 <PreviewNotice tone="warn">
-                  This page is always readable — it paints its own {theme.theme}{" "}
-                  ground. But Theme is shared with the website embed, which
-                  takes your site&apos;s surface: on a {oppositeScheme} site its
-                  text becomes unreadable. If your site is {oppositeScheme},
-                  choose {oppositeLabel} (or Auto), or set a background colour
-                  on{" "}
-                  <Link href="/embed" className="underline underline-offset-3">
-                    Website embed
-                  </Link>
-                  .
+                  {t.rich(theme.theme === "light" ? "notice.embedRiskLight" : "notice.embedRiskDark", embedLink)}
                 </PreviewNotice>
               ) : theme.theme === "auto" ? (
-                <PreviewNotice tone="info">
-                  Auto follows each visitor&apos;s system setting. This page
-                  always matches, so both variants are readable (use the toggle
-                  above). The website embed only matches if your site does too —
-                  check it there.
-                </PreviewNotice>
+                <PreviewNotice tone="info">{t("notice.auto")}</PreviewNotice>
               ) : null
             }
           >

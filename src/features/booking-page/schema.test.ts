@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { pageDocumentSchema, parsePageDocument, allowedLinkUrl, PAGE_LIMITS, type PageDocument } from "./schema";
-import { DEFAULT_PAGE, newSection, newSectionId, ADDABLE_TYPES, SECTION_META } from "./defaults";
+import { DEFAULT_PAGE, newSection, newSectionId, ADDABLE_TYPES } from "./defaults";
+import { enTranslator } from "@/i18n/test-translator";
+
+const t = enTranslator("studio");
 
 const ORG = "123e4567-e89b-12d3-a456-426614174000";
 const IMG = `${ORG}/page/abcdef0123456789.png`;
@@ -62,7 +65,11 @@ describe("pageDocumentSchema", () => {
     const links = { ...newSection("links"), items: [{ label: "IG", url: "http://x", icon: "instagram" as const }] };
     const res = pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, links, booking] });
     expect(res.success).toBe(false);
-    if (!res.success) expect(res.error.issues[0]!.path).toEqual(["sections", 1, "items", 0, "url"]);
+    if (!res.success) {
+      expect(res.error.issues[0]!.path).toEqual(["sections", 1, "items", 0, "url"]);
+      // Messages are studio.issues keys; doc-ops' issuesBySection resolves them.
+      expect(res.error.issues[0]!.message).toBe("httpsLink");
+    }
   });
   it("location mapsUrl must be https or empty", () => {
     const loc = { ...newSection("location"), mapsUrl: "ftp://maps" };
@@ -77,7 +84,7 @@ describe("pageDocumentSchema", () => {
     const spaces = { ...newSection("spaces"), photos: [{ offeringId: OFFERING, path: IMG }] };
     expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, spaces, booking] }).success).toBe(true);
     expect(ADDABLE_TYPES).toContain("spaces");
-    expect(SECTION_META.spaces.label).toBe("Spaces");
+    expect(t("sections.spaces.label")).toBe("Spaces");
     // one per page
     expect(pageDocumentSchema.safeParse({ ...DEFAULT_PAGE, sections: [header, spaces, { ...spaces, id: newSectionId() }, booking] }).success).toBe(false);
     // offeringId must be a uuid (the canned preview offering never gets a photo row)
@@ -118,7 +125,10 @@ describe("defaults", () => {
   it("DEFAULT_PAGE is header + booking with stable ids", () => {
     expect(DEFAULT_PAGE.sections.map((s) => [s.type, s.id])).toEqual([["header", "header01"], ["booking", "booking1"]]);
   });
-  it("every section type has meta copy", () => {
-    for (const t of [...ADDABLE_TYPES, "booking"] as const) expect(SECTION_META[t].label.length).toBeGreaterThan(0);
+  it("every section type has a label and a description in messages", () => {
+    for (const type of [...ADDABLE_TYPES, "booking"] as const) {
+      expect(t(`sections.${type}.label`).length).toBeGreaterThan(0);
+      expect(t(`sections.${type}.description`).length).toBeGreaterThan(0);
+    }
   });
 });

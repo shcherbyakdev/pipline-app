@@ -61,14 +61,19 @@ export const testimonialsSection = z.object({
 export const faqSection = z.object({ ...base, type: z.literal("faq"), items: z.array(z.object({ q: text(120), a: text(600) })).max(10) });
 const linkItem = z
   .object({ label: text(40), url: z.string().max(500), icon: z.enum(LINK_ICONS) })
-  .refine((i) => allowedLinkUrl(i.url, i.icon), { message: "Use an https:// link (tel: for phone, mailto: for email).", path: ["url"] });
+  .refine((i) => allowedLinkUrl(i.url, i.icon), { message: "httpsLink", path: ["url"] });
 export const linksSection = z.object({ ...base, type: z.literal("links"), items: z.array(linkItem).max(8) });
 export const locationSection = z.object({
   ...base, type: z.literal("location"), address: text(300),
-  mapsUrl: z.string().max(500).refine((u) => u === "" || HTTPS_RE.test(u), { message: "Use an https:// link." }),
+  mapsUrl: z.string().max(500).refine((u) => u === "" || HTTPS_RE.test(u), { message: "httpsOnly" }),
 });
 // `hidden: false` literal: the widget is always on the page.
 export const bookingSection = z.object({ ...base, type: z.literal("booking"), title: text(60), hidden: z.literal(false) });
+
+// Issue messages are KEYS under `studio.issues` (the schema runs client-side,
+// synchronously, with no translator in reach); doc-ops' issuesBySection
+// resolves them. "onlyOne:<type>" carries the section type after the colon.
+export type IssueKey = "httpsLink" | "httpsOnly" | "oneBooking" | "onlyOne" | "onePhotoPerSpace" | "uniqueIds" | "tooManyImages";
 
 export const sectionSchema = z.discriminatedUnion("type", [
   headerSection, heroSection, aboutSection, servicesSection, staffSection, spacesSection, gallerySection, testimonialsSection,
@@ -85,21 +90,16 @@ export const pageDocumentSchema = z
   })
   .superRefine((doc, ctx) => {
     const count = (t: SectionType) => doc.sections.filter((s) => s.type === t).length;
-    if (count("booking") !== 1) ctx.addIssue({ code: "custom", path: ["sections"], message: "The page needs exactly one booking section." });
+    const issue = (message: `${IssueKey}${string}`) => ctx.addIssue({ code: "custom", path: ["sections"], message });
+    if (count("booking") !== 1) issue("oneBooking");
     for (const t of SINGLE_INSTANCE_TYPES) {
-      if (count(t) > 1) ctx.addIssue({ code: "custom", path: ["sections"], message: `Only one ${t} section is allowed.` });
+      if (count(t) > 1) issue(`onlyOne:${t}`);
     }
     for (const s of doc.sections) {
-      if (s.type === "spaces" && new Set(s.photos.map((p) => p.offeringId)).size !== s.photos.length) {
-        ctx.addIssue({ code: "custom", path: ["sections"], message: "One photo per space." });
-      }
+      if (s.type === "spaces" && new Set(s.photos.map((p) => p.offeringId)).size !== s.photos.length) issue("onePhotoPerSpace");
     }
-    if (new Set(doc.sections.map((s) => s.id)).size !== doc.sections.length) {
-      ctx.addIssue({ code: "custom", path: ["sections"], message: "Section ids must be unique." });
-    }
-    if (imagePathsIn(doc).length > PAGE_LIMITS.images) {
-      ctx.addIssue({ code: "custom", path: ["sections"], message: `At most ${PAGE_LIMITS.images} images per page.` });
-    }
+    if (new Set(doc.sections.map((s) => s.id)).size !== doc.sections.length) issue("uniqueIds");
+    if (imagePathsIn(doc).length > PAGE_LIMITS.images) issue("tooManyImages");
   });
 export type PageDocument = z.infer<typeof pageDocumentSchema>;
 
@@ -113,10 +113,3 @@ export function parsePageDocument(raw: unknown, orgId: string): PageDocument | n
   return parsed.data;
 }
 
-// Named refusals (a "use server" module may only export async functions, so
-// the copy lives here — the orgs/schema.ts precedent).
-export const PAGE_TOO_LARGE_ERROR = "This page is too large to save — remove some content or images.";
-export const IMAGE_REJECTED_ERROR = "Use a PNG, JPEG or WebP image under 4 MB.";
-export const IMAGE_LIMIT_ERROR =
-  "This page has reached its image limit. Publish or discard the draft to clear unused images, then try again.";
-export const PAGE_GATED_ERROR = "Some sections on this page need a higher plan. Hide or remove them to publish.";

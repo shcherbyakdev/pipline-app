@@ -6,7 +6,7 @@ import { CARD } from "../type";
 
 export function TestimonialsSection({ section, ctx }: { section: SectionOf<"testimonials">; ctx: RenderContext }) {
   const items = section.items.filter((i) => i.quote.trim());
-  if (items.length === 0) return <Ghost mode={ctx.mode} label="Add a client quote" />;
+  if (items.length === 0) return <Ghost ctx={ctx} text="testimonial" />;
   return (
     <section className="grid gap-4 sm:grid-cols-2">
       {items.map((item, i) => (
