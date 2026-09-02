@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { hostContrast, type WidgetThemeConfig } from "@/lib/widget-theme";
 import { WidgetTheme } from "@/components/widget-theme";
 import { LivePreview, PreviewNotice, SchemeToggle, type Scheme } from "@/components/live-preview";
@@ -26,6 +27,8 @@ export function EmbedPreviewFrame({
   accentColor: string | null;
   children: React.ReactNode;
 }) {
+  const t = useTranslations("embed.preview");
+  const tp = useTranslations("public");
   const [host, setHost] = React.useState<Scheme>("light");
   const previewConfig: WidgetThemeConfig = config.theme === "auto" ? { ...config, theme: host } : config;
   const dark = host === "dark";
@@ -39,9 +42,9 @@ export function EmbedPreviewFrame({
   const clash = transparent && ratio < 3;
   const fixedRisk = transparent && (config.theme === "light" || config.theme === "dark");
   const autoRisk = transparent && config.theme === "auto";
-  const themeLabel = config.theme === "light" ? "Light" : "Dark";
-  const otherTheme = config.theme === "light" ? "Dark" : "Light";
-  const opposite: Scheme = config.theme === "light" ? "dark" : "light";
+  // The notices name the theme and the host as ICU selects; "auto" reads
+  // as dark there, as it always has (it is only reached with a text override).
+  const theme: Scheme = config.theme === "light" ? "light" : "dark";
 
   return (
     <LivePreview
@@ -50,38 +53,26 @@ export function EmbedPreviewFrame({
       pageClassName={hostPageClass(host)}
       controls={
         <SchemeToggle
-          label="Host page"
+          label={t("hostPage")}
           value={host}
           onChange={setHost}
-          optionLabels={{ light: "Light page", dark: "Dark page" }}
+          optionLabels={{ light: t("lightPage"), dark: t("darkPage") }}
         />
       }
       notices={
         clash ? (
-          <PreviewNotice tone="error">
-            On a {host} page the {themeLabel} theme&apos;s text is unreadable ({ratio.toFixed(1)}:1) — the
-            embed paints no background of its own. If your site is {host}, choose {otherTheme} (or Auto), or
-            set a background colour so the widget brings its own surface.
-          </PreviewNotice>
+          <PreviewNotice tone="error">{t("clash", { host, theme, ratio: ratio.toFixed(1) })}</PreviewNotice>
         ) : fixedRisk ? (
-          <PreviewNotice tone="warn">
-            {themeLabel} theme with no background: the widget takes your site&apos;s surface, so on a{" "}
-            {opposite} site its text becomes unreadable. Fine if your site is {host} — otherwise choose{" "}
-            {otherTheme}, or set a background colour. Preview a {opposite} page above to see it.
-          </PreviewNotice>
+          <PreviewNotice tone="warn">{t("fixedRisk", { host, theme })}</PreviewNotice>
         ) : autoRisk ? (
-          <PreviewNotice tone="warn">
-            Auto follows each visitor&apos;s system setting, not your site&apos;s colours. On a site that is
-            always light or always dark, some visitors will get the mismatched variant. Pick the theme that
-            matches your site, or set a background colour. Switch the host page above to see both.
-          </PreviewNotice>
+          <PreviewNotice tone="warn">{t("autoRisk")}</PreviewNotice>
         ) : null
       }
     >
       <Skeleton dark={dark} />
       <WidgetTheme config={previewConfig} accentColor={accentColor} transparent={transparent} className="rounded-lg p-4">
         {children}
-        {config.hidePoweredBy ? null : <p className="mt-4 text-center text-xs opacity-60">Powered by Booklo</p>}
+        {config.hidePoweredBy ? null : <p className="mt-4 text-center text-xs opacity-60">{tp("poweredBy")}</p>}
       </WidgetTheme>
       <Skeleton dark={dark} short />
     </LivePreview>

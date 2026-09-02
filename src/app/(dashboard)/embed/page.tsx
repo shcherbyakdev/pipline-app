@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
 import { WidgetAppearance } from "@/features/orgs/components/widget-appearance";
 import { LinksTable } from "@/features/orgs/components/links-table";
@@ -45,6 +46,12 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   const { canHideBadge, upgradeHref: badgeUpgradeHref } = await badgeToggle(settings.orgId);
 
   const catalog = toPreviewCatalog({ mode, services, offerings });
+  // The snippet's iframe title is what a CLIENT's screen reader announces on
+  // the org's site, so it speaks the org's language (Booking page › Settings
+  // › Language), not the admin's — the booking-page preview's rule.
+  const t = await getTranslations("embed");
+  const tTitle = await getTranslations({ locale: schedulingSettings.locale, namespace: "public.embedTitle" });
+  const titles = { appointment: tTitle("appointment"), space: tTitle("space") };
   // Solo orgs get no "Book with" choice at all (there is only one answer);
   // the Team page's "Embed…" link lands here with ?staff=<slug> preselected.
   const activeStaff = staff.filter((s) => s.active);
@@ -58,10 +65,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
-      <PageIntro>
-        Add booking to your own site. Style the widget against the live preview, then paste the snippet
-        into your page. Logo and accent colour come from Booking page › Branding.
-      </PageIntro>
+      <PageIntro>{t("intro")}</PageIntro>
       <WidgetAppearance
         initial={parseWidgetTheme(settings.widgetTheme)}
         accentColor={settings.accentColor}
@@ -71,6 +75,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         previewServices={catalog.services}
         previewOfferings={catalog.offerings}
         mode={mode}
+        titles={titles}
         staffOptions={staffOptions}
         initialStaffSlug={initialStaffSlug}
         canHideBadge={canHideBadge}
@@ -84,6 +89,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
           staff={staffOptions}
           services={bookableAdminServices(services, staff).map((s) => ({ id: s.id, name: s.name }))}
           spaces={offerings.filter((o) => o.active).map((o) => ({ id: o.id, name: o.name }))}
+          titles={titles}
         />
       ) : null}
     </div>

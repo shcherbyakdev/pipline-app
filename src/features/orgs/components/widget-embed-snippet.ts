@@ -16,25 +16,35 @@ import { embedSrc, type LinkTarget } from "@/lib/booking/url";
 // target is the whole-catalogue embed, byte-identical to what solo orgs
 // have always pasted.
 //
-// The iframe `title` is the widget's accessible name on the host page. With
-// a target it names that target's channel; without one it names the org's
-// front door (embedChannel: appointments whenever there are services, else
-// spaces), and omitting `mode` keeps the historical appointments title.
-export function embedTitle(mode?: OrgMode): string {
-  return mode && mode.offersRentals && !mode.offersAppointments ? "Book a space" : "Book an appointment";
+// The iframe `title` is the widget's accessible name on the host page, and
+// public copy: it reads in the ORG's language (`public.embedTitle.*`,
+// resolved by the page for the org's locale), not the admin's. With a target
+// it names that target's channel; without one it names the org's front door
+// (embedChannel: appointments whenever there are services, else spaces), and
+// no `mode` keeps the historical appointments title.
+export type EmbedTitles = { appointment: string; space: string };
+
+export function embedTitle(mode: OrgMode | undefined, titles: EmbedTitles): string {
+  return mode && mode.offersRentals && !mode.offersAppointments ? titles.space : titles.appointment;
 }
 
-function snippetTitle(target: LinkTarget | undefined, mode: OrgMode | undefined): string {
-  if (target && ("space" in target || ("channel" in target && target.channel === "spaces"))) return "Book a space";
-  if (target) return "Book an appointment";
-  return embedTitle(mode);
+function snippetTitle(target: LinkTarget | undefined, mode: OrgMode | undefined, titles: EmbedTitles): string {
+  if (target && ("space" in target || ("channel" in target && target.channel === "spaces"))) return titles.space;
+  if (target) return titles.appointment;
+  return embedTitle(mode, titles);
 }
 
-export function embedSnippet(appUrl: string, handle: string, target?: LinkTarget, mode?: OrgMode): string {
+export function embedSnippet(
+  appUrl: string,
+  handle: string,
+  target: LinkTarget | undefined,
+  mode: OrgMode | undefined,
+  titles: EmbedTitles,
+): string {
   const scriptBase = appUrl.replace(/\/+$/, "");
   return (
     `<iframe data-rollout-embed src="${embedSrc(appUrl, handle, target)}" `
-    + `style="width:100%;border:0" title="${snippetTitle(target, mode)}"></iframe>\n`
+    + `style="width:100%;border:0" title="${snippetTitle(target, mode, titles)}"></iframe>\n`
     + `<script src="${scriptBase}/embed.js" async></script>`
   );
 }

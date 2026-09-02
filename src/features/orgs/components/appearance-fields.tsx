@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,18 +12,18 @@ import {
   effectiveContrast, STAY_LAYOUT_OPTIONS, WIDGET_LAYOUT_OPTIONS, WIDGET_THEME_OPTIONS, resolveLayout, resolveStayLayout, type WidgetThemeConfig,
 } from "@/lib/widget-theme";
 
-const RADIUS_OPTIONS: Array<{ value: WidgetThemeConfig["radius"]; label: string }> = [
-  { value: "none", label: "None" },
-  { value: "subtle", label: "Subtle" },
-  { value: "round", label: "Round" },
-];
-const FONT_OPTIONS: Array<{ value: WidgetThemeConfig["font"]; label: string }> = [
-  { value: "system", label: "System" },
-  { value: "geist", label: "Geist" },
+const RADIUS_VALUES: ReadonlyArray<WidgetThemeConfig["radius"]> = ["none", "subtle", "round"];
+/* Font names are never translated; "System" (no `label`) is. `latinOnly`
+   marks the faces that ship no Cyrillic subset (i18n spec §3) — the picker
+   says so beside them, since a Ukrainian page set in Geist falls back to the
+   system font. */
+const FONT_OPTIONS: ReadonlyArray<{ value: WidgetThemeConfig["font"]; label?: string; latinOnly?: true }> = [
+  { value: "system" },
+  { value: "geist", label: "Geist", latinOnly: true },
   { value: "inter", label: "Inter" },
-  { value: "dm-sans", label: "DM Sans" },
+  { value: "dm-sans", label: "DM Sans", latinOnly: true },
   { value: "lora", label: "Lora" },
-  { value: "space-grotesk", label: "Space Grotesk" },
+  { value: "space-grotesk", label: "Space Grotesk", latinOnly: true },
   { value: "ibm-plex-mono", label: "IBM Plex Mono" },
 ];
 export const SELECT_CLASS =
@@ -58,14 +59,17 @@ export function AppearanceFields({
       the disabled toggle and its chip both lead there. null = no door. */
   upgradeHref?: string | null;
 }) {
+  const t = useTranslations("studio");
   const router = useRouter();
   const id = (s: string) => `${idPrefix}-${s}`;
   const set = (patch: Partial<WidgetThemeConfig>) => onChange({ ...config, ...patch });
   const { ratio, blocked, warn } = contrastOf(config);
-  const select = <K extends "theme" | "radius" | "font">(key: K, idSuffix: string, options: ReadonlyArray<{ value: WidgetThemeConfig[K]; label: string }>) => (
-    <select id={id(idSuffix)} className={SELECT_CLASS} value={config[key]} disabled={pending} onChange={(e) => set({ [key]: e.target.value } as Pick<WidgetThemeConfig, K>)}>
+  const select = <K extends "theme" | "radius" | "font" | "layout" | "stayLayout">(
+    key: K, idSuffix: string, value: string, options: ReadonlyArray<{ value: string; label: string }>,
+  ) => (
+    <select id={id(idSuffix)} className={SELECT_CLASS} value={value} disabled={pending} onChange={(e) => set({ [key]: e.target.value } as Pick<WidgetThemeConfig, K>)}>
       {options.map((o) => (
-        <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
+        <option key={o.value} value={o.value}>{o.label}</option>
       ))}
     </select>
   );
@@ -84,50 +88,53 @@ export function AppearanceFields({
           <>
             <span className="font-mono text-xs">{config[key]}</span>
             <Button type="button" variant="ghost" size="xs" disabled={pending} onClick={() => set({ [key]: undefined })}>
-              Clear
+              {t("appearance.clear")}
             </Button>
           </>
         ) : (
-          <span className="text-muted-foreground text-xs">Theme default</span>
+          <span className="text-muted-foreground text-xs">{t("appearance.themeDefault")}</span>
         )}
       </div>
     </SettingsRow>
   );
+  const contrastHint =
+    ratio === null ? t("appearance.overridesHint")
+    : blocked ? t("appearance.contrastBlocked", { ratio: ratio.toFixed(1) })
+    : warn ? t("appearance.contrastWarn", { ratio: ratio.toFixed(1) })
+    : t("appearance.contrast", { ratio: ratio.toFixed(1) });
   return (
     <>
-      <SettingsRow label="Theme" htmlFor={id("theme")}>{select("theme", "theme", WIDGET_THEME_OPTIONS)}</SettingsRow>
+      <SettingsRow label={t("appearance.theme")} htmlFor={id("theme")}>
+        {select("theme", "theme", config.theme, WIDGET_THEME_OPTIONS.map((o) => ({ value: o.value, label: t(`themes.${o.value}`) })))}
+      </SettingsRow>
       <div className="grid grid-cols-2 divide-x">
-        <SettingsRow label="Corner radius" htmlFor={id("radius")}>{select("radius", "radius", RADIUS_OPTIONS)}</SettingsRow>
-        <SettingsRow label="Widget layout" htmlFor={id("layout")}>
-          <select id={id("layout")} className={SELECT_CLASS} value={resolveLayout(config)} disabled={pending} onChange={(e) => set({ layout: e.target.value as WidgetThemeConfig["layout"] })}>
-            {WIDGET_LAYOUT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+        <SettingsRow label={t("appearance.radius")} htmlFor={id("radius")}>
+          {select("radius", "radius", config.radius, RADIUS_VALUES.map((value) => ({ value, label: t(`appearance.radiusOptions.${value}`) })))}
+        </SettingsRow>
+        <SettingsRow label={t("appearance.layout")} htmlFor={id("layout")}>
+          {select("layout", "layout", resolveLayout(config), WIDGET_LAYOUT_OPTIONS.map((o) => ({ value: o.value, label: t(`layouts.${o.value}.label`) })))}
         </SettingsRow>
         {offersRentals ? (
-          <SettingsRow label="Stays layout" htmlFor={id("stay-layout")}>
-            <select id={id("stay-layout")} className={SELECT_CLASS} value={resolveStayLayout(config)} disabled={pending} onChange={(e) => set({ stayLayout: e.target.value as WidgetThemeConfig["stayLayout"] })}>
-              {STAY_LAYOUT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+          <SettingsRow label={t("appearance.stayLayout")} htmlFor={id("stay-layout")}>
+            {select("stayLayout", "stay-layout", resolveStayLayout(config), STAY_LAYOUT_OPTIONS.map((o) => ({ value: o.value, label: t(`stayLayouts.${o.value}.label`) })))}
           </SettingsRow>
         ) : null}
-        <SettingsRow label="Font" htmlFor={id("font")}>{select("font", "font", FONT_OPTIONS)}</SettingsRow>
+        <SettingsRow label={t("appearance.font")} htmlFor={id("font")}>
+          {select("font", "font", config.font, FONT_OPTIONS.map((o) => ({
+            value: o.value,
+            label: `${o.label ?? t("appearance.fontSystem")}${o.latinOnly ? ` · ${t("latinOnly")}` : ""}`,
+          })))}
+        </SettingsRow>
       </div>
-      {colourRow("background", "Background override", "#ffffff")}
+      {colourRow("background", t("appearance.background"), "#ffffff")}
       {colourRow(
         "text",
-        "Text override",
+        t("appearance.text"),
         "#17171a",
         ratio !== null ? (
-          <span className={cn(blocked ? "text-destructive" : warn ? "text-amber-600 dark:text-amber-500" : undefined)}>
-            Contrast {ratio.toFixed(1)}:1
-            {blocked ? " — below 3:1, blocked. Pick more distinct colours." : warn ? " — below 4.5:1 (AA body text)." : ""}
-          </span>
+          <span className={cn(blocked ? "text-destructive" : warn ? "text-amber-600 dark:text-amber-500" : undefined)}>{contrastHint}</span>
         ) : (
-          "Overrides paint the widget's own surface, so it no longer takes the host page's."
+          contrastHint
         ),
       )}
       <div className="flex items-center gap-2 px-4 py-3">
@@ -150,15 +157,15 @@ export function AppearanceFields({
           onChange={(e) => set({ hidePoweredBy: e.target.checked })}
         />
         <Label htmlFor={id("hide-powered-by")} className="text-xs font-medium">
-          Hide &quot;Powered by Booklo&quot;
+          {t("appearance.hideBadge")}
         </Label>
         {canHideBadge ? null : upgradeHref ? (
           <Link id={id("hide-powered-by-plan")} href={upgradeHref} className="border-brand/40 text-brand-text hover:bg-brand/10 rounded-full border px-1.5 py-0.5 text-[10px] font-medium">
-            Premium
+            {t("appearance.premium")}
           </Link>
         ) : (
           <span id={id("hide-powered-by-plan")} className="border-brand/40 text-brand-text rounded-full border px-1.5 py-0.5 text-[10px] font-medium">
-            Premium
+            {t("appearance.premium")}
           </span>
         )}
       </div>
