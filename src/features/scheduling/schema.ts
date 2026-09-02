@@ -2,6 +2,7 @@ import { z } from "zod";
 import { STAFF_SLUG_RE, isReservedStaffSlug } from "./staff-slug";
 import { HANDLE_RE, isReservedHandle } from "./handle";
 import { CURRENCIES } from "@/lib/money";
+import { LOCALES } from "@/i18n/config";
 
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 export { HANDLE_RE };
@@ -127,6 +128,9 @@ export const schedulingSettingsInput = z.object({
   timezone: z.string().min(1).max(64),
   // Whitelisted server-side too (update_org_scheduling's CHECK, 0058).
   currency: z.enum(CURRENCIES),
+  // The org locale (i18n spec D2): what clients see. The DB CHECK (0069) is
+  // format-only; the list of languages the product speaks is LOCALES.
+  locale: z.enum(LOCALES),
 });
 
 export const STAFF_SLUG_RESERVED_ISSUE = "reserved";

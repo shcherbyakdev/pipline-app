@@ -9,6 +9,7 @@ import { normalizeHandle } from "@/features/scheduling/handle";
 import type { getSchedulingSettings } from "@/features/orgs/queries";
 import { bookingUrl, hostLabel } from "@/lib/booking/url";
 import { CURRENCIES } from "@/lib/money";
+import { LOCALES, LOCALE_NAMES, type Locale } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import { SettingsCard, SettingsRow } from "@/components/settings-row";
@@ -39,16 +40,19 @@ export function SchedulingSettingsForm({
   // admin happened to be sitting.
   const [timezone, setTimezone] = React.useState(settings.timezone);
   const [currency, setCurrency] = React.useState(settings.currency);
+  const [locale, setLocale] = React.useState<Locale>(settings.locale);
   const [saved, setSaved] = React.useState({
     handle: settings.handle ?? "",
     timezone: settings.timezone,
     currency: settings.currency,
+    locale: settings.locale,
   });
   const [pending, startTransition] = React.useTransition();
   const [copied, setCopied] = React.useState(false);
   const [confirmingChange, setConfirmingChange] = React.useState(false);
 
-  const dirty = handle !== saved.handle || timezone !== saved.timezone || currency !== saved.currency;
+  const dirty =
+    handle !== saved.handle || timezone !== saved.timezone || currency !== saved.currency || locale !== saved.locale;
   // A handle that is already out in the world (saved, non-empty) is about to
   // change or go away: the old link and any embed snippet die with it.
   const handleChanging = saved.handle !== "" && handle !== saved.handle;
@@ -57,11 +61,11 @@ export function SchedulingSettingsForm({
   const save = () => {
     setConfirmingChange(false);
     startTransition(async () => {
-      const result = await updateSchedulingSettings({ handle, timezone, currency });
+      const result = await updateSchedulingSettings({ handle, timezone, currency, locale });
       if (!result.ok) toast.error(result.error);
       else {
         toast.success("Booking page saved");
-        setSaved({ handle, timezone, currency });
+        setSaved({ handle, timezone, currency, locale });
       }
     });
   };
@@ -82,7 +86,7 @@ export function SchedulingSettingsForm({
 
   return (
     <SettingsCard
-      title="Address & timezone"
+      title="Address, timezone & language"
       description="Applies when you save."
       footer={
         <>
@@ -164,6 +168,25 @@ export function SchedulingSettingsForm({
           {CURRENCIES.map((c) => (
             <option key={c} value={c}>
               {c}
+            </option>
+          ))}
+        </select>
+      </SettingsRow>
+      <SettingsRow
+        label="Language"
+        htmlFor="scheduling-locale"
+        hint="What your clients see on your booking page and in emails. Visitors browsing from Ukraine get Ukrainian either way."
+      >
+        <select
+          id="scheduling-locale"
+          value={locale}
+          onChange={(e) => setLocale(e.target.value as Locale)}
+          disabled={pending}
+          className="border-input h-8 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {LOCALES.map((l) => (
+            <option key={l} value={l}>
+              {LOCALE_NAMES[l]}
             </option>
           ))}
         </select>

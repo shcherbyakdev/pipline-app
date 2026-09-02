@@ -43,6 +43,9 @@ export type BookingOrg = {
   offersAppointments: boolean;
   offersRentals: boolean;
   currency: string;
+  /** The org locale as stored (0069) — resolved against LOCALES, the
+      visitor's region and `?lang=` by src/i18n/public.ts, never used raw. */
+  locale: string;
 };
 
 // Per-request memoised: generateMetadata and the page both resolve the handle.
@@ -50,7 +53,7 @@ export const getBookingOrg = cache(async (handle: string): Promise<BookingOrg | 
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("orgs")
-    .select("id, name, timezone, offers_appointments, offers_rentals, currency")
+    .select("id, name, timezone, offers_appointments, offers_rentals, currency, locale")
     .eq("handle", handle)
     .maybeSingle();
   if (error || !data) return null;
@@ -61,7 +64,16 @@ export const getBookingOrg = cache(async (handle: string): Promise<BookingOrg | 
     offersAppointments: data.offers_appointments,
     offersRentals: data.offers_rentals,
     currency: data.currency,
+    locale: data.locale,
   };
+});
+
+/** The manage page's org locale: resolve_booking_token hands back the org
+    id, and one more admin read beats widening that RPC's return type. */
+export const getOrgLocale = cache(async (orgId: string): Promise<string | null> => {
+  const admin = createAdminClient();
+  const { data } = await admin.from("orgs").select("locale").eq("id", orgId).maybeSingle();
+  return data?.locale ?? null;
 });
 
 export async function listPublicServices(orgId: string): Promise<PublicService[]> {
