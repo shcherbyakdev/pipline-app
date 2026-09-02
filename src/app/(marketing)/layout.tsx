@@ -10,7 +10,7 @@ import { CookieNotice } from "@/features/marketing/components/cookie-notice";
 // They re-declare the root layout's --font-sans / --font-mono variables on
 // the marketing wrapper and add --font-display (the wordmark face), so only
 // the landing changes; the app keeps its own.
-const inter = Inter({ variable: "--font-sans", subsets: ["latin"], display: "swap" });
+const inter = Inter({ variable: "--font-sans", subsets: ["latin", "cyrillic"], display: "swap" });
 const outfit = Outfit({ variable: "--font-display", subsets: ["latin"], weight: ["600"], display: "swap" });
 const geistMono = Geist_Mono({ variable: "--font-mono", subsets: ["latin"], display: "swap" });
 

@@ -9,7 +9,7 @@ import "./globals.css";
 // re-declares the same variables; both resolve to the same faces.
 const inter = Inter({
   variable: "--font-sans",
-  subsets: ["latin"],
+  subsets: ["latin", "cyrillic"],
 });
 
 const geistMono = Geist_Mono({
