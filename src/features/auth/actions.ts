@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { afterLogin, RECOVERY_COOKIE } from "@/lib/auth/next-path";
 import { env } from "@/env";
@@ -72,8 +73,12 @@ export async function signUp(
     password: parsed.data.password,
     options: {
       emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL}/auth/confirm`,
-      // Advisory only: onboarding pre-fills from it and re-checks availability.
-      ...(parsed.data.handle ? { data: { claimed_handle: parsed.data.handle } } : {}),
+      data: {
+        // Interface locale (spec §8): the proxy seeds a new device from it.
+        locale: await getLocale(),
+        // Advisory only: onboarding pre-fills from it and re-checks availability.
+        ...(parsed.data.handle ? { claimed_handle: parsed.data.handle } : {}),
+      },
     },
   });
 

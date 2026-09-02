@@ -38,6 +38,13 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+// The translator echoes the key: messages.test.ts owns the copy, these tests
+// assert which message an action picks.
+vi.mock("next-intl/server", () => ({
+  getLocale: async () => "en",
+  getTranslations: async () => Object.assign((key: string) => key, { has: () => true }),
+}));
+
 import {
   sendMagicLink,
   signInWithPassword,
@@ -112,14 +119,14 @@ describe("signUp", () => {
     expect(auth.signUp).not.toHaveBeenCalled();
   });
 
-  it("returns sent and passes emailRedirectTo on success", async () => {
+  it("returns sent and passes emailRedirectTo and the locale on success", async () => {
     auth.signUp.mockResolvedValue({ error: null });
     const state = await signUp({}, form({ email: "a@b.com", password: "12345678" }));
     expect(state).toEqual({ sent: true });
     expect(auth.signUp).toHaveBeenCalledWith({
       email: "a@b.com",
       password: "12345678",
-      options: { emailRedirectTo: "http://localhost:3000/auth/confirm" },
+      options: { emailRedirectTo: "http://localhost:3000/auth/confirm", data: { locale: "en" } },
     });
   });
 
@@ -129,20 +136,20 @@ describe("signUp", () => {
     expect(state.error).toBe("Could not create your account. Try again.");
   });
 
-  it("stores a claimed handle as user metadata", async () => {
+  it("stores a claimed handle as user metadata next to the locale", async () => {
     auth.signUp.mockResolvedValue({ error: null });
     await signUp({}, form({ email: "a@b.com", password: "longenough", handle: "anna" }));
     expect(auth.signUp).toHaveBeenCalledWith(
       expect.objectContaining({
-        options: expect.objectContaining({ data: { claimed_handle: "anna" } }),
+        options: expect.objectContaining({ data: { locale: "en", claimed_handle: "anna" } }),
       }),
     );
   });
-  it("sends no metadata when no handle was claimed", async () => {
+  it("sends no handle when none was claimed", async () => {
     auth.signUp.mockResolvedValue({ error: null });
     await signUp({}, form({ email: "a@b.com", password: "longenough" }));
     const call = auth.signUp.mock.calls[0][0];
-    expect(call.options.data).toBeUndefined();
+    expect(call.options.data).toEqual({ locale: "en" });
   });
 });
 
