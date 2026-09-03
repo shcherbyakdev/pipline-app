@@ -14,10 +14,10 @@
 -- not worth re-issuing them, with the staleness hazard that copying carries.
 -- The column is not in bookings_org_guard's UPDATE OF list (0041), so a
 -- locale-only write does not fire it.
---
+ALTER TABLE "bookings" ADD COLUMN "locale" text;
+
 -- Format-only CHECK, matching orgs_locale_format (0069): adding a third
 -- language stays an app-side change to LOCALES, never a migration.
-alter table public.bookings add column locale text;
 alter table public.bookings
   add constraint bookings_locale_format check (locale ~ '^[a-z]{2,3}(-[A-Z]{2})?$');
 
