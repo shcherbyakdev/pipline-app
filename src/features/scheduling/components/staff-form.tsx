@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 
 /* A new person's details — the whole of /team/new (there is no dialog; the
    page IS the form). An existing person is edited in place on their own page
