@@ -30,6 +30,27 @@ A term missing here is added here first, then used.
 | handle (page address) | адреса сторінки | |
 | Free / Pro | Free / Pro | plan names stay |
 | Booklo | Booklo | |
+| the venue / the provider (client-facing) | заклад | what the client calls the business: "у часовому поясі закладу", "зверніться до закладу" |
+| team member (client-facing "with Anna") | спеціаліст | "(спеціаліст: Анна)", "Спеціаліст: Анна" — sidesteps name declension; never "майстер" |
+| anyone (staff switch) | будь-хто | |
+| night / day / hour (counts) | ніч, ночі, ночей · день, дні, днів · година, години, годин | four ICU forms (one/few/many/other) — `public.units.*` |
+| min / h (short units) | хв / год | "60 хв", "1 год 30 хв" |
+| Powered by Booklo | Працює на Booklo | |
+| pickup / return (day stays) | отримання / повернення | |
+| Overview (admin page, named in provider mails) | «Огляд» | provisional until Wave 3 names the admin nav |
+| booked / cancelled / moved (a client, unknown gender) | забронював(ла) / скасував(ла) / змінив(ла) час | provider-facing mails; only verbs whose feminine is stem + ла take the (ла) ending — never переніс(ла), whose feminine is перенесла |
+| admin nav | Огляд · Бронювання · Клієнти · Простори · Послуги · Команда · Графік · Сторінка бронювання · Код для сайту · Оплата · Налаштування | sidebar sections: Пропозиція (Offer), Поширення (Share) |
+| overview / availability / billing (pages) | Огляд / Графік / Оплата | |
+| nightly / daily (a space's mode) | на ніч / на день | never «подобово/поденно» |
+| require approval (toggle) | Потрібне підтвердження | the same label on services and spaces |
+| booking window (days) | Вікно бронювання (днів) | |
+| request (booking approval, admin) | запит | "Очікує підтвердження" for the pending status |
+| layout (widget template) | макет | |
+| section (of the booking page) | розділ | |
+| cover (hero section) | обкладинка | |
+| publish / draft | опублікувати / чернетка | |
+| Latin only (font note) | Лише латиниця | Geist, DM Sans, Space Grotesk |
+| an org as the subject of a verb | Заклад {orgName} … | anchors the verb to a masculine noun, since org names are mostly feminine/neuter (Студія, Клініка) |
 
 ## Style — uk
 

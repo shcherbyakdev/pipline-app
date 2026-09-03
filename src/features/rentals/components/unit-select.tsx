@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { Label } from "@/components/ui/label";
 import type { PublicUnit } from "@/lib/booking/public";
 
 // The native-<select> idiom shared by the booking forms.
@@ -10,6 +12,8 @@ const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text
 // order. Only units the engine says are free for the chosen dates are
 // offered; while availability is still loading (`freeUnitIds === null`) the
 // whole control is disabled rather than listing units that may not be free.
+// A single-unit space is its own unit: nothing to choose, so no control at
+// all — auto lands the booking on it.
 export function UnitSelect({
   units,
   freeUnitIds,
@@ -18,6 +22,7 @@ export function UnitSelect({
   keepUnitId = null,
   keepUnitName = null,
   id,
+  label,
 }: {
   units: PublicUnit[];
   freeUnitIds: string[] | null;
@@ -26,25 +31,30 @@ export function UnitSelect({
   keepUnitId?: string | null;
   keepUnitName?: string | null;
   id: string;
+  label: string;
 }) {
+  const t = useTranslations("public.manage");
+  if (units.length < 2) return null;
   const options = freeUnitIds === null ? units : units.filter((u) => freeUnitIds.includes(u.id));
   return (
-    <select
-      id={id}
-      className={selectClass}
-      value={value ?? ""}
-      disabled={freeUnitIds === null}
-      onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
-    >
-      <option value="">
-        {keepUnitId && keepUnitName ? `Auto — keep ${keepUnitName} if free` : "Auto"}
-      </option>
-      {options.map((u) => (
-        <option key={u.id} value={u.id}>
-          {u.name}
-          {u.active ? "" : " (inactive)"}
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <select
+        id={id}
+        className={selectClass}
+        value={value ?? ""}
+        disabled={freeUnitIds === null}
+        onChange={(e) => onChange(e.target.value === "" ? null : e.target.value)}
+      >
+        <option value="">
+          {keepUnitId && keepUnitName ? t("unitAutoKeep", { name: keepUnitName }) : t("unitAuto")}
         </option>
-      ))}
-    </select>
+        {options.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.active ? u.name : t("unitInactive", { name: u.name })}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

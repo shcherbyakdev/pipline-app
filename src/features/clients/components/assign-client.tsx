@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { assignClient, createClient } from "@/features/clients/actions";
 import type { ClientOption } from "@/features/clients/queries";
@@ -23,12 +24,14 @@ export function AssignClient({
   clients: ClientOption[];
   value: string | null;
 }) {
+  const t = useTranslations("clients.assign");
+  const te = useTranslations("errors");
   const [optimistic, setOptimistic] = React.useState(value);
   const [isPending, startTransition] = React.useTransition();
 
   const onChange = (next: string) => {
     if (next === NEW_SENTINEL) {
-      const name = window.prompt("New client name")?.trim();
+      const name = window.prompt(t("prompt"))?.trim();
       if (!name) return;
       startTransition(async () => {
         const created = await createClient({ name, programId });
@@ -43,7 +46,7 @@ export function AssignClient({
           // otherwise show a dangling id with no matching option. Revert to
           // the last known-good value and say so explicitly.
           setOptimistic(value);
-          toast.error("Client created, but assigning failed. Pick them from the list.");
+          toast.error(te("clients.createdNotAssigned"));
         }
       });
       return;
@@ -53,7 +56,7 @@ export function AssignClient({
     startTransition(async () => {
       const result = await assignClient({ unitId, clientId });
       if (!result.ok) {
-        toast.error(result.error ?? "Couldn't save. Try again.");
+        toast.error(result.error ?? te("generic"));
         // A failed action doesn't revalidate — the control reverts itself.
         setOptimistic(value);
       }
@@ -65,14 +68,14 @@ export function AssignClient({
       value={optimistic ?? ""}
       onChange={(e) => onChange(e.target.value)}
       disabled={isPending}
-      aria-label={`Assign client for ${unitName}`}
+      aria-label={t("aria", { unit: unitName })}
       className="border-input text-muted-foreground h-7 max-w-36 shrink-0 truncate rounded-md border bg-transparent px-1.5 text-xs disabled:opacity-50"
     >
-      <option value="">No client</option>
+      <option value="">{t("none")}</option>
       {clients.map((c) => (
         <option key={c.id} value={c.id}>{c.name}</option>
       ))}
-      <option value={NEW_SENTINEL}>+ New client…</option>
+      <option value={NEW_SENTINEL}>{t("new")}</option>
     </select>
   );
 }

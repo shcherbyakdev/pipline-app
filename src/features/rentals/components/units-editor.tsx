@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -17,18 +18,16 @@ import {
   deleteBlackout,
 } from "@/features/rentals/actions";
 import type { UnitRow, BlackoutRow } from "@/features/rentals/queries";
-import { SPACES } from "@/features/orgs/vocab";
+import { INTL_LOCALES } from "@/i18n/config";
 
 type UnitWithBlackouts = UnitRow & { blackouts: BlackoutRow[] };
 
-const END_BEFORE_START = "End date must not precede the start date.";
-
-function formatDate(date: string): string {
+function formatDate(date: string, intlLocale: string): string {
   // Noon UTC keeps the rendered day from sliding across a boundary in
   // negative-offset timezones (date-overrides.tsx makes the same call).
-  // en-GB pinned: `undefined` let the server's and browser's locales
-  // disagree, which is a hydration mismatch on every blackout row.
-  return new Intl.DateTimeFormat("en-GB", {
+  // The locale is the app's, never `undefined`: that let the server's and
+  // browser's locales disagree — a hydration mismatch on every blackout row.
+  return new Intl.DateTimeFormat(intlLocale, {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -43,17 +42,47 @@ export function UnitsEditor({
   offeringId: string;
   units: UnitWithBlackouts[];
 }) {
+  const t = useTranslations("spaces");
+  // A space starts as one unit named after itself (actions.ts
+  // createOffering) and most stay that way — a flat is a flat. Until the
+  // owner asks to split it, this page speaks of the space, not its unit:
+  // just the dates it can't be booked. Local state, not a column: opening
+  // the editor is a page-level intent, and once a second unit exists the
+  // split is a fact the data carries on its own. An inactive sole unit
+  // opens the editor too — its Active checkbox is the only way back.
+  const sole = units.length === 1 && units[0].active ? units[0] : undefined;
+  const [split, setSplit] = React.useState(sole === undefined);
+  if (!split && sole) {
+    return (
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-sm font-semibold">{t("units.blackouts.title")}</h2>
+          <p className="text-muted-foreground text-xs">{t("blackoutsHint")}</p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <UnitBlackouts offeringId={offeringId} unit={sole} />
+        </div>
+        <button
+          type="button"
+          onClick={() => setSplit(true)}
+          className="text-muted-foreground hover:text-foreground w-fit text-xs underline underline-offset-3"
+        >
+          {t("splitIntoUnits")}
+        </button>
+      </section>
+    );
+  }
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <h2 className="text-sm font-semibold">Units</h2>
-        <p className="text-muted-foreground text-xs">{SPACES.unitsHint}</p>
+        <h2 className="text-sm font-semibold">{t("units.title")}</h2>
+        <p className="text-muted-foreground text-xs">{t("unitsHint")}</p>
       </div>
 
       <AddUnitForm offeringId={offeringId} />
 
       {units.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{SPACES.unitsEmpty}</p>
+        <p className="text-muted-foreground text-sm">{t("unitsEmpty")}</p>
       ) : (
         <ol className="flex flex-col gap-3">
           {units.map((unit) => (
@@ -77,6 +106,8 @@ export function UnitsEditor({
 }
 
 function AddUnitForm({ offeringId }: { offeringId: string }) {
+  const t = useTranslations("spaces.units");
+  const tc = useTranslations("common");
   const [name, setName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [pending, startTransition] = React.useTransition();
@@ -98,7 +129,7 @@ function AddUnitForm({ offeringId }: { offeringId: string }) {
       }
       setName("");
       setDescription("");
-      toast.success("Unit added");
+      toast.success(t("added"));
     });
   };
 
@@ -107,25 +138,27 @@ function AddUnitForm({ offeringId }: { offeringId: string }) {
       <Input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Add a unit…"
+        placeholder={t("namePlaceholder")}
         maxLength={200}
-        aria-label="New unit name"
+        aria-label={t("newNameAria")}
       />
       <Input
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="Description (optional)"
+        placeholder={t("descriptionPlaceholder")}
         maxLength={2000}
-        aria-label="New unit description"
+        aria-label={t("newDescriptionAria")}
       />
       <Button type="submit" size="sm" variant="secondary" disabled={pending || name.trim() === ""}>
-        <Plus /> Add
+        <Plus /> {tc("add")}
       </Button>
     </form>
   );
 }
 
 function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlackouts }) {
+  const t = useTranslations("spaces.units");
+  const tc = useTranslations("common");
   const [name, setName] = React.useState(unit.name);
   const [description, setDescription] = React.useState(unit.description ?? "");
   const [pending, startTransition] = React.useTransition();
@@ -161,7 +194,7 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
 
   const saveEdits = () => {
     if (trimmedName === "") {
-      toast.error("A unit needs a name.");
+      toast.error(t("needsName"));
       return;
     }
     write(
@@ -170,14 +203,14 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
         description: trimmedDescription === "" ? null : trimmedDescription,
         active: unit.active,
       },
-      "Saved",
+      tc("saved"),
     );
   };
 
   const setActive = (active: boolean) =>
     write(
       { name: unit.name, description: unit.description, active },
-      active ? "Unit is active" : "Unit is inactive",
+      active ? t("activated") : t("deactivated"),
     );
 
   const onDelete = () => {
@@ -188,7 +221,7 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
         toast.error(result.error);
         return;
       }
-      toast.success("Unit deleted");
+      toast.success(t("deleted"));
     });
   };
 
@@ -200,7 +233,7 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex min-w-40 flex-1 flex-col gap-1.5">
           <Label htmlFor={nameId} className="text-muted-foreground text-xs">
-            Name
+            {tc("name")}
           </Label>
           <Input
             id={nameId}
@@ -211,7 +244,7 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
         </div>
         <div className="flex min-w-40 flex-1 flex-col gap-1.5">
           <Label htmlFor={descriptionId} className="text-muted-foreground text-xs">
-            Description
+            {t("description")}
           </Label>
           <Input
             id={descriptionId}
@@ -227,7 +260,7 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
           disabled={pending || !dirty}
           onClick={saveEdits}
         >
-          Save
+          {tc("save")}
         </Button>
       </div>
 
@@ -238,34 +271,45 @@ function UnitCard({ offeringId, unit }: { offeringId: string; unit: UnitWithBlac
             disabled={pending}
             onCheckedChange={(checked) => setActive(checked === true)}
           />
-          Active
+          {tc("active")}
         </label>
         <Button
           type="button"
           size="sm"
           variant="ghost"
           disabled={pending}
-          aria-label={`Delete unit ${unit.name}`}
+          aria-label={t("deleteAria", { name: unit.name })}
           onClick={onDelete}
         >
-          <Trash2 /> Delete
+          <Trash2 /> {tc("delete")}
         </Button>
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border pt-3">
-        <h3 className="text-muted-foreground text-xs font-medium">Unavailable dates</h3>
-        {unit.blackouts.length > 0 ? (
-          <ul className="flex flex-col gap-1">
-            {unit.blackouts.map((blackout) => (
-              <BlackoutItem key={blackout.id} offeringId={offeringId} blackout={blackout} />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-muted-foreground text-xs">None — this unit is bookable all year.</p>
-        )}
-        <AddBlackoutForm offeringId={offeringId} unitId={unit.id} />
+        <h3 className="text-muted-foreground text-xs font-medium">{t("blackouts.title")}</h3>
+        <UnitBlackouts offeringId={offeringId} unit={unit} />
       </div>
     </li>
+  );
+}
+
+/* One unit's blocked dates and the form to add more — the single-unit view
+   shows exactly this under the space's own heading. */
+function UnitBlackouts({ offeringId, unit }: { offeringId: string; unit: UnitWithBlackouts }) {
+  const t = useTranslations("spaces.units.blackouts");
+  return (
+    <>
+      {unit.blackouts.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {unit.blackouts.map((blackout) => (
+            <BlackoutItem key={blackout.id} offeringId={offeringId} blackout={blackout} />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-muted-foreground text-xs">{t("none")}</p>
+      )}
+      <AddBlackoutForm offeringId={offeringId} unitId={unit.id} />
+    </>
   );
 }
 
@@ -276,8 +320,10 @@ function BlackoutItem({
   offeringId: string;
   blackout: BlackoutRow;
 }) {
+  const t = useTranslations("spaces.units.blackouts");
+  const intlLocale = INTL_LOCALES[useLocale()];
   const [pending, startTransition] = React.useTransition();
-  const label = `${formatDate(blackout.startDate)} → ${formatDate(blackout.endDate)}`;
+  const label = `${formatDate(blackout.startDate, intlLocale)} → ${formatDate(blackout.endDate, intlLocale)}`;
 
   const onDelete = () => {
     startTransition(async () => {
@@ -286,7 +332,7 @@ function BlackoutItem({
         toast.error(result.error);
         return;
       }
-      toast.success("Dates freed up");
+      toast.success(t("freed"));
     });
   };
 
@@ -303,7 +349,7 @@ function BlackoutItem({
         size="icon-xs"
         variant="ghost"
         disabled={pending}
-        aria-label={`Remove unavailable dates ${label}`}
+        aria-label={t("removeAria", { range: label })}
         onClick={onDelete}
       >
         <Trash2 />
@@ -313,6 +359,8 @@ function BlackoutItem({
 }
 
 function AddBlackoutForm({ offeringId, unitId }: { offeringId: string; unitId: string }) {
+  const t = useTranslations("spaces.units.blackouts");
+  const te = useTranslations("errors");
   const [startDate, setStartDate] = React.useState("");
   const [endDate, setEndDate] = React.useState("");
   const [reason, setReason] = React.useState("");
@@ -323,7 +371,7 @@ function AddBlackoutForm({ offeringId, unitId }: { offeringId: string; unitId: s
     if (startDate === "" || endDate === "") return;
     // ISO dates compare lexicographically; the server refuses this too.
     if (endDate < startDate) {
-      toast.error(END_BEFORE_START);
+      toast.error(te("spaces.blackoutOrder"));
       return;
     }
     const trimmedReason = reason.trim();
@@ -342,14 +390,14 @@ function AddBlackoutForm({ offeringId, unitId }: { offeringId: string; unitId: s
       setStartDate("");
       setEndDate("");
       setReason("");
-      toast.success("Dates blocked");
+      toast.success(t("blocked"));
     });
   };
 
   return (
     <form onSubmit={onSubmit} className="flex flex-wrap items-center gap-2">
       <DatePicker
-        label="Unavailable from"
+        label={t("from")}
         value={startDate}
         onCommit={setStartDate}
       />
@@ -357,7 +405,7 @@ function AddBlackoutForm({ offeringId, unitId }: { offeringId: string; unitId: s
         →
       </span>
       <DatePicker
-        label="Unavailable until"
+        label={t("until")}
         value={endDate}
         min={startDate || undefined}
         onCommit={setEndDate}
@@ -365,9 +413,9 @@ function AddBlackoutForm({ offeringId, unitId }: { offeringId: string; unitId: s
       <Input
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        placeholder="Reason (optional)"
+        placeholder={t("reasonPlaceholder")}
         maxLength={500}
-        aria-label="Reason"
+        aria-label={t("reason")}
         className="min-w-32 flex-1"
       />
       <Button
@@ -376,7 +424,7 @@ function AddBlackoutForm({ offeringId, unitId }: { offeringId: string; unitId: s
         variant="outline"
         disabled={pending || startDate === "" || endDate === ""}
       >
-        <Plus /> Block dates
+        <Plus /> {t("block")}
       </Button>
     </form>
   );

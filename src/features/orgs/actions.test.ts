@@ -24,6 +24,10 @@ vi.mock("@/env", () => ({
   },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next-intl/server", async () => {
+  const { enTranslator } = await import("@/i18n/test-translator");
+  return { getLocale: async () => "en", getTranslations: async (ns: "errors") => enTranslator(ns) };
+});
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
     throw new Error(`REDIRECT:${url}`);

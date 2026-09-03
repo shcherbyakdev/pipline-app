@@ -14,7 +14,7 @@ import {
 import type { IconSvgElement } from "@hugeicons/react";
 import type { Flags } from "@/lib/flags";
 import type { Channel, OrgMode } from "@/features/orgs/mode";
-import { SPACES } from "@/features/orgs/vocab";
+import type en from "../../../messages/en.json";
 
 // Post-pivot nav (S5): Bookings leads and stays the post-login surface (S2
 // user ruling). The command menu derives from this list. `section` splits
@@ -33,16 +33,20 @@ export type NavSection = "main" | "offer" | "share" | "account";
     cannot be forgotten there. */
 export const NAV_SECTIONS: readonly NavSection[] = ["main", "offer", "share", "account"];
 
-export const NAV_SECTION_LABELS: Record<NavSection, string | null> = {
+/** `shell.section.*` keys (messages/en.json); null = unlabelled group. */
+export const NAV_SECTION_LABELS: Record<NavSection, "offer" | "share" | null> = {
   main: null,
-  offer: "Offer",
-  share: "Share",
+  offer: "offer",
+  share: "share",
   account: null,
 };
 
+/** The words live in messages (`shell.nav.*`, i18n Wave 3); items carry the key. */
+export type NavLabelKey = keyof typeof en.shell.nav;
+
 export type NavItem = {
   href: string;
-  label: string;
+  labelKey: NavLabelKey;
   icon: IconSvgElement;
   section: NavSection;
   /** Set when the item belongs to one booking channel; omitted = always
@@ -52,23 +56,23 @@ export type NavItem = {
 
 const ALL_NAV_ITEMS: readonly NavItem[] = [
   // Shown only when the org's `overview` flag resolves true (lib/flags).
-  { href: "/overview", label: "Overview", icon: DashboardSquare01Icon, section: "main" },
-  { href: "/bookings", label: "Bookings", icon: Calendar03Icon, section: "main" },
-  { href: "/clients", label: "Clients", icon: UserMultipleIcon, section: "main" },
-  { href: "/rentals", label: SPACES.nav, icon: House01Icon, section: "offer", channel: "rentals" },
-  { href: "/services", label: "Services", icon: Briefcase01Icon, section: "offer", channel: "appointments" },
+  { href: "/overview", labelKey: "overview", icon: DashboardSquare01Icon, section: "main" },
+  { href: "/bookings", labelKey: "bookings", icon: Calendar03Icon, section: "main" },
+  { href: "/clients", labelKey: "clients", icon: UserMultipleIcon, section: "main" },
+  { href: "/rentals", labelKey: "spaces", icon: House01Icon, section: "offer", channel: "rentals" },
+  { href: "/services", labelKey: "services", icon: Briefcase01Icon, section: "offer", channel: "appointments" },
   // Always present, solo or not: a solo provider sees one row (themselves).
-  { href: "/team", label: "Team", icon: UserGroupIcon, section: "offer", channel: "appointments" },
+  { href: "/team", labelKey: "team", icon: UserGroupIcon, section: "offer", channel: "appointments" },
   // No channel: it stays for every mode — hours for people AND hourly
   // spaces are edited there (U3); a nights/days-only org gets an
   // explanatory empty state, never a redirect.
-  { href: "/availability", label: "Availability", icon: Clock01Icon, section: "offer" },
-  { href: "/booking-page", label: "Booking page", icon: Globe02Icon, section: "share" },
-  { href: "/embed", label: "Website embed", icon: SourceCodeIcon, section: "share" },
+  { href: "/availability", labelKey: "availability", icon: Clock01Icon, section: "offer" },
+  { href: "/booking-page", labelKey: "bookingPage", icon: Globe02Icon, section: "share" },
+  { href: "/embed", labelKey: "embed", icon: SourceCodeIcon, section: "share" },
   // Shown only when the org's `billing` flag resolves true; the route 404s
   // in the same world.
-  { href: "/billing", label: "Billing", icon: CreditCardIcon, section: "account" },
-  { href: "/settings", label: "Settings", icon: Settings01Icon, section: "account" },
+  { href: "/billing", labelKey: "billing", icon: CreditCardIcon, section: "account" },
+  { href: "/settings", labelKey: "settings", icon: Settings01Icon, section: "account" },
 ];
 
 /** What the sidebar and the command menu render for an org. One list, one
@@ -85,11 +89,12 @@ export function navItemsFor(flags: Pick<Flags, "billing" | "overview" | "rentals
   });
 }
 
-/** Title for the top bar: the matching nav label, else the first path
-    segment capitalised (e.g. /rentals → "Rentals"). */
-export function titleForPath(pathname: string, items: readonly NavItem[]): string {
+/** Title for the top bar: the matching nav item's key (the caller renders
+    `shell.nav.<key>`), else the first path segment capitalised as plain text
+    (e.g. /rentals → "Rentals" while the rentals channel is off). */
+export function titleForPath(pathname: string, items: readonly NavItem[]): { key: NavLabelKey } | { text: string } {
   const hit = items.find((i) => pathname === i.href || pathname.startsWith(i.href + "/"));
-  if (hit) return hit.label;
+  if (hit) return { key: hit.labelKey };
   const seg = pathname.split("/").filter(Boolean)[0] ?? "";
-  return seg ? seg.charAt(0).toUpperCase() + seg.slice(1) : "";
+  return { text: seg ? seg.charAt(0).toUpperCase() + seg.slice(1) : "" };
 }

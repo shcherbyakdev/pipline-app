@@ -1,12 +1,14 @@
 "use server";
 
+import { emailTranslators } from "@/i18n/emails";
+import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter, publicSlotsLimiter } from "@/lib/tokens/rate-limit";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { resolveBookingToken, buildBookingManageUrl } from "@/lib/tokens/booking";
-import { loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
+import { getOrgLocale, loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
 import { getProviderEmail } from "@/lib/booking/provider";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { emailBadgeUrl } from "@/lib/billing/queries";
@@ -26,16 +28,9 @@ import {
   manageSlotsInput,
   manageTokenInput,
   rescheduleBookingInput,
-  GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
-import { CANCEL_WINDOW_PASSED } from "@/features/rentals/schema";
 
-const SLOT_TAKEN = "That time was just taken — please pick another.";
-const NOT_CHANGEABLE = "This booking can no longer be changed online.";
-const TOO_MANY_REQUESTS = "Too many requests — slow down.";
-const TOO_MANY_FOR_EMAIL =
-  "This booking has been changed too many times in the last hour — try again later.";
 
 async function limited(kind: "slots" | "booking"): Promise<boolean> {
   const key = clientKeyFrom(await headers());
@@ -56,17 +51,19 @@ async function resolveActionable(token: string) {
 export async function getManageSlots(
   input: unknown,
 ): Promise<{ ok: true; slots: string[] } | { ok: false; error: string }> {
-  if (await limited("slots")) return { ok: false, error: TOO_MANY_REQUESTS };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited("slots")) return publicError(orgLocale, "tooManyRequests");
   const parsed = manageSlotsInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
   try {
     const booking = await resolveActionable(parsed.data.token);
-    if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    if (!booking) return publicError(orgLocale, "notChangeable");
+    orgLocale = () => getOrgLocale(booking.orgId);
     // Rentals R1: a rental stay has no service and no slot grid — the
     // appointment engine below cannot speak for it. A null staffId is the same
     // story from the team side: no calendar owner, nothing to offer.
     if (booking.serviceId === null || booking.staffId === null) {
-      return { ok: false, error: NOT_CHANGEABLE };
+      return publicError(orgLocale, "notChangeable");
     }
     // Team: a client reschedule stays with the SAME staff member (the RPC
     // enforces it), so the grid is that one person's — never a fan-out.
@@ -81,7 +78,7 @@ export async function getManageSlots(
       span,
       { staffId: booking.staffId, excludeBookingId: booking.id },
     );
-    if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
+    if (!ctx) return publicError(orgLocale, "notChangeable");
     const [own] = ctx.perStaff;
     const slots = computeSlots({
       service: ctx.service,
@@ -96,14 +93,15 @@ export async function getManageSlots(
     return { ok: true, slots: slots.map((s) => s.toISOString()) };
   } catch (error) {
     console.error("[scheduling] getManageSlots:", error);
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return publicError(orgLocale, "generic");
   }
 }
 
 export async function cancelBooking(input: unknown): Promise<ActionState> {
-  if (await limited("booking")) return { ok: false, error: TOO_MANY_REQUESTS };
+  const orgLocale: OrgLocaleSource = null;
+  if (await limited("booking")) return publicError(orgLocale, "tooManyRequests");
   const parsed = manageTokenInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
   try {
     // 0052: the lifecycle RPCs left the anon grant surface; the token stays
     // the credential, service_role is the caller.
@@ -111,10 +109,13 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     const { data, error } = await admin.rpc("cancel_booking", { p_token: parsed.data.token });
     if (error) {
       if (isRpcSentinel(error, "cancel_window")) {
-        return { ok: false, error: CANCEL_WINDOW_PASSED };
+        // Only a live, confirmed booking trips this — resolve it for its org's
+        // language (the error path alone pays for the second read).
+        const live = await resolveActionable(parsed.data.token);
+        return publicError(live ? () => getOrgLocale(live.orgId) : null, "cancelWindowPassed");
       }
       console.error("[scheduling] cancelBooking:", error.code || "rpc error");
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return publicError(orgLocale, "generic");
     }
     const row = (data as Array<{
       booking_id: string;
@@ -133,11 +134,13 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
       staff_id: string | null;
       staff_name: string | null;
     }> | null)?.[0];
-    if (!row) return { ok: false, error: NOT_CHANGEABLE };
+    if (!row) return publicError(orgLocale, "notChangeable");
 
     // Everything below is post-RPC: the cancellation is already committed, so
     // nothing here may turn into a failed action. Both of these are safe by
     // construction — whenLineFor is pure, resolveClientStaffName swallows.
+    // The org's language, not the visitor's (spec D4).
+    const mail = await emailTranslators(await getOrgLocale(row.org_id));
     const whenLine = whenLineFor(
       {
         startsAt: new Date(row.starts_at),
@@ -145,6 +148,7 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
         isRental: row.rental_unit_id !== null,
       },
       row.org_timezone,
+      mail.intlLocale,
     );
     const staffName = await resolveClientStaffName(row.org_id, row.staff_name);
 
@@ -153,7 +157,7 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     // skips the other.
     const providerEmail = await getProviderEmail(row.org_id).catch(() => null);
     try {
-      const msg = bookingCancelledEmail({
+      const msg = bookingCancelledEmail(mail.t, {
         orgName: row.org_name,
         serviceName: row.service_name,
         whenLine,
@@ -176,7 +180,7 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     }
     if (providerEmail) {
       try {
-        const notice = providerCancelledEmail({
+        const notice = providerCancelledEmail(mail.t, {
           serviceName: row.service_name,
           whenLine,
           clientName: row.client_name,
@@ -210,24 +214,26 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     return { ok: true };
   } catch (error) {
     console.error("[scheduling] cancelBooking:", error);
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return publicError(orgLocale, "generic");
   }
 }
 
 export async function rescheduleBooking(
   input: unknown,
 ): Promise<{ ok: true; token: string } | { ok: false; error: string; slotTaken?: boolean }> {
-  if (await limited("booking")) return { ok: false, error: TOO_MANY_REQUESTS };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited("booking")) return publicError(orgLocale, "tooManyRequests");
   const parsed = rescheduleBookingInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
   try {
     const booking = await resolveActionable(parsed.data.token);
-    if (!booking) return { ok: false, error: NOT_CHANGEABLE };
+    if (!booking) return publicError(orgLocale, "notChangeable");
+    orgLocale = () => getOrgLocale(booking.orgId);
     // Rentals R1: rental stays are not reschedulable online (reschedule_booking
     // raises for them too — this is the app-side half of that rule). Same for
     // a booking with no staff owner.
     if (booking.serviceId === null || booking.staffId === null) {
-      return { ok: false, error: NOT_CHANGEABLE };
+      return publicError(orgLocale, "notChangeable");
     }
 
     // Engine re-check on the org-local day (createBooking idiom): the
@@ -241,7 +247,7 @@ export async function rescheduleBooking(
       staffId: booking.staffId,
       excludeBookingId: booking.id,
     });
-    if (!ctx) return { ok: false, error: NOT_CHANGEABLE };
+    if (!ctx) return publicError(orgLocale, "notChangeable");
     const [own] = ctx.perStaff;
     const slots = computeSlots({
       service: ctx.service,
@@ -254,7 +260,7 @@ export async function rescheduleBooking(
       days: 1,
     });
     if (!slots.some((s) => s.getTime() === starts.getTime())) {
-      return { ok: false, error: SLOT_TAKEN, slotTaken: true };
+      return publicError(orgLocale, "slotTaken", { slotTaken: true });
     }
 
     const fresh = generateAccessToken();
@@ -266,10 +272,10 @@ export async function rescheduleBooking(
       p_new_token_hash: fresh.tokenHash,
     });
     if (error) {
-      if (error.code === "23P01") return { ok: false, error: SLOT_TAKEN, slotTaken: true };
-      if (isRpcSentinel(error, "too_many")) return { ok: false, error: TOO_MANY_FOR_EMAIL };
+      if (error.code === "23P01") return publicError(orgLocale, "slotTaken", { slotTaken: true });
+      if (isRpcSentinel(error, "too_many")) return publicError(orgLocale, "changedTooOften");
       console.error("[scheduling] rescheduleBooking:", error.code || "rpc error");
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return publicError(orgLocale, "generic");
     }
     const row = (data as Array<{
       new_booking_id: string;
@@ -286,17 +292,18 @@ export async function rescheduleBooking(
       staff_id: string | null;
       staff_name: string | null;
     }> | null)?.[0];
-    if (!row) return { ok: false, error: NOT_CHANGEABLE };
+    if (!row) return publicError(orgLocale, "notChangeable");
 
     // Post-RPC: the move is committed. See cancelBooking — neither of these
     // can throw.
-    const oldWhenLine = formatWhenLine(new Date(row.old_starts_at), row.org_timezone);
-    const whenLine = formatWhenLine(new Date(row.new_starts_at), row.org_timezone);
+    const mail = await emailTranslators(await getOrgLocale(booking.orgId));
+    const oldWhenLine = formatWhenLine(new Date(row.old_starts_at), row.org_timezone, mail.intlLocale);
+    const whenLine = formatWhenLine(new Date(row.new_starts_at), row.org_timezone, mail.intlLocale);
     const staffName = await resolveClientStaffName(row.org_id, row.staff_name);
 
     const providerEmail = await getProviderEmail(row.org_id).catch(() => null);
     try {
-      const msg = bookingRescheduledEmail({
+      const msg = bookingRescheduledEmail(mail.t, {
         orgName: row.org_name,
         serviceName: row.service_name,
         oldWhenLine,
@@ -319,7 +326,7 @@ export async function rescheduleBooking(
     }
     if (providerEmail) {
       try {
-        const notice = providerRescheduledEmail({
+        const notice = providerRescheduledEmail(mail.t, {
           serviceName: row.service_name,
           oldWhenLine,
           whenLine,
@@ -355,6 +362,6 @@ export async function rescheduleBooking(
     return { ok: true, token: fresh.token };
   } catch (error) {
     console.error("[scheduling] rescheduleBooking:", error);
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return publicError(orgLocale, "generic");
   }
 }

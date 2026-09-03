@@ -2,22 +2,25 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { updateOrgModes } from "@/features/orgs/actions";
 import type { OrgMode } from "@/features/orgs/mode";
-import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
 
+/** Each channel's Settings row reads its own namespace (`spaces.settings`,
+    `appointments.settings`) — the one place the channel is named for people. */
 const ROWS = [
-  { key: "offersRentals", ...SPACES.settings },
-  { key: "offersAppointments", ...APPOINTMENTS.settings },
+  { key: "offersRentals", ns: "spaces" },
+  { key: "offersAppointments", ns: "appointments" },
 ] as const;
 
 /* Org-level "what you offer" (Settings → Business). Optimistic: the box flips
    immediately and rolls back on a failed save. The last enabled channel is
    locked — the RPC enforces the same rule as a defence. */
 export function BusinessSettings({ mode }: { mode: OrgMode }) {
+  const t = useTranslations();
   const router = useRouter();
   const [value, setValue] = React.useState<OrgMode>(mode);
   const [pending, startTransition] = React.useTransition();
@@ -34,7 +37,7 @@ export function BusinessSettings({ mode }: { mode: OrgMode }) {
         toast.error(result.error);
         return;
       }
-      toast.success("Saved");
+      toast.success(t("common.saved"));
       router.refresh();
     });
   };
@@ -42,10 +45,8 @@ export function BusinessSettings({ mode }: { mode: OrgMode }) {
   return (
     <div className="bg-card flex flex-col gap-3 rounded-xl border p-4">
       <div>
-        <div className="text-sm font-medium">What you offer</div>
-        <p className="text-muted-foreground text-sm">
-          Turning one off hides it from your booking page and this admin. Existing bookings stay.
-        </p>
+        <div className="text-sm font-medium">{t("settings.business.title")}</div>
+        <p className="text-muted-foreground text-sm">{t("settings.business.blurb")}</p>
       </div>
       <div className="flex flex-col gap-3">
         {ROWS.map((row) => {
@@ -55,9 +56,9 @@ export function BusinessSettings({ mode }: { mode: OrgMode }) {
           return (
             <div key={row.key} className="flex items-center justify-between gap-3">
               <div className="flex flex-col">
-                <Label htmlFor={id}>{row.label}</Label>
+                <Label htmlFor={id}>{t(`${row.ns}.settings.label`)}</Label>
                 <span className="text-muted-foreground text-sm">
-                  {locked ? "Keep at least one booking type on." : row.blurb}
+                  {locked ? t("errors.orgs.keepOne") : t(`${row.ns}.settings.blurb`)}
                 </span>
               </div>
               <Switch

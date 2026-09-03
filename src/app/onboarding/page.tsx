@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { env } from "@/env";
 import { getCurrentOrg, requireUser, type Org } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -19,7 +20,6 @@ import { getSchedulingSettings } from "@/features/orgs/queries";
 import { getBookingOrg } from "@/lib/booking/public";
 import { listPublicCatalog, catalogueHas } from "@/lib/booking/catalog";
 import { resolveChannelPage } from "@/lib/booking/channel-pages";
-import { ONBOARDING } from "@/features/marketing/site";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { OnboardingForm } from "./onboarding-form";
@@ -29,7 +29,7 @@ import { CopyLinkButton, HoursStepForm, ModeStepForm, ServiceStepForm, SpaceStep
 export default async function OnboardingPage({ searchParams }: PageProps<"/onboarding">) {
   const user = await requireUser();
   const org = await getCurrentOrg();
-  const { step: rawStep } = await searchParams;
+  const [{ step: rawStep }, t] = await Promise.all([searchParams, getTranslations("onboarding")]);
 
   let content: React.ReactNode;
   let stepper: React.ReactNode;
@@ -61,7 +61,7 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
       <WizardStepper
         count={steps.length}
         active={steps.indexOf(step)}
-        hrefs={steps.map((s) => ({ href: stepHref(s), label: ONBOARDING.wizard[s].heading }))}
+        hrefs={steps.map((s) => ({ href: stepHref(s), label: t(`wizard.${s}.heading`) }))}
       />
     );
   }
@@ -80,13 +80,13 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
           with the right account?"); the wizard steps drop it. */}
       {!org ? (
         <div className="flex flex-col items-center gap-1 pb-2 text-sm">
-          <p className="text-muted-foreground">Using {user.email}</p>
+          <p className="text-muted-foreground">{t("usingEmail", { email: user.email ?? "" })}</p>
           <form action={signOut}>
             <button
               type="submit"
               className="text-muted-foreground/70 hover:text-foreground rounded-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
             >
-              Use a different account
+              {t("useDifferentAccount")}
             </button>
           </form>
         </div>
@@ -97,7 +97,7 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
 
 async function WizardStepContent({ step, steps, org }: { step: WizardStep; steps: WizardStep[]; org: Org }) {
   const nextHref = nextStepHref(step, steps);
-  const copy = ONBOARDING.wizard[step];
+  const t = await getTranslations("onboarding.wizard");
   // The org's public identity: orgs.handle is the page address (/<handle>);
   // orgs.slug is an internal slug that resolves nowhere public — never share
   // it. Currency rides along for the price placeholders.
@@ -150,10 +150,9 @@ async function WizardStepContent({ step, steps, org }: { step: WizardStep; steps
     body = <ShareStep handle={handle} live={live} />;
   }
 
-  const share = ONBOARDING.wizard.share;
   const heading =
-    step !== "share" ? copy.heading : !handle ? share.noHandle : live ? share.heading : share.almostHeading;
-  const sub = step !== "share" ? copy.sub : !handle ? share.noHandleSub : live ? share.sub : share.almostSub;
+    step !== "share" ? t(`${step}.heading`) : !handle ? t("share.noHandle") : live ? t("share.heading") : t("share.almostHeading");
+  const sub = step !== "share" ? t(`${step}.sub`) : !handle ? t("share.noHandleSub") : live ? t("share.sub") : t("share.almostSub");
   return (
     <div key={step} className="step-enter flex flex-col gap-6">
       <div className="mb-2 text-center">
@@ -165,21 +164,20 @@ async function WizardStepContent({ step, steps, org }: { step: WizardStep; steps
   );
 }
 
-function ShareStep({ handle, live }: { handle: string | null; live: boolean }) {
-  const share = ONBOARDING.wizard.share;
+async function ShareStep({ handle, live }: { handle: string | null; live: boolean }) {
+  const t = await getTranslations("onboarding.wizard.share");
+  const shown = handle ? `${hostLabel(env.NEXT_PUBLIC_APP_URL)}/${handle}` : null;
   return (
     <div className="flex flex-col items-center gap-6">
-      {handle ? (
-        <p className="bg-card w-full rounded-xl border px-4 py-3 text-center font-mono text-sm">
-          {hostLabel(env.NEXT_PUBLIC_APP_URL)}/{handle}
-        </p>
+      {shown ? (
+        <p className="bg-card w-full rounded-xl border px-4 py-3 text-center font-mono text-sm">{shown}</p>
       ) : null}
       {handle && live ? (
         // Live: the link works — copy it and go.
         <div className="flex items-center gap-2">
           <CopyLinkButton url={`${env.NEXT_PUBLIC_APP_URL}/${handle}`} />
           <Link href="/bookings" className={cn(buttonVariants(), "h-11 px-6")}>
-            {share.finish}
+            {t("finish")}
           </Link>
         </div>
       ) : (
@@ -188,10 +186,10 @@ function ShareStep({ handle, live }: { handle: string | null; live: boolean }) {
         // the way there.
         <div className="flex items-center gap-2">
           <Link href="/booking-page" className={cn(buttonVariants(), "h-11 px-6")}>
-            {share.setUpPage}
+            {t("setUpPage")}
           </Link>
           <Link href="/bookings" className={cn(buttonVariants({ variant: "outline" }), "h-11 px-6")}>
-            {share.finish}
+            {t("finish")}
           </Link>
         </div>
       )}

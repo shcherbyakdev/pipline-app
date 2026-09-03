@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   WIDGET_THEME_DEFAULTS, parseWidgetTheme, themeCssVars, contrastRatio, effectiveContrast,
-  hostContrast, resolveLayout, WIDGET_LAYOUT_OPTIONS, resolveStayLayout, STAY_LAYOUT_OPTIONS } from "./widget-theme";
+  hostContrast, resolveLayout, SLOT_LAYOUTS, resolveStayLayout, STAY_LAYOUTS } from "./widget-theme";
 
 describe("parseWidgetTheme", () => {
   it("null → defaults", () => {
@@ -119,13 +119,8 @@ describe("widget layout (widget templates, 2026-09-02)", () => {
     expect(resolveLayout(parseWidgetTheme({}))).toBe("calendar");
     expect(resolveLayout(parseWidgetTheme({ layout: "next-available" }))).toBe("next-available");
   });
-  it("offers the four presentations, calendar first, each with a name and a one-line description", () => {
-    expect(WIDGET_LAYOUT_OPTIONS.map((o) => o.value)).toEqual(["calendar", "week-list", "week-columns", "next-available"]);
-    for (const o of WIDGET_LAYOUT_OPTIONS) {
-      expect(o.label.trim()).toBeTruthy();
-      expect(o.description.trim()).toBeTruthy();
-      expect(`${o.label} ${o.description}`).not.toMatch(/[—–]/);
-    }
+  it("offers the four presentations, calendar first (named in messages: studio.layouts)", () => {
+    expect([...SLOT_LAYOUTS]).toEqual(["calendar", "week-list", "week-columns", "next-available"]);
   });
 });
 
@@ -139,12 +134,7 @@ describe("stays layout (widget templates spec §8)", () => {
     expect(resolveStayLayout(parseWidgetTheme({}))).toBe("one-month");
     expect(resolveStayLayout(parseWidgetTheme({ stayLayout: "next-free" }))).toBe("next-free");
   });
-  it("offers the four stays presentations, one month first, each named and described", () => {
-    expect(STAY_LAYOUT_OPTIONS.map((o) => o.value)).toEqual(["one-month", "two-months", "fields", "next-free"]);
-    for (const o of STAY_LAYOUT_OPTIONS) {
-      expect(o.label.trim()).toBeTruthy();
-      expect(o.description.trim()).toBeTruthy();
-      expect(`${o.label} ${o.description}`).not.toMatch(/[—–]/);
-    }
+  it("offers the four stays presentations, one month first (named in messages: studio.stayLayouts)", () => {
+    expect([...STAY_LAYOUTS]).toEqual(["one-month", "two-months", "fields", "next-free"]);
   });
 });

@@ -12,6 +12,16 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// The action resolves its copy through next-intl's request-scoped
+// getTranslations; under Vitest there is no request, so hand it the shipped
+// English (integration-setup.ts idiom).
+vi.mock("next-intl/server", async () => {
+  const { translatorFor } = await import("@/i18n/test-translator");
+  return {
+    getLocale: async () => "en",
+    getTranslations: async (ns: string) => translatorFor("en", ns as never),
+  };
+});
 vi.mock("@/lib/billing/gates", () => ({ assertCanAddService: async () => null }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
@@ -35,7 +45,11 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import { applyDefaultHours } from "./actions";
-import { GENERIC_WRITE_ERROR, OVERLAP_ERROR } from "./schema";
+import { enTranslator } from "@/i18n/test-translator";
+
+const tErrors = enTranslator("errors");
+const GENERIC_WRITE_ERROR = tErrors("generic");
+const OVERLAP_ERROR = tErrors("availability.overlap");
 
 const STAFF_ID = "11111111-1111-4111-8111-111111111111";
 const SPACE_ID = "22222222-2222-4222-8222-222222222222";

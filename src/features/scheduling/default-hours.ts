@@ -18,10 +18,6 @@ import type { createClient } from "@/lib/supabase/server";
 export const DEFAULT_WEEKDAYS = [1, 2, 3, 4, 5] as const;
 export const DEFAULT_START_TIME = "09:00";
 export const DEFAULT_END_TIME = "17:00";
-/** How the editor's prompt offers the week. Plain 24h rather than
-    formatTime: this renders on the server too, and a locale-formatted label
-    would risk a hydration mismatch. */
-export const DEFAULT_WEEK_LABEL = `Mon–Fri, ${DEFAULT_START_TIME}–${DEFAULT_END_TIME}`;
 
 /** Whose week: a staff member XOR an hours rental offering (0056's XOR
     CHECK). Callers taking user input parse `availabilityOwnerInput` first;

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Logout03Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { navItemsFor, NAV_SECTIONS, NAV_SECTION_LABELS } from "./nav";
@@ -45,6 +46,7 @@ export function SidebarBody({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const t = useTranslations("shell");
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const initial = (org.trim()[0] ?? userEmail[0] ?? "?").toUpperCase();
   const sections = NAV_SECTIONS;
@@ -79,21 +81,21 @@ export function SidebarBody({
           className="bg-card text-muted-foreground hover:text-foreground focus-visible:ring-ring/40 mt-3 flex h-7 w-full items-center gap-2.5 rounded-[8px] border px-2 text-[13px] shadow-(--shadow-lift) transition-colors duration-150 ease-strong outline-none focus-visible:ring-2"
         >
           <HugeiconsIcon icon={Search01Icon} size={14} className="shrink-0" />
-          <span className="flex-1 text-left">Search</span>
+          <span className="flex-1 text-left">{t("search")}</span>
           <kbd className="text-subtle font-mono text-[10px]">⌘K</kbd>
         </button>
       )}
 
-      <nav aria-label="Workspace" className="mt-5 flex flex-col gap-5">
+      <nav aria-label={t("workspace")} className="mt-5 flex flex-col gap-5">
         {sections.map((section) => {
           const items = navItems.filter((i) => i.section === section);
           const label = NAV_SECTION_LABELS[section];
           return (
             <div key={section} className="flex flex-col gap-0.5">
               {label && (
-                <div className="text-subtle flex h-6 items-center px-2.5 text-xs font-medium">{label}</div>
+                <div className="text-subtle flex h-6 items-center px-2.5 text-xs font-medium">{t(`section.${label}`)}</div>
               )}
-              {items.map(({ href, label: text, icon }) => {
+              {items.map(({ href, labelKey, icon }) => {
                 const active = isActive(href);
                 return (
                   <Link
@@ -104,16 +106,14 @@ export function SidebarBody({
                     className={cn(itemClass, active ? activeClass : idleClass)}
                   >
                     <HugeiconsIcon icon={icon} size={14} className={cn("shrink-0", active ? "text-brand-text" : "text-subtle")} />
-                    {text}
+                    {t(`nav.${labelKey}`)}
                     {/* Booking requests waiting. The bare number would be
                         read out as "Overview 3", so the noun rides along
                         for screen readers. */}
                     {href === "/overview" && pendingRequests > 0 ? (
                       <span className="bg-primary/10 text-primary ml-auto rounded-full px-1.5 text-xs font-medium tabular-nums">
                         {pendingRequests}
-                        <span className="sr-only">
-                          {pendingRequests === 1 ? " request waiting" : " requests waiting"}
-                        </span>
+                        <span className="sr-only">{t("requestsWaiting", { count: pendingRequests })}</span>
                       </span>
                     ) : null}
                   </Link>
@@ -137,7 +137,7 @@ export function SidebarBody({
             className="text-muted-foreground hover:bg-sidebar-accent hover:text-foreground focus-visible:ring-ring/40 flex h-7 w-full items-center gap-2 rounded-[8px] px-2 text-xs transition-colors duration-150 ease-strong outline-none focus-visible:ring-2"
           >
             <HugeiconsIcon icon={Logout03Icon} size={15} className="text-subtle" />
-            Sign out
+            {t("signOut")}
           </button>
         </form>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import type { HeatmapDay } from "@/features/scheduling/stats";
 import { cn } from "@/lib/utils";
 import { CELL, HEAT_LEVELS, PENDING_FILL, PENDING_RING, TODAY_OUTLINE } from "./heatmap-cells";
@@ -9,11 +10,15 @@ export function YearGrid({
   weeks,
   todayISO,
   summary,
+  intlLocale,
 }: {
   weeks: HeatmapDay[][];
   todayISO: string;
   summary: string;
+  /** INTL_LOCALES[locale] — the page resolves it once. */
+  intlLocale: string;
 }) {
+  const t = useTranslations("overview");
   const gridRef = React.useRef<HTMLDivElement>(null);
   const tipRef = React.useRef<HTMLDivElement>(null);
 
@@ -48,13 +53,18 @@ export function YearGrid({
     tip.style.top = `${r.top - 6}px`;
   }
 
-  const dayFmt = new Intl.DateTimeFormat("en", {
+  const dayFmt = new Intl.DateTimeFormat(intlLocale, {
     weekday: "short",
     month: "short",
     day: "numeric",
     timeZone: "UTC",
   });
-  const monthFmt = new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" });
+  const monthFmt = new Intl.DateTimeFormat(intlLocale, { month: "short", timeZone: "UTC" });
+  const weekdayFmt = new Intl.DateTimeFormat(intlLocale, { weekday: "short", timeZone: "UTC" });
+  // Row labels for Mon / Wed / Fri (2026-08-03 is a Monday); blank between.
+  const rowLabels = [0, 1, 2, 3, 4, 5, 6].map((i) =>
+    i % 2 === 0 && i < 6 ? weekdayFmt.format(new Date(Date.UTC(2026, 7, 3 + i, 12))) : "",
+  );
   // Month label above the column where a new month starts (judged by each
   // column's first in-year day, so the padded first column still reads "Jan").
   const firstDates = weeks.map((week) => week.find((d) => d !== null)?.date ?? "");
@@ -78,7 +88,7 @@ export function YearGrid({
         onMouseLeave={() => tipRef.current && (tipRef.current.hidden = true)}
       >
         <div className="text-subtle mt-[16px] mr-1 flex flex-col gap-[2px] text-[10px] leading-[13px]">
-          {["Mon", "", "Wed", "", "Fri", "", ""].map((d, i) => (
+          {rowLabels.map((d, i) => (
             <span key={i} className="h-[13px]">
               {d}
             </span>
@@ -99,8 +109,8 @@ export function YearGrid({
                   key={day.date}
                   title={[
                     dayFmt.format(new Date(`${day.date}T12:00:00Z`)),
-                    `${day.confirmed} ${day.confirmed === 1 ? "appointment" : "appointments"}`,
-                    day.pending > 0 ? `${day.pending} pending` : null,
+                    t("appointmentCount", { count: day.confirmed }),
+                    day.pending > 0 ? t("pendingCount", { count: day.pending }) : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}

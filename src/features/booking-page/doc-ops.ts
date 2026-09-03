@@ -1,8 +1,12 @@
 // Pure operations on a page document. Everything the studio and the public
 // renderer decide lives here so it can be unit-tested without React
 // (bookable.ts doctrine).
-import { PAGE_LIMITS, SINGLE_INSTANCE_TYPES, type PageDocument, type Section, type SectionType } from "./schema";
-import { newSection, SECTION_META } from "./defaults";
+import type { Translator } from "@/i18n/translator";
+import { PAGE_LIMITS, SINGLE_INSTANCE_TYPES, type IssueKey, type PageDocument, type Section, type SectionType } from "./schema";
+import { newSection, type SectionSeed } from "./defaults";
+
+/** The studio's words (`studio.*`) — every line a helper here composes. */
+export type StudioT = Translator<"studio">;
 
 export type EmptyContext = { serviceCount: number; staffCount: number; offeringCount: number };
 
@@ -45,19 +49,22 @@ export function emptyVisibleSections(doc: PageDocument, ctx: EmptyContext): Sect
   return doc.sections.filter((s) => !s.hidden && isSectionEmpty(s, ctx));
 }
 
-export function canAddSection(doc: PageDocument, type: SectionType): { ok: true } | { ok: false; reason: string } {
+export function canAddSection(doc: PageDocument, type: SectionType, t: StudioT): { ok: true } | { ok: false; reason: string } {
   if (doc.sections.length >= PAGE_LIMITS.sections) {
-    return { ok: false, reason: `Pages hold at most ${PAGE_LIMITS.sections} sections.` };
+    return { ok: false, reason: t("addRefused.max", { max: PAGE_LIMITS.sections }) };
   }
   if (SINGLE_INSTANCE_TYPES.has(type) && doc.sections.some((s) => s.type === type)) {
-    return { ok: false, reason: "Already on the page." };
+    return { ok: false, reason: t("addRefused.alreadyOn") };
   }
   return { ok: true };
 }
 
-/** Insert after `afterId` (or at the end). Returns the new doc and the new section's id. */
-export function insertSection(doc: PageDocument, type: SectionType, afterId: string | null, id?: string): { doc: PageDocument; id: string } {
-  const section = newSection(type, id);
+/** Insert after `afterId` (or at the end), seeded in the org's language.
+    Returns the new doc and the new section's id. */
+export function insertSection(
+  doc: PageDocument, type: SectionType, afterId: string | null, seed: SectionSeed, id?: string,
+): { doc: PageDocument; id: string } {
+  const section = newSection(type, id, seed);
   const at = afterId ? doc.sections.findIndex((s) => s.id === afterId) : -1;
   const sections = [...doc.sections];
   sections.splice(at === -1 ? sections.length : at + 1, 0, section);
@@ -92,22 +99,22 @@ export function setSectionHidden(doc: PageDocument, id: string, hidden: boolean)
 }
 
 /** One line under the type label in the sections list. */
-export function sectionSummary(section: Section): string {
+export function sectionSummary(section: Section, t: StudioT): string {
   const one = (s: string, fallback: string) => (s.trim() ? s.trim() : fallback);
-  const n = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
+  const style = (s: "list" | "cards") => (s === "cards" ? t("forms.cards") : t("forms.list"));
   switch (section.type) {
-    case "header": return one(section.tagline, "Logo and name");
-    case "hero": return one(section.headline, "No headline yet");
-    case "about": return one(section.title, one(section.body.split("\n")[0] ?? "", "Nothing written yet"));
-    case "services": return section.style === "cards" ? "Cards" : "List";
-    case "staff": return "Bookable team members";
-    case "spaces": return section.style === "cards" ? "Cards" : "List";
-    case "gallery": return n(section.images.length, "image");
-    case "testimonials": return n(section.items.filter((i) => i.quote.trim()).length, "quote");
-    case "faq": return n(section.items.filter((i) => i.q.trim()).length, "question");
-    case "links": return n(section.items.filter((i) => i.label.trim() && i.url.trim()).length, "link");
-    case "location": return one(section.address.split("\n")[0] ?? "", "No address yet");
-    case "booking": return one(section.title, SECTION_META.booking.description);
+    case "header": return one(section.tagline, t("summary.header"));
+    case "hero": return one(section.headline, t("summary.noHeadline"));
+    case "about": return one(section.title, one(section.body.split("\n")[0] ?? "", t("summary.nothingWritten")));
+    case "services": return style(section.style);
+    case "staff": return t("summary.staff");
+    case "spaces": return style(section.style);
+    case "gallery": return t("summary.images", { count: section.images.length });
+    case "testimonials": return t("summary.quotes", { count: section.items.filter((i) => i.quote.trim()).length });
+    case "faq": return t("summary.questions", { count: section.items.filter((i) => i.q.trim()).length });
+    case "links": return t("summary.links", { count: section.items.filter((i) => i.label.trim() && i.url.trim()).length });
+    case "location": return one(section.address.split("\n")[0] ?? "", t("summary.noAddress"));
+    case "booking": return one(section.title, t("sections.booking.description"));
   }
 }
 
@@ -134,12 +141,32 @@ export function hasUnpublishedChanges(draft: PageDocument, published: PageDocume
   return published === null || !deepEqual(draft, published);
 }
 
+/** A schema issue's message is a `studio.issues` key (schema.ts), possibly
+    "onlyOne:<type>"; anything else (zod's own wording for a limit the UI
+    prevents anyway) passes through. */
+export function issueMessage(raw: string, t: StudioT): string {
+  const [key, arg] = raw.split(":") as [IssueKey, string | undefined];
+  switch (key) {
+    case "onlyOne": return t("issues.onlyOne", { section: t(`sections.${arg as SectionType}.label`) });
+    case "tooManyImages": return t("issues.tooManyImages", { max: PAGE_LIMITS.images });
+    case "httpsLink":
+    case "httpsOnly":
+    case "oneBooking":
+    case "onePhotoPerSpace":
+    case "uniqueIds":
+      return t(`issues.${key}`);
+    default: return raw;
+  }
+}
+
 /** zod issues keyed by section id → relative field path ("headline",
-    "items.2.url"); page-level issues under "". First message per field wins. */
+    "items.2.url"); page-level issues under "". First message per field
+    wins, already in the admin's words. */
 export type IssueMap = Record<string, Record<string, string>>;
 export function issuesBySection(
   doc: PageDocument,
   issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>,
+  t: StudioT,
 ): IssueMap {
   const out: IssueMap = {};
   for (const issue of issues) {
@@ -148,7 +175,7 @@ export function issuesBySection(
     const key = section ? section.id : "";
     const field = section ? rest.map(String).join(".") : issue.path.map(String).join(".");
     const bucket = (out[key] ??= {});
-    bucket[field] ??= issue.message;
+    bucket[field] ??= issueMessage(issue.message, t);
   }
   return out;
 }

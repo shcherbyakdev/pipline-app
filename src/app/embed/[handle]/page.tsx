@@ -14,6 +14,9 @@ import { WidgetTheme } from "@/components/widget-theme";
 import { parseWidgetTheme, resolveLayout, resolveStayLayout } from "@/lib/widget-theme";
 import { EmbedResizeReporter } from "@/features/scheduling/components/embed-resize-reporter";
 import { PoweredBy } from "@/components/powered-by";
+import { setRequestLocale } from "next-intl/server";
+import { publicLocale } from "@/i18n/public";
+import { PublicIntl } from "@/i18n/public-provider";
 
 export default async function EmbedPage({ params, searchParams }: PageProps<"/embed/[handle]">) {
   const { handle: requestedHandle } = await params;
@@ -39,6 +42,10 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
   ]);
   if (offering.services.length === 0 && offerings.length === 0) notFound();
   const sp = await searchParams;
+  // The snippet's language: `?lang=` on the iframe src, the visitor's
+  // region, else the org's own setting (spec §4 + region detection).
+  const locale = await publicLocale(org.locale, sp);
+  setRequestLocale(locale);
   // ONE channel, always (2026-09-02 ruling — the hosted pages are one
   // channel each): `?channel=` when it has something bookable, else the
   // front door. Decided first (spec §5): the pin below only sees the channel
@@ -84,14 +91,15 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
   );
   const theme = parseWidgetTheme(branding.themeRaw);
   return (
-    // No min-h-dvh here: `dvh` resolves against the IFRAME's own viewport,
+    <PublicIntl locale={locale} timeZone={org.timeZone}>
+    {/* No min-h-dvh here: `dvh` resolves against the IFRAME's own viewport,
     // which is whatever height embed.js last set — so it floors
     // body.offsetHeight at the current iframe height and neutralizes the
     // shrink fix in EmbedResizeReporter (a booking growing then shrinking
     // could never report a smaller height). Once embed.js sizes the iframe
     // to exactly body.offsetHeight, this wrapper fills the iframe on its
     // own; the moment before the first resize message is covered by the
-    // transparent html/body background in embed/layout.tsx instead.
+    // transparent html/body background in embed/layout.tsx instead. */}
     <WidgetTheme
       config={theme}
       accentColor={branding.accentColor}
@@ -123,5 +131,6 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
           effect on a plan that allows it (spec §5). */}
       {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}
     </WidgetTheme>
+    </PublicIntl>
   );
 }

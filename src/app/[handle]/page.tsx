@@ -6,21 +6,28 @@ import { listPublicCatalog, catalogueHas } from "@/lib/booking/catalog";
 import { resolveChannelPage, rootRedirect, type Has } from "@/lib/booking/channel-pages";
 import { env } from "@/env";
 import { getPublishedPage } from "@/features/booking-page/queries";
-import { pageMetadata } from "@/features/booking-page/metadata";
+import { metaDescription, pageMetadata } from "@/features/booking-page/metadata";
 import { renderChannelPage } from "@/features/booking-page/render/channel-page";
 import { HANDLE_RE } from "@/features/scheduling/handle";
+import { langParam, publicLocale, withLang } from "@/i18n/public";
 
 // The root page: appointments when a service is bookable, else spaces
 // (spec 2026-08-28 §3.1). listPublicCatalog is memoised per request, so
 // generateMetadata and the page resolve the same channel from one read.
-export async function generateMetadata({ params }: PageProps<"/[handle]">): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps<"/[handle]">): Promise<Metadata> {
   const { handle } = await params;
   if (!HANDLE_RE.test(handle)) return {};
   const org = await getBookingOrg(handle);
   if (!org) return {};
   const page = resolveChannelPage("root", catalogueHas(await listPublicCatalog(org)));
   if (!page) return {};
-  return pageMetadata(await getPublishedPage(org.orgId, page.channel), org, env.NEXT_PUBLIC_SUPABASE_URL, page.channel);
+  const locale = await publicLocale(org.locale, await searchParams);
+  return pageMetadata(
+    await getPublishedPage(org.orgId, page.channel),
+    org,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    await metaDescription(locale, page.channel, org.orgName),
+  );
 }
 
 export default async function BookPage({ params, searchParams }: PageProps<"/[handle]">) {
@@ -50,6 +57,6 @@ export default async function BookPage({ params, searchParams }: PageProps<"/[ha
   // or a pre-branch `?space=<id>` link — now means the spaces page (spec
   // 2026-08-28 §3.2). Temporary: it depends on data.
   const to = rootRedirect(handle, page, has, sp);
-  if (to) redirect(to);
+  if (to) redirect(withLang(to, langParam(sp)));
   return renderChannelPage({ org, handle, page, catalogue, searchParams: sp });
 }

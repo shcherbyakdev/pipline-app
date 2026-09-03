@@ -1,7 +1,9 @@
 "use client";
 
+import type { Locale } from "@/i18n/config";
 import Link from "next/link";
 import * as React from "react";
+import { NextIntlClientProvider, useTranslations, type AbstractIntlMessages } from "next-intl";
 import { toast } from "sonner";
 import { updateSurfaceTheme } from "@/features/orgs/actions";
 import { resolveLayout, resolveStayLayout, type WidgetThemeConfig } from "@/lib/widget-theme";
@@ -16,14 +18,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SettingsCard } from "@/components/settings-row";
 import { cn } from "@/lib/utils";
-import { embedSnippet } from "./widget-embed-snippet";
+import { embedSnippet, type EmbedTitles } from "./widget-embed-snippet";
 import { applyChannel, type Channel } from "@/lib/booking/channel";
 import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
-import { SPACES } from "@/features/orgs/vocab";
 import { PREVIEW_AVAILABILITY } from "@/features/rentals/preview-availability";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 
 export function WidgetAppearance({
+  previewIntl,
+  orgTimeZone,
   initial,
   accentColor,
   handle,
@@ -32,11 +35,16 @@ export function WidgetAppearance({
   previewServices,
   previewOfferings,
   mode,
+  titles,
   staffOptions = [],
   initialStaffSlug = null,
   canHideBadge = true,
   upgradeHref = null,
 }: {
+  /** The org's language and the public messages in it: the preview shows
+      what a client sees, like the studio's (booking-page/page.tsx). */
+  previewIntl: { locale: Locale; messages: AbstractIntlMessages };
+  orgTimeZone: string;
   initial: WidgetThemeConfig;
   accentColor: string | null;
   handle: string | null;
@@ -49,6 +57,8 @@ export function WidgetAppearance({
   /** Effective mode — names the iframe (embedTitle) so a space owner's site
       doesn't announce "Book an appointment". */
   mode: OrgMode;
+  /** The iframe titles in the org's language (public.embedTitle.*). */
+  titles: EmbedTitles;
   // Only passed when the org has more than one active team member — a solo
   // provider never sees a "Book with" choice they can't make.
   staffOptions?: Array<{ slug: string; name: string }>;
@@ -62,6 +72,9 @@ export function WidgetAppearance({
       the disabled toggle and its chip both lead there. null = no door. */
   upgradeHref?: string | null;
 }) {
+  const t = useTranslations("embed");
+  const tShell = useTranslations("shell");
+  const tc = useTranslations("common");
   const [config, setConfig] = React.useState<WidgetThemeConfig>(initial);
   const [pending, startTransition] = React.useTransition();
   // "" = the whole team (the org-wide flow, byte-identical to the old snippet).
@@ -72,7 +85,7 @@ export function WidgetAppearance({
   const both = mode.offersAppointments && mode.offersRentals;
   const [channel, setChannel] = React.useState<Channel>(mode.offersAppointments ? "services" : "spaces");
   const target = channel === "services" && staffSlug ? { staff: staffSlug } : both ? { channel } : null;
-  const snippet = handle ? embedSnippet(appUrl, handle, target, mode) : "";
+  const snippet = handle ? embedSnippet(appUrl, handle, target, mode, titles) : "";
   const previewCatalog = applyChannel(
     { services: previewServices, staff: [] as never[], serviceStaffIds: {}, offerings: previewOfferings },
     both ? channel : null,
@@ -91,7 +104,7 @@ export function WidgetAppearance({
     startTransition(async () => {
       const result = await updateSurfaceTheme({ surface: "embed", theme: config });
       if (!result.ok) toast.error(result.error);
-      else toast.success("Widget appearance saved");
+      else toast.success(t("saved"));
     });
   };
 
@@ -101,9 +114,9 @@ export function WidgetAppearance({
     if (!handle) return;
     try {
       await navigator.clipboard.writeText(snippet);
-      toast.success("Copied");
+      toast.success(t("copied"));
     } catch {
-      toast.error("Couldn't copy — select the snippet and copy manually.");
+      toast.error(t("copyRefused"));
     }
   };
 
@@ -116,10 +129,10 @@ export function WidgetAppearance({
           styling below is the refinement, not the point. */}
       {handle ? (
         <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm font-medium">Embed snippet</p>
+          <p className="text-muted-foreground text-sm font-medium">{t("snippet")}</p>
           {both ? (
-            <div role="radiogroup" aria-label="Which widget" className={cn(SEGMENTED_NAV_CLASS, "w-fit")}>
-              {([["services", "Appointments"], ["spaces", SPACES.widgetGroup]] as const).map(([value, label]) => (
+            <div role="radiogroup" aria-label={t("whichWidget")} className={cn(SEGMENTED_NAV_CLASS, "w-fit")}>
+              {([["services", t("channelAppointments")], ["spaces", tShell("nav.spaces")]] as const).map(([value, label]) => (
                 <button key={value} type="button" role="radio" aria-checked={channel === value} onClick={() => setChannel(value)} className={segmentedItemClass(channel === value)}>
                   {label}
                 </button>
@@ -129,7 +142,7 @@ export function WidgetAppearance({
           {staffOptions.length > 0 && channel === "services" ? (
             <div className="flex items-center gap-2">
               <Label htmlFor="wt-staff" className="text-xs font-medium">
-                Book with
+                {t("bookWith")}
               </Label>
               <select
                 id="wt-staff"
@@ -137,7 +150,7 @@ export function WidgetAppearance({
                 value={staffSlug}
                 onChange={(e) => setStaffSlug(e.target.value)}
               >
-                <option value="">Whole team</option>
+                <option value="">{t("wholeTeam")}</option>
                 {staffOptions.map((s) => (
                   <option key={s.slug} value={s.slug}>
                     {s.name}
@@ -145,9 +158,7 @@ export function WidgetAppearance({
                 ))}
               </select>
               <span className="text-muted-foreground text-xs">
-                {staffSlug
-                  ? "This snippet books that person only."
-                  : "Clients pick who they book."}
+                {staffSlug ? t("staffOnly") : t("clientsPick")}
               </span>
             </div>
           ) : null}
@@ -156,30 +167,32 @@ export function WidgetAppearance({
           </pre>
           <div>
             <Button variant="outline" size="sm" onClick={copySnippet}>
-              Copy
+              {t("copy")}
             </Button>
           </div>
         </div>
       ) : (
         <p className="text-muted-foreground text-sm">
-          Set a booking page address on{" "}
-          <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
-            Booking page
-          </Link>{" "}
-          to get your embed code.
+          {t.rich("noHandle", {
+            link: (chunks) => (
+              <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
       )}
       {/* Controls stay a narrow column; the preview gets the room, since
           judging the widget in context is the point of this page. */}
       <div className="grid gap-8 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
         <SettingsCard
-          title="Widget style"
-          description="The widget on your own site. The booking page has its own style."
+          title={t("style.title")}
+          description={t("style.description")}
           footer={
             <>
-              {dirty ? <span className="text-muted-foreground mr-auto text-xs">Unsaved changes</span> : null}
+              {dirty ? <span className="text-muted-foreground mr-auto text-xs">{tc("unsavedChanges")}</span> : null}
               <Button size="sm" onClick={save} disabled={pending || contrastBlocked || !dirty}>
-                {pending ? "Saving…" : "Save"}
+                {pending ? tc("saving") : tc("save")}
               </Button>
             </>
           }
@@ -198,6 +211,10 @@ export function WidgetAppearance({
             sits above it), so the offset is just the content padding. */}
         <div className="lg:sticky lg:top-6 lg:self-start">
           <EmbedPreviewFrame config={previewConfig} accentColor={accentColor}>
+            {/* Only the widget speaks the org's language; the frame around it
+                is admin chrome and keeps the admin's messages. */}
+            <NextIntlClientProvider locale={previewIntl.locale} messages={previewIntl.messages} timeZone={orgTimeZone}>
+            <div lang={previewIntl.locale} className="contents">
             <BookingWidget
               handle="preview"
               orgTimeZone="UTC"
@@ -208,6 +225,8 @@ export function WidgetAppearance({
               offerings={previewCatalog.offerings}
               preview={{ slots: PREVIEW_SLOTS, availability: PREVIEW_AVAILABILITY }}
             />
+            </div>
+            </NextIntlClientProvider>
           </EmbedPreviewFrame>
         </div>
       </div>

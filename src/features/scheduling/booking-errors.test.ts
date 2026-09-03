@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { slotLostMessage, SLOT_TAKEN, STAFF_UNAVAILABLE } from "./booking-errors";
+import en from "../../../messages/en.json";
 
 // The regression this guards: the widget sends a NAMED staff id even in a solo
 // org (so the RPC does its strict check), so `staffId !== "any"` on its own is
@@ -21,5 +22,10 @@ describe("slotLostMessage", () => {
   it('"any" is never about one person, whatever the count', () => {
     expect(slotLostMessage("any", 1)).toBe(SLOT_TAKEN);
     expect(slotLostMessage("any", 5)).toBe(SLOT_TAKEN);
+  });
+
+  it("both outcomes are keys under errors.* (resolved in the page's locale by the action)", () => {
+    expect(en.errors[SLOT_TAKEN]).toBeTruthy();
+    expect(en.errors[STAFF_UNAVAILABLE]).toBeTruthy();
   });
 });

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { enTranslator } from "@/i18n/test-translator";
 import {
   isHourlyOffering,
   durationOptions,
@@ -134,7 +135,7 @@ describe("unionUnitSlots", () => {
 });
 
 describe("formatDurationLabel", () => {
-  it("90 -> '1 h 30 min'", () => expect(formatDurationLabel(90)).toBe("1 h 30 min"));
-  it("60 -> '1 h'", () => expect(formatDurationLabel(60)).toBe("1 h"));
-  it("45 -> '45 min'", () => expect(formatDurationLabel(45)).toBe("45 min"));
+  it("90 -> '1 h 30 min'", () => expect(formatDurationLabel(90, enTranslator("public.units"))).toBe("1 h 30 min"));
+  it("60 -> '1 h'", () => expect(formatDurationLabel(60, enTranslator("public.units"))).toBe("1 h"));
+  it("45 -> '45 min'", () => expect(formatDurationLabel(45, enTranslator("public.units"))).toBe("45 min"));
 });

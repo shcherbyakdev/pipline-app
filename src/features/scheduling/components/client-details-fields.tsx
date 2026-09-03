@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,14 +16,15 @@ export function ClientDetailsFields({
   emailOptional?: boolean;
   idPrefix?: string;
 }) {
+  const t = useTranslations("public.details");
   return (
     <>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${idPrefix}name`}>Name</Label>
+        <Label htmlFor={`${idPrefix}name`}>{t("name")}</Label>
         <Input id={`${idPrefix}name`} name="name" required maxLength={200} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${idPrefix}email`}>Email{emailOptional ? " (optional)" : ""}</Label>
+        <Label htmlFor={`${idPrefix}email`}>{emailOptional ? t("emailOptional") : t("email")}</Label>
         <Input
           id={`${idPrefix}email`}
           name="email"
@@ -32,7 +34,7 @@ export function ClientDetailsFields({
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${idPrefix}note`}>Note (optional)</Label>
+        <Label htmlFor={`${idPrefix}note`}>{t("note")}</Label>
         <Textarea id={`${idPrefix}note`} name="note" maxLength={2000} rows={3} />
       </div>
     </>

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { flushSync } from "react-dom";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicService, PublicStaff } from "@/lib/booking/public";
 import { getSlots, createBooking } from "@/features/scheduling/public-actions";
@@ -15,7 +16,7 @@ import { StaffSwitch } from "@/features/scheduling/components/staff-switch";
 import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
 import { HourlyBookingFlow } from "@/features/rentals/components/hourly-booking-flow";
 import { formatOfferingPrice, stayHint } from "@/features/rentals/pricing";
-import { SPACES } from "@/features/orgs/vocab";
+import { INTL_LOCALES } from "@/i18n/config";
 
 // The VIEWER's local date (audit 2026-08-24: the UTC date sent a far-west
 // evening visitor one day ahead, hiding the rest of their own today with no
@@ -26,8 +27,6 @@ const viewerDay = (iso: string) => viewerDayFmt.format(new Date(iso));
 function todayISO(): string {
   return viewerDayFmt.format(new Date());
 }
-
-const NONE_IN_FIRST_LOOK = "No free times in the next four weeks — try later dates.";
 
 export function BookingWidget({
   handle,
@@ -80,6 +79,9 @@ export function BookingWidget({
   /** How a stay is picked — the stays template (spec §8). */
   stayLayout?: StayLayout;
 }) {
+  const t = useTranslations("public.widget");
+  const tu = useTranslations("public.units");
+  const intl = INTL_LOCALES[useLocale()];
   // Who can take this service. Declared before the state below because the
   // lazy initialiser for `staffChoice` has to answer the same question for an
   // auto-selected service.
@@ -196,11 +198,11 @@ export function BookingWidget({
     }
   }
 
-  // Used by the confirmation step below once a slot is picked. TimeSlotGrid
-  // needs the same formatting but keeps its own copies — intentionally
-  // duplicated, not shared, across the component boundary.
-  const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
-  const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
+  // Used by the confirmation step below once a slot is picked (day and time
+  // in one formatter so the locale supplies the joiner). TimeSlotGrid needs
+  // similar formatting but keeps its own copies — intentionally duplicated,
+  // not shared, across the component boundary.
+  const whenFmt = new Intl.DateTimeFormat(intl, { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
   const loadSlots = React.useCallback(
     (svc: PublicService, w: SlotWindow, staffId: string, firstLook: boolean) => {
@@ -323,7 +325,7 @@ export function BookingWidget({
   const withLabel = lockedStaff
     ? lockedStaff.name
     : service && canChooseStaff(service)
-      ? (staffChoice === "any" ? "Anyone" : (chosenStaff?.name ?? null))
+      ? (staffChoice === "any" ? t("anyone") : (chosenStaff?.name ?? null))
       : null;
   // What the widget itself lists; a channel the page's own section lists is
   // only ever picked there, so "change" makes sense only while something is
@@ -334,11 +336,11 @@ export function BookingWidget({
   const deferredOfferings = !listOfferings && offerings.length > 0;
   const prompt =
     deferredServices && deferredOfferings
-      ? "Choose a service or space to see available times."
+      ? t("promptBoth")
       : deferredServices
-        ? "Choose a service to see available times."
+        ? t("promptServices")
         : deferredOfferings && !showServices
-          ? "Choose a space to see its availability."
+          ? t("promptSpaces")
           : null;
   const canChangeService = services.length + offerings.length > 1 && (showServices || showOfferings);
   const changeService = () => {
@@ -356,11 +358,11 @@ export function BookingWidget({
       {lockedStaff ? (
         // "with X" only when the person is fixed by the link the visitor
         // followed; a pick of their own shows on the switch.
-        <span className="text-muted-foreground"> with {lockedStaff.name}</span>
+        <span className="text-muted-foreground">{" "}{t("with", { name: lockedStaff.name })}</span>
       ) : null}{" "}
       {canChangeService ? (
         <button type="button" className="text-muted-foreground underline" onClick={changeService}>
-          change
+          {t("change")}
         </button>
       ) : null}
     </p>
@@ -385,7 +387,7 @@ export function BookingWidget({
             <div className="flex flex-col gap-2">
               {/* Headings only when there is something to tell apart. */}
               {showOfferings ? (
-                <h2 className="text-muted-foreground text-sm font-medium">Appointments</h2>
+                <h2 className="text-muted-foreground text-sm font-medium">{t("appointments")}</h2>
               ) : null}
               <ul className="flex flex-col gap-2">
                 {services.map((s) => (
@@ -414,7 +416,7 @@ export function BookingWidget({
                         ) : null}
                       </span>
                       <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                        {s.durationMin} min{s.priceLabel ? ` · ${s.priceLabel}` : ""}
+                        {tu("minutes", { count: s.durationMin })}{s.priceLabel ? ` · ${s.priceLabel}` : ""}
                       </span>
                     </button>
                   </li>
@@ -425,7 +427,7 @@ export function BookingWidget({
           {showOfferings ? (
             <div className="flex flex-col gap-2">
               {showServices ? (
-                <h2 className="text-muted-foreground text-sm font-medium">{SPACES.widgetGroup}</h2>
+                <h2 className="text-muted-foreground text-sm font-medium">{t("spaces")}</h2>
               ) : null}
               <ul className="flex flex-col gap-2">
                 {offerings.map((o) => (
@@ -449,7 +451,7 @@ export function BookingWidget({
                         ) : null}
                       </span>
                       <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                        {[formatOfferingPrice(o, currency), stayHint(o)].filter(Boolean).join(" · ")}
+                        {[formatOfferingPrice(o, currency, tu), stayHint(o, tu)].filter(Boolean).join(" · ")}
                       </span>
                     </button>
                   </li>
@@ -470,7 +472,7 @@ export function BookingWidget({
             regionRef={slotsRegionRef}
             headerSlot={header}
             toolbar={toolbar}
-            emptyHint={firstLookEmpty ? NONE_IN_FIRST_LOOK : undefined}
+            emptyHint={firstLookEmpty ? t("noneInFirstLook") : undefined}
             onNavigate={(next) => {
               setWin(next);
               setNavigated(true);
@@ -484,28 +486,27 @@ export function BookingWidget({
             <span className="font-medium">{service.name}</span>
             {/* "with Anna" only when the person is fixed by the link — "with
                 Anyone" would be nonsense — else "· X" for the visitor's own pick. */}
-            {withLabel ? `${lockedStaff ? " with " : " · "}${withLabel}` : ""} —{" "}
-            {dayFmt.format(new Date(slot))},{" "}
-            {timeFmt.format(new Date(slot))}
+            {withLabel ? (lockedStaff ? ` ${t("with", { name: withLabel })}` : ` · ${withLabel}`) : ""} —{" "}
+            {whenFmt.format(new Date(slot))}
             {/* What they're committing to, restated at the moment of
                 commitment: length and price, when the service names one. */}
             <span className="text-muted-foreground">
               {" · "}
-              {service.durationMin} min{service.priceLabel ? ` · ${service.priceLabel}` : ""}
+              {tu("minutes", { count: service.durationMin })}{service.priceLabel ? ` · ${service.priceLabel}` : ""}
             </span>{" "}
             <button type="button" className="text-muted-foreground underline" onClick={() => setSlot(null)}>
-              change
+              {t("change")}
             </button>
           </p>
           <ClientDetailsFields />
           <Button type="submit" className="wt-primary" disabled={pending || !!preview}>
             {preview
-              ? "Preview"
+              ? t("preview")
               : pending
-                ? "Sending…"
+                ? t("sending")
                 : service.requiresApproval
-                  ? "Request to book"
-                  : "Confirm booking"}
+                  ? t("requestToBook")
+                  : t("confirmBooking")}
           </Button>
         </form>
       )}

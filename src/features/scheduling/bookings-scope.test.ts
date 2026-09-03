@@ -11,8 +11,13 @@ import {
   scopeHoursOwners,
   scopedSpace,
   type Scope,
+  type ScopeText,
 } from "./bookings-scope";
 import type { AdminBooking } from "@/features/scheduling/queries";
+
+// The module hands the UI names, message keys and counts (i18n Wave 3);
+// the tests read them the way the trigger would in English.
+const text = (x: ScopeText) => ("name" in x ? x.name : "count" in x ? `${x.count} selected` : x.key);
 
 const anna = { id: "11111111-1111-4111-8111-111111111111", name: "Anna", color: "#c00" };
 const ben = { id: "22222222-2222-4222-8222-222222222222", name: "Ben", color: "#0c0" };
@@ -102,22 +107,22 @@ describe("scopeQuery (what the week arrows, Today and the switcher carry)", () =
 
 describe("scopeLabel (what the trigger reads)", () => {
   it("names one thing, counts several", () => {
-    expect(scopeLabel(ALL, people, spaces)).toBe("All bookings");
-    expect(scopeLabel(some("all", []), people, spaces)).toBe("Appointments");
-    expect(scopeLabel(some([ben.id], []), people, spaces)).toBe("Ben");
-    expect(scopeLabel(some([], "all"), people, spaces)).toBe("Spaces");
-    expect(scopeLabel(some([], [studio.id]), people, spaces)).toBe("Studio A");
-    expect(scopeLabel(some([anna.id, ben.id], []), [anna, ben, cy], spaces)).toBe("2 selected");
-    expect(scopeLabel(some([anna.id], [studio.id]), people, spaces)).toBe("2 selected");
-    expect(scopeLabel(some("all", [studio.id]), people, spaces)).toBe("2 selected");
+    expect(text(scopeLabel(ALL, people, spaces))).toBe("bookings.scope.all");
+    expect(text(scopeLabel(some("all", []), people, spaces))).toBe("appointments.scope.group");
+    expect(text(scopeLabel(some([ben.id], []), people, spaces))).toBe("Ben");
+    expect(text(scopeLabel(some([], "all"), people, spaces))).toBe("spaces.scope.group");
+    expect(text(scopeLabel(some([], [studio.id]), people, spaces))).toBe("Studio A");
+    expect(text(scopeLabel(some([anna.id, ben.id], []), [anna, ben, cy], spaces))).toBe("2 selected");
+    expect(text(scopeLabel(some([anna.id], [studio.id]), people, spaces))).toBe("2 selected");
+    expect(text(scopeLabel(some("all", [studio.id]), people, spaces))).toBe("2 selected");
   });
   it("ignores a vacuous side", () => {
-    expect(scopeLabel(some([anna.id], "all"), people, [])).toBe("Anna");
+    expect(text(scopeLabel(some([anna.id], "all"), people, []))).toBe("Anna");
   });
 });
 
 const labels = (groups: NonNullable<ReturnType<typeof scopeItems>>) =>
-  groups.map((g) => [g.label, g.items.map((i) => i.label)]);
+  groups.map((g) => [g.label ? text(g.label) : null, g.items.map((i) => text(i.label))]);
 
 describe("scopeItems (the menu follows the org's shape; fewer than two real choices ⇒ no control)", () => {
   it("solo person, no spaces ⇒ nothing to choose", () => {
@@ -127,36 +132,36 @@ describe("scopeItems (the menu follows the org's shape; fewer than two real choi
     expect(scopeItems([], [studio])).toBeNull();
   });
   it("a team without spaces ⇒ the chip row as a flat list", () => {
-    expect(labels(scopeItems(people, [])!)).toEqual([[null, ["All bookings", "Anna", "Ben"]]]);
+    expect(labels(scopeItems(people, [])!)).toEqual([[null, ["bookings.scope.all", "Anna", "Ben"]]]);
   });
   it("spaces only ⇒ a flat list of spaces", () => {
-    expect(labels(scopeItems([], spaces)!)).toEqual([[null, ["All bookings", "Studio A", "Flat 1"]]]);
+    expect(labels(scopeItems([], spaces)!)).toEqual([[null, ["bookings.scope.all", "Studio A", "Flat 1"]]]);
   });
   it("both channels ⇒ grouped, with an every-X entry only for a group of two or more", () => {
     expect(labels(scopeItems(people, spaces)!)).toEqual([
-      [null, ["All bookings"]],
-      ["Appointments", ["All appointments", "Anna", "Ben"]],
-      ["Spaces", ["All spaces", "Studio A", "Flat 1"]],
+      [null, ["bookings.scope.all"]],
+      ["appointments.scope.group", ["appointments.scope.all", "Anna", "Ben"]],
+      ["spaces.scope.group", ["spaces.scope.all", "Studio A", "Flat 1"]],
     ]);
     // a solo person is the kind, not a name (U3: the sole person stays nameless)
     expect(labels(scopeItems([anna], spaces)!)).toEqual([
-      [null, ["All bookings"]],
-      ["Appointments", ["Appointments"]],
-      ["Spaces", ["All spaces", "Studio A", "Flat 1"]],
+      [null, ["bookings.scope.all"]],
+      ["appointments.scope.group", ["appointments.scope.group"]],
+      ["spaces.scope.group", ["spaces.scope.all", "Studio A", "Flat 1"]],
     ]);
     // a sole space keeps its name under the heading
     expect(labels(scopeItems([anna], [studio])!)).toEqual([
-      [null, ["All bookings"]],
-      ["Appointments", ["Appointments"]],
-      ["Spaces", ["Studio A"]],
+      [null, ["bookings.scope.all"]],
+      ["appointments.scope.group", ["appointments.scope.group"]],
+      ["spaces.scope.group", ["Studio A"]],
     ]);
   });
   it("items carry the person's colour / the space mark", () => {
     const groups = scopeItems(people, spaces)!;
-    const annaItem = groups[1].items.find((i) => i.label === "Anna")!;
+    const annaItem = groups[1].items.find((i) => text(i.label) === "Anna")!;
     expect(annaItem.color).toBe("#c00");
     expect(annaItem.space).toBeUndefined();
-    const studioItem = groups[2].items.find((i) => i.label === "Studio A")!;
+    const studioItem = groups[2].items.find((i) => text(i.label) === "Studio A")!;
     expect(studioItem.space).toBe(true);
     expect(groups[0].items[0].kind).toBe("all");
   });
@@ -164,13 +169,13 @@ describe("scopeItems (the menu follows the org's shape; fewer than two real choi
 
 describe("scopeItemChecked + toggleScopeItem (ticking the menu)", () => {
   const groups = scopeItems(people, spaces)!;
-  const item = (label: string) => groups.flatMap((g) => g.items).find((i) => i.label === label)!;
+  const item = (label: string) => groups.flatMap((g) => g.items).find((i) => text(i.label) === label)!;
   const checkedLabels = (scope: Scope) =>
-    groups.flatMap((g) => g.items).filter((i) => scopeItemChecked(scope, i)).map((i) => i.label);
+    groups.flatMap((g) => g.items).filter((i) => scopeItemChecked(scope, i)).map((i) => text(i.label));
 
   it("all ⇒ only 'All bookings' is ticked; a group tick shows on the group and its members", () => {
-    expect(checkedLabels(ALL)).toEqual(["All bookings"]);
-    expect(checkedLabels(some("all", []))).toEqual(["All appointments", "Anna", "Ben"]);
+    expect(checkedLabels(ALL)).toEqual(["bookings.scope.all"]);
+    expect(checkedLabels(some("all", []))).toEqual(["appointments.scope.all", "Anna", "Ben"]);
     expect(checkedLabels(some([anna.id], [studio.id]))).toEqual(["Anna", "Studio A"]);
   });
   it("ticking a person from All narrows to that person", () => {
@@ -191,21 +196,21 @@ describe("scopeItemChecked + toggleScopeItem (ticking the menu)", () => {
     expect(toggleScopeItem(some("all", []), item("Anna"), people, spaces)).toEqual(some([ben.id], []));
   });
   it("the group entry ticks or clears its whole group", () => {
-    expect(toggleScopeItem(some([anna.id], [studio.id]), item("All appointments"), people, spaces)).toEqual(
+    expect(toggleScopeItem(some([anna.id], [studio.id]), item("appointments.scope.all"), people, spaces)).toEqual(
       some("all", [studio.id]),
     );
-    expect(toggleScopeItem(some("all", [studio.id]), item("All appointments"), people, spaces)).toEqual(
+    expect(toggleScopeItem(some("all", [studio.id]), item("appointments.scope.all"), people, spaces)).toEqual(
       some([], [studio.id]),
     );
-    expect(toggleScopeItem(some([anna.id], []), item("All spaces"), people, spaces)).toEqual(some([anna.id], "all"));
+    expect(toggleScopeItem(some([anna.id], []), item("spaces.scope.all"), people, spaces)).toEqual(some([anna.id], "all"));
   });
   it("'All bookings' always resets", () => {
-    expect(toggleScopeItem(some([anna.id], [studio.id]), item("All bookings"), people, spaces)).toEqual(ALL);
-    expect(toggleScopeItem(ALL, item("All bookings"), people, spaces)).toEqual(ALL);
+    expect(toggleScopeItem(some([anna.id], [studio.id]), item("bookings.scope.all"), people, spaces)).toEqual(ALL);
+    expect(toggleScopeItem(ALL, item("bookings.scope.all"), people, spaces)).toEqual(ALL);
   });
   it("a solo person's 'Appointments' entry is the group toggle", () => {
     const solo = scopeItems([anna], spaces)!;
-    const appts = solo.flatMap((g) => g.items).find((i) => i.label === "Appointments")!;
+    const appts = solo.flatMap((g) => g.items).find((i) => text(i.label) === "appointments.scope.group")!;
     expect(toggleScopeItem(ALL, appts, [anna], spaces)).toEqual(some("all", []));
     expect(scopeItemChecked(some("all", []), appts)).toBe(true);
   });
@@ -300,12 +305,12 @@ describe("review follow-ups (shapes the demo org cannot exercise)", () => {
   it("a sole space reads by its name on the trigger, as it does on the menu", () => {
     const scope = parseScope({ show: `space:${studio.id}` }, [anna], [studio]);
     expect(scope).toEqual(some([], "all"));
-    expect(scopeLabel(scope, [anna], [studio])).toBe("Studio A");
+    expect(text(scopeLabel(scope, [anna], [studio]))).toBe("Studio A");
     // people deliberately stay the kind (U3: the sole person stays nameless)
-    expect(scopeLabel(some("all", []), [anna], [studio])).toBe("Appointments");
+    expect(text(scopeLabel(some("all", []), [anna], [studio]))).toBe("appointments.scope.group");
   });
   it("an item naming nobody listed changes nothing", () => {
-    const stray = { key: "staff:zzz", label: "Zed", kind: "staff" as const, id: "zzz" };
+    const stray = { key: "staff:zzz", label: { name: "Zed" }, kind: "staff" as const, id: "zzz" };
     expect(toggleScopeItem(ALL, stray, [anna], spaces)).toEqual(ALL);
     expect(toggleScopeItem(some([anna.id], []), stray, people, spaces)).toEqual(some([anna.id], []));
   });

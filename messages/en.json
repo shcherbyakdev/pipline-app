@@ -1,13 +1,83 @@
 {
   "common": {
     "language": "Language",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "close": "Close",
+    "back": "Back",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "edit": "Edit",
+    "add": "Add",
+    "remove": "Remove",
+    "done": "Done",
+    "create": "Create",
+    "creating": "Creating…",
+    "search": "Search",
+    "none": "None",
+    "optional": "optional",
+    "yes": "Yes",
+    "no": "No",
+    "unsavedChanges": "Unsaved changes",
+    "name": "Name",
+    "email": "Email",
+    "active": "Active",
+    "inactive": "Inactive",
+    "new": "New",
+    "open": "Open",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "today": "Today",
+    "previous": "Previous",
+    "next": "Next",
+    "all": "All",
+    "min": "min",
+    "notFound": "Not found"
   },
   "settings": {
     "language": {
       "title": "Language",
       "blurb": "For your admin. The language your clients see is set on your booking page.",
       "label": "Interface language"
+    },
+    "intro": "Your admin preferences and what your business offers.",
+    "sections": {
+      "interface": "Interface",
+      "business": "Business"
+    },
+    "appearance": {
+      "title": "Interface theme",
+      "blurb": "Applies to this browser only.",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "business": {
+      "title": "What you offer",
+      "blurb": "Turning one off hides it from your booking page and this admin. Existing bookings stay."
+    },
+    "copyRefused": "Couldn't copy — select the link text and copy manually.",
+    "bookingPage": {
+      "title": "Address, timezone & language",
+      "description": "Applies when you save.",
+      "saved": "Booking page saved",
+      "unpublishTitle": "Unpublish your booking page?",
+      "changeTitle": "Change your booking page address?",
+      "changeDescription": "Your old link and any website embed will stop working — update the snippet on Website embed.",
+      "unpublish": "Unpublish",
+      "changeAddress": "Change address",
+      "handle": "Booking page address",
+      "handleHint": "Lowercase letters, digits and hyphens, 3–50 characters. Empty unpublishes the page.",
+      "handlePlaceholder": "your-handle",
+      "copyLinkLabel": "Copy booking page link",
+      "timezone": "Timezone",
+      "timezoneHint": "Your availability is set in this timezone.",
+      "currency": "Currency",
+      "currencyHint": "Shown on prices and deposits.",
+      "language": "Language",
+      "languageHint": "What your clients see on your booking page. Visitors browsing from Ukraine get Ukrainian either way."
     }
   },
   "auth": {
@@ -71,5 +141,1584 @@
       "resetExpired": "Your reset link has expired — request a new one.",
       "updateFailed": "Could not update your password. Request a new reset link."
     }
+  },
+  "errors": {
+    "generic": "Couldn't save. Try again.",
+    "tooManyRequests": "Too many requests — slow down.",
+    "tooManyForEmail": "Too many bookings for this email address in the last hour — try again later.",
+    "changedTooOften": "This booking has been changed too many times in the last hour — try again later.",
+    "slotTaken": "That time was just taken — please pick another.",
+    "staffUnavailable": "That team member can't take this time — pick another.",
+    "datesTaken": "Those dates were just taken — please pick again.",
+    "termsRequired": "Please accept the terms to book.",
+    "stayStarted": "This stay has already started.",
+    "checkInPassed": "That check-in time has already passed — pick a later date.",
+    "cancelWindowPassed": "The free-cancellation window has passed — contact the venue to cancel.",
+    "notChangeable": "This booking can no longer be changed online.",
+    "planLimitServices": "Free includes 3 services.",
+    "planLimitResourceOne": "Free includes 1 bookable resource — one person or one unit.",
+    "planLimitResources": "Your plan allows {max} bookable resources — people and units together.",
+    "upgradeHint": {
+      "billing": "Upgrade in Billing to add more.",
+      "waitlist": "Join the Premium waitlist to add more.",
+      "none": "Higher limits come with paid plans."
+    },
+    "upgradeLabel": {
+      "billing": "Open Billing",
+      "waitlist": "Join the waitlist"
+    },
+    "spaces": {
+      "hasBookings": "It has bookings — deactivate it instead.",
+      "blackoutOrder": "End date must not precede the start date.",
+      "blackoutSpan": "Unavailable dates can span at most 2 years."
+    },
+    "clients": {
+      "createdNotAssigned": "Client created, but assigning failed. Pick them from the list.",
+      "copyFailed": "Couldn't copy — select the link text and copy manually."
+    },
+    "availability": {
+      "overlap": "Times overlap with another set of times."
+    },
+    "services": {
+      "hasBookings": "Service has bookings — deactivate it instead."
+    },
+    "staff": {
+      "lastActive": "You need at least one active team member.",
+      "slugTaken": "That link name is already used.",
+      "futureBookings": "{name} has upcoming bookings or pending requests — move or resolve them first.",
+      "someone": "This person"
+    },
+    "settings": {
+      "handleReserved": "That address is reserved — pick another.",
+      "handleFormat": "Use 3–50 lowercase letters, digits or hyphens.",
+      "handleTaken": "That handle is already taken."
+    },
+    "orgs": {
+      "invalidInput": "Check the name (2–80 characters) and the page address.",
+      "timezoneUnknown": "That timezone isn't recognised — pick one from the list.",
+      "keepOne": "Keep at least one booking type on.",
+      "handleJustTaken": "That name was just taken — pick another.",
+      "contrast": "Text and background contrast is below 3:1 — pick more distinct colours."
+    },
+    "billing": {
+      "checkout": "Couldn't open checkout — try again.",
+      "usePortal": "Change plans in the billing portal.",
+      "complimentary": "Your plan is complimentary right now — there's nothing to buy until it ends.",
+      "founderEnded": "The Founder offer has ended — the regular price applies.",
+      "portal": "There's no subscription to manage yet.",
+      "portalUnavailable": "Couldn't open the billing portal — try again."
+    },
+    "bookings": {
+      "notCancellable": "Only a confirmed, upcoming booking can be cancelled.",
+      "notReschedulable": "Only a confirmed booking can be rescheduled.",
+      "stayNotReschedulable": "Stays can't be moved here — cancel and rebook.",
+      "noManageLink": "Only an upcoming booking or request has a manage link.",
+      "noEmail": "No email on file for this client.",
+      "overlap": "That time overlaps an existing booking.",
+      "staffNotOffering": "That team member doesn't offer this service.",
+      "notPendingAccept": "Only a live pending request can be accepted.",
+      "notPendingDecline": "Only a live pending request can be declined.",
+      "stayNotMovable": "Only a confirmed stay can be moved.",
+      "notMovable": "Only a confirmed booking can be moved.",
+      "alreadyStarted": "This booking has already started.",
+      "spaceInactive": "This space is inactive — reactivate it to move its bookings."
+    },
+    "studio": {
+      "pageTooLarge": "This page is too large to save — remove some content or images.",
+      "imageRejected": "Use a PNG, JPEG or WebP image under 4 MB.",
+      "imageLimit": "This page has reached its image limit. Publish or discard the draft to clear unused images, then try again.",
+      "pageGated": "Some sections on this page need a higher plan. Hide or remove them to publish."
+    }
+  },
+  "public": {
+    "meta": {
+      "description": "{channel, select, spaces {Book a space at {orgName}.} other {Book an appointment with {orgName}.}}"
+    },
+    "poweredBy": "Powered by Booklo",
+    "crossLink": {
+      "toSpaces": "Looking for a room? Book a space →",
+      "toAppointments": "Need an appointment? Book a time →",
+      "backTo": "← Back to {orgName}"
+    },
+    "header": {
+      "bookingWith": "Booking with {name}"
+    },
+    "location": {
+      "title": "Where to find us",
+      "openMaps": "Open in Maps ↗"
+    },
+    "links": {
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "tiktok": "TikTok",
+      "whatsapp": "WhatsApp",
+      "website": "Website",
+      "phone": "Phone",
+      "email": "Email",
+      "other": "Link"
+    },
+    "widget": {
+      "promptBoth": "Choose a service or space to see available times.",
+      "promptServices": "Choose a service to see available times.",
+      "promptSpaces": "Choose a space to see its availability.",
+      "appointments": "Appointments",
+      "spaces": "Spaces",
+      "change": "change",
+      "changeDates": "change dates",
+      "with": "with {name}",
+      "anyone": "Anyone",
+      "bookWith": "Book with",
+      "withShort": "With",
+      "noneInFirstLook": "No free times in the next four weeks — try later dates.",
+      "preview": "Preview",
+      "sending": "Sending…",
+      "requestToBook": "Request to book",
+      "confirmBooking": "Confirm booking",
+      "selected": "Selected",
+      "nothingFreeDates": "Nothing is free for those dates any more — please pick again.",
+      "nothingFreeTime": "Nothing is free for that time any more — please pick again."
+    },
+    "slots": {
+      "loading": "Loading times…",
+      "viewerTz": "Times shown in your timezone ({tz}).",
+      "orgTz": "The organisation's local timezone is {tz}.",
+      "providerTz": "Times shown in the provider's timezone ({tz}).",
+      "localTzProviderIn": "Times shown in your local timezone; the provider is in {tz}.",
+      "emptyWeek": "No free times this week — try the next.",
+      "emptyMonth": "No free times this month — try the next.",
+      "emptyFourWeeks": "No free times in these four weeks — try later dates.",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "prevWeek": "Previous week",
+      "nextWeek": "Next week",
+      "weekOf": "Week of {date}",
+      "daysWithFreeTimes": "Days with free times",
+      "weekdays": "Mo Tu We Th Fr Sa Su",
+      "showMore": "Show more",
+      "laterDates": "Later dates",
+      "backToSoonest": "Back to the soonest",
+      "today": "Today",
+      "tomorrow": "Tomorrow"
+    },
+    "details": {
+      "name": "Name",
+      "email": "Email",
+      "emailOptional": "Email (optional)",
+      "note": "Note (optional)"
+    },
+    "confirmed": {
+      "requestSent": "Request sent",
+      "bookingConfirmed": "Booking confirmed",
+      "with": "with {name}",
+      "pendingBody": "Nothing is booked yet — you'll get an email as soon as it's confirmed. Keep that email; the link below is your access to the request.",
+      "confirmedBody": "A confirmation email is on its way. Keep it — the links below are your access to this booking.",
+      "viewRequest": "View your request",
+      "viewBooking": "View your booking",
+      "addToCalendar": "Add to calendar (.ics)"
+    },
+    "manage": {
+      "status": {
+        "confirmed": "Confirmed",
+        "pending": "Waiting for confirmation",
+        "declined": "Request declined",
+        "cancelledByClient": "Cancelled",
+        "cancelledByProvider": "Cancelled by the provider",
+        "rescheduled": "Rescheduled",
+        "expired": "Request expired"
+      },
+      "tooManyRequests": "Too many requests — try again shortly.",
+      "alreadyStarted": "This booking has already started.",
+      "awaiting": "{orgName} hasn't confirmed this request yet — you'll get an email when they do.",
+      "reschedule": "Reschedule",
+      "pickNewTime": "Pick a new time",
+      "pickNewDates": "Pick new dates",
+      "keepCurrentTime": "Keep current time",
+      "keepCurrentDates": "Keep current dates",
+      "moveTo": "Move this booking to <b>{when}</b>?",
+      "confirmNewTime": "Confirm new time",
+      "confirmNewDates": "Confirm new dates",
+      "pickAnother": "Pick another",
+      "rescheduling": "Rescheduling…",
+      "cancelled": "Booking cancelled",
+      "rescheduled": "Booking rescheduled",
+      "stayRescheduled": "Stay rescheduled",
+      "withdrawConfirm": "Yes, withdraw this request",
+      "cancelConfirm": "Yes, cancel this booking",
+      "keepIt": "Keep it",
+      "withdraw": "Withdraw request",
+      "cancel": "Cancel booking",
+      "unit": "Unit",
+      "loadingAvailability": "Loading availability…",
+      "unitAuto": "Auto",
+      "unitAutoKeep": "Auto — keep {name} if free",
+      "unitInactive": "{name} (inactive)",
+      "quotedNote": "“{note}”"
+    },
+    "stay": {
+      "howLong": "How long?",
+      "duration": "Duration",
+      "chooseDuration": "Choose a duration",
+      "checkIn": "Check-in",
+      "checkOut": "Check-out",
+      "pickup": "Pickup",
+      "return": "Return",
+      "pickCheckIn": "Pick your check-in date.",
+      "pickPickup": "Pick your pickup date.",
+      "pickCheckOut": "Now pick your check-out date.",
+      "pickReturn": "Now pick your return date.",
+      "faded": "Faded dates are unavailable.",
+      "fadedForStay": "Faded dates are unavailable for that stay.",
+      "addDate": "Add date",
+      "howManyNights": "How many nights?",
+      "howManyDays": "How many days?",
+      "lengthInNights": "Length of stay in nights",
+      "lengthInDays": "Length of stay in days",
+      "nextFree": "Next free {length}.",
+      "tapToBook": "Tap one to book those dates.",
+      "nothingFreePeriod": "Nothing free in this period — try later dates.",
+      "range": "{start} to {end}",
+      "acceptTerms": "I accept the terms",
+      "showTerms": "Show terms"
+    },
+    "units": {
+      "perHour": "{amount} / hour",
+      "perNight": "{amount} / night",
+      "perDay": "{amount} / day",
+      "nights": "{count, plural, one {# night} other {# nights}}",
+      "days": "{count, plural, one {# day} other {# days}}",
+      "hours": "{count, plural, one {# hour} other {# hours}}",
+      "minutes": "{count} min",
+      "hoursShort": "{count} h",
+      "hoursMinutes": "{hours} h {minutes} min",
+      "minNights": "min {count, plural, one {# night} other {# nights}}",
+      "minDays": "min {count, plural, one {# day} other {# days}}",
+      "summary": "{length} · {inLabel} {inTime} · {outLabel} {outTime} ({tz})",
+      "summaryCheckIn": "check-in",
+      "summaryCheckOut": "check-out",
+      "summaryPickup": "pickup",
+      "summaryReturn": "return",
+      "total": "Total: {amount}",
+      "depositDue": "Deposit due: {amount}",
+      "payAtVenue": "Payment: pay at the venue",
+      "freeCancellation": "Free cancellation until {window} before start"
+    }
+  },
+  "emails": {
+    "with": "With {name}",
+    "poweredBy": "Powered by Booklo",
+    "addToCalendar": "Add to calendar (.ics)",
+    "addToCalendarText": "Add to calendar: {url}",
+    "viewOrManage": "View or manage this booking",
+    "viewOrManageText": "View or manage: {url}",
+    "viewOrWithdraw": "View or withdraw this request",
+    "viewOrWithdrawText": "View or withdraw: {url}",
+    "was": "Was: {when}",
+    "now": "Now: {when}",
+    "quoted": "“{note}”",
+    "confirmation": {
+      "subject": "Booking confirmed — {service}, {when}",
+      "lead": "Your booking is confirmed.",
+      "keep": "Keep this email — the link above is your access to the booking."
+    },
+    "manageLink": {
+      "subjectBooking": "Your booking link — {service} with {orgName}",
+      "subjectRequest": "Your request link — {service} with {orgName}",
+      "intro": "Here is a fresh link to view, reschedule, or cancel your booking ({when}). Any previous link no longer works.",
+      "introNoReschedule": "Here is a fresh link to view or cancel your booking ({when}). Any previous link no longer works.",
+      "introRequest": "Here is a fresh link to view or withdraw your booking request ({when}). Any previous link no longer works.",
+      "keep": "Keep this email — the link above replaces any previous manage link."
+    },
+    "cancelled": {
+      "subject": "Booking cancelled — {service}, {when}",
+      "leadClient": "Your booking has been cancelled as requested.",
+      "leadProvider": "{orgName} had to cancel your booking.",
+      "rebook": "Want to rebook? You can book again any time on the booking page."
+    },
+    "requestReceived": {
+      "subject": "Request received — {service}, {when}",
+      "lead": "Your booking request was sent. You'll get an email once {orgName} confirms it.",
+      "keep": "Keep this email — the link above is your access to the request."
+    },
+    "declined": {
+      "subject": "Request declined — {service}, {when}",
+      "lead": "{orgName} couldn't take your booking request.",
+      "again": "You're welcome to request another time on the booking page."
+    },
+    "rescheduled": {
+      "subject": "Booking rescheduled — {service}, {when}",
+      "lead": "Your booking has been moved.",
+      "keep": "Keep this email — the link above replaces your previous manage link."
+    },
+    "reminder": {
+      "subject": "Reminder — {service}, {when}",
+      "lead": "A reminder about your upcoming booking.",
+      "change": "Need to change or cancel? Use the link in your confirmation email."
+    },
+    "staffNew": {
+      "subject": "New booking — {service}, {when}",
+      "lead": "Hi {name}, you have a new booking."
+    },
+    "providerNew": {
+      "subject": "New booking — {service}, {when}",
+      "subjectRequest": "New booking request — {service}, {when}",
+      "lead": "<b>{client}</b> booked with you.",
+      "leadRequest": "<b>{client}</b> requested a booking with you.",
+      "footer": "It's on your calendar; the client got their confirmation.",
+      "footerRequest": "Accept or decline it from your Overview page — the slot is held until you do."
+    },
+    "providerCancelled": {
+      "subject": "Cancelled by client — {service}, {when}",
+      "lead": "<b>{client}</b> cancelled their booking.",
+      "open": "The time is open again."
+    },
+    "providerRescheduled": {
+      "subject": "Rescheduled by client — {service}, {when}",
+      "lead": "<b>{client}</b> moved their booking."
+    },
+    "appointment": "Appointment"
+  },
+  "shell": {
+    "nav": {
+      "overview": "Overview",
+      "bookings": "Bookings",
+      "clients": "Clients",
+      "spaces": "Spaces",
+      "services": "Services",
+      "team": "Team",
+      "availability": "Availability",
+      "bookingPage": "Booking page",
+      "embed": "Website embed",
+      "billing": "Billing",
+      "settings": "Settings"
+    },
+    "section": {
+      "offer": "Offer",
+      "share": "Share"
+    },
+    "search": "Search",
+    "workspace": "Workspace",
+    "requestsWaiting": "{count, plural, one {# request waiting} other {# requests waiting}}",
+    "signOut": "Sign out",
+    "openNavigation": "Open navigation",
+    "navigation": "Navigation",
+    "command": {
+      "placeholder": "Type a command or search…",
+      "noResults": "No results found.",
+      "navigate": "Navigate",
+      "clients": "Clients",
+      "actions": "Actions",
+      "preferences": "Preferences",
+      "newService": "New service",
+      "newSpace": "New space",
+      "toggleTheme": "Toggle theme"
+    }
+  },
+  "spaces": {
+    "nav": "Spaces",
+    "one": "space",
+    "newButton": "New space",
+    "dialogTitle": {
+      "new": "New space",
+      "edit": "Edit space"
+    },
+    "back": "← Spaces",
+    "addUnit": "Add a unit to your space",
+    "intro": "Rooms, studios and gear, booked by the hour, night or day.",
+    "empty": "No spaces yet — a space is a room, studio or item clients book by the hour, night or day.",
+    "timelineEmpty": "No spaces yet — add a space under",
+    "unitsHint": "Units are the individual rooms or items a client is assigned — one per room.",
+    "unitsEmpty": "No units yet — the space won't appear on your booking page until it has an active unit.",
+    "blackoutsHint": "Dates this space can't be booked — maintenance, your own stay, a closed week.",
+    "splitIntoUnits": "Several identical rooms or items? Split this space into units →",
+    "field": "Space",
+    "pickerBoth": "Space or service",
+    "badge": "Space",
+    "settings": {
+      "label": "Spaces",
+      "blurb": "Rooms, studios and gear, booked by the hour, night or day."
+    },
+    "add": "Add a space",
+    "unitNotCreated": "Saved the space, but couldn't add its first unit — add one on the space's page.",
+    "hoursNotSet": "Saved the space, but couldn't set its default hours — set them on Availability.",
+    "notBookable": "Not bookable — add a unit",
+    "hoursNote": "Nightly and daily spaces use check-in and check-out times instead — set those on the space.",
+    "hoursNightsOnly": "Nightly and daily spaces use check-in and check-out times, set on each space. Hourly spaces and team members set their weekly hours here.",
+    "scope": {
+      "group": "Spaces",
+      "all": "All spaces"
+    },
+    "emptyTitle": "Add your first space",
+    "mode": {
+      "hours": "Hourly",
+      "nights": "Nightly",
+      "days": "Daily"
+    },
+    "schedule": {
+      "hours": "{min}–{max} · every {step} min",
+      "nights": "check-in {start} · check-out {end}",
+      "days": "pickup {start} · return {end}"
+    },
+    "list": {
+      "type": "Type",
+      "price": "Price",
+      "actions": "Actions",
+      "unitCount": "{count, plural, one {# unit} other {# units}}",
+      "confirmDelete": "Confirm delete",
+      "keep": "Keep",
+      "deleteAria": "Delete {name}",
+      "bookableAria": "{name} is bookable",
+      "deleted": "Deleted",
+      "details": "Details"
+    },
+    "detail": {
+      "openingHours": "Opening hours",
+      "editHours": "Edit hours →",
+      "reactivateToEdit": "Reactivate to edit hours"
+    },
+    "dialog": {
+      "namePlaceholder": "Space name",
+      "description": "Description",
+      "descriptionPlaceholder": "Add a description…",
+      "section": {
+        "session": "Session",
+        "stay": "Stay",
+        "pricing": "Pricing"
+      },
+      "bookedBy": "Booked by",
+      "mode": {
+        "nights": "Nightly (check-in → check-out)",
+        "days": "Daily (pickup → return)",
+        "hours": "Hourly (booked by the hour)"
+      },
+      "slotIncrement": "Slot increment",
+      "minDuration": "Min duration (min)",
+      "maxDuration": "Max duration (min)",
+      "turnoverMinutes": "Turnover (minutes)",
+      "startTime": "Start time",
+      "endTime": "End time",
+      "minStay": "Min stay",
+      "maxStay": "Max stay",
+      "unlimited": "Unlimited",
+      "turnoverDays": "Turnover (days)",
+      "price": "Price ({currency})",
+      "unpriced": "Unpriced",
+      "pricingMode": "Pricing mode",
+      "perHour": "Per hour",
+      "perNight": "Per night",
+      "perDay": "Per day",
+      "flat": "Flat per booking",
+      "requireApproval": "Require approval",
+      "requireApprovalHint": "New bookings wait for your confirmation instead of confirming instantly.",
+      "rules": "Deposit, cancellation & booking rules",
+      "deposit": "Deposit",
+      "depositNone": "No deposit",
+      "depositFixed": "Fixed amount",
+      "depositPercent": "Percent of total",
+      "depositFull": "Full amount",
+      "depositAmount": "Deposit amount ({currency})",
+      "depositPercentLabel": "Deposit (%)",
+      "cancelWindowHours": "Free cancellation until (hours before start)",
+      "cancelWindowDays": "Free cancellation until (days before start)",
+      "noWindow": "No window",
+      "terms": "Terms",
+      "minNoticeMinutes": "Min notice (minutes)",
+      "minNoticeDays": "Min notice (days)",
+      "bookingWindow": "Booking window (days)",
+      "unitSelection": "Unit selection",
+      "unitAuto": "Assign a unit automatically",
+      "unitClientPicks": "Let the client pick a unit",
+      "create": "Create space",
+      "created": "Space created"
+    },
+    "units": {
+      "title": "Units",
+      "namePlaceholder": "Add a unit…",
+      "descriptionPlaceholder": "Description (optional)",
+      "newNameAria": "New unit name",
+      "newDescriptionAria": "New unit description",
+      "description": "Description",
+      "added": "Unit added",
+      "needsName": "A unit needs a name.",
+      "activated": "Unit is active",
+      "deactivated": "Unit is inactive",
+      "deleted": "Unit deleted",
+      "deleteAria": "Delete unit {name}",
+      "blackouts": {
+        "title": "Unavailable dates",
+        "none": "None — bookable all year.",
+        "from": "Unavailable from",
+        "until": "Unavailable until",
+        "reason": "Reason",
+        "reasonPlaceholder": "Reason (optional)",
+        "block": "Block dates",
+        "blocked": "Dates blocked",
+        "freed": "Dates freed up",
+        "removeAria": "Remove unavailable dates {range}"
+      }
+    }
+  },
+  "appointments": {
+    "settings": {
+      "label": "Appointments",
+      "blurb": "Services booked as time slots with your team."
+    },
+    "add": "Add a service",
+    "field": "Service",
+    "badge": "Appointment",
+    "scope": {
+      "group": "Appointments",
+      "all": "All appointments"
+    }
+  },
+  "bookings": {
+    "checklist": {
+      "addSpace": "Add a space",
+      "addUnit": "Add a unit to your space",
+      "addService": "Add a service",
+      "setHours": "Set hours"
+    },
+    "status": {
+      "confirmed": "Confirmed",
+      "pending": "Pending approval",
+      "declined": "Declined",
+      "cancelledByClient": "Cancelled by client",
+      "cancelledByProvider": "Cancelled by you",
+      "rescheduled": "Rescheduled"
+    },
+    "fallbackTitle": "Appointment",
+    "weekdays": "Mo Tu We Th Fr Sa Su",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "teamMember": "Team member",
+    "keep": "Keep",
+    "resendLink": "Resend link",
+    "resendStartedHint": "The booking has already started — the link can't be reissued.",
+    "noEmailShort": "No email on file",
+    "requestExpired": "Request expired",
+    "ended": "This booking has ended.",
+    "view": {
+      "label": "Bookings view",
+      "week": "Week",
+      "timeline": "Timeline",
+      "list": "List"
+    },
+    "scope": {
+      "show": "Show",
+      "all": "All bookings",
+      "selected": "{count} selected"
+    },
+    "ownerTabs": {
+      "label": "Whose hours",
+      "people": "People"
+    },
+    "list": {
+      "upcoming": "Upcoming",
+      "past": "Past & cancelled",
+      "empty": "No upcoming bookings.",
+      "emptyBoth": "No upcoming bookings. <services>Add a service</services> or <spaces>add a space</spaces>, then share your booking page.",
+      "emptyServices": "No upcoming bookings. <services>Add a service</services>, then share your booking page.",
+      "emptySpaces": "No upcoming bookings. <spaces>Add a space</spaces>, then share your booking page.",
+      "emptyScoped": "No upcoming bookings for {scope}.",
+      "showAll": "Show all bookings",
+      "pastEmpty": "Nothing here yet.",
+      "pastEmptyScoped": "Nothing here yet for {scope}."
+    },
+    "requests": {
+      "title": "Requests",
+      "chip": "Request",
+      "accept": "Accept",
+      "decline": "Decline…",
+      "acceptFrom": "Accept request from {name}",
+      "declineFrom": "Decline request from {name}",
+      "accepted": "Accepted.",
+      "acceptedEmailed": "Accepted — confirmation sent.",
+      "declineTitle": "Decline request",
+      "declineBody": "The time is released and the client is emailed that you can't take it.",
+      "declineNote": "Message to the client (optional)",
+      "declineNotePlaceholder": "Message to the client (optional) — e.g. We're fully booked that morning, happy to take you at 14:00.",
+      "declining": "Declining…",
+      "declined": "Request declined.",
+      "lapsed": "This request lapsed before it was answered."
+    },
+    "cancel": {
+      "button": "Cancel booking",
+      "confirm": "Confirm cancel",
+      "doneNoEmail": "Booking cancelled — no email on file for this client.",
+      "doneEmailed": "Booking cancelled — the client has been emailed.",
+      "doneEmailFailed": "Booking cancelled — but the email to the client failed. Contact them directly."
+    },
+    "resend": {
+      "sent": "A fresh link is on its way to the client.",
+      "failed": "Link was reset, but the email failed — the old link no longer works. Contact the client directly."
+    },
+    "reschedule": {
+      "button": "Reschedule",
+      "title": "Move for {name}",
+      "moveTo": "Move to",
+      "weekOf": "Week of {date}",
+      "noFreeTimes": "No free times this week.",
+      "tzNote": "Times in your browser timezone; your business's timezone: {tz}.",
+      "movedNoEmail": "Booking moved{name, select, none {} other { to {name}}} — no email on file for this client.",
+      "movedEmailed": "Booking moved{name, select, none {} other { to {name}}} — the client has been emailed.",
+      "movedEmailFailed": "Booking moved — but the email with the new manage link failed. Contact the client directly."
+    },
+    "move": {
+      "button": "Move…",
+      "title": "Move booking",
+      "stayTitle": "Move stay",
+      "moving": "Moving…",
+      "done": "Booking moved.",
+      "doneEmailed": "Booking moved — the client has been emailed.",
+      "stayDone": "Stay moved.",
+      "stayDoneEmailed": "Stay moved — the client has been emailed.",
+      "unitChanged": "Unit changed.",
+      "unitChangedEmailed": "Unit changed — the client has been emailed."
+    },
+    "new": {
+      "title": "New booking",
+      "blurb": "Recorded on your behalf — notice and booking-window limits don’t apply.",
+      "services": "Services"
+    },
+    "create": {
+      "button": "Create booking",
+      "done": "Booking created.",
+      "doneNoEmail": "Booking created — no email on file for this client.",
+      "doneEmailed": "Booking created — the client has been emailed.",
+      "doneEmailFailed": "Booking created — but the confirmation email failed. Contact the client directly."
+    },
+    "form": {
+      "clientName": "Client name",
+      "email": "Email — optional, confirmation is sent only if given",
+      "note": "Note (optional)",
+      "notePlaceholder": "Add a note…",
+      "date": "Date",
+      "startsAt": "Starts at ({tz})",
+      "endsAt": "Ends at",
+      "outsideHours": "Outside your open hours — allowed for bookings you create yourself.",
+      "insideNotice": "Inside this service’s minimum-notice window — allowed for bookings you create yourself.",
+      "tooFarPast": "This time is more than 24 hours in the past — bookings can’t be recorded that far back. Pick a time from the last day, or a future one.",
+      "invalidDuration": "End must be after the start — between 5 minutes and 8 hours long.",
+      "nobodyOffers": "Nobody on the team offers this service yet — assign someone on the Services page.",
+      "howLong": "How long?",
+      "duration": "Duration",
+      "chooseDuration": "Choose a duration",
+      "change": "change",
+      "unit": "Unit",
+      "loadingAvailability": "Loading availability…"
+    },
+    "week": {
+      "pickOneToBlock": "Pick one team member to block time.",
+      "timeBlocked": "Time blocked.",
+      "timeUnblocked": "Time unblocked.",
+      "dayReopened": "Day reopened — weekly hours restored.",
+      "block": "Block",
+      "unblock": "Unblock",
+      "reopenDay": "Reopen day",
+      "closedHours": "Closed hours",
+      "hint": "Click or drag on the grid to add a booking.",
+      "hintBlockable": "Click or drag on the grid to add a booking or block time.",
+      "selected": "Selected {start} to {end} on {date}. Tab to actions, Shift plus arrow keys to resize, Escape to cancel."
+    },
+    "timeline": {
+      "window": "Timeline window",
+      "back": "{count, plural, one {Back # day} other {Back # days}}",
+      "forward": "{count, plural, one {Forward # day} other {Forward # days}}",
+      "zoom": "Timeline zoom",
+      "weeks": "{count} wk",
+      "conflicts": "{count, plural, one {# booking} other {# bookings}} in conflict in this window",
+      "show": "Show",
+      "mode": {
+        "nights": "Nightly",
+        "days": "Daily",
+        "hours": "Hourly"
+      },
+      "units": "{count, plural, one {# unit} other {# units}}",
+      "inConflict": "{count} in conflict",
+      "legend": "Legend",
+      "stay": "Stay",
+      "unavailable": "Unavailable",
+      "turnover": "Turnover",
+      "conflict": "Conflict",
+      "now": "Now",
+      "dragHint": "Drag sideways to move through time.",
+      "newHere": "New booking, {unit}, {date}",
+      "unavailableRange": "Unavailable {from} to {to}",
+      "unavailableRangeReason": "Unavailable {from} to {to}, {reason}",
+      "editOnSpacePage": "Click to edit on the space page",
+      "turnoverAfter": "Turnover after {name}",
+      "continuesFrom": "from {date}",
+      "continuesTo": "to {date}",
+      "inHouse": "In house",
+      "inHouseNow": "In house now",
+      "ended": "Ended",
+      "countPill": "{count, plural, one {# booking} other {# bookings}} on {date}, {unit} — zoom in",
+      "zoomIn": "Click to zoom in",
+      "conflictBlackout": "Unavailable {from}–{to}{reason, select, none {} other { ({reason})}} overlaps this booking",
+      "conflictTurnover": "Turnover after {name} runs into this check-in",
+      "conflictOverlap": "Overlaps {name}’s booking"
+    },
+    "welcome": {
+      "owned": "{url} is yours.",
+      "sub": "Add a service and set your hours to go live.",
+      "subSpaces": "Add a space and its units to go live.",
+      "subBoth": "Add what you offer and set hours — then share your link.",
+      "noHandle": "Your workspace is ready.",
+      "noHandleSub": "Pick a page address and you're bookable.",
+      "setUpPage": "Set up your booking page",
+      "dismiss": "Dismiss",
+      "copyFailed": "Couldn't copy — select the link text and copy manually.",
+      "dismissFailed": "Couldn't dismiss — try again.",
+      "checklist": "Setup checklist",
+      "done": "{label} — done"
+    },
+    "datePicker": {
+      "pick": "Pick a date",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month"
+    },
+    "timeCombobox": {
+      "noMatches": "No matches"
+    }
+  },
+  "clients": {
+    "emptyTitle": "No clients yet",
+    "emptyBody": "Clients appear here automatically after their first booking — with their bookings, notes and links in one place.",
+    "intro": "Everyone who has booked with you, and their history.",
+    "directory": {
+      "searchPlaceholder": "Search by name or email",
+      "searchAria": "Search clients",
+      "noMatch": "No clients match “{query}”.",
+      "bookingCount": "{count, plural, one {# booking} other {# bookings}}"
+    },
+    "detail": {
+      "back": "← Clients",
+      "noEmail": "No email on file",
+      "bookings": "Bookings ({count})",
+      "bookingsLast": "Bookings (last {count})",
+      "noBookings": "No bookings yet.",
+      "note": "“{note}”"
+    },
+    "header": {
+      "nameAria": "Client name",
+      "deleteButton": "Delete client",
+      "deleteTitle": "Delete this client?",
+      "deleteBody": "Bookings keep their history (name and email stay on each booking); the client entry itself is deleted."
+    },
+    "create": {
+      "title": "New client",
+      "chip": "Client",
+      "namePlaceholder": "Client name",
+      "submit": "Create client"
+    },
+    "assign": {
+      "prompt": "New client name",
+      "aria": "Assign client for {unit}",
+      "none": "No client",
+      "new": "+ New client…"
+    },
+    "portal": {
+      "title": "Portal links",
+      "issue": "Issue link",
+      "newLinkAria": "New link (shown once)",
+      "shownOnce": "Shown once — copy it now.",
+      "status": {
+        "active": "active",
+        "expired": "expired",
+        "revoked": "revoked"
+      },
+      "issued": "issued {date}",
+      "expires": "exp {date}",
+      "used": "used {date}",
+      "revokeAria": "Revoke portal link issued {date}",
+      "empty": "No links yet — issue one to give this client a read-only view of their units."
+    }
+  },
+  "availability": {
+    "weekdaysShort": "Sun Mon Tue Wed Thu Fri Sat",
+    "weekdaysLong": "Sunday Monday Tuesday Wednesday Thursday Friday Saturday",
+    "noHours": "Closed — no hours set",
+    "noActive": "Nobody on the team is active right now. <link>Reactivate someone</link> to set hours.",
+    "openSpaces": "Open Spaces →",
+    "timezoneNote": "Times are shown in {timezone} · <link>Change on Booking page</link>",
+    "unavailable": "Unavailable",
+    "endAfterStart": "End must be after start.",
+    "defaultPrompt": {
+      "title": "No hours set — nothing can be booked yet.",
+      "blurb": "Start with Mon–Fri, {start}–{end} and adjust from there.",
+      "apply": "Use default hours",
+      "applying": "Setting hours…"
+    },
+    "day": {
+      "addInterval": "Add interval to {day}",
+      "noRoom": "No room left after the last interval",
+      "copyHours": "Copy {day} hours to other days",
+      "copyTo": "Copy hours to…",
+      "apply": "Apply",
+      "startTime": "{day} start time",
+      "endTime": "{day} end time",
+      "removeInterval": "Remove {day} {start}–{end}"
+    },
+    "overrides": {
+      "title": "Date overrides",
+      "blurbSpace": "Days when this space's availability differs from its weekly hours.",
+      "blurbYou": "Days when your availability differs from your weekly hours.",
+      "add": "Add a date override",
+      "editTitle": "Edit date override",
+      "date": "Date",
+      "removeFor": "Remove override for {date}",
+      "removed": "Override removed",
+      "updated": "Override updated",
+      "added": "Override added",
+      "needWindow": "Add at least one time window, or mark the day unavailable.",
+      "windowStart": "Window {n} start time",
+      "windowEnd": "Window {n} end time",
+      "removeWindow": "Remove window {n}",
+      "addWindow": "Add interval"
+    }
+  },
+  "services": {
+    "intro": "What clients pick on your booking page.",
+    "emptyTitle": "Add your first service",
+    "emptyBody": "A service is what clients pick on your booking page — its name, duration, buffers and price label.",
+    "newButton": "New service",
+    "table": "Services",
+    "columns": {
+      "service": "Service",
+      "duration": "Duration",
+      "price": "Price",
+      "actions": "Actions"
+    },
+    "noTeam": "No team members",
+    "teamCount": "{assigned} of {total} team members",
+    "deleted": "Deleted",
+    "confirmDelete": "Confirm delete",
+    "keep": "Keep",
+    "deleteNamed": "Delete {name}",
+    "bookableSwitch": "{name} is bookable",
+    "dialog": {
+      "editTitle": "Edit service",
+      "namePlaceholder": "Service name",
+      "description": "Description",
+      "descriptionPlaceholder": "Add a description…",
+      "duration": "Duration (min)",
+      "priceLabel": "Price label",
+      "pricePlaceholder": "e.g. €50",
+      "bufferBefore": "Buffer before (min)",
+      "bufferAfter": "Buffer after (min)",
+      "minNotice": "Min notice (min)",
+      "maxPerDay": "Max per day",
+      "unlimited": "Unlimited",
+      "bookingWindow": "Booking window (days)",
+      "windowError": "Enter how many days ahead clients can book — 1 to 365.",
+      "teamMembers": "Team members",
+      "teamHint": "Only these people are offered for this service.",
+      "requireApproval": "Require approval",
+      "requireApprovalHint": "New bookings wait for your confirmation instead of confirming instantly.",
+      "create": "Create service",
+      "created": "Service created"
+    }
+  },
+  "team": {
+    "intro": "Your bookable people. Each has their own hours, services and booking link.",
+    "newButton": "New team member",
+    "chip": "Team",
+    "table": "Team members",
+    "columns": {
+      "link": "Booking link",
+      "role": "Role",
+      "actions": "Actions"
+    },
+    "noHandle": "Set your booking page handle first on <link>Booking page</link> — then everyone gets their own link.",
+    "servicesCount": "{count, plural, =0 {No services} one {# service} other {# services}}",
+    "owner": "Owner",
+    "member": "Member",
+    "overLimit": "Over plan limit",
+    "overLimitTitle": "Not on your public page — over your plan's limit",
+    "overLimitSr": ": not shown on your public page because it is over your plan's limit",
+    "hours": "Hours",
+    "embed": "Embed…",
+    "copyFailed": "Couldn't copy — select the link text and copy manually.",
+    "bookableSwitch": "{name} is bookable",
+    "editNamed": "Edit {name}",
+    "dialog": {
+      "namePlaceholder": "Team member name",
+      "emailPlaceholder": "Email — optional, for booking notices",
+      "slugHint": "Lowercase letters, numbers and dashes.",
+      "colour": "Colour",
+      "colourNamed": "Colour {hex}",
+      "services": "Services",
+      "inheritsHours": "Starts with {name}'s weekly hours — edit them on Availability."
+    }
+  },
+  "billing": {
+    "intro": "Your plan and what it covers. Invoices and card details are managed in the secure billing portal.",
+    "checkoutCancelled": "Checkout cancelled — nothing was charged.",
+    "complimentary": "Your plan is complimentary. Plans can be bought once it ends.",
+    "complimentaryUntil": "Your plan is complimentary until {date}. Plans can be bought once it ends.",
+    "activation": {
+      "waiting": "Activating your plan… this takes a few seconds.",
+      "timedOut": "Still waiting for the payment provider — refresh in a minute or contact support."
+    },
+    "current": {
+      "complimentary": "Complimentary",
+      "perMonth": "{price} / month",
+      "perMonthYearly": "{price} / month · billed yearly",
+      "noCard": "No card needed",
+      "until": "Until {date}",
+      "noExpiry": "No expiry",
+      "pastDue": "We couldn't charge your card — update it in the billing portal to keep your plan.",
+      "endedOn": "Ended on {date}",
+      "endsOn": "Ends on {date}",
+      "renewsOn": "Renews on {date}",
+      "manage": "Manage subscription"
+    },
+    "plans": {
+      "free": {
+        "blurb": "Everything two people — or two rooms — need to take bookings."
+      },
+      "pro": {
+        "blurb": "Your brand, unlimited services, reminders for every booking, up to three bookable people or units."
+      },
+      "team": {
+        "blurb": "Up to ten bookable people and units, auto-assigned."
+      }
+    },
+    "picker": {
+      "title": "Plans",
+      "interval": "Billing interval",
+      "yearly": "Yearly",
+      "monthly": "Monthly",
+      "current": "Current",
+      "perMo": "{price} / mo",
+      "freePrice": "Free",
+      "billedYearly": "billed yearly · {yearly} a year · save {percent}%",
+      "billedMonthly": "billed monthly",
+      "noCard": "no card needed",
+      "founderRibbon": "Founder price · {price}/mo for life",
+      "founderYearlyNote": "Founder price ({price}/mo for life) applies to monthly billing.",
+      "rows": {
+        "resources": "Bookable resources (people + units)",
+        "services": "Services on your booking page",
+        "unlimited": "Unlimited",
+        "reminders": "Reminder emails",
+        "everyBooking": "Every booking",
+        "firstBookings": "First {count} bookings a month",
+        "brand": "Your logo, colours, welcome text",
+        "included": "Included",
+        "badge": "Remove “Powered by Booklo”",
+        "team": "Team layer: per-person links, “Anyone available”, colours"
+      },
+      "currentPlan": "Current plan",
+      "includedEverywhere": "Included in every plan",
+      "upgradeTo": "Upgrade to {plan}",
+      "openingCheckout": "Opening checkout…",
+      "openingPortal": "Opening portal…",
+      "switchInPortal": "Switch in the billing portal"
+    },
+    "usage": {
+      "reminders": "Reminder bookings this month",
+      "everyBookingReminded": "every booking gets a reminder",
+      "remindersResume": "reminders resume next month",
+      "confirmationsAlways": "confirmations always send",
+      "resources": "Bookable resources",
+      "services": "Services",
+      "unlimitedServices": "unlimited on your plan",
+      "firstServicesPublic": "only the first {count} are offered publicly",
+      "servicesPublic": "offered on your booking page"
+    },
+    "meter": {
+      "bothOnOne": "your person takes the slot — spaces need a second resource",
+      "firstBookable": "only the first {count} are bookable publicly",
+      "onPage": "people and units on your booking page"
+    },
+    "banner": {
+      "managePlan": "Manage plan",
+      "upgrade": "Upgrade",
+      "resources": "Your plan allows {cap, plural, one {# bookable resource} other {# bookable resources}} (people and units); {hidden, plural, one {# isn't} other {# aren't}} bookable publicly.",
+      "remindersUsedAll": "You've used all {cap} free reminder bookings this month — bookings made now won't get a reminder until it rolls over.",
+      "remindersUsed": "You've used {used} of {cap} free reminder bookings this month."
+    },
+    "planTag": {
+      "srPrefix": "Plan:",
+      "waitlistTitle": "Premium via the waitlist, free while we build",
+      "planTitle": "{plan} plan"
+    },
+    "waitlist": {
+      "cardTitle": "Premium waitlist",
+      "cardBody": "Your brand, unlimited services, more people and spaces. Free while we build.",
+      "cardCta": "Join the waitlist",
+      "intro": "Premium is on its way. Join the waitlist and use everything it unlocks now, free while we build.",
+      "heading": "Unlock Premium early",
+      "sub": "Join the waitlist and your workspace switches to Premium right away. No card, nothing to cancel.",
+      "join": "Join the waitlist",
+      "joinedHeading": "You’re on the list",
+      "joinedSub": "Premium is unlocked for your workspace. We’ll email you before anything changes.",
+      "joinedJustNow": "Welcome aboard — everything below is yours now.",
+      "alreadyPremium": "Your plan already includes everything Premium unlocks.",
+      "error": "Couldn’t add you to the list right now. Please try again.",
+      "perksHeading": "What’s unlocked",
+      "perks": {
+        "resources": "Up to {count} bookable people or units",
+        "services": "Unlimited services on your booking page",
+        "reminders": "Reminders for every booking, not just the first {free} a month",
+        "badge": "No “Powered by Booklo” badge on your page and emails"
+      }
+    }
+  },
+  "onboarding": {
+    "heading": "Create your workspace",
+    "sub": "This is the address clients book you at. You can change it later.",
+    "nameLabel": "Your name or business",
+    "namePlaceholder": "Anna Studio",
+    "handleLabel": "Page address",
+    "handlePlaceholder": "your-name",
+    "handleHint": "3–50 characters: letters, numbers, dashes. Leave empty to choose later.",
+    "handleReserved": "That name can't be used — try another.",
+    "handleTaken": "{url} is taken",
+    "handleTakenSuggest": "try {suggestion}",
+    "handleCheckFailed": "Couldn't check right now — you can still continue.",
+    "timezoneLabel": "Timezone",
+    "modeLegend": "What are you booking?",
+    "modes": {
+      "spaces": {
+        "title": "Spaces",
+        "blurb": "Rooms, studios and gear, booked by the hour, night or day."
+      },
+      "appointments": {
+        "title": "Appointments",
+        "blurb": "Time on your calendar: consultations, sessions, classes."
+      },
+      "both": {
+        "title": "Both",
+        "blurb": "You book spaces and people."
+      }
+    },
+    "next": "Continue",
+    "notNow": "Not now",
+    "submit": "Create workspace",
+    "submitting": "Creating…",
+    "usingEmail": "Using {email}",
+    "useDifferentAccount": "Use a different account",
+    "stepOf": "Step {step} of {count}",
+    "wizard": {
+      "mode": {
+        "heading": "What are you booking?",
+        "sub": "You can change this any time in Settings."
+      },
+      "service": {
+        "heading": "Add your first service",
+        "sub": "What clients book with you. Add more on Services later.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Haircut",
+        "duration": "Duration",
+        "price": "Price (optional)",
+        "pricePlaceholder": "e.g. 120 {currency}"
+      },
+      "space": {
+        "heading": "Add your first space",
+        "sub": "A room, studio or item clients book. Its first unit comes with it.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Studio A",
+        "bookedBy": "Booked by",
+        "byHour": "the hour",
+        "byNight": "the night",
+        "byDay": "the day",
+        "price": "{per, select, hours {Price per hour} nights {Price per night} other {Price per day}} ({currency}, optional)",
+        "noticeHint": "The page can list this space once it has a unit — add one on Spaces. You can keep going and publish when it is bookable."
+      },
+      "hours": {
+        "heading": "Your weekly hours",
+        "sub": "When clients can book you. We started you with Mon–Fri, 9–5.",
+        "save": "Save hours",
+        "startFor": "{day} start",
+        "endFor": "{day} end"
+      },
+      "share": {
+        "heading": "Your page is live",
+        "sub": "Share the link anywhere clients find you.",
+        "almostHeading": "Almost live",
+        "almostSub": "Add what clients book and your page opens at:",
+        "noHandle": "Your workspace is ready.",
+        "noHandleSub": "Pick a page address on Booking page and you're bookable.",
+        "setUpPage": "Set up your booking page",
+        "finish": "Go to your bookings"
+      }
+    }
+  },
+  "overview": {
+    "activity": "Activity",
+    "summary": "{count, plural, one {# appointment} other {# appointments}}{pending, plural, =0 {} one { · # pending} other { · # pending}} in {year}",
+    "appointmentCount": "{count, plural, one {# appointment} other {# appointments}}",
+    "pendingCount": "{count} pending",
+    "year": "Year",
+    "showYear": "Show {year}",
+    "less": "Less",
+    "more": "More",
+    "legendPending": "pending request",
+    "legendToday": "today",
+    "members": "Members",
+    "teamMembers": "Team members ({count})",
+    "goTo": "Go to"
+  },
+  "studio": {
+    "layouts": {
+      "calendar": {
+        "label": "Calendar + times",
+        "description": "A month to pick a day, then that day's free times."
+      },
+      "week-list": {
+        "label": "Week list",
+        "description": "Seven days at a time, each day's times in a row."
+      },
+      "week-columns": {
+        "label": "Week columns",
+        "description": "A week as columns, times stacked under each day."
+      },
+      "next-available": {
+        "label": "Next available",
+        "description": "The soonest free times first, no browsing."
+      }
+    },
+    "stayLayouts": {
+      "one-month": {
+        "label": "One month",
+        "description": "A month grid; tap check-in, then check-out."
+      },
+      "two-months": {
+        "label": "Two months",
+        "description": "Two months side by side, the same two taps."
+      },
+      "fields": {
+        "label": "Check-in and check-out fields",
+        "description": "Two date fields; tapping one opens the month grid."
+      },
+      "next-free": {
+        "label": "Next free stays",
+        "description": "The soonest free windows that fit the minimum stay, one tap each."
+      }
+    },
+    "themes": {
+      "light": "Light",
+      "dark": "Dark",
+      "auto": "Auto (match visitor's system)"
+    },
+    "latinOnly": "Latin only",
+    "sections": {
+      "header": {
+        "label": "Header",
+        "description": "Your logo, name and an optional tagline."
+      },
+      "hero": {
+        "label": "Cover",
+        "description": "A big headline with an optional cover image."
+      },
+      "about": {
+        "label": "About",
+        "description": "Who you are, with a photo."
+      },
+      "services": {
+        "label": "Services",
+        "description": "What you offer, from your service list."
+      },
+      "staff": {
+        "label": "Team",
+        "description": "Your bookable team members."
+      },
+      "spaces": {
+        "label": "Spaces",
+        "description": "Your rooms, studios and gear, with photos and prices."
+      },
+      "gallery": {
+        "label": "Gallery",
+        "description": "A grid of photos."
+      },
+      "testimonials": {
+        "label": "Testimonials",
+        "description": "Quotes from happy clients."
+      },
+      "faq": {
+        "label": "FAQ",
+        "description": "Common questions, answered."
+      },
+      "links": {
+        "label": "Links",
+        "description": "Instagram, WhatsApp, your website…"
+      },
+      "location": {
+        "label": "Location",
+        "description": "Your address and a maps link."
+      },
+      "booking": {
+        "label": "Booking",
+        "description": "The booking widget. Always on the page."
+      }
+    },
+    "ghost": {
+      "headline": "Add a headline",
+      "cover": "Add a cover image",
+      "about": "Write a few lines about yourself",
+      "services": "Add a service and it shows here",
+      "spaces": "Add a space and it shows here",
+      "staff": "Shows once two or more team members are bookable",
+      "address": "Add your address",
+      "link": "Add a link",
+      "faq": "Add a question and its answer",
+      "gallery": "Add photos to the gallery",
+      "testimonial": "Add a client quote"
+    },
+    "frame": {
+      "edit": "Edit {section} section",
+      "hidden": "hidden"
+    },
+    "starter": {
+      "title": "How should clients pick a time?",
+      "titleSpaces": "How should clients pick dates and times?",
+      "sub": "Pick how this page's widget shows what is free. It applies straight away, and you can change it any time on Settings.",
+      "firstService": {
+        "title": "Add your first service",
+        "sub": "It goes straight onto your page. Add more on Services whenever you like.",
+        "why": "A layout needs at least one service to show — add one and the page fills in.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Haircut",
+        "duration": "Duration",
+        "price": "Price (optional)",
+        "pricePlaceholder": "e.g. 120 {currency}",
+        "submit": "Add service"
+      },
+      "firstSpace": {
+        "title": "Add your first space",
+        "sub": "It goes straight onto your page, with one unit. Add more on Spaces whenever you like.",
+        "why": "A layout needs at least one bookable space to show — add one and the page fills in.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Studio A",
+        "bookedBy": "Booked by",
+        "hours": "the hour",
+        "nights": "the night",
+        "days": "the day",
+        "priceHour": "Price per hour ({currency}, optional)",
+        "priceNight": "Price per night ({currency}, optional)",
+        "priceDay": "Price per day ({currency}, optional)",
+        "submit": "Add space",
+        "noticeHint": "The page can list this space once it has a unit — add one on Spaces. You can keep going and publish when it is bookable."
+      },
+      "back": "Back",
+      "leave": "Leave for now",
+      "continue": "Continue",
+      "picker": {
+        "trigger": "Widget layout",
+        "title": "Widget layout",
+        "sub": "Change how this page shows what is free. It applies straight away; the website embed has its own layout.",
+        "use": "Use this layout"
+      },
+      "applied": "Widget layout saved",
+      "current": "current",
+      "times": "Times",
+      "stays": "Stays"
+    },
+    "pageSwitch": {
+      "appointments": "Appointments page",
+      "spaces": "Spaces page",
+      "label": "Which page"
+    },
+    "appearance": {
+      "theme": "Theme",
+      "radius": "Corner radius",
+      "radiusOptions": {
+        "none": "None",
+        "subtle": "Subtle",
+        "round": "Round"
+      },
+      "layout": "Widget layout",
+      "stayLayout": "Stays layout",
+      "font": "Font",
+      "fontSystem": "System",
+      "background": "Background override",
+      "text": "Text override",
+      "clear": "Clear",
+      "themeDefault": "Theme default",
+      "contrast": "Contrast {ratio, number, ::.0}:1",
+      "contrastBlocked": "Contrast {ratio, number, ::.0}:1 — below 3:1, blocked. Pick more distinct colours.",
+      "contrastWarn": "Contrast {ratio, number, ::.0}:1 — below 4.5:1 (AA body text).",
+      "overridesHint": "Overrides paint the widget's own surface, so it no longer takes the host page's.",
+      "hideBadge": "Hide “Powered by Booklo”",
+      "premium": "Premium"
+    },
+    "branding": {
+      "logo": "Logo",
+      "logoHint": "PNG, JPEG or WebP · max 1 MB.",
+      "logoAlt": "Current logo",
+      "upload": "Upload",
+      "replace": "Replace",
+      "accent": "Accent colour",
+      "accentHint": "Used on the booking page and in the website embed.",
+      "pickAccent": "Pick accent colour",
+      "accentInvalid": "Accent must be a #rrggbb hex colour.",
+      "accentSaved": "Accent saved",
+      "logoType": "PNG, JPEG or WebP only.",
+      "logoTooBig": "Logo must be 1 MB or less.",
+      "logoUpdated": "Logo updated",
+      "logoRemoved": "Logo removed"
+    },
+    "name": "Booking page",
+    "intro": "The page clients book you on. Arrange its sections, brand it, then publish.",
+    "tabs": {
+      "sections": "Sections",
+      "settings": "Settings"
+    },
+    "layout": {
+      "label": "Layout",
+      "column": "Column",
+      "columnHint": "One column, like today's page",
+      "split": "Split",
+      "splitHint": "Booking docks to the right on wide screens"
+    },
+    "defaultPageHint": "This is the default page. Pick a template or add sections.",
+    "addSection": "Add section",
+    "proBadge": "Pro",
+    "addRefused": {
+      "max": "Pages hold at most {max} sections.",
+      "alreadyOn": "Already on the page."
+    },
+    "row": {
+      "reorder": "Reorder {section}",
+      "required": "Required",
+      "show": "Show section",
+      "hide": "Hide section",
+      "remove": "Remove section"
+    },
+    "summary": {
+      "header": "Logo and name",
+      "noHeadline": "No headline yet",
+      "nothingWritten": "Nothing written yet",
+      "staff": "Bookable team members",
+      "noAddress": "No address yet",
+      "images": "{count, plural, one {# image} other {# images}}",
+      "quotes": "{count, plural, one {# quote} other {# quotes}}",
+      "questions": "{count, plural, one {# question} other {# questions}}",
+      "links": "{count, plural, one {# link} other {# links}}"
+    },
+    "issues": {
+      "httpsLink": "Use an https:// link (tel: for phone, mailto: for email).",
+      "httpsOnly": "Use an https:// link.",
+      "oneBooking": "The page needs exactly one booking section.",
+      "onlyOne": "Only one {section} section is allowed.",
+      "onePhotoPerSpace": "One photo per space.",
+      "uniqueIds": "Section ids must be unique.",
+      "tooManyImages": "At most {max} images per page."
+    },
+    "publishBar": {
+      "notPublished": "Not published yet",
+      "unpublished": "Unpublished changes",
+      "live": "Live",
+      "saveFailed": "Couldn't save",
+      "fixErrors": "Fix errors to save",
+      "retry": "Retry",
+      "capped": "Not on your public page — over your plan's limit, so clients would see a not-found page.",
+      "liftLimit": "Lift the limit",
+      "viewLive": "View live page",
+      "discard": "Discard changes",
+      "publish": "Publish"
+    },
+    "draft": {
+      "fixFields": "Fix the highlighted fields before publishing.",
+      "published": "Page published",
+      "discarded": "Draft discarded"
+    },
+    "discard": {
+      "title": "Discard changes?",
+      "toPublished": "Your draft goes back to the published page.",
+      "toDefault": "Your draft goes back to the default page.",
+      "confirm": "Discard"
+    },
+    "publishEmpty": {
+      "title": "{count, plural, one {# section is empty} other {# sections are empty}}",
+      "description": "{sections} won't show on the published page. Publish anyway?"
+    },
+    "preview": {
+      "title": "Live preview",
+      "light": "Light",
+      "dark": "Dark",
+      "device": "Device",
+      "desktop": "Desktop",
+      "mobile": "Mobile",
+      "systemTheme": "Visitor's system theme",
+      "lightSystem": "Light system",
+      "darkSystem": "Dark system",
+      "themeFixedLight": "Theme is fixed to Light — every visitor sees this. Set Theme to Auto to preview both.",
+      "themeFixedDark": "Theme is fixed to Dark — every visitor sees this. Set Theme to Auto to preview both."
+    },
+    "notice": {
+      "contrastUnreadable": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — unreadable. Adjust them on <link>Website embed</link>.",
+      "contrastLow": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — below 4.5:1 (AA body text). Adjust them on <link>Website embed</link>.",
+      "embedRiskLight": "This page is always readable — it paints its own light ground. But Theme is shared with the website embed, which takes your site's surface: on a dark site its text becomes unreadable. If your site is dark, choose Dark (or Auto), or set a background colour on <link>Website embed</link>.",
+      "embedRiskDark": "This page is always readable — it paints its own dark ground. But Theme is shared with the website embed, which takes your site's surface: on a light site its text becomes unreadable. If your site is light, choose Light (or Auto), or set a background colour on <link>Website embed</link>.",
+      "auto": "Auto follows each visitor's system setting. This page always matches, so both variants are readable (use the toggle above). The website embed only matches if your site does too — check it there."
+    },
+    "settings": {
+      "look": "Look",
+      "lookHint": "Logo and accent colour. Saved as you go.",
+      "widget": "Booking page widget",
+      "widgetHint": "This page's own style. The website embed has its own on Website embed. Saved as you go."
+    },
+    "image": {
+      "hint": "PNG, JPEG or WebP · max 4 MB · best under 2000 px wide.",
+      "typeOnly": "PNG, JPEG or WebP only.",
+      "tooLarge": "Images must be 4 MB or less.",
+      "uploading": "Uploading…",
+      "upload": "Upload",
+      "replace": "Replace"
+    },
+    "list": {
+      "moveUp": "Move item {n} up",
+      "moveDown": "Move item {n} down",
+      "remove": "Remove item {n}"
+    },
+    "forms": {
+      "title": "Title",
+      "style": "Style",
+      "list": "List",
+      "cards": "Cards",
+      "showPrices": "Show prices",
+      "header": {
+        "tagline": "Tagline",
+        "taglinePlaceholder": "Colour specialist in Kraków",
+        "taglineHint": "Shown under your name. Logo and accent are on the Settings tab."
+      },
+      "hero": {
+        "image": "Cover image",
+        "headline": "Headline",
+        "headlinePlaceholder": "Hair & colour by Anna",
+        "subheadline": "Subheadline",
+        "align": "Alignment",
+        "left": "Left",
+        "center": "Centered",
+        "button": "Button",
+        "buttonPlaceholder": "Book now",
+        "buttonHint": "Jumps to the booking widget. Leave blank for no button."
+      },
+      "about": {
+        "photo": "Photo",
+        "titlePlaceholder": "About me",
+        "text": "Text",
+        "textHint": "Blank line = new paragraph."
+      },
+      "services": {
+        "showDurations": "Show durations"
+      },
+      "staff": {
+        "hint": "Shows once two or more team members are bookable; clicking a person opens their own booking link."
+      },
+      "spaces": {
+        "showStay": "Show stay / duration",
+        "addFirst": "Add a space first — <link>Manage spaces</link>.",
+        "editedOn": "Spaces themselves are edited on <link>Manage spaces</link>."
+      },
+      "gallery": {
+        "columns": "Columns",
+        "two": "Two",
+        "three": "Three",
+        "photos": "Photos",
+        "upTo": "Up to {max}.",
+        "addPhotos": "Add photos",
+        "altPlaceholder": "Describe the photo (alt text)",
+        "altAria": "Photo {n} description"
+      },
+      "testimonials": {
+        "add": "Add quote",
+        "quotePlaceholder": "What did they say?",
+        "authorPlaceholder": "Who said it",
+        "quoteAria": "Quote {n}",
+        "authorAria": "Quote {n} author"
+      },
+      "faq": {
+        "add": "Add question",
+        "question": "Question",
+        "answer": "Answer",
+        "questionAria": "Question {n}",
+        "answerAria": "Answer {n}"
+      },
+      "links": {
+        "add": "Add link",
+        "label": "Label",
+        "typeAria": "Link {n} type",
+        "labelAria": "Link {n} label",
+        "addressAria": "Link {n} address",
+        "icon": {
+          "instagram": "Instagram",
+          "facebook": "Facebook",
+          "tiktok": "TikTok",
+          "whatsapp": "WhatsApp",
+          "website": "Website",
+          "phone": "Phone",
+          "email": "Email",
+          "other": "Other"
+        }
+      },
+      "location": {
+        "address": "Address",
+        "addressPlaceholder": "Main St 1\n00-001 Warsaw",
+        "maps": "Maps link",
+        "mapsHint": "Shown as “Open in Maps”."
+      },
+      "booking": {
+        "titlePlaceholder": "Book a time",
+        "hint": "The widget itself is styled on the Settings tab and on Website embed."
+      }
+    }
+  },
+  "embed": {
+    "rows": {
+      "bookingPage": "Booking page",
+      "appointmentsPage": "Appointments page",
+      "spacesPage": "Spaces page"
+    },
+    "badge": {
+      "space": "Space",
+      "team": "Team",
+      "service": "Service"
+    },
+    "intro": "Add booking to your own site. Style the widget against the live preview, then paste the snippet into your page. Logo and accent colour come from Booking page › Branding.",
+    "snippet": "Embed snippet",
+    "whichWidget": "Which widget",
+    "channelAppointments": "Appointments",
+    "bookWith": "Book with",
+    "wholeTeam": "Whole team",
+    "staffOnly": "This snippet books that person only.",
+    "clientsPick": "Clients pick who they book.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyRefused": "Couldn't copy — select the snippet and copy manually.",
+    "noHandle": "Set a booking page address on <link>Booking page</link> to get your embed code.",
+    "style": {
+      "title": "Widget style",
+      "description": "The widget on your own site. The booking page has its own style."
+    },
+    "saved": "Widget appearance saved",
+    "preview": {
+      "hostPage": "Host page",
+      "lightPage": "Light page",
+      "darkPage": "Dark page",
+      "clash": "On {host, select, dark {a dark page} other {a light page}} the {theme, select, dark {Dark theme's} other {Light theme's}} text is unreadable ({ratio, number, ::.0}:1) — the embed paints no background of its own. If your site is like this {host, select, dark {dark page} other {light page}}, choose {theme, select, dark {the Light theme} other {the Dark theme}} (or Auto), or set a background colour so the widget brings its own surface.",
+      "fixedRisk": "{theme, select, dark {Dark theme} other {Light theme}} with no background: the widget takes your site's surface, so on {theme, select, dark {a light site} other {a dark site}} its text becomes unreadable. Fine if your site is like this {host, select, dark {dark page} other {light page}} — otherwise choose {theme, select, dark {the Light theme} other {the Dark theme}}, or set a background colour. Preview {theme, select, dark {a light page} other {a dark page}} above to see it.",
+      "autoRisk": "Auto follows each visitor's system setting, not your site's colours. On a site that is always light or always dark, some visitors will get the mismatched variant. Pick the theme that matches your site, or set a background colour. Switch the host page above to see both."
+    },
+    "links": {
+      "title": "Links & embeds",
+      "description": "A link opens your booking page on that thing; an embed is the snippet for it.",
+      "copyEmbed": "Copy embed",
+      "copyLinkFor": "Copy link — {name}",
+      "copyEmbedFor": "Copy embed — {name}",
+      "embedCopied": "Embed copied"
+    }
+  },
+  "seed": {
+    "bookNow": "Book now",
+    "services": "Services",
+    "team": "Team",
+    "spaces": "Spaces"
+  },
+  "embedTitle": {
+    "appointment": "Book an appointment",
+    "space": "Book a space"
   }
 }

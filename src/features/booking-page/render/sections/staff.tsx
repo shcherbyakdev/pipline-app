@@ -10,7 +10,7 @@ const CARD = cn(PICK_CARD, "flex flex-col items-center gap-3 p-5 text-center");
 
 export function StaffSection({ section, ctx }: { section: SectionOf<"staff">; ctx: RenderContext }) {
   if (ctx.lockedStaff) return null;
-  if (ctx.staff.length < 2) return <Ghost mode={ctx.mode} label="Shows once two or more team members are bookable" />;
+  if (ctx.staff.length < 2) return <Ghost ctx={ctx} text="staff" />;
   return (
     <section className="flex flex-col gap-5">
       {section.title.trim() ? <h2 className={H2}>{section.title}</h2> : null}

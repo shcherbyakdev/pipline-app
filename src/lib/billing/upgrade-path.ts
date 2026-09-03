@@ -5,7 +5,7 @@
 // gate refusals all read this — never a hard "/billing" link again.
 import type { Flags } from "@/lib/flags";
 import type { PlanId } from "./plans";
-import { UPGRADE_HINTS } from "@/features/scheduling/schema";
+import type { UpgradeHint } from "./refusal";
 
 export type UpgradeHref = "/billing" | "/waitlist";
 
@@ -15,16 +15,9 @@ export function upgradeHref(flags: Pick<Flags, "billing" | "premium_waitlist">, 
   return null;
 }
 
-export const UPGRADE_LABELS: Record<UpgradeHref, string> = {
-  "/billing": "Open Billing",
-  "/waitlist": "Join the waitlist",
-};
-
-/** The same door, read back off a refusal the gate wrote (lib/billing/gates.ts
-    picks the hint from this rule, so the sentence carries it). Lets a client
-    that only holds the error string offer the right action. */
-export function upgradeHrefFromRefusal(error: string): UpgradeHref | null {
-  if (error.endsWith(UPGRADE_HINTS.billing)) return "/billing";
-  if (error.endsWith(UPGRADE_HINTS.waitlist)) return "/waitlist";
-  return null;
+/** The same door, read back off the hint a gate chose (lib/billing/gates.ts
+    upgradeHint) — so a page can offer the right action from the refusal's
+    data rather than its sentence. */
+export function hrefForHint(how: UpgradeHint): UpgradeHref | null {
+  return how === "billing" ? "/billing" : how === "waitlist" ? "/waitlist" : null;
 }

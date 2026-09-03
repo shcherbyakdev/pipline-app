@@ -15,7 +15,7 @@ describe("setupChecklist (admin IA spec §4)", () => {
     const items = setupChecklist({ mode: BOTH, ...nothing });
     expect(items.map((i) => i.id)).toEqual(["space", "service", "hours"]);
     expect(items.every((i) => !i.done)).toBe(true);
-    expect(items.map((i) => i.label)).toEqual(["Add a space", "Add a service", "Set hours"]);
+    expect(items.map((i) => i.labelKey)).toEqual(["addSpace", "addService", "setHours"]);
     expect(items.map((i) => i.href)).toEqual(["/rentals?new=1", "/services?new=1", "/availability"]);
   });
   it("appointments-only: no space item", () => {
@@ -45,14 +45,14 @@ describe("setupChecklist (admin IA spec §4)", () => {
     const items = setupChecklist({ mode: RENTALS, ...nothing, spaceCount: 1, bookableSpaceCount: 0, unitlessSpaceId: "off-1" });
     const space = items.find((i) => i.id === "space")!;
     expect(space.done).toBe(false);
-    expect(space.label).toBe("Add a unit to your space");
+    expect(space.labelKey).toBe("addUnit");
     expect(space.href).toBe("/rentals/off-1");
   });
   it("a space with an active unit ticks the chip; the label stays the plain one", () => {
     const items = setupChecklist({ mode: RENTALS, ...nothing, spaceCount: 1, bookableSpaceCount: 1, unitlessSpaceId: null });
     const space = items.find((i) => i.id === "space")!;
     expect(space.done).toBe(true);
-    expect(space.label).toBe("Add a space");
+    expect(space.labelKey).toBe("addSpace");
     expect(space.href).toBe("/rentals?new=1");
   });
   it("two spaces, one bookable: done — the other's missing unit is the list's badge, not the checklist's job", () => {
@@ -65,7 +65,7 @@ describe("setupChecklist (admin IA spec §4)", () => {
 // chip (every chip navigates away). It now shows until the checklist is
 // done or the owner dismisses it — derived, not carried in the URL.
 describe("showWelcome", () => {
-  const todo = { id: "service" as const, label: "Add a service", href: "/services?new=1", done: false };
+  const todo = { id: "service" as const, labelKey: "addService" as const, href: "/services?new=1", done: false };
   const done = { ...todo, done: true };
 
   it("shows while any item is undone", () => {

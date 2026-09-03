@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import type { SectionOf } from "../../schema";
 import type { RenderContext } from "../context";
@@ -9,7 +10,8 @@ import { CARD, H2, PICK_CARD } from "../type";
 
 export function ServicesSection({ section, ctx }: { section: SectionOf<"services">; ctx: RenderContext }) {
   const { selectService, requested } = usePageState();
-  if (ctx.services.length === 0) return <Ghost mode={ctx.mode} label="Add a service and it shows here" />;
+  const tu = useTranslations("public.units");
+  if (ctx.services.length === 0) return <Ghost ctx={ctx} text="services" />;
   const pick = (id: string) => {
     selectService(id);
     // The preview sits inside the admin page: no scrolling there.
@@ -39,7 +41,7 @@ export function ServicesSection({ section, ctx }: { section: SectionOf<"services
                 {section.showPrices && s.priceLabel ? <span className="shrink-0 font-medium tabular-nums">{s.priceLabel}</span> : null}
               </span>
               {s.description ? <span className="text-muted-foreground text-sm leading-relaxed">{s.description}</span> : null}
-              {section.showDurations ? <span className="text-muted-foreground mt-auto text-xs tabular-nums">{s.durationMin} min</span> : null}
+              {section.showDurations ? <span className="text-muted-foreground mt-auto text-xs tabular-nums">{tu("minutes", { count: s.durationMin })}</span> : null}
             </button>
           </li>
         ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { initials } from "@/features/scheduling/staff-slug";
 import { cn } from "@/lib/utils";
 
@@ -22,12 +23,13 @@ export function StaffSwitch({
   value: string;
   onChange: (id: string) => void;
 }) {
+  const t = useTranslations("public.widget");
   const name = React.useId();
-  const all: Array<{ id: string; name: string; color: string | null }> = [{ id: "any", name: "Anyone", color: null }, ...options];
+  const all: Array<{ id: string; name: string; color: string | null }> = [{ id: "any", name: t("anyone"), color: null }, ...options];
   return (
     <fieldset className="flex flex-wrap items-center gap-2">
-      <legend className="sr-only">Book with</legend>
-      <span aria-hidden className="text-muted-foreground text-xs">With</span>
+      <legend className="sr-only">{t("bookWith")}</legend>
+      <span aria-hidden className="text-muted-foreground text-xs">{t("withShort")}</span>
       {all.map((o) => {
         const checked = value === o.id;
         return (

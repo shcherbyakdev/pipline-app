@@ -112,6 +112,26 @@ describe("create_booking RPC", () => {
     expect(h).not.toBeNull();
   });
 
+  it("0069: update_org_scheduling persists the org locale, keeps it when omitted, rejects a malformed code", async () => {
+    const { error: set } = await owner.rpc("update_org_scheduling", {
+      p_org_id: orgId, p_handle: HANDLE, p_timezone: "Europe/Berlin", p_currency: "PLN", p_locale: "uk",
+    });
+    expect(set).toBeNull();
+    const { error: keep } = await owner.rpc("update_org_scheduling", {
+      p_org_id: orgId, p_handle: HANDLE, p_timezone: "Europe/Berlin", p_currency: "PLN",
+    });
+    expect(keep).toBeNull();
+    const { data } = await owner.from("orgs").select("locale").eq("id", orgId).single();
+    expect(data?.locale).toBe("uk");
+    const { error: bad } = await owner.rpc("update_org_scheduling", {
+      p_org_id: orgId, p_handle: HANDLE, p_timezone: "Europe/Berlin", p_currency: "PLN", p_locale: "UK",
+    });
+    expect(bad?.message).toContain("invalid locale");
+    await owner.rpc("update_org_scheduling", {
+      p_org_id: orgId, p_handle: HANDLE, p_timezone: "Europe/Berlin", p_currency: "PLN", p_locale: "en",
+    });
+  });
+
   it("0052: the booking RPCs are off the anon surface (service_role only)", async () => {
     // The server actions re-run the slot engine (min notice, buffers, grid,
     // max/day, plan roster) and are the only entry; with the public anon key

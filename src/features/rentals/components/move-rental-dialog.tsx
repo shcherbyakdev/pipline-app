@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -13,6 +14,7 @@ import {
 import { firstOfMonth, monthOf } from "@/features/rentals/calendar-grid";
 import { formatDurationLabel } from "@/features/rentals/hourly";
 import { dateInZone } from "@/features/scheduling/slots";
+import { INTL_LOCALES } from "@/i18n/config";
 import { whenLineFor } from "@/features/scheduling/templates";
 import {
   getAdminRangeAvailability,
@@ -24,7 +26,6 @@ import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
 import { RangePicker, type RangeValue } from "./range-picker";
 import { UnitSelect } from "./unit-select";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogBreadcrumbHeader,
@@ -61,6 +62,9 @@ export function MoveRentalDialog({
   // that row is stale (the RPC writes a new one), so it closes itself.
   onMoved?: () => void;
 }) {
+  const tu = useTranslations("public.units");
+  const t = useTranslations("bookings");
+  const intlLocale = INTL_LOCALES[useLocale()];
   const router = useRouter();
   const offeringId = booking.rentalOfferingId;
   const hourly = booking.rangeMode === "hours";
@@ -238,15 +242,15 @@ export function MoveRentalDialog({
       if (result.datesChanged) {
         toast.success(
           result.emailed
-            ? "Booking moved — the client has been emailed"
-            : "Booking moved",
+            ? t("move.doneEmailed")
+            : t("move.done"),
         );
       } else if (result.unitChanged) {
         toast.success(
-          result.emailed ? "Unit changed — client emailed" : "Unit changed",
+          result.emailed ? t("move.unitChangedEmailed") : t("move.unitChanged"),
         );
       } else {
-        toast.success("Booking moved");
+        toast.success(t("move.done"));
       }
       onOpenChange(false);
       onMoved?.();
@@ -282,15 +286,15 @@ export function MoveRentalDialog({
       if (result.datesChanged) {
         toast.success(
           result.emailed
-            ? "Stay moved — the client has been emailed"
-            : "Stay moved",
+            ? t("move.stayDoneEmailed")
+            : t("move.stayDone"),
         );
       } else if (result.unitChanged) {
         toast.success(
-          result.emailed ? "Unit changed — client emailed" : "Unit changed",
+          result.emailed ? t("move.unitChangedEmailed") : t("move.unitChanged"),
         );
       } else {
-        toast.success("Stay moved");
+        toast.success(t("move.stayDone"));
       }
       onOpenChange(false);
       onMoved?.();
@@ -304,7 +308,7 @@ export function MoveRentalDialog({
         <DialogBreadcrumbHeader
           chip={<DialogChip tone="space">{booking.serviceName}</DialogChip>}
         >
-          {hourly ? "Move booking" : "Move stay"}
+          {hourly ? t("move.title") : t("move.stayTitle")}
         </DialogBreadcrumbHeader>
         <div className="flex flex-col gap-4 px-5 pt-4 pb-6">
           <DialogDescription>
@@ -317,6 +321,7 @@ export function MoveRentalDialog({
                 rangeMode: booking.rangeMode,
               },
               timeZone,
+              intlLocale,
             )}
           </DialogDescription>
           {hourly ? (
@@ -333,15 +338,15 @@ export function MoveRentalDialog({
                   regionRef={slotsRegionRef}
                   headerSlot={
                     <p className="text-sm font-medium">
-                      {formatDurationLabel(durationMin)}
+                      {formatDurationLabel(durationMin, tu)}
                     </p>
                   }
                 />
               ) : (
                 <>
                   <p className="text-sm">
-                    {formatDurationLabel(durationMin)} ·{" "}
-                    {new Intl.DateTimeFormat("en-GB", {
+                    {formatDurationLabel(durationMin, tu)} ·{" "}
+                    {new Intl.DateTimeFormat(intlLocale, {
                       weekday: "short",
                       day: "2-digit",
                       month: "short",
@@ -353,23 +358,21 @@ export function MoveRentalDialog({
                       className="text-muted-foreground underline"
                       onClick={backToTime}
                     >
-                      change
+                      {t("form.change")}
                     </button>
                   </p>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="move-rental-hour-unit">Unit</Label>
-                    <UnitSelect
-                      id="move-rental-hour-unit"
-                      units={hourUnits}
-                      freeUnitIds={freeHourUnitIds}
-                      value={unitId}
-                      onChange={setUnitId}
-                      keepUnitId={booking.rentalUnitId}
-                      keepUnitName={keepHourUnitName}
-                    />
-                  </div>
+                  <UnitSelect
+                    id="move-rental-hour-unit"
+                    label={t("form.unit")}
+                    units={hourUnits}
+                    freeUnitIds={freeHourUnitIds}
+                    value={unitId}
+                    onChange={setUnitId}
+                    keepUnitId={booking.rentalUnitId}
+                    keepUnitName={keepHourUnitName}
+                  />
                   <Button onClick={confirmHours} disabled={pending}>
-                    {pending ? "Moving…" : "Move booking"}
+                    {pending ? t("move.moving") : t("move.title")}
                   </Button>
                 </>
               )}
@@ -379,7 +382,7 @@ export function MoveRentalDialog({
             </div>
           ) : offering === null ? (
             <p className="text-muted-foreground text-sm">
-              {error ?? "Loading availability…"}
+              {error ?? t("form.loadingAvailability")}
             </p>
           ) : (
             <div className="flex flex-col gap-4">
@@ -397,20 +400,18 @@ export function MoveRentalDialog({
               />
               {range.start && range.end ? (
                 <>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="move-rental-unit">Unit</Label>
-                    <UnitSelect
-                      id="move-rental-unit"
-                      units={units}
-                      freeUnitIds={freeUnitIds}
-                      value={unitId}
-                      onChange={setUnitId}
-                      keepUnitId={booking.rentalUnitId}
-                      keepUnitName={keepUnitName}
-                    />
-                  </div>
+                  <UnitSelect
+                    id="move-rental-unit"
+                    label={t("form.unit")}
+                    units={units}
+                    freeUnitIds={freeUnitIds}
+                    value={unitId}
+                    onChange={setUnitId}
+                    keepUnitId={booking.rentalUnitId}
+                    keepUnitName={keepUnitName}
+                  />
                   <Button onClick={confirm} disabled={pending || !stay?.ok}>
-                    {pending ? "Moving…" : "Move stay"}
+                    {pending ? t("move.moving") : t("move.stayTitle")}
                   </Button>
                 </>
               ) : null}

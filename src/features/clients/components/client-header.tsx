@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { renameClient, deleteClient } from "@/features/clients/actions";
@@ -16,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 
 export function ClientHeader({ id, name }: { id: string; name: string }) {
+  const t = useTranslations("clients.header");
+  const tc = useTranslations("common");
   const [value, setValue] = React.useState(name);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
@@ -43,7 +46,7 @@ export function ClientHeader({ id, name }: { id: string; name: string }) {
         onBlur={commitRename}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
         maxLength={120}
-        aria-label="Client name"
+        aria-label={t("nameAria")}
         className="border-transparent text-lg font-semibold shadow-none focus-visible:border-input"
       />
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -52,21 +55,18 @@ export function ClientHeader({ id, name }: { id: string; name: string }) {
         <DialogTrigger
           render={
             <Button variant="ghost" size="sm" className="text-muted-foreground shrink-0">
-              <Trash2 className="size-4" /> Delete client
+              <Trash2 className="size-4" /> {t("deleteButton")}
             </Button>
           }
         />
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete this client?</DialogTitle>
+            <DialogTitle>{t("deleteTitle")}</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-sm">
-            Bookings keep their history (name and email stay on each booking);
-            the client entry itself is deleted.
-          </p>
+          <p className="text-muted-foreground text-sm">{t("deleteBody")}</p>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -79,7 +79,7 @@ export function ClientHeader({ id, name }: { id: string; name: string }) {
                 })
               }
             >
-              Delete
+              {tc("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

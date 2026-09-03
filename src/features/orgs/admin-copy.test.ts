@@ -6,31 +6,13 @@ import { describe, it, expect } from "vitest";
    SOURCE of each surface: JSX text nodes and the labelled string props.
    Identifiers (`listOfferings`, `rentalOfferingId`) live inside `{…}` or
    before `(`/`.` and are never matched. Extend SURFACES as surfaces migrate. */
+// Since i18n Wave 3 the admin's words live in messages, guarded by
+// src/i18n/messages.test.ts (rental / offering / skip in both locales), and
+// the jsx-no-literals ratchet keeps new literals out. What is left for this
+// source scan is the label-prop rule: the ratchet runs with ignoreProps, so a
+// re-inlined aria-label="… rental …" is only caught here.
 export const SURFACES = [
-  "src/app/(dashboard)/rentals/page.tsx",
-  "src/app/(dashboard)/rentals/[id]/page.tsx",
-  "src/features/rentals/components/offering-dialog.tsx",
-  "src/features/rentals/components/units-editor.tsx",
-  "src/components/command-menu.tsx",
-  "src/features/orgs/components/business-settings.tsx",
-  "src/app/(dashboard)/team/page.tsx",
-  "src/features/scheduling/components/scheduling-settings-form.tsx",
-  "src/features/scheduling/components/bookings-list.tsx",
-  "src/features/rentals/components/timeline.tsx",
-  "src/features/rentals/components/timeline-lane.tsx",
-  "src/features/scheduling/components/view-switcher.tsx",
-  "src/app/(dashboard)/bookings/page.tsx",
-  "src/features/scheduling/components/appointment-booking-form.tsx",
-  "src/features/rentals/components/space-booking-form.tsx",
-  "src/features/scheduling/components/new-booking-dialog.tsx",
-  "src/features/scheduling/components/new-booking-button.tsx",
-  "src/features/scheduling/components/calendar-week.tsx",
-  "src/features/scheduling/components/scope-menu.tsx",
-  "src/app/(dashboard)/clients/[id]/page.tsx",
-  "src/app/(dashboard)/availability/page.tsx",
-  "src/features/scheduling/components/owner-tabs.tsx",
   "src/features/orgs/components/links-table.tsx",
-  "src/components/copy-link-button.tsx",
 ];
 
 /* The exact literals the audit found. Cheap, unambiguous, and the first thing

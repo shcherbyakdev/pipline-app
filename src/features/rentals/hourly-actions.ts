@@ -1,5 +1,7 @@
 "use server";
 
+import { emailTranslators } from "@/i18n/emails";
+import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
@@ -8,6 +10,7 @@ import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext, type PublicUnit } from "@/lib/booking/public";
 import { loadPublicResources } from "@/lib/booking/public-offering";
 import { getProviderEmail } from "@/lib/booking/provider";
+import { withUnit } from "@/features/rentals/unit-label";
 import { selectTransport } from "@/lib/email/transport";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { env } from "@/env";
@@ -33,14 +36,8 @@ import { moneyInfoLines, totalCents, depositCents } from "./pricing";
 import {
   getHourlySlotsInput,
   createRentalBookingHoursInput,
-  GENERIC_WRITE_ERROR,
-  SLOT_TAKEN_HOURLY,
-  TERMS_REQUIRED,
 } from "./schema";
 
-const TOO_MANY_REQUESTS = "Too many requests — slow down.";
-const TOO_MANY_FOR_EMAIL =
-  "Too many bookings for this email address in the last hour — try again later.";
 
 // Two buckets (scheduling/public-actions.ts idiom): browsing weeks is cheap
 // and frequent, a booking is an RPC plus emails.
@@ -123,9 +120,12 @@ export async function getHourlySlots(
     }
   | { ok: false; error: string }
 > {
-  if (await limited("slots")) return { ok: false, error: TOO_MANY_REQUESTS };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited("slots")) return publicError(orgLocale, "tooManyRequests");
   const parsed = getHourlySlotsInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
+  // getBookingOrg is memoised per request: the loaders below re-use this read.
+  orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
   const { handle, offeringId, durationMin, fromDate, days, unitId } = parsed.data;
   try {
     // getSlots idiom (scheduling/public-actions.ts): fromDate is viewer-local;
@@ -134,9 +134,9 @@ export async function getHourlySlots(
     const from = addDaysISO(fromDate, -1);
     const span = days + 2;
     const ctx = await loadHourlyContext(handle, offeringId, from, span, { unitId: unitId ?? undefined });
-    if (!ctx || !isHourlyOffering(ctx.offering)) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!ctx || !isHourlyOffering(ctx.offering)) return publicError(orgLocale, "generic");
     if (!durationOptions(ctx.offering).includes(durationMin)) {
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return publicError(orgLocale, "generic");
     }
     const slots = hourlySlotsFor(ctx, durationMin, from, span);
     return {
@@ -146,7 +146,7 @@ export async function getHourlySlots(
     };
   } catch (error) {
     console.error("[rentals] getHourlySlots:", error);
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return publicError(orgLocale, "generic");
   }
 }
 
@@ -162,9 +162,12 @@ export async function createRentalBookingHours(
 ): Promise<
   { ok: true; token: string; pending: boolean } | { ok: false; error: string; slotTaken?: boolean }
 > {
-  if (await limited("booking")) return { ok: false, error: TOO_MANY_REQUESTS };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited("booking")) return publicError(orgLocale, "tooManyRequests");
   const parsed = createRentalBookingHoursInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
+  // getBookingOrg is memoised per request: the loaders below re-use this read.
+  orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
   const { handle, offeringId, unitId, startsAt, durationMin, name, email, note, termsAccepted } = parsed.data;
 
   try {
@@ -177,15 +180,15 @@ export async function createRentalBookingHours(
     // a client_picks request's unitId is checked against every unit's own
     // slot membership below, not assumed correct.
     const ctx = await loadHourlyContext(handle, offeringId, dateInZone(starts, "UTC"), 2);
-    if (!ctx || !isHourlyOffering(ctx.offering)) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!ctx || !isHourlyOffering(ctx.offering)) return publicError(orgLocale, "generic");
     if (!durationOptions(ctx.offering).includes(durationMin)) {
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return publicError(orgLocale, "generic");
     }
     // H3: the RPC stamps terms_accepted_at on its own whenever the offering
     // carries terms_text — this is the actual enforcement in front of it
     // (rentals/public-actions.ts's createRentalBooking idiom).
     if (ctx.offering.termsText !== null && !termsAccepted) {
-      return { ok: false, error: TERMS_REQUIRED };
+      return publicError(orgLocale, "termsRequired");
     }
 
     // Re-run the engine for the org-local day of the requested instant; the
@@ -196,7 +199,7 @@ export async function createRentalBookingHours(
     const slots = hourlySlotsFor(ctx, durationMin, localDate, 2);
     const match = slots.find((s) => s.startsAt.getTime() === starts.getTime());
     if (!match || (unitId !== null && !match.unitIds.includes(unitId))) {
-      return { ok: false, error: SLOT_TAKEN_HOURLY, slotTaken: true };
+      return publicError(orgLocale, "slotTaken", { slotTaken: true });
     }
 
     const { token, tokenHash } = generateAccessToken();
@@ -222,7 +225,7 @@ export async function createRentalBookingHours(
     // the allowed free units (match.unitIds — the engine only ever saw those).
     const attempts: (string | null)[] =
       unitId !== null ? [unitId] : ctx.capped ? match.unitIds : [null, null];
-    if (attempts.length === 0) return { ok: false, error: SLOT_TAKEN_HOURLY, slotTaken: true };
+    if (attempts.length === 0) return publicError(orgLocale, "slotTaken", { slotTaken: true });
     let result = await call(attempts[0]);
     for (let i = 1; i < attempts.length && result.error && isTaken(result.error); i++) {
       result = await call(attempts[i]);
@@ -230,10 +233,10 @@ export async function createRentalBookingHours(
     const { data: bookingId, error } = result;
     if (error) {
       // Per-email hourly cap (0056).
-      if (isRpcSentinel(error, "too_many")) return { ok: false, error: TOO_MANY_FOR_EMAIL };
-      if (isTaken(error)) return { ok: false, error: SLOT_TAKEN_HOURLY, slotTaken: true };
+      if (isRpcSentinel(error, "too_many")) return publicError(orgLocale, "tooManyForEmail");
+      if (isTaken(error)) return publicError(orgLocale, "slotTaken", { slotTaken: true });
       console.error("[rentals] createRentalBookingHours:", error.code || "rpc error");
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return publicError(orgLocale, "generic");
     }
 
     // The RPC decided under the flag it read at insert time — one select
@@ -249,6 +252,8 @@ export async function createRentalBookingHours(
     // own errors AND the whole block is wrapped below — a throw here (e.g.
     // formatHourlyWhenLine, totalCents) must not report a committed booking
     // as failed to the caller.
+    // The org's language for both mails (spec D4).
+    const mail = await emailTranslators(ctx.org.locale);
     let prep: {
       whenLine: string;
       serviceName: string;
@@ -258,12 +263,12 @@ export async function createRentalBookingHours(
     try {
       const tz = ctx.org.timeZone;
       const ends = new Date(starts.getTime() + durationMin * 60_000);
-      const whenLine = formatHourlyWhenLine(starts, ends, tz);
+      const whenLine = formatHourlyWhenLine(starts, ends, tz, mail.intlLocale);
       const unitName = await getBookingUnitName(bookingId as string).catch((e) => {
         console.error("[rentals] getBookingUnitName:", e);
         return null;
       });
-      const serviceName = unitName ? `${ctx.offering.name} · ${unitName}` : ctx.offering.name;
+      const serviceName = withUnit(ctx.offering.name, unitName);
       // Best-effort like everything below: a null provider address only means
       // the provider gets no copy of this booking.
       const providerEmail = await getProviderEmail(ctx.org.orgId).catch((e) => {
@@ -278,7 +283,7 @@ export async function createRentalBookingHours(
         depositCents: depositCents(ctx.offering, total),
         currency: ctx.org.currency,
         cancelWindowMin: ctx.offering.cancelWindowMin,
-      });
+      }, mail.tUnits);
       prep = { whenLine, serviceName, infoLines, providerEmail };
     } catch (error) {
       console.error("[rentals] post-booking mail prep failed:", error);
@@ -291,7 +296,7 @@ export async function createRentalBookingHours(
     try {
       const manageUrl = buildBookingManageUrl(token);
       const msg = isPending
-        ? bookingRequestReceivedEmail({
+        ? bookingRequestReceivedEmail(mail.t, {
             orgName: ctx.org.orgName,
             serviceName,
             whenLine,
@@ -299,7 +304,7 @@ export async function createRentalBookingHours(
             badgeUrl: await emailBadgeUrl(ctx.org.orgId),
             infoLines,
           })
-        : bookingConfirmationEmail({
+        : bookingConfirmationEmail(mail.t, {
             orgName: ctx.org.orgName,
             serviceName,
             whenLine,
@@ -329,7 +334,7 @@ export async function createRentalBookingHours(
     // Its own try so a failed client mail can't skip it.
     if (providerEmail) {
       try {
-        const notice = providerNewBookingEmail({
+        const notice = providerNewBookingEmail(mail.t, {
           serviceName,
           clientName: name,
           clientEmail: email,
@@ -354,6 +359,6 @@ export async function createRentalBookingHours(
     return { ok: true, token, pending: isPending };
   } catch (error) {
     console.error("[rentals] createRentalBookingHours:", error);
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return publicError(orgLocale, "generic");
   }
 }

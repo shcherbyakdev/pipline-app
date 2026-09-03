@@ -1,20 +1,4 @@
-import { SPACES } from "@/features/orgs/vocab";
 import type { PageDocument, Section, SectionType } from "./schema";
-
-export const SECTION_META: Record<SectionType, { label: string; description: string }> = {
-  header: { label: "Header", description: "Your logo, name and an optional tagline." },
-  hero: { label: "Cover", description: "A big headline with an optional cover image." },
-  about: { label: "About", description: "Who you are, with a photo." },
-  services: { label: "Services", description: "What you offer, from your service list." },
-  staff: { label: "Team", description: "Your bookable team members." },
-  spaces: SPACES.section,
-  gallery: { label: "Gallery", description: "A grid of photos." },
-  testimonials: { label: "Testimonials", description: "Quotes from happy clients." },
-  faq: { label: "FAQ", description: "Common questions, answered." },
-  links: { label: "Links", description: "Instagram, WhatsApp, your website…" },
-  location: { label: "Location", description: "Your address and a maps link." },
-  booking: { label: "Booking", description: "The booking widget. Always on the page." },
-};
 
 /** What the palette offers. `booking` is seeded and can't be removed;
     `header` is seeded too but may be re-added after deletion. */
@@ -29,15 +13,22 @@ export function newSectionId(): string {
   return Array.from(bytes, (b) => ID_ALPHABET[b % ID_ALPHABET.length]).join("");
 }
 
-export function newSection(type: SectionType, id: string = newSectionId()): Section {
+/** The words a new section starts with — content of the org's document,
+    so the studio hands in the `seed` words in the ORG's language (the words a
+    client reads), never the admin's. */
+export type SectionSeed = { bookNow: string; services: string; team: string; spaces: string };
+/** English, for DEFAULT_PAGE (header + booking read none of these) and tests. */
+export const EN_SEED: SectionSeed = { bookNow: "Book now", services: "Services", team: "Team", spaces: "Spaces" };
+
+export function newSection(type: SectionType, id: string = newSectionId(), seed: SectionSeed = EN_SEED): Section {
   const base = { id, hidden: false as const };
   switch (type) {
     case "header": return { ...base, type, tagline: "" };
-    case "hero": return { ...base, type, headline: "", subheadline: "", align: "left", cta: "Book now" };
+    case "hero": return { ...base, type, headline: "", subheadline: "", align: "left", cta: seed.bookNow };
     case "about": return { ...base, type, title: "", body: "" };
-    case "services": return { ...base, type, title: "Services", style: "list", showPrices: true, showDurations: true };
-    case "staff": return { ...base, type, title: "Team" };
-    case "spaces": return { ...base, type, title: "Spaces", style: "cards", showPrices: true, showStay: true, photos: [] };
+    case "services": return { ...base, type, title: seed.services, style: "list", showPrices: true, showDurations: true };
+    case "staff": return { ...base, type, title: seed.team };
+    case "spaces": return { ...base, type, title: seed.spaces, style: "cards", showPrices: true, showStay: true, photos: [] };
     case "gallery": return { ...base, type, images: [], columns: 3 };
     case "testimonials": return { ...base, type, items: [{ quote: "", author: "" }] };
     case "faq": return { ...base, type, items: [{ q: "", a: "" }] };

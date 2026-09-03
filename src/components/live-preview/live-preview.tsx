@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { BrowserFrame } from "./browser-frame";
 import { DeviceToggle, type Device } from "./toggles";
 import { cn } from "@/lib/utils";
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils";
    toggle, a browser frame around the caller's page, and notices below.
    Owns the device state; the page column narrows to phone width on mobile. */
 export function LivePreview({
-  title = "Live preview",
+  title,
   url,
   dark,
   controls,
@@ -36,11 +37,12 @@ export function LivePreview({
   notices?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const t = useTranslations("studio.preview");
   const [device, setDevice] = React.useState<Device>("desktop");
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm font-medium">{title}</p>
+        <p className="text-muted-foreground text-sm font-medium">{title ?? t("title")}</p>
         <div className="flex items-center gap-2">
           {controls}
           <DeviceToggle value={device} onChange={setDevice} />

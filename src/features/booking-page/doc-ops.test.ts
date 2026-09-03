@@ -3,9 +3,11 @@ import {
   isSectionEmpty, publicSections, emptyVisibleSections, canAddSection, insertSection, removeSection, moveSection,
   replaceSection, setSectionHidden, sectionSummary, deepEqual, hasUnpublishedChanges, issuesBySection,
 } from "./doc-ops";
-import { DEFAULT_PAGE, newSection } from "./defaults";
+import { DEFAULT_PAGE, EN_SEED, newSection } from "./defaults";
 import { pageDocumentSchema, type Section } from "./schema";
+import { enTranslator, translatorFor } from "@/i18n/test-translator";
 
+const t = enTranslator("studio");
 const ctx = { serviceCount: 2, staffCount: 1, offeringCount: 1 };
 const header = DEFAULT_PAGE.sections[0]!;
 const booking = DEFAULT_PAGE.sections[1]!;
@@ -40,8 +42,8 @@ describe("isSectionEmpty", () => {
     const spaces = newSection("spaces");
     expect(isSectionEmpty(spaces, ctx)).toBe(false);
     expect(isSectionEmpty(spaces, { ...ctx, offeringCount: 0 })).toBe(true);
-    expect(sectionSummary({ ...(spaces as Extract<Section, { type: "spaces" }>), style: "list" })).toBe("List");
-    expect(sectionSummary(spaces)).toBe("Cards");
+    expect(sectionSummary({ ...(spaces as Extract<Section, { type: "spaces" }>), style: "list" }, t)).toBe("List");
+    expect(sectionSummary(spaces, t)).toBe("Cards");
   });
 });
 
@@ -60,18 +62,26 @@ describe("publicSections / emptyVisibleSections", () => {
 
 describe("canAddSection / insertSection", () => {
   it("refuses a second single-instance section and a 21st section", () => {
-    expect(canAddSection(DEFAULT_PAGE, "header").ok).toBe(false);
-    expect(canAddSection(DEFAULT_PAGE, "hero").ok).toBe(true);
+    expect(canAddSection(DEFAULT_PAGE, "header", t)).toEqual({ ok: false, reason: "Already on the page." });
+    expect(canAddSection(DEFAULT_PAGE, "hero", t).ok).toBe(true);
     const full = { ...DEFAULT_PAGE, sections: [header, ...Array.from({ length: 18 }, () => newSection("hero")), booking] };
-    expect(canAddSection(full, "hero").ok).toBe(false);
+    expect(canAddSection(full, "hero", t)).toEqual({ ok: false, reason: "Pages hold at most 20 sections." });
   });
   it("inserts after the given id, or at the end, and returns the new id", () => {
-    const a = insertSection(DEFAULT_PAGE, "hero", header.id);
+    const a = insertSection(DEFAULT_PAGE, "hero", header.id, EN_SEED);
     expect(a.doc.sections.map((s) => s.type)).toEqual(["header", "hero", "booking"]);
     expect(a.doc.sections[1]!.id).toBe(a.id);
-    const b = insertSection(DEFAULT_PAGE, "faq", null);
+    const b = insertSection(DEFAULT_PAGE, "faq", null, EN_SEED);
     expect(b.doc.sections.map((s) => s.type)).toEqual(["header", "booking", "faq"]);
     expect(pageDocumentSchema.safeParse(b.doc).success).toBe(true);
+  });
+  it("seeds the new section's words in the org's language, not the admin's", () => {
+    const tSeed = translatorFor("uk", "seed");
+    const seed = { bookNow: tSeed("bookNow"), services: tSeed("services"), team: tSeed("team"), spaces: tSeed("spaces") };
+    const hero = insertSection(DEFAULT_PAGE, "hero", null, seed).doc.sections[2] as Extract<Section, { type: "hero" }>;
+    expect(hero.cta).toBe("Забронювати");
+    const services = insertSection(DEFAULT_PAGE, "services", null, seed).doc.sections[2] as Extract<Section, { type: "services" }>;
+    expect(services.title).toBe("Послуги");
   });
 });
 
@@ -98,11 +108,12 @@ describe("remove / move / replace / hide", () => {
 
 describe("sectionSummary", () => {
   it("describes each section in one line", () => {
-    expect(sectionSummary(header)).toBe("Logo and name");
-    expect(sectionSummary({ ...header, tagline: "Hair & colour" } as Extract<Section, { type: "header" }>)).toBe("Hair & colour");
-    expect(sectionSummary({ ...newSection("gallery") as Extract<Section, { type: "gallery" }>, images: [{ path: "p", alt: "" }] })).toBe("1 image");
-    expect(sectionSummary(newSection("faq") as Extract<Section, { type: "faq" }>)).toBe("0 questions");
-    expect(sectionSummary({ ...newSection("location") as Extract<Section, { type: "location" }>, address: "Main St 1\nWarsaw" })).toBe("Main St 1");
+    expect(sectionSummary(header, t)).toBe("Logo and name");
+    expect(sectionSummary({ ...header, tagline: "Hair & colour" } as Extract<Section, { type: "header" }>, t)).toBe("Hair & colour");
+    expect(sectionSummary({ ...newSection("gallery") as Extract<Section, { type: "gallery" }>, images: [{ path: "p", alt: "" }] }, t)).toBe("1 image");
+    expect(sectionSummary(newSection("faq") as Extract<Section, { type: "faq" }>, t)).toBe("0 questions");
+    expect(sectionSummary({ ...newSection("location") as Extract<Section, { type: "location" }>, address: "Main St 1\nWarsaw" }, t)).toBe("Main St 1");
+    expect(sectionSummary(newSection("faq") as Extract<Section, { type: "faq" }>, translatorFor("uk", "studio"))).toBe("0 запитань");
   });
 });
 
@@ -128,15 +139,19 @@ describe("issuesBySection", () => {
     const res = pageDocumentSchema.safeParse(doc);
     expect(res.success).toBe(false);
     if (res.success) return;
-    expect(issuesBySection(doc, res.error.issues)).toEqual({
+    expect(issuesBySection(doc, res.error.issues, t)).toEqual({
       links001: { "items.0.url": "Use an https:// link (tel: for phone, mailto: for email)." },
     });
   });
-  it("keys a page-level issue under ''", () => {
+  it("keys a page-level issue under '' and names the section in the admin's words", () => {
     const doc = { ...DEFAULT_PAGE, sections: [header, { ...booking, id: "booking2" } as Extract<Section, { type: "booking" }>, booking] };
     const res = pageDocumentSchema.safeParse(doc);
     expect(res.success).toBe(false);
     if (res.success) return;
-    expect(issuesBySection(doc, res.error.issues)[""]?.["sections"]).toContain("exactly one booking");
+    expect(issuesBySection(doc, res.error.issues, t)[""]?.["sections"]).toContain("exactly one booking");
+    const staffed = { ...DEFAULT_PAGE, sections: [header, newSection("staff", "staff001"), newSection("staff", "staff002"), booking] };
+    const dup = pageDocumentSchema.safeParse(staffed);
+    if (dup.success) return;
+    expect(issuesBySection(staffed, dup.error.issues, t)[""]?.["sections"]).toBe("Only one Team section is allowed.");
   });
 });

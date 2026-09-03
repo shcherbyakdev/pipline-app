@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Supabase public URLs (BrandedHeader precedent) */
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { formatOfferingPrice, stayHint } from "@/features/rentals/pricing";
 import type { SectionOf } from "../../schema";
@@ -16,7 +17,8 @@ import { CARD, H2, PICK_CARD } from "../type";
    offering id. A click hands the offering to the booking widget. */
 export function SpacesSection({ section, ctx }: { section: SectionOf<"spaces">; ctx: RenderContext }) {
   const { selectOffering, requested } = usePageState();
-  if (ctx.offerings.length === 0) return <Ghost mode={ctx.mode} label="Add a space and it shows here" />;
+  const tu = useTranslations("public.units");
+  if (ctx.offerings.length === 0) return <Ghost ctx={ctx} text="spaces" />;
   const photoFor = new Map(section.photos.map((p) => [p.offeringId, p.path] as const));
   const pick = (id: string) => {
     selectOffering(id);
@@ -33,8 +35,8 @@ export function SpacesSection({ section, ctx }: { section: SectionOf<"spaces">; 
       <ul className={cn(cards ? "grid gap-3 sm:grid-cols-2" : cn(CARD, "flex flex-col divide-y"))}>
         {ctx.offerings.map((o) => {
           const photo = photoFor.get(o.id);
-          const price = section.showPrices ? formatOfferingPrice(o, ctx.org.currency) : null;
-          const stay = section.showStay ? stayHint(o) : null;
+          const price = section.showPrices ? formatOfferingPrice(o, ctx.org.currency, tu) : null;
+          const stay = section.showStay ? stayHint(o, tu) : null;
           return (
             <li key={o.id}>
               <button

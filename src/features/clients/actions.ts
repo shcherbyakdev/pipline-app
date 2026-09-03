@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { createClient as createSupabase } from "@/lib/supabase/server";
 import { generateAccessToken, buildPortalUrl } from "@/lib/tokens";
@@ -12,13 +13,17 @@ import {
   assignClientInput,
   issuePortalLinkInput,
   revokePortalLinkInput,
-  GENERIC_WRITE_ERROR,
   type ActionState,
 } from "./schema";
 
-function fail(context: string, error: unknown): { ok: false; error: string } {
+// The one error a client ever shows, in the admin's language (i18n Wave 3).
+async function generic(): Promise<{ ok: false; error: string }> {
+  return { ok: false, error: (await getTranslations("errors"))("generic") };
+}
+
+async function fail(context: string, error: unknown): Promise<{ ok: false; error: string }> {
   console.error(`[clients] ${context}:`, error);
-  return { ok: false, error: GENERIC_WRITE_ERROR };
+  return generic();
 }
 
 async function currentOrgId(): Promise<string | null> {
@@ -31,7 +36,7 @@ export async function createClient(
   input: unknown,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const parsed = createClientInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const orgId = await currentOrgId();
   if (!orgId) return fail("createClient", "no org");
   const supabase = await createSupabase();
@@ -48,7 +53,7 @@ export async function createClient(
 
 export async function renameClient(input: unknown): Promise<ActionState> {
   const parsed = renameClientInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const supabase = await createSupabase();
   const { data, error } = await supabase
     .from("clients")
@@ -67,7 +72,7 @@ export async function renameClient(input: unknown): Promise<ActionState> {
 // dialog spells this out.
 export async function deleteClient(input: unknown): Promise<ActionState> {
   const parsed = deleteClientInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const supabase = await createSupabase();
   const { data, error } = await supabase
     .from("clients")
@@ -83,7 +88,7 @@ export async function deleteClient(input: unknown): Promise<ActionState> {
 
 export async function assignClient(input: unknown): Promise<ActionState> {
   const parsed = assignClientInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const supabase = await createSupabase();
   // Read the prior client_id before the update: `.select()` on the update
   // below only returns the NEW row, and reassignment must also revalidate
@@ -133,7 +138,7 @@ export async function issuePortalLink(
   input: unknown,
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   const parsed = issuePortalLinkInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const supabase = await createSupabase();
   // Parent lookup doubles as tenancy + org source (RLS hides foreign rows);
   // the DB guard trigger re-validates the scope tuple.
@@ -165,7 +170,7 @@ export async function issuePortalLink(
 
 export async function revokePortalLink(input: unknown): Promise<ActionState> {
   const parsed = revokePortalLinkInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return generic();
   const supabase = await createSupabase();
   const { data, error } = await supabase
     .from("access_tokens")

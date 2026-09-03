@@ -31,6 +31,8 @@ export type PlanLimits = {
 export type PlanDef = {
   id: PlanId;
   name: string;
+  /** English, for the marketing pricing table only (Wave 5 moves it); the
+      admin reads `billing.plans.<id>.blurb` from the messages instead. */
   blurb: string;
   /** USD, list price. yearly = total per year. */
   monthly: number;

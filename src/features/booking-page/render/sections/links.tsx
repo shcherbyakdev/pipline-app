@@ -1,16 +1,14 @@
-import { allowedLinkUrl, type LinkIcon, type SectionOf } from "../../schema";
+import { useTranslations } from "next-intl";
+import { allowedLinkUrl, type SectionOf } from "../../schema";
 import type { RenderContext } from "../context";
 import { Ghost } from "../ghost";
 
-const ICON_LABEL: Record<LinkIcon, string> = {
-  instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", whatsapp: "WhatsApp",
-  website: "Website", phone: "Phone", email: "Email", other: "Link",
-};
 const PILL = "bg-card hover:bg-muted inline-flex h-10 items-center gap-2 rounded-[var(--widget-radius)] border px-4 text-sm font-medium transition-colors duration-150";
 
 export function LinksSection({ section, ctx }: { section: SectionOf<"links">; ctx: RenderContext }) {
+  const t = useTranslations("public.links");
   const items = section.items.filter((i) => i.label.trim() && i.url.trim());
-  if (items.length === 0) return <Ghost mode={ctx.mode} label="Add a link" />;
+  if (items.length === 0) return <Ghost ctx={ctx} text="link" />;
   return (
     <section className="flex flex-wrap gap-2">
       {items.map((item, i) => {
@@ -26,7 +24,7 @@ export function LinksSection({ section, ctx }: { section: SectionOf<"links">; ct
             href={item.url}
             // tel:/mailto: open in place; only web links get a tab.
             {...(item.url.startsWith("https://") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-            aria-label={`${item.label} (${ICON_LABEL[item.icon]})`}
+            aria-label={`${item.label} (${t(item.icon)})`}
             className={PILL}
           >
             {item.label}

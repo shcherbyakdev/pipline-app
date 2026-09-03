@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+import { enTranslator, translatorFor } from "@/i18n/test-translator";
+
+const T = enTranslator("emails");
 import {
   formatWhenLine,
   bookingConfirmationEmail,
@@ -14,6 +17,8 @@ import {
   providerCancelledEmail,
   providerRescheduledEmail,
   providerNewBookingEmail,
+  bookingRequestReceivedEmail,
+  bookingDeclinedEmail,
 } from "./templates";
 
 describe("booking lifecycle templates", () => {
@@ -28,12 +33,12 @@ describe("booking lifecycle templates", () => {
 
   it("cancellation copy differs by initiator", () => {
     const base = { orgName: "Studio", serviceName: "Cut", whenLine: "Mon, 05 Apr" };
-    expect(bookingCancelledEmail({ ...base, cancelledBy: "client" }).text).toContain("as requested");
-    expect(bookingCancelledEmail({ ...base, cancelledBy: "provider" }).text).toContain("had to cancel");
+    expect(bookingCancelledEmail(T, { ...base, cancelledBy: "client" }).text).toContain("as requested");
+    expect(bookingCancelledEmail(T, { ...base, cancelledBy: "provider" }).text).toContain("had to cancel");
   });
 
   it("rescheduled email carries both times and the new manage link", () => {
-    const msg = bookingRescheduledEmail({
+    const msg = bookingRescheduledEmail(T, {
       orgName: "Studio",
       serviceName: "Cut",
       oldWhenLine: "OLD-TIME",
@@ -47,13 +52,13 @@ describe("booking lifecycle templates", () => {
   });
 
   it("reminder email contains no URL at all (token cannot be reconstructed)", () => {
-    const msg = bookingReminderEmail({ orgName: "Studio", serviceName: "Cut", whenLine: "Mon" });
+    const msg = bookingReminderEmail(T, { orgName: "Studio", serviceName: "Cut", whenLine: "Mon" });
     expect(msg.html).not.toContain("http");
     expect(msg.text).not.toContain("http");
   });
 
   it("escapes HTML in interpolations", () => {
-    const msg = providerCancelledEmail({
+    const msg = providerCancelledEmail(T, {
       serviceName: "<script>",
       whenLine: "Mon",
       clientName: "A & B",
@@ -63,7 +68,7 @@ describe("booking lifecycle templates", () => {
   });
 
   it("manage link email states the previous link is dead and carries the fresh one", () => {
-    const msg = bookingManageLinkEmail({
+    const msg = bookingManageLinkEmail(T, {
       orgName: "Studio",
       serviceName: "Cut",
       whenLine: "Mon, 05 Apr",
@@ -86,12 +91,12 @@ describe("booking lifecycle templates", () => {
       manageUrl: "https://app/booking/fresh-tok",
       icsUrl: "https://app/booking/fresh-tok/calendar.ics",
     };
-    const msg = bookingManageLinkEmail({ ...base, canReschedule: false });
+    const msg = bookingManageLinkEmail(T, { ...base, canReschedule: false });
     expect(msg.text).toContain("view or cancel");
     expect(msg.text).not.toContain("reschedule");
     expect(msg.html).not.toContain("reschedule");
     // default (omitted) keeps the appointment wording
-    expect(bookingManageLinkEmail(base).text).toContain("view, reschedule, or cancel");
+    expect(bookingManageLinkEmail(T, base).text).toContain("view, reschedule, or cancel");
   });
 
   it("manage link email for a pending request says request and drops the .ics", () => {
@@ -102,7 +107,7 @@ describe("booking lifecycle templates", () => {
       manageUrl: "https://app/booking/fresh-tok",
       icsUrl: "https://app/booking/fresh-tok/calendar.ics",
     };
-    const msg = bookingManageLinkEmail({ ...base, request: true });
+    const msg = bookingManageLinkEmail(T, { ...base, request: true });
     expect(msg.subject.startsWith("Your request link")).toBe(true);
     for (const body of [msg.html, msg.text]) {
       expect(body).toContain("view or withdraw");
@@ -113,7 +118,7 @@ describe("booking lifecycle templates", () => {
       expect(body).toContain("https://app/booking/fresh-tok");
     }
     // Unset: a confirmed booking still gets its subject, wording and .ics.
-    const plain = bookingManageLinkEmail(base);
+    const plain = bookingManageLinkEmail(T, base);
     expect(plain.subject.startsWith("Your booking link")).toBe(true);
     expect(plain.text).toContain("your booking (");
     expect(plain.html).toContain("Add to calendar (.ics)");
@@ -121,7 +126,7 @@ describe("booking lifecycle templates", () => {
   });
 
   it("provider rescheduled email shows both times and escapes clientName", () => {
-    const msg = providerRescheduledEmail({
+    const msg = providerRescheduledEmail(T, {
       serviceName: "Cut",
       oldWhenLine: "OLD-TIME",
       whenLine: "NEW-TIME",
@@ -140,21 +145,21 @@ describe("booking lifecycle templates", () => {
       manageUrl: "https://app/booking/tok",
       icsUrl: "https://app/booking/tok/calendar.ics",
     };
-    const solo = bookingConfirmationEmail(base);
+    const solo = bookingConfirmationEmail(T, base);
     expect(solo.text).not.toContain("With ");
     expect(solo.html).not.toContain("With ");
 
-    const team = bookingConfirmationEmail({ ...base, staffName: "Anna" });
+    const team = bookingConfirmationEmail(T, { ...base, staffName: "Anna" });
     expect(team.text).toContain("With Anna");
     expect(team.html).toContain("With Anna");
     // solo stays byte-identical to the pre-team output
-    expect(bookingConfirmationEmail({ ...base, staffName: null })).toEqual(solo);
+    expect(bookingConfirmationEmail(T, { ...base, staffName: null })).toEqual(solo);
   });
 
   it("every client-facing template accepts staffName and escapes it", () => {
     const staffName = "A & B";
     expect(
-      bookingRescheduledEmail({
+      bookingRescheduledEmail(T, {
         orgName: "Studio",
         serviceName: "Cut",
         oldWhenLine: "OLD",
@@ -165,7 +170,7 @@ describe("booking lifecycle templates", () => {
       }).html,
     ).toContain("With A &amp; B");
     expect(
-      bookingCancelledEmail({
+      bookingCancelledEmail(T, {
         orgName: "Studio",
         serviceName: "Cut",
         whenLine: "Mon",
@@ -174,10 +179,10 @@ describe("booking lifecycle templates", () => {
       }).text,
     ).toContain("With A & B");
     expect(
-      bookingReminderEmail({ orgName: "Studio", serviceName: "Cut", whenLine: "Mon", staffName }).text,
+      bookingReminderEmail(T, { orgName: "Studio", serviceName: "Cut", whenLine: "Mon", staffName }).text,
     ).toContain("With A & B");
     expect(
-      bookingManageLinkEmail({
+      bookingManageLinkEmail(T, {
         orgName: "Studio",
         serviceName: "Cut",
         whenLine: "Mon",
@@ -189,7 +194,7 @@ describe("booking lifecycle templates", () => {
   });
 
   it("staffNewBookingEmail names the client and the slot, link-free", () => {
-    const msg = staffNewBookingEmail({
+    const msg = staffNewBookingEmail(T, {
       staffName: "Anna",
       orgName: "Studio",
       serviceName: "Cut",
@@ -208,6 +213,7 @@ describe("booking lifecycle templates", () => {
       new Date("2027-09-10T13:00:00Z"),
       new Date("2027-09-13T09:00:00Z"),
       "Europe/Berlin",
+      "en-GB",
     );
     expect(s).toBe("Fri, 10 Sept 2027, 15:00 → Mon, 13 Sept 2027, 11:00 (CEST)");
   });
@@ -217,28 +223,29 @@ describe("booking lifecycle templates", () => {
       new Date("2026-09-07T08:00:00Z"),
       new Date("2026-09-07T10:00:00Z"),
       "Europe/Warsaw",
+      "en-GB",
     );
     expect(s).toBe("Mon, 07 Sept 2026, 10:00–12:00 (CEST)");
   });
 
   it("whenLineFor dispatches on isRental", () => {
     const b = { startsAt: new Date("2027-09-10T13:00:00Z"), endsAt: new Date("2027-09-13T09:00:00Z") };
-    expect(whenLineFor({ ...b, isRental: false }, "Europe/Berlin")).toBe(
-      formatWhenLine(b.startsAt, "Europe/Berlin"),
+    expect(whenLineFor({ ...b, isRental: false }, "Europe/Berlin", "en-GB")).toBe(
+      formatWhenLine(b.startsAt, "Europe/Berlin", "en-GB"),
     );
-    expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin")).toContain("→");
+    expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin", "en-GB")).toContain("→");
   });
 
   it("whenLineFor renders an hourly rental (rangeMode: 'hours') via formatHourlyWhenLine, not the nights/days range", () => {
     const b = { startsAt: new Date("2027-09-10T08:00:00Z"), endsAt: new Date("2027-09-10T10:00:00Z") };
-    expect(whenLineFor({ ...b, isRental: true, rangeMode: "hours" }, "Europe/Berlin")).toBe(
-      formatHourlyWhenLine(b.startsAt, b.endsAt, "Europe/Berlin"),
+    expect(whenLineFor({ ...b, isRental: true, rangeMode: "hours" }, "Europe/Berlin", "en-GB")).toBe(
+      formatHourlyWhenLine(b.startsAt, b.endsAt, "Europe/Berlin", "en-GB"),
     );
-    expect(whenLineFor({ ...b, isRental: true, rangeMode: "hours" }, "Europe/Berlin")).not.toContain("→");
+    expect(whenLineFor({ ...b, isRental: true, rangeMode: "hours" }, "Europe/Berlin", "en-GB")).not.toContain("→");
     // A nights/days rental (or one that never passes rangeMode at all —
     // every pre-H2 caller) still gets the two-date range.
-    expect(whenLineFor({ ...b, isRental: true, rangeMode: "nights" }, "Europe/Berlin")).toContain("→");
-    expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin")).toContain("→");
+    expect(whenLineFor({ ...b, isRental: true, rangeMode: "nights" }, "Europe/Berlin", "en-GB")).toContain("→");
+    expect(whenLineFor({ ...b, isRental: true }, "Europe/Berlin", "en-GB")).toContain("→");
   });
 
   it("client and provider copy never says appointment or slot (H5b: spaces book too)", () => {
@@ -249,31 +256,31 @@ describe("booking lifecycle templates", () => {
     // original loop covered — so a future edit that leaks "appointment" or
     // "slot" into any of them is caught here.
     const mails = [
-      bookingConfirmationEmail({ ...base, manageUrl, icsUrl }),
-      bookingManageLinkEmail({ ...base, manageUrl, icsUrl }), // default canReschedule
-      bookingCancelledEmail({ ...base, cancelledBy: "client" }),
-      bookingCancelledEmail({ ...base, cancelledBy: "provider" }),
-      bookingRescheduledEmail({ ...base, oldWhenLine: "Mon, 05 Apr → Thu, 08 Apr", manageUrl, icsUrl }),
-      bookingReminderEmail(base),
-      staffNewBookingEmail({ staffName: "Anna", clientName: "A", ...base }),
-      providerNewBookingEmail({
+      bookingConfirmationEmail(T, { ...base, manageUrl, icsUrl }),
+      bookingManageLinkEmail(T, { ...base, manageUrl, icsUrl }), // default canReschedule
+      bookingCancelledEmail(T, { ...base, cancelledBy: "client" }),
+      bookingCancelledEmail(T, { ...base, cancelledBy: "provider" }),
+      bookingRescheduledEmail(T, { ...base, oldWhenLine: "Mon, 05 Apr → Thu, 08 Apr", manageUrl, icsUrl }),
+      bookingReminderEmail(T, base),
+      staffNewBookingEmail(T, { staffName: "Anna", clientName: "A", ...base }),
+      providerNewBookingEmail(T, {
         serviceName: base.serviceName,
         clientName: "A",
         clientEmail: "a@example.com",
         whenLine: base.whenLine,
       }),
-      providerCancelledEmail({ serviceName: "Loft", whenLine: "Mon", clientName: "A" }),
-      providerRescheduledEmail({ serviceName: "Loft", oldWhenLine: "Mon", whenLine: "Tue", clientName: "A" }),
+      providerCancelledEmail(T, { serviceName: "Loft", whenLine: "Mon", clientName: "A" }),
+      providerRescheduledEmail(T, { serviceName: "Loft", oldWhenLine: "Mon", whenLine: "Tue", clientName: "A" }),
     ];
     for (const m of mails) {
       expect(m.text.toLowerCase()).not.toMatch(/appointment|\bslot\b/);
       expect(m.html.toLowerCase()).not.toMatch(/appointment|\bslot\b/);
     }
-    expect(bookingReminderEmail(base).text).toContain("A reminder about your upcoming booking.");
-    expect(bookingCancelledEmail({ ...base, cancelledBy: "client" }).html).toContain(
+    expect(bookingReminderEmail(T, base).text).toContain("A reminder about your upcoming booking.");
+    expect(bookingCancelledEmail(T, { ...base, cancelledBy: "client" }).html).toContain(
       "Want to rebook? You can book again any time on the booking page.",
     );
-    expect(providerCancelledEmail({ serviceName: "Loft", whenLine: "Mon", clientName: "A" }).text).toContain(
+    expect(providerCancelledEmail(T, { serviceName: "Loft", whenLine: "Mon", clientName: "A" }).text).toContain(
       "The time is open again.",
     );
   });
@@ -285,7 +292,7 @@ describe("booking lifecycle templates", () => {
 describe("email badge", () => {
   const BADGE_URL = "https://booklo.example/?ref=badge";
   const clientFacing = (badgeUrl?: string | null) => ({
-    confirmation: bookingConfirmationEmail({
+    confirmation: bookingConfirmationEmail(T, {
       orgName: "Studio",
       serviceName: "Cut",
       whenLine: "Mon",
@@ -293,7 +300,7 @@ describe("email badge", () => {
       icsUrl: "https://x/i",
       badgeUrl,
     }),
-    manageLink: bookingManageLinkEmail({
+    manageLink: bookingManageLinkEmail(T, {
       orgName: "Studio",
       serviceName: "Cut",
       whenLine: "Mon",
@@ -301,14 +308,14 @@ describe("email badge", () => {
       icsUrl: "https://x/i",
       badgeUrl,
     }),
-    cancelled: bookingCancelledEmail({
+    cancelled: bookingCancelledEmail(T, {
       orgName: "Studio",
       serviceName: "Cut",
       whenLine: "Mon",
       cancelledBy: "client",
       badgeUrl,
     }),
-    rescheduled: bookingRescheduledEmail({
+    rescheduled: bookingRescheduledEmail(T, {
       orgName: "Studio",
       serviceName: "Cut",
       oldWhenLine: "Sun",
@@ -317,7 +324,7 @@ describe("email badge", () => {
       icsUrl: "https://x/i",
       badgeUrl,
     }),
-    reminder: bookingReminderEmail({ orgName: "Studio", serviceName: "Cut", whenLine: "Mon", badgeUrl }),
+    reminder: bookingReminderEmail(T, { orgName: "Studio", serviceName: "Cut", whenLine: "Mon", badgeUrl }),
   });
 
   it("renders on every client-facing email when a URL is given", () => {
@@ -342,7 +349,7 @@ describe("email badge", () => {
   });
 
   it("escapes the URL it is handed", () => {
-    const msg = bookingReminderEmail({
+    const msg = bookingReminderEmail(T, {
       orgName: "Studio",
       serviceName: "Cut",
       whenLine: "Mon",
@@ -353,10 +360,10 @@ describe("email badge", () => {
 
   it("leaves staff-facing emails alone", () => {
     expect(
-      providerCancelledEmail({ serviceName: "Cut", whenLine: "Mon", clientName: "A" }).html,
+      providerCancelledEmail(T, { serviceName: "Cut", whenLine: "Mon", clientName: "A" }).html,
     ).not.toContain("Powered by Booklo");
     expect(
-      staffNewBookingEmail({
+      staffNewBookingEmail(T, {
         staffName: "Anna",
         orgName: "Studio",
         serviceName: "Cut",
@@ -372,7 +379,7 @@ describe("email badge", () => {
 // pre-H3 templates (the omission tests below depend on that).
 describe("H3 money/policy infoLines", () => {
   it("bookingConfirmationEmail renders infoLines in html and text", () => {
-    const msg = bookingConfirmationEmail({
+    const msg = bookingConfirmationEmail(T, {
       orgName: "Org",
       serviceName: "Studio · Room 1",
       whenLine: "Mon",
@@ -385,7 +392,7 @@ describe("H3 money/policy infoLines", () => {
   });
 
   it("omits the block when infoLines is absent", () => {
-    const msg = bookingConfirmationEmail({
+    const msg = bookingConfirmationEmail(T, {
       orgName: "Org",
       serviceName: "S",
       whenLine: "Mon",
@@ -396,7 +403,7 @@ describe("H3 money/policy infoLines", () => {
   });
 
   it("providerNewBookingEmail renders infoLines in html and text", () => {
-    const msg = providerNewBookingEmail({
+    const msg = providerNewBookingEmail(T, {
       serviceName: "Studio · Room 1",
       clientName: "A",
       clientEmail: "a@example.com",
@@ -408,7 +415,7 @@ describe("H3 money/policy infoLines", () => {
   });
 
   it("providerNewBookingEmail omits the block when infoLines is absent", () => {
-    const msg = providerNewBookingEmail({
+    const msg = providerNewBookingEmail(T, {
       serviceName: "S",
       clientName: "A",
       clientEmail: "a@example.com",
@@ -416,5 +423,48 @@ describe("H3 money/policy infoLines", () => {
     });
     expect(msg.html).not.toContain("Total:");
     expect(msg.text).not.toContain("Total:");
+  });
+});
+
+describe("Ukrainian mails (i18n Wave 2, spec D4)", () => {
+  const U = translatorFor("uk", "emails");
+  const base = { orgName: "Студія Анна", serviceName: "Стрижка", whenLine: "чт, 03 вер. 2026 р., 10:00 GMT+2" };
+  const links = { manageUrl: "https://x.test/booking/t", icsUrl: "https://x.test/booking/t/calendar.ics" };
+  const mails = [
+    bookingConfirmationEmail(U, { ...base, ...links, staffName: "Олена", badgeUrl: "https://x.test/?ref=badge" }),
+    bookingManageLinkEmail(U, { ...base, ...links }),
+    bookingManageLinkEmail(U, { ...base, ...links, canReschedule: false }),
+    bookingManageLinkEmail(U, { ...base, ...links, request: true }),
+    bookingCancelledEmail(U, { ...base, cancelledBy: "client" }),
+    bookingCancelledEmail(U, { ...base, cancelledBy: "provider" }),
+    bookingRequestReceivedEmail(U, { ...base, manageUrl: links.manageUrl }),
+    bookingDeclinedEmail(U, { ...base, note: "Вибачте, зайнято" }),
+    bookingRescheduledEmail(U, { ...base, ...links, oldWhenLine: "ср, 02 вер. 2026 р., 10:00 GMT+2" }),
+    bookingReminderEmail(U, base),
+    staffNewBookingEmail(U, { ...base, staffName: "Олена", clientName: "Іван" }),
+    providerNewBookingEmail(U, { ...base, clientName: "Іван", clientEmail: "ivan@example.com" }),
+    providerNewBookingEmail(U, { ...base, clientName: "Іван", clientEmail: "ivan@example.com", pending: true }),
+    providerCancelledEmail(U, { ...base, clientName: "Іван" }),
+    providerRescheduledEmail(U, { ...base, clientName: "Іван", oldWhenLine: "ср, 02 вер. 2026 р., 10:00 GMT+2" }),
+  ];
+
+  it("every mail reads Ukrainian end to end — no English sentence survives outside URLs and names", () => {
+    for (const m of mails) {
+      const body = `${m.subject}\n${m.text}\n${m.html.replace(/<[^>]+>/g, " ")}`
+        .replace(/https?:\/\/\S+/g, "")
+        .replace(/ivan@example\.com|Booklo|GMT\+2/g, "");
+      expect(body, m.subject).toMatch(/[А-Яа-яІіЇїЄєҐґ]/);
+      expect(body, m.subject).not.toMatch(/\b(booking|your|with|the|link|calendar|request|cancelled|reminder)\b/i);
+      // H5b's rule in Ukrainian: spaces book too, so never "запис" (appointment) or "слот".
+      expect(body.toLowerCase(), m.subject).not.toMatch(/слот|\bзапис\b/);
+    }
+  });
+
+  it("client names stay bold in html and plain in text through t.markup", () => {
+    const m = providerCancelledEmail(U, { ...base, clientName: "Іван <b>" });
+    expect(m.html).toContain("<strong>Іван &lt;b&gt;</strong> скасував(ла) бронювання.");
+    expect(m.text).toContain("Іван <b> скасував(ла) бронювання.");
+    // Org names are mostly feminine or neuter: the verb agrees with «Заклад», never with the name.
+    expect(bookingCancelledEmail(U, { ...base, cancelledBy: "provider" }).text).toContain("Заклад Студія Анна мусив скасувати");
   });
 });

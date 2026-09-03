@@ -21,7 +21,7 @@ export function AboutSection({ section, ctx }: { section: SectionOf<"about">; ct
             ))}
           </div>
         ) : (
-          <Ghost mode={ctx.mode} label="Write a few lines about yourself" />
+          <Ghost ctx={ctx} text="about" />
         )}
       </div>
     </section>

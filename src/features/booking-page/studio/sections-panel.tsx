@@ -15,9 +15,10 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { useTranslations } from "next-intl";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { PlanLimits } from "@/lib/billing/plans";
-import { DEFAULT_PAGE } from "../defaults";
+import { DEFAULT_PAGE, type SectionSeed } from "../defaults";
 import {
   deepEqual,
   insertSection,
@@ -38,6 +39,7 @@ export function SectionsPanel({
   onHover,
   pageSections,
   mode,
+  seed,
   templatePicker,
 }: {
   draft: PageDraft;
@@ -47,9 +49,12 @@ export function SectionsPanel({
   onHover: (id: string | null) => void;
   pageSections: PlanLimits["pageSections"];
   mode: OrgMode;
+  /** The words a new section starts with, in the org's language (defaults.ts). */
+  seed: SectionSeed;
   /** The picker-mode StarterDialog (spec 2026-08-28 §5.4). */
   templatePicker: React.ReactNode;
 }) {
+  const t = useTranslations("studio");
   const { doc, update, issues, published } = draft;
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -69,7 +74,7 @@ export function SectionsPanel({
   const add = (type: SectionType) => {
     let newId = "";
     update((d) => {
-      const inserted = insertSection(d, type, selectedId);
+      const inserted = insertSection(d, type, selectedId, seed);
       newId = inserted.id;
       return inserted.doc;
     });
@@ -86,7 +91,7 @@ export function SectionsPanel({
       </div>
       {published === null && deepEqual(doc, DEFAULT_PAGE) ? (
         <p className="text-muted-foreground text-xs">
-          This is the default page. Pick a template or add sections.
+          {t("defaultPageHint")}
         </p>
       ) : null}
       <DndContext

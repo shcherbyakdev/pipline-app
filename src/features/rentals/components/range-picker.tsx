@@ -1,6 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { INTL_LOCALES } from "@/i18n/config";
+import type { UnitsT } from "@/i18n/translator";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PublicOffering } from "@/lib/booking/public";
@@ -9,22 +12,25 @@ import { addMonths, monthGrid } from "@/features/rentals/calendar-grid";
 
 export type RangeValue = { start: string | null; end: string | null };
 
-const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 // Everything here is org-local by construction — the dates carry no time and
 // no zone, so every formatter is pinned to UTC to keep the viewer's own
 // timezone from shifting a cell by a day.
-const monthLabelFmt = new Intl.DateTimeFormat("en-GB", {
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
-const dayLabelFmt = new Intl.DateTimeFormat("en-GB", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
+function labelFormatters(intlLocale: string) {
+  return {
+    monthLabelFmt: new Intl.DateTimeFormat(intlLocale, {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }),
+    dayLabelFmt: new Intl.DateTimeFormat(intlLocale, {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }),
+  };
+}
 const utcDate = (date: string) => new Date(`${date}T00:00:00Z`);
 const hhmm = (time: string) => time.slice(0, 5);
 
@@ -36,14 +42,20 @@ export function staySummary(
   start: string,
   end: string,
   timeZone: string,
+  tu: UnitsT,
 ): string {
   const n = stayLength(asEngineOffering(offering).rangeMode, start, end);
-  const unit = offering.rangeMode === "nights" ? "night" : "day";
-  const [inLabel, outLabel] =
-    offering.rangeMode === "nights" ? ["check-in", "check-out"] : ["pickup", "return"];
+  const nights = offering.rangeMode === "nights";
   // RangePicker is nights/days-only (the H2 hourly flow uses its own
   // widget) — both are set (0056 CHECK).
-  return `${n} ${unit}${n === 1 ? "" : "s"} · ${inLabel} ${hhmm(offering.startTime!)} · ${outLabel} ${hhmm(offering.endTime!)} (${timeZone})`;
+  return tu("summary", {
+    length: tu(nights ? "nights" : "days", { count: n }),
+    inLabel: tu(nights ? "summaryCheckIn" : "summaryPickup"),
+    inTime: hhmm(offering.startTime!),
+    outLabel: tu(nights ? "summaryCheckOut" : "summaryReturn"),
+    outTime: hhmm(offering.endTime!),
+    tz: timeZone,
+  });
 }
 
 export function RangePicker({
@@ -75,6 +87,14 @@ export function RangePicker({
   /** The stays templates (spec §8): one grid, or two side by side. */
   months?: 1 | 2;
 }) {
+  const locale = useLocale();
+  const t = useTranslations("public.stay");
+  const tSlots = useTranslations("public.slots");
+  const tWidget = useTranslations("public.widget");
+  const tManage = useTranslations("public.manage");
+  const tu = useTranslations("public.units");
+  const weekdays = tSlots("weekdays").split(" ");
+  const { monthLabelFmt, dayLabelFmt } = React.useMemo(() => labelFormatters(INTL_LOCALES[locale]), [locale]);
   const { start, end } = value;
   const picking = start !== null && end === null;
   const widget = variant === "widget";
@@ -126,11 +146,11 @@ export function RangePicker({
             <p className="text-sm">
               <span className="font-medium">
                 {picking
-                  ? `Now pick your ${offering.rangeMode === "nights" ? "check-out" : "return"} date.`
-                  : `Pick your ${offering.rangeMode === "nights" ? "check-in" : "pickup"} date.`}
+                  ? t(offering.rangeMode === "nights" ? "pickCheckOut" : "pickReturn")
+                  : t(offering.rangeMode === "nights" ? "pickCheckIn" : "pickPickup")}
               </span>{" "}
               <span className="text-muted-foreground">
-                {picking ? "Faded dates are unavailable for that stay." : "Faded dates are unavailable."}
+                {picking ? t("fadedForStay") : t("faded")}
               </span>
             </p>
           ) : null}
@@ -141,7 +161,7 @@ export function RangePicker({
             size="sm"
             className={widget ? "wt-surface" : undefined}
             disabled={!canGoBack}
-            aria-label="Previous month"
+            aria-label={tSlots("prevMonth")}
             onClick={() => onMonthChange(addMonths(month, -1))}
           >
             ←
@@ -150,7 +170,7 @@ export function RangePicker({
             variant="outline"
             size="sm"
             className={widget ? "wt-surface" : undefined}
-            aria-label="Next month"
+            aria-label={tSlots("nextMonth")}
             onClick={() => onMonthChange(addMonths(month, 1))}
           >
             →
@@ -159,7 +179,7 @@ export function RangePicker({
       </div>
 
       <div aria-live="polite">
-        {loading ? <p className="text-muted-foreground text-sm">Loading availability…</p> : null}
+        {loading ? <p className="text-muted-foreground text-sm">{tManage("loadingAvailability")}</p> : null}
       </div>
 
       <div className={cn("grid gap-6", months === 2 && "md:grid-cols-2")}>
@@ -169,7 +189,7 @@ export function RangePicker({
               {monthLabelFmt.format(utcDate(`${m}-01`))}
             </p>
             <div className="text-muted-foreground grid grid-cols-7 gap-1 text-center text-xs">
-              {WEEKDAYS.map((w) => (
+              {weekdays.map((w) => (
                 <span key={w} aria-hidden="true">
                   {w}
                 </span>
@@ -224,13 +244,13 @@ export function RangePicker({
 
       {start && end ? (
         <p className="text-sm">
-          <span className="font-medium">{staySummary(offering, start, end, timeZone)}</span>{" "}
+          <span className="font-medium">{staySummary(offering, start, end, timeZone, tu)}</span>{" "}
           <button
             type="button"
             className="text-muted-foreground underline"
             onClick={() => onChange({ start: null, end: null })}
           >
-            change
+            {tWidget("change")}
           </button>
         </p>
       ) : null}

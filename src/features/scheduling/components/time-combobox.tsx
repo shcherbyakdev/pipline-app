@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+import { useLocale, useTranslations } from "next-intl"
+import { INTL_LOCALES } from "@/i18n/config"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { CheckIcon } from "lucide-react"
 
@@ -45,12 +47,16 @@ export function TimeCombobox({
   /** Input overrides — e.g. the dialog pill (dialogPillClass). */
   className?: string
 }) {
+  const t = useTranslations("bookings")
+  // Pinned like every other formatter: the server and the browser must
+  // agree on "09:00" (a bare Intl default would render "9:00 AM" on Node).
+  const intl = INTL_LOCALES[useLocale()]
   const reactId = React.useId()
   const listboxId = `${reactId}-listbox`
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   const [open, setOpen] = React.useState(false)
-  const [text, setText] = React.useState(() => formatTime(value))
+  const [text, setText] = React.useState(() => formatTime(value, intl))
   // Whether the user has typed since the popup opened. Filtering only kicks
   // in once they have — opening always shows the full option list first.
   const [dirty, setDirty] = React.useState(false)
@@ -65,16 +71,16 @@ export function TimeCombobox({
     const q = text.trim().toLowerCase()
     if (q === "") return options
     return options.filter(
-      (o) => formatTime(o).toLowerCase().includes(q) || o.toLowerCase().includes(q)
+      (o) => formatTime(o, intl).toLowerCase().includes(q) || o.toLowerCase().includes(q)
     )
-  }, [options, text, dirty])
+  }, [options, text, dirty, intl])
 
   function openList(navigated: boolean) {
     // Seed the draft from the canonical value every time the popup opens —
     // this is also the only place `text` is set outside of typing, so a
-    // closed control always renders `formatTime(value)` (see the input's
+    // closed control always renders `formatTime(value, intl)` (see the input's
     // `value` prop below) without needing an effect to keep them in sync.
-    setText(formatTime(value))
+    setText(formatTime(value, intl))
     setOpen(true)
     setDirty(false)
     setHasNavigated(navigated)
@@ -182,14 +188,14 @@ export function TimeCombobox({
         aria-describedby={describedBy}
         autoComplete="off"
         disabled={disabled}
-        value={open ? text : formatTime(value)}
+        value={open ? text : formatTime(value, intl)}
         onFocus={() => openList(false)}
         onChange={(e) => {
           // The popup can be closed while focus is retained (Escape, an
           // option click, Enter-select — none of them blur the input). If
           // the very next keystroke arrives while closed, reopen instead of
           // letting the closed-state derivation (`open ? text :
-          // formatTime(value)`, below) overwrite what was just typed on the
+          // formatTime(value, intl)`, below) overwrite what was just typed on the
           // next render.
           if (!open) setOpen(true)
           setText(e.target.value)
@@ -219,7 +225,7 @@ export function TimeCombobox({
             <ul id={listboxId} role="listbox" aria-label={label} className="flex flex-col gap-0.5">
               {filtered.length === 0 ? (
                 <li className="px-2 py-1.5 text-center text-sm text-muted-foreground">
-                  No matches
+                  {t("timeCombobox.noMatches")}
                 </li>
               ) : (
                 filtered.map((opt, i) => {

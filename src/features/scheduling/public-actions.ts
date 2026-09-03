@@ -1,5 +1,7 @@
 "use server";
 
+import { emailTranslators } from "@/i18n/emails";
+import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
@@ -28,13 +30,10 @@ import {
   providerNewBookingEmail,
   formatWhenLine,
 } from "./templates";
-import { getSlotsInput, createBookingInput, GENERIC_WRITE_ERROR } from "./schema";
-import { SLOT_TAKEN, slotLostMessage } from "./booking-errors";
+import { getSlotsInput, createBookingInput } from "./schema";
+import { SLOT_TAKEN, slotLostMessage, type SlotLostKey } from "./booking-errors";
 
 
-const TOO_MANY_REQUESTS = "Too many requests — slow down.";
-const TOO_MANY_FOR_EMAIL =
-  "Too many bookings for this email address in the last hour — try again later.";
 
 // Two buckets (rate-limit.ts): browsing weeks is cheap and frequent, a
 // booking is an RPC plus emails.
@@ -47,7 +46,7 @@ async function limited(kind: "slots" | "booking"): Promise<boolean> {
 // count. "any" short-circuits so the common case costs no query, and a count
 // that blows up degrades to the solo wording — never to copy about a team the
 // org may not have.
-async function slotLostError(orgId: string, staffId: string): Promise<string> {
+async function slotLostError(orgId: string, staffId: string): Promise<SlotLostKey> {
   if (staffId === "any") return SLOT_TAKEN;
   try {
     return slotLostMessage(staffId, await countActiveStaff(orgId));
@@ -138,9 +137,12 @@ async function isStaffTheProvider(
 export async function getSlots(
   input: unknown,
 ): Promise<{ ok: true; slots: string[] } | { ok: false; error: string }> {
-  if (await limited("slots")) return { ok: false, error: TOO_MANY_REQUESTS };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited("slots")) return publicError(orgLocale, "tooManyRequests");
   const parsed = getSlotsInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
+  // getBookingOrg is memoised per request: the loaders below re-use this read.
+  orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
   const { handle, serviceId, fromDate, days, staffId } = parsed.data;
   try {
     // `fromDate` is the VIEWER's local date (the widget groups by viewer
@@ -151,12 +153,12 @@ export async function getSlots(
     const from = addDaysISO(fromDate, -1);
     const span = days + 2;
     const ctx = await loadSlotContext(handle, serviceId, from, span, staffId);
-    if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!ctx) return publicError(orgLocale, "generic");
     const slots = unionSlots(slotsPerStaff(ctx, from, span));
     return { ok: true, slots: slots.map((s) => s.startsAt.toISOString()) };
   } catch (error) {
     console.error("[scheduling] getSlots:", error);
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return publicError(orgLocale, "generic");
   }
 }
 
@@ -166,15 +168,18 @@ export async function createBooking(
   | { ok: true; token: string; staffName: string | null; pending: boolean }
   | { ok: false; error: string; slotTaken?: boolean }
 > {
-  if (await limited("booking")) return { ok: false, error: TOO_MANY_REQUESTS };
+  let orgLocale: OrgLocaleSource = null;
+  if (await limited("booking")) return publicError(orgLocale, "tooManyRequests");
   const parsed = createBookingInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: GENERIC_WRITE_ERROR };
+  if (!parsed.success) return publicError(orgLocale, "generic");
+  // getBookingOrg is memoised per request: the loaders below re-use this read.
+  orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
   const { handle, serviceId, startsAt, name, email, note, staffId } = parsed.data;
 
   try {
     const starts = new Date(startsAt);
     const ctx = await loadSlotContext(handle, serviceId, dateInZone(starts, "UTC"), 2, staffId);
-    if (!ctx) return { ok: false, error: GENERIC_WRITE_ERROR };
+    if (!ctx) return publicError(orgLocale, "generic");
 
     // Re-run the engine for the org-local day of the requested slot; the
     // requested instant must be in the union of the eligible staff's outputs.
@@ -183,11 +188,7 @@ export async function createBooking(
     const slots = unionSlots(slotsPerStaff(ctx, localDate, 1));
     const match = slots.find((s) => s.startsAt.getTime() === starts.getTime());
     if (!match) {
-      return {
-        ok: false,
-        error: await slotLostError(ctx.org.orgId, staffId),
-        slotTaken: true,
-      };
+      return publicError(orgLocale, await slotLostError(ctx.org.orgId, staffId), { slotTaken: true });
     }
 
     const { token, tokenHash } = generateAccessToken();
@@ -217,19 +218,19 @@ export async function createBooking(
     });
     if (error) {
       // Per-email hourly cap (0052) — say so; "try again" would be a lie.
-      if (isRpcSentinel(error, "too_many")) return { ok: false, error: TOO_MANY_FOR_EMAIL };
+      if (isRpcSentinel(error, "too_many")) return publicError(orgLocale, "tooManyForEmail");
       // The RPC raises a bare `staff_unavailable` when a NAMED staff member
       // cannot take the slot; `taken`/23P01 is the classic race. Solo orgs
       // reach the first branch too (they send a named id), so the wording is
       // decided by the same count as the pre-flight check above.
       if (isRpcSentinel(error, "staff_unavailable")) {
-        return { ok: false, error: await slotLostError(ctx.org.orgId, staffId), slotTaken: true };
+        return publicError(orgLocale, await slotLostError(ctx.org.orgId, staffId), { slotTaken: true });
       }
       if (isRpcSentinel(error, "taken") || error.code === "23P01") {
-        return { ok: false, error: SLOT_TAKEN, slotTaken: true };
+        return publicError(orgLocale, "slotTaken", { slotTaken: true });
       }
       console.error("[scheduling] createBooking:", error.code || "rpc error");
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return publicError(orgLocale, "generic");
     }
     // create_booking RETURNS TABLE — one row of (booking_id, staff_id, staff_name).
     const row = (data as unknown as
@@ -237,7 +238,7 @@ export async function createBooking(
       | null)?.[0];
     if (!row) {
       console.error("[scheduling] createBooking: rpc returned no row");
-      return { ok: false, error: GENERIC_WRITE_ERROR };
+      return publicError(orgLocale, "generic");
     }
 
     // The RPC decided under the flag it read at insert time — one select
@@ -251,7 +252,8 @@ export async function createBooking(
     // rule, and degrades to the unnamed copy if the count blows up — past this
     // point the booking EXISTS and nothing may fail the action).
     const staffName = await resolveClientStaffName(ctx.org.orgId, row.staff_name);
-    const whenLine = formatWhenLine(starts, ctx.org.timeZone);
+    const mail = await emailTranslators(ctx.org.locale);
+    const whenLine = formatWhenLine(starts, ctx.org.timeZone, mail.intlLocale);
     const idempotencyKey = bookingIdempotencyKey(row.booking_id);
     // Best-effort like everything below: a null provider address only means
     // the client's mail carries no reply-to and the provider copy is skipped.
@@ -266,7 +268,7 @@ export async function createBooking(
     try {
       const manageUrl = buildBookingManageUrl(token);
       const msg = isPending
-        ? bookingRequestReceivedEmail({
+        ? bookingRequestReceivedEmail(mail.t, {
             orgName: ctx.org.orgName,
             serviceName: ctx.service.name,
             whenLine,
@@ -274,7 +276,7 @@ export async function createBooking(
             staffName,
             badgeUrl: await emailBadgeUrl(ctx.org.orgId),
           })
-        : bookingConfirmationEmail({
+        : bookingConfirmationEmail(mail.t, {
             orgName: ctx.org.orgName,
             serviceName: ctx.service.name,
             whenLine,
@@ -304,7 +306,7 @@ export async function createBooking(
     // Its own try so a failed client mail can't skip it.
     if (providerEmail) {
       try {
-        const notice = providerNewBookingEmail({
+        const notice = providerNewBookingEmail(mail.t, {
           serviceName: ctx.service.name,
           clientName: name,
           clientEmail: email,
@@ -345,6 +347,6 @@ export async function createBooking(
     return { ok: true, token, staffName, pending: isPending };
   } catch (error) {
     console.error("[scheduling] createBooking:", error);
-    return { ok: false, error: GENERIC_WRITE_ERROR };
+    return publicError(orgLocale, "generic");
   }
 }

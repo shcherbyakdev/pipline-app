@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { PAGE_DAYS, shiftDays } from "@/features/scheduling/slot-paging";
+import { INTL_LOCALES } from "@/i18n/config";
 
 export function TimeSlotGrid({
   slots,
@@ -37,13 +39,15 @@ export function TimeSlotGrid({
       justify-between with one child packs to flex-start. */
   headerSlot?: React.ReactNode;
 }): React.JSX.Element {
+  const t = useTranslations("public.slots");
+  const intl = INTL_LOCALES[useLocale()];
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   // Intentionally duplicated, not shared with booking-widget.tsx's own
   // dayFmt/timeFmt (used there for the post-pick confirmation step) — two
   // cheap Intl formatters beat threading them through as props.
-  const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
-  const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
-  const tzShortFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+  const dayFmt = new Intl.DateTimeFormat(intl, { weekday: "short", day: "2-digit", month: "short" });
+  const timeFmt = new Intl.DateTimeFormat(intl, { hour: "2-digit", minute: "2-digit" });
+  const tzShortFmt = new Intl.DateTimeFormat(intl, { hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
 
   // Group by the VIEWER's local date, not the UTC date — a late-evening
   // slot in the viewer's zone must appear under the day they'd call it.
@@ -81,8 +85,8 @@ export function TimeSlotGrid({
             variant="outline"
             size="icon-sm"
             className="wt-surface"
-            aria-label="Previous week"
-            title="Previous week"
+            aria-label={t("prevWeek")}
+            title={t("prevWeek")}
             disabled={fromDate <= todayISO}
             onClick={() => onNavigate(shiftDays(fromDate, -PAGE_DAYS))}
           >
@@ -92,8 +96,8 @@ export function TimeSlotGrid({
             variant="outline"
             size="icon-sm"
             className="wt-surface"
-            aria-label="Next week"
-            title="Next week"
+            aria-label={t("nextWeek")}
+            title={t("nextWeek")}
             onClick={() => onNavigate(shiftDays(fromDate, PAGE_DAYS))}
           >
             <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
@@ -118,9 +122,9 @@ export function TimeSlotGrid({
         }
       >
         {pending && byDay.size === 0 ? (
-          <p className="text-muted-foreground text-sm">Loading times…</p>
+          <p className="text-muted-foreground text-sm">{t("loading")}</p>
         ) : byDay.size === 0 ? (
-          <p className="text-muted-foreground text-sm">{emptyHint ?? "No free times this week — try the next."}</p>
+          <p className="text-muted-foreground text-sm">{emptyHint ?? t("emptyWeek")}</p>
         ) : (
           [...byDay.entries()].map(([day, daySlots]) => (
             <div key={day} className="flex flex-col gap-2">
@@ -145,11 +149,9 @@ export function TimeSlotGrid({
           ))
         )}
       </div>
-      <p className="text-muted-foreground text-xs">Times shown in your timezone ({viewerTz}).</p>
+      <p className="text-muted-foreground text-xs">{t("viewerTz", { tz: viewerTz })}</p>
       {viewerTz !== orgTimeZone ? (
-        <p className="text-muted-foreground text-xs">
-          The organisation&apos;s local timezone is {orgTimeZone}.
-        </p>
+        <p className="text-muted-foreground text-xs">{t("orgTz", { tz: orgTimeZone })}</p>
       ) : null}
     </>
   );

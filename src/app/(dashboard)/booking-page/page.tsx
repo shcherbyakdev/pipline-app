@@ -4,7 +4,8 @@ import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { listOfferings } from "@/features/rentals/queries";
 import { effectiveMode, modeOf, presentMode } from "@/features/orgs/mode";
-import { APPOINTMENTS, SPACES } from "@/features/orgs/vocab";
+import { getMessages, getTranslations } from "next-intl/server";
+import { publicMessages } from "@/i18n/public-provider";
 import { isBookableOffering, toPreviewCatalog } from "@/lib/booking/preview-catalog";
 import { channelReach, frontDoor } from "@/lib/booking/channel-pages";
 import { loadPublicResources } from "@/lib/booking/public-offering";
@@ -58,9 +59,16 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
   // The preview's link to the other page: present when that channel is
   // declared AND has something bookable — the public page's rule (§3.5).
   const present = presentMode(declared, has);
+  // The preview shows what a CLIENT sees, so it speaks the org's language
+  // (Booking page › Settings › Language), not the admin's — the cross-link
+  // label here and the whole preview subtree via previewIntl below.
+  const tCross = await getTranslations({ locale: scheduling.locale, namespace: "public.crossLink" });
+  const previewIntl = { locale: scheduling.locale, messages: publicMessages(await getMessages({ locale: scheduling.locale })) };
+  const tSeed = await getTranslations({ locale: scheduling.locale, namespace: "seed" });
+  const seed = { bookNow: tSeed("bookNow"), services: tSeed("services"), team: tSeed("team"), spaces: tSeed("spaces") };
   const crossLink =
-    channel === "appointments" && present.offersRentals && has.spaces ? { href: "#", label: SPACES.crossLink }
-    : channel === "spaces" && present.offersAppointments && has.services ? { href: "#", label: APPOINTMENTS.crossLink }
+    channel === "appointments" && present.offersRentals && has.spaces ? { href: "#", label: tCross("toSpaces") }
+    : channel === "spaces" && present.offersAppointments && has.services ? { href: "#", label: tCross("toAppointments") }
     : null;
   // The live page 404s until the channel has something bookable —
   // resolveChannelPage's rule.
@@ -105,12 +113,13 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
     needsFirstItem,
   };
   const switchable = declared.offersAppointments && declared.offersRentals;
+  const t = await getTranslations("studio");
 
   return (
     // Wider than the other settings pages: the preview must be able to show
     // the split layout (≥ 48rem of page column) at desktop.
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 p-6">
-      <PageIntro>The page clients book you on. Arrange its sections, brand it, then publish.</PageIntro>
+      <PageIntro>{t("intro")}</PageIntro>
       {switchable ? <PageSwitch value={channel} /> : null}
       <BookingPageBuilder
         // Re-mount per page: the draft hook is seeded once from its props.
@@ -121,6 +130,8 @@ export default async function BookingPagePage({ searchParams }: PageProps<"/book
         starter={starter}
         badge={badge}
         crossLink={crossLink}
+        previewIntl={previewIntl}
+        seed={seed}
         branding={branding}
         scheduling={scheduling}
         appUrl={env.NEXT_PUBLIC_APP_URL}

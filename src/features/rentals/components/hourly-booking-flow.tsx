@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { flushSync } from "react-dom";
+import { useLocale, useTranslations } from "next-intl";
+import { INTL_LOCALES } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { durationOptions, formatDurationLabel, type HourlyOffering } from "@/features/rentals/hourly";
@@ -56,6 +58,10 @@ export function HourlyBookingFlow({
   // (0056 CHECK).
   const hourly = offering as HourlyOffering;
   const options = React.useMemo(() => durationOptions(hourly), [hourly]);
+  const intlLocale = INTL_LOCALES[useLocale()];
+  const t = useTranslations("public.widget");
+  const tStay = useTranslations("public.stay");
+  const tu = useTranslations("public.units");
 
   // Preview opens straight on the times (the shortest duration): the cards
   // are about how times show, not about the duration step.
@@ -185,8 +191,11 @@ export function HourlyBookingFlow({
   const matchingSlot = slot ? slots.find((s) => s.startsAt === slot) : undefined;
   const eligibleUnits = matchingSlot ? units.filter((u) => matchingSlot.unitIds.includes(u.id)) : [];
   // Preview has no units (canned slots only): the details form follows the
-  // time directly, as it does for an auto-assigned space.
-  const needsUnitStep = !preview && offering.unitSelection === "client_picks" && !!slot && !unitId;
+  // time directly, as it does for an auto-assigned space — and for a
+  // single-unit one, which has nothing to pick (`!== 1` so a multi-unit
+  // space keeps the step while its units load; see rental-booking-flow).
+  const needsUnitStep =
+    !preview && offering.unitSelection === "client_picks" && units.length !== 1 && !!slot && !unitId;
 
   function submit(formData: FormData) {
     if (!slot || !durationMin || preview) return;
@@ -222,13 +231,13 @@ export function HourlyBookingFlow({
   // is confirmed in the same timezone it was offered in. The post-booking
   // summary below (formatHourlyWhenLine) switches to the org's own zone,
   // matching RentalBookingFlow's convention for a physical resource.
-  const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "2-digit", month: "short" });
-  const timeFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const dayFmt = new Intl.DateTimeFormat(intlLocale, { weekday: "short", day: "2-digit", month: "short" });
+  const timeFmt = new Intl.DateTimeFormat(intlLocale, { hour: "2-digit", minute: "2-digit" });
   const pickSummary =
     slot && durationMin
-      ? `${formatDurationLabel(durationMin)} · ${dayFmt.format(new Date(slot))}, ${timeFmt.format(new Date(slot))}`
+      ? `${formatDurationLabel(durationMin, tu)} · ${dayFmt.format(new Date(slot))}, ${timeFmt.format(new Date(slot))}`
       : null;
-  const priceLabel = formatOfferingPrice(offering, currency);
+  const priceLabel = formatOfferingPrice(offering, currency, tu);
   const durationUnits = durationMin === null ? null : durationMin / 60;
 
   if (doneToken) {
@@ -240,6 +249,7 @@ export function HourlyBookingFlow({
               new Date(slot),
               new Date(new Date(slot).getTime() + durationMin * 60_000),
               orgTimeZone,
+              intlLocale,
             ),
           }
         : undefined;
@@ -253,7 +263,7 @@ export function HourlyBookingFlow({
           {offering.name}{" "}
           {onBack ? (
             <button type="button" className="text-muted-foreground underline" onClick={onBack}>
-              change
+              {t("change")}
             </button>
           ) : null}
         </p>
@@ -264,7 +274,7 @@ export function HourlyBookingFlow({
 
       {!durationMin ? (
         <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm">How long?</p>
+          <p className="text-muted-foreground text-sm">{tStay("howLong")}</p>
           {options.length <= MAX_PILL_OPTIONS ? (
             <div className="flex flex-wrap gap-2">
               {options.map((d) => (
@@ -276,7 +286,7 @@ export function HourlyBookingFlow({
                   className="wt-surface"
                   onClick={() => changeDuration(d)}
                 >
-                  {formatDurationLabel(d)}
+                  {formatDurationLabel(d, tu)}
                   {/* Price tracks the choice (per-hour offerings only — a
                       flat price is the same on every pill and says nothing). */}
                   {hourly.pricingMode === "per_unit" && hourly.priceCents !== null ? (
@@ -289,17 +299,17 @@ export function HourlyBookingFlow({
             </div>
           ) : (
             <select
-              aria-label="Duration"
+              aria-label={tStay("duration")}
               className={selectClass}
               defaultValue=""
               onChange={(e) => changeDuration(Number(e.target.value))}
             >
               <option value="" disabled>
-                Choose a duration
+                {tStay("chooseDuration")}
               </option>
               {options.map((d) => (
                 <option key={d} value={d}>
-                  {formatDurationLabel(d)}
+                  {formatDurationLabel(d, tu)}
                   {hourly.pricingMode === "per_unit" && hourly.priceCents !== null
                     ? ` · ${formatMoney(totalCents(hourly, d / 60)!, currency)}`
                     : ""}
@@ -321,14 +331,14 @@ export function HourlyBookingFlow({
           regionRef={slotsRegionRef}
           headerSlot={
             <p className="text-sm font-medium">
-              {formatDurationLabel(durationMin)}{" "}
+              {formatDurationLabel(durationMin, tu)}{" "}
               {options.length > 1 ? (
                 <button
                   type="button"
                   className="text-muted-foreground underline"
                   onClick={() => changeDuration(null)}
                 >
-                  change
+                  {t("change")}
                 </button>
               ) : null}
             </p>
@@ -339,13 +349,11 @@ export function HourlyBookingFlow({
           <p className="text-sm">
             {pickSummary}{" "}
             <button type="button" className="text-muted-foreground underline" onClick={backToTime}>
-              change
+              {t("change")}
             </button>
           </p>
           {eligibleUnits.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nothing is free for that time any more — please pick again.
-            </p>
+            <p className="text-muted-foreground text-sm">{t("nothingFreeTime")}</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {eligibleUnits.map((u) => (
@@ -370,20 +378,20 @@ export function HourlyBookingFlow({
           <p className="text-sm">
             {pickSummary}{" "}
             <button type="button" className="text-muted-foreground underline" onClick={backToTime}>
-              change
+              {t("change")}
             </button>
           </p>
           {offering.unitSelection === "client_picks" && unitId ? (
             <p className="text-sm">
               <span className="font-medium">
-                {units.find((u) => u.id === unitId)?.name ?? "Selected"}
+                {units.find((u) => u.id === unitId)?.name ?? t("selected")}
               </span>{" "}
               <button
                 type="button"
                 className="text-muted-foreground underline"
                 onClick={() => setUnitId(null)}
               >
-                change
+                {t("change")}
               </button>
             </p>
           ) : null}
@@ -397,7 +405,7 @@ export function HourlyBookingFlow({
             idPrefix="hourly-"
           />
           <Button type="submit" className="wt-primary" disabled={pending || !!preview}>
-            {preview ? "Preview" : pending ? "Sending…" : offering.requiresApproval ? "Request to book" : "Confirm booking"}
+            {preview ? t("preview") : pending ? t("sending") : offering.requiresApproval ? t("requestToBook") : t("confirmBooking")}
           </Button>
         </form>
       )}

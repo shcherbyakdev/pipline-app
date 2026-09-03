@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 
@@ -11,6 +12,7 @@ export type ClientRow = { id: string; name: string; email: string | null; bookin
 const SEARCH_FROM = 8;
 
 export function ClientsDirectory({ clients }: { clients: ClientRow[] }) {
+  const t = useTranslations("clients.directory");
   const [query, setQuery] = React.useState("");
   const q = query.trim().toLowerCase();
   const shown = q
@@ -24,13 +26,13 @@ export function ClientsDirectory({ clients }: { clients: ClientRow[] }) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name or email"
-          aria-label="Search clients"
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchAria")}
           className="max-w-xs"
         />
       ) : null}
       {shown.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No clients match “{query.trim()}”.</p>
+        <p className="text-muted-foreground text-sm">{t("noMatch", { query: query.trim() })}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {shown.map((c) => (
@@ -44,7 +46,7 @@ export function ClientsDirectory({ clients }: { clients: ClientRow[] }) {
                   <span className="text-muted-foreground min-w-0 truncate text-xs">{c.email}</span>
                 ) : null}
                 <span className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">
-                  {c.bookingCount} {c.bookingCount === 1 ? "booking" : "bookings"}
+                  {t("bookingCount", { count: c.bookingCount })}
                 </span>
               </Link>
             </li>

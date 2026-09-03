@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Calendar03Icon,
@@ -16,15 +17,17 @@ import { YearGrid } from "./year-grid";
 import { RequestsInbox } from "@/features/scheduling/components/requests-inbox";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
+import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 
 /* The right rail's "Go to" list mirrors the sidebar's day-to-day rows, so it
-   only holds routes every org has — no flag/mode filtering needed here. */
+   only holds routes every org has — no flag/mode filtering needed here. The
+   words are the sidebar's own (shell.nav.*). */
 const GO_TO = [
-  { href: "/bookings", label: "Bookings", icon: Calendar03Icon },
-  { href: "/clients", label: "Clients", icon: UserMultipleIcon },
-  { href: "/availability", label: "Availability", icon: Clock01Icon },
-  { href: "/booking-page", label: "Booking page", icon: Globe02Icon },
+  { href: "/bookings", labelKey: "bookings", icon: Calendar03Icon },
+  { href: "/clients", labelKey: "clients", icon: UserMultipleIcon },
+  { href: "/availability", labelKey: "availability", icon: Clock01Icon },
+  { href: "/booking-page", labelKey: "bookingPage", icon: Globe02Icon },
 ] as const;
 
 const MAX_AVATARS = 5;
@@ -34,7 +37,12 @@ export default async function OverviewPage({
 }: {
   searchParams: Promise<{ year?: string }>;
 }) {
-  const settings = await getSchedulingSettings();
+  const [t, tShell, locale, settings] = await Promise.all([
+    getTranslations("overview"),
+    getTranslations("shell"),
+    getLocale(),
+    getSchedulingSettings(),
+  ]);
   const timeZone = settings?.timezone ?? "UTC";
   const now = new Date();
   const todayISO = dateInZone(now, timeZone);
@@ -56,10 +64,9 @@ export default async function OverviewPage({
     listActiveStaff(),
   ]);
   const { weeks, confirmedTotal, pendingTotal } = buildYearHeatmap(rows, year, now, timeZone);
-  const summary = `${confirmedTotal} ${confirmedTotal === 1 ? "appointment" : "appointments"}${
-    pendingTotal > 0 ? ` · ${pendingTotal} pending` : ""
-  } in ${year}`;
+  const summary = t("summary", { count: confirmedTotal, pending: pendingTotal, year });
   const yearNavClass = cn(buttonVariants({ variant: "ghost", size: "icon-xs" }));
+  const overflow = staff.length > MAX_AVATARS ? `+${staff.length - MAX_AVATARS}` : null;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl gap-12 p-6">
@@ -67,14 +74,14 @@ export default async function OverviewPage({
         <section className="flex flex-col">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-sm font-medium">Activity</h2>
+              <h2 className="text-sm font-medium">{t("activity")}</h2>
               <p className="text-muted-foreground mt-0.5 text-[13px]">{summary}</p>
             </div>
-            <nav aria-label="Year" className="flex items-center gap-0.5">
+            <nav aria-label={t("year")} className="flex items-center gap-0.5">
               {year > minYear ? (
                 <Link
                   href={`/overview?year=${year - 1}`}
-                  aria-label={`Show ${year - 1}`}
+                  aria-label={t("showYear", { year: year - 1 })}
                   className={yearNavClass}
                 >
                   <ChevronLeft className="size-3.5" aria-hidden />
@@ -90,7 +97,7 @@ export default async function OverviewPage({
               {year < maxYear ? (
                 <Link
                   href={`/overview?year=${year + 1}`}
-                  aria-label={`Show ${year + 1}`}
+                  aria-label={t("showYear", { year: year + 1 })}
                   className={yearNavClass}
                 >
                   <ChevronRight className="size-3.5" aria-hidden />
@@ -103,7 +110,7 @@ export default async function OverviewPage({
             </nav>
           </div>
           <div className="mt-4">
-            <YearGrid weeks={weeks} todayISO={todayISO} summary={summary} />
+            <YearGrid weeks={weeks} todayISO={todayISO} summary={summary} intlLocale={INTL_LOCALES[locale]} />
             {/* On narrow screens the year overflows sideways; start the view
                 centered on today instead of January. Classic inline script so
                 it runs before paint settles — no client component needed. */}
@@ -115,20 +122,20 @@ export default async function OverviewPage({
           </div>
           <div className="text-subtle mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
             <span className="flex items-center gap-1">
-              Less
+              {t("less")}
               {HEAT_LEVELS.map((c) => (
                 <span key={c} aria-hidden className={cn(CELL, c)} />
               ))}
-              More
+              {t("more")}
             </span>
             <span className="flex items-center gap-1.5">
               <span aria-hidden className={cn(CELL, PENDING_FILL)} />
               <span aria-hidden className={cn(CELL, HEAT_LEVELS[2], PENDING_RING)} />
-              pending request
+              {t("legendPending")}
             </span>
             <span className="flex items-center gap-1.5">
               <span aria-hidden className={cn(CELL, "bg-muted", TODAY_OUTLINE)} />
-              today
+              {t("legendToday")}
             </span>
           </div>
         </section>
@@ -140,11 +147,11 @@ export default async function OverviewPage({
 
       <aside className="hidden w-44 shrink-0 flex-col gap-8 pt-1 lg:flex">
         <section className="flex flex-col gap-2.5">
-          <h2 className="text-[13px] font-medium text-muted-foreground">Members</h2>
+          <h2 className="text-[13px] font-medium text-muted-foreground">{t("members")}</h2>
           <Link
             href="/team"
             className="focus-visible:ring-ring/30 flex w-fit items-center rounded-full outline-none focus-visible:ring-3"
-            aria-label={`Team members (${staff.length})`}
+            aria-label={t("teamMembers", { count: staff.length })}
           >
             {staff.slice(0, MAX_AVATARS).map((s) => (
               <span
@@ -155,26 +162,22 @@ export default async function OverviewPage({
                 {s.name.charAt(0).toUpperCase()}
               </span>
             ))}
-            {staff.length > MAX_AVATARS ? (
-              <span className="ml-1.5 text-xs text-muted-foreground">
-                +{staff.length - MAX_AVATARS}
-              </span>
-            ) : null}
+            {overflow ? <span className="ml-1.5 text-xs text-muted-foreground">{overflow}</span> : null}
           </Link>
         </section>
 
         <section className="flex flex-col gap-1">
           <h2 className="mb-1.5 text-[13px] font-medium text-muted-foreground">
-            Go to
+            {t("goTo")}
           </h2>
-          {GO_TO.map(({ href, label, icon }) => (
+          {GO_TO.map(({ href, labelKey, icon }) => (
             <Link
               key={href}
               href={href}
               className="hover:bg-accent focus-visible:ring-ring/30 ease-strong -mx-2 flex items-center gap-2.5 rounded-lg px-2 py-[5px] text-[13px] font-medium outline-none transition-colors duration-150 focus-visible:ring-3"
             >
               <HugeiconsIcon icon={icon} size={14} className="text-subtle shrink-0" />
-              {label}
+              {tShell(`nav.${labelKey}`)}
             </Link>
           ))}
         </section>

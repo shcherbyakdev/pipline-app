@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { enTranslator } from "@/i18n/test-translator";
 import {
   laneLayout,
   stayInterval,
@@ -145,8 +146,8 @@ describe("labelDensity (what fits in the bar)", () => {
 describe("continuationLabels (a bar the window cuts says where it goes)", () => {
   it("names the real check-in / check-out beyond the edge", () => {
     const b = stay("a", "2027-04-20", "2027-06-15");
-    expect(continuationLabels(b, TZ, { clippedLeft: true, clippedRight: true })).toEqual({ left: "from 20 Apr", right: "to 15 Jun" });
-    expect(continuationLabels(b, TZ, { clippedLeft: false, clippedRight: false })).toEqual({ left: null, right: null });
+    expect(continuationLabels(b, TZ, { clippedLeft: true, clippedRight: true }, "en-GB")).toEqual({ left: "20 Apr", right: "15 Jun" });
+    expect(continuationLabels(b, TZ, { clippedLeft: false, clippedRight: false }, "en-GB")).toEqual({ left: null, right: null });
   });
 });
 
@@ -161,11 +162,11 @@ describe("stayPhase", () => {
 
 describe("stayLengthLabel", () => {
   it("nights, days, hours", () => {
-    expect(stayLengthLabel(stay("a", "2027-05-03", "2027-05-04"), "nights", TZ)).toBe("1 night");
-    expect(stayLengthLabel(stay("a", "2027-05-03", "2027-05-06"), "nights", TZ)).toBe("3 nights");
-    expect(stayLengthLabel(dayStay("a", "2027-05-03", "2027-05-03"), "days", TZ)).toBe("1 day");
-    expect(stayLengthLabel(dayStay("a", "2027-05-03", "2027-05-05"), "days", TZ)).toBe("3 days");
-    expect(stayLengthLabel(hourly("a", "2027-05-03", "10:00", "11:30"), "hours", TZ)).toBe("1 h 30 min");
+    expect(stayLengthLabel(stay("a", "2027-05-03", "2027-05-04"), "nights", TZ, enTranslator("public.units"))).toBe("1 night");
+    expect(stayLengthLabel(stay("a", "2027-05-03", "2027-05-06"), "nights", TZ, enTranslator("public.units"))).toBe("3 nights");
+    expect(stayLengthLabel(dayStay("a", "2027-05-03", "2027-05-03"), "days", TZ, enTranslator("public.units"))).toBe("1 day");
+    expect(stayLengthLabel(dayStay("a", "2027-05-03", "2027-05-05"), "days", TZ, enTranslator("public.units"))).toBe("3 days");
+    expect(stayLengthLabel(hourly("a", "2027-05-03", "10:00", "11:30"), "hours", TZ, enTranslator("public.units"))).toBe("1 h 30 min");
   });
 });
 
@@ -182,18 +183,18 @@ describe("hourlyByDay (chips per window column, in start order)", () => {
 
 describe("monthBands (the reference's month strip over the day columns)", () => {
   it("one band per month with its span", () => {
-    expect(monthBands(windowDays("2027-04-26", 14))).toEqual([
+    expect(monthBands(windowDays("2027-04-26", 14), "en-GB")).toEqual([
       { label: "April 2027", colStart: 0, colSpan: 5 },
       { label: "May 2027", colStart: 5, colSpan: 9 },
     ]);
-    expect(monthBands(windowDays("2027-05-01", 14))).toEqual([{ label: "May 2027", colStart: 0, colSpan: 14 }]);
+    expect(monthBands(windowDays("2027-05-01", 14), "en-GB")).toEqual([{ label: "May 2027", colStart: 0, colSpan: 14 }]);
   });
 });
 
 describe("windowLabel", () => {
   it("day-month – day-month year; the year twice only across a year boundary", () => {
-    expect(windowLabel("2027-05-01", 28)).toBe("1 May – 28 May 2027");
-    expect(windowLabel("2027-12-20", 28)).toBe("20 Dec 2027 – 16 Jan 2028");
+    expect(windowLabel("2027-05-01", 28, "en-GB")).toBe("1 May – 28 May 2027");
+    expect(windowLabel("2027-12-20", 28, "en-GB")).toBe("20 Dec 2027 – 16 Jan 2028");
   });
 });
 

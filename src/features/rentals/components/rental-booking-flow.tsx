@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
@@ -39,6 +40,8 @@ export function RentalBookingFlow({
   /** Admin live previews: canned availability, never a fetch. */
   preview?: { availability: RangeAvailability };
 }) {
+  const t = useTranslations("public.widget");
+  const tu = useTranslations("public.units");
   const [month, setMonth] = React.useState(() => monthOf(preview ? preview.availability.notBefore : todayISO()));
   const [availability, setAvailability] = React.useState<RangeAvailability | null>(preview?.availability ?? null);
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
@@ -146,12 +149,12 @@ export function RentalBookingFlow({
   }
 
   const summary =
-    range.start && range.end ? staySummary(offering, range.start, range.end, orgTimeZone) : null;
+    range.start && range.end ? staySummary(offering, range.start, range.end, orgTimeZone, tu) : null;
   const stayUnitCount =
     range.start && range.end
       ? stayUnits(offering.rangeMode as "nights" | "days", range.start, range.end)
       : null;
-  const priceLabel = formatOfferingPrice(offering, currency);
+  const priceLabel = formatOfferingPrice(offering, currency, tu);
 
   if (doneToken) {
     return (
@@ -164,8 +167,12 @@ export function RentalBookingFlow({
   }
 
   // Preview has no units (canned availability only): the details form
-  // follows the dates directly, as it does for an auto-assigned space.
-  const needsUnitStep = !preview && offering.unitSelection === "client_picks" && !unitId;
+  // follows the dates directly, as it does for an auto-assigned space. So
+  // does a single-unit space — there is nothing to pick (`!== 1`, not
+  // `> 1`: while units are still loading the step stays put, so a
+  // multi-unit space never flashes the details form first).
+  const needsUnitStep =
+    !preview && offering.unitSelection === "client_picks" && units.length !== 1 && !unitId;
   // The earliest month the picker may show: this one — or the canned one.
   const homeMonth = monthOf(preview ? preview.availability.notBefore : todayISO());
 
@@ -176,7 +183,7 @@ export function RentalBookingFlow({
           {offering.name}{" "}
           {onBack ? (
             <button type="button" className="text-muted-foreground underline" onClick={onBack}>
-              change
+              {t("change")}
             </button>
           ) : null}
         </p>
@@ -233,13 +240,11 @@ export function RentalBookingFlow({
               className="text-muted-foreground underline"
               onClick={() => changeRange({ start: null, end: null })}
             >
-              change dates
+              {t("changeDates")}
             </button>
           </p>
           {eligibleUnits.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              Nothing is free for those dates any more — please pick again.
-            </p>
+            <p className="text-muted-foreground text-sm">{t("nothingFreeDates")}</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {eligibleUnits.map((u) => (
@@ -268,20 +273,20 @@ export function RentalBookingFlow({
               className="text-muted-foreground underline"
               onClick={() => changeRange({ start: null, end: null })}
             >
-              change
+              {t("change")}
             </button>
           </p>
           {offering.unitSelection === "client_picks" && unitId ? (
             <p className="text-sm">
               <span className="font-medium">
-                {units.find((u) => u.id === unitId)?.name ?? "Selected"}
+                {units.find((u) => u.id === unitId)?.name ?? t("selected")}
               </span>{" "}
               <button
                 type="button"
                 className="text-muted-foreground underline"
                 onClick={() => setUnitId(null)}
               >
-                change
+                {t("change")}
               </button>
             </p>
           ) : null}
@@ -295,7 +300,7 @@ export function RentalBookingFlow({
             idPrefix="rental-"
           />
           <Button type="submit" className="wt-primary" disabled={pending}>
-            {pending ? "Sending…" : offering.requiresApproval ? "Request to book" : "Confirm booking"}
+            {pending ? t("sending") : offering.requiresApproval ? t("requestToBook") : t("confirmBooking")}
           </Button>
         </form>
       )}
