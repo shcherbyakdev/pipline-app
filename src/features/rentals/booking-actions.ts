@@ -169,7 +169,7 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
     const supabase = await createClient();
     const { data: booking, error: readError } = await supabase
       .from("bookings")
-      .select("id, rental_offering_id, rental_unit_id, starts_at, client_email, rental_offerings(unit_selection)")
+      .select("id, rental_offering_id, rental_unit_id, starts_at, client_email, locale, rental_offerings(unit_selection)")
       .eq("id", id)
       .eq("org_id", org.id)
       .eq("status", "confirmed")
@@ -181,6 +181,7 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
       rental_unit_id: string | null;
       starts_at: string;
       client_email: string | null;
+      locale: string | null;
       rental_offerings: { unit_selection: "auto" | "client_picks" } | null;
     } | null;
     if (!row || row.rental_offering_id === null) {
@@ -275,7 +276,9 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
       moved.client_email !== null && (moved.dates_changed || (moved.unit_changed && clientPicks));
     // The move already happened — never fail the action on a send.
     let emailed = false;
-    const mail = await emailTranslators(org.locale);
+    // Client-only mail on this path, so one language: the one they booked
+    // in (0072). The moved row inherited it (bookings_locale_carry).
+    const mail = await emailTranslators(row.locale ?? org.locale);
     const tz = moved.org_timezone;
     const oldWhenLine = formatRangeWhenLine(
       new Date(moved.old_starts_at),
@@ -595,7 +598,7 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
     const { data: booking, error: readError } = await supabase
       .from("bookings")
       .select(
-        "id, rental_offering_id, rental_unit_id, starts_at, ends_at, client_email, rental_offerings(unit_selection)",
+        "id, rental_offering_id, rental_unit_id, starts_at, ends_at, client_email, locale, rental_offerings(unit_selection)",
       )
       .eq("id", id)
       .eq("org_id", org.id)
@@ -609,6 +612,7 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
       starts_at: string;
       ends_at: string;
       client_email: string | null;
+      locale: string | null;
       rental_offerings: { unit_selection: "auto" | "client_picks" } | null;
     } | null;
     if (!row || row.rental_offering_id === null) {
@@ -698,7 +702,9 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
       moved.client_email !== null && (moved.dates_changed || (moved.unit_changed && clientPicks));
     // The move already happened — never fail the action on a send.
     let emailed = false;
-    const mail = await emailTranslators(org.locale);
+    // Client-only mail on this path, so one language: the one they booked
+    // in (0072). The moved row inherited it (bookings_locale_carry).
+    const mail = await emailTranslators(row.locale ?? org.locale);
     const tz = moved.org_timezone;
     const oldWhenLine = formatHourlyWhenLine(
       new Date(moved.old_starts_at),

@@ -83,3 +83,11 @@ describe("embedSnippet attribute safety", () => {
     }
   });
 });
+
+describe("embedSnippet language", () => {
+  it("pins the iframe src to one language, and follows the visitor without one", () => {
+    expect(embedSnippet(APP, "acme", null, undefined, T, "uk")).toContain('src="https://app.example.com/embed/acme?lang=uk"');
+    expect(embedSnippet(APP, "acme", { staff: "anna" }, undefined, T, "en")).toContain('src="https://app.example.com/embed/acme?staff=anna&lang=en"');
+    expect(embedSnippet(APP, "acme", null, undefined, T, undefined)).toBe(embedSnippet(APP, "acme", null, undefined, T));
+  });
+});

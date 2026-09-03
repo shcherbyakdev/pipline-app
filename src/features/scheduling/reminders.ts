@@ -44,6 +44,9 @@ type CandidateRow = {
   created_at: string;
   reminder_attempts: number;
   rental_unit_id: string | null;
+  // The language the client booked in (0072); null on every row written
+  // before it existed and on admin-made bookings — then the org's.
+  locale: string | null;
   services: { name: string } | null;
   // H2: range_mode alongside name — whenLineFor needs it to render an hourly
   // rental's when-line as a single-day time range instead of nights/days'
@@ -118,7 +121,7 @@ export async function runReminderDrain(deps: {
   const { data, error } = await deps.db
     .from("bookings")
     .select(
-      "id, org_id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, services(name), rental_offerings(name, range_mode), rental_units(name), orgs(name, timezone, locale), staff(name)",
+      "id, org_id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, locale, services(name), rental_offerings(name, range_mode), rental_units(name), orgs(name, timezone, locale), staff(name)",
     )
     .eq("status", "confirmed")
     .is("reminder_sent_at", null)
@@ -168,7 +171,9 @@ export async function runReminderDrain(deps: {
 
       try {
         // The org's language (spec D4) — joined above, no extra read per row.
-        const mail = await emailTranslators(row.orgs?.locale);
+        // A reminder is a client mail: the client's language, the org's only
+        // when the row has none (spec §4, amended 2026-09-03).
+        const mail = await emailTranslators(row.locale ?? row.orgs?.locale);
         const msg = bookingReminderEmail(mail.t, {
           orgName: row.orgs?.name ?? "",
           serviceName: bookingTitle(row, mail.t("appointment")),

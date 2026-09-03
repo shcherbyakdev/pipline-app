@@ -220,6 +220,11 @@ export const bookings = pgTable(
     reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
     reminderAttempts: integer("reminder_attempts").default(0).notNull(),
     reminderLastError: text("reminder_last_error"),
+    // The language the CLIENT booked in (0072). NULL = the org's language,
+    // which is every admin-made booking and every row written before this
+    // column existed. Read by the client-facing mails and the manage page;
+    // provider and staff notices always stay on orgs.locale.
+    locale: text("locale"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [

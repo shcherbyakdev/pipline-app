@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { SettingsCard } from "@/components/settings-row";
 import { cn } from "@/lib/utils";
 import { embedSnippet, type EmbedTitles } from "./widget-embed-snippet";
+import { LOCALES, LOCALE_NAMES } from "@/i18n/config";
 import { applyChannel, type Channel } from "@/lib/booking/channel";
 import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
 import { PREVIEW_AVAILABILITY } from "@/features/rentals/preview-availability";
@@ -85,7 +86,11 @@ export function WidgetAppearance({
   const both = mode.offersAppointments && mode.offersRentals;
   const [channel, setChannel] = React.useState<Channel>(mode.offersAppointments ? "services" : "spaces");
   const target = channel === "services" && staffSlug ? { staff: staffSlug } : both ? { channel } : null;
-  const snippet = handle ? embedSnippet(appUrl, handle, target, mode, titles) : "";
+  // "" = follow the visitor (the widget's own rule: region, then the org's
+  // language). Not stored — like the target above, it is part of the string
+  // you copy, so one site can paste an English snippet and another Ukrainian.
+  const [lang, setLang] = React.useState<string>("");
+  const snippet = handle ? embedSnippet(appUrl, handle, target, mode, titles, lang || undefined) : "";
   const previewCatalog = applyChannel(
     { services: previewServices, staff: [] as never[], serviceStaffIds: {}, offerings: previewOfferings },
     both ? channel : null,
@@ -162,6 +167,26 @@ export function WidgetAppearance({
               </span>
             </div>
           ) : null}
+          <div className="flex items-center gap-2">
+            <Label htmlFor="wt-lang" className="text-xs font-medium">
+              {t("language")}
+            </Label>
+            <select
+              id="wt-lang"
+              className={cn(selectClass, "w-auto")}
+              value={lang}
+              onChange={(e) => setLang(e.target.value)}
+            >
+              <option value="">{t("languageAuto")}</option>
+              {/* LOCALE_NAMES: each language named in itself, never translated. */}
+              {LOCALES.map((l) => (
+                <option key={l} value={l}>
+                  {LOCALE_NAMES[l]}
+                </option>
+              ))}
+            </select>
+            {lang ? null : <span className="text-muted-foreground text-xs">{t("languageAutoHint")}</span>}
+          </div>
           <pre className="bg-muted overflow-x-auto rounded-md border p-3 font-mono text-xs">
             {snippet}
           </pre>

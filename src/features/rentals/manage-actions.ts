@@ -1,13 +1,14 @@
 "use server";
 
 import { emailTranslators } from "@/i18n/emails";
+import { publicLocale } from "@/i18n/public";
 import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl, resolveBookingToken } from "@/lib/tokens/booking";
-import { getOrgLocale } from "@/lib/booking/public";
+import { getBookingLocale, getOrgLocale } from "@/lib/booking/public";
 import {
   getBookingOfferingId,
   getPublicOfferingById,
@@ -254,26 +255,30 @@ export async function rescheduleRentalBooking(
     // always gets one when they have an address on file, even if nothing
     // moved: the old link is dead, and this email carries the new one.
     try {
-      const mail = await emailTranslators(await getOrgLocale(booking.orgId));
+      // Two languages (spec §4, amended 2026-09-03): the provider's notice
+      // below stays the org's, the client's mail follows the booking — or the
+      // ?lang= they are looking at right now. The new row inherits the locale
+      // in the DB (bookings_locale_carry, 0072).
+      const orgLang = await getOrgLocale(booking.orgId);
+      const mail = await emailTranslators(orgLang);
+      const client = await emailTranslators(
+        await publicLocale((await getBookingLocale(booking.id)) ?? orgLang),
+      );
       const tz = moved.org_timezone;
-      const oldWhenLine = formatRangeWhenLine(
-        new Date(moved.old_starts_at),
-        new Date(moved.old_ends_at),
-        tz,
-        mail.intlLocale,
-      );
-      const whenLine = formatRangeWhenLine(
-        new Date(moved.new_starts_at),
-        new Date(moved.new_ends_at),
-        tz,
-        mail.intlLocale,
-      );
+      const oldFor = (intlLocale: string) =>
+        formatRangeWhenLine(new Date(moved.old_starts_at), new Date(moved.old_ends_at), tz, intlLocale);
+      const newFor = (intlLocale: string) =>
+        formatRangeWhenLine(new Date(moved.new_starts_at), new Date(moved.new_ends_at), tz, intlLocale);
+      const oldWhenLine = oldFor(mail.intlLocale);
+      const whenLine = newFor(mail.intlLocale);
+      const clientOldWhenLine = oldFor(client.intlLocale);
+      const clientWhenLine = newFor(client.intlLocale);
       if (moved.client_email) {
-        const msg = bookingRescheduledEmail(mail.t, {
+        const msg = bookingRescheduledEmail(client.t, {
           orgName: moved.org_name,
           serviceName: moved.service_name,
-          oldWhenLine,
-          whenLine,
+          oldWhenLine: clientOldWhenLine,
+          whenLine: clientWhenLine,
           manageUrl: buildBookingManageUrl(fresh.token),
           icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
         });
@@ -497,26 +502,30 @@ export async function rescheduleRentalBookingHours(
     // gets one when they have an address on file, even if nothing moved: the
     // old link is dead, and this email carries the new one.
     try {
-      const mail = await emailTranslators(await getOrgLocale(booking.orgId));
+      // Two languages (spec §4, amended 2026-09-03): the provider's notice
+      // below stays the org's, the client's mail follows the booking — or the
+      // ?lang= they are looking at right now. The new row inherits the locale
+      // in the DB (bookings_locale_carry, 0072).
+      const orgLang = await getOrgLocale(booking.orgId);
+      const mail = await emailTranslators(orgLang);
+      const client = await emailTranslators(
+        await publicLocale((await getBookingLocale(booking.id)) ?? orgLang),
+      );
       const tz = moved.org_timezone;
-      const oldWhenLine = formatHourlyWhenLine(
-        new Date(moved.old_starts_at),
-        new Date(moved.old_ends_at),
-        tz,
-        mail.intlLocale,
-      );
-      const whenLine = formatHourlyWhenLine(
-        new Date(moved.new_starts_at),
-        new Date(moved.new_ends_at),
-        tz,
-        mail.intlLocale,
-      );
+      const oldFor = (intlLocale: string) =>
+        formatHourlyWhenLine(new Date(moved.old_starts_at), new Date(moved.old_ends_at), tz, intlLocale);
+      const newFor = (intlLocale: string) =>
+        formatHourlyWhenLine(new Date(moved.new_starts_at), new Date(moved.new_ends_at), tz, intlLocale);
+      const oldWhenLine = oldFor(mail.intlLocale);
+      const whenLine = newFor(mail.intlLocale);
+      const clientOldWhenLine = oldFor(client.intlLocale);
+      const clientWhenLine = newFor(client.intlLocale);
       if (moved.client_email) {
-        const msg = bookingRescheduledEmail(mail.t, {
+        const msg = bookingRescheduledEmail(client.t, {
           orgName: moved.org_name,
           serviceName: moved.service_name,
-          oldWhenLine,
-          whenLine,
+          oldWhenLine: clientOldWhenLine,
+          whenLine: clientWhenLine,
           manageUrl: buildBookingManageUrl(fresh.token),
           icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
         });

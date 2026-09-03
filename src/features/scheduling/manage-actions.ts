@@ -8,7 +8,8 @@ import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter, publicSlotsLimiter } from "@/lib/tokens/rate-limit";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { resolveBookingToken, buildBookingManageUrl } from "@/lib/tokens/booking";
-import { getOrgLocale, loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
+import { publicLocale } from "@/i18n/public";
+import { getBookingLocale, getOrgLocale, loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
 import { getProviderEmail } from "@/lib/booking/provider";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { emailBadgeUrl } from "@/lib/billing/queries";
@@ -139,17 +140,26 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     // Everything below is post-RPC: the cancellation is already committed, so
     // nothing here may turn into a failed action. Both of these are safe by
     // construction — whenLineFor is pure, resolveClientStaffName swallows.
-    // The org's language, not the visitor's (spec D4).
-    const mail = await emailTranslators(await getOrgLocale(row.org_id));
-    const whenLine = whenLineFor(
-      {
-        startsAt: new Date(row.starts_at),
-        endsAt: new Date(row.ends_at),
-        isRental: row.rental_unit_id !== null,
-      },
-      row.org_timezone,
-      mail.intlLocale,
+    // Two languages (spec §4, amended 2026-09-03): the provider's copy below
+    // is the org's, the client's is the one they are cancelling in — their
+    // stored locale, or the ?lang= they are looking at right now.
+    const orgLang = await getOrgLocale(row.org_id);
+    const mail = await emailTranslators(orgLang);
+    const client = await emailTranslators(
+      await publicLocale((await getBookingLocale(row.booking_id)) ?? orgLang),
     );
+    const when = (intlLocale: string) =>
+      whenLineFor(
+        {
+          startsAt: new Date(row.starts_at),
+          endsAt: new Date(row.ends_at),
+          isRental: row.rental_unit_id !== null,
+        },
+        row.org_timezone,
+        intlLocale,
+      );
+    const whenLine = when(mail.intlLocale);
+    const clientWhenLine = when(client.intlLocale);
     const staffName = await resolveClientStaffName(row.org_id, row.staff_name);
 
     // Best-effort notifications — the cancellation is already committed.
@@ -157,10 +167,10 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     // skips the other.
     const providerEmail = await getProviderEmail(row.org_id).catch(() => null);
     try {
-      const msg = bookingCancelledEmail(mail.t, {
+      const msg = bookingCancelledEmail(client.t, {
         orgName: row.org_name,
         serviceName: row.service_name,
-        whenLine,
+        whenLine: clientWhenLine,
         cancelledBy: "client",
         staffName,
         // Client-facing mail carries the badge unless the org's plan lets it
@@ -296,18 +306,27 @@ export async function rescheduleBooking(
 
     // Post-RPC: the move is committed. See cancelBooking — neither of these
     // can throw.
-    const mail = await emailTranslators(await getOrgLocale(booking.orgId));
+    // As in cancelBooking: the provider reads the org's language, the client
+    // reads theirs. The NEW row inherits the locale from the old one in the
+    // DB (bookings_locale_carry, 0072), so later mail about it agrees.
+    const orgLang = await getOrgLocale(booking.orgId);
+    const mail = await emailTranslators(orgLang);
+    const client = await emailTranslators(
+      await publicLocale((await getBookingLocale(booking.id)) ?? orgLang),
+    );
     const oldWhenLine = formatWhenLine(new Date(row.old_starts_at), row.org_timezone, mail.intlLocale);
     const whenLine = formatWhenLine(new Date(row.new_starts_at), row.org_timezone, mail.intlLocale);
+    const clientOldWhenLine = formatWhenLine(new Date(row.old_starts_at), row.org_timezone, client.intlLocale);
+    const clientWhenLine = formatWhenLine(new Date(row.new_starts_at), row.org_timezone, client.intlLocale);
     const staffName = await resolveClientStaffName(row.org_id, row.staff_name);
 
     const providerEmail = await getProviderEmail(row.org_id).catch(() => null);
     try {
-      const msg = bookingRescheduledEmail(mail.t, {
+      const msg = bookingRescheduledEmail(client.t, {
         orgName: row.org_name,
         serviceName: row.service_name,
-        oldWhenLine,
-        whenLine,
+        oldWhenLine: clientOldWhenLine,
+        whenLine: clientWhenLine,
         manageUrl: buildBookingManageUrl(fresh.token),
         icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
         staffName,

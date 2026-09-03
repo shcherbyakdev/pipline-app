@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { langFromPath, langParam, resolvePublicLocale, withLang } from "./public";
+import { langFromPath, langHref, langParam, resolvePublicLocale, withLang } from "./public";
 
 describe("resolvePublicLocale (spec §4 + region detection)", () => {
   it("an explicit valid ?lang wins over everything", () => {
@@ -52,5 +52,22 @@ describe("lang helpers", () => {
     expect(withLang("/anna/spaces?space=1", "uk")).toBe("/anna/spaces?space=1&lang=uk");
     expect(withLang("/anna", undefined)).toBe("/anna");
     expect(withLang("/anna", "ua")).toBe("/anna");
+  });
+});
+
+describe("langHref (the visitor's language links)", () => {
+  it("sets ?lang on the current path", () => {
+    expect(langHref("/anna", "uk")).toBe("/anna?lang=uk");
+    expect(langHref("/anna/spaces", "en")).toBe("/anna/spaces?lang=en");
+  });
+
+  it("replaces a lang already on the URL and keeps the rest", () => {
+    expect(langHref("/anna?service=abc&lang=uk", "en")).toBe("/anna?service=abc&lang=en");
+    expect(langHref("/anna?lang=uk", "uk")).toBe("/anna?lang=uk");
+  });
+
+  it("falls back to a bare query when the proxy sent no path", () => {
+    expect(langHref(null, "uk")).toBe("?lang=uk");
+    expect(langHref(undefined, "en")).toBe("?lang=en");
   });
 });

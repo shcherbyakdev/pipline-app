@@ -1,5 +1,6 @@
 import type { Channel } from "./channel";
 import type { PageChannel } from "@/features/booking-page/channel";
+import { withLang } from "@/i18n/public-locale";
 
 // The public booking page's address. Root-level since 0051 (/<handle>,
 // /<handle>/<staffSlug>); /book/… only redirects. `appUrl` is passed in
@@ -65,8 +66,12 @@ export function bookingLink(appUrl: string, handle: string, target?: LinkTarget)
   return `${bookingUrl(appUrl, handle)}${targetQuery(target)}`;
 }
 
-export function embedSrc(appUrl: string, handle: string, target?: LinkTarget): string {
+/* `lang` pins the snippet to one language (i18n spec §4, amended
+   2026-09-03): the widget sits on someone else's page, so that page's owner
+   picks — there is no switcher inside the iframe. Omitted (the default), the
+   embed follows the visitor's region and then the org, exactly as before. */
+export function embedSrc(appUrl: string, handle: string, target?: LinkTarget, lang?: string): string {
   const base = `${appUrl.replace(/\/+$/, "")}/embed/${handle}`;
-  if (target && "staff" in target) return `${base}?staff=${encodeURIComponent(target.staff)}`;
-  return `${base}${targetQuery(target)}`;
+  if (target && "staff" in target) return withLang(`${base}?staff=${encodeURIComponent(target.staff)}`, lang);
+  return withLang(`${base}${targetQuery(target)}`, lang);
 }

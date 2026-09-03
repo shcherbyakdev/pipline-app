@@ -1,6 +1,7 @@
 "use server";
 
 import { emailTranslators } from "@/i18n/emails";
+import { stampBookingLocale } from "@/lib/booking/client-locale";
 import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -252,18 +253,24 @@ export async function createRentalBookingHours(
     // own errors AND the whole block is wrapped below — a throw here (e.g.
     // formatHourlyWhenLine, totalCents) must not report a committed booking
     // as failed to the caller.
-    // The org's language for both mails (spec D4).
+    // Two languages (spec §4, amended 2026-09-03): the client reads the one
+    // they booked in, the provider reads the org's — so the when-line and the
+    // money lines, both locale-formatted, are built twice.
+    const client = await emailTranslators(await stampBookingLocale(admin, bookingId as string, ctx.org.locale));
     const mail = await emailTranslators(ctx.org.locale);
     let prep: {
       whenLine: string;
+      clientWhenLine: string;
       serviceName: string;
       infoLines: string[];
+      clientInfoLines: string[];
       providerEmail: string | null;
     } | null = null;
     try {
       const tz = ctx.org.timeZone;
       const ends = new Date(starts.getTime() + durationMin * 60_000);
       const whenLine = formatHourlyWhenLine(starts, ends, tz, mail.intlLocale);
+      const clientWhenLine = formatHourlyWhenLine(starts, ends, tz, client.intlLocale);
       const unitName = await getBookingUnitName(bookingId as string).catch((e) => {
         console.error("[rentals] getBookingUnitName:", e);
         return null;
@@ -278,43 +285,45 @@ export async function createRentalBookingHours(
       // H3: total / deposit / pay-at-venue / cancellation-policy lines, shared
       // by the client confirmation and the provider's copy below.
       const total = totalCents(ctx.offering, durationMin / 60);
-      const infoLines = moneyInfoLines({
+      const money = {
         totalCents: total,
         depositCents: depositCents(ctx.offering, total),
         currency: ctx.org.currency,
         cancelWindowMin: ctx.offering.cancelWindowMin,
-      }, mail.tUnits);
-      prep = { whenLine, serviceName, infoLines, providerEmail };
+      };
+      const infoLines = moneyInfoLines(money, mail.tUnits);
+      const clientInfoLines = moneyInfoLines(money, client.tUnits);
+      prep = { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines, providerEmail };
     } catch (error) {
       console.error("[rentals] post-booking mail prep failed:", error);
       return { ok: true, token, pending: isPending };
     }
-    const { whenLine, serviceName, infoLines, providerEmail } = prep;
+    const { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines, providerEmail } = prep;
 
     // Best-effort confirmation (the booking survives email failure). Pending:
     // the request-received twin instead — nothing is confirmed yet.
     try {
       const manageUrl = buildBookingManageUrl(token);
       const msg = isPending
-        ? bookingRequestReceivedEmail(mail.t, {
+        ? bookingRequestReceivedEmail(client.t, {
             orgName: ctx.org.orgName,
             serviceName,
-            whenLine,
+            whenLine: clientWhenLine,
             manageUrl,
             badgeUrl: await emailBadgeUrl(ctx.org.orgId),
-            infoLines,
+            infoLines: clientInfoLines,
           })
-        : bookingConfirmationEmail(mail.t, {
+        : bookingConfirmationEmail(client.t, {
             orgName: ctx.org.orgName,
             serviceName,
-            whenLine,
+            whenLine: clientWhenLine,
             manageUrl,
             icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
             // "Powered by Booklo" unless the org's plan lets it opt out and it
             // did (emailBadgeUrl swallows its own errors — same discipline as
             // scheduling/public-actions.ts's own confirmation send).
             badgeUrl: await emailBadgeUrl(ctx.org.orgId),
-            infoLines,
+            infoLines: clientInfoLines,
           });
       await selectTransport().send({
         to: email,

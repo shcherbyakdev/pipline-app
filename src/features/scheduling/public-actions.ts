@@ -1,6 +1,7 @@
 "use server";
 
 import { emailTranslators } from "@/i18n/emails";
+import { stampBookingLocale } from "@/lib/booking/client-locale";
 import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -252,7 +253,13 @@ export async function createBooking(
     // rule, and degrades to the unnamed copy if the count blows up — past this
     // point the booking EXISTS and nothing may fail the action).
     const staffName = await resolveClientStaffName(ctx.org.orgId, row.staff_name);
+    // Two languages from here down (spec §4, amended 2026-09-03): the client
+    // reads the language they booked in, the provider and the staff member
+    // read the org's. They are usually the same locale and always two
+    // objects — nothing below may branch on them being equal.
+    const client = await emailTranslators(await stampBookingLocale(admin, row.booking_id, ctx.org.locale));
     const mail = await emailTranslators(ctx.org.locale);
+    const clientWhenLine = formatWhenLine(starts, ctx.org.timeZone, client.intlLocale);
     const whenLine = formatWhenLine(starts, ctx.org.timeZone, mail.intlLocale);
     const idempotencyKey = bookingIdempotencyKey(row.booking_id);
     // Best-effort like everything below: a null provider address only means
@@ -268,18 +275,18 @@ export async function createBooking(
     try {
       const manageUrl = buildBookingManageUrl(token);
       const msg = isPending
-        ? bookingRequestReceivedEmail(mail.t, {
+        ? bookingRequestReceivedEmail(client.t, {
             orgName: ctx.org.orgName,
             serviceName: ctx.service.name,
-            whenLine,
+            whenLine: clientWhenLine,
             manageUrl,
             staffName,
             badgeUrl: await emailBadgeUrl(ctx.org.orgId),
           })
-        : bookingConfirmationEmail(mail.t, {
+        : bookingConfirmationEmail(client.t, {
             orgName: ctx.org.orgName,
             serviceName: ctx.service.name,
-            whenLine,
+            whenLine: clientWhenLine,
             manageUrl,
             icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
             staffName,
