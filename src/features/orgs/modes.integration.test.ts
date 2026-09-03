@@ -137,14 +137,36 @@ describe("update_org_modes (0054 / 0073)", () => {
     const both = await admin.from("orgs").update({ offers_appointments: true, offers_rentals: true }).eq("id", orgId);
     expect(both.error?.message).toMatch(/orgs_offers_one/);
   });
+  it("refuses to leave a channel that still has an active row; allowed once it is off", async () => {
+    // ModesCo is a spaces org by now (the first test switched it).
+    const { data: off, error: e1 } = await owner
+      .from("rental_offerings")
+      .insert({ org_id: orgId, name: "Cabin", range_mode: "nights", start_time: "15:00", end_time: "11:00" })
+      .select("id")
+      .single();
+    if (e1) throw e1;
+    const blocked = await owner.rpc("update_org_modes", { p_org_id: orgId, p_offers_appointments: true, p_offers_rentals: false });
+    expect(blocked.error?.message).toMatch(/channel_in_use/);
+    expect(await flags(orgId)).toEqual({ offers_appointments: false, offers_rentals: true });
+    // Re-asserting the current channel is a no-op, not a refusal.
+    const same = await owner.rpc("update_org_modes", { p_org_id: orgId, p_offers_appointments: false, p_offers_rentals: true });
+    expect(same.error).toBeNull();
+    const { error: e2 } = await owner.from("rental_offerings").update({ active: false }).eq("id", off!.id);
+    if (e2) throw e2;
+    const ok = await owner.rpc("update_org_modes", { p_org_id: orgId, p_offers_appointments: true, p_offers_rentals: false });
+    expect(ok.error).toBeNull();
+    expect(await flags(orgId)).toEqual({ offers_appointments: true, offers_rentals: false });
+  });
 });
 
-describe("public RPC gating (0054)", () => {
+describe("public RPC gating (0054 / 0073)", () => {
   let owner: SupabaseClient;
   let orgId: string;
   let offeringId: string;
   const HANDLE = `modes-gate-${Date.now()}`;
 
+  // An appointments org (the default) that holds a space anyway — rows are
+  // never channel-gated, only the public create RPCs are.
   beforeAll(async () => {
     owner = await signedInUser("modes_gate");
     const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "GateCo" });
@@ -194,55 +216,8 @@ describe("public RPC gating (0054)", () => {
     });
   }
 
-  it("create_rental_booking answers 'not found' while rentals are off, then works once on", async () => {
-    const off = await owner.rpc("update_org_modes", {
-      p_org_id: orgId,
-      p_offers_appointments: true,
-      p_offers_rentals: false,
-    });
-    expect(off.error).toBeNull();
-    const blocked = await bookRental();
-    expect(blocked.error?.message).toMatch(/not found/);
-
-    const on = await owner.rpc("update_org_modes", {
-      p_org_id: orgId,
-      p_offers_appointments: false,
-      p_offers_rentals: true,
-    });
-    expect(on.error).toBeNull();
-    const ok = await bookRental();
-    expect(ok.error).toBeNull();
-    expect(typeof ok.data).toBe("string");
-  });
-
-  it("create_booking answers 'not found' while appointments are off", async () => {
-    // The gate fires at org resolution, before any service/slot lookup —
-    // a bogus service id must not change the answer.
-    const { error: e } = await owner.rpc("update_org_modes", {
-      p_org_id: orgId,
-      p_offers_appointments: false,
-      p_offers_rentals: true,
-    });
-    expect(e).toBeNull();
-    const { error } = await admin.rpc("create_booking", {
-      p_handle: HANDLE,
-      p_service_id: "00000000-0000-0000-0000-000000000000",
-      p_starts_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-      p_name: "Gate Client",
-      p_email: "gate-client@example.com",
-      p_note: null,
-      p_token_hash: generateAccessToken().tokenHash,
-    });
-    expect(error?.message).toMatch(/not found/);
-  });
-
-  it("admin RPCs are not gated: create_rental_booking_admin succeeds with rentals off", async () => {
-    const { error: e } = await owner.rpc("update_org_modes", {
-      p_org_id: orgId,
-      p_offers_appointments: true,
-      p_offers_rentals: false,
-    });
-    expect(e).toBeNull();
+  it("admin RPCs are not gated: create_rental_booking_admin succeeds while rentals are off", async () => {
+    expect(await flags(orgId)).toEqual({ offers_appointments: true, offers_rentals: false });
     // create_rental_booking_admin (0039) resolves org via user_orgs() — no
     // p_org_id — and has no p_ignore_limits param; it does require the same
     // token hash the anon RPC does.
@@ -257,5 +232,36 @@ describe("public RPC gating (0054)", () => {
       p_token_hash: generateAccessToken().tokenHash,
     });
     expect(error).toBeNull();
+  });
+
+  it("create_rental_booking answers 'not found' while rentals are off, then works once the org switches", async () => {
+    const blocked = await bookRental();
+    expect(blocked.error?.message).toMatch(/not found/);
+
+    // No active service, so the switch is allowed.
+    const on = await owner.rpc("update_org_modes", {
+      p_org_id: orgId,
+      p_offers_appointments: false,
+      p_offers_rentals: true,
+    });
+    expect(on.error).toBeNull();
+    const ok = await bookRental();
+    expect(ok.error).toBeNull();
+    expect(typeof ok.data).toBe("string");
+  });
+
+  it("create_booking answers 'not found' while appointments are off", async () => {
+    // The gate fires at org resolution, before any service/slot lookup —
+    // a bogus service id must not change the answer.
+    const { error } = await admin.rpc("create_booking", {
+      p_handle: HANDLE,
+      p_service_id: "00000000-0000-0000-0000-000000000000",
+      p_starts_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      p_name: "Gate Client",
+      p_email: "gate-client@example.com",
+      p_note: null,
+      p_token_hash: generateAccessToken().tokenHash,
+    });
+    expect(error?.message).toMatch(/not found/);
   });
 });

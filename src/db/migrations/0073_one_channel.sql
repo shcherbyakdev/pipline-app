@@ -7,9 +7,11 @@
 --   * orgs_offers_something (at least one, 0054) → orgs_offers_one (exactly one).
 --   * create_org (0054 body) / create_org_with_page (0069 body): defaults
 --     become appointments-only and the guard is "exactly one".
---   * update_org_modes (0054 body): same guard. Switching stays free —
---     admin RPCs are not channel-gated (0054 ruling), so a hidden channel's
---     rows and bookings keep working from the calendar.
+--   * update_org_modes (0054 body): same guard, plus a switch is allowed only
+--     while the current channel has no ACTIVE rows (2026-09-03 ruling: an org
+--     that has built on a channel never sees the other one as a live option;
+--     Settings shows a fixed label, this is the defence behind it). Admin RPCs
+--     stay un-gated (0054), so nothing is lost either way.
 
 update public.orgs o set offers_rentals = false
  where o.offers_appointments and o.offers_rentals
@@ -104,7 +106,8 @@ revoke all on function public.create_org_with_page(text, text, text, boolean, bo
   from public, anon, authenticated, service_role;
 grant execute on function public.create_org_with_page(text, text, text, boolean, boolean, text) to authenticated;
 
--- ---------- update_org_modes (0054 body): exactly one.
+-- ---------- update_org_modes (0054 body): exactly one; a switch only while
+-- the current channel is empty of active rows ('channel_in_use' otherwise).
 create or replace function public.update_org_modes(
   p_org_id uuid,
   p_offers_appointments boolean,
@@ -115,6 +118,8 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_cur boolean;
 begin
   if auth.uid() is null then
     raise exception 'not authenticated';
@@ -124,6 +129,15 @@ begin
   end if;
   if coalesce(p_offers_appointments, false) = coalesce(p_offers_rentals, false) then
     raise exception 'pick one booking type';
+  end if;
+  select o.offers_appointments into v_cur from public.orgs o where o.id = p_org_id;
+  if v_cur = p_offers_appointments then return; end if;
+  if v_cur then
+    if exists (select 1 from public.services s where s.org_id = p_org_id and s.active) then
+      raise exception 'channel_in_use';
+    end if;
+  elsif exists (select 1 from public.rental_offerings r where r.org_id = p_org_id and r.active) then
+    raise exception 'channel_in_use';
   end if;
 
   update public.orgs

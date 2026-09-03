@@ -261,7 +261,12 @@ export async function updateOrgModes(input: unknown): Promise<ActionState> {
     p_offers_appointments: flags.offersAppointments,
     p_offers_rentals: flags.offersRentals,
   });
-  if (error) return brandingFail("updateOrgModes", error);
+  if (error) {
+    // The RPC's defence for the Settings lock: the current channel still has
+    // active rows (a wizard revisit, a stale tab).
+    if (error.message.includes("channel_in_use")) return { ok: false, error: (await getTranslations("errors"))("orgs.channelInUse") };
+    return brandingFail("updateOrgModes", error);
+  }
   // The sidebar/command menu read the flags in the dashboard layout.
   revalidatePath("/", "layout");
   return { ok: true };

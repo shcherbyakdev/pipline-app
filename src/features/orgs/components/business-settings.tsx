@@ -13,10 +13,11 @@ import { cn } from "@/lib/utils";
 const NS: Record<OrgModeChoice, "spaces" | "appointments"> = { rentals: "spaces", appointments: "appointments" };
 
 /* Org-level "what you offer" (Settings → Business): one channel per
-   workspace (0073), picked here. Optimistic: the card flips at once and
-   rolls back on a failed save. Switching is free — the other channel's rows
-   and bookings stay put and come back when it is switched back. */
-export function BusinessSettings({ mode }: { mode: OrgModeChoice }) {
+   workspace (0073). A live radio only while the current channel has nothing
+   active in it (`locked` — the page counts, update_org_modes enforces);
+   after that, a fixed label. Optimistic: the card flips at once and rolls
+   back on a failed save. */
+export function BusinessSettings({ mode, locked }: { mode: OrgModeChoice; locked: boolean }) {
   const t = useTranslations();
   const router = useRouter();
   const [value, setValue] = React.useState(mode);
@@ -44,7 +45,16 @@ export function BusinessSettings({ mode }: { mode: OrgModeChoice }) {
         <div className="text-sm font-medium">{t("settings.business.title")}</div>
         <p className="text-muted-foreground text-sm">{t("settings.business.blurb")}</p>
       </div>
-      {/* Native radios in label-cards (the onboarding mode step's idiom). */}
+      {locked ? (
+        <div className="flex flex-col gap-2">
+          <div className="rounded-xl border p-3">
+            <div className="text-sm font-medium">{t(`${NS[mode]}.settings.label`)}</div>
+            <div className="text-muted-foreground text-sm">{t(`${NS[mode]}.settings.blurb`)}</div>
+          </div>
+          <p className="text-muted-foreground text-xs">{t("settings.business.locked")}</p>
+        </div>
+      ) : (
+      /* Native radios in label-cards (the onboarding mode step's idiom). */
       <fieldset className="flex flex-col gap-2" disabled={pending}>
         <legend className="sr-only">{t("settings.business.title")}</legend>
         {ORG_MODES.map((choice) => {
@@ -71,6 +81,7 @@ export function BusinessSettings({ mode }: { mode: OrgModeChoice }) {
           );
         })}
       </fieldset>
+      )}
     </div>
   );
 }

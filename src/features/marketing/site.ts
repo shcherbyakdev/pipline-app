@@ -291,7 +291,7 @@ export const ONBOARDING = {
      Field labels come from STARTER.firstService/firstSpace — same forms,
      same words. */
   wizard: {
-    mode: { heading: "What are you booking?", sub: "You can change this any time in Settings." },
+    mode: { heading: "What are you booking?", sub: "You can change this in Settings until you add your first service or space." },
     service: { heading: "Add your first service", sub: "What clients book with you. Add more on Services later." },
     space: { heading: "Add your first space", sub: "A room, studio or item clients book. Its first unit comes with it." },
     hours: {

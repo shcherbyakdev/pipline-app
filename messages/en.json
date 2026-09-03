@@ -60,7 +60,8 @@
     },
     "business": {
       "title": "What you offer",
-      "blurb": "One per workspace. Your booking page and this admin follow it; switching keeps existing bookings."
+      "blurb": "One per workspace. Changeable until you add your first service or space.",
+      "locked": "Set at signup. To change it, deactivate everything you offer first."
     },
     "copyRefused": "Couldn't copy — select the link text and copy manually.",
     "bookingPage": {
@@ -202,7 +203,8 @@
       "invalidInput": "Check the name (2–80 characters) and the page address.",
       "timezoneUnknown": "That timezone isn't recognised — pick one from the list.",
       "handleJustTaken": "That name was just taken — pick another.",
-      "contrast": "Text and background contrast is below 3:1 — pick more distinct colours."
+      "contrast": "Text and background contrast is below 3:1 — pick more distinct colours.",
+      "channelInUse": "Deactivate everything you offer first, then switch."
     },
     "billing": {
       "checkout": "Couldn't open checkout — try again.",
@@ -1193,7 +1195,7 @@
     "wizard": {
       "mode": {
         "heading": "What are you booking?",
-        "sub": "You can change this any time in Settings."
+        "sub": "You can change this in Settings until you add your first service or space."
       },
       "service": {
         "heading": "Add your first service",

@@ -622,19 +622,14 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
     expect(row.deposit_cents).toBe(800); // 10% of 8000
     expect(row.cancel_window_min).toBe(120);
 
-    // Appointment side: the same org switched to appointments (one channel
-    // per org since 0073 — the public create RPCs gate on it; the resolver
-    // does not), then a fresh service/staff fixture.
-    const { error: modeErr } = await client.rpc("update_org_modes", {
-      p_org_id: orgId,
-      p_offers_appointments: true,
-      p_offers_rentals: false,
-    });
-    expect(modeErr).toBeNull();
-    const { serviceId } = await serviceFixture(client, orgId);
+    // Appointment side: its own org (one channel per org since 0073, and a
+    // live space forbids switching) — the resolver resolves by token, whatever
+    // the org.
+    const appt = await newOrg("h3_c14_appt", "ResolverMoneyApptCo", "appointments");
+    const { serviceId } = await serviceFixture(appt.client, appt.orgId);
     const t2 = generateAccessToken();
     const { error: apptErr } = await admin.rpc("create_booking", {
-      p_handle: handle,
+      p_handle: appt.handle,
       p_service_id: serviceId,
       p_starts_at: iso(`${d(2)}T10:00`),
       p_name: "Client",
