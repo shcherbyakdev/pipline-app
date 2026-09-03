@@ -1,5 +1,6 @@
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
+import { LocaleNotice } from "@/i18n/locale-notice";
 
 /* /onboarding sits outside (dashboard) and (auth), so it carries its own
    provider (i18n Wave 3): the interface locale, all messages, `lang` on the
@@ -9,6 +10,7 @@ export default async function OnboardingLayout({ children }: { children: React.R
   return (
     <NextIntlClientProvider>
       <div lang={locale} className="contents">
+        <LocaleNotice />
         {children}
       </div>
     </NextIntlClientProvider>
