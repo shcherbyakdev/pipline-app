@@ -112,24 +112,24 @@ describe("listPublicCatalog gating (H1)", () => {
     if (e5) throw e5;
   });
 
-  it("returns both lists when both channels are on", async () => {
+  it("an appointments org (the default) lists services and never its offerings", async () => {
     const org = (await getBookingOrg(HANDLE))!;
-    expect(org.offersAppointments && org.offersRentals).toBe(true);
+    expect(org.offersAppointments && !org.offersRentals).toBe(true);
     const cat = await listPublicCatalog(org);
     expect(cat.offering.services.map((s) => s.name)).toEqual(["Consult"]);
-    expect(cat.offerings.map((o) => o.name)).toEqual(["Cabin"]);
+    expect(cat.offerings).toEqual([]);
   });
 
-  it("drops offerings when rentals are off, services+staff when appointments are off", async () => {
-    await owner.rpc("update_org_modes", { p_org_id: orgId, p_offers_appointments: true, p_offers_rentals: false });
-    let cat = await listPublicCatalog(await bookingOrgFromDb(HANDLE));
-    expect(cat.offerings).toEqual([]);
-    expect(cat.offering.services).toHaveLength(1);
-
-    await owner.rpc("update_org_modes", { p_org_id: orgId, p_offers_appointments: false, p_offers_rentals: true });
-    cat = await listPublicCatalog(await bookingOrgFromDb(HANDLE));
+  it("switched to spaces (only possible once no service is active): offerings listed, services and staff dropped — even with a service turned back on", async () => {
+    const { error: offErr } = await owner.from("services").update({ active: false }).eq("org_id", orgId);
+    expect(offErr).toBeNull();
+    const { error: modeErr } = await owner.rpc("update_org_modes", { p_org_id: orgId, p_offers_appointments: false, p_offers_rentals: true });
+    expect(modeErr).toBeNull();
+    const { error: onErr } = await owner.from("services").update({ active: true }).eq("org_id", orgId);
+    expect(onErr).toBeNull();
+    const cat = await listPublicCatalog(await bookingOrgFromDb(HANDLE));
     expect(cat.offering.services).toEqual([]);
     expect(cat.offering.staff).toEqual([]);
-    expect(cat.offerings).toHaveLength(1);
+    expect(cat.offerings.map((o) => o.name)).toEqual(["Cabin"]);
   });
 });

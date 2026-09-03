@@ -7,14 +7,17 @@ export const createOrgSchema = z.object({
   name: z.string().trim().min(2).max(80),
 });
 
-export const ORG_MODES = ["appointments", "rentals", "both"] as const;
+/** The one channel a workspace sells (0073) — Spaces listed first (H5b
+    ruling 1); the pickers map over this in order. */
+export const ORG_MODES = ["rentals", "appointments"] as const;
 export type OrgModeChoice = (typeof ORG_MODES)[number];
 
 export function modeToFlags(mode: OrgModeChoice): OrgMode {
-  return {
-    offersAppointments: mode !== "rentals",
-    offersRentals: mode !== "appointments",
-  };
+  return { offersAppointments: mode === "appointments", offersRentals: mode === "rentals" };
+}
+
+export function modeChoice(mode: OrgMode): OrgModeChoice {
+  return mode.offersRentals ? "rentals" : "appointments";
 }
 
 // Onboarding (spec 2026-08-23-landing-claim): org + handle + timezone in one
@@ -63,8 +66,6 @@ export const SURFACES = ["page", "embed"] as const;
 export type Surface = (typeof SURFACES)[number];
 export const surfaceThemeInput = z.object({ surface: z.enum(SURFACES), theme: widgetThemeInput });
 
-export const updateOrgModesInput = z
-  .object({ offersAppointments: z.boolean(), offersRentals: z.boolean() })
-  .refine((v) => v.offersAppointments || v.offersRentals, "Keep at least one");
+export const updateOrgModesInput = z.object({ mode: z.enum(ORG_MODES) });
 
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";

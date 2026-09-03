@@ -31,7 +31,7 @@ import {
 } from "@/components/live-preview";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 import { cn } from "@/lib/utils";
-import { channelPath, channelUrl, hostLabel } from "@/lib/booking/url";
+import { bookingPath, bookingUrl, hostLabel } from "@/lib/booking/url";
 import { SECTION_TYPES, type PageDocument } from "../schema";
 import {
   emptyVisibleSections,
@@ -76,7 +76,6 @@ export function BookingPageBuilder({
   channel,
   publicReachable,
   capped,
-  crossLink,
   starter,
   badge,
 }: {
@@ -100,7 +99,6 @@ export function BookingPageBuilder({
   /** The plan hides this channel from the public page (channelReach); the
       publish bar warns and points at the door. */
   capped: { href: string | null } | null;
-  crossLink: RenderContext["crossLink"];
   /** The starter (widget templates spec §5): opens on a fresh page;
       `needsFirstItem` when the page's channel has nothing bookable yet. */
   starter: { fresh: boolean; needsFirstItem: boolean };
@@ -188,7 +186,7 @@ export function BookingPageBuilder({
 
   const host = hostLabel(appUrl);
   const previewHandle = handle.trim() || "your-handle";
-  const url = `${host}${channelPath(previewHandle, channel)}`;
+  const url = `${host}${bookingPath(previewHandle)}`;
   const ctx: RenderContext = {
     org: {
       orgId: branding.orgId,
@@ -206,7 +204,7 @@ export function BookingPageBuilder({
     supabaseUrl,
     mode: "preview",
     previewSlots: PREVIEW_SLOTS,
-    crossLink,
+    crossLink: null,
     preview: chrome,
   };
   const selected = draft.doc.sections.find((s) => s.id === selectedId) ?? null;
@@ -218,7 +216,7 @@ export function BookingPageBuilder({
   const empties = emptyVisibleSections(draft.doc, emptyContext);
   const liveUrl =
     scheduling.handle && publicReachable
-      ? channelUrl(appUrl, scheduling.handle, channel)
+      ? bookingUrl(appUrl, scheduling.handle)
       : null;
 
   // Colour overrides (set on Website embed) apply here too — surface a weak

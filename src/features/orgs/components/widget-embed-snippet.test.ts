@@ -8,7 +8,6 @@ const APP = "https://app.example.com";
 const T = { appointment: "Book an appointment", space: "Book a space" };
 const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
 const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
-const BOTH = { offersAppointments: true, offersRentals: true };
 
 describe("embedSnippet", () => {
   const snippet = embedSnippet(APP, "acme-studio", undefined, undefined, T);
@@ -37,27 +36,22 @@ describe("embedSnippet targets (spec §5)", () => {
     expect(s).toContain('src="https://app.example.com/embed/acme-studio?staff=anna"');
     expect(s).toContain('src="https://app.example.com/embed.js"');
   });
-  it("service, space and channel become the matching query", () => {
+  it("service and space become the matching query", () => {
     expect(embedSnippet(APP, "acme", { service: "s1" }, undefined, T)).toContain('src="https://app.example.com/embed/acme?service=s1"');
     expect(embedSnippet(APP, "acme", { space: "o1" }, undefined, T)).toContain('src="https://app.example.com/embed/acme?space=o1"');
-    expect(embedSnippet(APP, "acme", { channel: "services" }, undefined, T)).toContain('src="https://app.example.com/embed/acme?channel=services"');
   });
 });
 
 describe("embedSnippet iframe title", () => {
-  it("no target: follows the org's channels, historical default without a mode", () => {
+  it("no target: follows the org's channel, historical default without a mode", () => {
     expect(embedSnippet(APP, "acme", null, APPTS_ONLY, T)).toContain('title="Book an appointment"');
     expect(embedSnippet(APP, "acme", null, RENTALS_ONLY, T)).toContain('title="Book a space"');
-    // A both-channel org's plain embed is its front door — appointments.
-    expect(embedSnippet(APP, "acme", null, BOTH, T)).toContain('title="Book an appointment"');
     expect(embedSnippet(APP, "acme", undefined, undefined, T)).toContain('title="Book an appointment"');
   });
   it("a target names its own channel, whatever the org's mode", () => {
-    expect(embedSnippet(APP, "acme", { space: "o1" }, BOTH, T)).toContain('title="Book a space"');
-    expect(embedSnippet(APP, "acme", { channel: "spaces" }, BOTH, T)).toContain('title="Book a space"');
-    expect(embedSnippet(APP, "acme", { service: "s1" }, BOTH, T)).toContain('title="Book an appointment"');
-    expect(embedSnippet(APP, "acme", { staff: "anna" }, BOTH, T)).toContain('title="Book an appointment"');
-    expect(embedSnippet(APP, "acme", { channel: "services" }, RENTALS_ONLY, T)).toContain('title="Book an appointment"');
+    expect(embedSnippet(APP, "acme", { space: "o1" }, APPTS_ONLY, T)).toContain('title="Book a space"');
+    expect(embedSnippet(APP, "acme", { service: "s1" }, RENTALS_ONLY, T)).toContain('title="Book an appointment"');
+    expect(embedSnippet(APP, "acme", { staff: "anna" }, RENTALS_ONLY, T)).toContain('title="Book an appointment"');
   });
 });
 

@@ -282,7 +282,6 @@ export const ONBOARDING = {
   modes: [
     { value: "rentals", title: SPACES.pickerTitle, blurb: SPACES.pickerBlurb },
     { value: "appointments", title: "Appointments", blurb: "Time on your calendar: consultations, sessions, classes." },
-    { value: "both", title: "Both", blurb: SPACES.pickerBothBlurb },
   ],
   next: "Continue",
   back: "Back",
@@ -292,7 +291,7 @@ export const ONBOARDING = {
      Field labels come from STARTER.firstService/firstSpace — same forms,
      same words. */
   wizard: {
-    mode: { heading: "What are you booking?", sub: "You can change this any time in Settings." },
+    mode: { heading: "What are you booking?", sub: "You can change this in Settings until you add your first service or space." },
     service: { heading: "Add your first service", sub: "What clients book with you. Add more on Services later." },
     space: { heading: "Add your first space", sub: "A room, studio or item clients book. Its first unit comes with it." },
     hours: {
@@ -326,7 +325,6 @@ export const WELCOME = {
   owned: (url: string) => `${url} is yours.`,
   sub: "Add a service and set your hours to go live.",
   subRentals: "Add a space and its units to go live.",
-  subBoth: "Add what you offer and set hours — then share your link.",
   setHours: "Set hours",
   copyLink: "Copy link",
   copied: "Copied",

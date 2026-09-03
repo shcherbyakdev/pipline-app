@@ -215,14 +215,7 @@ export function BookingsList({
   scopeLabel: string | null;
 }) {
   const t = useTranslations("bookings");
-  const emptyKey =
-    mode.offersAppointments && mode.offersRentals
-      ? "list.emptyBoth"
-      : mode.offersAppointments
-        ? "list.emptyServices"
-        : mode.offersRentals
-          ? "list.emptySpaces"
-          : "list.empty";
+  const emptyKey = mode.offersAppointments ? "list.emptyServices" : mode.offersRentals ? "list.emptySpaces" : "list.empty";
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">

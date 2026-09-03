@@ -12,9 +12,8 @@ import { embedSrc, type LinkTarget } from "@/lib/booking/url";
 // keeps the pasted snippet from parser-blocking the customer's page.
 //
 // The `target` (admin IA spec §5) pins the embed to one person, one
-// service, one space or one channel — `embedSrc` builds the query. A null
-// target is the whole-catalogue embed, byte-identical to what solo orgs
-// have always pasted.
+// service or one space — `embedSrc` builds the query. A null target is the
+// whole-catalogue embed, byte-identical to what solo orgs have always pasted.
 //
 // The iframe `title` is the widget's accessible name on the host page, and
 // public copy: it reads in the ORG's language (`embedTitle.*`,
@@ -29,7 +28,7 @@ export function embedTitle(mode: OrgMode | undefined, titles: EmbedTitles): stri
 }
 
 function snippetTitle(target: LinkTarget | undefined, mode: OrgMode | undefined, titles: EmbedTitles): string {
-  if (target && ("space" in target || ("channel" in target && target.channel === "spaces"))) return titles.space;
+  if (target && "space" in target) return titles.space;
   if (target) return titles.appointment;
   return embedTitle(mode, titles);
 }

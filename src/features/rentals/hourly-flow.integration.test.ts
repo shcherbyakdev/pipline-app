@@ -80,7 +80,7 @@ describe("hourly public booking flow (action layer)", () => {
 
   beforeAll(async () => {
     const owner = await signedInUser("h2flow_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "H2FlowCo" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "H2FlowCo", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
     // Pin the org's own row rather than rely on the ambient FLAG_DEFAULTS
@@ -319,7 +319,7 @@ describe("hourly public booking flow: client_picks unit membership", () => {
 
   beforeAll(async () => {
     const owner = await signedInUser("h2flow_picks_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "H2FlowPicksCo" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "H2FlowPicksCo", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
     const { error: eFlag } = await admin
@@ -485,7 +485,7 @@ describe("terms acceptance gate (hourly action layer)", () => {
 
   beforeAll(async () => {
     const owner = await signedInUser("h2flow_terms_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "H2FlowTermsCo" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "H2FlowTermsCo", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     termsOrgId = (org as { id: string }).id;
     const { error: eFlag } = await admin

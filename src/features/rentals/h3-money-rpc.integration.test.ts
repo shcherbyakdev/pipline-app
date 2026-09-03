@@ -73,14 +73,20 @@ function iso(dateHour: string): string {
 const hash = () => generateAccessToken().tokenHash;
 const first = (data: unknown): Row => (data as Row[])[0];
 
-/** A fresh signed-in owner + org, timezone/currency set (update_org_scheduling
+/** A fresh signed-in owner + org (spaces unless said otherwise — one
+    channel per org since 0073), timezone/currency set (update_org_scheduling
     now takes p_currency — every fixture across the suite exercises that). */
 async function newOrg(
   tag: string,
   name: string,
+  channel: "rentals" | "appointments" = "rentals",
 ): Promise<{ client: SupabaseClient; orgId: string; handle: string }> {
   const client = await signedInUser(tag);
-  const { data: org, error: e1 } = await client.rpc("create_org", { p_name: name });
+  const { data: org, error: e1 } = await client.rpc("create_org", {
+    p_name: name,
+    p_offers_appointments: channel === "appointments",
+    p_offers_rentals: channel === "rentals",
+  });
   if (e1) throw e1;
   const orgId = (org as { id: string }).id;
   const handle = `h3-${tag.replace(/_/g, "-")}-${Date.now()}`;
@@ -518,7 +524,7 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
   });
 
   it("case 12: appointments are unaffected by the rental cancel-window gate", async () => {
-    const { client, orgId, handle } = await newOrg("h3_c12", "CancelWindowApptCo");
+    const { client, orgId, handle } = await newOrg("h3_c12", "CancelWindowApptCo", "appointments");
     const { serviceId } = await serviceFixture(client, orgId);
 
     const t = generateAccessToken();
@@ -616,11 +622,14 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
     expect(row.deposit_cents).toBe(800); // 10% of 8000
     expect(row.cancel_window_min).toBe(120);
 
-    // Appointment side: fresh service/staff fixture in the same org.
-    const { serviceId } = await serviceFixture(client, orgId);
+    // Appointment side: its own org (one channel per org since 0073, and a
+    // live space forbids switching) — the resolver resolves by token, whatever
+    // the org.
+    const appt = await newOrg("h3_c14_appt", "ResolverMoneyApptCo", "appointments");
+    const { serviceId } = await serviceFixture(appt.client, appt.orgId);
     const t2 = generateAccessToken();
     const { error: apptErr } = await admin.rpc("create_booking", {
-      p_handle: handle,
+      p_handle: appt.handle,
       p_service_id: serviceId,
       p_starts_at: iso(`${d(2)}T10:00`),
       p_name: "Client",

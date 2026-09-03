@@ -188,8 +188,7 @@ describe("chooseStaffForBooking", () => {
   });
 });
 
-describe("limitPublicResources (H5b: one budget, people first, then units)", () => {
-  const BOTH = { offersAppointments: true, offersRentals: true };
+describe("limitPublicResources (H5b: one budget for the org's channel)", () => {
   const APPTS = { offersAppointments: true, offersRentals: false };
   const SPACES = { offersAppointments: false, offersRentals: true };
   const people = [{ id: "a" }, { id: "b" }];
@@ -205,20 +204,15 @@ describe("limitPublicResources (H5b: one budget, people first, then units)", () 
   );
   const unlimited = { ...free, bookableResources: Number.MAX_SAFE_INTEGER };
 
-  it("people fill the slots first, then units in the order given", () => {
-    const r = limitPublicResources(people, units, BOTH, { ...pro, bookableResources: 3 });
-    expect(r.staff.map((s) => s.id)).toEqual(["a", "b"]);
-    expect(r.units.map((u) => u.id)).toEqual(["u1"]);
-  });
-  it("Pro (five slots) fits two people and three units", () => {
-    const r = limitPublicResources(people, units, BOTH, pro);
-    expect(r.staff.map((s) => s.id)).toEqual(["a", "b"]);
-    expect(r.units.map((u) => u.id)).toEqual(["u1", "u2", "u3"]);
-  });
-  it("both-mode on Free (two slots): people fill them first and every unit is hidden", () => {
-    const r = limitPublicResources(people, units, BOTH, free);
-    expect(r.staff.map((s) => s.id)).toEqual(["a", "b"]);
+  it("people are kept in the order given, up to the cap", () => {
+    const r = limitPublicResources(people, units, APPTS, { ...pro, bookableResources: 1 });
+    expect(r.staff.map((s) => s.id)).toEqual(["a"]);
     expect(r.units).toEqual([]);
+  });
+  it("Pro (five slots) fits three units", () => {
+    const r = limitPublicResources(people, units, SPACES, pro);
+    expect(r.staff).toEqual([]);
+    expect(r.units.map((u) => u.id)).toEqual(["u1", "u2", "u3"]);
   });
   it("spaces-only: the backfilled staff row neither shows nor spends a slot", () => {
     const r = limitPublicResources(people, units, SPACES, free);
@@ -231,9 +225,8 @@ describe("limitPublicResources (H5b: one budget, people first, then units)", () 
     expect(r.units).toEqual([]);
   });
   it("an uncapped plan keeps everything, identity preserved", () => {
-    const r = limitPublicResources(people, units, BOTH, unlimited);
-    expect(r.staff).toHaveLength(2);
+    const r = limitPublicResources(people, units, SPACES, unlimited);
     expect(r.units).toHaveLength(3);
-    expect(r.staff[0]).toBe(people[0]);
+    expect(r.units[0]).toBe(units[0]);
   });
 });

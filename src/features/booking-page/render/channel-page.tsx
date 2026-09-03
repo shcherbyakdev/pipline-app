@@ -8,30 +8,26 @@ import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import type { BookingOrg } from "@/lib/booking/public";
 import type { listPublicCatalog } from "@/lib/booking/catalog";
-import { applyChannel } from "@/lib/booking/channel";
-import { bookingPath, channelPath } from "@/lib/booking/url";
-import type { ChannelPage } from "@/lib/booking/channel-pages";
-import { getTranslations, setRequestLocale } from "next-intl/server";
-import { langParam, publicLocale, withLang } from "@/i18n/public";
+import { setRequestLocale } from "next-intl/server";
+import { publicLocale } from "@/i18n/public";
 import { PublicIntl } from "@/i18n/public-provider";
 import { PublicLanguageLinks } from "@/i18n/public-language-links";
 import { getPublishedPage } from "../queries";
-import { toCatalogChannel } from "../channel";
+import type { PageChannel } from "../channel";
 import { resolveInitialOffering, resolveInitialService } from "../initial-service";
 import type { RenderContext } from "./context";
 import { PageRenderer, pageContainerClass } from "./page-renderer";
 
 type Catalogue = Awaited<ReturnType<typeof listPublicCatalog>>;
 
-/* One channel page (spec 2026-08-28 §3): /[handle] and /[handle]/spaces
-   both come through here so they cannot drift. The route has already
-   resolved WHICH page (resolveChannelPage) and handled its 404/redirect;
-   this forces the catalogue to that channel, reads that channel's
-   published document and renders the same shell the page always had. */
+/* The org's channel page (spec 2026-08-28 §3, one per org since 0073).
+   The route has already resolved the channel (frontDoor) and handled its
+   404; this reads that channel's published document and renders the same
+   shell the page always had. The gated catalogue is already one channel. */
 export async function renderChannelPage({
-  org, handle, page, catalogue, searchParams,
+  org, handle, channel, catalogue, searchParams,
 }: {
-  org: BookingOrg; handle: string; page: ChannelPage; catalogue: Catalogue;
+  org: BookingOrg; handle: string; channel: PageChannel; catalogue: Catalogue;
   searchParams: { service?: string | string[]; space?: string | string[]; lang?: string | string[] };
 }) {
   const { offering, offerings } = catalogue;
@@ -39,34 +35,13 @@ export async function renderChannelPage({
   // translation runs, and handed to the client tree by PublicIntl below.
   const locale = await publicLocale(org.locale, searchParams);
   setRequestLocale(locale);
-  const lang = langParam(searchParams);
-  const [branding, doc, t] = await Promise.all([
-    getOrgBranding(org.orgId),
-    getPublishedPage(org.orgId, page.channel),
-    getTranslations("public.crossLink"),
-  ]);
+  const [branding, doc] = await Promise.all([getOrgBranding(org.orgId), getPublishedPage(org.orgId, channel)]);
   const theme = parseWidgetTheme(branding.pageThemeRaw);
-  // The page's channel is forced — no longer a query — before the widget,
-  // its headings and the builder's Services / Spaces / Staff sections read
-  // it, so they all agree (publicSections drops the emptied sections).
-  const cat = applyChannel(
-    { services: offering.services, staff: offering.staff, serviceStaffIds: offering.serviceStaffIds, offerings },
-    toCatalogChannel(page.channel),
-  );
-  // The other channel's page, when it has something to book (§3.5).
-  // An explicit ?lang= travels with the visitor (withLang); a locale that
-  // came from the region or the org resolves the same way on the next page.
-  const crossLink: RenderContext["crossLink"] =
-    page.channel === "appointments" && offerings.length > 0
-      ? { href: withLang(channelPath(handle, "spaces"), lang), label: t("toSpaces") }
-      : page.channel === "spaces" && offering.services.length > 0
-        ? { href: withLang(bookingPath(handle), lang), label: t("toAppointments") }
-        : null;
   const ctx: RenderContext = {
     org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency },
     branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
-    theme, services: cat.services, staff: cat.staff, serviceStaffIds: cat.serviceStaffIds, offerings: cat.offerings, lockedStaff: null,
-    supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public", crossLink,
+    theme, services: offering.services, staff: offering.staff, serviceStaffIds: offering.serviceStaffIds, offerings, lockedStaff: null,
+    supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public", crossLink: null,
   };
   return (
     <PublicIntl locale={locale} timeZone={org.timeZone}>
@@ -82,8 +57,8 @@ export async function renderChannelPage({
           <PageRenderer
             doc={doc}
             ctx={ctx}
-            initialServiceId={resolveInitialService(cat.services, searchParams.service)}
-            initialOfferingId={resolveInitialOffering(cat.offerings, searchParams.space)}
+            initialServiceId={resolveInitialService(offering.services, searchParams.service)}
+            initialOfferingId={resolveInitialOffering(offerings, searchParams.space)}
           />
           {/* Same rule as the embed: the badge shows unless the org both asked
               to hide it and is on a plan that may (spec §5). */}

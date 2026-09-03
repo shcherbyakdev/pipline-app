@@ -49,7 +49,7 @@ describe("hourly mode guards (0056)", () => {
 
   beforeAll(async () => {
     alice = await signedInUser("hourly_guard");
-    const { data: org, error } = await alice.rpc("create_org", { p_name: "HourlyGuard" });
+    const { data: org, error } = await alice.rpc("create_org", { p_name: "HourlyGuard", p_offers_appointments: false, p_offers_rentals: true });
     if (error) throw error;
     orgId = (org as { id: string }).id;
     const { data: st, error: stErr } = await admin
@@ -63,6 +63,8 @@ describe("hourly mode guards (0056)", () => {
     bob = await signedInUser("hourly_guard_other");
     const { data: otherOrg, error: otherErr } = await bob.rpc("create_org", {
       p_name: "HourlyGuardOther",
+      p_offers_appointments: false,
+      p_offers_rentals: true,
     });
     if (otherErr) throw otherErr;
     otherOrgId = (otherOrg as { id: string }).id;

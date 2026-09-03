@@ -74,7 +74,7 @@ describe("booking approval — rentals", () => {
 
   beforeAll(async () => {
     owner = await signedInUser("approval_rentals_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "ApprovalRentalCo" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "ApprovalRentalCo", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
     handle = HANDLE;

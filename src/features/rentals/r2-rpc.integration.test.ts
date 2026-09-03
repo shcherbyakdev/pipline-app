@@ -137,7 +137,7 @@ describe("rental reschedule + admin walk-in RPCs (0039)", () => {
 
   beforeAll(async () => {
     owner = await signedInUser("r2_rpc_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentalCo R2" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentalCo R2", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {

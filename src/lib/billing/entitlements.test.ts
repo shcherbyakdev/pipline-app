@@ -77,11 +77,10 @@ describe("monthWindow", () => {
 });
 
 describe("countResources (H5b ruling 5)", () => {
-  const BOTH = { offersAppointments: true, offersRentals: true };
   const APPTS = { offersAppointments: true, offersRentals: false };
   const SPACES = { offersAppointments: false, offersRentals: true };
-  it("people and units share one budget in a both-mode org", () => {
-    expect(countResources({ activeStaff: 2, activeUnits: 3 }, BOTH)).toBe(5);
+  it("an appointments org counts people only, whatever units it still holds", () => {
+    expect(countResources({ activeStaff: 2, activeUnits: 3 }, APPTS)).toBe(2);
   });
   it("a spaces-only org's backfilled staff row counts for nothing", () => {
     expect(countResources({ activeStaff: 1, activeUnits: 3 }, SPACES)).toBe(3);

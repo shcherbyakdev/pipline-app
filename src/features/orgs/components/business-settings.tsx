@@ -4,34 +4,31 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { updateOrgModes } from "@/features/orgs/actions";
-import type { OrgMode } from "@/features/orgs/mode";
+import { ORG_MODES, type OrgModeChoice } from "@/features/orgs/schema";
+import { cn } from "@/lib/utils";
 
-/** Each channel's Settings row reads its own namespace (`spaces.settings`,
+/** Each channel's card reads its own namespace (`spaces.settings`,
     `appointments.settings`) — the one place the channel is named for people. */
-const ROWS = [
-  { key: "offersRentals", ns: "spaces" },
-  { key: "offersAppointments", ns: "appointments" },
-] as const;
+const NS: Record<OrgModeChoice, "spaces" | "appointments"> = { rentals: "spaces", appointments: "appointments" };
 
-/* Org-level "what you offer" (Settings → Business). Optimistic: the box flips
-   immediately and rolls back on a failed save. The last enabled channel is
-   locked — the RPC enforces the same rule as a defence. */
-export function BusinessSettings({ mode }: { mode: OrgMode }) {
+/* Org-level "what you offer" (Settings → Business): one channel per
+   workspace (0073). A live radio only while the current channel has nothing
+   active in it (`locked` — the page counts, update_org_modes enforces);
+   after that, a fixed label. Optimistic: the card flips at once and rolls
+   back on a failed save. */
+export function BusinessSettings({ mode, locked }: { mode: OrgModeChoice; locked: boolean }) {
   const t = useTranslations();
   const router = useRouter();
-  const [value, setValue] = React.useState<OrgMode>(mode);
+  const [value, setValue] = React.useState(mode);
   const [pending, startTransition] = React.useTransition();
-  const enabledCount = Number(value.offersAppointments) + Number(value.offersRentals);
 
-  const toggle = (key: keyof OrgMode, next: boolean) => {
+  const pick = (next: OrgModeChoice) => {
+    if (next === value) return;
     const prev = value;
-    const draft = { ...value, [key]: next };
-    setValue(draft);
+    setValue(next);
     startTransition(async () => {
-      const result = await updateOrgModes(draft);
+      const result = await updateOrgModes({ mode: next });
       if (!result.ok) {
         setValue(prev);
         toast.error(result.error);
@@ -48,29 +45,43 @@ export function BusinessSettings({ mode }: { mode: OrgMode }) {
         <div className="text-sm font-medium">{t("settings.business.title")}</div>
         <p className="text-muted-foreground text-sm">{t("settings.business.blurb")}</p>
       </div>
-      <div className="flex flex-col gap-3">
-        {ROWS.map((row) => {
-          const checked = value[row.key];
-          const locked = checked && enabledCount === 1;
-          const id = `business-${row.key}`;
+      {locked ? (
+        <div className="flex flex-col gap-2">
+          <div className="rounded-xl border p-3">
+            <div className="text-sm font-medium">{t(`${NS[mode]}.settings.label`)}</div>
+            <div className="text-muted-foreground text-sm">{t(`${NS[mode]}.settings.blurb`)}</div>
+          </div>
+          <p className="text-muted-foreground text-xs">{t("settings.business.locked")}</p>
+        </div>
+      ) : (
+      /* Native radios in label-cards (the onboarding mode step's idiom). */
+      <fieldset className="flex flex-col gap-2" disabled={pending}>
+        <legend className="sr-only">{t("settings.business.title")}</legend>
+        {ORG_MODES.map((choice) => {
+          const selected = value === choice;
           return (
-            <div key={row.key} className="flex items-center justify-between gap-3">
-              <div className="flex flex-col">
-                <Label htmlFor={id}>{t(`${row.ns}.settings.label`)}</Label>
-                <span className="text-muted-foreground text-sm">
-                  {locked ? t("errors.orgs.keepOne") : t(`${row.ns}.settings.blurb`)}
-                </span>
-              </div>
-              <Switch
-                id={id}
-                checked={checked}
-                disabled={pending || locked}
-                onCheckedChange={(c) => toggle(row.key, c)}
+            <label
+              key={choice}
+              className={cn(
+                "flex cursor-pointer flex-col gap-0.5 rounded-xl border p-3 transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring/50",
+                selected ? "border-foreground/40 bg-accent" : "hover:bg-accent/60",
+              )}
+            >
+              <input
+                type="radio"
+                name="business-mode"
+                value={choice}
+                className="sr-only"
+                checked={selected}
+                onChange={() => pick(choice)}
               />
-            </div>
+              <span className="text-sm font-medium">{t(`${NS[choice]}.settings.label`)}</span>
+              <span className="text-muted-foreground text-sm">{t(`${NS[choice]}.settings.blurb`)}</span>
+            </label>
           );
         })}
-      </div>
+      </fieldset>
+      )}
     </div>
   );
 }

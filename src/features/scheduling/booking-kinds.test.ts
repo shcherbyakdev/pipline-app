@@ -7,10 +7,9 @@ const nightly = { id: "n1", name: "Flat", rangeMode: "nights" as const };
 const sel = { date: "2026-08-25", startMin: 600, endMin: 660 };
 
 describe("pickerLabel", () => {
-  it("names both, one, or the other", () => {
-    expect(pickerLabel(true, true)).toBe("spaces.pickerBoth");
-    expect(pickerLabel(true, false)).toBe("appointments.field");
-    expect(pickerLabel(false, true)).toBe("spaces.field");
+  it("names the org's channel", () => {
+    expect(pickerLabel(false)).toBe("appointments.field");
+    expect(pickerLabel(true)).toBe("spaces.field");
   });
 });
 

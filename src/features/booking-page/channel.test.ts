@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PAGE_CHANNELS, pageChannelMode, parsePageChannel, toCatalogChannel } from "./channel";
+import { PAGE_CHANNELS, pageChannelMode, parsePageChannel } from "./channel";
 
 describe("PageChannel (spec 2026-08-28 §1)", () => {
   it("is exactly appointments and spaces", () => {
@@ -8,10 +8,6 @@ describe("PageChannel (spec 2026-08-28 §1)", () => {
   it("pageChannelMode is the single-channel OrgMode", () => {
     expect(pageChannelMode("appointments")).toEqual({ offersAppointments: true, offersRentals: false });
     expect(pageChannelMode("spaces")).toEqual({ offersAppointments: false, offersRentals: true });
-  });
-  it("toCatalogChannel speaks applyChannel's words", () => {
-    expect(toCatalogChannel("appointments")).toBe("services");
-    expect(toCatalogChannel("spaces")).toBe("spaces");
   });
   it("parsePageChannel accepts the two words and nothing else", () => {
     expect(parsePageChannel("appointments")).toBe("appointments");

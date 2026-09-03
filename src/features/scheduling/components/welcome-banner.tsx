@@ -40,12 +40,7 @@ export function WelcomeBanner({
   const [dismissed, setDismissed] = React.useState(false);
   const [, startTransition] = React.useTransition();
   const url = handle ? bookingUrl(appUrl, handle) : null;
-  const sub =
-    mode.offersAppointments && mode.offersRentals
-      ? t("subBoth")
-      : mode.offersAppointments
-        ? t("sub")
-        : t("subSpaces");
+  const sub = mode.offersAppointments ? t("sub") : t("subSpaces");
 
   // Awaited: a refused clipboard write must not flip the button to "Copied"
   // (portal-links-panel.tsx precedent).

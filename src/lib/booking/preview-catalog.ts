@@ -10,10 +10,8 @@ import type { PublicOffering, PublicService } from "@/lib/booking/public";
    bookable rows where they exist (a space needs an active unit to be listed,
    exactly as on the public page); a canned stand-in per channel when the org
    has nothing yet, so appearance can be judged before the first one. The
-   pages feed this the PRESENT mode (presentMode: declared mode narrowed to
-   the channels with bookable data), so an org that declared spaces but has
-   none previews as the appointments page it actually is. The preview itself
-   never fetches — rental cards render but stay inert. */
+   pages feed this the org's one channel (0073). The preview itself never
+   fetches — rental cards render but stay inert. */
 
 type ServiceRow = PublicService & { active: boolean };
 

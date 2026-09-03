@@ -12,14 +12,7 @@ export function resourceMeter(t: Translator<"billing">, usage: ResourceUsage, mo
   const used = countResources(usage, mode);
   const cap = ent.bookableResources;
   const hidden = Math.max(0, used - cap);
-  // Both-mode on Free (ruling 4): the person fills the one slot, so every
-  // unit is hidden — say why, not just that.
-  const bothOnOne = mode.offersAppointments && mode.offersRentals && cap === 1 && usage.activeUnits > 0;
-  const caption = bothOnOne
-    ? t("meter.bothOnOne")
-    : hidden > 0
-      ? t("meter.firstBookable", { count: cap })
-      : t("meter.onPage");
+  const caption = hidden > 0 ? t("meter.firstBookable", { count: cap }) : t("meter.onPage");
   return { value: `${used} / ${cap}`, caption, hidden };
 }
 

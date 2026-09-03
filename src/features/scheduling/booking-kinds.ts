@@ -22,11 +22,7 @@ export type Initial =
 type Row = { id: string };
 
 /** The picker's label as a message key (root namespace); the dialog renders it. */
-export function pickerLabel(
-  hasServices: boolean,
-  hasSpaces: boolean,
-): "spaces.pickerBoth" | "spaces.field" | "appointments.field" {
-  if (hasServices && hasSpaces) return "spaces.pickerBoth";
+export function pickerLabel(hasSpaces: boolean): "spaces.field" | "appointments.field" {
   return hasSpaces ? "spaces.field" : "appointments.field";
 }
 

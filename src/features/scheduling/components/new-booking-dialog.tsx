@@ -57,7 +57,7 @@ export function NewBookingDialog({
   const [selected, setSelected] = React.useState<KindSelection | null>(() =>
     defaultSelection(services, spaces, initial),
   );
-  const label = tRoot(pickerLabel(services.length > 0, spaces.length > 0));
+  const label = tRoot(pickerLabel(spaces.length > 0));
   const close = () => onOpenChange(false);
   const space =
     selected?.kind === "space"

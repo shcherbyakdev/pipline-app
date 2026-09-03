@@ -26,12 +26,11 @@ const free = entitlementsFor(null, now);
 const pro = entitlementsFor(row({ plan: "pro" }), now);
 const team5 = entitlementsFor(row({ plan: "team", seats: 5 }), now);
 
-const BOTH = { offersAppointments: true, offersRentals: true };
 const SPACES = { offersAppointments: false, offersRentals: true };
 
 describe("resourceGate", () => {
-  it("Free, both-mode, one person + one unit → the cap copy (both slots spent)", () => {
-    expect(resourceGate({ activeStaff: 1, activeUnits: 1 }, BOTH, free)).toEqual(planLimitResourceError(2, "billing"));
+  it("Free, spaces, the backfilled person + two units → the cap copy (both slots spent by units)", () => {
+    expect(resourceGate({ activeStaff: 1, activeUnits: 2 }, SPACES, free)).toEqual(planLimitResourceError(2, "billing"));
   });
   it("Free, appointments-only, one person → allowed (you plus one member is free)", () => {
     expect(resourceGate({ activeStaff: 1, activeUnits: 0 }, { offersAppointments: true, offersRentals: false }, free)).toBeNull();
@@ -39,13 +38,13 @@ describe("resourceGate", () => {
   it("Free, spaces-only, the backfilled person and no unit → allowed", () => {
     expect(resourceGate({ activeStaff: 1, activeUnits: 0 }, SPACES, free)).toBeNull();
   });
-  it("Team (5 seats), 2 people + 3 units → the cap copy", () => {
-    const message = resourceGate({ activeStaff: 2, activeUnits: 3 }, BOTH, team5);
+  it("Team (5 seats), spaces, 5 units → the cap copy", () => {
+    const message = resourceGate({ activeStaff: 1, activeUnits: 5 }, SPACES, team5);
     expect(message).toEqual(planLimitResourceError(5, "billing"));
     expect(refusalCopy(T, message!).error).toContain("allows 5 bookable resources");
   });
-  it("Team (5 seats), 2 people + 2 units → allowed", () => {
-    expect(resourceGate({ activeStaff: 2, activeUnits: 2 }, BOTH, team5)).toBeNull();
+  it("Team (5 seats), spaces, 4 units → allowed", () => {
+    expect(resourceGate({ activeStaff: 1, activeUnits: 4 }, SPACES, team5)).toBeNull();
   });
 });
 

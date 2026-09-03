@@ -60,7 +60,8 @@
     },
     "business": {
       "title": "What you offer",
-      "blurb": "Turning one off hides it from your booking page and this admin. Existing bookings stay."
+      "blurb": "One per workspace. Changeable until you add your first service or space.",
+      "locked": "Set at signup. To change it, deactivate everything you offer first."
     },
     "copyRefused": "Couldn't copy — select the link text and copy manually.",
     "bookingPage": {
@@ -201,9 +202,9 @@
     "orgs": {
       "invalidInput": "Check the name (2–80 characters) and the page address.",
       "timezoneUnknown": "That timezone isn't recognised — pick one from the list.",
-      "keepOne": "Keep at least one booking type on.",
       "handleJustTaken": "That name was just taken — pick another.",
-      "contrast": "Text and background contrast is below 3:1 — pick more distinct colours."
+      "contrast": "Text and background contrast is below 3:1 — pick more distinct colours.",
+      "channelInUse": "Deactivate everything you offer first, then switch."
     },
     "billing": {
       "checkout": "Couldn't open checkout — try again.",
@@ -242,8 +243,6 @@
     "poweredBy": "Powered by Booklo",
     "language": "Language",
     "crossLink": {
-      "toSpaces": "Looking for a room? Book a space →",
-      "toAppointments": "Need an appointment? Book a time →",
       "backTo": "← Back to {orgName}"
     },
     "header": {
@@ -264,7 +263,6 @@
       "other": "Link"
     },
     "widget": {
-      "promptBoth": "Choose a service or space to see available times.",
       "promptServices": "Choose a service to see available times.",
       "promptSpaces": "Choose a space to see its availability.",
       "appointments": "Appointments",
@@ -537,7 +535,6 @@
     "blackoutsHint": "Dates this space can't be booked — maintenance, your own stay, a closed week.",
     "splitIntoUnits": "Several identical rooms or items? Split this space into units →",
     "field": "Space",
-    "pickerBoth": "Space or service",
     "badge": "Space",
     "settings": {
       "label": "Spaces",
@@ -720,7 +717,6 @@
       "upcoming": "Upcoming",
       "past": "Past & cancelled",
       "empty": "No upcoming bookings.",
-      "emptyBoth": "No upcoming bookings. <services>Add a service</services> or <spaces>add a space</spaces>, then share your booking page.",
       "emptyServices": "No upcoming bookings. <services>Add a service</services>, then share your booking page.",
       "emptySpaces": "No upcoming bookings. <spaces>Add a space</spaces>, then share your booking page.",
       "emptyScoped": "No upcoming bookings for {scope}.",
@@ -866,7 +862,6 @@
       "owned": "{url} is yours.",
       "sub": "Add a service and set your hours to go live.",
       "subSpaces": "Add a space and its units to go live.",
-      "subBoth": "Add what you offer and set hours — then share your link.",
       "noHandle": "Your workspace is ready.",
       "noHandleSub": "Pick a page address and you're bookable.",
       "setUpPage": "Set up your booking page",
@@ -1130,7 +1125,6 @@
       "servicesPublic": "offered on your booking page"
     },
     "meter": {
-      "bothOnOne": "your person takes the slot — spaces need a second resource",
       "firstBookable": "only the first {count} are bookable publicly",
       "onPage": "people and units on your booking page"
     },
@@ -1189,10 +1183,6 @@
       "appointments": {
         "title": "Appointments",
         "blurb": "Time on your calendar: consultations, sessions, classes."
-      },
-      "both": {
-        "title": "Both",
-        "blurb": "You book spaces and people."
       }
     },
     "next": "Continue",
@@ -1205,7 +1195,7 @@
     "wizard": {
       "mode": {
         "heading": "What are you booking?",
-        "sub": "You can change this any time in Settings."
+        "sub": "You can change this in Settings until you add your first service or space."
       },
       "service": {
         "heading": "Add your first service",
@@ -1416,11 +1406,6 @@
       "current": "current",
       "times": "Times",
       "stays": "Stays"
-    },
-    "pageSwitch": {
-      "appointments": "Appointments page",
-      "spaces": "Spaces page",
-      "label": "Which page"
     },
     "appearance": {
       "theme": "Theme",
@@ -1670,9 +1655,7 @@
   },
   "embed": {
     "rows": {
-      "bookingPage": "Booking page",
-      "appointmentsPage": "Appointments page",
-      "spacesPage": "Spaces page"
+      "bookingPage": "Booking page"
     },
     "badge": {
       "space": "Space",
@@ -1681,8 +1664,6 @@
     },
     "intro": "Add booking to your own site. Style the widget against the live preview, then paste the snippet into your page. Logo and accent colour come from Booking page › Branding.",
     "snippet": "Embed snippet",
-    "whichWidget": "Which widget",
-    "channelAppointments": "Appointments",
     "bookWith": "Book with",
     "wholeTeam": "Whole team",
     "staffOnly": "This snippet books that person only.",
