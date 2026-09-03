@@ -94,8 +94,9 @@ function Row({
             </Link>
             <span className="lg:hidden">{role}</span>
             {!staff.active ? <Badge variant="outline">{tCommon("inactive")}</Badge> : null}
+            {/* Above the overlay (z-10) so the title tooltip can show. */}
             {overPlanLimit ? (
-              <Badge variant="destructive" title={t("overLimitTitle")}>
+              <Badge variant="destructive" title={t("overLimitTitle")} className="relative z-10">
                 {t("overLimit")}
                 <span className="sr-only">{t("overLimitSr")}</span>
               </Badge>
@@ -106,6 +107,8 @@ function Row({
           </p>
         </div>
       </div>
+      {/* Under the overlay on purpose: the whole row is one click, so the
+          address is not selectable here — the person's page has Copy link. */}
       <p
         role="cell"
         className={cn(

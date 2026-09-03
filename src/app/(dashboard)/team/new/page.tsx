@@ -4,23 +4,24 @@ import { getTranslations } from "next-intl/server";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
-import { addStaffGateHref } from "@/features/scheduling/staff-gate";
 import { StaffForm } from "@/features/scheduling/components/staff-form";
 import { requireOrg } from "@/lib/auth/session";
+import { gateHref } from "@/lib/billing/gate-href";
+import { evaluateResourceGate } from "@/lib/billing/gates";
 
 /* A new person, on a page of their own (no dialog on the roster). */
 export default async function NewTeamMemberPage() {
   const { org } = await requireOrg();
-  const [staff, services, scheduling, gateHref, t] = await Promise.all([
+  const [staff, services, scheduling, doorHref, t] = await Promise.all([
     listStaff(),
     listServices(),
     getSchedulingSettings(),
-    addStaffGateHref(org.id),
+    gateHref(org.id, evaluateResourceGate),
     getTranslations("team"),
   ]);
   // Same gate as the roster's button: a capped org never sees a form the
   // action would only refuse.
-  if (gateHref) redirect(gateHref);
+  if (doorHref) redirect(doorHref);
   if (!scheduling) notFound();
 
   // The new person inherits the first active member's weekly hours (the RPC

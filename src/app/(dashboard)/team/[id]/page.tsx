@@ -5,8 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Calendar03Icon, PlusSignIcon, SourceCodeIcon } from "@hugeicons/core-free-icons";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { getAvailabilityAdmin, listServices } from "@/features/scheduling/queries";
-import { getStaff, listStaff, listStaffBookings, type StaffBookingRow } from "@/features/scheduling/staff-queries";
-import { addServiceGateHref } from "@/features/scheduling/service-gate";
+import { getStaff, listStaffBookings, type StaffBookingRow } from "@/features/scheduling/staff-queries";
 import { ServiceDialog } from "@/features/scheduling/components/service-dialog";
 import { MemberHeader } from "@/features/scheduling/components/member-header";
 import { MemberServices } from "@/features/scheduling/components/member-services";
@@ -19,11 +18,12 @@ import { Badge } from "@/components/ui/badge";
 import { loadPublicResources } from "@/lib/booking/public-offering";
 import { bookingPath } from "@/lib/booking/url";
 import { requireOrg } from "@/lib/auth/session";
+import { gateHref } from "@/lib/billing/gate-href";
+import { evaluateServiceGate } from "@/lib/billing/gates";
 import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { z } from "zod";
 
 // The overview page's rail link, verbatim, so the two pages read as siblings.
 const railLinkClass =
@@ -36,10 +36,10 @@ const railLinkClass =
 export default async function TeamMemberPage({ params }: PageProps<"/team/[id]">) {
   const { id } = await params;
   // Shape-guard before querying: a malformed id would surface as a Postgres
-  // cast error (500), not the 404 it actually is.
-  if (!UUID_RE.test(id)) notFound();
+  // cast error (500), not the 404 it actually is (rentals/[id] idiom).
+  if (!z.uuid().safeParse(id).success) notFound();
   const { org } = await requireOrg();
-  const [staff, services, scheduling, resources, bookings, availability, roster, serviceGateHref, locale, t, tb, tCommon, tAvailability] =
+  const [staff, services, scheduling, resources, bookings, availability, serviceDoorHref, locale, t, tb, tCommon, tAvailability] =
     await Promise.all([
       getStaff(id),
       listServices(),
@@ -47,10 +47,8 @@ export default async function TeamMemberPage({ params }: PageProps<"/team/[id]">
       loadPublicResources(org.id),
       listStaffBookings(id),
       getAvailabilityAdmin(id),
-      // The services dialog's checklist wants the whole roster, and the same
-      // gate the Services page asks before offering the form.
-      listStaff(),
-      addServiceGateHref(org.id),
+      // The same gate the Services page asks before offering the form.
+      gateHref(org.id, evaluateServiceGate),
       getLocale(),
       getTranslations("team"),
       getTranslations("bookings"),
@@ -176,16 +174,18 @@ export default async function TeamMemberPage({ params }: PageProps<"/team/[id]">
 
         <section className="flex flex-col gap-1">
           <h2 className="mb-1.5 text-[13px] font-medium text-muted-foreground">{t("detail.quickActions")}</h2>
-          {/* The Services page's own create dialog, here, with this person
-              pre-ticked — a capped org gets the door instead (its rule). */}
-          {serviceGateHref ? (
-            <Link href={serviceGateHref} className={railLinkClass}>
+          {/* The Services page's own create dialog, here, for this person
+              alone — so only while they are bookable (a service nobody can
+              be booked for is not a service). A capped org gets the door. */}
+          {!staff.active ? null : serviceDoorHref ? (
+            <Link href={serviceDoorHref} className={railLinkClass}>
               <HugeiconsIcon icon={PlusSignIcon} size={14} className="text-subtle shrink-0" />
               {t("detail.addService")}
             </Link>
           ) : (
             <ServiceDialog
-              staff={roster}
+              // No checklist for a member-made service, so no roster to list.
+              staff={[]}
               forStaffId={staff.id}
               trigger={
                 <button type="button" className={cn(railLinkClass, "w-full cursor-pointer bg-transparent text-left")}>

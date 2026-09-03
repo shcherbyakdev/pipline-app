@@ -119,10 +119,12 @@ const STAFF_BOOKING_COLS = "id, client_name, starts_at, ends_at, status, note, s
 
 /** A person's appointments split around now — the next ones first-to-last,
     the latest past ones newest-first. Both sides are capped so a full
-    calendar stays two small reads. "Upcoming" only lists what will actually
-    happen (confirmed or awaiting approval): a cancelled, declined or moved
-    row has a past to show but no future. Rental stays never carry a
-    staff_id, so this is appointments only by construction. */
+    calendar stays two small reads. "Upcoming" is what will still happen
+    (confirmed or awaiting approval, not yet ENDED — one in progress is still
+    coming, the /bookings rule); "Recent" is everything ended plus every
+    cancelled, declined or moved row whatever its date, so nothing falls
+    between the two. Rental stays never carry a staff_id, so this is
+    appointments only by construction. */
 export async function listStaffBookings(
   staffId: string,
   now: Date = new Date(),
@@ -134,15 +136,15 @@ export async function listStaffBookings(
       .from("bookings")
       .select(STAFF_BOOKING_COLS)
       .eq("staff_id", staffId)
-      .gte("starts_at", iso)
       .in("status", ["confirmed", "pending"])
+      .gte("ends_at", iso)
       .order("starts_at")
       .limit(STAFF_BOOKINGS_LIMIT),
     supabase
       .from("bookings")
       .select(STAFF_BOOKING_COLS)
       .eq("staff_id", staffId)
-      .lt("starts_at", iso)
+      .or(`ends_at.lt.${iso},status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined)`)
       .order("starts_at", { ascending: false })
       .limit(STAFF_BOOKINGS_LIMIT),
   ]);

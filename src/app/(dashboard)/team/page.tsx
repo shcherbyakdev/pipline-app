@@ -4,11 +4,12 @@ import { getTranslations } from "next-intl/server";
 import { Plus } from "lucide-react";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
-import { addStaffGateHref } from "@/features/scheduling/staff-gate";
 import { StaffList } from "@/features/scheduling/components/staff-list";
 import { PageIntro } from "@/components/shell/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { loadPublicResources } from "@/lib/booking/public-offering";
+import { gateHref } from "@/lib/billing/gate-href";
+import { evaluateResourceGate } from "@/lib/billing/gates";
 import { requireOrg } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 
@@ -17,14 +18,14 @@ import { cn } from "@/lib/utils";
    until they add a second person. Each row opens the person's own page. */
 export default async function TeamPage() {
   const { org } = await requireOrg();
-  const [staff, scheduling, resources, gateHref] = await Promise.all([
+  const [staff, scheduling, resources, doorHref] = await Promise.all([
     listStaff(),
     getSchedulingSettings(),
     // The plan's ACTUAL public roster (the same memoised loader the booking
     // page uses), so this page never offers a link that would 404. null = no
     // cap applies (billing off, or the read failed open) → flag nobody.
     loadPublicResources(org.id),
-    addStaffGateHref(org.id),
+    gateHref(org.id, evaluateResourceGate),
   ]);
   if (!scheduling) notFound();
   const t = await getTranslations("team");
@@ -35,7 +36,7 @@ export default async function TeamPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <PageIntro>{t("intro")}</PageIntro>
         {/* A capped org gets the door, not a form the action would refuse. */}
-        <Link href={gateHref ?? "/team/new"} className={cn(buttonVariants({ size: "sm" }), "w-fit")}>
+        <Link href={doorHref ?? "/team/new"} className={cn(buttonVariants({ size: "sm" }), "w-fit")}>
           <Plus className="size-4" /> {t("newButton")}
         </Link>
       </div>

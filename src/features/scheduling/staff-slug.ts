@@ -5,6 +5,14 @@ export const STAFF_SLUG_RE = /^(?:[a-z0-9]{2}|[a-z0-9][a-z0-9-]{0,38}[a-z0-9])$/
 // free for symmetry): Next matches those static segments before
 // /[handle]/[staffSlug], so a person slugged the same would be unreachable.
 export const RESERVED_STAFF_SLUGS = ["spaces", "appointments"] as const;
+
+// Browser-side twin of STAFF_SLUG_RE for an <input pattern> (zod and the DB
+// CHECK are still the authorities). Hand-written rather than derived from the
+// regex's source: `pattern` is compiled with the `v` flag, which rejects an
+// unescaped literal `-` inside a character class — and an invalid pattern is
+// silently ignored, i.e. no validation at all. The 2-character floor is the
+// input's minLength.
+export const STAFF_SLUG_PATTERN = "[a-z0-9]([a-z0-9\\-]{0,38}[a-z0-9])?";
 const RESERVED = new Set<string>(RESERVED_STAFF_SLUGS);
 export function isReservedStaffSlug(slug: string): boolean {
   return RESERVED.has(slug);

@@ -6,14 +6,12 @@ import { toast } from "sonner";
 import { toastRefusal } from "@/features/billing/refusal-toast";
 import { updateStaff } from "@/features/scheduling/staff-actions";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
-import { STAFF_COLORS, initials } from "@/features/scheduling/staff-slug";
+import { STAFF_SLUG_PATTERN, initials } from "@/features/scheduling/staff-slug";
+import { ColorSwatches } from "./color-swatches";
 import { bookingPath } from "@/lib/booking/url";
 import { dialogBareInputClass } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
-// Browser-side twin of STAFF_SLUG_RE (staff-form.tsx carries the full note).
-const SLUG_PATTERN = "[a-z0-9]([a-z0-9\\-]{0,38}[a-z0-9])?";
 
 // Text until focused — the dialog's bare-input idiom — plus a focus ring, so
 // a keyboard user can see where they are on a page with no borders.
@@ -31,7 +29,8 @@ type Field = "name" | "email" | "slug" | "color";
    that read as text and save on blur (Enter commits, Escape reverts); the
    avatar opens the colour swatches and a pick saves at once. No form, no
    Save. Each save sends ONE field — updateStaff patches what it is given —
-   and snaps back with the action's own words if it refuses. */
+   and snaps back with the action's own words if it refuses. A refusal only
+   reverts if no newer edit of that field has been asked for since. */
 export function MemberHeader({
   staff,
   handle,
@@ -47,35 +46,45 @@ export function MemberHeader({
 }) {
   const t = useTranslations("team");
   const tCommon = useTranslations("common");
-  const [, startTransition] = React.useTransition();
+  const emailInvalid = useTranslations("auth.errors")("emailInvalid");
+  const [pending, startTransition] = React.useTransition();
   const [values, setValues] = React.useState({
     name: staff.name,
     email: staff.email ?? "",
     slug: staff.slug,
     color: staff.color,
   });
-  // What the server has. Reverts go here, not to the prop, which lags a
-  // save by one render.
+  // `saved`: what the server has confirmed. `latest`: what was last asked
+  // for — the same thing except while a save is in flight. Reverts go to
+  // these, never to the prop, which lags a save by one render.
   const saved = React.useRef(values);
+  const latest = React.useRef(values);
   const set = (field: Field, value: string) => setValues((v) => ({ ...v, [field]: value }));
 
   const commit = (field: Field, raw: string, valid = true) => {
-    const value = field === "name" ? raw.trim() : raw;
-    const prev = saved.current[field];
+    // Normalised here the way the schema normalises, so the field shows what
+    // was stored (the action answers with a bare ok, not the row).
+    const value = field === "email" ? raw.trim().toLowerCase() : field === "name" ? raw.trim() : raw;
+    const prev = latest.current[field];
     if (!valid || (field === "name" && value === "")) {
+      if (!valid) toast.error(field === "email" ? emailInvalid : t("form.slugHint"));
       set(field, prev);
       return;
     }
     set(field, value);
     if (value === prev) return;
-    saved.current = { ...saved.current, [field]: value };
+    latest.current = { ...latest.current, [field]: value };
     startTransition(async () => {
       const result = await updateStaff({ id: staff.id, [field]: value });
-      if (!result.ok) {
-        saved.current = { ...saved.current, [field]: prev };
-        set(field, prev);
-        toastRefusal(result.error, result.upgrade);
+      if (result.ok) {
+        saved.current = { ...saved.current, [field]: value };
+        return;
       }
+      toastRefusal(result.error, result.upgrade);
+      // A newer edit of this field is on its way; leave it to that one.
+      if (latest.current[field] !== value) return;
+      latest.current = { ...latest.current, [field]: saved.current[field] };
+      set(field, saved.current[field]);
     });
   };
 
@@ -83,7 +92,7 @@ export function MemberHeader({
     const el = e.currentTarget;
     if (e.key === "Enter") el.blur();
     if (e.key === "Escape") {
-      set(field, saved.current[field]);
+      set(field, latest.current[field]);
       // Blur after React has put the old value back, so the blur commits a no-op.
       requestAnimationFrame(() => el.blur());
     }
@@ -102,22 +111,7 @@ export function MemberHeader({
           {initials(values.name)}
         </PopoverTrigger>
         <PopoverContent align="start" className="w-auto p-2">
-          <div role="group" aria-label={t("form.colour")} className="flex gap-2">
-            {STAFF_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                aria-label={t("form.colourNamed", { hex: c })}
-                aria-pressed={values.color === c}
-                onClick={() => commit("color", c)}
-                style={{ background: c }}
-                className={cn(
-                  "size-6 rounded-full ring-offset-2 ring-offset-popover outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  values.color === c ? "ring-2 ring-foreground" : "ring-1 ring-black/10",
-                )}
-              />
-            ))}
-          </div>
+          <ColorSwatches value={values.color} onChange={(c) => commit("color", c)} className="ring-offset-popover" />
         </PopoverContent>
       </Popover>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -155,22 +149,21 @@ export function MemberHeader({
               required
               minLength={2}
               maxLength={40}
-              pattern={SLUG_PATTERN}
+              pattern={STAFF_SLUG_PATTERN}
               title={t("form.slugHint")}
               value={values.slug}
               // Typing can't produce a character the slug rules reject.
               onChange={(e) => set("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-              onBlur={(e) => {
-                const valid = e.currentTarget.checkValidity();
-                if (!valid) toast.error(t("form.slugHint"));
-                commit("slug", e.currentTarget.value, valid);
-              }}
+              onBlur={(e) => commit("slug", e.currentTarget.value, e.currentTarget.checkValidity())}
               onKeyDown={(e) => onKey("slug", e)}
               style={fit}
               className={cn(inlineClass, "font-mono text-xs")}
             />
           </span>
-          {children}
+          {/* The copy button carries the SERVER's link; while a new link is
+              on its way it would copy a URL about to 404, so it steps aside
+              until the save has landed and the page re-rendered. */}
+          <span className={cn(pending && "invisible")}>{children}</span>
         </div>
       </div>
     </div>

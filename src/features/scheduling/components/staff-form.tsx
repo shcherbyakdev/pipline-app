@@ -7,11 +7,8 @@ import { toast } from "sonner";
 import { toastRefusal } from "@/features/billing/refusal-toast";
 import { createStaff } from "@/features/scheduling/staff-actions";
 import type { ServiceRow } from "@/features/scheduling/queries";
-import {
-  STAFF_COLORS,
-  nextStaffColor,
-  slugifyStaffName,
-} from "@/features/scheduling/staff-slug";
+import { STAFF_SLUG_PATTERN, nextStaffColor, slugifyStaffName } from "@/features/scheduling/staff-slug";
+import { ColorSwatches } from "./color-swatches";
 import { bookingPath } from "@/lib/booking/url";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,13 +16,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-
-// Browser-side twin of STAFF_SLUG_RE (zod and the DB CHECK are still the
-// authorities). Hand-written rather than derived from the regex's source:
-// `pattern` is compiled with the `v` flag, which rejects an unescaped literal
-// `-` inside a character class — and an invalid pattern is silently ignored,
-// i.e. no validation at all. The 2-character floor is the input's minLength.
-const SLUG_PATTERN = "[a-z0-9]([a-z0-9\\-]{0,38}[a-z0-9])?";
 
 /* A new person's details — the whole of /team/new (there is no dialog; the
    page IS the form). An existing person is edited in place on their own page
@@ -46,9 +36,8 @@ export function StaffForm({
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const linkPrefix = `${bookingPath(handle ?? "…")}/`;
-  // Group headings (colour swatches, service checklist) are <p>s that a
-  // role="group" points at — a <label> with no control is an a11y orphan.
-  const colourGroupId = React.useId();
+  // The checklist heading is a <p> that a role="group" points at — a <label>
+  // with no control is an a11y orphan.
   const servicesGroupId = React.useId();
   const [name, setName] = React.useState("");
   const [slug, setSlug] = React.useState("");
@@ -134,7 +123,7 @@ export function StaffForm({
             required
             minLength={2}
             maxLength={40}
-            pattern={SLUG_PATTERN}
+            pattern={STAFF_SLUG_PATTERN}
             title={t("form.slugHint")}
             value={slug}
             onChange={(e) => {
@@ -148,32 +137,9 @@ export function StaffForm({
         </div>
       </div>
 
-      <div
-        role="group"
-        aria-labelledby={colourGroupId}
-        className="flex flex-col gap-2"
-      >
-        <p id={colourGroupId} className="text-sm leading-none font-medium">
-          {t("form.colour")}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {STAFF_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-label={t("form.colourNamed", { hex: c })}
-              aria-pressed={color === c}
-              onClick={() => setColor(c)}
-              style={{ background: c }}
-              className={cn(
-                "size-6 rounded-full ring-offset-2 ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                color === c
-                  ? "ring-2 ring-foreground"
-                  : "ring-1 ring-black/10",
-              )}
-            />
-          ))}
-        </div>
+      <div className="flex flex-col gap-2">
+        <p className="text-sm leading-none font-medium">{t("form.colour")}</p>
+        <ColorSwatches value={color} onChange={setColor} />
       </div>
 
       {services.length > 0 ? (
