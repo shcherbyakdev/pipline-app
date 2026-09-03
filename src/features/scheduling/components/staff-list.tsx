@@ -3,40 +3,29 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { toast } from "sonner";
 import { toastRefusal } from "@/features/billing/refusal-toast";
 import { Switch } from "@/components/ui/switch";
 import { setStaffActive } from "@/features/scheduling/staff-actions";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
-import type { ServiceRow } from "@/features/scheduling/queries";
 import { bookingPath } from "@/lib/booking/url";
 import { initials } from "@/features/scheduling/staff-slug";
-import { ownerHref } from "@/features/scheduling/availability-owner";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { StaffDialog } from "./staff-dialog";
 
 /* Shared column template so the header row and every member row align:
-   Name | Booking link | Role | actions. The fixed tracks (110px + 360px)
+   Name | Booking link | Role | bookable. The fixed tracks (110px + 56px)
    only fit from lg: up — below that the row keeps the stacked layout, or
    the fr columns collapse to zero width and the headers pile up. */
 const gridCols =
-  "lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_110px_360px] lg:items-center lg:gap-3";
+  "lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_110px_56px] lg:items-center lg:gap-3";
 
 function Row({
   staff,
-  services,
-  usedColors,
   handle,
-  appUrl,
   isPublic,
 }: {
   staff: StaffRow;
-  services: ServiceRow[];
-  usedColors: string[];
   handle: string | null;
-  appUrl: string;
   /** On the plan's public roster (Team page passed the real one)? A person
       beyond the cap has a 404ing URL, so their link isn't offered either. */
   isPublic: boolean;
@@ -61,19 +50,6 @@ function Row({
     });
   };
 
-  // Awaited: the clipboard write can be refused (permissions, insecure
-  // context, no focus) and "Copied" must not claim otherwise
-  // (portal-links-panel.tsx precedent).
-  const copyLink = async () => {
-    if (!path) return;
-    try {
-      await navigator.clipboard.writeText(`${appUrl}${path}`);
-      toast.success(tCommon("linkCopied"));
-    } catch {
-      toast.error(t("copyFailed"));
-    }
-  };
-
   // ponytail: staff have no logins yet (user_id reserved), so "role" is
   // derived — the creator's seeded row is always sort_order 0 and it is
   // never user-editable. Replace with a real role once invites land.
@@ -88,13 +64,13 @@ function Row({
     <li
       role="row"
       className={cn(
-        "group relative flex flex-col gap-2 rounded-lg px-3 py-2 hover:bg-muted/50",
+        "relative flex flex-col gap-2 rounded-lg px-3 py-2 hover:bg-muted/50 has-[a:focus-visible]:bg-muted/50",
         gridCols
       )}
     >
       {/* Below lg the switch is pinned top-right next to the name (the
           absolute variant wins over the base `relative`), so the stacked
-          row reads name → link → actions instead of leaving the switch
+          row reads name → link → switch instead of leaving the switch
           alone on a wrapped line. */}
       <div role="cell" className="flex min-w-0 items-center gap-3 max-lg:pr-12">
         <span
@@ -106,7 +82,16 @@ function Row({
         </span>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="truncate text-[13px] font-medium">{staff.name}</span>
+            {/* Stretched link: the name is the row's one link and its ::after
+                covers the whole row, so a click anywhere opens the person
+                without nesting the switch inside an <a>. The switch sits
+                above the overlay (z-10) and keeps its own click. */}
+            <Link
+              href={`/team/${staff.id}`}
+              className="truncate text-[13px] font-medium outline-none after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:after:ring-3 focus-visible:after:ring-ring/30"
+            >
+              {staff.name}
+            </Link>
             <span className="lg:hidden">{role}</span>
             {!staff.active ? <Badge variant="outline">{tCommon("inactive")}</Badge> : null}
             {overPlanLimit ? (
@@ -131,49 +116,12 @@ function Row({
         {path ?? "—"}
       </p>
       <span role="cell" className="max-lg:hidden">{role}</span>
-      <div role="cell" className="flex items-center gap-2 max-lg:flex-wrap lg:justify-end">
-        {/* Row actions surface on hover/focus (always visible below lg,
-            where there is no reliable hover). */}
-        <span className="flex items-center gap-1 lg:opacity-0 lg:transition-opacity lg:group-focus-within:opacity-100 lg:group-hover:opacity-100">
-          {staff.active ? (
-            <Link
-              href={ownerHref({ kind: "staff", id: staff.id })}
-              className={cn(buttonVariants({ variant: "ghost", size: "xs" }))}
-            >
-              {t("hours")}
-            </Link>
-          ) : null}
-          {path ? (
-            <>
-              <Button variant="ghost" size="xs" onClick={copyLink}>
-                {tCommon("copyLink")}
-              </Button>
-              {/*
-                A plain styled Link, not <Button render={<Link .../>}>: base-ui's
-                Button enforces button semantics on whatever it renders, and its
-                own docs say links should not go through that render prop
-                (rentals/components/offerings-list.tsx makes the same call).
-              */}
-              <Link
-                href={`/embed?staff=${staff.slug}`}
-                className={cn(buttonVariants({ variant: "ghost", size: "xs" }))}
-              >
-                {t("embed")}
-              </Link>
-            </>
-          ) : null}
-          <StaffDialog
-            staff={staff}
-            services={services}
-            usedColors={usedColors}
-            handle={handle}
-          />
-        </span>
+      <div role="cell" className="flex lg:justify-end">
         <Switch
           checked={active}
           onCheckedChange={onToggle}
           aria-label={t("bookableSwitch", { name: staff.name })}
-          className="max-lg:absolute max-lg:top-2.5 max-lg:right-3"
+          className="z-10 max-lg:absolute max-lg:top-2.5 max-lg:right-3 lg:relative"
         />
       </div>
     </li>
@@ -182,21 +130,16 @@ function Row({
 
 export function StaffList({
   staff,
-  services,
   handle,
-  appUrl,
   publicStaffIds,
 }: {
   staff: StaffRow[];
-  services: ServiceRow[];
   handle: string | null;
-  appUrl: string;
   /** The plan's public roster ids; null = no cap applies, flag nobody. */
   publicStaffIds: string[] | null;
 }) {
   const t = useTranslations("team");
   const tCommon = useTranslations("common");
-  const usedColors = staff.map((s) => s.color);
   return (
     <div className="flex flex-col gap-3">
       {handle ? null : (
@@ -224,7 +167,7 @@ export function StaffList({
           <span role="columnheader">{t("columns.link")}</span>
           <span role="columnheader">{t("columns.role")}</span>
           <span role="columnheader">
-            <span className="sr-only">{t("columns.actions")}</span>
+            <span className="sr-only">{t("columns.bookable")}</span>
           </span>
         </div>
         <ol role="rowgroup" className="flex flex-col max-lg:divide-y">
@@ -232,10 +175,7 @@ export function StaffList({
             <Row
               key={person.id}
               staff={person}
-              services={services}
-              usedColors={usedColors}
               handle={handle}
-              appUrl={appUrl}
               isPublic={publicStaffIds === null || publicStaffIds.includes(person.id)}
             />
           ))}

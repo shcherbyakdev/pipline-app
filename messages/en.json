@@ -1021,12 +1021,11 @@
   "team": {
     "intro": "Your bookable people. Each has their own hours, services and booking link.",
     "newButton": "New team member",
-    "chip": "Team",
     "table": "Team members",
     "columns": {
       "link": "Booking link",
       "role": "Role",
-      "actions": "Actions"
+      "bookable": "Bookable"
     },
     "noHandle": "Set your booking page handle first on <link>Booking page</link> — then everyone gets their own link.",
     "servicesCount": "{count, plural, =0 {No services} one {# service} other {# services}}",
@@ -1035,12 +1034,25 @@
     "overLimit": "Over plan limit",
     "overLimitTitle": "Not on your public page — over your plan's limit",
     "overLimitSr": ": not shown on your public page because it is over your plan's limit",
-    "hours": "Hours",
-    "embed": "Embed…",
-    "copyFailed": "Couldn't copy — select the link text and copy manually.",
     "bookableSwitch": "{name} is bookable",
-    "editNamed": "Edit {name}",
-    "dialog": {
+    "detail": {
+      "back": "← Team",
+      "addEmail": "Add email",
+      "hours": "Weekly hours",
+      "editHours": "Edit hours →",
+      "reactivateToEdit": "Make bookable to edit hours",
+      "appointments": "Appointments",
+      "upcoming": "Upcoming",
+      "recent": "Recent",
+      "noUpcoming": "Nothing booked ahead.",
+      "noRecent": "No past appointments yet.",
+      "note": "“{note}”",
+      "quickActions": "Quick actions",
+      "addService": "Add a service",
+      "embed": "Website embed",
+      "calendar": "See in calendar"
+    },
+    "form": {
       "namePlaceholder": "Team member name",
       "emailPlaceholder": "Email — optional, for booking notices",
       "slugHint": "Lowercase letters, numbers and dashes.",

@@ -6,22 +6,9 @@ import { ServiceDialog } from "@/features/scheduling/components/service-dialog";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageIntro } from "@/components/shell/page-header";
+import { addServiceGateHref } from "@/features/scheduling/service-gate";
 import { requireOrg } from "@/lib/auth/session";
-import { createClient } from "@/lib/supabase/server";
-import { plansEnforced } from "@/lib/flags";
-import { getDashboardFlags } from "@/lib/flags/resolve";
-import { evaluateServiceGate } from "@/lib/billing/gates";
-import { hrefForHint } from "@/lib/billing/upgrade-path";
 import { env } from "@/env";
-
-/** Team page idiom: ask the gate createService asks, and send a capped org
-    to the door rather than into a form that would be refused. */
-async function addGateHref(orgId: string): Promise<string | null> {
-  const flags = await getDashboardFlags(orgId);
-  if (!plansEnforced(flags)) return null;
-  const refused = await evaluateServiceGate(orgId, await createClient(), flags);
-  return refused ? hrefForHint(refused.how) : null;
-}
 
 export default async function ServicesPage() {
   const { org } = await requireOrg();
@@ -33,7 +20,7 @@ export default async function ServicesPage() {
     listServices(),
     listStaff(),
     getSchedulingSettings(),
-    addGateHref(org.id),
+    addServiceGateHref(org.id),
   ]);
   // Copy-link buttons need the public address; before the org picks a handle
   // there is nothing to copy (spec §5: hidden when there is no handle).

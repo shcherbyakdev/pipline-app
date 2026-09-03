@@ -149,7 +149,16 @@ export const staffInput = z.object({
   color: z.string().regex(/^#[0-9a-f]{6}$/),
   serviceIds: z.array(z.uuid()),
 });
-export const updateStaffInput = staffInput.extend({ id: z.uuid() });
+// The member page saves one field at a time, so every field is optional and
+// an absent one is left alone. "" on `email` means "clear it" (the inline
+// field emptied) — on create, "" is merely "not provided".
+export const updateStaffInput = staffInput.partial().extend({
+  id: z.uuid(),
+  email: z.preprocess(
+    (v) => (typeof v === "string" ? (v.trim() === "" ? null : v.trim().toLowerCase()) : v),
+    z.email().max(320).nullable().optional(),
+  ),
+});
 export const staffActiveInput = z.object({ id: z.uuid(), active: z.boolean() });
 
 // Team (multi-staff): the public surface either names a staff member or asks
