@@ -16,7 +16,7 @@ const SPACES = { offersAppointments: false, offersRentals: true };
 describe("resourceMeter (spec §1.2)", () => {
   it("counts people and units per channel against the cap", () => {
     expect(resourceMeter(T, { activeStaff: 1, activeUnits: 1 }, BOTH, pro)).toEqual({
-      value: "2 / 3", caption: "people and units on your booking page", hidden: 0,
+      value: "2 / 5", caption: "people and units on your booking page", hidden: 0,
     });
   });
   it("a spaces-only org's backfilled person is not counted", () => {
@@ -39,8 +39,8 @@ describe("resourceMeter (spec §1.2)", () => {
     expect(m.hidden).toBe(2);
   });
   it("over the cap otherwise says how many are public", () => {
-    const m = resourceMeter(T, { activeStaff: 2, activeUnits: 3 }, BOTH, pro);
-    expect(m.caption).toBe("only the first 3 are bookable publicly");
+    const m = resourceMeter(T, { activeStaff: 2, activeUnits: 5 }, BOTH, pro);
+    expect(m.caption).toBe("only the first 5 are bookable publicly");
     expect(m.hidden).toBe(2);
   });
 });

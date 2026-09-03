@@ -62,7 +62,6 @@ export const PREMIUM = {
   sub: "Every account starts free. Join the Premium waitlist from your dashboard and use everything it unlocks now, at no cost.",
   perks: [
     `Up to ${PLANS.pro.limits.bookableResources} bookable people or units`,
-    "Unlimited services on your page",
     "Reminders for every booking",
     "No Booklo badge on your page",
   ],
@@ -199,7 +198,7 @@ export const FAQ: FaqItem[] = [
   {
     question: "What does it cost?",
     answer: BILLING_ON
-      ? "Free for you and one more person, or two rooms: two bookable resources, three services, reminders for your first 30 bookings each month. Pro and Team add your brand, unlimited services and more bookable people and units; see Pricing."
+      ? "Free for you and one more person, or two rooms: two bookable resources, reminders for your first 30 bookings each month, unlimited services. Pro and Team add your brand, reminders for every booking and more bookable people and units; see Pricing."
       : "Booklo is free during early access. Premium is on its way: join the waitlist from your dashboard and everything it unlocks is yours now, at no cost. We'll announce pricing well before anything changes, and early users will hear first.",
   },
 ];
@@ -239,7 +238,7 @@ const FOUNDER_MONTHLY = formatUsd(PLANS.pro.monthly * FOUNDER_PRICE_FACTOR);
     (lib/billing/plans.ts) directly so a number never lives in two places. */
 export const PRICING = {
   heading: "Simple pricing",
-  sub: "Free for you and one more person, or two rooms. Pay when you need your brand, unlimited services or more bookable resources.",
+  sub: "Free for you and one more person, or two rooms. Pay when you need your brand, reminders for every booking or more bookable resources.",
   note: "Prices in USD. Taxes are handled at checkout.",
   rows: [
     // H5b: the one row that IS a limit reads it from PLANS so the number can
@@ -250,7 +249,6 @@ export const PRICING = {
       pro: String(PLANS.pro.limits.bookableResources),
       team: String(PLANS.team.limits.bookableResources),
     },
-    { label: "Services on your booking page", free: "3", pro: "Unlimited", team: "Unlimited" },
     { label: "Reminder emails", free: "First 30 bookings a month", pro: "Every booking", team: "Every booking" },
     { label: "Hosted page + website embed", free: "✓", pro: "✓", team: "✓" },
     { label: "Self-serve cancel & reschedule", free: "✓", pro: "✓", team: "✓" },

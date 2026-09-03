@@ -90,12 +90,21 @@ describe("limitPublicOffering", () => {
     expect(r.services.map((s) => s.id)).toEqual(["s1", "s2", "s3"]); // s4 (c only) drops; <= 3 anyway
   });
 
-  it("free with 4 services all offered by the primary → first 3", () => {
+  it("free with 4 services all offered by the primary → all four (no plan caps services)", () => {
     const r = limitPublicOffering(
       services,
       staff,
       { s1: ["a"], s2: ["a"], s3: ["a"], s4: ["a"] },
       entitlementsFor(null, now),
+    );
+    expect(r.services.map((s) => s.id)).toEqual(["s1", "s2", "s3", "s4"]);
+  });
+  it("a plan capped at 3 services → first 3 in order", () => {
+    const r = limitPublicOffering(
+      services,
+      staff,
+      { s1: ["a"], s2: ["a"], s3: ["a"], s4: ["a"] },
+      { ...entitlementsFor(null, now), publicServices: 3 },
     );
     expect(r.services.map((s) => s.id)).toEqual(["s1", "s2", "s3"]);
   });
@@ -197,9 +206,14 @@ describe("limitPublicResources (H5b: one budget, people first, then units)", () 
   const unlimited = { ...free, bookableResources: Number.MAX_SAFE_INTEGER };
 
   it("people fill the slots first, then units in the order given", () => {
-    const r = limitPublicResources(people, units, BOTH, pro); // cap 3
+    const r = limitPublicResources(people, units, BOTH, { ...pro, bookableResources: 3 });
     expect(r.staff.map((s) => s.id)).toEqual(["a", "b"]);
     expect(r.units.map((u) => u.id)).toEqual(["u1"]);
+  });
+  it("Pro (five slots) fits two people and three units", () => {
+    const r = limitPublicResources(people, units, BOTH, pro);
+    expect(r.staff.map((s) => s.id)).toEqual(["a", "b"]);
+    expect(r.units.map((u) => u.id)).toEqual(["u1", "u2", "u3"]);
   });
   it("both-mode on Free (two slots): people fill them first and every unit is hidden", () => {
     const r = limitPublicResources(people, units, BOTH, free);

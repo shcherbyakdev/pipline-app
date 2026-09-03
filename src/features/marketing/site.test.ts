@@ -194,7 +194,7 @@ describe("site config", () => {
 
   it("pricing and the cost FAQ speak of people and rooms, never seats", () => {
     expect(PRICING.sub).toBe(
-      "Free for you and one more person, or two rooms. Pay when you need your brand, unlimited services or more bookable resources.",
+      "Free for you and one more person, or two rooms. Pay when you need your brand, reminders for every booking or more bookable resources.",
     );
     const cost = FAQ.find((f) => f.question === "What does it cost?")!;
     expect(cost.answer.toLowerCase()).not.toMatch(/seat|team member/);

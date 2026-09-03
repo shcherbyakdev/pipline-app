@@ -51,7 +51,7 @@ describe("entitlementsFor", () => {
     const e = entitlementsFor(null, now);
     expect(e.plan).toBe("free");
     expect(e.bookableResources).toBe(2);
-    expect(e.publicServices).toBe(3);
+    expect(e.publicServices).toBeNull();
     expect(e.hideBadge).toBe(false);
   });
   it("team uses seats for bookableResources", () => {
@@ -100,10 +100,11 @@ describe("gates", () => {
     expect(canAddResource(4, team)).toBe(true);
     expect(canAddResource(5, team)).toBe(false);
   });
-  it("canAddService", () => {
-    expect(canAddService(2, free)).toBe(true);
-    expect(canAddService(3, free)).toBe(false);
+  it("canAddService: unlimited on every plan; a capped entitlement still refuses", () => {
+    expect(canAddService(300, free)).toBe(true);
     expect(canAddService(300, team)).toBe(true);
+    expect(canAddService(2, { ...free, publicServices: 3 })).toBe(true);
+    expect(canAddService(3, { ...free, publicServices: 3 })).toBe(false);
   });
   it("badgeVisible: hidden only when the org asked AND the plan allows", () => {
     expect(badgeVisible(true, free)).toBe(true);

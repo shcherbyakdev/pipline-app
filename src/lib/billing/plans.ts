@@ -12,7 +12,7 @@ export type PlanLimits = {
       limitPublicResources). Team: = seats (the org_subscriptions column keeps
       its name). */
   bookableResources: number;
-  /** Services the PUBLIC page may offer; null = unlimited. */
+  /** Services the PUBLIC page may offer; null = unlimited (every plan today). */
   publicServices: number | null;
   /** Reminder emails are sent for the first N bookings made each month; null = unlimited. */
   reminderBookingsPerMonth: number | null;
@@ -52,15 +52,20 @@ export const PLANS: Record<PlanId, PlanDef> = {
     // Two, not one (ruling 2026-09-01): you plus one team member is free —
     // the second addition is what the waitlist/Billing gate on. The budget is
     // still shared with units, so a spaces-only org gets two rooms.
+    // Services are unlimited on every plan (ruling 2026-09-03): a Free page
+    // that hides most of a menu is bad advertising, and it carries our badge.
+    // The cap machinery stays (`publicServices` is still number | null).
     id: "free", name: "Free", blurb: "Everything two people — or two rooms — need to take bookings.",
     monthly: 0, yearly: 0,
-    limits: { bookableResources: 2, publicServices: 3, reminderBookingsPerMonth: 30,
+    limits: { bookableResources: 2, publicServices: null, reminderBookingsPerMonth: 30,
       hideBadge: false, customReminders: false, gcalSync: false, intakeQuestions: false, pageSections: "all" },
   },
   pro: {
-    id: "pro", name: "Pro", blurb: "Your brand, unlimited services, reminders for every booking, up to three bookable people or units.",
+    // Five (ruling 2026-09-03): a one-person studio with four rooms, or a
+    // five-room venue, fits in Pro. Three was one slot above Free.
+    id: "pro", name: "Pro", blurb: "Your brand, reminders for every booking, up to five bookable people or units.",
     monthly: 12, yearly: 108,
-    limits: { bookableResources: 3, publicServices: null, reminderBookingsPerMonth: null, ...PAID_LIMITS },
+    limits: { bookableResources: 5, publicServices: null, reminderBookingsPerMonth: null, ...PAID_LIMITS },
   },
   team: {
     id: "team", name: "Team", blurb: "Up to ten bookable people and units, auto-assigned.",

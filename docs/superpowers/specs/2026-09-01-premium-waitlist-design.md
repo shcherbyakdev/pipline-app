@@ -52,8 +52,13 @@ page, a Premium section on the landing.
    not on the waitlist is Free: 2 bookable resources (ruling 2026-09-01: you
    plus one team member is free, the second addition prompts the waitlist;
    the budget stays shared with units per H5b, so a both-mode org's room
-   spends the second slot), 3 public services, 30 reminder bookings/month,
-   badge forced. The sidebar card and the banner say how to lift it.
+   spends the second slot), 30 reminder bookings/month, badge forced. The
+   sidebar card and the banner say how to lift it. *Amended 2026-09-03:*
+   services are unlimited on every plan (a Free page hiding most of a menu is
+   bad advertising, and it carries our badge), and Pro is **5** bookable
+   resources, not 3 — three was one slot above Free and gave a venue no
+   reason to join. The cap machinery (`publicServices: number | null`, the
+   services gate) stays; nothing sets a number today.
 9. **Capped add buttons go to the door.** Team/Services pages ask the same
    gate the action does; when it would refuse, "New team member" / "New
    service" is a link to /waitlist (or /billing). Every other "lift the cap"
