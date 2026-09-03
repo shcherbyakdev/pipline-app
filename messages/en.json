@@ -174,7 +174,8 @@
     "spaces": {
       "hasBookings": "It has bookings — deactivate it instead.",
       "blackoutOrder": "End date must not precede the start date.",
-      "blackoutSpan": "Unavailable dates can span at most 2 years."
+      "blackoutSpan": "Unavailable dates can span at most 2 years.",
+      "lastUnit": "That's the space's last unit — to remove it, delete the space."
     },
     "clients": {
       "createdNotAssigned": "Client created, but assigning failed. Pick them from the list.",
@@ -542,9 +543,8 @@
       "blurb": "Rooms, studios and gear, booked by the hour, night or day."
     },
     "add": "Add a space",
-    "unitNotCreated": "Saved the space, but couldn't add its first unit — add one on the space's page.",
     "hoursNotSet": "Saved the space, but couldn't set its default hours — set them on Availability.",
-    "notBookable": "Not bookable — add a unit",
+    "notBookable": "Not bookable — no active unit",
     "hoursNote": "Nightly and daily spaces use check-in and check-out times instead — set those on the space.",
     "hoursNightsOnly": "Nightly and daily spaces use check-in and check-out times, set on each space. Hourly spaces and team members set their weekly hours here.",
     "scope": {
@@ -1228,7 +1228,7 @@
         "byNight": "the night",
         "byDay": "the day",
         "price": "{per, select, hours {Price per hour} nights {Price per night} other {Price per day}} ({currency}, optional)",
-        "noticeHint": "The page can list this space once it has a unit — add one on Spaces. You can keep going and publish when it is bookable."
+        "noticeHint": "You can keep going and publish once it is bookable."
       },
       "hours": {
         "heading": "Your weekly hours",
@@ -1403,7 +1403,7 @@
         "priceNight": "Price per night ({currency}, optional)",
         "priceDay": "Price per day ({currency}, optional)",
         "submit": "Add space",
-        "noticeHint": "The page can list this space once it has a unit — add one on Spaces. You can keep going and publish when it is bookable."
+        "noticeHint": "You can keep going and publish once it is bookable."
       },
       "back": "Back",
       "leave": "Leave for now",
