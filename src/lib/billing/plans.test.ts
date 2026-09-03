@@ -17,9 +17,9 @@ describe("PLANS", () => {
   });
   it("limits match the H5b spec: resources 1 / 3 / 10, services 3 / ∞ / ∞", () => {
     expect(PLANS.free.limits).toMatchObject({
-      bookableResources: 2, publicServices: 3, reminderBookingsPerMonth: 30, hideBadge: false,
+      bookableResources: 2, publicServices: null, reminderBookingsPerMonth: 30, hideBadge: false,
     });
-    expect(PLANS.pro.limits.bookableResources).toBe(3);
+    expect(PLANS.pro.limits.bookableResources).toBe(5);
     expect(PLANS.pro.limits.publicServices).toBeNull();
     expect(TEAM_INCLUDED_RESOURCES).toBe(10);
     expect(PLANS.team.limits.bookableResources).toBe(TEAM_INCLUDED_RESOURCES);

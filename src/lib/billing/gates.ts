@@ -27,7 +27,8 @@ export function resourceGate(usage: ResourceUsage, mode: OrgMode, ent: Entitleme
   return canAddResource(countResources(usage, mode), ent) ? null : { reason: "resources", max: ent.bookableResources, how };
 }
 export function serviceGate(serviceCount: number, ent: Entitlements, how: UpgradeHint = "billing"): GateRefusal | null {
-  return canAddService(serviceCount, ent) ? null : { reason: "services", how };
+  if (canAddService(serviceCount, ent) || ent.publicServices === null) return null;
+  return { reason: "services", max: ent.publicServices, how };
 }
 const FAILED: GateRefusal = { reason: "failed", how: "none" };
 

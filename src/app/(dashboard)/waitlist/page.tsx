@@ -14,7 +14,6 @@ import { PageIntro } from "@/components/shell/page-header";
     numbers read from PLANS so they can never drift from the gate. */
 const PERKS = [
   ["resources", { count: PLANS.pro.limits.bookableResources }],
-  ["services", {}],
   ["reminders", { free: PLANS.free.limits.reminderBookingsPerMonth ?? 0 }],
   ["badge", {}],
 ] as const;

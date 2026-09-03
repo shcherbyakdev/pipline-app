@@ -13,7 +13,7 @@ import { refusalCopy, type GateRefusal } from "./refusal";
 const { resourceGate, serviceGate, evaluateResourceGate, evaluateServiceGate, upgradeHint } = await import("./gates");
 const T = enTranslator("errors");
 const planLimitResourceError = (max: number, how: "billing" | "waitlist" | "none"): GateRefusal => ({ reason: "resources", max, how });
-const planLimitServicesError = (how: "billing" | "waitlist" | "none"): GateRefusal => ({ reason: "services", how });
+const planLimitServicesError = (max: number, how: "billing" | "waitlist" | "none"): GateRefusal => ({ reason: "services", max, how });
 const GENERIC_WRITE_ERROR: GateRefusal = { reason: "failed", how: "none" };
 
 const now = new Date("2026-08-18T12:00:00Z");
@@ -67,8 +67,8 @@ describe("refusalCopy", () => {
       error: "Your plan allows 3 bookable resources — people and units together. Higher limits come with paid plans.",
       upgrade: null,
     });
-    expect(refusalCopy(T, planLimitServicesError("billing"))).toEqual({
-      error: "Free includes 3 services. Upgrade in Billing to add more.",
+    expect(refusalCopy(T, planLimitServicesError(3, "billing"))).toEqual({
+      error: "Your plan allows 3 services on your booking page. Upgrade in Billing to add more.",
       upgrade: { href: "/billing", label: "Open Billing" },
     });
     expect(refusalCopy(T, GENERIC_WRITE_ERROR)).toEqual({ error: "Couldn't save. Try again.", upgrade: null });
@@ -88,8 +88,11 @@ describe("upgradeHint", () => {
 });
 
 describe("serviceGate", () => {
-  it("Free at 3 services → message", () => {
-    expect(serviceGate(3, free)).toEqual(planLimitServicesError("billing"));
+  it("Free at 50 services → null (services are unlimited on every plan)", () => {
+    expect(serviceGate(50, free)).toBeNull();
+  });
+  it("a capped plan at its limit → message carrying the cap", () => {
+    expect(serviceGate(3, { ...free, publicServices: 3 })).toEqual(planLimitServicesError(3, "billing"));
   });
   it("Pro at 50 services → null", () => {
     expect(serviceGate(50, pro)).toBeNull();
@@ -164,8 +167,8 @@ describe("evaluateResourceGate", () => {
       staff: { count: staff, error: null },
       rental_units: { count: 0, error: null },
     });
-    await expect(evaluateResourceGate("org-1", waitlisted(2), FLAGS_WAITLIST)).resolves.toBeNull();
-    await expect(evaluateResourceGate("org-1", waitlisted(3), FLAGS_WAITLIST)).resolves.toEqual(planLimitResourceError(3, "none"));
+    await expect(evaluateResourceGate("org-1", waitlisted(4), FLAGS_WAITLIST)).resolves.toBeNull();
+    await expect(evaluateResourceGate("org-1", waitlisted(5), FLAGS_WAITLIST)).resolves.toEqual(planLimitResourceError(5, "none"));
   });
   it("Free spaces-only org at 1 (backfilled) person + 0 units → allowed", async () => {
     const client = stubClient({
@@ -224,12 +227,12 @@ describe("evaluateResourceGate", () => {
 });
 
 describe("evaluateServiceGate", () => {
-  it("Free org at 3 services (limit) → refusal", async () => {
+  it("Free org at 50 services → allowed (no plan caps services)", async () => {
     const client = stubClient({
       org_subscriptions: { data: null, error: null },
-      services: { count: 3, error: null },
+      services: { count: 50, error: null },
     });
-    await expect(evaluateServiceGate("org-1", client, FLAGS_ON)).resolves.toEqual(planLimitServicesError("billing"));
+    await expect(evaluateServiceGate("org-1", client, FLAGS_ON)).resolves.toBeNull();
   });
   it("a waitlisted org at 50 services → allowed (the waitlist grants Pro)", async () => {
     const client = stubClient({

@@ -11,7 +11,7 @@ export type UpgradeHint = "billing" | "waitlist" | "none";
     it never has to recognise a sentence to find the door. `failed` is the
     conservative refusal after a lookup error (spec §7.10). */
 export type GateRefusal =
-  | { reason: "services"; how: UpgradeHint }
+  | { reason: "services"; max: number; how: UpgradeHint }
   | { reason: "resources"; max: number; how: UpgradeHint }
   | { reason: "failed"; how: "none" };
 
@@ -22,7 +22,7 @@ export function refusalCopy(t: Translator<"errors">, r: GateRefusal): { error: s
   if (r.reason === "failed") return { error: t("generic"), upgrade: null };
   const cap =
     r.reason === "services"
-      ? t("planLimitServices")
+      ? t("planLimitServices", { max: r.max })
       : r.max === 1
         ? t("planLimitResourceOne")
         : t("planLimitResources", { max: r.max });

@@ -31,10 +31,6 @@ type T = Translator<"billing.picker">;
 const PLAN_ROWS: { label: (t: T) => string; value: (t: T, plan: PlanDef) => string }[] = [
   { label: (t) => t("rows.resources"), value: (_t, p) => String(p.limits.bookableResources) },
   {
-    label: (t) => t("rows.services"),
-    value: (t, p) => (p.limits.publicServices === null ? t("rows.unlimited") : String(p.limits.publicServices)),
-  },
-  {
     label: (t) => t("rows.reminders"),
     value: (t, p) =>
       p.limits.reminderBookingsPerMonth === null

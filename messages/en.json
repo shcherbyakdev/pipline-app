@@ -159,7 +159,7 @@
     "checkInPassed": "That check-in time has already passed — pick a later date.",
     "cancelWindowPassed": "The free-cancellation window has passed — contact the venue to cancel.",
     "notChangeable": "This booking can no longer be changed online.",
-    "planLimitServices": "Free includes 3 services.",
+    "planLimitServices": "Your plan allows {max} services on your booking page.",
     "planLimitResourceOne": "Free includes 1 bookable resource — one person or one unit.",
     "planLimitResources": "Your plan allows {max} bookable resources — people and units together.",
     "upgradeHint": {
@@ -1081,7 +1081,7 @@
         "blurb": "Everything two people — or two rooms — need to take bookings."
       },
       "pro": {
-        "blurb": "Your brand, unlimited services, reminders for every booking, up to three bookable people or units."
+        "blurb": "Your brand, reminders for every booking, up to five bookable people or units."
       },
       "team": {
         "blurb": "Up to ten bookable people and units, auto-assigned."
@@ -1102,8 +1102,6 @@
       "founderYearlyNote": "Founder price ({price}/mo for life) applies to monthly billing.",
       "rows": {
         "resources": "Bookable resources (people + units)",
-        "services": "Services on your booking page",
-        "unlimited": "Unlimited",
         "reminders": "Reminder emails",
         "everyBooking": "Every booking",
         "firstBookings": "First {count} bookings a month",
@@ -1149,7 +1147,7 @@
     },
     "waitlist": {
       "cardTitle": "Premium waitlist",
-      "cardBody": "Your brand, unlimited services, more people and spaces. Free while we build.",
+      "cardBody": "Your brand, more people and spaces, reminders for every booking. Free while we build.",
       "cardCta": "Join the waitlist",
       "intro": "Premium is on its way. Join the waitlist and use everything it unlocks now, free while we build.",
       "heading": "Unlock Premium early",
@@ -1163,7 +1161,6 @@
       "perksHeading": "What’s unlocked",
       "perks": {
         "resources": "Up to {count} bookable people or units",
-        "services": "Unlimited services on your booking page",
         "reminders": "Reminders for every booking, not just the first {free} a month",
         "badge": "No “Powered by Booklo” badge on your page and emails"
       }
