@@ -187,9 +187,9 @@ export function OfferingDialog({
         return;
       }
       onOpenChange(false);
-      // A notice means the space saved but its first unit did not (plan cap
-      // or a failed insert): the space is not bookable yet — a warning, not
-      // "Saved", so the owner knows to visit the space's page.
+      // A notice means the space saved but its default hours did not: an
+      // hourly space with no week offers nothing — a warning, not "Saved",
+      // so the owner knows to visit Availability.
       if (result.notice) toastRefusal(result.notice, result.upgrade, "warning");
       else toast.success(isEdit ? tc("saved") : t("dialog.created"));
     });

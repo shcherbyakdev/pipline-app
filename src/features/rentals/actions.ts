@@ -1,6 +1,5 @@
 "use server";
 
-import type { UpgradeDoor } from "@/lib/billing/refusal";
 import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
@@ -105,52 +104,52 @@ export async function createOffering(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return generic();
   const supabase = await createClient();
+  // A space is its own bookable unit until split (#109), and it reaches the
+  // public page only through an active unit (lib/booking/public.ts
+  // listPublicOfferings; the page 404s until something is bookable,
+  // landing-claim D9). So the space and its first unit are one thing: the
+  // plan gate that would refuse the unit refuses the space — a saved space
+  // that could not be booked pointed the owner at "add a unit", which the
+  // same gate refused — and a failed unit insert takes the space back out.
+  const refused = await assertCanAddUnit(orgId, supabase);
+  if (refused) return refused;
   const { data, error } = await supabase
     .from("rental_offerings")
     .insert({ org_id: orgId, ...toOfferingRow(parsed.data) })
     .select("id")
     .single();
   if (error) return fail("createOffering", error);
-  // A space reaches the public page only once it has an active unit
-  // (lib/booking/public.ts listPublicOfferings) — and the page 404s until
-  // something is bookable (landing-claim D9). Most spaces are one bookable
-  // thing, so the space starts with one unit named after itself; the units
-  // editor still serves multi-unit spaces. Same plan gate as createUnit: if
-  // the plan refuses, the space is still saved and the owner told why.
-  let notice: string | undefined;
-  let upgrade: UpgradeDoor | null = null;
-  const refused = await assertCanAddUnit(orgId, supabase);
-  if (refused) {
-    notice = refused.error;
-    upgrade = refused.upgrade;
-  } else {
-    const { error: unitError } = await supabase.from("rental_units").insert({
-      org_id: orgId,
-      offering_id: data.id,
-      name: parsed.data.name,
-      description: null,
-      active: true,
-    });
-    if (unitError) {
-      console.error("[rentals] createOffering first unit:", unitError);
-      notice = (await getTranslations("spaces"))("unitNotCreated");
-    }
+  const { error: unitError } = await supabase.from("rental_units").insert({
+    org_id: orgId,
+    offering_id: data.id,
+    name: parsed.data.name,
+    description: null,
+    active: true,
+  });
+  if (unitError) {
+    const { error: undoError } = await supabase
+      .from("rental_offerings")
+      .delete()
+      .eq("id", data.id)
+      .eq("org_id", orgId);
+    if (undoError) console.error("[rentals] createOffering undo:", undoError);
+    return fail("createOffering first unit", unitError);
   }
   // An hourly space has no check-in/check-out times to fall back on, so with
   // no weekly hours it offers nothing — the same dead start a new team
   // member used to get. Nights/days spaces have no weekly hours at all
-  // (admin IA ruling 4), so only "hours" gets a week. The unit notice wins
-  // if both fail: a space with no unit is the more blocking of the two.
+  // (admin IA ruling 4), so only "hours" gets a week.
+  let notice: string | undefined;
   if (parsed.data.rangeMode === "hours") {
     const seedError = await seedDefaultHours(supabase, orgId, { rentalOfferingId: data.id });
     if (seedError) {
       console.error("[rentals] createOffering default hours:", seedError.message);
-      notice ??= (await getTranslations("spaces"))("hoursNotSet");
+      notice = (await getTranslations("spaces"))("hoursNotSet");
     }
   }
   revalidatePath("/rentals");
   revalidatePath("/availability");
-  return notice ? { ok: true, notice, ...(upgrade ? { upgrade } : {}) } : { ok: true };
+  return notice ? { ok: true, notice } : { ok: true };
 }
 
 export async function updateOffering(input: unknown): Promise<ActionState> {
@@ -306,6 +305,18 @@ export async function deleteUnit(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return generic();
   const supabase = await createClient();
+  // A space is its own unit until split: its last unit goes only with the
+  // space. Without one the space cannot be booked, and on a capped plan it
+  // could not get one back (createOffering's gate). UX guard, not security:
+  // offeringId is the caller's, and RLS already scopes both to the org.
+  const { data: siblings, error: siblingsError } = await supabase
+    .from("rental_units")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("offering_id", parsed.data.offeringId)
+    .limit(2);
+  if (siblingsError) return fail("deleteUnit", siblingsError);
+  if ((siblings?.length ?? 0) < 2) return { ok: false, error: (await errorsT())("spaces.lastUnit") };
   const { error } = await supabase
     .from("rental_units")
     .delete()

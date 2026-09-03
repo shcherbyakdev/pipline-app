@@ -2,13 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /* createOffering (the "New space" dialog): a space reaches the public page
    only once it has an active unit (lib/booking/public.ts listPublicOfferings),
-   and the D9 rule 404s the page until then. So creating a space also creates
-   its first unit — through the same plan gate createUnit uses. */
+   and the D9 rule 404s the page until then. A space is its own unit until
+   split, so the two are made — and refused — together: the plan gate
+   createUnit uses runs BEFORE the space is saved, and a unit insert that
+   fails takes the space back out. deleteUnit keeps the last one. */
 
 type Row = Record<string, unknown>;
 const state = vi.hoisted(() => ({
   inserts: [] as Array<{ table: string; row: Row }>,
   updates: [] as Array<{ table: string; row: Row }>,
+  deletes: [] as string[],
   units: [] as Array<{ id: string }>,
   unitInsertError: null as null | { message: string },
   hoursInsertError: null as null | { message: string },
@@ -49,6 +52,10 @@ vi.mock("@/lib/supabase/server", () => ({
           state.updates.push({ table, row });
           return b;
         },
+        delete: () => {
+          state.deletes.push(table);
+          return b;
+        },
         eq: () => b,
         then: (res: (v: unknown) => unknown, rej: (e: unknown) => unknown) =>
           Promise.resolve(result()).then(res, rej),
@@ -58,7 +65,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { createOffering, updateOffering } from "./actions";
+import { createOffering, updateOffering, deleteUnit } from "./actions";
 
 const space = {
   name: "Room A",
@@ -74,6 +81,7 @@ const space = {
 beforeEach(() => {
   state.inserts = [];
   state.updates = [];
+  state.deletes = [];
   state.units = [];
   state.unitInsertError = null;
   state.hoursInsertError = null;
@@ -97,25 +105,43 @@ describe("createOffering — a space is bookable the moment it exists", () => {
     expect(assertCanAddUnit).toHaveBeenCalledTimes(1);
   });
 
-  it("when the plan refuses the unit, the space still exists and the owner is told why", async () => {
+  it("when the plan refuses the unit, it refuses the space with it — nothing is saved", async () => {
     const refusal: Refused = {
       ok: false,
       error: "Free includes 1 bookable resource — one person or one unit. Upgrade in Billing to add more.",
       upgrade: { href: "/billing", label: "Open Billing" },
     };
     assertCanAddUnit.mockResolvedValue(refusal);
-    // The space landed; the refusal rides along as the notice, door included.
-    expect(await createOffering(space)).toEqual({ ok: true, notice: refusal.error, upgrade: refusal.upgrade });
-    expect(state.inserts.map((i) => i.table)).toEqual(["rental_offerings"]);
+    // The refusal is the result, door included — the same as createUnit's.
+    expect(await createOffering(space)).toEqual(refusal);
+    expect(state.inserts).toEqual([]);
   });
 
-  it("when the unit insert fails, the space still exists and the owner is pointed at its page", async () => {
+  it("when the unit insert fails, the space is taken back out", async () => {
     state.unitInsertError = { message: "boom" };
-    expect(await createOffering(space)).toEqual({
-      ok: true,
-      notice: "Saved the space, but couldn't add its first unit — add one on the space's page.",
-    });
+    const result = await createOffering(space);
+    expect(result.ok).toBe(false);
     expect(state.inserts.map((i) => i.table)).toEqual(["rental_offerings", "rental_units"]);
+    expect(state.deletes).toEqual(["rental_offerings"]);
+  });
+});
+
+describe("deleteUnit — a space keeps its last unit", () => {
+  const input = { id: "11111111-1111-4111-8111-111111111111", offeringId: "22222222-2222-4222-8222-222222222222" };
+
+  it("refuses to delete the only unit and says to delete the space instead", async () => {
+    state.units = [{ id: "unit-1" }];
+    expect(await deleteUnit(input)).toEqual({
+      ok: false,
+      error: "That's the space's last unit — to remove it, delete the space.",
+    });
+    expect(state.deletes).toEqual([]);
+  });
+
+  it("deletes one of several", async () => {
+    state.units = [{ id: "unit-1" }, { id: "unit-2" }];
+    expect(await deleteUnit(input)).toEqual({ ok: true });
+    expect(state.deletes).toEqual(["rental_units"]);
   });
 });
 
