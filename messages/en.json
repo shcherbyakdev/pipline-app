@@ -240,6 +240,7 @@
       "description": "{channel, select, spaces {Book a space at {orgName}.} other {Book an appointment with {orgName}.}}"
     },
     "poweredBy": "Powered by Booklo",
+    "language": "Language",
     "crossLink": {
       "toSpaces": "Looking for a room? Book a space →",
       "toAppointments": "Need an appointment? Book a time →",
@@ -1686,6 +1687,9 @@
     "wholeTeam": "Whole team",
     "staffOnly": "This snippet books that person only.",
     "clientsPick": "Clients pick who they book.",
+    "language": "Language",
+    "languageAuto": "Follow the visitor",
+    "languageAutoHint": "Clients see their own language when we speak it, otherwise your booking page's.",
     "copy": "Copy",
     "copied": "Copied",
     "copyRefused": "Couldn't copy — select the snippet and copy manually.",

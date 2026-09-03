@@ -1,6 +1,7 @@
 "use server";
 
 import { emailTranslators } from "@/i18n/emails";
+import { stampBookingLocale } from "@/lib/booking/client-locale";
 import { publicError, type OrgLocaleSource } from "@/i18n/public";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -249,12 +250,17 @@ export async function createRentalBooking(
     // own errors AND the whole block is wrapped below — a throw here (e.g.
     // formatRangeWhenLine, totalCents) must not report a committed booking
     // as failed to the caller.
-    // The org's language for both mails (spec D4).
+    // Two languages (spec §4, amended 2026-09-03): the client reads the one
+    // they booked in, the provider reads the org's. Hence the doubled
+    // when-line and money lines below — both are locale-formatted.
+    const client = await emailTranslators(await stampBookingLocale(admin, bookingId as string, org.locale));
     const mail = await emailTranslators(org.locale);
     let prep: {
       whenLine: string;
+      clientWhenLine: string;
       serviceName: string;
       infoLines: string[];
+      clientInfoLines: string[];
       providerEmail: string | null;
     } | null = null;
     try {
@@ -263,6 +269,7 @@ export async function createRentalBooking(
       const starts = wallTimeToUtc(startDate, ctx.offering.startTime!, tz);
       const ends = wallTimeToUtc(endDate, ctx.offering.endTime!, tz);
       const whenLine = formatRangeWhenLine(starts, ends, tz, mail.intlLocale);
+      const clientWhenLine = formatRangeWhenLine(starts, ends, tz, client.intlLocale);
       const unitName = await getBookingUnitName(bookingId as string).catch((e) => {
         console.error("[rentals] getBookingUnitName:", e);
         return null;
@@ -272,42 +279,44 @@ export async function createRentalBooking(
         ctx.offering,
         stayUnits(ctx.offering.rangeMode as "nights" | "days", startDate, endDate),
       );
-      const infoLines = moneyInfoLines({
+      const money = {
         totalCents: total,
         depositCents: depositCents(ctx.offering, total),
         currency: org.currency,
         cancelWindowMin: ctx.offering.cancelWindowMin,
-      }, mail.tUnits);
+      };
+      const infoLines = moneyInfoLines(money, mail.tUnits);
+      const clientInfoLines = moneyInfoLines(money, client.tUnits);
       const providerEmail = await getProviderEmail(org.orgId).catch((e) => {
         console.error("[rentals] getProviderEmail:", e);
         return null;
       });
-      prep = { whenLine, serviceName, infoLines, providerEmail };
+      prep = { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines, providerEmail };
     } catch (error) {
       console.error("[rentals] post-booking mail prep failed:", error);
       return { ok: true, token, pending: isPending };
     }
-    const { whenLine, serviceName, infoLines, providerEmail } = prep;
+    const { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines, providerEmail } = prep;
 
     // Best-effort confirmation (the booking survives email failure). Pending:
     // the request-received twin instead — nothing is confirmed yet.
     try {
       const manageUrl = buildBookingManageUrl(token);
       const msg = isPending
-        ? bookingRequestReceivedEmail(mail.t, {
+        ? bookingRequestReceivedEmail(client.t, {
             orgName: org.orgName,
             serviceName,
-            whenLine,
+            whenLine: clientWhenLine,
             manageUrl,
-            infoLines,
+            infoLines: clientInfoLines,
           })
-        : bookingConfirmationEmail(mail.t, {
+        : bookingConfirmationEmail(client.t, {
             orgName: org.orgName,
             serviceName,
-            whenLine,
+            whenLine: clientWhenLine,
             manageUrl,
             icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
-            infoLines,
+            infoLines: clientInfoLines,
           });
       await selectTransport().send({
         to: email,

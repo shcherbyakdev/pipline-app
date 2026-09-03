@@ -76,6 +76,16 @@ export const getOrgLocale = cache(async (orgId: string): Promise<string | null> 
   return data?.locale ?? null;
 });
 
+/** The language the client booked in (bookings.locale, 0072), or null for a
+    row written before it existed and for every admin-made booking — the
+    callers fall back to the org's. Read by the manage page and by the
+    client-facing mails the manage actions send. */
+export const getBookingLocale = cache(async (bookingId: string): Promise<string | null> => {
+  const admin = createAdminClient();
+  const { data } = await admin.from("bookings").select("locale").eq("id", bookingId).maybeSingle();
+  return data?.locale ?? null;
+});
+
 export async function listPublicServices(orgId: string): Promise<PublicService[]> {
   const admin = createAdminClient();
   const { data, error } = await admin

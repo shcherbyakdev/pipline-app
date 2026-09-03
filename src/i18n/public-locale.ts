@@ -52,3 +52,16 @@ export function withLang(href: string, lang: string | undefined): string {
   if (!isLocale(lang)) return href;
   return `${href}${href.includes("?") ? "&" : "?"}lang=${lang}`;
 }
+
+/** The current public URL with `?lang=` set to `locale` — the href behind
+    each entry of the visitor's language links. Any `lang` already on the
+    URL is replaced, every other query value survives (a `?service=` deep
+    link keeps its service when the visitor switches language). `path` is
+    the proxy's `x-pathname` (pathname + search); when it is missing, a bare
+    `?lang=` still resolves against whatever page is rendering it. */
+export function langHref(path: string | null | undefined, locale: Locale): string {
+  const [base = "", query = ""] = (path ?? "").split("?");
+  const params = new URLSearchParams(query);
+  params.set("lang", locale);
+  return `${base}?${params.toString()}`;
+}

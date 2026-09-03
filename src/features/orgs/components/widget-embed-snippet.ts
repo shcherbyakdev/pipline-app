@@ -40,10 +40,14 @@ export function embedSnippet(
   target: LinkTarget | undefined,
   mode: OrgMode | undefined,
   titles: EmbedTitles,
+  // Pins the widget to one language; omitted, it follows the visitor
+  // (embedSrc). The iframe `title` stays the ORG's language either way —
+  // it is written server-side from the org's locale, not from this pick.
+  lang?: string,
 ): string {
   const scriptBase = appUrl.replace(/\/+$/, "");
   return (
-    `<iframe data-rollout-embed src="${embedSrc(appUrl, handle, target)}" `
+    `<iframe data-rollout-embed src="${embedSrc(appUrl, handle, target, lang)}" `
     + `style="width:100%;border:0" title="${snippetTitle(target, mode, titles)}"></iframe>\n`
     + `<script src="${scriptBase}/embed.js" async></script>`
   );

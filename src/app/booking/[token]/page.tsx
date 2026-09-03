@@ -3,13 +3,14 @@ import { headers } from "next/headers";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { clientKeyFrom } from "@/lib/tokens";
 import { resolveBookingToken } from "@/lib/tokens/booking";
-import { getOrgLocale, resolveClientStaffName } from "@/lib/booking/public";
+import { getBookingLocale, getOrgLocale, resolveClientStaffName } from "@/lib/booking/public";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { ManageBooking } from "@/features/scheduling/components/manage-booking";
 import { moneyInfoLines } from "@/features/rentals/pricing";
 import { INTL_LOCALES } from "@/i18n/config";
 import { publicLocale } from "@/i18n/public";
 import { PublicIntl } from "@/i18n/public-provider";
+import { PublicLanguageLinks } from "@/i18n/public-language-links";
 
 // Booking statuses → `public.manage.status.*` keys; anything unknown shows
 // its raw status rather than a blank line.
@@ -37,8 +38,11 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
   }
   if (result.status !== "ok") notFound();
   const b = result.booking;
-  // The token's org sets the language (spec §4), as on its booking page.
-  const locale = await publicLocale(await getOrgLocale(b.orgId), sp);
+  // The language the client booked in (0072) — the page a confirmation mail
+  // links to reads like the mail. Falling back to the org for every row
+  // written before the column existed and for admin-made bookings; `?lang=`
+  // and the visitor's region still win, as everywhere public (spec §4).
+  const locale = await publicLocale((await getBookingLocale(b.id)) ?? (await getOrgLocale(b.orgId)), sp);
   setRequestLocale(locale);
   const [t, tUnits, tConfirmed] = await Promise.all([
     getTranslations("public.manage"),
@@ -140,6 +144,7 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
           />
         </>
       ) : null}
+      <PublicLanguageLinks locale={locale} />
     </main>
     </PublicIntl>
   );

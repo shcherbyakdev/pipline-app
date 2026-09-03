@@ -14,6 +14,7 @@ import type { ChannelPage } from "@/lib/booking/channel-pages";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { langParam, publicLocale, withLang } from "@/i18n/public";
 import { PublicIntl } from "@/i18n/public-provider";
+import { PublicLanguageLinks } from "@/i18n/public-language-links";
 import { getPublishedPage } from "../queries";
 import { toCatalogChannel } from "../channel";
 import { resolveInitialOffering, resolveInitialService } from "../initial-service";
@@ -87,6 +88,9 @@ export async function renderChannelPage({
           {/* Same rule as the embed: the badge shows unless the org both asked
               to hide it and is on a plan that may (spec §5). */}
           {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}
+          {/* The visitor's escape hatch, its own element: the badge above is
+              hideable on a paid plan and the language links are not. */}
+          <PublicLanguageLinks locale={locale} />
         </main>
       </WidgetTheme>
     </div>
