@@ -124,7 +124,7 @@ describe("hourly rental RPCs (0056 part B)", () => {
     const client = await signedInUser(tag);
     const { data: org, error: e1 } = await client.rpc("create_org", {
       p_name: name,
-      p_offers_appointments: true,
+      p_offers_appointments: !(opts.offersRentals ?? true),
       p_offers_rentals: opts.offersRentals ?? true,
     });
     if (e1) throw e1;
@@ -241,7 +241,7 @@ describe("hourly rental RPCs (0056 part B)", () => {
 
   beforeAll(async () => {
     owner = await signedInUser("hourly_rpc_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "HourlyRpcCo" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "HourlyRpcCo", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
     handle = HANDLE;
@@ -545,7 +545,7 @@ describe("hourly rental RPCs (0056 part B)", () => {
 
   it("tenant isolation: a stranger cannot touch this org's offering or booking via the _admin RPCs", async () => {
     const stranger = await signedInUser("hourly_rpc_stranger");
-    const { error: e1 } = await stranger.rpc("create_org", { p_name: "StrangerCo" });
+    const { error: e1 } = await stranger.rpc("create_org", { p_name: "StrangerCo", p_offers_appointments: false, p_offers_rentals: true });
     expect(e1).toBeNull();
 
     // org_id in (select user_orgs()) is all that stops a logged-in user
@@ -709,6 +709,8 @@ describe("hourly admin actions (Task 10, action layer)", () => {
     owner = await signedInUser("hourly_admin_actions_owner");
     const { data: org, error: e1 } = await owner.rpc("create_org", {
       p_name: "HourlyAdminActionsCo",
+      p_offers_appointments: false,
+      p_offers_rentals: true,
     });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;

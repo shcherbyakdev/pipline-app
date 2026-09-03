@@ -66,7 +66,7 @@ describe("queries OFFERING_COLUMNS count embed", () => {
 
   beforeAll(async () => {
     alice = await signedInUser("rentq_alice");
-    const { data: org, error: e1 } = await alice.rpc("create_org", { p_name: "RentQAlpha" });
+    const { data: org, error: e1 } = await alice.rpc("create_org", { p_name: "RentQAlpha", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
 
@@ -117,7 +117,7 @@ describe("listOfferings activeUnitCount", () => {
 
   beforeAll(async () => {
     alice = await signedInUser("rentq_active");
-    const { data: org, error: e1 } = await alice.rpc("create_org", { p_name: "RentQActive" });
+    const { data: org, error: e1 } = await alice.rpc("create_org", { p_name: "RentQActive", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
     actingClient.current = alice;
@@ -178,7 +178,7 @@ describe("listTimelineData turnover padding", () => {
 
   beforeAll(async () => {
     owner = await signedInUser("rentq_timeline_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentQTimeline" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentQTimeline", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
 

@@ -1,9 +1,10 @@
 /**
- * Org modes (0054): create_org / create_org_with_page with channel flags,
- * update_org_modes, the orgs_offers_something CHECK, and public-RPC gating —
- * a disabled channel's create RPC answers the uniform 'not found'. The public
- * create RPCs are service_role-only (0052), so they are exercised through
- * `admin`. Requires the local Supabase stack.
+ * Org modes (0054, one channel per org since 0073): create_org /
+ * create_org_with_page with channel flags, update_org_modes, the
+ * orgs_offers_one CHECK, and public-RPC gating — the other channel's create
+ * RPC answers the uniform 'not found'. The public create RPCs are
+ * service_role-only (0052), so they are exercised through `admin`. Requires
+ * the local Supabase stack.
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import { loadEnvFile } from "node:process";
@@ -24,7 +25,6 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const anon = createClient(url, anonKey, { auth: { persistSession: false } });
 
 async function signedInUser(tag: string): Promise<SupabaseClient> {
   const email = `rls_${tag}_${Date.now()}@example.com`;
@@ -54,30 +54,28 @@ async function flags(orgId: string) {
   return data as { offers_appointments: boolean; offers_rentals: boolean };
 }
 
-describe("create_org (0054)", () => {
-  it("defaults both channels on when called with only a name", async () => {
+describe("create_org (0054 / 0073)", () => {
+  it("defaults to appointments when called with only a name", async () => {
     const u = await signedInUser("modes_default");
     const { data, error } = await u.rpc("create_org", { p_name: "DefaultCo" });
     expect(error).toBeNull();
     expect(await flags((data as { id: string }).id)).toEqual({
       offers_appointments: true,
-      offers_rentals: true,
+      offers_rentals: false,
     });
   });
 
-  it("rejects both channels off", async () => {
+  it("rejects both channels off, and both on", async () => {
     const u = await signedInUser("modes_none");
-    const { error } = await u.rpc("create_org", {
-      p_name: "NoneCo",
-      p_offers_appointments: false,
-      p_offers_rentals: false,
-    });
-    expect(error?.message).toMatch(/at least one/);
+    const none = await u.rpc("create_org", { p_name: "NoneCo", p_offers_appointments: false, p_offers_rentals: false });
+    expect(none.error?.message).toMatch(/pick one/);
+    const both = await u.rpc("create_org", { p_name: "BothCo", p_offers_appointments: true, p_offers_rentals: true });
+    expect(both.error?.message).toMatch(/pick one/);
   });
 });
 
 describe("create_org_with_page (0054)", () => {
-  it("stores an explicit rentals-only choice alongside handle and timezone", async () => {
+  it("stores an explicit spaces choice alongside handle and timezone", async () => {
     const u = await signedInUser("modes_page");
     const handle = `modes-page-${Date.now()}`;
     const { data, error } = await u.rpc("create_org_with_page", {
@@ -94,7 +92,7 @@ describe("create_org_with_page (0054)", () => {
   });
 });
 
-describe("update_org_modes (0054)", () => {
+describe("update_org_modes (0054 / 0073)", () => {
   let owner: SupabaseClient;
   let orgId: string;
 
@@ -105,7 +103,7 @@ describe("update_org_modes (0054)", () => {
     orgId = (data as { id: string }).id;
   });
 
-  it("flips flags for a member", async () => {
+  it("switches the channel for a member", async () => {
     const { error } = await owner.rpc("update_org_modes", {
       p_org_id: orgId,
       p_offers_appointments: false,
@@ -115,13 +113,12 @@ describe("update_org_modes (0054)", () => {
     expect(await flags(orgId)).toEqual({ offers_appointments: false, offers_rentals: true });
   });
 
-  it("rejects both off", async () => {
-    const { error } = await owner.rpc("update_org_modes", {
-      p_org_id: orgId,
-      p_offers_appointments: false,
-      p_offers_rentals: false,
-    });
-    expect(error?.message).toMatch(/at least one/);
+  it("rejects both off, and both on", async () => {
+    const none = await owner.rpc("update_org_modes", { p_org_id: orgId, p_offers_appointments: false, p_offers_rentals: false });
+    expect(none.error?.message).toMatch(/pick one/);
+    const both = await owner.rpc("update_org_modes", { p_org_id: orgId, p_offers_appointments: true, p_offers_rentals: true });
+    expect(both.error?.message).toMatch(/pick one/);
+    expect(await flags(orgId)).toEqual({ offers_appointments: false, offers_rentals: true });
   });
 
   it("rejects a non-member with 'org not found'", async () => {
@@ -129,17 +126,16 @@ describe("update_org_modes (0054)", () => {
     const { error } = await stranger.rpc("update_org_modes", {
       p_org_id: orgId,
       p_offers_appointments: true,
-      p_offers_rentals: true,
+      p_offers_rentals: false,
     });
     expect(error?.message).toMatch(/org not found/);
   });
 
-  it("CHECK blocks a direct all-false write even for service_role", async () => {
-    const { error } = await admin
-      .from("orgs")
-      .update({ offers_appointments: false, offers_rentals: false })
-      .eq("id", orgId);
-    expect(error?.message).toMatch(/orgs_offers_something/);
+  it("CHECK blocks a direct all-false or all-true write even for service_role", async () => {
+    const none = await admin.from("orgs").update({ offers_appointments: false, offers_rentals: false }).eq("id", orgId);
+    expect(none.error?.message).toMatch(/orgs_offers_one/);
+    const both = await admin.from("orgs").update({ offers_appointments: true, offers_rentals: true }).eq("id", orgId);
+    expect(both.error?.message).toMatch(/orgs_offers_one/);
   });
 });
 
@@ -210,7 +206,7 @@ describe("public RPC gating (0054)", () => {
 
     const on = await owner.rpc("update_org_modes", {
       p_org_id: orgId,
-      p_offers_appointments: true,
+      p_offers_appointments: false,
       p_offers_rentals: true,
     });
     expect(on.error).toBeNull();

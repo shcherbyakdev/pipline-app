@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { requireOrg } from "@/lib/auth/session";
-import { modeOf } from "@/features/orgs/mode";
+import { modeChoice } from "@/features/orgs/schema";
 import { AppearanceSettings } from "@/features/orgs/components/appearance-settings";
 import { LanguageSettings } from "@/features/orgs/components/language-settings";
 import { BusinessSettings } from "@/features/orgs/components/business-settings";
@@ -21,7 +21,7 @@ export default async function SettingsPage() {
       </div>
       <div className="flex flex-col gap-3">
         <h2 className="text-muted-foreground text-sm font-medium">{t("sections.business")}</h2>
-        <BusinessSettings mode={modeOf(org)} />
+        <BusinessSettings mode={modeChoice(org)} />
       </div>
     </div>
   );

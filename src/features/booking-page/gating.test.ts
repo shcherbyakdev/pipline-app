@@ -26,7 +26,6 @@ describe("pageSections gating", () => {
 describe("addableTypes (palette by org mode)", () => {
   const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
   const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
-  const BOTH = { offersAppointments: true, offersRentals: true };
   it("appointments-only never offers Spaces", () => {
     const t = addableTypes(APPTS_ONLY);
     expect(t).not.toContain("spaces");
@@ -38,8 +37,5 @@ describe("addableTypes (palette by org mode)", () => {
     expect(t).toContain("spaces");
     expect(t).not.toContain("services");
     expect(t).not.toContain("staff");
-  });
-  it("both channels: the full palette, in ADDABLE_TYPES order", () => {
-    expect(addableTypes(BOTH)).toEqual([...ADDABLE_TYPES]);
   });
 });

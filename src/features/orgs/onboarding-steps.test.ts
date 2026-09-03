@@ -3,13 +3,11 @@ import { nextStepHref, parseWizardStep, stepHref, wizardSteps } from "./onboardi
 
 const APPOINTMENTS = { offersAppointments: true, offersRentals: false };
 const SPACES = { offersAppointments: false, offersRentals: true };
-const BOTH = { offersAppointments: true, offersRentals: true };
 
 describe("wizardSteps", () => {
   it("opens with mode, follows the org's mode, share closes every flow", () => {
     expect(wizardSteps(APPOINTMENTS)).toEqual(["mode", "service", "hours", "share"]);
     expect(wizardSteps(SPACES)).toEqual(["mode", "space", "share"]);
-    expect(wizardSteps(BOTH)).toEqual(["mode", "service", "space", "hours", "share"]);
   });
 });
 
@@ -26,10 +24,10 @@ describe("parseWizardStep", () => {
 });
 
 describe("nextStepHref", () => {
-  const steps = wizardSteps(BOTH);
+  const steps = wizardSteps(APPOINTMENTS);
   it("walks the flow and exits to /bookings", () => {
     expect(nextStepHref("mode", steps)).toBe(stepHref("service"));
-    expect(nextStepHref("service", steps)).toBe(stepHref("space"));
+    expect(nextStepHref("service", steps)).toBe(stepHref("hours"));
     expect(nextStepHref("hours", steps)).toBe(stepHref("share"));
     expect(nextStepHref("share", steps)).toBe("/bookings");
   });

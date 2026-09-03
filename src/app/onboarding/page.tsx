@@ -19,7 +19,8 @@ import { getDashboardFlags } from "@/lib/flags/resolve";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { getBookingOrg } from "@/lib/booking/public";
 import { listPublicCatalog, catalogueHas } from "@/lib/booking/catalog";
-import { resolveChannelPage } from "@/lib/booking/channel-pages";
+import { frontDoor } from "@/lib/booking/channel-pages";
+import { modeChoice } from "@/features/orgs/schema";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { OnboardingForm } from "./onboarding-form";
@@ -107,8 +108,7 @@ async function WizardStepContent({ step, steps, org }: { step: WizardStep; steps
   let body: React.ReactNode;
 
   if (step === "mode") {
-    const initialMode = org.offersRentals ? (org.offersAppointments ? "both" : "rentals") : "appointments";
-    body = <ModeStepForm initialMode={initialMode} nextHref={nextHref} />;
+    body = <ModeStepForm initialMode={modeChoice(org)} nextHref={nextHref} />;
   } else if (step === "service" || step === "space") {
     const currency = settings?.currency ?? "USD";
     body =
@@ -144,7 +144,7 @@ async function WizardStepContent({ step, steps, org }: { step: WizardStep; steps
     if (handle) {
       const bookingOrg = await getBookingOrg(handle);
       live = bookingOrg
-        ? resolveChannelPage("root", catalogueHas(await listPublicCatalog(bookingOrg))) !== null
+        ? frontDoor(catalogueHas(await listPublicCatalog(bookingOrg))) !== null
         : false;
     }
     body = <ShareStep handle={handle} live={live} />;

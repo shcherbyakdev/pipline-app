@@ -16,6 +16,7 @@ import {
   createOrgWithPageSchema,
   updateAccentInput,
   updateOrgModesInput,
+  modeToFlags,
   surfaceThemeInput,
   type OrgState,
   type ActionState,
@@ -250,14 +251,15 @@ export async function removeLogo(): Promise<ActionState> {
 
 export async function updateOrgModes(input: unknown): Promise<ActionState> {
   const parsed = updateOrgModesInput.safeParse(input);
-  if (!parsed.success) return { ok: false, error: (await getTranslations("errors"))("orgs.keepOne") };
+  if (!parsed.success) return fail();
   const { org, error: orgError } = await currentOrgBranding();
   if (!org) return brandingFail("updateOrgModes", orgError ?? "no org");
   const supabase = await createClient();
+  const flags = modeToFlags(parsed.data.mode);
   const { error } = await supabase.rpc("update_org_modes", {
     p_org_id: org.id,
-    p_offers_appointments: parsed.data.offersAppointments,
-    p_offers_rentals: parsed.data.offersRentals,
+    p_offers_appointments: flags.offersAppointments,
+    p_offers_rentals: flags.offersRentals,
   });
   if (error) return brandingFail("updateOrgModes", error);
   // The sidebar/command menu read the flags in the dashboard layout.

@@ -91,7 +91,7 @@ const moveToEnd = d(47);
 describe("rental flow e2e (action layer)", () => {
   beforeAll(async () => {
     const owner = await signedInUser("rentflow_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowCo" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowCo", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
     const { error: eFlag } = await admin
@@ -323,7 +323,7 @@ describe("hourly offering rejected by the date-range action layer", () => {
 
   beforeAll(async () => {
     const owner = await signedInUser("rentflow_hours_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowHoursCo" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowHoursCo", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     const hourlyOrgId = (org as { id: string }).id;
     const { error: eFlag } = await admin
@@ -381,7 +381,7 @@ describe("terms acceptance gate (date-range action layer)", () => {
 
   beforeAll(async () => {
     const owner = await signedInUser("rentflow_terms_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowTermsCo" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentFlowTermsCo", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     termsOrgId = (org as { id: string }).id;
     const { error: eFlag } = await admin

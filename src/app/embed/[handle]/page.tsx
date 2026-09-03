@@ -7,7 +7,6 @@ import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
 import { resolveInitialOffering, resolveInitialService } from "@/features/booking-page/initial-service";
 import { initialRequest } from "@/features/booking-page/render/page-request";
-import { applyChannel, embedChannel, requestedEmbedChannel } from "@/lib/booking/channel";
 import { badgeVisible } from "@/lib/billing/entitlements";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import { WidgetTheme } from "@/components/widget-theme";
@@ -46,16 +45,8 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
   // region, else the org's own setting (spec §4 + region detection).
   const locale = await publicLocale(org.locale, sp);
   setRequestLocale(locale);
-  // ONE channel, always (2026-09-02 ruling — the hosted pages are one
-  // channel each): `?channel=` when it has something bookable, else the
-  // front door. Decided first (spec §5): the pin below only sees the channel
-  // this snippet shows, so `?channel=spaces&staff=anna` is a spaces widget
-  // with no lock.
-  const cat = applyChannel(
-    { services: offering.services, staff: offering.staff, serviceStaffIds: offering.serviceStaffIds, offerings },
-    embedChannel({ services: offering.services.length > 0, spaces: offerings.length > 0 }, requestedEmbedChannel(sp)),
-  );
-  const { services: orgServices, staff, serviceStaffIds } = cat;
+  // The gated catalogue is the org's one channel (0073), like the hosted page.
+  const { services: orgServices, staff, serviceStaffIds } = offering;
   // `?staff=` pins the embed to one team member. Unlike /[handle]/[staffSlug]
   // this never 404s: the snippet lives on someone else's site, so a staff
   // member who left (or a mistyped slug) must degrade to the org-wide flow
@@ -79,7 +70,7 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
   // are org-level and have no place here; they only come back once the lock
   // drops (pinnedServices empty ⇒ lockedStaff null ⇒ the org flow, spaces
   // included).
-  const embedOfferings = lockedStaff ? [] : cat.offerings;
+  const embedOfferings = lockedStaff ? [] : offerings;
   // `?service=` / `?space=` (spec §5): the pinned roster wins — a service the
   // pinned person doesn't offer is ignored. `?space=` resolves against
   // embedOfferings so a locked embed can never seed a space it doesn't show.

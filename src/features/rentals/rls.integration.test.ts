@@ -47,10 +47,10 @@ describe("RLS rentals", () => {
   beforeAll(async () => {
     alice = await signedInUser("rent_alice");
     bob = await signedInUser("rent_bob");
-    const { data: orgA, error: e1 } = await alice.rpc("create_org", { p_name: "RentAlpha" });
+    const { data: orgA, error: e1 } = await alice.rpc("create_org", { p_name: "RentAlpha", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     aliceOrgId = (orgA as { id: string }).id;
-    const { data: orgB, error: e2 } = await bob.rpc("create_org", { p_name: "RentBeta" });
+    const { data: orgB, error: e2 } = await bob.rpc("create_org", { p_name: "RentBeta", p_offers_appointments: false, p_offers_rentals: true });
     if (e2) throw e2;
     bobOrgId = (orgB as { id: string }).id;
   });

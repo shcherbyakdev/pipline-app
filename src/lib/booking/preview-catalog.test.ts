@@ -5,7 +5,6 @@ import type { PublicService } from "@/lib/booking/public";
 
 const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
 const RENTALS_ONLY = { offersAppointments: false, offersRentals: true };
-const BOTH = { offersAppointments: true, offersRentals: true };
 
 type ServiceRow = PublicService & { active: boolean };
 function service(id: string, active = true): ServiceRow {
@@ -52,20 +51,8 @@ describe("toPreviewCatalog", () => {
     expect(out.offerings[0].priceCents).toBeGreaterThan(0);
   });
 
-  it("both channels: real services and real offerings side by side", () => {
-    const out = toPreviewCatalog({ mode: BOTH, services: [service("cut")], offerings: [offering("room")] });
-    expect(ids(out.services)).toEqual(["cut"]);
-    expect(ids(out.offerings)).toEqual(["room"]);
-  });
-
-  it("both channels with nothing yet: canned service AND canned offering", () => {
-    const out = toPreviewCatalog({ mode: BOTH, services: [], offerings: [] });
-    expect(ids(out.services)).toEqual(["preview-service"]);
-    expect(ids(out.offerings)).toEqual(["preview-offering"]);
-  });
-
   it("a space with no active unit is not listed — the public page won't list it either", () => {
-    const out = toPreviewCatalog({ mode: BOTH, services: [service("cut")], offerings: [offering("room"), offering("shell", true, 0)] });
+    const out = toPreviewCatalog({ mode: RENTALS_ONLY, services: [], offerings: [offering("room"), offering("shell", true, 0)] });
     expect(ids(out.offerings)).toEqual(["room"]);
   });
 
@@ -81,7 +68,7 @@ describe("toPreviewCatalog", () => {
   });
 
   it("the projection keeps the public shape only — no admin-only fields leak into the preview", () => {
-    const out = toPreviewCatalog({ mode: BOTH, services: [], offerings: [offering("room")] });
+    const out = toPreviewCatalog({ mode: RENTALS_ONLY, services: [], offerings: [offering("room")] });
     expect(out.offerings[0]).not.toHaveProperty("unitCount");
     expect(out.offerings[0]).not.toHaveProperty("active");
     expect(out.offerings[0]).not.toHaveProperty("sortOrder");

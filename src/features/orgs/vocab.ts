@@ -12,5 +12,4 @@ export const SPACES = {
   /** Onboarding mode picker (site.ts ONBOARDING.modes). */
   pickerTitle: "Spaces",
   pickerBlurb: "Rooms, studios and gear, booked by the hour, night or day.",
-  pickerBothBlurb: "You book spaces and people.",
 } as const;

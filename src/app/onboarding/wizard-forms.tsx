@@ -9,7 +9,7 @@ import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { createService, setWeeklyHours } from "@/features/scheduling/actions";
 import { createOffering } from "@/features/rentals/actions";
 import { updateOrgModes } from "@/features/orgs/actions";
-import { modeToFlags, type OrgModeChoice } from "@/features/orgs/schema";
+import { ORG_MODES, modeToFlags, type OrgModeChoice } from "@/features/orgs/schema";
 import { stepHref, wizardSteps } from "@/features/orgs/onboarding-steps";
 import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
 import type { RangeMode } from "@/features/rentals/range";
@@ -31,13 +31,11 @@ const selectClass =
   "border-input bg-card h-11 w-full rounded-xl border px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 const DURATIONS = [15, 30, 45, 60, 90, 120] as const;
 
-/** The mode cards' message keys (`onboarding.modes.*`), Spaces first (H5b ruling 1). */
-const MODE_KEYS: Record<OrgModeChoice, "spaces" | "appointments" | "both"> = {
+/** The mode cards' message keys (`onboarding.modes.*`); ORG_MODES sets the order. */
+const MODE_KEYS: Record<OrgModeChoice, "spaces" | "appointments"> = {
   rentals: "spaces",
   appointments: "appointments",
-  both: "both",
 };
-const MODE_ORDER: readonly OrgModeChoice[] = ["rentals", "appointments", "both"];
 
 function FormError({ message }: { message: string | null }) {
   return message ? <p role="alert" className="text-destructive text-sm">{message}</p> : null;
@@ -80,7 +78,7 @@ export function ModeStepForm({ initialMode, nextHref }: { initialMode: OrgModeCh
     startTransition(async () => {
       try {
         if (choice !== initialMode) {
-          const result = await updateOrgModes(modeToFlags(choice));
+          const result = await updateOrgModes({ mode: choice });
           if (!result.ok) return setError(result.error);
         }
         // The next dot follows the chosen mode, not the mode the page
@@ -100,7 +98,7 @@ export function ModeStepForm({ initialMode, nextHref }: { initialMode: OrgModeCh
           reachable. */}
       <fieldset className="flex flex-col gap-2">
         <legend className="sr-only">{t("modeLegend")}</legend>
-        {MODE_ORDER.map((value) => {
+        {ORG_MODES.map((value) => {
           const selected = choice === value;
           const key = MODE_KEYS[value];
           return (

@@ -59,18 +59,15 @@ describe("modeToFlags", () => {
   it("maps each mode to its flag pair", () => {
     expect(modeToFlags("appointments")).toEqual({ offersAppointments: true, offersRentals: false });
     expect(modeToFlags("rentals")).toEqual({ offersAppointments: false, offersRentals: true });
-    expect(modeToFlags("both")).toEqual({ offersAppointments: true, offersRentals: true });
   });
 });
 
 describe("updateOrgModesInput", () => {
-  it("accepts any pair with at least one true", () => {
-    expect(updateOrgModesInput.safeParse({ offersAppointments: true, offersRentals: false }).success).toBe(true);
-    expect(updateOrgModesInput.safeParse({ offersAppointments: true, offersRentals: true }).success).toBe(true);
-  });
-  it("rejects both false and non-booleans", () => {
-    expect(updateOrgModesInput.safeParse({ offersAppointments: false, offersRentals: false }).success).toBe(false);
-    expect(updateOrgModesInput.safeParse({ offersAppointments: "yes", offersRentals: true }).success).toBe(false);
+  it("accepts one of the two channels and nothing else", () => {
+    expect(updateOrgModesInput.safeParse({ mode: "appointments" }).success).toBe(true);
+    expect(updateOrgModesInput.safeParse({ mode: "rentals" }).success).toBe(true);
+    expect(updateOrgModesInput.safeParse({ mode: "both" }).success).toBe(false);
+    expect(updateOrgModesInput.safeParse({ offersAppointments: true, offersRentals: false }).success).toBe(false);
   });
 });
 

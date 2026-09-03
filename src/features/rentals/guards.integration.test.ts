@@ -86,7 +86,7 @@ describe("booking guards (0037)", () => {
 
   beforeAll(async () => {
     alice = await signedInUser("rent_guard");
-    const { data: org, error } = await alice.rpc("create_org", { p_name: "RentGuard" });
+    const { data: org, error } = await alice.rpc("create_org", { p_name: "RentGuard", p_offers_appointments: false, p_offers_rentals: true });
     if (error) throw error;
     orgId = (org as { id: string }).id;
     const { data: st, error: stErr } = await admin

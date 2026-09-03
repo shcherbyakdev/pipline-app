@@ -334,14 +334,7 @@ export function BookingWidget({
   const showOfferings = listOfferings && offerings.length > 0;
   const deferredServices = !listServices && services.length > 0;
   const deferredOfferings = !listOfferings && offerings.length > 0;
-  const prompt =
-    deferredServices && deferredOfferings
-      ? t("promptBoth")
-      : deferredServices
-        ? t("promptServices")
-        : deferredOfferings && !showServices
-          ? t("promptSpaces")
-          : null;
+  const prompt = deferredServices ? t("promptServices") : deferredOfferings && !showServices ? t("promptSpaces") : null;
   const canChangeService = services.length + offerings.length > 1 && (showServices || showOfferings);
   const changeService = () => {
     setService(null);

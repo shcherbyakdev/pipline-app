@@ -8,8 +8,8 @@ import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { listOfferings } from "@/features/rentals/queries";
 import { bookableAdminServices } from "@/lib/booking/bookable";
-import { effectiveMode, modeOf, presentMode } from "@/features/orgs/mode";
-import { isBookableOffering, toPreviewCatalog } from "@/lib/booking/preview-catalog";
+import { effectiveMode, modeOf } from "@/features/orgs/mode";
+import { toPreviewCatalog } from "@/lib/booking/preview-catalog";
 import { requireOrg } from "@/lib/auth/session";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { badgeToggle } from "@/lib/billing/badge-toggle";
@@ -20,24 +20,18 @@ import { PageIntro } from "@/components/shell/page-header";
 /* Website embed: the second booking channel — the widget on the org's own
    site. Style it against a live preview, then copy the snippet. */
 export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
-  // The preview shows the channels the public widget shows (listPublicCatalog's
-  // rules): declared mode ∩ the rentals kill switch, same as /bookings — then
-  // narrowed to the channels with something bookable (presentMode), as the
-  // Booking page does, so the two previews and the live widget agree.
+  // The preview shows the channel the public widget shows (listPublicCatalog's
+  // rule): declared mode ∩ the rentals kill switch, same as /bookings.
   const { org } = await requireOrg();
-  const declared = effectiveMode(await getDashboardFlags(org.id), modeOf(org));
+  const mode = effectiveMode(await getDashboardFlags(org.id), modeOf(org));
   const [settings, schedulingSettings, services, staff, offerings] = await Promise.all([
     getBrandingSettings(),
     getSchedulingSettings(),
     listServices(),
     listStaff(),
-    declared.offersRentals ? listOfferings() : [],
+    mode.offersRentals ? listOfferings() : [],
   ]);
   if (!settings || !schedulingSettings) notFound();
-  const mode = presentMode(declared, {
-    services: services.some((s) => s.active),
-    spaces: offerings.some(isBookableOffering),
-  });
 
   // Hiding "Powered by Booklo" is a paid perk (spec §5). While billing is off
   // nothing is read and every org keeps the toggle it has today. A failed read

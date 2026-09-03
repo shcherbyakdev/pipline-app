@@ -52,9 +52,8 @@ describe("pageMetadata", () => {
     expect(plain.openGraph).toBeUndefined();
     expect(heroImagePath(DEFAULT_PAGE)).toBeNull();
   });
-  it("the fallback description is the PAGE's channel, not the org's declared mix (spec 2026-08-28 §3.6)", () => {
-    const BOTH = { orgName: "Anna's", offersAppointments: true, offersRentals: true };
-    expect(pageMetadata(DEFAULT_PAGE, BOTH, "http://127.0.0.1:54351", "Book an appointment with Anna's.").description).toBe("Book an appointment with Anna's.");
-    expect(pageMetadata(DEFAULT_PAGE, BOTH, "http://127.0.0.1:54351", "Book a space at Anna's.").description).toBe("Book a space at Anna's.");
+  it("the fallback description is whatever the route resolved for the page's channel (spec 2026-08-28 §3.6)", () => {
+    expect(pageMetadata(DEFAULT_PAGE, APPTS, "http://127.0.0.1:54351", "Book an appointment with Anna's.").description).toBe("Book an appointment with Anna's.");
+    expect(pageMetadata(DEFAULT_PAGE, APPTS, "http://127.0.0.1:54351", "Book a space at Anna's.").description).toBe("Book a space at Anna's.");
   });
 });

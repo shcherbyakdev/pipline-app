@@ -10,38 +10,23 @@ const pro = entitlementsFor(
   { plan: "pro", status: "active", interval: "month", seats: 1, currentPeriodEnd: null, cancelAtPeriodEnd: false },
   now,
 );
-const BOTH = { offersAppointments: true, offersRentals: true };
+const APPTS = { offersAppointments: true, offersRentals: false };
 const SPACES = { offersAppointments: false, offersRentals: true };
 
 describe("resourceMeter (spec §1.2)", () => {
-  it("counts people and units per channel against the cap", () => {
-    expect(resourceMeter(T, { activeStaff: 1, activeUnits: 1 }, BOTH, pro)).toEqual({
+  it("counts the org's channel against the cap", () => {
+    expect(resourceMeter(T, { activeStaff: 2, activeUnits: 1 }, APPTS, pro)).toEqual({
       value: "2 / 5", caption: "people and units on your booking page", hidden: 0,
     });
   });
-  it("a spaces-only org's backfilled person is not counted", () => {
+  it("a spaces org's backfilled person is not counted", () => {
     expect(resourceMeter(T, { activeStaff: 1, activeUnits: 1 }, SPACES, free).value).toBe("1 / 2");
   });
-  it("both-mode on Free (two slots): the person and the first unit are public, the rest hidden", () => {
-    const m = resourceMeter(T, { activeStaff: 1, activeUnits: 2 }, BOTH, free);
+  it("over the cap says how many are public", () => {
+    const m = resourceMeter(T, { activeStaff: 1, activeUnits: 3 }, SPACES, free);
     expect(m.value).toBe("3 / 2");
     expect(m.caption).toBe("only the first 2 are bookable publicly");
     expect(m.hidden).toBe(1);
-  });
-  it("both-mode on a one-resource plan explains why every space is hidden", () => {
-    const one = entitlementsFor(
-      { plan: "team", status: "active", interval: "month", seats: 1, currentPeriodEnd: null, cancelAtPeriodEnd: false },
-      now,
-    );
-    const m = resourceMeter(T, { activeStaff: 1, activeUnits: 2 }, BOTH, one);
-    expect(m.value).toBe("3 / 1");
-    expect(m.caption).toBe("your person takes the slot — spaces need a second resource");
-    expect(m.hidden).toBe(2);
-  });
-  it("over the cap otherwise says how many are public", () => {
-    const m = resourceMeter(T, { activeStaff: 2, activeUnits: 5 }, BOTH, pro);
-    expect(m.caption).toBe("only the first 5 are bookable publicly");
-    expect(m.hidden).toBe(2);
   });
 });
 

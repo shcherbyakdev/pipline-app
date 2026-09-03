@@ -20,8 +20,6 @@ import { SettingsCard } from "@/components/settings-row";
 import { cn } from "@/lib/utils";
 import { embedSnippet, type EmbedTitles } from "./widget-embed-snippet";
 import { LOCALES, LOCALE_NAMES } from "@/i18n/config";
-import { applyChannel, type Channel } from "@/lib/booking/channel";
-import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
 import { PREVIEW_AVAILABILITY } from "@/features/rentals/preview-availability";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 
@@ -74,27 +72,17 @@ export function WidgetAppearance({
   upgradeHref?: string | null;
 }) {
   const t = useTranslations("embed");
-  const tShell = useTranslations("shell");
   const tc = useTranslations("common");
   const [config, setConfig] = React.useState<WidgetThemeConfig>(initial);
   const [pending, startTransition] = React.useTransition();
   // "" = the whole team (the org-wide flow, byte-identical to the old snippet).
   const [staffSlug, setStaffSlug] = React.useState<string>(initialStaffSlug ?? "");
-  // An embed is ONE channel (2026-09-02 ruling): a both-channel org picks
-  // which one here — the snippet names it explicitly and the preview shows
-  // only it. A single-channel org's snippet stays the plain one.
-  const both = mode.offersAppointments && mode.offersRentals;
-  const [channel, setChannel] = React.useState<Channel>(mode.offersAppointments ? "services" : "spaces");
-  const target = channel === "services" && staffSlug ? { staff: staffSlug } : both ? { channel } : null;
+  const target = staffSlug ? { staff: staffSlug } : null;
   // "" = follow the visitor (the widget's own rule: region, then the org's
   // language). Not stored — like the target above, it is part of the string
   // you copy, so one site can paste an English snippet and another Ukrainian.
   const [lang, setLang] = React.useState<string>("");
   const snippet = handle ? embedSnippet(appUrl, handle, target, mode, titles, lang || undefined) : "";
-  const previewCatalog = applyChannel(
-    { services: previewServices, staff: [] as never[], serviceStaffIds: {}, offerings: previewOfferings },
-    both ? channel : null,
-  );
 
   const { blocked: contrastBlocked } = contrastOf(config);
 
@@ -135,16 +123,7 @@ export function WidgetAppearance({
       {handle ? (
         <div className="flex flex-col gap-2">
           <p className="text-muted-foreground text-sm font-medium">{t("snippet")}</p>
-          {both ? (
-            <div role="radiogroup" aria-label={t("whichWidget")} className={cn(SEGMENTED_NAV_CLASS, "w-fit")}>
-              {([["services", t("channelAppointments")], ["spaces", tShell("nav.spaces")]] as const).map(([value, label]) => (
-                <button key={value} type="button" role="radio" aria-checked={channel === value} onClick={() => setChannel(value)} className={segmentedItemClass(channel === value)}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {staffOptions.length > 0 && channel === "services" ? (
+          {staffOptions.length > 0 && mode.offersAppointments ? (
             <div className="flex items-center gap-2">
               <Label htmlFor="wt-staff" className="text-xs font-medium">
                 {t("bookWith")}
@@ -246,8 +225,8 @@ export function WidgetAppearance({
               currency={currency}
               layout={resolveLayout(previewConfig)}
               stayLayout={resolveStayLayout(previewConfig)}
-              services={previewCatalog.services}
-              offerings={previewCatalog.offerings}
+              services={previewServices}
+              offerings={previewOfferings}
               preview={{ slots: PREVIEW_SLOTS, availability: PREVIEW_AVAILABILITY }}
             />
             </div>

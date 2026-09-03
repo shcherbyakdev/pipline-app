@@ -108,7 +108,7 @@ describe("create_rental_booking RPC (0038)", () => {
 
   beforeAll(async () => {
     owner = await signedInUser("rent_rpc_owner");
-    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentalCo" });
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentalCo", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
     const { error: e2 } = await owner.rpc("update_org_scheduling", {

@@ -512,6 +512,13 @@
       "when": 1788464279424,
       "tag": "0072_booking_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1788465441266,
+      "tag": "0073_one_channel",
+      "breakpoints": true
     }
   ]
 }

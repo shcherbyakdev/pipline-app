@@ -165,14 +165,11 @@ describe("site config", () => {
   // dead-end would come right back.
   it("WELCOME has rentals-specific copy distinct from the appointments copy", () => {
     expect(WELCOME.subRentals).not.toBe(WELCOME.sub);
-    expect(WELCOME.subBoth).not.toBe(WELCOME.sub);
-    expect(WELCOME.subBoth).not.toBe(WELCOME.subRentals);
     expect(WELCOME.subRentals.length).toBeGreaterThan(0);
-    expect(WELCOME.subBoth.length).toBeGreaterThan(0);
   });
 
   it("the onboarding picker lists Spaces first (H5b ruling 1)", () => {
-    expect(ONBOARDING.modes.map((m) => m.value)).toEqual(["rentals", "appointments", "both"]);
+    expect(ONBOARDING.modes.map((m) => m.value)).toEqual(["rentals", "appointments"]);
   });
 
   it("FORBIDDEN_COPY retires the old channel words and keeps the H4 ones (H5b ruling 7)", () => {
