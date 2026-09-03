@@ -1,7 +1,7 @@
 import { env } from "@/env";
 
-// The interface locale's carrier (spec §8). HttpOnly: only request.ts reads
-// it; the switcher goes through the setLocale action.
+// The interface locale's carrier (spec §8). HttpOnly: only request.ts
+// (value) and locale-notice.tsx (presence) read it; the switcher goes through the setLocale action.
 export const LOCALE_COOKIE = "NEXT_LOCALE";
 export const LOCALE_COOKIE_OPTIONS = {
   path: "/",

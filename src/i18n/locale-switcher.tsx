@@ -6,7 +6,8 @@ import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segment
 import { LOCALES, LOCALE_NAMES } from "./config";
 import { setLocale } from "./actions";
 
-/* The one language control (Settings › Interface, the auth pages). Server
+/* The one language control (Settings › Interface only — the auth pages
+   detect the language and show LocaleNotice instead, ruling 2026-09-03). Server
    and client agree on the locale — it is a cookie read on the server — so
    unlike the theme picker nothing waits for mount. Each button carries its
    own lang: a screen reader says "Українська" in Ukrainian. */
