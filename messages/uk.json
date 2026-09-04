@@ -994,10 +994,10 @@
       "service": "Послуга",
       "duration": "Тривалість",
       "price": "Ціна",
+      "team": "Команда",
       "actions": "Дії"
     },
     "noTeam": "Без учасників команди",
-    "teamCount": "{assigned} з {total} учасників команди",
     "deleted": "Видалено",
     "confirmDelete": "Підтвердити видалення",
     "keep": "Залишити",

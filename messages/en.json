@@ -994,10 +994,10 @@
       "service": "Service",
       "duration": "Duration",
       "price": "Price",
+      "team": "Team",
       "actions": "Actions"
     },
     "noTeam": "No team members",
-    "teamCount": "{assigned} of {total} team members",
     "deleted": "Deleted",
     "confirmDelete": "Confirm delete",
     "keep": "Keep",
