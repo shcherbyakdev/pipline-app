@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronRight, Pencil, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { toastRefusal } from "@/features/billing/refusal-toast";
 import { createOffering, updateOffering } from "@/features/rentals/actions";
@@ -16,16 +16,7 @@ import { Input, nativeSelectClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogBreadcrumbHeader,
-  DialogChip,
-  DialogContent,
-  DialogFooterBar,
-  DialogTrigger,
-  dialogBareInputClass,
-  dialogPanelClass,
-} from "@/components/ui/dialog";
+import { dialogBareInputClass } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { TIME_OPTIONS } from "@/features/scheduling/time-options";
 import { TimeCombobox } from "@/features/scheduling/components/time-combobox";
@@ -56,7 +47,13 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function OfferingDialog({
+/* A space's settings, on a page (there is no dialog): the whole of
+   /rentals/new, and the Settings section of /rentals/[id]. On the space's
+   page the name and description live in the header (space-header.tsx) and
+   never travel through here. Step, min/max and deposit type/value are
+   checked together, so this stays one form with one Save. A create goes
+   back to the list. */
+export function OfferingForm({
   offering,
   currency,
 }: {
@@ -66,15 +63,8 @@ export function OfferingDialog({
   const t = useTranslations("spaces");
   const tc = useTranslations("common");
   const tu = useTranslations("public.units");
-  const isEdit = Boolean(offering);
-  const searchParams = useSearchParams();
   const router = useRouter();
-  // Only the create trigger (rendered once, at page level) participates in the
-  // `?new=1` URL-driven open — mirrors service-dialog.tsx. Edit dialogs are
-  // per-row and only ever opened manually.
-  const urlOpen = !isEdit && searchParams.get("new") === "1";
-  const [manuallyOpened, setManuallyOpened] = React.useState(false);
-  const open = urlOpen || manuallyOpened;
+  const isEdit = Boolean(offering);
   const [pending, startTransition] = React.useTransition();
   // Controlled so the render branch (Stay section fields) and the payload
   // built in onSubmit always agree on which fields are on the page —
@@ -100,26 +90,18 @@ export function OfferingDialog({
     offering?.requiresApproval ?? false,
   );
 
-  const onOpenChange = (next: boolean) => {
-    // The popup unmounts when closed, but these live here as controlled
-    // state — put them back on reopen so a cancelled edit doesn't linger.
-    if (next) {
-      setRangeMode(offering?.rangeMode ?? "nights");
-      setSlotIncrementMin(offering?.slotIncrementMin ?? OFFERING_DEFAULTS.hours.slotIncrementMin);
-      setDepositType(offering?.depositType ?? "none");
-      setActive(offering?.active ?? true);
-      setRequiresApproval(offering?.requiresApproval ?? false);
-    }
-    setManuallyOpened(next);
-    if (!next && urlOpen) router.replace("/rentals");
-  };
-
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const name = String(fd.get("name") ?? "").trim();
-    if (name === "") return;
-    const description = String(fd.get("description") ?? "").trim();
+    // The name and description travel only on create; on the space's page
+    // the header owns them (updateOfferingInput is strict about it).
+    const identity = offering
+      ? {}
+      : {
+          name: String(fd.get("name") ?? "").trim(),
+          description: String(fd.get("description") ?? "").trim() || undefined,
+        };
+    if ("name" in identity && identity.name === "") return;
     const price = String(fd.get("price") ?? "").trim();
     const termsText = String(fd.get("termsText") ?? "").trim();
     const depositValueRaw = String(fd.get("depositValue") ?? "").trim();
@@ -139,8 +121,7 @@ export function OfferingDialog({
             Number(cancelWindowRaw) * (rangeMode === "hours" ? 60 : 1440),
           );
     const common = {
-      name,
-      description: description === "" ? undefined : description,
+      ...identity,
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
       unitSelection: String(fd.get("unitSelection") ?? "auto"),
       active,
@@ -186,66 +167,48 @@ export function OfferingDialog({
         toastRefusal(result.error, result.upgrade);
         return;
       }
-      onOpenChange(false);
       // A notice means the space saved but its default hours did not: an
       // hourly space with no week offers nothing — a warning, not "Saved",
       // so the owner knows to visit Availability.
       if (result.notice) toastRefusal(result.notice, result.upgrade, "warning");
-      else toast.success(isEdit ? tc("saved") : t("dialog.created"));
+      else toast.success(isEdit ? tc("saved") : t("form.created"));
+      if (!isEdit) router.push("/rentals");
     });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger
-        render={
-          isEdit ? (
-            <Button size="sm" variant="outline">
-              <Pencil className="size-4" /> {tc("edit")}
-            </Button>
-          ) : (
-            <Button size="sm">
-              <Plus className="size-4" /> {t("newButton")}
-            </Button>
-          )
-        }
-      />
-      <DialogContent className={cn(dialogPanelClass, "sm:max-w-lg")}>
-        <DialogBreadcrumbHeader
-          chip={<DialogChip tone="space">{t("badge")}</DialogChip>}
-        >
-          {isEdit ? t("dialogTitle.edit") : t("dialogTitle.new")}
-        </DialogBreadcrumbHeader>
-        <form onSubmit={onSubmit} className="flex flex-col">
-          <div className="flex flex-col px-5 pt-4 pb-6">
-            <input
-              aria-label={tc("name")}
-              name="name"
-              required
-              maxLength={200}
-              defaultValue={offering?.name}
-              placeholder={t("dialog.namePlaceholder")}
-              className={cn(dialogBareInputClass, "text-[15px] font-medium")}
-              autoFocus
-            />
-            <textarea
-              aria-label={t("dialog.description")}
-              name="description"
-              maxLength={2000}
-              rows={2}
-              defaultValue={offering?.description ?? ""}
-              placeholder={t("dialog.descriptionPlaceholder")}
-              className={cn(dialogBareInputClass, "mt-3 resize-none text-sm")}
-            />
-            <div className="mt-6 flex flex-col gap-4">
+        <form onSubmit={onSubmit} className="flex max-w-lg flex-col">
+          <div className="flex flex-col">
+            {isEdit ? null : (
+              <>
+                <input
+                  aria-label={tc("name")}
+                  name="name"
+                  required
+                  maxLength={200}
+                  placeholder={t("form.namePlaceholder")}
+                  className={cn(dialogBareInputClass, "text-[15px] font-medium")}
+                  autoFocus
+                />
+                <textarea
+                  aria-label={t("form.description")}
+                  name="description"
+                  maxLength={2000}
+                  rows={2}
+                  placeholder={t("form.descriptionPlaceholder")}
+                  className={cn(dialogBareInputClass, "mt-3 resize-none text-sm")}
+                />
+              </>
+            )}
+            <div className={cn("flex flex-col gap-4", !isEdit && "mt-6")}>
               {/* The structural choice first: "Booked by" renames half the
                   other fields (Per night / check-in / sessions), so it must
                   be picked before any of them is shown. */}
               <SectionHeading>
-                {rangeMode === "hours" ? t("dialog.section.session") : t("dialog.section.stay")}
+                {rangeMode === "hours" ? t("form.section.session") : t("form.section.stay")}
               </SectionHeading>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-range-mode">{t("dialog.bookedBy")}</Label>
+                <Label htmlFor="offering-range-mode">{t("form.bookedBy")}</Label>
                 <select
                   id="offering-range-mode"
                   name="rangeMode"
@@ -253,9 +216,9 @@ export function OfferingDialog({
                   value={rangeMode}
                   onChange={(e) => setRangeMode(e.target.value as RangeMode)}
                 >
-                  <option value="nights">{t("dialog.mode.nights")}</option>
-                  <option value="days">{t("dialog.mode.days")}</option>
-                  <option value="hours">{t("dialog.mode.hours")}</option>
+                  <option value="nights">{t("form.mode.nights")}</option>
+                  <option value="days">{t("form.mode.days")}</option>
+                  <option value="hours">{t("form.mode.hours")}</option>
                 </select>
               </div>
               {/* Keyed per mode: without keys React reuses the same-position
@@ -266,7 +229,7 @@ export function OfferingDialog({
                 <React.Fragment key="hours">
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="offering-slot-increment">
-                      {t("dialog.slotIncrement")}
+                      {t("form.slotIncrement")}
                     </Label>
                     <select
                       id="offering-slot-increment"
@@ -295,7 +258,7 @@ export function OfferingDialog({
                   <div className="grid grid-cols-3 gap-4">
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="offering-min-duration">
-                        {t("dialog.minDuration")}
+                        {t("form.minDuration")}
                       </Label>
                       {/* No `min` here: the HTML step-validation base is `min`
                       (falling back to 0 when absent), so `min={5}` +
@@ -320,7 +283,7 @@ export function OfferingDialog({
                     </div>
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="offering-max-duration">
-                        {t("dialog.maxDuration")}
+                        {t("form.maxDuration")}
                       </Label>
                       <Input
                         id="offering-max-duration"
@@ -337,7 +300,7 @@ export function OfferingDialog({
                     </div>
                     <div className="flex flex-col gap-2">
                       <Label htmlFor="offering-turnover-min">
-                        {t("dialog.turnoverMinutes")}
+                        {t("form.turnoverMinutes")}
                       </Label>
                       <Input
                         id="offering-turnover-min"
@@ -354,11 +317,11 @@ export function OfferingDialog({
                 <React.Fragment key="stay">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="offering-start-time">{t("dialog.startTime")}</Label>
+                      <Label htmlFor="offering-start-time">{t("form.startTime")}</Label>
                       <TimeField
                         id="offering-start-time"
                         name="startTime"
-                        label={t("dialog.startTime")}
+                        label={t("form.startTime")}
                         defaultValue={
                           offering?.startTime ??
                           OFFERING_DEFAULTS.stay.startTime
@@ -366,11 +329,11 @@ export function OfferingDialog({
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="offering-end-time">{t("dialog.endTime")}</Label>
+                      <Label htmlFor="offering-end-time">{t("form.endTime")}</Label>
                       <TimeField
                         id="offering-end-time"
                         name="endTime"
-                        label={t("dialog.endTime")}
+                        label={t("form.endTime")}
                         defaultValue={
                           offering?.endTime ?? OFFERING_DEFAULTS.stay.endTime
                         }
@@ -379,7 +342,7 @@ export function OfferingDialog({
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="offering-min-stay">{t("dialog.minStay")}</Label>
+                      <Label htmlFor="offering-min-stay">{t("form.minStay")}</Label>
                       <Input
                         id="offering-min-stay"
                         name="minStay"
@@ -393,19 +356,19 @@ export function OfferingDialog({
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="offering-max-stay">{t("dialog.maxStay")}</Label>
+                      <Label htmlFor="offering-max-stay">{t("form.maxStay")}</Label>
                       <Input
                         id="offering-max-stay"
                         name="maxStay"
                         type="number"
                         min={1}
                         max={365}
-                        placeholder={t("dialog.unlimited")}
+                        placeholder={t("form.unlimited")}
                         defaultValue={offering?.maxStay ?? ""}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="offering-turnover">{t("dialog.turnoverDays")}</Label>
+                      <Label htmlFor="offering-turnover">{t("form.turnoverDays")}</Label>
                       <Input
                         id="offering-turnover"
                         name="turnoverDays"
@@ -419,17 +382,17 @@ export function OfferingDialog({
                 </React.Fragment>
               )}
 
-              <SectionHeading>{t("dialog.section.pricing")}</SectionHeading>
+              <SectionHeading>{t("form.section.pricing")}</SectionHeading>
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-price">{t("dialog.price", { currency })}</Label>
+                  <Label htmlFor="offering-price">{t("form.price", { currency })}</Label>
                   <Input
                     id="offering-price"
                     name="price"
                     type="number"
                     min={0}
                     step="0.01"
-                    placeholder={t("dialog.unpriced")}
+                    placeholder={t("form.unpriced")}
                     defaultValue={
                       offering?.priceCents != null
                         ? offering.priceCents / 100
@@ -438,7 +401,7 @@ export function OfferingDialog({
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-pricing-mode">{t("dialog.pricingMode")}</Label>
+                  <Label htmlFor="offering-pricing-mode">{t("form.pricingMode")}</Label>
                   <select
                     id="offering-pricing-mode"
                     name="pricingMode"
@@ -447,12 +410,12 @@ export function OfferingDialog({
                   >
                     <option value="per_unit">
                       {rangeMode === "hours"
-                        ? t("dialog.perHour")
+                        ? t("form.perHour")
                         : rangeMode === "nights"
-                          ? t("dialog.perNight")
-                          : t("dialog.perDay")}
+                          ? t("form.perNight")
+                          : t("form.perDay")}
                     </option>
-                    <option value="flat">{t("dialog.flat")}</option>
+                    <option value="flat">{t("form.flat")}</option>
                   </select>
                 </div>
               </div>
@@ -468,10 +431,10 @@ export function OfferingDialog({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-col">
                   <Label htmlFor="offering-requires-approval">
-                    {t("dialog.requireApproval")}
+                    {t("form.requireApproval")}
                   </Label>
                   <span className="text-muted-foreground text-xs">
-                    {t("dialog.requireApprovalHint")}
+                    {t("form.requireApprovalHint")}
                   </span>
                 </div>
                 <Switch
@@ -491,12 +454,12 @@ export function OfferingDialog({
                     aria-hidden
                     className="size-3.5 transition-transform group-open:rotate-90"
                   />
-                  {t("dialog.rules")}
+                  {t("form.rules")}
                 </summary>
                 <div className="mt-4 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-deposit-type">{t("dialog.deposit")}</Label>
+                  <Label htmlFor="offering-deposit-type">{t("form.deposit")}</Label>
                   <select
                     id="offering-deposit-type"
                     name="depositType"
@@ -506,16 +469,16 @@ export function OfferingDialog({
                       setDepositType(e.target.value as DepositType)
                     }
                   >
-                    <option value="none">{t("dialog.depositNone")}</option>
-                    <option value="fixed">{t("dialog.depositFixed")}</option>
-                    <option value="percent">{t("dialog.depositPercent")}</option>
-                    <option value="full">{t("dialog.depositFull")}</option>
+                    <option value="none">{t("form.depositNone")}</option>
+                    <option value="fixed">{t("form.depositFixed")}</option>
+                    <option value="percent">{t("form.depositPercent")}</option>
+                    <option value="full">{t("form.depositFull")}</option>
                   </select>
                 </div>
                 {depositType === "fixed" ? (
                   <div key="dep-fixed" className="flex flex-col gap-2">
                     <Label htmlFor="offering-deposit-value">
-                      {t("dialog.depositAmount", { currency })}
+                      {t("form.depositAmount", { currency })}
                     </Label>
                     <Input
                       id="offering-deposit-value"
@@ -533,7 +496,7 @@ export function OfferingDialog({
                   </div>
                 ) : depositType === "percent" ? (
                   <div key="dep-percent" className="flex flex-col gap-2">
-                    <Label htmlFor="offering-deposit-value">{t("dialog.depositPercentLabel")}</Label>
+                    <Label htmlFor="offering-deposit-value">{t("form.depositPercentLabel")}</Label>
                     <Input
                       id="offering-deposit-value"
                       name="depositValue"
@@ -552,14 +515,14 @@ export function OfferingDialog({
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="offering-cancel-window">
-                  {rangeMode === "hours" ? t("dialog.cancelWindowHours") : t("dialog.cancelWindowDays")}
+                  {rangeMode === "hours" ? t("form.cancelWindowHours") : t("form.cancelWindowDays")}
                 </Label>
                 <Input
                   id="offering-cancel-window"
                   name="cancelWindow"
                   type="number"
                   min={0}
-                  placeholder={t("dialog.noWindow")}
+                  placeholder={t("form.noWindow")}
                   defaultValue={
                     offering && offering.cancelWindowMin > 0
                       ? offering.rangeMode === "hours"
@@ -570,7 +533,7 @@ export function OfferingDialog({
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-terms">{t("dialog.terms")}</Label>
+                <Label htmlFor="offering-terms">{t("form.terms")}</Label>
                 <Textarea
                   id="offering-terms"
                   name="termsText"
@@ -583,7 +546,7 @@ export function OfferingDialog({
                 {rangeMode === "hours" ? (
                   <div key="notice-min" className="flex flex-col gap-2">
                     <Label htmlFor="offering-min-notice-min">
-                      {t("dialog.minNoticeMinutes")}
+                      {t("form.minNoticeMinutes")}
                     </Label>
                     <Input
                       id="offering-min-notice-min"
@@ -597,7 +560,7 @@ export function OfferingDialog({
                 ) : (
                   <div key="notice-days" className="flex flex-col gap-2">
                     <Label htmlFor="offering-min-notice">
-                      {t("dialog.minNoticeDays")}
+                      {t("form.minNoticeDays")}
                     </Label>
                     <Input
                       id="offering-min-notice"
@@ -611,7 +574,7 @@ export function OfferingDialog({
                 )}
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="offering-booking-window">
-                    {t("dialog.bookingWindow")}
+                    {t("form.bookingWindow")}
                   </Label>
                   <Input
                     id="offering-booking-window"
@@ -627,15 +590,15 @@ export function OfferingDialog({
                   single-unit space keeps its setting quietly. */}
               {(offering?.unitCount ?? 0) > 1 ? (
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-unit-selection">{t("dialog.unitSelection")}</Label>
+                  <Label htmlFor="offering-unit-selection">{t("form.unitSelection")}</Label>
                   <select
                     id="offering-unit-selection"
                     name="unitSelection"
                     className={selectClass}
                     defaultValue={offering?.unitSelection ?? "auto"}
                   >
-                    <option value="auto">{t("dialog.unitAuto")}</option>
-                    <option value="client_picks">{t("dialog.unitClientPicks")}</option>
+                    <option value="auto">{t("form.unitAuto")}</option>
+                    <option value="client_picks">{t("form.unitClientPicks")}</option>
                   </select>
                 </div>
               ) : (
@@ -645,7 +608,7 @@ export function OfferingDialog({
               </details>
             </div>
           </div>
-          <DialogFooterBar>
+          <div className="mt-6">
             <Button type="submit" size="sm" variant="brand" disabled={pending}>
               {pending
                 ? isEdit
@@ -653,11 +616,9 @@ export function OfferingDialog({
                   : tc("creating")
                 : isEdit
                   ? tc("save")
-                  : t("dialog.create")}
+                  : t("form.create")}
             </Button>
-          </DialogFooterBar>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
   );
 }

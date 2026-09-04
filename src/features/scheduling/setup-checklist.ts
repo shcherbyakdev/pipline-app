@@ -36,7 +36,7 @@ export function setupChecklist(i: ChecklistInput): ChecklistItem[] {
     items.push({
       id: "space",
       labelKey: needsUnit ? "addUnit" : "addSpace",
-      href: needsUnit ? `/rentals/${i.unitlessSpaceId}` : "/rentals?new=1",
+      href: needsUnit ? `/rentals/${i.unitlessSpaceId}` : "/rentals/new",
       done: bookable,
     });
   }

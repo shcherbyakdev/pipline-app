@@ -101,7 +101,7 @@ export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }
             </CommandItem>
           )}
           {mode.offersRentals && (
-            <CommandItem onSelect={() => go("/rentals?new=1")}>
+            <CommandItem onSelect={() => go("/rentals/new")}>
               <Plus className="size-4" /> {t("command.newSpace")}
             </CommandItem>
           )}

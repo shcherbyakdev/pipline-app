@@ -233,6 +233,9 @@ export const bookings = pgTable(
     index("bookings_service_id_idx").on(t.serviceId),
     index("bookings_client_id_idx").on(t.clientId),
     index("bookings_rental_unit_starts_at_idx").on(t.rentalUnitId, t.startsAt),
+    // The space page lists a space's stays (listOfferingBookings) by offering,
+    // not by unit — without this the read scans the org's whole history.
+    index("bookings_rental_offering_starts_at_idx").on(t.rentalOfferingId, t.startsAt),
     index("bookings_staff_starts_at_idx").on(t.staffId, t.startsAt),
     uniqueIndex("bookings_cancel_token_hash_uq").on(t.cancelTokenHash),
   ],

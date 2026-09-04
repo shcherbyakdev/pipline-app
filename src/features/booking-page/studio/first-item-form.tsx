@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
    carries the real item. No skip (ruling 2): Back is the only other way
    out, and it leads to the type step, not the builder. */
 
-// The native-<select> idiom shared by the booking forms (offering-dialog.tsx).
+// The native-<select> idiom shared by the booking forms (offering-form.tsx).
 const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
 const DURATIONS = [15, 30, 45, 60, 90, 120] as const;
 

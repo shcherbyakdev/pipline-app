@@ -18,11 +18,11 @@ import { BookingConfirmed } from "@/features/scheduling/components/booking-confi
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { BookingMoneySummary } from "./booking-money-summary";
 
-// offering-dialog.tsx's native-<select> idiom.
+// offering-form.tsx's native-<select> idiom.
 const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
 
 // Above this many options a pill row would wrap onto several lines and eat
-// into the embed's height budget — offering-dialog's own increment picker
+// into the embed's height budget — offering-form's own increment picker
 // draws the same line at a handful of options.
 const MAX_PILL_OPTIONS = 8;
 
