@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import { INTL_LOCALES } from "@/i18n/config";
 import { WelcomeBanner } from "@/features/scheduling/components/welcome-banner";
+import { PageActions } from "@/components/shell/page-actions";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -194,9 +195,10 @@ export default async function BookingsPage({
   // — Today, a pair of borderless arrows, then the window in words, the
   // only thing on the page that says which days these are; WHAT AND HOW on
   // the right — the scope lens, the per-view control (`extra`: the
-  // timeline's zoom), the switcher, and the create CTA top-right like every
-  // other page's. Every view reads the scope; the timeline takes its spaces
-  // side and ignores people.
+  // timeline's zoom) and the switcher. New booking is a page action, so it
+  // rides up into the top bar (PageActions) like every other page's create
+  // CTA. Every view reads the scope; the timeline takes its spaces side and
+  // ignores people.
   //
   // All three views wrap it in the SAME container (flex-1, full width, the
   // page's own `gap-4`), so switching view moves nothing but the body: the
@@ -237,7 +239,7 @@ export default async function BookingsPage({
         {scopeMenu}
         {extra}
         <ViewSwitcher current={current} showTimeline={showTimeline} scopeQuery={scopeQs} />
-        {newBookingFor(defaultStaffId)}
+        <PageActions>{newBookingFor(defaultStaffId)}</PageActions>
       </div>
     </div>
   );
@@ -480,6 +482,7 @@ export default async function BookingsPage({
         startDate={gridStart}
         dayCount={dayCount}
         timeZone={timeZone}
+        scopeSuffix={scopeSuffix}
         staff={activeStaff}
         editStaffId={blockable ? soloStaffId : null}
         blockable={blockable}

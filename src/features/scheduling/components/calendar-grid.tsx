@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -28,12 +29,12 @@ export const HATCH: React.CSSProperties = {
     "repeating-linear-gradient(45deg, transparent, transparent 5px, var(--border) 5px, var(--border) 6px)",
 };
 // Shared by the header and body rows so their columns stay aligned:
-// [left rail][N day columns][right time axis] — the time axis sits on the
-// right like the reference design. Written out per span rather than
-// interpolated: Tailwind only sees class strings it can read in the source.
+// [time axis][N day columns] — the hours run down the left, where every
+// calendar puts them. Written out per span rather than interpolated:
+// Tailwind only sees class strings it can read in the source.
 const GRID_COLS: Record<DayCount, string> = {
-  1: "grid-cols-[2.5rem_minmax(0,1fr)_3.5rem]",
-  7: "grid-cols-[2.5rem_repeat(7,minmax(0,1fr))_3.5rem]",
+  1: "grid-cols-[3.5rem_minmax(0,1fr)]",
+  7: "grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]",
 };
 /** How many day columns the grid draws: the Day view's one, the Week's seven. */
 export type DayCount = 1 | 7;
@@ -72,13 +73,37 @@ function overlapLayout(
   return out;
 }
 
+/* The date in a column heading: today wears the filled disc (Google
+   Calendar's signature), and on a week it links into that day. */
+function DayNumber({ date, isToday, href }: { date: string; isToday: boolean; href: string | null }) {
+  const number = (
+    <span
+      className={cn(
+        "flex size-6 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition-colors",
+        isToday ? "bg-primary text-primary-foreground" : href !== null && "hover:bg-secondary",
+      )}
+    >
+      {Number(date.slice(8, 10))}
+    </span>
+  );
+  return href === null ? (
+    number
+  ) : (
+    <Link href={href} className="focus-visible:ring-ring/40 rounded-full outline-none focus-visible:ring-2">
+      {number}
+    </Link>
+  );
+}
+
 export function CalendarGrid({
-  startDate, dayCount, timeZone, staff, editStaffId, blockable, preferSpace, defaultStaffId,
+  startDate, dayCount, timeZone, scopeSuffix, staff, editStaffId, blockable, preferSpace, defaultStaffId,
   bookings, rules, exceptions, services, spaces,
 }: {
   /** The leftmost column's date: the Monday of a week, or the day itself. */
   startDate: string;
   dayCount: DayCount;
+  /** "&show=…" or "" — a day link keeps the lens the week was read under. */
+  scopeSuffix: string;
   timeZone: string;
   // Team (multi-staff): the org's ACTIVE members. One of them (the solo case)
   // ⇒ no colours, no initials — this is the pre-team calendar.
@@ -113,6 +138,9 @@ export function CalendarGrid({
   const requireOneStaff = () => {
     toast.info(t("week.pickOneToBlock"));
   };
+  // Built here, not passed in: a function prop cannot cross the
+  // server/client boundary (CalendarMonth takes its hrefs the same way).
+  const dayHref = (date: string) => `/bookings?view=day&date=${date}${scopeSuffix}`;
   const days = Array.from({ length: dayCount }, (_, i) => addDaysISO(startDate, i));
   const windowsByDay = days.map((d) => effectiveWindows(d, rules, exceptions));
   // Rentals R1: a multi-day stay has no place on an hour grid — it would
@@ -363,18 +391,13 @@ export function CalendarGrid({
                 )}
               >
                 <span className="text-muted-foreground text-xs">{weekday(d)}</span>
-                <span
-                  className={cn(
-                    "flex size-6 items-center justify-center rounded-full text-sm font-semibold tabular-nums",
-                    isToday && "bg-primary text-primary-foreground",
-                  )}
-                >
-                  {Number(d.slice(8, 10))}
-                </span>
+                {/* On a week, the number is the way into that one day (the
+                    month's own day link). The Day view is already there, so
+                    its number is plain text. */}
+                <DayNumber date={d} isToday={isToday} href={dayCount === 1 ? null : dayHref(d)} />
               </div>
             );
           })}
-          <div />
         </div>
         {/* all-day row: rental stays, one chip per covered day. Hidden
             entirely when the week has none, so appointment-only orgs keep
@@ -406,15 +429,26 @@ export function CalendarGrid({
                 ))}
               </div>
             ))}
-            <div />
           </div>
         )}
-        {/* body row: left rail, 7 day columns, right time axis. The grid
+        {/* body row: the time axis, then the day columns. The grid
             reads as discrete rounded hour tiles with gutters (reference
             style) — the tiles are visual only; cards, selection, and
             pointer math stay percent-positioned on the continuous column. */}
         <div ref={gridBodyRef} onKeyDown={onGridKeyDown} className={cn("grid min-h-0 flex-1 gap-x-1.5", GRID_COLS[dayCount])}>
-          <div />
+          {/* time axis: one label per hour row, centered on its tile and
+              right-aligned against the day columns it labels */}
+          <div className="relative">
+            {Array.from({ length: endHour - startHour }, (_, i) => (
+              <div
+                key={i}
+                className="absolute right-1.5 -translate-y-1/2 text-[11px] text-muted-foreground"
+                style={{ top: `${pct((startHour + i) * 60 + 30)}%` }}
+              >
+                {minToTime((startHour + i) * 60)}
+              </div>
+            ))}
+          </div>
           {days.map((d, di) => (
           <div
             key={d}
@@ -683,19 +717,6 @@ export function CalendarGrid({
             ) : null}
           </div>
           ))}
-          {/* time axis (right edge, like the reference): one label per
-              hour row, centered on its tile */}
-          <div className="relative">
-            {Array.from({ length: endHour - startHour }, (_, i) => (
-              <div
-                key={i}
-                className="absolute left-1.5 -translate-y-1/2 text-[11px] text-muted-foreground"
-                style={{ top: `${pct((startHour + i) * 60 + 30)}%` }}
-              >
-                {minToTime((startHour + i) * 60)}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
       {/* One quiet line under the grid: what the hatch means, and that the
