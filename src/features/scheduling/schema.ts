@@ -35,7 +35,25 @@ export const serviceInput = z.object({
   // the existing links alone. An empty array is a deliberate "nobody".
   staffIds: z.array(z.uuid()).optional(),
 });
-export const updateServiceInput = serviceInput.extend({ id: z.uuid() });
+/** The settings form on a service's page — everything except the identity
+    the header edits in place and the roster the pills own. `strict()` so a
+    settings save can never carry a rename (the space page's rule). */
+export const updateServiceInput = serviceInput
+  .omit({ name: true, description: true, staffIds: true })
+  .extend({ id: z.uuid() })
+  .strict();
+/** The service page's in-place header and its "who offers it" pills: one
+    field per save. An absent field is left alone; "" on description clears
+    it, and an empty `staffIds` is a deliberate "nobody". */
+export const patchServiceInput = z.object({
+  id: z.uuid(),
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().trim().max(2000).nullable().optional(),
+  ),
+  staffIds: z.array(z.uuid()).optional(),
+});
 export const serviceIdInput = z.object({ id: z.uuid() });
 export const serviceActiveInput = serviceIdInput.extend({ active: z.boolean() });
 

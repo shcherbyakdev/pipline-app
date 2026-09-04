@@ -41,7 +41,7 @@ export function setupChecklist(i: ChecklistInput): ChecklistItem[] {
     });
   }
   if (i.mode.offersAppointments) {
-    items.push({ id: "service", labelKey: "addService", href: "/services?new=1", done: i.serviceCount > 0 });
+    items.push({ id: "service", labelKey: "addService", href: "/services/new", done: i.serviceCount > 0 });
   }
   // Hours exist for team members and hourly spaces (spec §3, ruling 4);
   // a nights/days-only org sets check-in/out times on the space instead.

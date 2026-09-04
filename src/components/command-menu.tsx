@@ -96,7 +96,7 @@ export function CommandMenu({ items, mode }: { items: NavItem[]; mode: OrgMode }
         ) : null}
         <CommandGroup heading={t("command.actions")}>
           {mode.offersAppointments && (
-            <CommandItem onSelect={() => go("/services?new=1")}>
+            <CommandItem onSelect={() => go("/services/new")}>
               <Plus className="size-4" /> {t("command.newService")}
             </CommandItem>
           )}

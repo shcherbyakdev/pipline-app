@@ -5,8 +5,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Calendar03Icon, PlusSignIcon, SourceCodeIcon } from "@hugeicons/core-free-icons";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { getAvailabilityAdmin, listServices } from "@/features/scheduling/queries";
-import { getStaff, listStaffBookings, type StaffBookingRow } from "@/features/scheduling/staff-queries";
-import { ServiceDialog } from "@/features/scheduling/components/service-dialog";
+import { getStaff, listStaffBookings } from "@/features/scheduling/staff-queries";
+import type { DetailBookingRow } from "@/features/scheduling/detail-bookings";
 import { MemberHeader } from "@/features/scheduling/components/member-header";
 import { MemberServices } from "@/features/scheduling/components/member-services";
 import { statusKey } from "@/features/scheduling/booking-label";
@@ -14,6 +14,7 @@ import { summarizeWeekly } from "@/features/scheduling/hours-summary";
 import { ownerHref } from "@/features/scheduling/availability-owner";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import { railLinkClass } from "@/components/shell/rail";
 import { Badge } from "@/components/ui/badge";
 import { loadPublicResources } from "@/lib/booking/public-offering";
 import { bookingPath } from "@/lib/booking/url";
@@ -21,13 +22,8 @@ import { requireOrg } from "@/lib/auth/session";
 import { gateHref } from "@/lib/billing/gate-href";
 import { evaluateServiceGate } from "@/lib/billing/gates";
 import { INTL_LOCALES } from "@/i18n/config";
-import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import { z } from "zod";
-
-// The overview page's rail link, verbatim, so the two pages read as siblings.
-const railLinkClass =
-  "hover:bg-accent focus-visible:ring-ring/30 ease-strong -mx-2 flex items-center gap-2.5 rounded-lg px-2 py-[5px] text-[13px] font-medium outline-none transition-colors duration-150 focus-visible:ring-3";
 
 /* One person, laid out like the overview page (main column + rail). The
    header edits itself in place, services are pills, appointments follow;
@@ -69,7 +65,7 @@ export default async function TeamMemberPage({ params }: PageProps<"/team/[id]">
   // A render helper, not a component: it closes over the page's translators
   // and zone, and the lint rule (static-components) is right that a component
   // made per render would remount its subtree.
-  const bookingsList = (title: string, rows: StaffBookingRow[], empty: string) => (
+  const bookingsList = (title: string, rows: DetailBookingRow[], empty: string) => (
     <div className="flex flex-col gap-2">
       <h3 className="text-muted-foreground text-xs font-medium">{title}</h3>
       {rows.length === 0 ? (
@@ -174,27 +170,16 @@ export default async function TeamMemberPage({ params }: PageProps<"/team/[id]">
 
         <section className="flex flex-col gap-1">
           <h2 className="mb-1.5 text-[13px] font-medium text-muted-foreground">{t("detail.quickActions")}</h2>
-          {/* The Services page's own create dialog, here, for this person
-              alone — so only while they are bookable (a service nobody can
-              be booked for is not a service). A capped org gets the door. */}
-          {!staff.active ? null : serviceDoorHref ? (
-            <Link href={serviceDoorHref} className={railLinkClass}>
+          {/* The Services page's own create form, here, for this person
+              alone (`?staff=`) — so only while they are bookable (a service
+              nobody can be booked for is not a service). A capped org gets
+              the door. */}
+          {staff.active ? (
+            <Link href={serviceDoorHref ?? `/services/new?staff=${staff.id}`} className={railLinkClass}>
               <HugeiconsIcon icon={PlusSignIcon} size={14} className="text-subtle shrink-0" />
               {t("detail.addService")}
             </Link>
-          ) : (
-            <ServiceDialog
-              // No checklist for a member-made service, so no roster to list.
-              staff={[]}
-              forStaffId={staff.id}
-              trigger={
-                <button type="button" className={cn(railLinkClass, "w-full cursor-pointer bg-transparent text-left")}>
-                  <HugeiconsIcon icon={PlusSignIcon} size={14} className="text-subtle shrink-0" />
-                  {t("detail.addService")}
-                </button>
-              }
-            />
-          )}
+          ) : null}
           {path ? (
             <Link href={`/embed?staff=${staff.slug}`} className={railLinkClass}>
               <HugeiconsIcon icon={SourceCodeIcon} size={14} className="text-subtle shrink-0" />

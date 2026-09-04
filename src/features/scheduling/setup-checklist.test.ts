@@ -15,7 +15,7 @@ describe("setupChecklist (admin IA spec §4)", () => {
     expect(items.map((i) => i.id)).toEqual(["service", "hours"]);
     expect(items.every((i) => !i.done)).toBe(true);
     expect(items.map((i) => i.labelKey)).toEqual(["addService", "setHours"]);
-    expect(items.map((i) => i.href)).toEqual(["/services?new=1", "/availability"]);
+    expect(items.map((i) => i.href)).toEqual(["/services/new", "/availability"]);
   });
   it("rentals-only, nights/days only: just space — there are no weekly hours to set", () => {
     expect(setupChecklist({ mode: RENTALS, ...nothing }).map((i) => i.id)).toEqual(["space"]);
@@ -59,7 +59,7 @@ describe("setupChecklist (admin IA spec §4)", () => {
 // chip (every chip navigates away). It now shows until the checklist is
 // done or the owner dismisses it — derived, not carried in the URL.
 describe("showWelcome", () => {
-  const todo = { id: "service" as const, labelKey: "addService" as const, href: "/services?new=1", done: false };
+  const todo = { id: "service" as const, labelKey: "addService" as const, href: "/services/new", done: false };
   const done = { ...todo, done: true };
 
   it("shows while any item is undone", () => {

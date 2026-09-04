@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { type StatsBookingRow } from "./stats";
 import { bookingTitle } from "./booking-label";
+import { listDetailBookings } from "./detail-bookings";
 import type { RangeMode } from "@/features/rentals/range";
 
 export type ServiceRow = {
@@ -24,17 +25,26 @@ export type ServiceRow = {
   staffIds: string[];
 };
 
-export async function listServices(): Promise<ServiceRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("services")
-    .select(
-      "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days, active, requires_approval, sort_order, service_staff(staff_id)",
-    )
-    .order("sort_order")
-    .order("name");
-  if (error) throw error;
-  return (data ?? []).map((s) => ({
+const SERVICE_COLS =
+  "id, name, description, duration_min, price_label, buffer_before_min, buffer_after_min, min_notice_min, max_per_day, booking_window_days, active, requires_approval, sort_order, service_staff(staff_id)";
+
+function toServiceRow(s: {
+  id: string;
+  name: string;
+  description: string | null;
+  duration_min: number;
+  price_label: string | null;
+  buffer_before_min: number;
+  buffer_after_min: number;
+  min_notice_min: number;
+  max_per_day: number | null;
+  booking_window_days: number;
+  active: boolean;
+  requires_approval: boolean;
+  sort_order: number;
+  service_staff: { staff_id: string }[] | null;
+}): ServiceRow {
+  return {
     id: s.id,
     name: s.name,
     description: s.description,
@@ -48,8 +58,33 @@ export async function listServices(): Promise<ServiceRow[]> {
     active: s.active,
     requiresApproval: s.requires_approval,
     sortOrder: s.sort_order,
-    staffIds: ((s.service_staff ?? []) as { staff_id: string }[]).map((l) => l.staff_id),
-  }));
+    staffIds: (s.service_staff ?? []).map((l) => l.staff_id),
+  };
+}
+
+export async function listServices(): Promise<ServiceRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("services")
+    .select(SERVICE_COLS)
+    .order("sort_order")
+    .order("name");
+  if (error) throw error;
+  return (data ?? []).map(toServiceRow);
+}
+
+/** One service, for its own page. RLS hides other orgs' rows, so a miss is
+    indistinguishable from a nonexistent id — exactly the 404 we want. */
+export async function getService(id: string): Promise<ServiceRow | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("services").select(SERVICE_COLS).eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data ? toServiceRow(data) : null;
+}
+
+/** A service's appointments, split around now — the shared detail-page read. */
+export function listServiceBookings(serviceId: string, now?: Date) {
+  return listDetailBookings("service_id", serviceId, now);
 }
 
 export type RuleRow = { id: string; weekday: number; startTime: string; endTime: string };

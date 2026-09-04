@@ -987,6 +987,7 @@
     "emptyTitle": "Add your first service",
     "emptyBody": "A service is what clients pick on your booking page — its name, duration, buffers and price label.",
     "newButton": "New service",
+    "back": "← Services",
     "table": "Services",
     "columns": {
       "service": "Service",
@@ -1001,8 +1002,8 @@
     "keep": "Keep",
     "deleteNamed": "Delete {name}",
     "bookableSwitch": "{name} is bookable",
-    "dialog": {
-      "editTitle": "Edit service",
+    "notBookable": "Not bookable — nobody offers it",
+    "form": {
       "namePlaceholder": "Service name",
       "description": "Description",
       "descriptionPlaceholder": "Add a description…",
@@ -1022,6 +1023,20 @@
       "requireApprovalHint": "New bookings wait for your confirmation instead of confirming instantly.",
       "create": "Create service",
       "created": "Service created"
+    },
+    "detail": {
+      "team": "Who offers it",
+      "teamSolo": "You offer every service while you are the only person on the roster.",
+      "settings": "Settings",
+      "appointments": "Appointments",
+      "upcoming": "Upcoming",
+      "recent": "Recent",
+      "noUpcoming": "Nothing booked ahead.",
+      "noRecent": "No past appointments yet.",
+      "note": "“{note}”",
+      "quickActions": "Quick actions",
+      "embed": "Website embed",
+      "delete": "Delete service"
     }
   },
   "team": {
