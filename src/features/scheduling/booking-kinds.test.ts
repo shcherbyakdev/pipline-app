@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canCreateWalkIn, defaultSelection, defaultSlotLength, dragInitial, parseSelection, pickerLabel } from "./booking-kinds";
+import { canCreateWalkIn, defaultSelection, dragInitial, parseSelection, pickerLabel } from "./booking-kinds";
 
 const services = [{ id: "s1" }, { id: "s2" }];
 const hourly = { id: "h1", name: "Room", rangeMode: "hours" as const, slotIncrementMin: 30, minDurationMin: 60, maxDurationMin: 240 };
@@ -50,15 +50,6 @@ describe("dragInitial (spec §2 — drag on the week grid)", () => {
   });
   it("a preferred space (the week's space scope) wins over the org's services", () => {
     expect(dragInitial(sel, services, [nightly, hourly], [], "n1")).toEqual({ kind: "space", offeringId: "n1", date: "2026-08-25" });
-  });
-});
-
-describe("defaultSlotLength", () => {
-  it("first service's length, else the first hourly space's minimum, else an hour", () => {
-    expect(defaultSlotLength([{ durationMin: 45 }], [hourly])).toBe(45);
-    expect(defaultSlotLength([], [nightly, hourly])).toBe(60);
-    expect(defaultSlotLength([], [{ ...hourly, minDurationMin: 90 }])).toBe(90);
-    expect(defaultSlotLength([], [nightly])).toBe(60);
   });
 });
 

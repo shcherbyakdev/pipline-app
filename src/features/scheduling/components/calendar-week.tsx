@@ -19,7 +19,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BookingDetailDialog } from "./booking-detail-dialog";
 import { NewBookingDialog } from "./new-booking-dialog";
-import { defaultSlotLength, dragInitial } from "@/features/scheduling/booking-kinds";
+import { dragInitial } from "@/features/scheduling/booking-kinds";
 import type { OfferingOption } from "@/features/rentals/offering-option";
 import { INTL_LOCALES } from "@/i18n/config";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -161,11 +161,10 @@ export function CalendarWeek({
   const [selection, setSelection] = React.useState<Selection | null>(null);
   const [dragging, setDragging] = React.useState(false);
   const [createOpen, setCreateOpen] = React.useState(false);
-  // The slot a click books and the hover ghost previews: the default
-  // service's length (the dialog starts on that service too), clamped to
-  // the visible grid.
-  const slotMin = defaultSlotLength(services, spaces);
-  const clampEnd = (startMin: number) => Math.min(startMin + slotMin, endHour * 60);
+  // The slot a click books and the hover ghost previews: one hour, always —
+  // the grid reads in hours, and the dialog still follows whichever service
+  // gets picked. Clamped to the visible grid.
+  const clampEnd = (startMin: number) => Math.min(startMin + 60, endHour * 60);
   // Where the ghost sits while the pointer roams free grid (no selection).
   const [hover, setHover] = React.useState<{ date: string; startMin: number } | null>(null);
 
