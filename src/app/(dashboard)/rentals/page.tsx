@@ -1,28 +1,39 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { Plus } from "lucide-react";
 import { listOfferings, getOrgCurrency } from "@/features/rentals/queries";
 import { OfferingsList } from "@/features/rentals/components/offerings-list";
-import { OfferingDialog } from "@/features/rentals/components/offering-dialog";
-import { getSchedulingSettings } from "@/features/orgs/queries";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageIntro } from "@/components/shell/page-header";
-import { env } from "@/env";
+import { buttonVariants } from "@/components/ui/button";
+import { requireOrg } from "@/lib/auth/session";
+import { gateHref } from "@/lib/billing/gate-href";
+import { evaluateResourceGate } from "@/lib/billing/gates";
+import { cn } from "@/lib/utils";
 
+/* Spaces: the list. Each row opens the space's own page; a new one gets a
+   page of its own (or the upgrade door when the plan is full). */
 export default async function RentalsPage() {
-  const [offerings, currency, settings, t] = await Promise.all([
+  const { org } = await requireOrg();
+  const [offerings, currency, doorHref, t] = await Promise.all([
     listOfferings(),
     getOrgCurrency(),
-    getSchedulingSettings(),
+    // A new space is a new unit, which spends the plan's resource budget —
+    // the same gate createOffering asks.
+    gateHref(org.id, evaluateResourceGate),
     getTranslations("spaces"),
   ]);
-  // Copy-link buttons need the public address; before the org picks a handle
-  // there is nothing to copy (spec §5: hidden when there is no handle).
-  const linkBase = settings?.handle ? { appUrl: env.NEXT_PUBLIC_APP_URL, handle: settings.handle } : null;
+  const newSpace = (
+    <Link href={doorHref ?? "/rentals/new"} className={cn(buttonVariants({ size: "sm" }), "w-fit")}>
+      <Plus className="size-4" /> {t("newButton")}
+    </Link>
+  );
   // Empty: one composed panel that says what a space is and carries the
   // create action, so the page has exactly one CTA either way.
   if (offerings.length === 0) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-        <EmptyState title={t("emptyTitle")} action={<OfferingDialog currency={currency} />}>
+        <EmptyState title={t("emptyTitle")} action={newSpace}>
           {t("empty")}
         </EmptyState>
       </div>
@@ -33,9 +44,9 @@ export default async function RentalsPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <PageIntro>{t("intro")}</PageIntro>
-        <OfferingDialog currency={currency} />
+        {newSpace}
       </div>
-      <OfferingsList offerings={offerings} currency={currency} linkBase={linkBase} />
+      <OfferingsList offerings={offerings} currency={currency} />
     </div>
   );
 }

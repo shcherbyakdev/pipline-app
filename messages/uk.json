@@ -521,10 +521,6 @@
     "nav": "Простори",
     "one": "простір",
     "newButton": "Новий простір",
-    "dialogTitle": {
-      "new": "Новий простір",
-      "edit": "Редагувати простір"
-    },
     "back": "← Простори",
     "addUnit": "Додайте одиницю до простору",
     "intro": "Кімнати, студії та обладнання, які бронюють погодинно, на ніч або на день.",
@@ -563,21 +559,31 @@
     "list": {
       "type": "Тип",
       "price": "Ціна",
-      "actions": "Дії",
       "unitCount": "{count, plural, one {# одиниця} few {# одиниці} many {# одиниць} other {# одиниці}}",
       "confirmDelete": "Підтвердити видалення",
       "keep": "Залишити",
       "deleteAria": "Видалити {name}",
       "bookableAria": "{name} — можна бронювати",
       "deleted": "Видалено",
-      "details": "Деталі"
+      "bookable": "Можна бронювати"
     },
     "detail": {
       "openingHours": "Години роботи",
       "editHours": "Редагувати графік →",
-      "reactivateToEdit": "Активуйте простір, щоб редагувати графік"
+      "reactivateToEdit": "Активуйте простір, щоб редагувати графік",
+      "settings": "Налаштування",
+      "bookings": "Бронювання",
+      "upcoming": "Найближчі",
+      "recent": "Останні",
+      "noUpcoming": "Попереду нічого не заброньовано.",
+      "noRecent": "Минулих бронювань ще немає.",
+      "note": "«{note}»",
+      "quickActions": "Швидкі дії",
+      "embed": "Код для сайту",
+      "timeline": "Показати в бронюваннях",
+      "delete": "Видалити простір"
     },
-    "dialog": {
+    "form": {
       "namePlaceholder": "Назва простору",
       "description": "Опис",
       "descriptionPlaceholder": "Додайте опис…",

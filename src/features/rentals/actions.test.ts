@@ -65,7 +65,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { createOffering, updateOffering, deleteUnit } from "./actions";
+import { createOffering, updateOffering, deleteUnit, patchOffering } from "./actions";
 
 const space = {
   name: "Room A",
@@ -190,12 +190,12 @@ describe("createOffering — an hourly space starts with the default week", () =
 /* A single-unit space never shows its unit (the space IS the unit), so the
    unit's name must follow the space's — otherwise a rename leaves mail
    reading "Apartment · Flat". A multi-unit space's units are the owner's. */
-describe("updateOffering — a single-unit space renames its unit with itself", () => {
-  const edit = { id: "00000000-0000-4000-8000-000000000001", ...space, name: "Apartment" };
+describe("patchOffering — a single-unit space renames its unit with itself", () => {
+  const id = "00000000-0000-4000-8000-000000000001";
 
   it("renames the sole unit to the space's new name", async () => {
     state.units = [{ id: "unit-1" }];
-    expect(await updateOffering(edit)).toEqual({ ok: true });
+    expect(await patchOffering({ id, name: "Apartment" })).toEqual({ ok: true });
     expect(state.updates.filter((u) => u.table === "rental_units")).toEqual([
       { table: "rental_units", row: { name: "Apartment" } },
     ]);
@@ -203,7 +203,25 @@ describe("updateOffering — a single-unit space renames its unit with itself", 
 
   it("leaves a multi-unit space's units alone", async () => {
     state.units = [{ id: "unit-1" }, { id: "unit-2" }];
-    expect(await updateOffering(edit)).toEqual({ ok: true });
+    expect(await patchOffering({ id, name: "Apartment" })).toEqual({ ok: true });
+    expect(state.updates.filter((u) => u.table === "rental_units")).toEqual([]);
+  });
+
+  it("a description-only patch clears with \"\" and never touches the units", async () => {
+    state.units = [{ id: "unit-1" }];
+    expect(await patchOffering({ id, description: "  " })).toEqual({ ok: true });
+    expect(state.updates).toEqual([{ table: "rental_offerings", row: { description: null } }]);
+  });
+
+  // The settings form saves everything BUT the name and description — the
+  // page edits those in place, and a settings save must not carry a name
+  // the previous render still had.
+  it("updateOffering leaves the name and the unit to the header", async () => {
+    state.units = [{ id: "unit-1" }];
+    expect(await updateOffering({ id, ...space, name: "Apartment" })).toEqual({ ok: true });
+    const row = state.updates.find((u) => u.table === "rental_offerings")?.row as Record<string, unknown>;
+    expect(row).not.toHaveProperty("name");
+    expect(row).not.toHaveProperty("description");
     expect(state.updates.filter((u) => u.table === "rental_units")).toEqual([]);
   });
 });

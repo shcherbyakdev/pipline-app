@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import type { RangeMode } from "./range";
+import { bookingTitle } from "@/features/scheduling/booking-label";
 import { addDaysISO, wallTimeToUtc } from "@/features/scheduling/slots";
 import { TIMELINE_DAYS } from "./timeline-geometry";
 import {
@@ -356,4 +357,74 @@ export async function getOrgCurrency(): Promise<string> {
   const supabase = await createClient();
   const { data } = await supabase.from("orgs").select("currency").limit(1).maybeSingle();
   return (data as { currency: string } | null)?.currency ?? "PLN";
+}
+
+export type OfferingBookingRow = {
+  id: string;
+  title: string;
+  clientName: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  note: string | null;
+  rangeMode: RangeMode;
+};
+
+const OFFERING_BOOKINGS_LIMIT = 20;
+const OFFERING_BOOKING_COLS =
+  "id, client_name, starts_at, ends_at, status, note, rental_offerings(name, range_mode), rental_units(name)";
+
+/** A space's stays split around now — staff-queries.ts's listStaffBookings
+    with the space column: "Upcoming" is what will still happen (confirmed
+    or awaiting approval, not yet ENDED — a stay in progress is still
+    coming); "Recent" is everything ended plus every cancelled, declined or
+    moved row whatever its date, so nothing falls between the two. */
+export async function listOfferingBookings(
+  offeringId: string,
+  now: Date = new Date(),
+): Promise<{ upcoming: OfferingBookingRow[]; recent: OfferingBookingRow[] }> {
+  const supabase = await createClient();
+  const iso = now.toISOString();
+  const [upRes, pastRes] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select(OFFERING_BOOKING_COLS)
+      .eq("rental_offering_id", offeringId)
+      .in("status", ["confirmed", "pending"])
+      .gte("ends_at", iso)
+      .order("starts_at")
+      .limit(OFFERING_BOOKINGS_LIMIT),
+    supabase
+      .from("bookings")
+      .select(OFFERING_BOOKING_COLS)
+      .eq("rental_offering_id", offeringId)
+      .or(`ends_at.lt.${iso},status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined)`)
+      .order("starts_at", { ascending: false })
+      .limit(OFFERING_BOOKINGS_LIMIT),
+  ]);
+  if (upRes.error) throw upRes.error;
+  if (pastRes.error) throw pastRes.error;
+  type Row = {
+    id: string;
+    client_name: string;
+    starts_at: string;
+    ends_at: string;
+    status: string;
+    note: string | null;
+    rental_offerings: { name: string; range_mode: RangeMode } | null;
+    rental_units: { name: string } | null;
+  };
+  const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
+  const map = (rows: unknown): OfferingBookingRow[] =>
+    ((rows ?? []) as Row[]).map((b) => ({
+      id: b.id,
+      title: bookingTitle(b, fallbackTitle),
+      clientName: b.client_name,
+      startsAt: b.starts_at,
+      endsAt: b.ends_at,
+      status: b.status,
+      note: b.note,
+      rangeMode: b.rental_offerings?.range_mode ?? "nights",
+    }));
+  return { upcoming: map(upRes.data), recent: map(pastRes.data) };
 }

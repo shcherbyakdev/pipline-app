@@ -47,7 +47,7 @@ describe("setupChecklist (admin IA spec §4)", () => {
     const space = items.find((i) => i.id === "space")!;
     expect(space.done).toBe(true);
     expect(space.labelKey).toBe("addSpace");
-    expect(space.href).toBe("/rentals?new=1");
+    expect(space.href).toBe("/rentals/new");
   });
   it("two spaces, one bookable: done — the other's missing unit is the list's badge, not the checklist's job", () => {
     const items = setupChecklist({ mode: RENTALS, ...nothing, spaceCount: 2, bookableSpaceCount: 1, unitlessSpaceId: "off-2" });

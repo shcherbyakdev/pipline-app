@@ -100,6 +100,17 @@ export const updateOfferingInput = z.union([
     .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
 ]);
 export const offeringIdInput = z.object({ id: z.uuid() });
+/** The space page edits name and description in place, one field per blur;
+    everything else is the settings form (updateOfferingInput). An absent
+    field is left alone; "" on description clears it. */
+export const patchOfferingInput = z.object({
+  id: z.uuid(),
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().trim().max(2000).nullable().optional(),
+  ),
+});
 export const offeringActiveInput = offeringIdInput.extend({ active: z.boolean() });
 
 export const unitInput = z.object({
