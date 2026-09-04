@@ -72,6 +72,13 @@ export async function POST(request: Request) {
           await entitlementsFor(orgId),
         );
       },
+      // A lead other than 24 h is a paid perk (plans.ts customReminders,
+      // spec 2026-09-05 §3.5): read at send time so a lapsed plan falls back
+      // on its own. Unmetered orgs (plans not enforced) keep what they set.
+      customRemindersAllowed: async (orgId) => {
+        if (!plansEnforced(await flagsFor(orgId))) return true;
+        return (await entitlementsFor(orgId)).customReminders;
+      },
     });
     return Response.json(summary);
   } catch (error) {

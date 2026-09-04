@@ -7,14 +7,26 @@ import type { RangeMode } from "@/features/rentals/range";
 import { resolveClientStaffName } from "@/lib/booking/public";
 import { bookingReminderEmail, bookingLifecycleKey, whenLineFor } from "./templates";
 import { bookingTitle } from "./booking-label";
+import { DEFAULT_REMINDER_LEAD_HOURS, REMINDER_LEAD_HOURS, parseOrgPrefs, reminderPolicy } from "@/features/notifications/prefs";
 
 // Booking reminder drain (chasing idiom): claim-before-send on
 // reminder_sent_at, rollback + attempt-count on transport failure,
 // transport-level dedupe via a stable idempotency key. All timing is
 // injected — no clock reads inside decide.
 
-export const REMINDER_LEAD_MS = 24 * 60 * 60 * 1000;
+/** The default lead (Free's only lead). An org may pick another from
+    REMINDER_LEAD_HOURS on /notifications (spec 2026-09-05 §5). */
+export const REMINDER_LEAD_MS = DEFAULT_REMINDER_LEAD_HOURS * 60 * 60 * 1000;
+/** The query bound: the longest lead any org may choose. */
+export const REMINDER_MAX_LEAD_MS = Math.max(...REMINDER_LEAD_HOURS) * 60 * 60 * 1000;
+/** Sends per tick. */
 export const REMINDER_BATCH_LIMIT = 25;
+/** Rows read per tick. Wider than the send cap on purpose: with per-org
+    leads the window holds rows that are not due yet ("wait"), and a
+    starts_at-ordered page of 25 could be all of them while due rows from a
+    long-lead org sit behind. ponytail: a 15-minute tick at today's volumes
+    never fills 200; page by (starts_at, id) if it ever does. */
+export const REMINDER_CANDIDATE_LIMIT = 200;
 export const REMINDER_MAX_ATTEMPTS = 5;
 
 export type ReminderSummary = { sent: number; skipped: number; failed: number };
@@ -22,11 +34,13 @@ export type ReminderSummary = { sent: number; skipped: number; failed: number };
 export function decideReminder(
   booking: { startsAt: Date; createdAt: Date },
   now: Date,
-  opts: { overQuota?: boolean } = {},
+  opts: { overQuota?: boolean; leadMs?: number; disabled?: boolean } = {},
 ): "send" | "suppress" | "wait" {
   // Stamped, never rescanned — same as every other suppress path below.
-  if (opts.overQuota) return "suppress";
-  const lead = booking.startsAt.getTime() - REMINDER_LEAD_MS;
+  // Reminders switched off (org prefs) are the same kind of "no": a booking
+  // the drain reached while they were off never gets one.
+  if (opts.overQuota || opts.disabled) return "suppress";
+  const lead = booking.startsAt.getTime() - (opts.leadMs ?? REMINDER_LEAD_MS);
   if (now.getTime() >= booking.startsAt.getTime()) return "suppress";
   if (now.getTime() < lead) return "wait";
   // Booked inside the lead window: the confirmation email just arrived —
@@ -53,7 +67,9 @@ type CandidateRow = {
   // two-date range.
   rental_offerings: { name: string; range_mode: RangeMode } | null;
   rental_units: { name: string } | null;
-  orgs: { name: string; timezone: string; locale: string } | null;
+  // notification_prefs (0075): the org's reminder on/off + lead; null =
+  // the defaults (parseOrgPrefs).
+  orgs: { name: string; timezone: string; locale: string; notification_prefs: unknown } | null;
   staff: { name: string } | null;
 };
 
@@ -80,6 +96,12 @@ export async function runReminderDrain(deps: {
   // asks whether THIS booking is the org's 31st or later, not whether the
   // org happens to be over 30 right now.
   quotaExceeded?: (orgId: string, timeZone: string, bookingCreatedAt: string) => Promise<boolean>;
+  // May this org use a lead other than the default (the plan's
+  // `customReminders` perk, lib/billing/plans.ts)? The route injects the
+  // entitlement read while plans are enforced; tests and scripts get the
+  // prefs as written. Asked once per org per tick. A failed check degrades
+  // to the default lead — the safe reading of an unknown plan.
+  customRemindersAllowed?: (orgId: string) => Promise<boolean>;
 }): Promise<ReminderSummary> {
   const now = deps.now ?? new Date();
   const summary: ReminderSummary = { sent: 0, skipped: 0, failed: 0 };
@@ -118,22 +140,41 @@ export async function runReminderDrain(deps: {
     return pending;
   };
 
+  const customCache = new Map<string, Promise<boolean>>();
+  const customAllowedFor = (orgId: string): Promise<boolean> => {
+    const lookup = deps.customRemindersAllowed;
+    if (!lookup) return Promise.resolve(true);
+    let pending = customCache.get(orgId);
+    if (!pending) {
+      pending = lookup(orgId).catch((e) => {
+        console.error("[scheduling] custom-reminders check failed (default lead):", e);
+        return false;
+      });
+      customCache.set(orgId, pending);
+    }
+    return pending;
+  };
+
+  // The window is the LONGEST lead any org may choose; each row is then
+  // judged against its own org's lead (a shorter one simply waits).
   const { data, error } = await deps.db
     .from("bookings")
     .select(
-      "id, org_id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, locale, services(name), rental_offerings(name, range_mode), rental_units(name), orgs(name, timezone, locale), staff(name)",
+      "id, org_id, client_email, starts_at, ends_at, created_at, reminder_attempts, rental_unit_id, locale, services(name), rental_offerings(name, range_mode), rental_units(name), orgs(name, timezone, locale, notification_prefs), staff(name)",
     )
     .eq("status", "confirmed")
     .is("reminder_sent_at", null)
     .lt("reminder_attempts", REMINDER_MAX_ATTEMPTS)
     .gt("starts_at", now.toISOString())
-    .lte("starts_at", new Date(now.getTime() + REMINDER_LEAD_MS).toISOString())
+    .lte("starts_at", new Date(now.getTime() + REMINDER_MAX_LEAD_MS).toISOString())
     .order("starts_at", { ascending: true })
-    .limit(REMINDER_BATCH_LIMIT);
+    .limit(REMINDER_CANDIDATE_LIMIT);
   if (error) throw error;
 
   for (const row of (data ?? []) as unknown as CandidateRow[]) {
+    if (summary.sent + summary.failed >= REMINDER_BATCH_LIMIT) break;
     try {
+      const policy = reminderPolicy(parseOrgPrefs(row.orgs?.notification_prefs), await customAllowedFor(row.org_id));
       let overQuota = false;
       if (deps.quotaExceeded) {
         try {
@@ -146,9 +187,9 @@ export async function runReminderDrain(deps: {
       const decision = decideReminder(
         { startsAt: new Date(row.starts_at), createdAt: new Date(row.created_at) },
         now,
-        { overQuota },
+        { overQuota, leadMs: policy.leadMs, disabled: !policy.enabled },
       );
-      if (decision === "wait") continue; // defensive: query bounds already exclude
+      if (decision === "wait") continue; // not due for THIS org's lead yet — untouched, next tick
 
       // Optimistic claim (chasing idiom): exactly one drain wins the row.
       const { data: claimed, error: claimError } = await deps.db
