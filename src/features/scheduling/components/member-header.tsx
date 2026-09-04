@@ -17,10 +17,11 @@ import { cn } from "@/lib/utils";
 // a keyboard user can see where they are on a page with no borders.
 const inlineClass = cn(
   dialogBareInputClass,
-  "-mx-1 w-auto min-w-0 rounded-md px-1 focus-visible:ring-3 focus-visible:ring-ring/30",
+  "-mx-1 min-w-0 rounded-md px-1 focus-visible:ring-3 focus-visible:ring-ring/30",
 );
 // Grows with its text where the browser can (Chrome 123+, Safari 18+);
-// elsewhere the input keeps its default width, which fits a name.
+// elsewhere the input keeps the bare class's full width, so a long name is
+// never clipped to the UA's ~20-character box.
 const fit = { fieldSizing: "content" } as React.CSSProperties;
 
 type Field = "name" | "email" | "slug" | "color";
@@ -76,13 +77,17 @@ export function MemberHeader({
     latest.current = { ...latest.current, [field]: value };
     startTransition(async () => {
       const result = await updateStaff({ id: staff.id, [field]: value });
+      // An older request answering after a newer one has nothing to say —
+      // whichever way it went, the newer edit owns the field now.
+      if (latest.current[field] !== value) {
+        if (!result.ok) toastRefusal(result.error, result.upgrade);
+        return;
+      }
       if (result.ok) {
         saved.current = { ...saved.current, [field]: value };
         return;
       }
       toastRefusal(result.error, result.upgrade);
-      // A newer edit of this field is on its way; leave it to that one.
-      if (latest.current[field] !== value) return;
       latest.current = { ...latest.current, [field]: saved.current[field] };
       set(field, saved.current[field]);
     });
@@ -125,7 +130,7 @@ export function MemberHeader({
             onBlur={(e) => commit("name", e.currentTarget.value)}
             onKeyDown={(e) => onKey("name", e)}
             style={fit}
-            className={cn(inlineClass, "max-w-full text-lg font-semibold")}
+            className={cn(inlineClass, "max-w-full text-lg font-semibold supports-[field-sizing:content]:w-auto")}
           />
           {badges}
         </div>
@@ -140,7 +145,7 @@ export function MemberHeader({
             onBlur={(e) => commit("email", e.currentTarget.value, e.currentTarget.checkValidity())}
             onKeyDown={(e) => onKey("email", e)}
             style={fit}
-            className={cn(inlineClass, "max-w-full text-sm")}
+            className={cn(inlineClass, "max-w-full text-sm supports-[field-sizing:content]:w-auto")}
           />
           <span className="flex min-w-0 items-center font-mono">
             {linkPrefix}

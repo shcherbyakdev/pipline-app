@@ -117,14 +117,15 @@ export type StaffBookingRow = {
 const STAFF_BOOKINGS_LIMIT = 20;
 const STAFF_BOOKING_COLS = "id, client_name, starts_at, ends_at, status, note, services(name)";
 
-/** A person's appointments split around now — the next ones first-to-last,
-    the latest past ones newest-first. Both sides are capped so a full
-    calendar stays two small reads. "Upcoming" is what will still happen
-    (confirmed or awaiting approval, not yet ENDED — one in progress is still
-    coming, the /bookings rule); "Recent" is everything ended plus every
-    cancelled, declined or moved row whatever its date, so nothing falls
-    between the two. Rental stays never carry a staff_id, so this is
-    appointments only by construction. */
+/** A person's appointments split around now, by /bookings' own rule
+    (listBookings in queries.ts): "Upcoming" is a confirmed appointment not
+    yet ENDED (one in progress is still coming) or a request whose start is
+    still ahead; "Recent" is every terminal row whatever its date, every
+    confirmed one that has ended, and every request whose start has passed —
+    lapsed, the approval RPC refuses it — so the two pages never disagree
+    and nothing falls between the lists. Both sides are capped so a full
+    calendar stays two small reads. Rental stays never carry a staff_id, so
+    this is appointments only by construction. */
 export async function listStaffBookings(
   staffId: string,
   now: Date = new Date(),
@@ -136,7 +137,7 @@ export async function listStaffBookings(
       .from("bookings")
       .select(STAFF_BOOKING_COLS)
       .eq("staff_id", staffId)
-      .in("status", ["confirmed", "pending"])
+      .or(`status.eq.confirmed,and(status.eq.pending,starts_at.gt.${iso})`)
       .gte("ends_at", iso)
       .order("starts_at")
       .limit(STAFF_BOOKINGS_LIMIT),
@@ -144,7 +145,11 @@ export async function listStaffBookings(
       .from("bookings")
       .select(STAFF_BOOKING_COLS)
       .eq("staff_id", staffId)
-      .or(`ends_at.lt.${iso},status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined)`)
+      .or(
+        `status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined),` +
+          `and(status.eq.confirmed,ends_at.lt.${iso}),` +
+          `and(status.eq.pending,starts_at.lte.${iso})`,
+      )
       .order("starts_at", { ascending: false })
       .limit(STAFF_BOOKINGS_LIMIT),
   ]);
