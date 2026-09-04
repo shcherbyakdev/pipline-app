@@ -184,16 +184,52 @@ export default async function BookingsPage({
       />
     ) : null;
 
-  // One toolbar shape for every view, Linear-style: the scope filter on the
-  // left; the per-view slot (`right`: the week's Today link, the timeline's
-  // window and zoom), the switcher, and the primary action on the right —
-  // the create CTA sits top-right like every other page's. Every view reads
-  // the scope; the timeline takes its spaces side and ignores people.
-  const toolbar = (current: BookingsView, defaultStaffId: string, right: ReactNode = null) => (
+  // One toolbar shape for every view, Google Calendar's: TIME on the left
+  // — Today, a pair of borderless arrows, then the window in words, the
+  // only thing on the page that says which days these are; WHAT AND HOW on
+  // the right — the scope lens, the per-view control (`extra`: the
+  // timeline's zoom), the switcher, and the create CTA top-right like every
+  // other page's. Every view reads the scope; the timeline takes its spaces
+  // side and ignores people.
+  //
+  // All three views wrap it in the SAME container (flex-1, full width, the
+  // page's own `gap-4`), so switching view moves nothing but the body: the
+  // List used to sit in a centred `max-w-2xl p-6` column, which slid the
+  // whole toolbar sideways and down on every switch. The narrow measure is
+  // the LIST's, not the page's — it stays on the list.
+  const arrowClass = cn(buttonVariants({ variant: "ghost", size: "icon-sm" }), "text-muted-foreground");
+  const dateNav = (o: {
+    todayHref: string;
+    prevHref: string;
+    nextHref: string;
+    prevLabel: string;
+    nextLabel: string;
+    label: string;
+  }) => (
+    <>
+      <Link href={o.todayHref} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+        {tRoot("common.today")}
+      </Link>
+      <Link href={o.prevHref} aria-label={o.prevLabel} className={arrowClass}>
+        <ChevronLeft />
+      </Link>
+      <Link href={o.nextHref} aria-label={o.nextLabel} className={arrowClass}>
+        <ChevronRight />
+      </Link>
+      <span className="ml-1.5 text-[15px] font-medium tabular-nums">{o.label}</span>
+    </>
+  );
+  const toolbar = (
+    current: BookingsView,
+    defaultStaffId: string,
+    nav: ReactNode = null,
+    extra: ReactNode = null,
+  ) => (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div>{scopeMenu}</div>
+      <div className="flex flex-wrap items-center gap-1">{nav}</div>
       <div className="flex flex-wrap items-center gap-2">
-        {right}
+        {scopeMenu}
+        {extra}
         <ViewSwitcher current={current} showTimeline={showTimeline} scopeQuery={scopeQs} />
         {newBookingFor(defaultStaffId)}
       </div>
@@ -223,39 +259,32 @@ export default async function BookingsPage({
     const zoomQs = (d: number) => (d === 28 ? "" : `&days=${d}`);
     const base = `/bookings?view=timeline${zoomQs(days)}${scopeSuffix}`;
     const shift = shiftDays(days);
-    const arrow = cn(buttonVariants({ variant: "outline", size: "sm" }), "size-7 p-0");
-    const nav = (
-      <>
-        <nav aria-label={t("timeline.window")} className="flex items-center gap-1">
-          <Link href={`${base}&from=${addDaysISO(fromDate, -shift)}`} aria-label={t("timeline.back", { count: shift })} className={arrow}>
-            <ChevronLeft className="size-4" />
+    const nav = dateNav({
+      todayHref: base,
+      prevHref: `${base}&from=${addDaysISO(fromDate, -shift)}`,
+      nextHref: `${base}&from=${addDaysISO(fromDate, shift)}`,
+      prevLabel: t("timeline.back", { count: shift }),
+      nextLabel: t("timeline.forward", { count: shift }),
+      label: windowLabel(fromDate, days, INTL_LOCALES[locale]),
+    });
+    const zoom = (
+      <nav aria-label={t("timeline.zoom")} className={SEGMENTED_NAV_CLASS}>
+        {ZOOMS.map((z) => (
+          <Link
+            key={z}
+            href={`/bookings?view=timeline${zoomQs(z)}${scopeSuffix}&from=${fromDate}`}
+            aria-current={z === days ? "page" : undefined}
+            className={segmentedItemClass(z === days)}
+          >
+            {t("timeline.weeks", { count: z / 7 })}
           </Link>
-          <span className="text-muted-foreground px-1 text-sm tabular-nums">{windowLabel(fromDate, days, INTL_LOCALES[locale])}</span>
-          <Link href={`${base}&from=${addDaysISO(fromDate, shift)}`} aria-label={t("timeline.forward", { count: shift })} className={arrow}>
-            <ChevronRight className="size-4" />
-          </Link>
-        </nav>
-        <Link href={base} className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
-          {tRoot("common.today")}
-        </Link>
-        <nav aria-label={t("timeline.zoom")} className={SEGMENTED_NAV_CLASS}>
-          {ZOOMS.map((z) => (
-            <Link
-              key={z}
-              href={`/bookings?view=timeline${zoomQs(z)}${scopeSuffix}&from=${fromDate}`}
-              aria-current={z === days ? "page" : undefined}
-              className={segmentedItemClass(z === days)}
-            >
-              {t("timeline.weeks", { count: z / 7 })}
-            </Link>
-          ))}
-        </nav>
-      </>
+        ))}
+      </nav>
     );
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         {welcome}
-        {toolbar("timeline", activeStaff[0]?.id ?? "", nav)}
+        {toolbar("timeline", activeStaff[0]?.id ?? "", nav, zoom)}
         <Timeline
           fromDate={fromDate}
           bufferFrom={bufferFrom}
@@ -274,19 +303,21 @@ export default async function BookingsPage({
   if (view === "list") {
     const { upcoming, past } = await listBookings();
     return (
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         {welcome}
         {toolbar("list", activeStaff[0]?.id ?? "")}
-        <BookingsList
-          upcoming={applyScope(upcoming, scope)}
-          past={applyScope(past, scope)}
-          timeZone={timeZone}
-          staff={activeStaff}
-          mode={eff}
-          // The "Space" badge tells kinds apart — only where there are two to tell.
-          showKind={eff.offersAppointments && sides.people}
-          scopeLabel={scope.kind === "all" ? null : scopeText(scopeLabel(scope, people, spaces))}
-        />
+        <div className="mx-auto w-full max-w-2xl">
+          <BookingsList
+            upcoming={applyScope(upcoming, scope)}
+            past={applyScope(past, scope)}
+            timeZone={timeZone}
+            staff={activeStaff}
+            mode={eff}
+            // The "Space" badge tells kinds apart — only where there are two to tell.
+            showKind={eff.offersAppointments && sides.people}
+            scopeLabel={scope.kind === "all" ? null : scopeText(scopeLabel(scope, people, spaces))}
+          />
+        </div>
       </div>
     );
   }
@@ -357,16 +388,21 @@ export default async function BookingsPage({
   const defaultStaffId = (soloStaffId ?? activeStaff[0]?.id) ?? "";
 
   return (
-    // flex-1 + min-h-0: the calendar fills main's leftover viewport height
-    // (week arrows live inside the grid header; see CalendarWeek).
+    // flex-1 + min-h-0: the calendar fills main's leftover viewport height.
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {welcome}
       {toolbar(
         "week",
         defaultStaffId,
-        <Link href={todayHref} className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}>
-          {tRoot("common.today")}
-        </Link>,
+        dateNav({
+          todayHref,
+          prevHref: `/bookings?week=${addDaysISO(weekStart, -7)}${scopeSuffix}`,
+          nextHref: `/bookings?week=${addDaysISO(weekStart, 7)}${scopeSuffix}`,
+          prevLabel: t("prevWeek"),
+          nextLabel: t("nextWeek"),
+          // The timeline's window label, over the week's seven days.
+          label: windowLabel(weekStart, 7, INTL_LOCALES[locale]),
+        }),
       )}
       <CalendarWeek
         weekStart={weekStart}
@@ -381,8 +417,6 @@ export default async function BookingsPage({
         exceptions={weekExceptions}
         services={activeServices}
         spaces={spaces}
-        prevHref={`/bookings?week=${addDaysISO(weekStart, -7)}${scopeSuffix}`}
-        nextHref={`/bookings?week=${addDaysISO(weekStart, 7)}${scopeSuffix}`}
       />
     </div>
   );
