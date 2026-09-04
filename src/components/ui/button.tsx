@@ -12,12 +12,11 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/85",
         // The Linear-style dialogs' accent submit (Figma ref 2014:306):
-        // brand indigo; primary-foreground flips to ink in dark, where
-        // --brand-text is a light periwinkle.
-        brand:
-          "bg-(--brand-text) text-primary-foreground hover:bg-(--brand-text)/85",
+        // the accent fill with a white label in both themes, as Linear's
+        // controlPrimary (white on #6975e2 is 4.0:1 — Linear's own ratio).
+        brand: "bg-brand text-white hover:bg-brand/90",
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/8 dark:hover:bg-input/14",
+          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-white/4 dark:hover:bg-white/7",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:

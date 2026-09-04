@@ -142,21 +142,20 @@
   --accent-foreground: #252228;
   --destructive: #e11d48;
   --border: rgb(37 34 40 / 0.08);
-  /* Control edges, not fills. 0.5 is the alpha that clears WCAG 1.4.11's
-     3:1 for a UI boundary against the surface behind it (3.15:1 here, 4.59:1
-     in dark, 3.4:1 on the booking page) — at the old 0.12 a field's outline
-     was 1.26:1 and you had to know it was there. `.marketing` keeps its own
-     0.11: its ring-input hairlines draw mock UI, not controls.
-     The few `bg-input/x` fills (disabled tints, dark surfaces) divide the
-     fraction back down so they land where they always did. */
-  --input: rgb(37 34 40 / 0.5);
-  --ring: #4f42d8;
+  /* Control edges: a whisper, as in Linear (its input border is bgBorder
+     #232325 on #111212 ≈ 9% white; light #e2e2e2 ≈ 12% ink). Ruled
+     2026-09-04 over the earlier 0.5 that cleared WCAG 1.4.11's 3:1 for a
+     boundary — the field's focus ring and its fill carry it now. The
+     fills that used to divide this alpha back down (outline buttons,
+     disabled tints) are explicit white/foreground alphas in ui/*.tsx. */
+  --input: rgb(37 34 40 / 0.12);
+  --ring: #4b5bc4;
   --highlight: #01d062;
   --highlight-foreground: #252228;
   --tint: #f4f2fb;
   --success: #01d062;
-  --kind-time: #978eff;
-  --kind-time-soft: #eeebff;
+  --kind-time: #6975e2;
+  --kind-time-soft: #f1f1ff;
   --kind-space: #01d062;
   --kind-space-soft: #e3f9ec;
   --kind-stay: #ff9500;
@@ -166,14 +165,14 @@
   --kind-embed: #8b5cf6;
   /* Kind colours as text, darkened to hold >= 5:1 on their own soft tints
      (the hardest surface they sit on), not just the ground. */
-  --kind-time-text: #4f42d8;
+  --kind-time-text: #4b5bc4;
   --kind-space-text: #0c7039;
   --kind-class-text: #b61a60;
   --kind-stay-text: #a04a06;
   --on-kind: #252228;
   /* The brand accent = the appointments blue. */
-  --brand: #978eff;
-  --brand-text: #4f42d8;
+  --brand: #6975e2;
+  --brand-text: #4b5bc4;
   --danger: #e11d48;
   --danger-soft: #fde7ef;
   --shadow-card: 0 1px 2px rgb(37 34 40 / 0.04), 0 16px 40px -20px rgb(37 34 40 / 0.18);
@@ -191,7 +190,7 @@
   --sidebar-accent: rgb(37 34 40 / 0.05);
   --sidebar-accent-foreground: #252228;
   --sidebar-border: rgb(37 34 40 / 0.08);
-  --sidebar-ring: #4f42d8;
+  --sidebar-ring: #4b5bc4;
   --status-not-started: oklch(0.65 0 0);
   --status-in-progress: oklch(0.62 0.17 250);
   --status-complete: oklch(0.68 0.17 150);
@@ -199,43 +198,47 @@
   --status-blocked: oklch(0.63 0.22 25);
 }
 
-/* The soft world at night: the same warm hue family inverted. Warm
-   near-black ground, raised surfaces one step lighter, warm off-white type,
-   the ink pill becomes an off-white pill, hairlines at white-alpha, kind
-   colours brightened to hold AA on the dark ground. Reached per browser via
-   Settings → Interface theme (next-themes; default light) and by /book
-   pages whose widget theme is "dark".
+/* Night = Linear's product dark theme (linear.app app bundle,
+   generateTheme base LCH [5.52 .4 272], accent [47.9 59.3 288.4],
+   contrast 27, read 2026-09-04): neutral near-black, no lavender cast.
+   Reached per browser via Settings → Interface theme (next-themes; default
+   light) and by /book pages whose widget theme is "dark".
    Elevation (Linear panel shell, Figma ref 2003:2): the shell GROUND is
-   --sidebar, the darkest surface; the floating content panel is
-   --background, one step up — so the ladder climbs sidebar < background <
-   card < popover < secondary/muted. */
+   --sidebar (Linear bgSub), the floating content panel is --background
+   (bgBase), cards are the elevated theme, popovers the menu theme, fills
+   controlSecondaryHover — so the ladder climbs sidebar < background <
+   card < popover < secondary/muted. Type is labelBase / labelMuted /
+   labelFaint-but-AA (marketing text-tertiary). The brand = Linear's accent
+   lch(52.418% 61.103 288.421) = #6975e2; as text it is their link
+   #828fff so it holds AA on cards and on its own tint (purpleTint). The
+   other kind colours stay ours. */
 .dark {
   color-scheme: dark;
-  --background: #18161c;
-  --foreground: #f2f0f7;
-  --card: #1d1a21;
-  --card-foreground: #f2f0f7;
-  --popover: #232029;
-  --popover-foreground: #f2f0f7;
-  --primary: #f2f0f7;
-  --primary-foreground: #252228;
-  --secondary: #26232c;
-  --secondary-foreground: #f2f0f7;
-  --muted: #26232c;
-  --muted-foreground: #aaa6b5;
-  --subtle: #94909f;
-  --accent: rgb(242 240 247 / 0.07);
-  --accent-foreground: #f2f0f7;
-  --destructive: #ff5c7c;
-  --border: rgb(242 240 247 / 0.09);
-  --input: rgb(242 240 247 / 0.5);
-  --ring: #a89dff;
+  --background: #111212;
+  --foreground: #e2e3e5;
+  --card: #19191b;
+  --card-foreground: #e2e3e5;
+  --popover: #202022;
+  --popover-foreground: #e2e3e5;
+  --primary: #f7f8f8;
+  --primary-foreground: #111212;
+  --secondary: #242526;
+  --secondary-foreground: #e2e3e5;
+  --muted: #242526;
+  --muted-foreground: #949597;
+  --subtle: #8a8f98;
+  --accent: rgb(255 255 255 / 0.05);
+  --accent-foreground: #e2e3e5;
+  --destructive: #f34e52;
+  --border: rgb(255 255 255 / 0.09);
+  --input: rgb(255 255 255 / 0.1);
+  --ring: #6975e2;
   --highlight: #34d16d;
-  --highlight-foreground: #151318;
-  --tint: #26232c;
+  --highlight-foreground: #111212;
+  --tint: #242526;
   --success: #34d16d;
-  --kind-time: #a89dff;
-  --kind-time-soft: #262047;
+  --kind-time: #6975e2;
+  --kind-time-soft: #18192c;
   --kind-space: #34d16d;
   --kind-space-soft: #143220;
   --kind-stay: #ffa64d;
@@ -243,31 +246,32 @@
   --kind-class: #ff5ca2;
   --kind-class-soft: #3d1728;
   --kind-embed: #a78bfa;
-  --kind-time-text: #b9b0ff;
+  --kind-time-text: #828fff;
   --kind-space-text: #57d989;
   --kind-class-text: #ff86b8;
   --kind-stay-text: #ffb867;
-  /* Kind colours stay bright at night, so ink still reads on them. */
-  --on-kind: #252228;
-  --brand: #a89dff;
-  --brand-text: #b9b0ff;
-  --danger: #ff5c7c;
-  --danger-soft: #3d1420;
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.5), 0 16px 40px -20px rgb(0 0 0 / 0.7);
-  --shadow-lift: 0 1px 2px rgb(0 0 0 / 0.5), 0 6px 16px -8px rgb(0 0 0 / 0.55);
+  /* Ink on kind colours: the new ground, so it clears 4.5:1 on the accent
+     (#252228 was 3.95:1 on #6975e2). */
+  --on-kind: #111212;
+  --brand: #6975e2;
+  --brand-text: #828fff;
+  --danger: #f34e52;
+  --danger-soft: #321617;
+  --shadow-card: 0 3px 8px rgb(0 0 0 / 0.12), 0 2px 5px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.12);
+  --shadow-lift: 0 4px 40px rgb(0 0 0 / 0.1), 0 3px 20px rgb(0 0 0 / 0.12), 0 3px 12px rgb(0 0 0 / 0.12), 0 2px 8px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.12);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: #151318;
-  --sidebar-foreground: #f2f0f7;
-  --sidebar-primary: #f2f0f7;
-  --sidebar-primary-foreground: #252228;
-  --sidebar-accent: rgb(242 240 247 / 0.07);
-  --sidebar-accent-foreground: #f2f0f7;
-  --sidebar-border: rgb(242 240 247 / 0.09);
-  --sidebar-ring: #a89dff;
+  --sidebar: #09090a;
+  --sidebar-foreground: #e2e3e5;
+  --sidebar-primary: #f7f8f8;
+  --sidebar-primary-foreground: #111212;
+  --sidebar-accent: rgb(255 255 255 / 0.06);
+  --sidebar-accent-foreground: #e2e3e5;
+  --sidebar-border: rgb(255 255 255 / 0.09);
+  --sidebar-ring: #6975e2;
   --status-not-started: oklch(0.65 0 0);
   --status-in-progress: oklch(0.62 0.17 250);
   --status-complete: oklch(0.68 0.17 150);
@@ -298,8 +302,8 @@
   --accent-foreground: #252228;
   --destructive: #e11d48;
   --border: rgb(37 34 40 / 0.08);
-  --input: rgb(37 34 40 / 0.5);
-  --ring: #4f42d8;
+  --input: rgb(37 34 40 / 0.12);
+  --ring: #4b5bc4;
 }
 
 /* Hosted booking page (/book/[handle]) in the org's widget theme "auto":
@@ -310,24 +314,24 @@
 @media not (prefers-color-scheme: light) {
   .book-auto {
     color-scheme: dark;
-    --background: #151318;
-    --foreground: #f2f0f7;
-    --card: #1d1a21;
-    --card-foreground: #f2f0f7;
-    --popover: #232029;
-    --popover-foreground: #f2f0f7;
-    --primary: #f2f0f7;
-    --primary-foreground: #252228;
-    --secondary: #26232c;
-    --secondary-foreground: #f2f0f7;
-    --muted: #26232c;
-    --muted-foreground: #aaa6b5;
-    --accent: rgb(242 240 247 / 0.07);
-    --accent-foreground: #f2f0f7;
-    --destructive: #ff5c7c;
-    --border: rgb(242 240 247 / 0.09);
-    --input: rgb(242 240 247 / 0.5);
-    --ring: #a89dff;
+    --background: #09090a;
+    --foreground: #e2e3e5;
+    --card: #19191b;
+    --card-foreground: #e2e3e5;
+    --popover: #202022;
+    --popover-foreground: #e2e3e5;
+    --primary: #f7f8f8;
+    --primary-foreground: #111212;
+    --secondary: #242526;
+    --secondary-foreground: #e2e3e5;
+    --muted: #242526;
+    --muted-foreground: #949597;
+    --accent: rgb(255 255 255 / 0.05);
+    --accent-foreground: #e2e3e5;
+    --destructive: #f34e52;
+    --border: rgb(255 255 255 / 0.09);
+    --input: rgb(255 255 255 / 0.1);
+    --ring: #6975e2;
   }
 }
 
@@ -355,7 +359,7 @@
   --accent: #ececef;
   --accent-foreground: #17171a;
   --border: rgb(23 23 26 / 0.1);
-  --input: rgb(23 23 26 / 0.5);
+  --input: rgb(23 23 26 / 0.12);
   --ring: #17171a;
   --shadow-card: 0 1px 2px rgb(23 23 26 / 0.04), 0 16px 40px -20px rgb(23 23 26 / 0.16);
   --shadow-lift: 0 1px 2px rgb(23 23 26 / 0.05), 0 6px 16px -8px rgb(23 23 26 / 0.12);
@@ -378,7 +382,7 @@
     --accent: #ececef;
     --accent-foreground: #17171a;
     --border: rgb(23 23 26 / 0.1);
-    --input: rgb(23 23 26 / 0.5);
+    --input: rgb(23 23 26 / 0.12);
     --ring: #17171a;
     --shadow-card: 0 1px 2px rgb(23 23 26 / 0.04), 0 16px 40px -20px rgb(23 23 26 / 0.16);
     --shadow-lift: 0 1px 2px rgb(23 23 26 / 0.05), 0 6px 16px -8px rgb(23 23 26 / 0.12);
@@ -416,13 +420,13 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: rgb(37 34 40 / 0.07);
   --input: rgb(37 34 40 / 0.11);
-  --ring: #4f42d8;
+  --ring: #4b5bc4;
   --highlight: #01d062;
   --highlight-foreground: #252228;
   --tint: #f4f2fb;
   --success: #01d062;
-  --kind-time: #978eff;
-  --kind-time-soft: #eeebff;
+  --kind-time: #6975e2;
+  --kind-time-soft: #f1f1ff;
   --kind-space: #01d062;
   --kind-space-soft: #e3f9ec;
   --kind-stay: #ff9500;
@@ -432,13 +436,13 @@
   --kind-embed: #8b5cf6;
   /* The same kinds as text: darkened to hold >= 5:1 on the tints, not just
      the ground. */
-  --kind-time-text: #4f42d8;
+  --kind-time-text: #4b5bc4;
   --kind-space-text: #0c7039;
   --kind-class-text: #b61a60;
   --kind-stay-text: #a04a06;
   --on-kind: #252228;
-  --brand: #978eff;
-  --brand-text: #4f42d8;
+  --brand: #6975e2;
+  --brand-text: #4b5bc4;
   --danger: #e11d48;
   --danger-soft: #fde7ef;
   --shadow-card: 0 1px 2px rgb(37 34 40 / 0.04), 0 16px 40px -20px rgb(37 34 40 / 0.18);
@@ -453,16 +457,16 @@
   background: rgb(37 34 40 / 0.12);
 }
 .dark ::selection {
-  background: rgb(242 240 247 / 0.2);
+  background: rgb(255 255 255 / 0.2);
 }
 .marketing ::selection {
   background: rgb(37 34 40 / 0.12);
 }
 
-/* Hero stage: the reference's lavender wash, white fading into soft
-   periwinkle. */
+/* Hero stage: the reference's wash, white fading into the accent's own
+   tint (Linear accent-tint #f1f1ff, deepened one step). */
 .marketing .stage-wash {
-  background: linear-gradient(180deg, #f5f3fe 0%, #e2dcfb 100%);
+  background: linear-gradient(180deg, #f4f4fe 0%, #dde0fa 100%);
 }
 
 /* Landing motion. Curves are the strong ease-out; only transform, opacity,
