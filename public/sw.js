@@ -19,8 +19,8 @@ self.addEventListener("push", (event) => {
     body: data.body || "",
     tag: data.tag || undefined,
     data: { url: data.url || "/bookings" },
-    icon: "/manifest-icon?size=192",
-    badge: "/manifest-icon?size=96",
+    icon: "/api/manifest-icon?size=192",
+    badge: "/api/manifest-icon?size=96",
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

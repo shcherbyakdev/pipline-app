@@ -479,6 +479,28 @@
       "subject": "Перенесено клієнтом — {service}, {when}",
       "lead": "<b>{client}</b> змінив(ла) час бронювання."
     },
+    "push": {
+      "newBooking": {
+        "title": "Нове бронювання",
+        "body": "{client} · {service} · {when}"
+      },
+      "newRequest": {
+        "title": "Новий запит на бронювання",
+        "body": "{client} · {service} · {when}"
+      },
+      "cancelled": {
+        "title": "Скасовано клієнтом",
+        "body": "{client} · {service} · {when}"
+      },
+      "rescheduled": {
+        "title": "Перенесено клієнтом",
+        "body": "{client} · {service} · тепер {when}"
+      },
+      "test": {
+        "title": "Сповіщення Booklo увімкнено",
+        "body": "Цей пристрій отримуватиме сповіщення про нові бронювання."
+      }
+    },
     "appointment": "Запис"
   },
   "shell": {

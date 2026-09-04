@@ -11,6 +11,7 @@ import { resolveBookingToken, buildBookingManageUrl } from "@/lib/tokens/booking
 import { publicLocale } from "@/i18n/public";
 import { getBookingLocale, getOrgLocale, loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
 import { getProviderEmail } from "@/lib/booking/provider";
+import { notifyMembers } from "@/features/notifications/notify";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { selectTransport } from "@/lib/email/transport";
@@ -19,8 +20,6 @@ import { addDaysISO, computeSlots, dateInZone } from "./slots";
 import {
   bookingCancelledEmail,
   bookingRescheduledEmail,
-  providerCancelledEmail,
-  providerRescheduledEmail,
   bookingLifecycleKey,
   formatWhenLine,
   whenLineFor,
@@ -188,25 +187,17 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     } catch (mailError) {
       console.error("[scheduling] cancel email (client) failed:", mailError);
     }
-    if (providerEmail) {
-      try {
-        const notice = providerCancelledEmail(mail.t, {
-          serviceName: row.service_name,
-          whenLine,
-          clientName: row.client_name,
-        });
-        await selectTransport().send({
-          to: providerEmail,
-          subject: notice.subject,
-          html: notice.html,
-          text: notice.text,
-          replyTo: row.client_email,
-          idempotencyKey: bookingLifecycleKey(row.booking_id, "provider-cancelled"),
-        });
-      } catch (mailError) {
-        console.error("[scheduling] cancel email (provider) failed:", mailError);
-      }
-    }
+    // The org's people, each on the channels they chose (/notifications);
+    // swallows its own errors.
+    await notifyMembers({
+      orgId: row.org_id,
+      event: "cancelled",
+      serviceName: row.service_name,
+      clientName: row.client_name,
+      clientEmail: row.client_email,
+      whenLine,
+      idempotencyKey: bookingLifecycleKey(row.booking_id, "provider-cancelled"),
+    });
     // Team: the freed calendar belongs to the staff member — tell them too.
     // Outside the try above so a failed provider mail can't skip it; the
     // notice swallows its own errors and no-ops on a solo org.
@@ -343,26 +334,16 @@ export async function rescheduleBooking(
     } catch (mailError) {
       console.error("[scheduling] reschedule email (client) failed:", mailError);
     }
-    if (providerEmail) {
-      try {
-        const notice = providerRescheduledEmail(mail.t, {
-          serviceName: row.service_name,
-          oldWhenLine,
-          whenLine,
-          clientName: row.client_name,
-        });
-        await selectTransport().send({
-          to: providerEmail,
-          subject: notice.subject,
-          html: notice.html,
-          text: notice.text,
-          replyTo: row.client_email,
-          idempotencyKey: bookingLifecycleKey(row.new_booking_id, "provider-rescheduled"),
-        });
-      } catch (mailError) {
-        console.error("[scheduling] reschedule email (provider) failed:", mailError);
-      }
-    }
+    await notifyMembers({
+      orgId: row.org_id,
+      event: "rescheduled",
+      serviceName: row.service_name,
+      clientName: row.client_name,
+      clientEmail: row.client_email,
+      whenLine,
+      oldWhenLine,
+      idempotencyKey: bookingLifecycleKey(row.new_booking_id, "provider-rescheduled"),
+    });
     // Team: the staff member whose calendar moved (same person as before —
     // the RPC keeps the assignment). Solo orgs no-op inside the notice.
     if (row.staff_id) {

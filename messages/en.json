@@ -479,6 +479,28 @@
       "subject": "Rescheduled by client — {service}, {when}",
       "lead": "<b>{client}</b> moved their booking."
     },
+    "push": {
+      "newBooking": {
+        "title": "New booking",
+        "body": "{client} · {service} · {when}"
+      },
+      "newRequest": {
+        "title": "New booking request",
+        "body": "{client} · {service} · {when}"
+      },
+      "cancelled": {
+        "title": "Cancelled by client",
+        "body": "{client} · {service} · {when}"
+      },
+      "rescheduled": {
+        "title": "Rescheduled by client",
+        "body": "{client} · {service} · now {when}"
+      },
+      "test": {
+        "title": "Booklo notifications are on",
+        "body": "This device will hear about new bookings."
+      }
+    },
     "appointment": "Appointment"
   },
   "shell": {
