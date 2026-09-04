@@ -87,13 +87,3 @@ export function dragInitial(
   if (hourly) return { kind: "space", offeringId: hourly.id, date: sel.date };
   return null;
 }
-
-/* What a plain click on the week grid selects (the ghost the hover previews):
-   the default service's length — the same service defaultSelection starts the
-   dialog on — else the first hourly space's minimum session, else an hour. */
-export function defaultSlotLength(
-  services: readonly { durationMin: number }[],
-  spaces: readonly OfferingOption[],
-): number {
-  return services[0]?.durationMin ?? spaces.find((o) => o.rangeMode === "hours")?.minDurationMin ?? 60;
-}
