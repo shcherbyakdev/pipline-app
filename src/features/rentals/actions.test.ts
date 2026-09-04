@@ -214,14 +214,17 @@ describe("patchOffering — a single-unit space renames its unit with itself", (
   });
 
   // The settings form saves everything BUT the name and description — the
-  // page edits those in place, and a settings save must not carry a name
-  // the previous render still had.
-  it("updateOffering leaves the name and the unit to the header", async () => {
+  // page edits those in place, so a payload carrying a name is refused
+  // outright (strict schema), never quietly dropped.
+  it("updateOffering refuses a name and leaves the unit to the header", async () => {
     state.units = [{ id: "unit-1" }];
-    expect(await updateOffering({ id, ...space, name: "Apartment" })).toEqual({ ok: true });
+    expect(await updateOffering({ id, ...space, name: "Apartment" })).toMatchObject({ ok: false });
+    const settings = Object.fromEntries(
+      Object.entries(space).filter(([k]) => k !== "name" && k !== "description"),
+    );
+    expect(await updateOffering({ id, ...settings })).toEqual({ ok: true });
     const row = state.updates.find((u) => u.table === "rental_offerings")?.row as Record<string, unknown>;
     expect(row).not.toHaveProperty("name");
-    expect(row).not.toHaveProperty("description");
     expect(state.updates.filter((u) => u.table === "rental_units")).toEqual([]);
   });
 });

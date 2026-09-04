@@ -18,6 +18,7 @@ import { RequestsInbox } from "@/features/scheduling/components/requests-inbox";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 import { INTL_LOCALES } from "@/i18n/config";
+import { railLinkClass } from "@/components/shell/rail";
 import { cn } from "@/lib/utils";
 
 /* The right rail's "Go to" list mirrors the sidebar's day-to-day rows, so it
@@ -174,7 +175,7 @@ export default async function OverviewPage({
             <Link
               key={href}
               href={href}
-              className="hover:bg-accent focus-visible:ring-ring/30 ease-strong -mx-2 flex items-center gap-2.5 rounded-lg px-2 py-[5px] text-[13px] font-medium outline-none transition-colors duration-150 focus-visible:ring-3"
+              className={railLinkClass}
             >
               <HugeiconsIcon icon={icon} size={14} className="text-subtle shrink-0" />
               {tShell(`nav.${labelKey}`)}

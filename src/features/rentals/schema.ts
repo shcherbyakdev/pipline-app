@@ -89,12 +89,17 @@ const hoursOffering = offeringCommon.extend(hoursFields.shape).strict()
   .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
   .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG });
 export const offeringInput = z.union([rangeOffering, hoursOffering]);
+// The settings form: everything but the name and description, which the
+// space page edits in place (patchOfferingInput). `strict()` means a payload
+// carrying a name is refused, not quietly dropped — a settings save can
+// never overwrite an in-place rename.
+const settingsCommon = offeringCommon.omit({ name: true, description: true });
 export const updateOfferingInput = z.union([
-  offeringCommon.extend(rangeFields.shape).extend({ id: z.uuid() }).strict()
+  settingsCommon.extend(rangeFields.shape).extend({ id: z.uuid() }).strict()
     .refine(stayOrder, { message: "max stay must be ≥ min stay" })
     .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
     .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
-  offeringCommon.extend(hoursFields.shape).extend({ id: z.uuid() }).strict()
+  settingsCommon.extend(hoursFields.shape).extend({ id: z.uuid() }).strict()
     .refine(hoursGrid, { message: HOURS_GRID_MSG })
     .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
     .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),

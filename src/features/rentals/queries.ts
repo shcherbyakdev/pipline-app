@@ -374,11 +374,13 @@ const OFFERING_BOOKINGS_LIMIT = 20;
 const OFFERING_BOOKING_COLS =
   "id, client_name, starts_at, ends_at, status, note, rental_offerings(name, range_mode), rental_units(name)";
 
-/** A space's stays split around now — staff-queries.ts's listStaffBookings
-    with the space column: "Upcoming" is what will still happen (confirmed
-    or awaiting approval, not yet ENDED — a stay in progress is still
-    coming); "Recent" is everything ended plus every cancelled, declined or
-    moved row whatever its date, so nothing falls between the two. */
+/** A space's stays split around now, by /bookings' own rule (listBookings
+    in scheduling/queries.ts): "Upcoming" is a confirmed stay not yet ENDED
+    (one in progress is still coming) or a request whose start is still
+    ahead; "Recent" is every terminal row whatever its date, every confirmed
+    stay that has ended, and every request whose start has passed — lapsed,
+    the approval RPC refuses it — so the two pages never disagree and
+    nothing falls between the lists. */
 export async function listOfferingBookings(
   offeringId: string,
   now: Date = new Date(),
@@ -390,7 +392,7 @@ export async function listOfferingBookings(
       .from("bookings")
       .select(OFFERING_BOOKING_COLS)
       .eq("rental_offering_id", offeringId)
-      .in("status", ["confirmed", "pending"])
+      .or(`status.eq.confirmed,and(status.eq.pending,starts_at.gt.${iso})`)
       .gte("ends_at", iso)
       .order("starts_at")
       .limit(OFFERING_BOOKINGS_LIMIT),
@@ -398,7 +400,11 @@ export async function listOfferingBookings(
       .from("bookings")
       .select(OFFERING_BOOKING_COLS)
       .eq("rental_offering_id", offeringId)
-      .or(`ends_at.lt.${iso},status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined)`)
+      .or(
+        `status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined),` +
+          `and(status.eq.confirmed,ends_at.lt.${iso}),` +
+          `and(status.eq.pending,starts_at.lte.${iso})`,
+      )
       .order("starts_at", { ascending: false })
       .limit(OFFERING_BOOKINGS_LIMIT),
   ]);

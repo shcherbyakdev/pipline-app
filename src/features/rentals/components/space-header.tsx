@@ -8,21 +8,26 @@ import type { OfferingRow } from "@/features/rentals/queries";
 import { dialogBareInputClass } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-// Text until focused — the dialog's bare-input idiom — plus a focus ring
-// (member-header.tsx's rule).
+// Text until focused — the dialog's bare-input idiom (client-header.tsx
+// does the same for a client's name) — plus a focus ring so a keyboard
+// user can see where they are on a page with no borders.
 const inlineClass = cn(
   dialogBareInputClass,
   "-mx-1 rounded-md px-1 focus-visible:ring-3 focus-visible:ring-ring/30",
 );
+// Grows with its text where the browser can (Chrome 123+, Safari 18+);
+// elsewhere the input keeps the bare class's full width, so a long name is
+// never clipped to the UA's ~20-character box.
 const fit = { fieldSizing: "content" } as React.CSSProperties;
 
 type Field = "name" | "description";
 
-/* The space's identity, edited in place (member-header.tsx's model, two
-   fields): name and description read as text and save on blur (Enter
-   commits the name, Escape reverts either). Each save sends ONE field —
-   patchOffering — and snaps back with the action's own words if it refuses;
-   a refusal only reverts if no newer edit of that field is pending. */
+/* The space's identity, edited in place: name and description read as
+   text and save on blur (Enter commits the name, Escape reverts either).
+   Each save sends ONE field — patchOffering — and snaps back with the
+   action's own words if it refuses. `saved` only moves for the newest edit
+   of a field, whichever order the responses land in, so a refusal never
+   reverts to a value the server no longer holds. */
 export function SpaceHeader({
   offering,
   badges,
@@ -57,12 +62,16 @@ export function SpaceHeader({
     latest.current = { ...latest.current, [field]: value };
     startTransition(async () => {
       const result = await patchOffering({ id: offering.id, [field]: value });
+      // An older request answering after a newer one has nothing to say.
+      if (latest.current[field] !== value) {
+        if (!result.ok) toastRefusal(result.error, result.upgrade);
+        return;
+      }
       if (result.ok) {
         saved.current = { ...saved.current, [field]: value };
         return;
       }
       toastRefusal(result.error, result.upgrade);
-      if (latest.current[field] !== value) return;
       latest.current = { ...latest.current, [field]: saved.current[field] };
       set(field, saved.current[field]);
     });
@@ -89,7 +98,7 @@ export function SpaceHeader({
           onBlur={(e) => commit("name", e.currentTarget.value)}
           onKeyDown={(e) => onKey("name", e)}
           style={fit}
-          className={cn(inlineClass, "w-auto min-w-0 max-w-full text-lg font-semibold")}
+          className={cn(inlineClass, "min-w-0 max-w-full text-lg font-semibold supports-[field-sizing:content]:w-auto")}
         />
         {badges}
       </div>

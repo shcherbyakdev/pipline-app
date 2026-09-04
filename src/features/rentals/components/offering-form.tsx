@@ -50,10 +50,9 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 /* A space's settings, on a page (there is no dialog): the whole of
    /rentals/new, and the Settings section of /rentals/[id]. On the space's
    page the name and description live in the header (space-header.tsx) and
-   are not repeated here; the payload still carries the server's values for
-   the schema's sake, and updateOffering does not write them. Step, min/max
-   and deposit type/value are checked together, so this stays one form with
-   one Save. A create goes back to the list. */
+   never travel through here. Step, min/max and deposit type/value are
+   checked together, so this stays one form with one Save. A create goes
+   back to the list. */
 export function OfferingForm({
   offering,
   currency,
@@ -94,9 +93,15 @@ export function OfferingForm({
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const name = offering ? offering.name : String(fd.get("name") ?? "").trim();
-    if (name === "") return;
-    const description = offering ? (offering.description ?? "") : String(fd.get("description") ?? "").trim();
+    // The name and description travel only on create; on the space's page
+    // the header owns them (updateOfferingInput is strict about it).
+    const identity = offering
+      ? {}
+      : {
+          name: String(fd.get("name") ?? "").trim(),
+          description: String(fd.get("description") ?? "").trim() || undefined,
+        };
+    if ("name" in identity && identity.name === "") return;
     const price = String(fd.get("price") ?? "").trim();
     const termsText = String(fd.get("termsText") ?? "").trim();
     const depositValueRaw = String(fd.get("depositValue") ?? "").trim();
@@ -116,8 +121,7 @@ export function OfferingForm({
             Number(cancelWindowRaw) * (rangeMode === "hours" ? 60 : 1440),
           );
     const common = {
-      name,
-      description: description === "" ? undefined : description,
+      ...identity,
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
       unitSelection: String(fd.get("unitSelection") ?? "auto"),
       active,

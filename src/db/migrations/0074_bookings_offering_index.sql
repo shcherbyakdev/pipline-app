@@ -1,0 +1,1 @@
+CREATE INDEX "bookings_rental_offering_starts_at_idx" ON "bookings" USING btree ("rental_offering_id","starts_at");

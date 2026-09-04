@@ -8,7 +8,6 @@ import {
   getOffering,
   listOfferingBookings,
   listUnitsWithBlackouts,
-  getOrgCurrency,
   type OfferingBookingRow,
 } from "@/features/rentals/queries";
 import { formatDurationLabel } from "@/features/rentals/hourly";
@@ -26,12 +25,9 @@ import { statusKey } from "@/features/scheduling/booking-label";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { bookingLink } from "@/lib/booking/url";
+import { railLinkClass } from "@/components/shell/rail";
 import { INTL_LOCALES } from "@/i18n/config";
 import { env } from "@/env";
-
-// The overview page's rail link, verbatim (team/[id] uses the same).
-const railLinkClass =
-  "hover:bg-accent focus-visible:ring-ring/30 ease-strong -mx-2 flex items-center gap-2.5 rounded-lg px-2 py-[5px] text-[13px] font-medium outline-none transition-colors duration-150 focus-visible:ring-3";
 
 /* One space, laid out like a team member's page (main column + rail): the
    header edits itself in place, units, then the settings form (one Save —
@@ -43,21 +39,18 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
   // (same idiom as programs/[id]/units/[unitId]).
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const offering = await getOffering(id);
-  // RLS hides other orgs' rows — indistinguishable from a nonexistent id,
-  // which is exactly the 404 we want.
-  if (!offering) notFound();
-  const hourly = offering.rangeMode === "hours";
-  const [units, currency, settings, bookings, availability, locale, t, tc, tu, tb, tAvailability] =
+  // One round of reads; only the hours summary waits on the space itself.
+  const offeringP = getOffering(id);
+  const [offering, units, settings, bookings, availability, locale, t, tc, tu, tb, tAvailability] =
     await Promise.all([
+      offeringP,
       listUnitsWithBlackouts(id),
-      getOrgCurrency(),
       getSchedulingSettings(),
       listOfferingBookings(id),
       // U3 (ruling 4): hours are edited on /availability; this page only
       // summarises the weekly rules (hourly spaces have them; nights/days
       // spaces use check-in/out times instead).
-      hourly ? getOfferingAvailabilityAdmin(id) : null,
+      offeringP.then((o) => (o?.rangeMode === "hours" ? getOfferingAvailabilityAdmin(id) : null)),
       getLocale(),
       getTranslations("spaces"),
       getTranslations("common"),
@@ -65,7 +58,12 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
       getTranslations("bookings"),
       getTranslations("availability"),
     ]);
+  // RLS hides other orgs' rows — indistinguishable from a nonexistent id,
+  // which is exactly the 404 we want.
+  if (!offering) notFound();
+  const hourly = offering.rangeMode === "hours";
   const timeZone = settings?.timezone ?? "UTC";
+  const currency = settings?.currency ?? "PLN";
   const intlLocale = INTL_LOCALES[locale];
   const schedule = hourly
     ? t("schedule.hours", {
@@ -82,7 +80,9 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
       ? bookingLink(env.NEXT_PUBLIC_APP_URL, settings.handle, { space: offering.id })
       : null;
 
-  // A render helper, not a component (team/[id]'s note).
+  // A render helper, not a component: it closes over the page's translators
+  // and zone, and the static-components lint rule is right that a component
+  // made per render would remount its subtree.
   const bookingsList = (title: string, rows: OfferingBookingRow[], empty: string) => (
     <div className="flex flex-col gap-2">
       <h3 className="text-muted-foreground text-xs font-medium">{title}</h3>

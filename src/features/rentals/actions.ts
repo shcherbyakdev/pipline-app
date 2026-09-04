@@ -52,8 +52,11 @@ async function currentOrgId(): Promise<string | null> {
 // default for whichever branch's fields the mode doesn't carry, so switching
 // an offering's mode never leaves a stale value from the other branch behind.
 /** Everything but the name and description — the space page edits those in
-    place (patchOffering); the settings form saves the rest. */
-function toOfferingSettingsRow(d: import("zod").infer<typeof offeringInput>) {
+    place (patchOffering); the settings form saves the rest. Distributive so
+    each mode's branch keeps its own fields. */
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+type OfferingSettings = DistributiveOmit<import("zod").infer<typeof offeringInput>, "name" | "description">;
+function toOfferingSettingsRow(d: OfferingSettings) {
   const common = {
     range_mode: d.rangeMode,
     booking_window_days: d.bookingWindowDays,
@@ -191,9 +194,8 @@ export async function updateOffering(input: unknown): Promise<ActionState> {
   if (!orgId) return generic();
   const { id, ...rest } = parsed.data;
   const supabase = await createClient();
-  // The settings only: the space page edits the name and description in
-  // place (patchOffering), and a settings save must not carry a name the
-  // previous render still had. The schema keeps both for create's sake.
+  // The settings only: the schema has no name or description here (the
+  // space page edits those in place through patchOffering).
   const { data, error } = await supabase
     .from("rental_offerings")
     .update(toOfferingSettingsRow(rest))
