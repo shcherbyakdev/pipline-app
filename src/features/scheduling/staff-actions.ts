@@ -42,7 +42,8 @@ const UNIQUE_VIOLATION = "23505";
 // pickers on Services, the counts on Bookings — and the embed studio's
 // "Book with" selector, which only exists once a second member is active.
 function revalidateStaff() {
-  revalidatePath("/team");
+  // "layout": /team/[id] shows the same person and must not keep a stale name.
+  revalidatePath("/team", "layout");
   revalidatePath("/availability");
   revalidatePath("/bookings");
   revalidatePath("/services");
@@ -89,25 +90,35 @@ export async function updateStaff(input: unknown): Promise<ActionState> {
   }
   const orgId = await currentOrgId();
   if (!orgId) return refuse("generic");
-  const { id, name, slug, email, color, serviceIds } = parsed.data;
+  const { id, serviceIds, ...fields } = parsed.data;
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("staff")
-    // org_id is deliberately absent: staff_guard_update rejects a change, and
-    // an update must never move a row between a multi-org user's orgs.
-    .update({ name, slug, email: email ?? null, color })
-    .eq("id", id)
-    // RLS already hides foreign rows; the explicit org scope is
-    // defense-in-depth and keeps multi-org sessions unambiguous.
-    .eq("org_id", orgId)
-    .select("id")
-    .maybeSingle();
+  // Only what the caller sent: the member page saves one field per blur, and
+  // a rename must not carry a colour the previous render still had.
+  const patch: { name?: string; slug?: string; email?: string | null; color?: string } = {};
+  if (fields.name !== undefined) patch.name = fields.name;
+  if (fields.slug !== undefined) patch.slug = fields.slug;
+  if (fields.email !== undefined) patch.email = fields.email;
+  if (fields.color !== undefined) patch.color = fields.color;
+
+  // org_id is deliberately absent from the patch: staff_guard_update rejects
+  // a change, and an update must never move a row between a multi-org
+  // user's orgs. RLS already hides foreign rows; the explicit org scope is
+  // defense-in-depth and keeps multi-org sessions unambiguous. With nothing
+  // to patch (services only) the same scoped read proves the row is ours.
+  const { data, error } =
+    Object.keys(patch).length > 0
+      ? await supabase.from("staff").update(patch).eq("id", id).eq("org_id", orgId).select("id").maybeSingle()
+      : await supabase.from("staff").select("id").eq("id", id).eq("org_id", orgId).maybeSingle();
   if (error) {
     if (error.code === UNIQUE_VIOLATION) return refuse("staff.slugTaken");
     return fail("updateStaff", error);
   }
   if (!data) return refuse("generic");
+  if (!serviceIds) {
+    revalidateStaff();
+    return { ok: true };
+  }
 
   // Reconcile the service checklist: service_staff has no update path (insert
   // + delete policies only), so diff it rather than replacing the set — a

@@ -476,6 +476,14 @@ describe("updateStaffInput / staffActiveInput", () => {
     expect(updateStaffInput.safeParse(base).success).toBe(false);
     expect(updateStaffInput.safeParse({ ...base, id }).success).toBe(true);
   });
+  it("takes a partial row; an emptied email clears it, an absent one is left alone", () => {
+    expect(updateStaffInput.safeParse({ id, name: "Anna" }).success).toBe(true);
+    expect(updateStaffInput.parse({ id, email: " " }).email).toBeNull();
+    expect(updateStaffInput.parse({ id, name: "Anna" }).email).toBeUndefined();
+    expect(updateStaffInput.parse({ id, email: "Anna@Example.com" }).email).toBe("anna@example.com");
+    // The slug rules survive the partial: a reserved word is still refused.
+    expect(updateStaffInput.safeParse({ id, slug: "spaces" }).success).toBe(false);
+  });
   it("takes an id plus a boolean", () => {
     expect(staffActiveInput.safeParse({ id, active: false }).success).toBe(true);
     expect(staffActiveInput.safeParse({ id, active: "no" }).success).toBe(false);

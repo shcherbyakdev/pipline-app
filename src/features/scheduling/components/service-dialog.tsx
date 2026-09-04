@@ -31,12 +31,20 @@ export function ServiceDialog({
   service,
   staff,
   gateHref = null,
+  forStaffId,
+  trigger,
 }: {
   service?: ServiceRow;
   staff: StaffRow[];
-  /** Set when the plan would refuse another service (staff-dialog idiom):
+  /** Set when the plan would refuse another service (the Team page's rule):
       the create trigger links to the door instead. */
   gateHref?: string | null;
+  /** A member's page creating a service for that person: no checklist —
+      the service is theirs alone, decided by where it was created. */
+  forStaffId?: string;
+  /** The create trigger, when the page wants its own (the member page's
+      rail row); the default is the "New service" button. */
+  trigger?: React.ReactElement;
 }) {
   const t = useTranslations("services");
   const tCommon = useTranslations("common");
@@ -61,9 +69,10 @@ export function ServiceDialog({
   // Solo rule: with one person on the roster there is nothing to choose, so
   // the checklist never appears and `createService` assigns them server-side.
   const activeStaff = staff.filter((s) => s.active);
-  const showStaff = activeStaff.length > 1;
+  // A service created from a member's page is theirs; nothing to choose.
+  const showStaff = !forStaffId && activeStaff.length > 1;
   // A new service is offered by everyone; narrowing is the deliberate act
-  // (mirrors the staff dialog's service checklist). On edit the seed is the
+  // (the same default as staff-form.tsx's service checklist). On edit the seed is the
   // stored set, deactivated people included — only active rows are rendered,
   // so someone off the roster keeps their assignment through a save.
   const defaultStaffIds = () =>
@@ -130,8 +139,9 @@ export function ServiceDialog({
       active,
       requiresApproval,
       // Omitted when the checklist wasn't rendered: the server then keeps the
-      // existing links (edit) or assigns every active member (create).
-      ...(showStaff ? { staffIds: [...staffIds] } : {}),
+      // existing links (edit) or assigns every active member (create) — unless
+      // a member's page said whose it is.
+      ...(forStaffId ? { staffIds: [forStaffId] } : showStaff ? { staffIds: [...staffIds] } : {}),
     };
     startTransition(async () => {
       const result = isEdit
@@ -146,7 +156,8 @@ export function ServiceDialog({
     });
   };
 
-  // After the hooks (staff-dialog idiom): a capped org gets the door.
+  // After the hooks (their order must not depend on the gate): a capped org
+  // gets the door, not a form the action would refuse.
   if (!isEdit && gateHref) {
     return (
       <Link href={gateHref} className={cn(buttonVariants({ size: "sm" }))}>
@@ -164,9 +175,11 @@ export function ServiceDialog({
               <Pencil className="size-4" /> {tCommon("edit")}
             </Button>
           ) : (
-            <Button size="sm">
-              <Plus className="size-4" /> {t("newButton")}
-            </Button>
+            (trigger ?? (
+              <Button size="sm">
+                <Plus className="size-4" /> {t("newButton")}
+              </Button>
+            ))
           )
         }
       />

@@ -124,7 +124,8 @@ function toServiceRow(d: import("zod").infer<typeof serviceInput>) {
 // do. Mirrors `revalidateStaff()` in staff-actions.ts, from the other side.
 function revalidateServices() {
   revalidatePath("/services");
-  revalidatePath("/team");
+  // "layout": /team/[id] lists the person's services and must see a new one.
+  revalidatePath("/team", "layout");
   revalidatePath("/bookings");
 }
 
