@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextRequest, initialRequest } from "./page-request";
+import { initialRequest, nextRequest, nextStaffRequest } from "./page-request";
 
 describe("page request reducer", () => {
   it("starts from the ?service= deep link, else ?space=, else empty; service wins when both are given", () => {
@@ -20,5 +20,14 @@ describe("page request reducer", () => {
     const o = nextRequest(s, "offering", "off1");
     expect(o).toEqual({ kind: "offering", id: "off1", key: 2 });
     expect(nextRequest(o, "service", "svc2")).toEqual({ kind: "service", id: "svc2", key: 3 });
+  });
+});
+
+describe("nextStaffRequest", () => {
+  it("picks a person, and picking them again clears back to anyone", () => {
+    const first = nextStaffRequest(null, "ana");
+    expect(first).toEqual({ id: "ana", key: 1 });
+    expect(nextStaffRequest(first, "bo")).toEqual({ id: "bo", key: 2 });
+    expect(nextStaffRequest(first, "ana")).toEqual({ id: null, key: 2 });
   });
 });

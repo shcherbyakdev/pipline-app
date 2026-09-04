@@ -12,7 +12,7 @@ import type { Pickers } from "../pickers";
 import { H2 } from "../type";
 
 export function BookingSection({ section, ctx, pickers, crossLink }: { section: SectionOf<"booking">; ctx: RenderContext; pickers: Pickers; crossLink: RenderContext["crossLink"] }) {
-  const { requested } = usePageState();
+  const { requested, staffPick } = usePageState();
   const preview = ctx.mode === "preview";
   return (
     <section id="book" className="flex scroll-mt-6 flex-col gap-4">
@@ -30,17 +30,25 @@ export function BookingSection({ section, ctx, pickers, crossLink }: { section: 
             layout={resolveLayout(ctx.theme)}
             stayLayout={resolveStayLayout(ctx.theme)}
             services={ctx.services}
-            // Preview mode: no staff step, canned slots, never a network call.
-            // Rentals DO render (the builder hands in the org's preview
-            // catalogue) — the widget keeps their cards inert in preview.
+            // Preview mode: canned slots, never a network call. Rentals DO
+            // render (the builder hands in the org's preview catalogue) — the
+            // widget keeps their cards inert in preview.
             offerings={ctx.offerings}
             // One picker per page (pickers.ts): a Services / Spaces section on
             // the page lists the channel; the widget then only takes the pick.
             listServices={!pickers.services}
             listOfferings={!pickers.spaces}
-            staff={preview ? [] : ctx.staff}
-            serviceStaffIds={preview ? undefined : ctx.serviceStaffIds}
+            // A Team section on the page is the person picker; the widget
+            // then only follows it.
+            listStaff={!pickers.staff}
+            // The roster rides along in preview too: the person switch is
+            // most of what a client sees after picking a service, and picking
+            // one here loads canned slots rather than fetching.
+            staff={ctx.staff}
+            serviceStaffIds={ctx.serviceStaffIds}
             lockedStaff={preview ? null : ctx.lockedStaff}
+            // Who the Team section picked, if anyone (staff.tsx).
+            requestedStaff={staffPick}
             requestedService={requested?.kind === "service" ? requested : null}
             requestedOffering={requested?.kind === "offering" ? requested : null}
             // Canned slots and availability: in preview the rental flows open

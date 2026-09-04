@@ -21,6 +21,7 @@ import {
   type WidgetThemeConfig,
 } from "@/lib/widget-theme";
 import { WidgetTheme } from "@/components/widget-theme";
+import { contrastOf } from "@/features/orgs/components/appearance-fields";
 import { NextIntlClientProvider, useTranslations, type AbstractIntlMessages } from "next-intl";
 import type { Locale } from "@/i18n/config";
 import {
@@ -31,9 +32,12 @@ import {
 } from "@/components/live-preview";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 import { cn } from "@/lib/utils";
+import { badgeShows } from "@/lib/billing/entitlements";
+import { PageIntro } from "@/components/shell/page-header";
 import { bookingPath, bookingUrl, hostLabel } from "@/lib/booking/url";
 import { SECTION_TYPES, type PageDocument } from "../schema";
 import {
+  deepEqual,
   emptyVisibleSections,
   replaceSection,
   type EmptyContext,
@@ -57,6 +61,14 @@ type SchedulingSettings = NonNullable<
   Awaited<ReturnType<typeof getSchedulingSettings>>
 >;
 
+/* The live page's "Powered by Booklo", drawn the way embed-preview-frame
+   draws it: inside the preview's own provider, so it speaks the org's
+   language rather than the admin's. */
+function PreviewBadge() {
+  const t = useTranslations("public");
+  return <p className="mt-4 text-center text-xs opacity-60">{t("poweredBy")}</p>;
+}
+
 /* Booking page builder: Sections / Settings on the left, the hosted page as
    a visitor will see it on the right — the same PageRenderer + WidgetTheme
    composition as /[handle], fed by the draft and the unsaved settings. */
@@ -70,6 +82,7 @@ export function BookingPageBuilder({
   previewServices,
   previewOfferings,
   staff,
+  serviceStaffIds,
   initialPage,
   pageSections,
   mode,
@@ -91,6 +104,9 @@ export function BookingPageBuilder({
   previewServices: PublicService[];
   previewOfferings: PublicOffering[];
   staff: PublicStaff[];
+  /** serviceId → eligible staff ids, so the preview's widget offers the same
+      person switch a client gets (lib/booking/public.ts). */
+  serviceStaffIds: Record<string, string[]>;
   initialPage: { draft: PageDocument; published: PageDocument | null };
   pageSections: PlanLimits["pageSections"];
   mode: OrgMode;
@@ -144,9 +160,14 @@ export function BookingPageBuilder({
   // Only consulted when the widget theme is Auto: the hosted page then follows
   // the visitor's system, which the preview lets you flip.
   const [scheme, setScheme] = React.useState<Scheme>("light");
-  const [theme, setTheme] = React.useState<WidgetThemeConfig>(() =>
+  // The widget's look — its template, theme, corners, colours — publishes with
+  // the page now (2026-09-04): picking one moves the preview, and reaches
+  // clients only when Publish does. `savedTheme` is what the server holds.
+  const [savedTheme, setSavedTheme] = React.useState<WidgetThemeConfig>(() =>
     parseWidgetTheme(branding.pageTheme),
   );
+  const [theme, setTheme] = React.useState<WidgetThemeConfig>(savedTheme);
+  const themeDirty = !deepEqual(theme, savedTheme);
   const resolved: Scheme = theme.theme === "auto" ? scheme : theme.theme;
   // Auto resolved to the preview's scheme: `wt-auto` follows the admin's real
   // system (a media query), which the toggle can't flip.
@@ -162,27 +183,49 @@ export function BookingPageBuilder({
     [selectedId, select, hoveredId],
   );
 
-  const [, startSaveLayout] = React.useTransition();
-  // The widget templates are this page's own setting (spec §9) — they save
-  // to the LIVE page at once (the page document is untouched).
-  const onApplyLayout = (patch: LayoutPatch) => {
-    const previous = theme;
-    const next: WidgetThemeConfig = { ...theme, ...patch };
-    setTheme(next);
-    startSaveLayout(async () => {
+  const onApplyLayout = (patch: LayoutPatch) => setTheme({ ...theme, ...patch });
+
+  // Publish sends both halves: the look first (one row), then the document.
+  const [savingTheme, startSaveTheme] = React.useTransition();
+  const publish = () => {
+    if (!themeDirty) {
+      draft.publish();
+      return;
+    }
+    startSaveTheme(async () => {
+      // A colour pair below 3:1 previews but is never sent — the server
+      // refuses it — so the last saved pair goes out instead, which is what
+      // the row's own hint promises.
+      const toSave = contrastOf(theme).blocked
+        ? { ...theme, background: savedTheme.background, text: savedTheme.text }
+        : theme;
       try {
-        const result = await updateSurfaceTheme({ surface: "page", theme: next });
+        const result = await updateSurfaceTheme({ surface: "page", theme: toSave });
         if (!result.ok) {
-          setTheme(previous);
           toast.error(result.error);
-        } else toast.success(t("starter.applied"));
+          return;
+        }
+        setSavedTheme(toSave);
+        setTheme(toSave);
+        draft.publish();
       } catch (error) {
-        console.error("[booking-page] onApplyLayout threw:", error);
-        setTheme(previous);
+        console.error("[booking-page] publish theme threw:", error);
         toast.error(tErrors("generic"));
       }
     });
   };
+
+  // The look lives only in this component until Publish, so leaving would
+  // drop it — the draft hook warns the same way for unsaved section edits.
+  React.useEffect(() => {
+    if (!themeDirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [themeDirty]);
 
   const host = hostLabel(appUrl);
   const previewHandle = handle.trim() || "your-handle";
@@ -199,6 +242,7 @@ export function BookingPageBuilder({
     theme: previewTheme,
     services: previewServices,
     staff,
+    serviceStaffIds,
     offerings: previewOfferings,
     lockedStaff: null,
     supabaseUrl,
@@ -234,22 +278,26 @@ export function BookingPageBuilder({
 
   return (
     <div className="flex flex-col gap-5">
-      <PublishBar
-        status={draft.status}
-        unpublished={draft.unpublished}
-        neverPublished={draft.published === null}
-        busy={draft.busy}
-        pageIssue={
-          draft.issues[""] ? Object.values(draft.issues[""])[0] : undefined
-        }
-        liveUrl={liveUrl}
-        capped={capped}
-        onRetry={draft.retry}
-        onPublish={() =>
-          empties.length > 0 ? setConfirm("publish") : draft.publish()
-        }
-        onDiscard={() => setConfirm("discard")}
-      />
+      {/* One row instead of two: what this page is for on the left, the way
+          out of the studio in the right corner. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <PageIntro>{t("intro")}</PageIntro>
+        <PublishBar
+          status={draft.status}
+          unpublished={draft.unpublished || themeDirty}
+          busy={draft.busy || savingTheme}
+          pageIssue={
+            draft.issues[""] ? Object.values(draft.issues[""])[0] : undefined
+          }
+          liveUrl={liveUrl}
+          capped={capped}
+          onRetry={draft.retry}
+          onPublish={() =>
+            empties.length > 0 ? setConfirm("publish") : publish()
+          }
+          onDiscard={() => setConfirm("discard")}
+        />
+      </div>
       <ConfirmDialog
         open={confirm === "discard"}
         title={t("discard.title")}
@@ -259,6 +307,7 @@ export function BookingPageBuilder({
         onConfirm={() => {
           setConfirm(null);
           draft.discard();
+          setTheme(savedTheme);
         }}
         onClose={() => setConfirm(null)}
       />
@@ -269,7 +318,7 @@ export function BookingPageBuilder({
         confirmLabel={t("publishBar.publish")}
         onConfirm={() => {
           setConfirm(null);
-          draft.publish();
+          publish();
         }}
         onClose={() => setConfirm(null)}
       />
@@ -292,6 +341,8 @@ export function BookingPageBuilder({
           <StudioTabs value={tab} onChange={setTab} />
           {tab === "settings" ? (
             <SettingsTab
+              layout={draft.doc.layout}
+              onLayout={(layout) => draft.update((d) => ({ ...d, layout }))}
               branding={branding}
               scheduling={scheduling}
               appUrl={appUrl}
@@ -320,23 +371,6 @@ export function BookingPageBuilder({
               pageSections={pageSections}
               mode={mode}
               seed={seed}
-              templatePicker={
-                // A spaces page has layouts to pick once it has a real space
-                // (spec §8); before that the starter's first-space step is it.
-                channel === "appointments" || previewOfferings.some((o) => o.id !== PREVIEW_OFFERING_ID) ? (
-                  <StarterDialog
-                    previewIntl={previewIntl}
-                    variant="picker"
-                    channel={channel}
-                    ctx={ctx}
-                    layout={theme.layout}
-                    stayLayout={theme.stayLayout}
-                    needsFirstItem={starter.needsFirstItem}
-                    currency={scheduling.currency}
-                    onApply={onApplyLayout}
-                  />
-                ) : null
-              }
             />
           )}
         </div>
@@ -351,15 +385,37 @@ export function BookingPageBuilder({
             // .light/.dark here keeps it faithful whatever the admin's theme is.
             pageClassName={cn(resolved, "bg-background text-foreground")}
             desktopMaxWidth={pageContainerClass(draft.doc.layout)}
+            // Everything that changes how this looks sits over the preview it
+            // changes: the widget's layout, then the two view switches. A
+            // fixed theme has nothing to flip — every visitor sees the one the
+            // preview is already showing — so that switch only appears on
+            // Auto, where it stands for the visitor's own system.
             controls={
-              <SchemeToggle
-                label={t("preview.systemTheme")}
-                value={resolved}
-                onChange={setScheme}
-                optionLabels={{ light: t("preview.lightSystem"), dark: t("preview.darkSystem") }}
-                disabled={theme.theme !== "auto"}
-                disabledReason={theme.theme === "light" ? t("preview.themeFixedLight") : t("preview.themeFixedDark")}
-              />
+              <>
+                {/* A spaces page has layouts to pick once it has a real space
+                    (spec §8); before that the starter's first-space step is it. */}
+                {channel === "appointments" || previewOfferings.some((o) => o.id !== PREVIEW_OFFERING_ID) ? (
+                  <StarterDialog
+                    previewIntl={previewIntl}
+                    variant="picker"
+                    channel={channel}
+                    ctx={ctx}
+                    layout={theme.layout}
+                    stayLayout={theme.stayLayout}
+                    needsFirstItem={starter.needsFirstItem}
+                    currency={scheduling.currency}
+                    onApply={onApplyLayout}
+                  />
+                ) : null}
+                {theme.theme === "auto" ? (
+                  <SchemeToggle
+                    label={t("preview.systemTheme")}
+                    value={resolved}
+                    onChange={setScheme}
+                    optionLabels={{ light: t("preview.lightSystem"), dark: t("preview.darkSystem") }}
+                  />
+                ) : null}
+              </>
             }
             notices={
               overrideRatio !== null && overrideRatio < 4.5 ? (
@@ -388,6 +444,10 @@ export function BookingPageBuilder({
                 >
                   <div lang={previewIntl.locale} className="contents">
                     <PageRenderer doc={draft.doc} ctx={ctx} />
+                    {/* The live page's own footer badge (renderChannelPage
+                        draws it outside the renderer), so the Settings switch
+                        that hides it can be seen doing it. */}
+                    {badgeShows(theme.hidePoweredBy, badge.canHideBadge) ? <PreviewBadge /> : null}
                   </div>
                 </WidgetTheme>
               </NextIntlClientProvider>

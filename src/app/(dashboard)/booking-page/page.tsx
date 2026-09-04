@@ -9,6 +9,7 @@ import { publicMessages } from "@/i18n/public-provider";
 import { isBookableOffering, toPreviewCatalog } from "@/lib/booking/preview-catalog";
 import { channelReach } from "@/lib/booking/channel-pages";
 import { loadPublicResources } from "@/lib/booking/public-offering";
+import { listServiceStaffMap } from "@/lib/booking/public";
 import { upgradeHref } from "@/lib/billing/upgrade-path";
 import { getPlanStatus } from "@/features/billing/queries";
 import { requireOrg } from "@/lib/auth/session";
@@ -19,7 +20,6 @@ import { isFreshPage } from "@/features/booking-page/studio/starter-state";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { badgeToggle } from "@/lib/billing/badge-toggle";
 import { BookingPageBuilder } from "@/features/booking-page/studio/booking-page-builder";
-import { PageIntro } from "@/components/shell/page-header";
 import { env } from "@/env";
 
 /* Booking page: the hosted channel — its sections, address, timezone and
@@ -73,9 +73,12 @@ export default async function BookingPagePage() {
   const capped = reach.capped
     ? { href: upgradeHref(await getDashboardFlags(org.id), (await getPlanStatus()).plan) }
     : null;
-  const [pages, pageSections] = await Promise.all([
+  const [pages, pageSections, serviceStaffIds] = await Promise.all([
     getPageStates(branding.orgId),
     getPageSectionsEntitlement(branding.orgId),
+    // The preview's widget shows the person switch the way the live page
+    // does, which needs the same eligibility map.
+    listServiceStaffMap(branding.orgId),
   ]);
   const page = pages[channel] ?? EMPTY_PAGE_STATE;
   // The starter (widget templates spec §5): a fresh appointments page —
@@ -97,13 +100,11 @@ export default async function BookingPagePage() {
     fresh: isFreshPage(page, needsFirstItem ? false : layoutChosen),
     needsFirstItem,
   };
-  const t = await getTranslations("studio");
 
   return (
     // Wider than the other settings pages: the preview must be able to show
     // the split layout (≥ 48rem of page column) at desktop.
     <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 p-6">
-      <PageIntro>{t("intro")}</PageIntro>
       <BookingPageBuilder
         // Re-mount per page: the draft hook is seeded once from its props.
         key={channel}
@@ -122,6 +123,7 @@ export default async function BookingPagePage() {
         previewOfferings={catalog.offerings}
         // The preview's Team section shows the real active roster (public shape: never email).
         staff={staff.filter((s) => s.active).map(({ id, name, slug, color }) => ({ id, name, slug, color }))}
+        serviceStaffIds={serviceStaffIds}
         initialPage={{ draft: page.draft, published: page.published }}
         pageSections={pageSections}
         mode={mode}
