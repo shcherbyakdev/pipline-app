@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { z } from "zod";
+import { ChevronRight } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { SourceCodeIcon } from "@hugeicons/core-free-icons";
 import { getService, listServiceBookings } from "@/features/scheduling/queries";
@@ -23,9 +24,10 @@ import { INTL_LOCALES } from "@/i18n/config";
 import { env } from "@/env";
 
 /* One service, laid out like a space's page (main column + rail): the header
-   edits itself in place, then who offers it, then the settings form (one
-   Save — its fields validate together), then the appointments booked for it.
-   The rail carries the ways out, delete included. */
+   edits itself in place, then who offers it, then the settings — folded away
+   behind their own heading, since the header already says the duration and
+   price — then the appointments booked for it. The rail carries the ways out,
+   delete included. */
 export default async function ServiceDetailPage({ params }: PageProps<"/services/[id]">) {
   const { id } = await params;
   // uuid guard: a malformed id must 404, not crash the PostgREST query
@@ -129,12 +131,18 @@ export default async function ServiceDetailPage({ params }: PageProps<"/services
           )}
         </section>
 
-        <section aria-labelledby="service-settings" className="flex flex-col gap-4">
-          <h2 id="service-settings" className="text-sm font-medium">
-            {t("detail.settings")}
-          </h2>
+        {/* The page's long tail: the header already says the duration and
+            price, so the rest opens on demand. Native <details> (the space
+            form's idiom): the closed fields stay in the DOM, so FormData is
+            unaffected, and the open state survives the revalidation a save
+            triggers because nothing here remounts. */}
+        <details className="group flex flex-col gap-4">
+          <summary className="group/summary focus-visible:ring-ring/30 -mx-1 flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-md px-1 outline-none select-none focus-visible:ring-3 [&::-webkit-details-marker]:hidden">
+            <ChevronRight aria-hidden className="text-subtle group-hover/summary:text-foreground size-3.5 transition-[transform,color] group-open:rotate-90" />
+            <h2 className="text-sm font-medium">{t("detail.settings")}</h2>
+          </summary>
           <ServiceForm service={service} />
-        </section>
+        </details>
 
         <section aria-labelledby="service-appointments" className="flex flex-col gap-4">
           <h2 id="service-appointments" className="text-sm font-medium">
