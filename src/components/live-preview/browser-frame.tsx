@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
    caller's page. `device="mobile"` swaps the browser window for a phone
    bezel with a status-bar island and home indicator; the header/footer are
    siblings of `children`, which keeps the page subtree mounted across a
-   device toggle. */
+   device toggle. The phone lays out at a real 390px viewport but is drawn
+   at 80% (`zoom`, so it takes the smaller footprint too) — at 1:1 it stood
+   740px tall and ran off the screen past the notices below it. */
 export function BrowserFrame({
   url,
   dark,
@@ -30,7 +32,7 @@ export function BrowserFrame({
       className={cn(
         "overflow-hidden shadow-[0_24px_60px_-28px_oklch(0_0_0/60%)] transition-[width,border-radius] duration-300",
         mobile
-          ? "mx-auto w-[390px] max-w-full rounded-[2.75rem] border-8 border-[#17181a] bg-[#17181a]"
+          ? "mx-auto w-[390px] max-w-full rounded-[2.75rem] border-8 border-[#17181a] bg-[#17181a] [zoom:0.8]"
           : cn("rounded-xl border", dark ? "border-white/10 bg-[#111214]" : "border-black/10 bg-white"),
         className,
       )}

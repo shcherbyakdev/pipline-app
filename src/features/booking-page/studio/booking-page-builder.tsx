@@ -279,8 +279,13 @@ export function BookingPageBuilder({
   return (
     <div className="flex flex-col gap-5">
       {/* One row instead of two: what this page is for on the left, the way
-          out of the studio in the right corner. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          out of the studio in the right corner. Pinned to the top of the
+          panel's scroll container — Publish is reachable however far down the
+          settings you are. `-mt-6 pt-6` stretches its ground up over the page's
+          own top padding without moving the row; `-top-6` cancels that margin
+          again when pinned, so the ground lands flush on the pane's edge and
+          nothing scrolls through above it. */}
+      <div className="bg-background sticky -top-6 z-20 -mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 pt-6 pb-4">
         <PageIntro>{t("intro")}</PageIntro>
         <PublishBar
           status={draft.status}
@@ -375,9 +380,9 @@ export function BookingPageBuilder({
           )}
         </div>
 
-        {/* Sticks inside the shell panel's scroll container (the header row sits
-          above it), so the offset is just the content padding. */}
-        <div className="lg:sticky lg:top-6 lg:self-start">
+        {/* Sticks inside the shell panel's scroll container, below the pinned
+          header row (24px of padding + a 32px control + 16px below it). */}
+        <div className="lg:sticky lg:top-[4.5rem] lg:self-start">
           <LivePreview
             url={url}
             dark={resolved === "dark"}
