@@ -38,7 +38,12 @@ export function AppShell({
       <div className="flex min-w-0 flex-1 flex-col md:p-2 md:pl-0">
         <div className="bg-background flex min-h-0 flex-1 flex-col overflow-hidden md:rounded-[12px] md:border md:shadow-(--shadow-card)">
           <TopBar org={org} userEmail={userEmail} flags={flags} mode={mode} pendingRequests={pendingRequests} planStatus={planStatus} />
-          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-6">{children}</main>
+          {/* `relative` so absolutely-positioned descendants (Tailwind's
+              sr-only inputs, popovers) resolve against this scroller and are
+              clipped by it. Without it their containing block is the page and
+              a sr-only input low in a long page grows the document, which then
+              scrolls the whole shell once this pane hits its end. */}
+          <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto p-6">{children}</main>
         </div>
       </div>
     </div>

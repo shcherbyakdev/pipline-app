@@ -23,14 +23,20 @@ import { INTL_LOCALES } from "@/i18n/config";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { House01Icon } from "@hugeicons/core-free-icons";
 
-const HATCH: React.CSSProperties = {
+export const HATCH: React.CSSProperties = {
   backgroundImage:
     "repeating-linear-gradient(45deg, transparent, transparent 5px, var(--border) 5px, var(--border) 6px)",
 };
 // Shared by the header and body rows so their columns stay aligned:
-// [left rail][7 day columns][right time axis] — the time axis sits on the
-// right like the reference design.
-const GRID_COLS = "grid-cols-[2.5rem_repeat(7,minmax(0,1fr))_3.5rem]";
+// [left rail][N day columns][right time axis] — the time axis sits on the
+// right like the reference design. Written out per span rather than
+// interpolated: Tailwind only sees class strings it can read in the source.
+const GRID_COLS: Record<DayCount, string> = {
+  1: "grid-cols-[2.5rem_minmax(0,1fr)_3.5rem]",
+  7: "grid-cols-[2.5rem_repeat(7,minmax(0,1fr))_3.5rem]",
+};
+/** How many day columns the grid draws: the Day view's one, the Week's seven. */
+export type DayCount = 1 | 7;
 
 /* Side-by-side columns for bookings that overlap in one day (the standard
    calendar treatment): sorted by start, each booking takes the first free
@@ -66,11 +72,13 @@ function overlapLayout(
   return out;
 }
 
-export function CalendarWeek({
-  weekStart, timeZone, staff, editStaffId, blockable, preferSpace, defaultStaffId,
+export function CalendarGrid({
+  startDate, dayCount, timeZone, staff, editStaffId, blockable, preferSpace, defaultStaffId,
   bookings, rules, exceptions, services, spaces,
 }: {
-  weekStart: string;
+  /** The leftmost column's date: the Monday of a week, or the day itself. */
+  startDate: string;
+  dayCount: DayCount;
   timeZone: string;
   // Team (multi-staff): the org's ACTIVE members. One of them (the solo case)
   // ⇒ no colours, no initials — this is the pre-team calendar.
@@ -105,7 +113,7 @@ export function CalendarWeek({
   const requireOneStaff = () => {
     toast.info(t("week.pickOneToBlock"));
   };
-  const days = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
+  const days = Array.from({ length: dayCount }, (_, i) => addDaysISO(startDate, i));
   const windowsByDay = days.map((d) => effectiveWindows(d, rules, exceptions));
   // Rentals R1: a multi-day stay has no place on an hour grid — it would
   // stretch a card over the whole column (or several). Split it out into an
@@ -336,16 +344,24 @@ export function CalendarWeek({
     // the reference. min-h is the graceful floor: below it the page
     // scrolls rather than crushing the rows.
     <div className="flex min-h-[520px] flex-1 flex-col overflow-x-auto">
-      <div className="flex min-h-0 min-w-[840px] flex-1 flex-col">
+      <div className={cn("flex min-h-0 flex-1 flex-col", dayCount === 7 && "min-w-[840px]")}>
         {/* header row: weekday over the date, today marked by a filled disc
             on the number alone (Google Calendar's signature). The week
             arrows live in the page toolbar now — nothing but days here. */}
-        <div className={cn("grid shrink-0 pb-2", GRID_COLS)}>
+        <div className={cn("grid shrink-0 pb-2", GRID_COLS[dayCount])}>
           <div />
           {days.map((d) => {
             const isToday = nowParts?.date === d;
             return (
-              <div key={d} className="flex items-center justify-center gap-1.5 py-2">
+              <div
+                key={d}
+                className={cn(
+                  "flex items-center gap-1.5 py-2",
+                  // Seven columns read as a row of centred headings; one
+                  // column is a page, and its date belongs at the margin.
+                  dayCount === 1 ? "justify-start" : "justify-center",
+                )}
+              >
                 <span className="text-muted-foreground text-xs">{weekday(d)}</span>
                 <span
                   className={cn(
@@ -364,7 +380,7 @@ export function CalendarWeek({
             entirely when the week has none, so appointment-only orgs keep
             the grid they had. */}
         {rentals.length === 0 ? null : (
-          <div className={cn("grid shrink-0 gap-x-1.5 pb-2", GRID_COLS)}>
+          <div className={cn("grid shrink-0 gap-x-1.5 pb-2", GRID_COLS[dayCount])}>
             <div />
             {days.map((d) => (
               <div key={d} className="flex flex-col gap-0.5">
@@ -397,7 +413,7 @@ export function CalendarWeek({
             reads as discrete rounded hour tiles with gutters (reference
             style) — the tiles are visual only; cards, selection, and
             pointer math stay percent-positioned on the continuous column. */}
-        <div ref={gridBodyRef} onKeyDown={onGridKeyDown} className={cn("grid min-h-0 flex-1 gap-x-1.5", GRID_COLS)}>
+        <div ref={gridBodyRef} onKeyDown={onGridKeyDown} className={cn("grid min-h-0 flex-1 gap-x-1.5", GRID_COLS[dayCount])}>
           <div />
           {days.map((d, di) => (
           <div
