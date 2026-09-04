@@ -36,13 +36,17 @@ export function decideReminder(
   now: Date,
   opts: { overQuota?: boolean; leadMs?: number; disabled?: boolean } = {},
 ): "send" | "suppress" | "wait" {
+  const lead = booking.startsAt.getTime() - (opts.leadMs ?? REMINDER_LEAD_MS);
+  if (now.getTime() >= booking.startsAt.getTime()) return "suppress";
+  // Not due yet → untouched. This comes BEFORE every suppress below: the
+  // query window is the longest lead any org may pick (48 h), so a row can
+  // sit in it a day before its own org's lead — a quota or an "off" switch
+  // at that tick must not stamp it (review 2026-09-05).
+  if (now.getTime() < lead) return "wait";
   // Stamped, never rescanned — same as every other suppress path below.
   // Reminders switched off (org prefs) are the same kind of "no": a booking
   // the drain reached while they were off never gets one.
   if (opts.overQuota || opts.disabled) return "suppress";
-  const lead = booking.startsAt.getTime() - (opts.leadMs ?? REMINDER_LEAD_MS);
-  if (now.getTime() >= booking.startsAt.getTime()) return "suppress";
-  if (now.getTime() < lead) return "wait";
   // Booked inside the lead window: the confirmation email just arrived —
   // a reminder would be noise. Stamped (not skipped-forever-rescanned).
   if (booking.createdAt.getTime() > lead) return "suppress";
@@ -175,21 +179,19 @@ export async function runReminderDrain(deps: {
     if (summary.sent + summary.failed >= REMINDER_BATCH_LIMIT) break;
     try {
       const policy = reminderPolicy(parseOrgPrefs(row.orgs?.notification_prefs), await customAllowedFor(row.org_id));
-      let overQuota = false;
-      if (deps.quotaExceeded) {
+      const timing = { startsAt: new Date(row.starts_at), createdAt: new Date(row.created_at) };
+      let decision = decideReminder(timing, now, { leadMs: policy.leadMs, disabled: !policy.enabled });
+      if (decision === "wait") continue; // not due for THIS org's lead yet — untouched, next tick
+      // The quota is a COUNT per booking (deliberately un-memoised, see the
+      // route); only pay for it when timing alone would send.
+      if (decision === "send" && deps.quotaExceeded) {
         try {
-          overQuota = await deps.quotaExceeded(row.org_id, row.orgs?.timezone ?? "UTC", row.created_at);
+          if (await deps.quotaExceeded(row.org_id, row.orgs?.timezone ?? "UTC", row.created_at)) decision = "suppress";
         } catch (e) {
           // spec §7.10: a missed suppression beats a missed reminder.
           console.error("[scheduling] quota check failed (sending):", e);
         }
       }
-      const decision = decideReminder(
-        { startsAt: new Date(row.starts_at), createdAt: new Date(row.created_at) },
-        now,
-        { overQuota, leadMs: policy.leadMs, disabled: !policy.enabled },
-      );
-      if (decision === "wait") continue; // not due for THIS org's lead yet — untouched, next tick
 
       // Optimistic claim (chasing idiom): exactly one drain wins the row.
       const { data: claimed, error: claimError } = await deps.db

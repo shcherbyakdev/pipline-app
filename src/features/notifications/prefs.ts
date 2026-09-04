@@ -49,17 +49,18 @@ export function setMemberChannel(prefs: MemberPrefs, event: MemberEvent, channel
   return { ...prefs, [event]: { ...prefs[event], [channel]: enabled } };
 }
 
+/** The leads a person may pick. Mirrored by the SQL CHECK inside
+    update_org_notification_prefs (0075) — prefs.test.ts asserts parity —
+    and by the drain's query window (REMINDER_MAX_LEAD_MS = the largest). */
 export const REMINDER_LEAD_HOURS = [1, 2, 3, 6, 12, 24, 48] as const;
 export type ReminderLeadHours = (typeof REMINDER_LEAD_HOURS)[number];
 export const DEFAULT_REMINDER_LEAD_HOURS: ReminderLeadHours = 24;
+export const reminderLeadSchema = z.literal(REMINDER_LEAD_HOURS);
 
 export type OrgPrefs = { reminder: { enabled: boolean; leadHours: ReminderLeadHours } };
 
 export const orgPrefsSchema = z.object({
-  reminder: z.object({
-    enabled: z.boolean(),
-    leadHours: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(6), z.literal(12), z.literal(24), z.literal(48)]),
-  }),
+  reminder: z.object({ enabled: z.boolean(), leadHours: reminderLeadSchema }),
 }) satisfies z.ZodType<OrgPrefs>;
 
 export const DEFAULT_ORG_PREFS: OrgPrefs = Object.freeze({

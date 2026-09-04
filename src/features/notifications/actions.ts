@@ -11,6 +11,7 @@ import {
   DEFAULT_REMINDER_LEAD_HOURS,
   MEMBER_EVENTS,
   parseMemberPrefs,
+  reminderLeadSchema,
   setMemberChannel,
   type OrgPrefs,
 } from "./prefs";
@@ -58,24 +59,23 @@ export async function setMemberPref(input: unknown): Promise<ActionResult> {
   return { ok: true };
 }
 
-const reminderInput = z.object({
-  enabled: z.boolean(),
-  leadHours: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(6), z.literal(12), z.literal(24), z.literal(48)]),
-});
+const reminderInput = z.object({ enabled: z.boolean(), leadHours: reminderLeadSchema });
 
 /** The Reminders card. A lead other than the default is a paid perk: the
-    page disables the picker, and this refuses the same way (the same
-    perkToggle read), so a hand-crafted request cannot buy it. The drain
-    enforces it a third time at send. */
+    page disables the picker, and this PINS the lead to the default under
+    the same perkToggle read (not a refusal: a lapsed Pro still carries its
+    old lead in the row and must be able to flip the on/off switch — review
+    2026-09-05). The drain pins a third time at send. */
 export async function setReminderPrefs(input: unknown): Promise<ActionResult> {
   const parsed = reminderInput.safeParse(input);
   if (!parsed.success) return invalid();
   const { org } = await requireOrg();
-  if (parsed.data.leadHours !== DEFAULT_REMINDER_LEAD_HOURS) {
+  let leadHours = parsed.data.leadHours;
+  if (leadHours !== DEFAULT_REMINDER_LEAD_HOURS) {
     const { allowed } = await perkToggle(org.id, (ent) => ent.customReminders);
-    if (!allowed) return invalid();
+    if (!allowed) leadHours = DEFAULT_REMINDER_LEAD_HOURS;
   }
-  const prefs: OrgPrefs = { reminder: { enabled: parsed.data.enabled, leadHours: parsed.data.leadHours } };
+  const prefs: OrgPrefs = { reminder: { enabled: parsed.data.enabled, leadHours } };
   const supabase = await createClient();
   const { error } = await supabase.rpc("update_org_notification_prefs", { p_org_id: org.id, p_prefs: prefs });
   if (error) return fail("setReminderPrefs", error);
@@ -87,17 +87,24 @@ const subscriptionInput = z.object({
   endpoint: z.string().url().max(2048),
   keys: z.object({ p256dh: z.string().min(1).max(512), auth: z.string().min(1).max(512) }),
   userAgent: z.string().max(512).optional(),
+  /** The endpoint the browser just dropped (rotated key, or a subscription
+      the page could not use); its row goes if it is the caller's. */
+  staleEndpoint: z.string().url().max(2048).optional(),
 });
 
 /** The browser handed us a PushSubscription; keep it. A browser that
     re-subscribes gets the same endpoint back, so an existing row for it is
-    replaced (delete + insert — members have no UPDATE, 0075). */
+    replaced (delete + insert — members have no UPDATE, 0075). Both deletes
+    run under the own-rows policy: another account's row is untouched (and
+    its endpoint is dead once the browser unsubscribed, so the next send
+    prunes it). */
 export async function savePushSubscription(input: unknown): Promise<ActionResult> {
   const parsed = subscriptionInput.safeParse(input);
   if (!parsed.success) return invalid();
   const { user, org } = await requireOrg();
   const supabase = await createClient();
-  const { error: clearError } = await supabase.from("push_subscriptions").delete().eq("endpoint", parsed.data.endpoint);
+  const gone = [parsed.data.endpoint, ...(parsed.data.staleEndpoint ? [parsed.data.staleEndpoint] : [])];
+  const { error: clearError } = await supabase.from("push_subscriptions").delete().in("endpoint", gone);
   if (clearError) return fail("savePushSubscription clear", clearError);
   const { error } = await supabase.from("push_subscriptions").insert({
     user_id: user.id,

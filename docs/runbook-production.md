@@ -336,8 +336,11 @@ vercel env add VAPID_SUBJECT production   # mailto:hello@booklo.co
 Until all three are set, the page shows push as "not set up" and every
 notice goes out by email only; nothing else changes. Once set, **never
 rotate the pair casually**: a browser's subscription is bound to the public
-key it was created with, so a new key silently kills every enabled device
-(each person must open /notifications and enable again). Preview and Test
+key it was created with, so a new key silently kills every enabled device.
+After a rotation the page notices the mismatch and shows "Not enabled on
+this device" again; each person must open /notifications and press Enable
+on every device (the stale row is replaced then). Until they do, sends to
+those devices fail with 401/403 and are logged. Preview and Test
 environments may carry their own pair, but production keeps its first one.
 
 Push needs no vendor account: the browsers' own push services (Google,

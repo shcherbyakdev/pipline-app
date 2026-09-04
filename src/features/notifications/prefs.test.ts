@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   DEFAULT_REMINDER_LEAD_HOURS,
   MEMBER_EVENTS,
+  REMINDER_LEAD_HOURS,
   parseMemberPrefs,
   parseOrgPrefs,
   reminderPolicy,
@@ -52,5 +55,17 @@ describe("org prefs + reminder policy", () => {
   it("disabled survives the pin", () => {
     const prefs = parseOrgPrefs({ reminder: { enabled: false, leadHours: 48 } });
     expect(reminderPolicy(prefs, false)).toEqual({ enabled: false, leadMs: 24 * H });
+  });
+});
+
+describe("lead set parity with the migration", () => {
+  it("REMINDER_LEAD_HOURS equals the CHECK inside update_org_notification_prefs (0075)", () => {
+    // handle.test.ts idiom: the SQL is the enforcement, the TS list the UI;
+    // adding an option is both, on purpose.
+    const sql = readFileSync(join(process.cwd(), "src/db/migrations/0075_notifications.sql"), "utf8");
+    const hit = /leadHours'\)::numeric not in \(([^)]+)\)/.exec(sql);
+    expect(hit, "leadHours CHECK not found").not.toBeNull();
+    const inSql = hit![1].split(",").map((n) => Number(n.trim())).sort((a, b) => a - b);
+    expect(inSql).toEqual([...REMINDER_LEAD_HOURS].sort((a, b) => a - b));
   });
 });

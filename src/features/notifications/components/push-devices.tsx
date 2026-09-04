@@ -36,6 +36,23 @@ function isIOS(): boolean {
   return /iPhone|iPad|iPod/.test(navigator.userAgent);
 }
 
+function bufferToBase64Url(buf: ArrayBuffer): string {
+  let bin = "";
+  for (const b of new Uint8Array(buf)) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** Is the browser's subscription one WE can use: signed for our current
+    VAPID key AND on this person's own device list? Not ours when the key
+    was rotated (the browser keeps the old one) or when another account
+    enabled push in this same browser (review 2026-09-05): using it would
+    hand that account's notices to whoever is signed in now. */
+function usable(sub: PushSubscription, publicKey: string, devices: PushDevice[]): boolean {
+  const key = sub.options.applicationServerKey;
+  if (key && bufferToBase64Url(key) !== publicKey) return false;
+  return devices.some((d) => d.endpoint === sub.endpoint);
+}
+
 /** Where this browser stands. Registers the worker as a side effect (idempotent). */
 async function probeDevice(publicKey: string | null, devices: PushDevice[]): Promise<{ status: Status; endpoint: string | null }> {
   if (!publicKey) return { status: "notConfigured", endpoint: null };
@@ -50,9 +67,10 @@ async function probeDevice(publicKey: string | null, devices: PushDevice[]): Pro
     // in Chrome (QA 2026-09-05), and "Checking…" for a moment costs nothing.
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
-    const endpoint = sub?.endpoint ?? null;
-    const known = endpoint !== null && devices.some((d) => d.endpoint === endpoint);
-    return { status: known ? "enabledHere" : "notEnabledHere", endpoint };
+    if (!sub) return { status: "notEnabledHere", endpoint: null };
+    return usable(sub, publicKey, devices)
+      ? { status: "enabledHere", endpoint: sub.endpoint }
+      : { status: "notEnabledHere", endpoint: null };
   } catch (error) {
     console.error("[notifications] service worker:", error);
     return { status: "unsupported", endpoint: null };
@@ -92,13 +110,26 @@ export function PushDevices({ publicKey, devices }: { publicKey: string | null; 
         return;
       }
       const reg = await navigator.serviceWorker.ready;
-      const sub =
-        (await reg.pushManager.getSubscription()) ??
-        (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) }));
+      // A subscription we cannot use (other account, rotated key) is
+      // dropped first so the browser hands out a fresh endpoint; its row, if
+      // it is ours, goes with it below.
+      let sub = await reg.pushManager.getSubscription();
+      let stale: string | undefined;
+      if (sub && !usable(sub, publicKey, devices)) {
+        stale = sub.endpoint;
+        await sub.unsubscribe();
+        sub = null;
+      }
+      sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
       const json = sub.toJSON();
       const keys = json.keys;
       if (!keys?.p256dh || !keys?.auth) throw new Error("subscription without keys");
-      const result = await savePushSubscription({ endpoint: sub.endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth }, userAgent: navigator.userAgent });
+      const result = await savePushSubscription({
+        endpoint: sub.endpoint,
+        keys: { p256dh: keys.p256dh, auth: keys.auth },
+        userAgent: navigator.userAgent,
+        staleEndpoint: stale,
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;

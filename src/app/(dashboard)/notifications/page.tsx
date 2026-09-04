@@ -1,10 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { PageIntro } from "@/components/shell/page-header";
-import { createClient } from "@/lib/supabase/server";
-import { getEntitlements } from "@/lib/billing/queries";
 import { perkToggle } from "@/lib/billing/badge-toggle";
-import { plansEnforced } from "@/lib/flags";
-import { getDashboardFlags } from "@/lib/flags/resolve";
 import { getNotificationSettings } from "@/features/notifications/queries";
 import { vapidPublicKey } from "@/features/notifications/push";
 import { PushDevices } from "@/features/notifications/components/push-devices";
@@ -17,11 +13,11 @@ import { AlwaysSent } from "@/features/notifications/components/always-sent";
    (reminders, the always-sent list). Same frame as Settings. */
 export default async function NotificationsPage() {
   const [settings, t] = await Promise.all([getNotificationSettings(), getTranslations("notifications")]);
-  const { orgId } = settings;
-  const [lead, quotaHint] = await Promise.all([
-    perkToggle(orgId, (ent) => ent.customReminders),
-    reminderQuotaHint(orgId, (count) => t("reminders.quotaFree", { count })),
-  ]);
+  const lead = await perkToggle(settings.orgId, (ent) => ent.customReminders);
+  // "On Free, reminders go to the first N bookings each month." off the same
+  // plan read; null while plans are not enforced (or unlimited).
+  const quota = lead.entitlements?.reminderBookingsPerMonth ?? null;
+  const quotaHint = quota === null ? null : t("reminders.quotaFree", { count: quota });
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
       <PageIntro>{t("intro")}</PageIntro>
@@ -37,17 +33,4 @@ export default async function NotificationsPage() {
       </div>
     </div>
   );
-}
-
-/** "On Free, reminders go to the first N bookings each month." while the
-    plan meters them; null otherwise. Fails to null: a hint is decoration. */
-async function reminderQuotaHint(orgId: string, line: (count: number) => string): Promise<string | null> {
-  try {
-    if (!plansEnforced(await getDashboardFlags(orgId))) return null;
-    const ent = await getEntitlements(orgId, await createClient());
-    return ent.reminderBookingsPerMonth === null ? null : line(ent.reminderBookingsPerMonth);
-  } catch (error) {
-    console.error("[notifications] quota hint read failed:", error);
-    return null;
-  }
 }

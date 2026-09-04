@@ -82,6 +82,13 @@ describe("decideReminder with an org's own policy (spec 2026-09-05)", () => {
     const booking = { startsAt: new Date(T0.getTime() + hours(2)), createdAt: new Date(T0.getTime() - hours(48)) };
     expect(decideReminder(booking, T0, { disabled: true })).toBe("suppress");
   });
+
+  it("a row not yet due is left alone even while reminders are off or the quota is spent", () => {
+    // 40h out on a 24h lead: inside the 48h query window, outside this org's lead.
+    const booking = { startsAt: new Date(T0.getTime() + hours(40)), createdAt: new Date(T0.getTime() - hours(48)) };
+    expect(decideReminder(booking, T0, { disabled: true, leadMs: hours(24) })).toBe("wait");
+    expect(decideReminder(booking, T0, { overQuota: true, leadMs: hours(24) })).toBe("wait");
+  });
 });
 
 describe("runReminderDrain reads each org's policy", () => {
@@ -145,6 +152,24 @@ describe("runReminderDrain reads each org's policy", () => {
     expect(sent).toEqual(["b@example.com"]);
     expect(claimed.sort()).toEqual(["b", "c"]);
     expect(summary).toEqual({ sent: 1, skipped: 1, failed: 0 });
+  });
+
+  it("the quota is only asked for rows that would otherwise send", async () => {
+    const { runReminderDrain } = await import("./reminders");
+    const rows = [
+      row("w", "orgA", 40, { reminder: { enabled: true, leadHours: 24 } }), // wait
+      row("s", "orgA", 20, { reminder: { enabled: true, leadHours: 24 } }), // send
+      row("o", "orgB", 20, { reminder: { enabled: false, leadHours: 24 } }), // off → suppress, no quota read
+    ];
+    const { db } = fakeDb(rows);
+    const asked: string[] = [];
+    await runReminderDrain({
+      db,
+      transport: { send: async () => ({ id: "x" }) },
+      now: T0,
+      quotaExceeded: async (orgId) => { asked.push(orgId); return false; },
+    });
+    expect(asked).toEqual(["orgA"]);
   });
 
   it("without the custom-reminders perk every org is a 24h org", async () => {

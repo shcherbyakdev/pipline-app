@@ -18,21 +18,31 @@ import { getDashboardFlags } from "@/lib/flags/resolve";
 export async function perkToggle(
   orgId: string,
   perk: (ent: Entitlements) => boolean,
-): Promise<{ allowed: boolean; upgradeHref: string | null }> {
+): Promise<{
+  allowed: boolean;
+  upgradeHref: string | null;
+  /** What was read while deciding, for a page that shows another number
+      off the same plan (the reminder quota); null while plans are not
+      enforced or the read failed. */
+  entitlements: Entitlements | null;
+}> {
   let allowed = true;
+  let entitlements: Entitlements | null = null;
   try {
     // BOTH reads sit inside the try: a flags hiccup fails OPEN exactly like
     // the entitlement read does.
     if (plansEnforced(await getDashboardFlags(orgId))) {
-      allowed = perk(await getEntitlements(orgId, await createClient()));
+      entitlements = await getEntitlements(orgId, await createClient());
+      allowed = perk(entitlements);
     }
   } catch (error) {
     console.error("[billing] perk-toggle read failed — control stays enabled:", error);
     allowed = true;
+    entitlements = null;
   }
-  if (allowed) return { allowed, upgradeHref: null };
+  if (allowed) return { allowed, upgradeHref: null, entitlements };
   const flags = await getDashboardFlags(orgId);
-  return { allowed, upgradeHref: upgradeHref(flags, (await getPlanStatus()).plan) };
+  return { allowed, upgradeHref: upgradeHref(flags, (await getPlanStatus()).plan), entitlements };
 }
 
 /** May the org hide "Powered by Booklo" (spec §5)? Shared by the two

@@ -2,7 +2,7 @@
    and opens its url on tap. No caching, no offline — the worker exists so
    the browser has somewhere to deliver a push while no tab is open. Bump
    SW_VERSION when this file changes so installed copies refresh. */
-const SW_VERSION = 1;
+const SW_VERSION = 2;
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -28,12 +28,18 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = new URL((event.notification.data && event.notification.data.url) || "/bookings", self.location.origin).href;
+  // Only a top-level window may be steered: an embedded widget iframe on
+  // a customer's site is a same-origin client too, and navigate() rejects
+  // for it (and would hijack the customer's page if it did not).
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-      const open = list.find((c) => "focus" in c);
-      if (open) return open.navigate(url).then((c) => (c ? c.focus() : undefined));
-      return self.clients.openWindow(url);
-    }),
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((list) => {
+        const open = list.find((c) => c.frameType === "top-level");
+        if (open) return open.navigate(url).then((c) => (c ? c.focus() : undefined));
+        return self.clients.openWindow(url);
+      })
+      .catch(() => self.clients.openWindow(url)),
   );
 });
 
