@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   serviceInput,
   updateServiceInput,
+  patchServiceInput,
   availabilityRuleInput,
   blockTimeInput,
   reopenDayInput,
@@ -66,15 +67,39 @@ describe("serviceInput", () => {
 });
 
 describe("updateServiceInput", () => {
-  it("carries staffIds through the id extension", () => {
-    const r = updateServiceInput.safeParse({
-      id: "33333333-3333-4333-8333-333333333333",
-      name: "X",
-      durationMin: 30,
-      staffIds: ["11111111-1111-4111-8111-111111111111"],
-    });
+  const id = "33333333-3333-4333-8333-333333333333";
+  it("takes the settings alone", () => {
+    const r = updateServiceInput.safeParse({ id, durationMin: 30 });
     expect(r.success).toBe(true);
-    if (r.success) expect(r.data.staffIds).toHaveLength(1);
+    if (r.success) expect(r.data.bookingWindowDays).toBe(60);
+  });
+  it("refuses identity and roster — the header and pills own those", () => {
+    expect(updateServiceInput.safeParse({ id, durationMin: 30, name: "X" }).success).toBe(false);
+    expect(updateServiceInput.safeParse({ id, durationMin: 30, description: "X" }).success).toBe(false);
+    expect(
+      updateServiceInput.safeParse({
+        id,
+        durationMin: 30,
+        staffIds: ["11111111-1111-4111-8111-111111111111"],
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("patchServiceInput", () => {
+  const id = "33333333-3333-4333-8333-333333333333";
+  it("leaves an absent field alone and clears description with an empty string", () => {
+    const r = patchServiceInput.safeParse({ id, description: "  " });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.description).toBeNull();
+      expect(r.data.name).toBeUndefined();
+      expect(r.data.staffIds).toBeUndefined();
+    }
+  });
+  it("takes an empty roster as a deliberate nobody, but never an empty name", () => {
+    expect(patchServiceInput.safeParse({ id, staffIds: [] }).success).toBe(true);
+    expect(patchServiceInput.safeParse({ id, name: "  " }).success).toBe(false);
   });
 });
 

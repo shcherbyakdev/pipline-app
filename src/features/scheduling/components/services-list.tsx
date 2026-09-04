@@ -1,47 +1,28 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { toast } from "sonner";
 import { toastRefusal } from "@/features/billing/refusal-toast";
-import { deleteService, setServiceActive } from "@/features/scheduling/actions";
+import { setServiceActive } from "@/features/scheduling/actions";
 import { Switch } from "@/components/ui/switch";
 import type { ServiceRow } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
-import { bookingLink } from "@/lib/booking/url";
-import { bookableAdminServices } from "@/lib/booking/bookable";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { CopyLinkButton, type LinkBase } from "@/components/copy-link-button";
 import { cn } from "@/lib/utils";
-import { ServiceDialog } from "./service-dialog";
 
 /* Shared column template so the header row and every service row align:
-   Service | Duration | Price | actions — the Team page's table grammar
+   Service | Duration | Price | bookable — the Team page's table grammar
    (staff-list.tsx). Fixed tracks only fit from lg: up; below that the row
    keeps the stacked layout. */
 const gridCols =
-  "lg:grid lg:grid-cols-[minmax(0,1.6fr)_110px_minmax(0,1fr)_360px] lg:items-center lg:gap-3";
+  "lg:grid lg:grid-cols-[minmax(0,1.6fr)_110px_minmax(0,1fr)_56px] lg:items-center lg:gap-3";
 
-function Row({
-  service,
-  staff,
-  linkBase,
-  canLink,
-}: {
-  service: ServiceRow;
-  staff: StaffRow[];
-  linkBase: LinkBase | null;
-  canLink: boolean;
-}) {
+function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
   const t = useTranslations("services");
   const tCommon = useTranslations("common");
   const tUnits = useTranslations("public.units");
-  const [pending, startTransition] = React.useTransition();
-  // Delete is irreversible (a service with bookings is refused server-side,
-  // one without simply vanishes), so it takes two clicks — the same inline
-  // Confirm/Keep step bookings-list.tsx uses for cancelling.
-  const [confirming, setConfirming] = React.useState(false);
+  const [, startTransition] = React.useTransition();
   // The switch moves the moment it's clicked and snaps back on its own if
   // the action fails (staff-list.tsx idiom).
   const [active, setActive] = React.useOptimistic(service.active);
@@ -61,23 +42,25 @@ function Row({
     });
   };
 
-  const onDelete = () => {
-    startTransition(async () => {
-      const result = await deleteService({ id: service.id });
-      setConfirming(false);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success(t("deleted"));
-    });
-  };
-
   return (
-    <li role="row" className={cn("group relative flex flex-col gap-2 rounded-lg px-3 py-2 hover:bg-muted/50", gridCols)}>
+    <li
+      role="row"
+      className={cn(
+        "relative flex flex-col gap-2 rounded-lg px-3 py-2 hover:bg-muted/50 has-[a:focus-visible]:bg-muted/50",
+        gridCols,
+      )}
+    >
       <div role="cell" className="min-w-0 max-lg:pr-12">
         <div className="flex items-center gap-2">
-          <span className="truncate text-[13px] font-medium">{service.name}</span>
+          {/* Stretched link (staff-list.tsx): the name is the row's one link
+              and its ::after covers the whole row; the switch sits above the
+              overlay (z-10) and keeps its own click. */}
+          <Link
+            href={`/services/${service.id}`}
+            className="truncate text-[13px] font-medium outline-none after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:after:ring-3 focus-visible:after:ring-ring/30"
+          >
+            {service.name}
+          </Link>
           {!service.active ? <Badge variant="outline">{tCommon("inactive")}</Badge> : null}
         </div>
         {team ? <p className="text-muted-foreground truncate text-xs">{team}</p> : null}
@@ -92,68 +75,20 @@ function Row({
       <p role="cell" className="text-muted-foreground text-xs lg:hidden">
         {service.priceLabel ? `${duration} · ${service.priceLabel}` : duration}
       </p>
-      <div role="cell" className="flex items-center gap-1 max-lg:flex-wrap lg:justify-end">
-        {/* Row actions surface on hover/focus (always visible below lg, and
-            while the delete confirm is open — it must not vanish mid-choice). */}
-        <span
-          className={cn(
-            "flex items-center gap-1 lg:transition-opacity lg:group-focus-within:opacity-100 lg:group-hover:opacity-100",
-            confirming ? "lg:opacity-100" : "lg:opacity-0",
-          )}
-        >
-          {/* Only a service a client can actually book gets a link — active and
-              offered by an active person; an unlinked one would just degrade to
-              the org flow. */}
-          {canLink && linkBase ? (
-            <CopyLinkButton
-              url={bookingLink(linkBase.appUrl, linkBase.handle, { service: service.id })}
-              name={service.name}
-            />
-          ) : null}
-          <ServiceDialog service={service} staff={staff} />
-          {confirming ? (
-            <>
-              <Button size="sm" variant="destructive" onClick={onDelete} disabled={pending}>
-                {pending ? tCommon("deleting") : t("confirmDelete")}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={pending}>
-                {t("keep")}
-              </Button>
-            </>
-          ) : (
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => setConfirming(true)}
-              disabled={pending}
-              aria-label={t("deleteNamed", { name: service.name })}
-            >
-              {tCommon("delete")}
-            </Button>
-          )}
-        </span>
+      <div role="cell" className="flex lg:justify-end">
         <Switch
           checked={active}
           onCheckedChange={onToggle}
           aria-label={t("bookableSwitch", { name: service.name })}
-          className="max-lg:absolute max-lg:top-2.5 max-lg:right-3"
+          className="z-10 max-lg:absolute max-lg:top-2.5 max-lg:right-3 lg:relative"
         />
       </div>
     </li>
   );
 }
 
-export function ServicesList({
-  services,
-  staff,
-  linkBase,
-}: {
-  services: ServiceRow[];
-  staff: StaffRow[];
-  linkBase: LinkBase | null;
-}) {
+export function ServicesList({ services, staff }: { services: ServiceRow[]; staff: StaffRow[] }) {
   const t = useTranslations("services");
-  const bookable = new Set(bookableAdminServices(services, staff).map((s) => s.id));
   return (
     // ARIA table grammar on the styled rows so duration and price read in
     // their columns; the layout stays the responsive grid.
@@ -174,13 +109,7 @@ export function ServicesList({
       </div>
       <ol role="rowgroup" className="flex flex-col max-lg:divide-y">
         {services.map((service) => (
-          <Row
-            key={service.id}
-            service={service}
-            staff={staff}
-            linkBase={linkBase}
-            canLink={linkBase !== null && bookable.has(service.id)}
-          />
+          <Row key={service.id} service={service} staff={staff} />
         ))}
       </ol>
     </div>

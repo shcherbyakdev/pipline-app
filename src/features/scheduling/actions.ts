@@ -10,6 +10,7 @@ import {
   weeklyHoursInput,
   serviceInput,
   updateServiceInput,
+  patchServiceInput,
   serviceIdInput,
   serviceActiveInput,
   availabilityRuleInput,
@@ -103,9 +104,12 @@ async function ownerBelongsToOrg(
 // (a multi-org user's currentOrgId() pick could otherwise migrate the row
 // between their orgs — security-review hardening).
 function toServiceRow(d: import("zod").infer<typeof serviceInput>) {
+  return { name: d.name, description: d.description ?? null, ...toServiceSettingsRow(d) };
+}
+
+// The settings a service page's form owns — no identity, no roster.
+function toServiceSettingsRow(d: Omit<import("zod").infer<typeof updateServiceInput>, "id">) {
   return {
-    name: d.name,
-    description: d.description ?? null,
     duration_min: d.durationMin,
     price_label: d.priceLabel ?? null,
     buffer_before_min: d.bufferBeforeMin,
@@ -138,7 +142,7 @@ export async function createService(input: unknown): Promise<ActionState> {
   const refused = await assertCanAddService(orgId, supabase);
   if (refused) return refused;
 
-  // Solo path: the dialog only asks who can be booked once a second person is
+  // Solo path: the form only asks who can be booked once a second person is
   // active, so an omitted `staffIds` means "everyone" — read the roster here
   // rather than trusting a client-sent list, and read it *before* inserting so
   // a failure leaves no service that nobody can be booked for.
@@ -167,23 +171,94 @@ export async function createService(input: unknown): Promise<ActionState> {
         staffIds.map((staffId) => ({ org_id: orgId, service_id: data.id, staff_id: staffId })),
       );
     // The service exists either way; the assignment is what failed, and the
-    // Edit dialog is the retry — so say so rather than claiming success.
+    // service page's pills are the retry — so say so rather than claiming
+    // success.
     if (linkError) return fail("createService.assignStaff", linkError);
   }
   revalidateServices();
   return { ok: true };
 }
 
+/* Reconcile who offers a service. Diffed rather than replaced, like
+   `updateStaff` from the staff side — service_staff has insert + delete
+   policies and no update path. */
+async function syncServiceStaff(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orgId: string,
+  serviceId: string,
+  staffIds: string[],
+): Promise<Refusal | null> {
+  const currentRes = await supabase
+    .from("service_staff")
+    .select("staff_id")
+    .eq("org_id", orgId)
+    .eq("service_id", serviceId);
+  if (currentRes.error) return fail("syncServiceStaff.read", currentRes.error);
+  const current = new Set((currentRes.data ?? []).map((r) => r.staff_id));
+  const wanted = new Set(staffIds);
+  const toRemove = [...current].filter((sid) => !wanted.has(sid));
+  const toAdd = [...wanted].filter((sid) => !current.has(sid));
+  if (toRemove.length > 0) {
+    const { error } = await supabase
+      .from("service_staff")
+      .delete()
+      .eq("org_id", orgId)
+      .eq("service_id", serviceId)
+      .in("staff_id", toRemove);
+    if (error) return fail("syncServiceStaff.remove", error);
+  }
+  if (toAdd.length > 0) {
+    const { error } = await supabase
+      .from("service_staff")
+      .insert(toAdd.map((staffId) => ({ org_id: orgId, service_id: serviceId, staff_id: staffId })));
+    if (error) return fail("syncServiceStaff.add", error);
+  }
+  return null;
+}
+
+/* Solo self-heal. A service with ZERO links is bookable by nobody and the
+   public pages hide it (filterBookableServices) — but a solo org never sees
+   the "who offers it" pills, so nothing else would repair one left behind by
+   a failed create-time link insert. Re-link the one active person, which is
+   exactly what createService would have written. Solo only: on a real roster
+   an empty set is a deliberate "nobody" the pills can express, and healing it
+   would undo the owner's choice on their next settings save. */
+async function healSoloServiceLinks(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orgId: string,
+  serviceId: string,
+): Promise<Refusal | null> {
+  const linkedRes = await supabase
+    .from("service_staff")
+    .select("staff_id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("service_id", serviceId);
+  if (linkedRes.error) return fail("updateService.countStaff", linkedRes.error);
+  if ((linkedRes.count ?? 0) > 0) return null;
+  const rosterRes = await supabase.from("staff").select("id").eq("org_id", orgId).eq("active", true);
+  if (rosterRes.error) return fail("updateService.readStaff", rosterRes.error);
+  const roster = (rosterRes.data ?? []).map((s) => s.id);
+  if (roster.length !== 1) return null;
+  const { error } = await supabase
+    .from("service_staff")
+    .insert({ org_id: orgId, service_id: serviceId, staff_id: roster[0] });
+  if (error) return fail("updateService.relinkStaff", error);
+  return null;
+}
+
+/** The settings form on a service's page. The identity and the roster are
+    not here — the header and the pills patch those (patchService), and
+    `updateServiceInput` is strict so neither can ride in on a Save. */
 export async function updateService(input: unknown): Promise<ActionState> {
   const parsed = updateServiceInput.safeParse(input);
   if (!parsed.success) return invalid();
   const orgId = await currentOrgId();
   if (!orgId) return invalid();
-  const { id, staffIds, ...rest } = parsed.data;
+  const { id, ...rest } = parsed.data;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("services")
-    .update(toServiceRow(rest))
+    .update(toServiceSettingsRow(rest))
     .eq("id", id)
     // RLS already hides foreign rows; the explicit org scope is
     // defense-in-depth and keeps multi-org sessions unambiguous.
@@ -192,70 +267,56 @@ export async function updateService(input: unknown): Promise<ActionState> {
     .maybeSingle();
   if (error) return fail("updateService", error);
   if (!data) return invalid();
-
-  // Reconcile the team checklist only when the dialog rendered it: a solo
-  // org's edit sends no `staffIds` and must leave the existing links alone.
-  // Diffed rather than replaced, like `updateStaff` from the staff side —
-  // service_staff has insert + delete policies and no update path.
-  if (staffIds) {
-    const currentRes = await supabase
-      .from("service_staff")
-      .select("staff_id")
-      .eq("org_id", orgId)
-      .eq("service_id", id);
-    if (currentRes.error) return fail("updateService.readStaff", currentRes.error);
-    const current = new Set((currentRes.data ?? []).map((r) => r.staff_id));
-    const wanted = new Set(staffIds);
-    const toRemove = [...current].filter((sid) => !wanted.has(sid));
-    const toAdd = [...wanted].filter((sid) => !current.has(sid));
-
-    if (toRemove.length > 0) {
-      const { error: delError } = await supabase
-        .from("service_staff")
-        .delete()
-        .eq("org_id", orgId)
-        .eq("service_id", id)
-        .in("staff_id", toRemove);
-      if (delError) return fail("updateService.removeStaff", delError);
-    }
-    if (toAdd.length > 0) {
-      const { error: insError } = await supabase
-        .from("service_staff")
-        .insert(toAdd.map((staffId) => ({ org_id: orgId, service_id: id, staff_id: staffId })));
-      if (insError) return fail("updateService.addStaff", insError);
-    }
-  } else {
-    // Solo path, self-heal. A service with ZERO links is bookable by nobody and
-    // the public pages now hide it (filterBookableServices) — but a solo org's
-    // dialog never renders the checklist, so nothing above would ever repair
-    // one left behind by a failed create-time link insert. Re-link the active
-    // roster, which is exactly what createService would have written. A service
-    // that already has links is untouched: solo behaviour is otherwise
-    // unchanged, this costs one count query.
-    const linkedRes = await supabase
-      .from("service_staff")
-      .select("staff_id", { count: "exact", head: true })
-      .eq("org_id", orgId)
-      .eq("service_id", id);
-    if (linkedRes.error) return fail("updateService.countStaff", linkedRes.error);
-    if ((linkedRes.count ?? 0) === 0) {
-      const rosterRes = await supabase
-        .from("staff")
-        .select("id")
-        .eq("org_id", orgId)
-        .eq("active", true);
-      if (rosterRes.error) return fail("updateService.readStaff", rosterRes.error);
-      const roster = (rosterRes.data ?? []).map((s) => s.id);
-      if (roster.length > 0) {
-        const { error: healError } = await supabase
-          .from("service_staff")
-          .insert(roster.map((staffId) => ({ org_id: orgId, service_id: id, staff_id: staffId })));
-        if (healError) return fail("updateService.relinkStaff", healError);
-      }
-    }
-  }
-
+  const refused = await healSoloServiceLinks(supabase, orgId, id);
+  if (refused) return refused;
   revalidateServices();
+  revalidatePath(`/services/${id}`);
+  return { ok: true };
+}
+
+/** The service page's in-place header and its "who offers it" pills: one
+    field per save, and an absent field is left alone. */
+export async function patchService(input: unknown): Promise<ActionState> {
+  const parsed = patchServiceInput.safeParse(input);
+  if (!parsed.success) return invalid();
+  const orgId = await currentOrgId();
+  if (!orgId) return invalid();
+  const { id, name, description, staffIds } = parsed.data;
+  const patch: { name?: string; description?: string | null } = {};
+  if (name !== undefined) patch.name = name;
+  if (description !== undefined) patch.description = description;
+  if (Object.keys(patch).length === 0 && staffIds === undefined) return { ok: true };
+
+  const supabase = await createClient();
+  if (Object.keys(patch).length > 0) {
+    const { data, error } = await supabase
+      .from("services")
+      .update(patch)
+      .eq("id", id)
+      .eq("org_id", orgId)
+      .select("id")
+      .maybeSingle();
+    if (error) return fail("patchService", error);
+    if (!data) return invalid();
+  } else {
+    // A roster-only patch never touches `services`, so nothing above would
+    // have proved the id is ours — service_staff would happily take a link
+    // to a foreign service under our org id.
+    const { data, error } = await supabase
+      .from("services")
+      .select("id")
+      .eq("id", id)
+      .eq("org_id", orgId)
+      .maybeSingle();
+    if (error) return fail("patchService.read", error);
+    if (!data) return invalid();
+  }
+  if (staffIds) {
+    const refused = await syncServiceStaff(supabase, orgId, id, staffIds);
+    if (refused) return refused;
+  }
+  revalidateServices();
+  revalidatePath(`/services/${id}`);
   return { ok: true };
 }
 
@@ -299,6 +360,7 @@ export async function setServiceActive(input: unknown): Promise<ActionState> {
   if (error) return fail("setServiceActive", error);
   if (!data) return invalid();
   revalidateServices();
+  revalidatePath(`/services/${parsed.data.id}`);
   return { ok: true };
 }
 

@@ -1,37 +1,41 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { Plus } from "lucide-react";
 import { listServices } from "@/features/scheduling/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { ServicesList } from "@/features/scheduling/components/services-list";
-import { ServiceDialog } from "@/features/scheduling/components/service-dialog";
-import { getSchedulingSettings } from "@/features/orgs/queries";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageIntro } from "@/components/shell/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { requireOrg } from "@/lib/auth/session";
 import { gateHref } from "@/lib/billing/gate-href";
 import { evaluateServiceGate } from "@/lib/billing/gates";
-import { env } from "@/env";
+import { cn } from "@/lib/utils";
 
+/* Services: the list. Each row opens the service's own page; a new one gets
+   a page of its own (or the upgrade door when the plan is full). */
 export default async function ServicesPage() {
   const { org } = await requireOrg();
-  const t = await getTranslations("services");
   // Team (multi-staff): the roster comes along so each service can say who
-  // offers it. The whole roster, not just the active part — an edit must not
-  // silently drop a deactivated person's assignment.
-  const [services, staff, settings, doorHref] = await Promise.all([
+  // offers it. The whole roster, not just the active part — a deactivated
+  // person's assignment must not be silently dropped from the count.
+  const [services, staff, doorHref, t] = await Promise.all([
     listServices(),
     listStaff(),
-    getSchedulingSettings(),
     gateHref(org.id, evaluateServiceGate),
+    getTranslations("services"),
   ]);
-  // Copy-link buttons need the public address; before the org picks a handle
-  // there is nothing to copy (spec §5: hidden when there is no handle).
-  const linkBase = settings?.handle ? { appUrl: env.NEXT_PUBLIC_APP_URL, handle: settings.handle } : null;
+  const newService = (
+    <Link href={doorHref ?? "/services/new"} className={cn(buttonVariants({ size: "sm" }), "w-fit")}>
+      <Plus className="size-4" /> {t("newButton")}
+    </Link>
+  );
   // Empty: one composed panel that says what a service is and carries the
   // create action, so the page has exactly one CTA either way.
   if (services.length === 0) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-        <EmptyState title={t("emptyTitle")} action={<ServiceDialog staff={staff} gateHref={doorHref} />}>
+        <EmptyState title={t("emptyTitle")} action={newService}>
           {t("emptyBody")}
         </EmptyState>
       </div>
@@ -42,9 +46,9 @@ export default async function ServicesPage() {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <PageIntro>{t("intro")}</PageIntro>
-        <ServiceDialog staff={staff} gateHref={doorHref} />
+        {newService}
       </div>
-      <ServicesList services={services} staff={staff} linkBase={linkBase} />
+      <ServicesList services={services} staff={staff} />
     </div>
   );
 }
