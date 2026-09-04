@@ -526,6 +526,13 @@
       "when": 1788512436981,
       "tag": "0074_bookings_offering_index",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1788559630516,
+      "tag": "0075_notifications",
+      "breakpoints": true
     }
   ]
 }

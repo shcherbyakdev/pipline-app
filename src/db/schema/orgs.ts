@@ -42,6 +42,10 @@ export const orgs = pgTable("orgs", {
   // "at least one" lives in 0054.
   offersAppointments: boolean("offers_appointments").default(true).notNull(),
   offersRentals: boolean("offers_rentals").default(true).notNull(),
+  // What the org's CLIENTS receive (0075): reminder on/off + lead. Null =
+  // defaults (features/notifications/prefs.ts). Written ONLY via
+  // update_org_notification_prefs.
+  notificationPrefs: jsonb("notification_prefs"),
 });
 
 export const orgMembers = pgTable(
@@ -55,6 +59,9 @@ export const orgMembers = pgTable(
     userId: uuid("user_id").notNull(),
     role: text("role").notNull().default("member"), // owner | admin | member
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    // What THIS member hears about, per event and channel (0075). Null =
+    // defaults. Written ONLY via update_member_notification_prefs.
+    notificationPrefs: jsonb("notification_prefs"),
   },
   (t) => [
     // Index every column referenced by an RLS policy — top RLS perf rule.
