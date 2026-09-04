@@ -519,6 +519,13 @@
       "when": 1788465441266,
       "tag": "0073_one_channel",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1788512436981,
+      "tag": "0074_bookings_offering_index",
+      "breakpoints": true
     }
   ]
 }

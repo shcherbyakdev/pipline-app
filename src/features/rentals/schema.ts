@@ -89,17 +89,33 @@ const hoursOffering = offeringCommon.extend(hoursFields.shape).strict()
   .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
   .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG });
 export const offeringInput = z.union([rangeOffering, hoursOffering]);
+// The settings form: everything but the name and description, which the
+// space page edits in place (patchOfferingInput). `strict()` means a payload
+// carrying a name is refused, not quietly dropped — a settings save can
+// never overwrite an in-place rename.
+const settingsCommon = offeringCommon.omit({ name: true, description: true });
 export const updateOfferingInput = z.union([
-  offeringCommon.extend(rangeFields.shape).extend({ id: z.uuid() }).strict()
+  settingsCommon.extend(rangeFields.shape).extend({ id: z.uuid() }).strict()
     .refine(stayOrder, { message: "max stay must be ≥ min stay" })
     .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
     .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
-  offeringCommon.extend(hoursFields.shape).extend({ id: z.uuid() }).strict()
+  settingsCommon.extend(hoursFields.shape).extend({ id: z.uuid() }).strict()
     .refine(hoursGrid, { message: HOURS_GRID_MSG })
     .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
     .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
 ]);
 export const offeringIdInput = z.object({ id: z.uuid() });
+/** The space page edits name and description in place, one field per blur;
+    everything else is the settings form (updateOfferingInput). An absent
+    field is left alone; "" on description clears it. */
+export const patchOfferingInput = z.object({
+  id: z.uuid(),
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+    z.string().trim().max(2000).nullable().optional(),
+  ),
+});
 export const offeringActiveInput = offeringIdInput.extend({ active: z.boolean() });
 
 export const unitInput = z.object({

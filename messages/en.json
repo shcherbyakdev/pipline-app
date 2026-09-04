@@ -521,10 +521,6 @@
     "nav": "Spaces",
     "one": "space",
     "newButton": "New space",
-    "dialogTitle": {
-      "new": "New space",
-      "edit": "Edit space"
-    },
     "back": "← Spaces",
     "addUnit": "Add a unit to your space",
     "intro": "Rooms, studios and gear, booked by the hour, night or day.",
@@ -563,21 +559,31 @@
     "list": {
       "type": "Type",
       "price": "Price",
-      "actions": "Actions",
       "unitCount": "{count, plural, one {# unit} other {# units}}",
       "confirmDelete": "Confirm delete",
       "keep": "Keep",
       "deleteAria": "Delete {name}",
       "bookableAria": "{name} is bookable",
       "deleted": "Deleted",
-      "details": "Details"
+      "bookable": "Bookable"
     },
     "detail": {
       "openingHours": "Opening hours",
       "editHours": "Edit hours →",
-      "reactivateToEdit": "Reactivate to edit hours"
+      "reactivateToEdit": "Reactivate to edit hours",
+      "settings": "Settings",
+      "bookings": "Bookings",
+      "upcoming": "Upcoming",
+      "recent": "Recent",
+      "noUpcoming": "Nothing booked ahead.",
+      "noRecent": "No past bookings yet.",
+      "note": "“{note}”",
+      "quickActions": "Quick actions",
+      "embed": "Website embed",
+      "timeline": "See in timeline",
+      "delete": "Delete space"
     },
-    "dialog": {
+    "form": {
       "namePlaceholder": "Space name",
       "description": "Description",
       "descriptionPlaceholder": "Add a description…",

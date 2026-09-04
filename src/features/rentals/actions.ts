@@ -10,6 +10,7 @@ import {
   offeringInput,
   updateOfferingInput,
   offeringIdInput,
+  patchOfferingInput,
   offeringActiveInput,
   unitInput,
   updateUnitInput,
@@ -50,10 +51,13 @@ async function currentOrgId(): Promise<string | null> {
 // The input is a rangeMode-discriminated union (0055): write null/the column
 // default for whichever branch's fields the mode doesn't carry, so switching
 // an offering's mode never leaves a stale value from the other branch behind.
-function toOfferingRow(d: import("zod").infer<typeof offeringInput>) {
+/** Everything but the name and description — the space page edits those in
+    place (patchOffering); the settings form saves the rest. Distributive so
+    each mode's branch keeps its own fields. */
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+type OfferingSettings = DistributiveOmit<import("zod").infer<typeof offeringInput>, "name" | "description">;
+function toOfferingSettingsRow(d: OfferingSettings) {
   const common = {
-    name: d.name,
-    description: d.description ?? null,
     range_mode: d.rangeMode,
     booking_window_days: d.bookingWindowDays,
     unit_selection: d.unitSelection,
@@ -96,6 +100,37 @@ function toOfferingRow(d: import("zod").infer<typeof offeringInput>) {
     turnover_min: 0,
     min_notice_min: 0,
   };
+}
+
+function toOfferingRow(d: import("zod").infer<typeof offeringInput>) {
+  return { name: d.name, description: d.description ?? null, ...toOfferingSettingsRow(d) };
+}
+
+/** A single-unit space never shows its unit — the space is the unit — so
+    the unit's name follows the space's. Best-effort: a stale unit name only
+    shows where two names differ (unit-label.ts), never blocks the save. */
+async function syncSingleUnitName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orgId: string,
+  offeringId: string,
+  name: string,
+) {
+  const { data: units, error: unitsError } = await supabase
+    .from("rental_units")
+    .select("id")
+    .eq("offering_id", offeringId)
+    .limit(2);
+  if (unitsError) {
+    console.error("[rentals] unit lookup:", unitsError);
+    return;
+  }
+  if (units?.length !== 1) return;
+  const { error } = await supabase
+    .from("rental_units")
+    .update({ name })
+    .eq("id", units[0].id)
+    .eq("org_id", orgId);
+  if (error) console.error("[rentals] unit rename:", error);
 }
 
 export async function createOffering(input: unknown): Promise<ActionState> {
@@ -159,32 +194,45 @@ export async function updateOffering(input: unknown): Promise<ActionState> {
   if (!orgId) return generic();
   const { id, ...rest } = parsed.data;
   const supabase = await createClient();
+  // The settings only: the schema has no name or description here (the
+  // space page edits those in place through patchOffering).
   const { data, error } = await supabase
     .from("rental_offerings")
-    .update(toOfferingRow(rest))
+    .update(toOfferingSettingsRow(rest))
     .eq("id", id)
     .eq("org_id", orgId)
     .select("id")
     .maybeSingle();
   if (error) return fail("updateOffering", error);
   if (!data) return generic();
-  // A single-unit space never shows its unit — the space is the unit — so
-  // the unit's name follows the space's. Best-effort: a stale unit name only
-  // shows where two names differ (unit-label.ts), never blocks the save.
-  const { data: units, error: unitsError } = await supabase
-    .from("rental_units")
+  revalidatePath("/rentals");
+  revalidatePath(`/rentals/${id}`);
+  revalidatePath("/availability");
+  return { ok: true };
+}
+
+/** The in-place header on /rentals/[id]: one field per blur. */
+export async function patchOffering(input: unknown): Promise<ActionState> {
+  const parsed = patchOfferingInput.safeParse(input);
+  if (!parsed.success) return generic();
+  const orgId = await currentOrgId();
+  if (!orgId) return generic();
+  const { id, name, description } = parsed.data;
+  const patch: { name?: string; description?: string | null } = {};
+  if (name !== undefined) patch.name = name;
+  if (description !== undefined) patch.description = description;
+  if (Object.keys(patch).length === 0) return { ok: true };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("rental_offerings")
+    .update(patch)
+    .eq("id", id)
+    .eq("org_id", orgId)
     .select("id")
-    .eq("offering_id", id)
-    .limit(2);
-  if (unitsError) console.error("[rentals] updateOffering units:", unitsError);
-  else if (units?.length === 1) {
-    const { error: renameError } = await supabase
-      .from("rental_units")
-      .update({ name: rest.name })
-      .eq("id", units[0].id)
-      .eq("org_id", orgId);
-    if (renameError) console.error("[rentals] updateOffering unit rename:", renameError);
-  }
+    .maybeSingle();
+  if (error) return fail("patchOffering", error);
+  if (!data) return generic();
+  if (name !== undefined) await syncSingleUnitName(supabase, orgId, id, name);
   revalidatePath("/rentals");
   revalidatePath(`/rentals/${id}`);
   revalidatePath("/availability");
