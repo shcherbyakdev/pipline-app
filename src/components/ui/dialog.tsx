@@ -6,7 +6,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { XIcon } from "lucide-react";
+import { ChevronDownIcon, XIcon } from "lucide-react";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -156,8 +156,37 @@ const dialogPanelClass =
   "flex max-h-[85vh] flex-col gap-0 overflow-y-auto rounded-3xl p-0";
 const dialogBareInputClass =
   "placeholder:text-muted-foreground w-full bg-transparent outline-none";
+// The fill is a 1.05:1 tint on the popover's white — on its own you had to
+// already know a control was there. Every dialog control now carries the
+// hairline as well, so its edge is what says "you can change this".
 const dialogPillClass =
-  "bg-secondary text-foreground focus-visible:border-ring focus-visible:ring-ring/30 h-7 rounded-full border border-transparent px-2.5 text-xs font-medium tabular-nums outline-none focus-visible:ring-3";
+  "bg-secondary text-foreground border-input focus-visible:border-ring focus-visible:ring-ring/30 h-7 rounded-full border px-2.5 text-xs font-medium tabular-nums outline-none focus-visible:ring-3";
+
+// A labelled field inside a dialog body: the label sits over its control,
+// quiet and small, so a form reads as named rows instead of a bag of
+// placeholders (New booking: which service, who takes it).
+const dialogFieldLabelClass = "text-muted-foreground mb-1.5 block text-xs font-medium";
+// The pill's dress at field size: same fill and hairline, one row wide.
+const dialogFieldClass =
+  "bg-secondary text-foreground border-input focus-visible:border-ring focus-visible:ring-ring/30 w-full rounded-xl border px-3 text-sm outline-none focus-visible:ring-3 disabled:opacity-50";
+const dialogSelectClass = `${dialogFieldClass} h-9 appearance-none truncate pr-9 font-medium`;
+
+/* The pill grown to a full-width field row. A native <select> on purpose:
+   keyboard, type-ahead, optgroups and the mobile wheel come for free —
+   appearance-none only drops the platform chevron, which we redraw. */
+function DialogSelect({ className, children, ...props }: React.ComponentProps<"select">) {
+  return (
+    <span className="relative block">
+      <select data-slot="dialog-select" className={cn(dialogSelectClass, className)} {...props}>
+        {children}
+      </select>
+      <ChevronDownIcon
+        aria-hidden
+        className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
+      />
+    </span>
+  );
+}
 
 const dialogChipTones = {
   // Kind colours only where the chip names a kind of booking (palette rule).
@@ -231,6 +260,9 @@ export {
   dialogPanelClass,
   dialogBareInputClass,
   dialogPillClass,
+  dialogFieldClass,
+  dialogFieldLabelClass,
+  DialogSelect,
   DialogChip,
   DialogBreadcrumbHeader,
   DialogFooterBar,

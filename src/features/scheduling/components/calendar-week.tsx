@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminBooking, RuleRow, ExceptionRow, ServiceRow } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
@@ -15,7 +13,7 @@ import {
 } from "@/features/scheduling/calendar-geometry";
 import { addDaysISO } from "@/features/scheduling/slots";
 import { blockTimeRange, unblockTimeRange, reopenDay } from "@/features/scheduling/actions";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BookingDetailDialog } from "./booking-detail-dialog";
 import { NewBookingDialog } from "./new-booking-dialog";
@@ -70,7 +68,7 @@ function overlapLayout(
 
 export function CalendarWeek({
   weekStart, timeZone, staff, editStaffId, blockable, preferSpace, defaultStaffId,
-  bookings, rules, exceptions, services, spaces, prevHref, nextHref,
+  bookings, rules, exceptions, services, spaces,
 }: {
   weekStart: string;
   timeZone: string;
@@ -96,8 +94,6 @@ export function CalendarWeek({
   services: ServiceRow[];
   // Active spaces — a drag on an org without services pre-fills the first hourly one.
   spaces: OfferingOption[];
-  prevHref: string;
-  nextHref: string;
 }) {
   const t = useTranslations("bookings");
   const tSpaces = useTranslations("spaces");
@@ -341,46 +337,28 @@ export function CalendarWeek({
     // scrolls rather than crushing the rows.
     <div className="flex min-h-[520px] flex-1 flex-col overflow-x-auto">
       <div className="flex min-h-0 min-w-[840px] flex-1 flex-col">
-        {/* header row: week arrows live inside the grid, like the reference */}
+        {/* header row: weekday over the date, today marked by a filled disc
+            on the number alone (Google Calendar's signature). The week
+            arrows live in the page toolbar now — nothing but days here. */}
         <div className={cn("grid shrink-0 pb-2", GRID_COLS)}>
-          <Link
-            href={prevHref}
-            aria-label={t("prevWeek")}
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "size-7 self-center justify-self-center p-0",
-            )}
-          >
-            <ChevronLeft className="size-4" />
-          </Link>
+          <div />
           {days.map((d) => {
             const isToday = nowParts?.date === d;
             return (
-              <div key={d} className="flex items-center justify-center py-2">
+              <div key={d} className="flex items-center justify-center gap-1.5 py-2">
+                <span className="text-muted-foreground text-xs">{weekday(d)}</span>
                 <span
                   className={cn(
-                    "flex items-baseline gap-1.5 rounded-md px-2.5 py-1",
+                    "flex size-6 items-center justify-center rounded-full text-sm font-semibold tabular-nums",
                     isToday && "bg-primary text-primary-foreground",
                   )}
                 >
-                  <span className={cn("text-xs", isToday ? "text-primary-foreground/75" : "text-muted-foreground")}>
-                    {weekday(d)}
-                  </span>
-                  <span className="text-sm font-semibold">{Number(d.slice(8, 10))}</span>
+                  {Number(d.slice(8, 10))}
                 </span>
               </div>
             );
           })}
-          <Link
-            href={nextHref}
-            aria-label={t("nextWeek")}
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "size-7 self-center justify-self-center p-0",
-            )}
-          >
-            <ChevronRight className="size-4" />
-          </Link>
+          <div />
         </div>
         {/* all-day row: rental stays, one chip per covered day. Hidden
             entirely when the week has none, so appointment-only orgs keep
