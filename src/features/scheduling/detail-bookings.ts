@@ -17,8 +17,9 @@ const LIMIT = 20;
 const COLS = "id, client_name, starts_at, ends_at, status, note, services(name)";
 
 /** Appointments for one owner column — `staff_id` (a person's page) or
-    `service_id` (a service's) — split around now by /bookings' own rule
-    (listBookings in queries.ts): "Upcoming" is a confirmed appointment not
+    `service_id` (a service's) — split around now by the rule this module
+    owns (the /bookings list that first wrote it is gone — Day, Week and
+    Month replaced it): "Upcoming" is a confirmed appointment not
     yet ENDED (one in progress is still coming) or a request whose start is
     still ahead; "Recent" is every terminal row whatever its date, every
     confirmed one that has ended, and every request whose start has passed —

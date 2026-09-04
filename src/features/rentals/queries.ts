@@ -374,8 +374,8 @@ const OFFERING_BOOKINGS_LIMIT = 20;
 const OFFERING_BOOKING_COLS =
   "id, client_name, starts_at, ends_at, status, note, rental_offerings(name, range_mode), rental_units(name)";
 
-/** A space's stays split around now, by /bookings' own rule (listBookings
-    in scheduling/queries.ts): "Upcoming" is a confirmed stay not yet ENDED
+/** A space's stays split around now, by the detail pages' shared rule
+    (scheduling/detail-bookings.ts): "Upcoming" is a confirmed stay not yet ENDED
     (one in progress is still coming) or a request whose start is still
     ahead; "Recent" is every terminal row whatever its date, every confirmed
     stay that has ended, and every request whose start has passed — lapsed,

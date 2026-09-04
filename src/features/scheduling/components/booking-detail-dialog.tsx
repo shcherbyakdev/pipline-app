@@ -13,6 +13,7 @@ import { isExpiredRequest } from "@/features/scheduling/requests";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { INTL_LOCALES } from "@/i18n/config";
+import { cn } from "@/lib/utils";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { DeclineRequestDialog } from "./requests-inbox";
 import { MoveRentalDialog } from "@/features/rentals/components/move-rental-dialog";
@@ -52,7 +53,12 @@ export function BookingDetailDialog({
   if (!booking) return null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={dialogPanelClass}>
+      {/* Wider than the default sm panel: its footer carries three actions,
+          and in a language with long words for them (Ukrainian's "Надіслати
+          посилання знову") they ran past a 384px panel — which the popup's
+          overflow-y turned into a horizontal scrollbar. Same width as the
+          New-booking dialog. */}
+      <DialogContent className={cn(dialogPanelClass, "sm:max-w-xl")}>
         <DetailBody
           key={booking.id}
           booking={booking}
@@ -245,10 +251,16 @@ function DetailBody({
           >
             {t("resendLink")}
           </Button>
+          {/* Cancelling sits apart from the two actions that keep the
+              booking alive: pushed to the far end of the bar and wearing the
+              destructive tone, so the one irreversible thing here never
+              reads as a peer of Reschedule. Confirm and Keep travel with it
+              (ml-auto on the pair, not on each) so the row does not reflow
+              when the confirm opens. */}
           {confirming ? (
-            <>
+            <span className="flex items-center gap-2 sm:ml-auto">
               <Button
-                variant="ghost"
+                variant="destructive"
                 size="sm"
                 onClick={cancel}
                 disabled={pending}
@@ -263,11 +275,12 @@ function DetailBody({
               >
                 {t("keep")}
               </Button>
-            </>
+            </span>
           ) : (
             <Button
-              variant="ghost"
+              variant="destructive"
               size="sm"
+              className="sm:ml-auto"
               onClick={() => setConfirming(true)}
               disabled={pending}
             >

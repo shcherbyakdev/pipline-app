@@ -3,7 +3,6 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { getLocale, getTranslations } from "next-intl/server";
 import {
-  listBookings,
   listCalendarBookingsBetween,
   listExceptionsBetween,
   listServices,
@@ -23,8 +22,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ZOOMS, parseDays, shiftDays, timelineStart, windowLabel } from "@/features/rentals/timeline-layout";
 import { bufferWindow } from "@/features/rentals/pan";
 import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/features/scheduling/components/staff-tabs";
-import { BookingsList } from "@/features/scheduling/components/bookings-list";
-import { CalendarWeek } from "@/features/scheduling/components/calendar-week";
+import { CalendarGrid } from "@/features/scheduling/components/calendar-grid";
+import { CalendarMonth } from "@/features/scheduling/components/calendar-month";
 import { ViewSwitcher } from "@/features/scheduling/components/view-switcher";
 import { ScopeMenu } from "@/features/scheduling/components/scope-menu";
 import {
@@ -32,14 +31,13 @@ import {
   parseScope,
   scopeHoursOwners,
   scopeItems,
-  scopeLabel,
   scopeQuery,
   scopeSides,
   scopedSpace,
-  type ScopeText,
 } from "@/features/scheduling/bookings-scope";
 import type { BookingsView } from "@/features/scheduling/bookings-views";
 import { mondayOf } from "@/features/scheduling/calendar-geometry";
+import { addMonths, monthGrid, monthStart } from "@/features/scheduling/month-grid";
 import { unionWindows, weekdayOf } from "@/features/scheduling/day-windows";
 import { wallTimeToUtc, addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import { SETUP_DISMISSED_COOKIE, setupChecklist, showWelcome, type ChecklistItem } from "@/features/scheduling/setup-checklist";
@@ -64,7 +62,7 @@ function validDate(param: string | undefined, fallback: string): string {
 }
 
 function asView(param: string | undefined, fallback: BookingsView): BookingsView {
-  return param === "week" || param === "timeline" || param === "list" ? param : fallback;
+  return param === "day" || param === "week" || param === "month" || param === "timeline" ? param : fallback;
 }
 
 export default async function BookingsPage({
@@ -73,6 +71,8 @@ export default async function BookingsPage({
   searchParams: Promise<{
     view?: string;
     week?: string;
+    date?: string;
+    month?: string;
     from?: string;
     days?: string;
     show?: string;
@@ -86,11 +86,17 @@ export default async function BookingsPage({
     searchParams,
     getSchedulingSettings(),
   ]);
-  // bookings-scope.ts hands back names, keys and counts; the page renders them.
-  const scopeText = (x: ScopeText) =>
-    "name" in x ? x.name : "count" in x ? t("scope.selected", { count: x.count }) : tRoot(x.key);
   const timeZone = settings?.timezone ?? "UTC";
   const today = dateInZone(new Date(), timeZone);
+  // Noon UTC pins the calendar date whatever the zone; the locale is the
+  // admin's, pinned through INTL_LOCALES (never the runtime's default).
+  const atNoon = (d: string) => new Date(`${d}T12:00:00Z`);
+  const dayLabel = new Intl.DateTimeFormat(INTL_LOCALES[locale], {
+    weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+  });
+  const monthLabel = new Intl.DateTimeFormat(INTL_LOCALES[locale], {
+    month: "long", year: "numeric", timeZone: "UTC",
+  });
   const { org } = await requireOrg();
   const flags = await getDashboardFlags(org.id);
   const mode = modeOf(org);
@@ -300,32 +306,88 @@ export default async function BookingsPage({
     );
   }
 
-  if (view === "list") {
-    const { upcoming, past } = await listBookings();
+  if (view === "month") {
+    // A month is for "how full is it": bookings only, no hours and no
+    // availability reads. The fetch covers the whole GRID, so the leading
+    // and trailing days of the neighbouring months are populated too.
+    const first = monthStart(validDate(params.month, today));
+    const grid = monthGrid(first);
+    const last = grid[grid.length - 1];
+    // Whose hours the month reads is the same question the week asks
+    // (scopeHoursOwners): a day is CLOSED when nobody in the scope is open
+    // on it — the union, so one person's day off never greys a day someone
+    // else works. Overrides ride along, so a closed public holiday and a
+    // one-off open Sunday both land.
+    const monthOwners = scopeHoursOwners(scope, activeStaff, people, spaces);
+    const [rawMonth, monthExceptions, monthAvailability] = await Promise.all([
+      listCalendarBookingsBetween(
+        wallTimeToUtc(grid[0], "00:00", timeZone).toISOString(),
+        wallTimeToUtc(addDaysISO(last, 1), "00:00", timeZone).toISOString(),
+      ),
+      listExceptionsBetween(grid[0], last),
+      Promise.all(
+        monthOwners.map((o) =>
+          o.staffId !== undefined
+            ? getAvailabilityAdmin(o.staffId, today)
+            : getOfferingAvailabilityAdmin(o.rentalOfferingId, today),
+        ),
+      ),
+    ]);
+    const monthPerOwner = monthOwners.map((o, i) => ({
+      rules: monthAvailability[i].rules,
+      exceptions: monthExceptions.filter((e) =>
+        o.staffId !== undefined ? e.staffId === o.staffId : e.rentalOfferingId === o.rentalOfferingId,
+      ),
+    }));
+    // The windows themselves, not just "closed or not": an empty list hatches
+    // the cell, and a booking started from that cell carries the same list
+    // the week grid's drag carries, so the outside-hours hint behaves the
+    // same at both zoom levels.
+    const monthWindows = Object.fromEntries(grid.map((d) => [d, unionWindows(d, monthPerOwner)]));
+    const monthHref = (m: string) => `/bookings?view=month&month=${m}${scopeSuffix}`;
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         {welcome}
-        {toolbar("list", activeStaff[0]?.id ?? "")}
-        <div className="mx-auto w-full max-w-2xl">
-          <BookingsList
-            upcoming={applyScope(upcoming, scope)}
-            past={applyScope(past, scope)}
-            timeZone={timeZone}
-            staff={activeStaff}
-            mode={eff}
-            // The "Space" badge tells kinds apart — only where there are two to tell.
-            showKind={eff.offersAppointments && sides.people}
-            scopeLabel={scope.kind === "all" ? null : scopeText(scopeLabel(scope, people, spaces))}
-          />
-        </div>
+        {toolbar(
+          "month",
+          activeStaff[0]?.id ?? "",
+          dateNav({
+            todayHref: `/bookings?view=month${scopeSuffix}`,
+            prevHref: monthHref(addMonths(first, -1)),
+            nextHref: monthHref(addMonths(first, 1)),
+            prevLabel: t("prevMonth"),
+            nextLabel: t("nextMonth"),
+            label: monthLabel.format(atNoon(first)),
+          }),
+        )}
+        <CalendarMonth
+          monthDate={first}
+          today={today}
+          timeZone={timeZone}
+          bookings={applyScope(rawMonth, scope)}
+          staff={activeStaff}
+          services={activeServices}
+          spaces={spaces}
+          defaultStaffId={activeStaff[0]?.id ?? ""}
+          preferSpace={preferSpace?.id ?? null}
+          windowsByDate={monthWindows}
+          scopeSuffix={scopeSuffix}
+        />
       </div>
     );
   }
 
-  const weekStart = mondayOf(validDate(params.week, today));
-  const weekEnd = addDaysISO(weekStart, 6);
-  const fromIso = wallTimeToUtc(weekStart, "00:00", timeZone).toISOString();
-  const toIso = wallTimeToUtc(addDaysISO(weekStart, 7), "00:00", timeZone).toISOString();
+  // Day and Week are the same grid at two widths (CalendarGrid dayCount):
+  // one column starting on the picked date, or seven starting on its Monday.
+  // Everything below — the fetch window, the owners' hours, the union — is
+  // written in terms of `dayCount`, so the Day view costs a narrower query,
+  // not a second code path.
+  const isDay = view === "day";
+  const dayCount = isDay ? 1 : 7;
+  const gridStart = isDay ? validDate(params.date, today) : mondayOf(validDate(params.week, today));
+  const gridEnd = addDaysISO(gridStart, dayCount - 1);
+  const fromIso = wallTimeToUtc(gridStart, "00:00", timeZone).toISOString();
+  const toIso = wallTimeToUtc(addDaysISO(gridStart, dayCount), "00:00", timeZone).toISOString();
 
   // Availability is per owner — a person's (Team slice) or an hourly
   // space's (H2) — so the week is drawn for the scope's owners
@@ -334,10 +396,10 @@ export default async function BookingsPage({
   // open".
   const owners = scopeHoursOwners(scope, activeStaff, people, spaces);
   const [rawBookings, exceptions, availability] = await Promise.all([
-    // Fetched UNFILTERED and narrowed in memory — one org-week of rows.
+    // Fetched UNFILTERED and narrowed in memory — one org-window of rows.
     listCalendarBookingsBetween(fromIso, toIso),
-    // Likewise every owner's overrides for the week, attributed per row.
-    listExceptionsBetween(weekStart, weekEnd),
+    // Likewise every owner's overrides for the window, attributed per row.
+    listExceptionsBetween(gridStart, gridEnd),
     Promise.all(
       owners.map((o) =>
         o.staffId !== undefined
@@ -359,16 +421,16 @@ export default async function BookingsPage({
   // results unioned (unionWindows): pooling every owner's rules AND
   // exceptions into one call would let one closed day empty the whole
   // column, and one open override replace everybody's hours. The union is
-  // handed to CalendarWeek as a week of synthetic rules (one per date's
-  // weekday + window, overrides already folded in, so no exceptions ride
-  // along): for seven consecutive dates the weekday is unique, so
+  // handed to CalendarGrid as synthetic rules (one per date's weekday +
+  // window, overrides already folded in, so no exceptions ride along):
+  // across at most seven consecutive dates the weekday is unique, so
   // effectiveWindows reads them back verbatim.
   const soloStaffId = owners.length === 1 && owners[0].staffId !== undefined ? owners[0].staffId : null;
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i));
+  const gridDays = Array.from({ length: dayCount }, (_, i) => addDaysISO(gridStart, i));
   const rules =
     soloStaffId !== null
       ? availability[0].rules
-      : weekDays.flatMap((date) =>
+      : gridDays.flatMap((date) =>
           unionWindows(date, perOwner).map((w, i) => ({
             id: `union-${date}-${i}`,
             weekday: weekdayOf(date),
@@ -376,12 +438,11 @@ export default async function BookingsPage({
             endTime: w.endTime,
           })),
         );
-  const weekExceptions = soloStaffId !== null ? perOwner[0].exceptions : [];
+  const gridExceptions = soloStaffId !== null ? perOwner[0].exceptions : [];
   // Block / Unblock / Reopen are a person's actions: off the popover once
   // a space is on the week, even where that week falls back to drawing the
   // members' hours (a nights/days-only scope).
   const blockable = !sides.spaces || scope.kind === "all";
-  const todayHref = scopeQs ? `/bookings?${scopeQs}` : "/bookings";
 
   // A walk-in drawn on a one-person week belongs to that person; on any
   // other week it defaults to the first active member.
@@ -392,20 +453,32 @@ export default async function BookingsPage({
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       {welcome}
       {toolbar(
-        "week",
+        view,
         defaultStaffId,
-        dateNav({
-          todayHref,
-          prevHref: `/bookings?week=${addDaysISO(weekStart, -7)}${scopeSuffix}`,
-          nextHref: `/bookings?week=${addDaysISO(weekStart, 7)}${scopeSuffix}`,
-          prevLabel: t("prevWeek"),
-          nextLabel: t("nextWeek"),
-          // The timeline's window label, over the week's seven days.
-          label: windowLabel(weekStart, 7, INTL_LOCALES[locale]),
-        }),
+        dateNav(
+          isDay
+            ? {
+                todayHref: `/bookings?view=day${scopeSuffix}`,
+                prevHref: `/bookings?view=day&date=${addDaysISO(gridStart, -1)}${scopeSuffix}`,
+                nextHref: `/bookings?view=day&date=${addDaysISO(gridStart, 1)}${scopeSuffix}`,
+                prevLabel: t("prevDay"),
+                nextLabel: t("nextDay"),
+                label: dayLabel.format(atNoon(gridStart)),
+              }
+            : {
+                todayHref: scopeQs ? `/bookings?${scopeQs}` : "/bookings",
+                prevHref: `/bookings?week=${addDaysISO(gridStart, -7)}${scopeSuffix}`,
+                nextHref: `/bookings?week=${addDaysISO(gridStart, 7)}${scopeSuffix}`,
+                prevLabel: t("prevWeek"),
+                nextLabel: t("nextWeek"),
+                // The timeline's window label, over the week's seven days.
+                label: windowLabel(gridStart, 7, INTL_LOCALES[locale]),
+              },
+        ),
       )}
-      <CalendarWeek
-        weekStart={weekStart}
+      <CalendarGrid
+        startDate={gridStart}
+        dayCount={dayCount}
         timeZone={timeZone}
         staff={activeStaff}
         editStaffId={blockable ? soloStaffId : null}
@@ -414,7 +487,7 @@ export default async function BookingsPage({
         defaultStaffId={defaultStaffId}
         bookings={bookings}
         rules={rules}
-        exceptions={weekExceptions}
+        exceptions={gridExceptions}
         services={activeServices}
         spaces={spaces}
       />

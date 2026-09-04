@@ -706,9 +706,10 @@
     "ended": "This booking has ended.",
     "view": {
       "label": "Bookings view",
+      "day": "Day",
       "week": "Week",
-      "timeline": "Timeline",
-      "list": "List"
+      "month": "Month",
+      "timeline": "Timeline"
     },
     "scope": {
       "show": "Show",
@@ -718,17 +719,6 @@
     "ownerTabs": {
       "label": "Whose hours",
       "people": "People"
-    },
-    "list": {
-      "upcoming": "Upcoming",
-      "past": "Past & cancelled",
-      "empty": "No upcoming bookings.",
-      "emptyServices": "No upcoming bookings. <services>Add a service</services>, then share your booking page.",
-      "emptySpaces": "No upcoming bookings. <spaces>Add a space</spaces>, then share your booking page.",
-      "emptyScoped": "No upcoming bookings for {scope}.",
-      "showAll": "Show all bookings",
-      "pastEmpty": "Nothing here yet.",
-      "pastEmptyScoped": "Nothing here yet for {scope}."
     },
     "requests": {
       "title": "Requests",
@@ -886,6 +876,15 @@
     },
     "timeCombobox": {
       "noMatches": "No matches"
+    },
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "month": {
+      "more": "+{count} more",
+      "addOn": "New booking on {date}",
+      "closed": "Closed all day"
     }
   },
   "clients": {

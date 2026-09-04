@@ -291,42 +291,6 @@ export function toAdminBooking(b: BookingRow, fallbackTitle: string): AdminBooki
   };
 }
 
-export async function listBookings(): Promise<{ upcoming: AdminBooking[]; past: AdminBooking[] }> {
-  // A deleted service leaves no name; the word is the admin's (bookings.fallbackTitle).
-  const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
-  const supabase = await createClient();
-  const nowIso = new Date().toISOString();
-  const [upcomingRes, pastRes] = await Promise.all([
-    // Upcoming: confirmed, plus live pending requests.
-    supabase
-      .from("bookings")
-      .select(BOOKING_COLUMNS)
-      .or(`status.eq.confirmed,and(status.eq.pending,starts_at.gt.${nowIso})`)
-      // ends_at, not starts_at (Rentals R1): a multi-night stay in progress is
-      // still upcoming — it only leaves the list once it has ended.
-      .gte("ends_at", nowIso)
-      .order("starts_at", { ascending: true }),
-    // History: terminal statuses, confirmed-and-ended, and lapsed requests.
-    // Capped — S5's calendar view is the archaeology surface.
-    supabase
-      .from("bookings")
-      .select(BOOKING_COLUMNS)
-      .or(
-        `status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined),` +
-          `and(status.eq.confirmed,ends_at.lt.${nowIso}),` +
-          `and(status.eq.pending,starts_at.lte.${nowIso})`,
-      )
-      .order("starts_at", { ascending: false })
-      .limit(50),
-  ]);
-  if (upcomingRes.error) throw upcomingRes.error;
-  if (pastRes.error) throw pastRes.error;
-  return {
-    upcoming: ((upcomingRes.data ?? []) as unknown as BookingRow[]).map((b) => toAdminBooking(b, fallbackTitle)),
-    past: ((pastRes.data ?? []) as unknown as BookingRow[]).map((b) => toAdminBooking(b, fallbackTitle)),
-  };
-}
-
 /** `staffIds` narrows the week to those people's appointments. Rental stays
     have no staff (staff_id is null), so they drop out whenever the filter is
     on — the calendar's staff filter is an appointment lens, and callers that
