@@ -38,6 +38,16 @@ export function ServiceForm({
   const tCommon = useTranslations("common");
   const router = useRouter();
   const isEdit = Boolean(service);
+  // Seeded ONCE. A save revalidates the page, which hands this form a fresh
+  // row — and a `defaultValue` that changes under a live uncontrolled input
+  // is ambiguous: React ignores it for a field the user has touched, and
+  // Base UI warns. The fields already show what was just saved, so the
+  // defaults are frozen at mount and the live prop is used only where the
+  // page genuinely changes underneath (the save target, and the render
+  // branches below). Remounting instead was rejected on the space page: it
+  // would drop an edit in flight elsewhere in the form.
+  const [seed] = React.useState(service);
+
   const [pending, startTransition] = React.useTransition();
   // Field-level refusal for the one number that has no sane empty value:
   // a cleared field is `Number("") === 0`, which zod's min(1) rejects with
@@ -155,7 +165,7 @@ export function ServiceForm({
                 required
                 min={5}
                 max={480}
-                defaultValue={service?.durationMin}
+                defaultValue={seed?.durationMin}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -165,7 +175,7 @@ export function ServiceForm({
                 name="priceLabel"
                 maxLength={100}
                 placeholder={t("form.pricePlaceholder")}
-                defaultValue={service?.priceLabel ?? ""}
+                defaultValue={seed?.priceLabel ?? ""}
               />
             </div>
           </div>
@@ -178,7 +188,7 @@ export function ServiceForm({
                 type="number"
                 min={0}
                 max={240}
-                defaultValue={service?.bufferBeforeMin ?? 0}
+                defaultValue={seed?.bufferBeforeMin ?? 0}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -189,7 +199,7 @@ export function ServiceForm({
                 type="number"
                 min={0}
                 max={240}
-                defaultValue={service?.bufferAfterMin ?? 0}
+                defaultValue={seed?.bufferAfterMin ?? 0}
               />
             </div>
           </div>
@@ -202,7 +212,7 @@ export function ServiceForm({
                 type="number"
                 min={0}
                 max={20160}
-                defaultValue={service?.minNoticeMin ?? 0}
+                defaultValue={seed?.minNoticeMin ?? 0}
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -214,7 +224,7 @@ export function ServiceForm({
                 min={1}
                 max={100}
                 placeholder={t("form.unlimited")}
-                defaultValue={service?.maxPerDay ?? ""}
+                defaultValue={seed?.maxPerDay ?? ""}
               />
             </div>
           </div>
@@ -227,7 +237,7 @@ export function ServiceForm({
               required
               min={1}
               max={365}
-              defaultValue={service?.bookingWindowDays ?? 60}
+              defaultValue={seed?.bookingWindowDays ?? 60}
               aria-invalid={windowError !== null || undefined}
               aria-describedby={windowError !== null ? "service-booking-window-error" : undefined}
               onInput={() => setWindowError(null)}

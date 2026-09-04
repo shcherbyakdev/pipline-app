@@ -65,6 +65,16 @@ export function OfferingForm({
   const tu = useTranslations("public.units");
   const router = useRouter();
   const isEdit = Boolean(offering);
+  // Seeded ONCE. A save revalidates the page, which hands this form a fresh
+  // row — and a `defaultValue` that changes under a live uncontrolled input
+  // is ambiguous: React ignores it for a field the user has touched, and
+  // Base UI warns. The fields already show what was just saved, so the
+  // defaults are frozen at mount and the live prop is used only where the
+  // page genuinely changes underneath (the save target, and the render
+  // branches below). Remounting instead was rejected on the space page: it
+  // would drop an edit in flight elsewhere in the form.
+  const [seed] = React.useState(offering);
+
   const [pending, startTransition] = React.useTransition();
   // Controlled so the render branch (Stay section fields) and the payload
   // built in onSubmit always agree on which fields are on the page —
@@ -276,7 +286,7 @@ export function OfferingForm({
                         max={1440}
                         step={slotIncrementMin}
                         defaultValue={
-                          offering?.minDurationMin ??
+                          seed?.minDurationMin ??
                           OFFERING_DEFAULTS.hours.minDurationMin
                         }
                       />
@@ -293,7 +303,7 @@ export function OfferingForm({
                         max={1440}
                         step={slotIncrementMin}
                         defaultValue={
-                          offering?.maxDurationMin ??
+                          seed?.maxDurationMin ??
                           OFFERING_DEFAULTS.hours.maxDurationMin
                         }
                       />
@@ -308,7 +318,7 @@ export function OfferingForm({
                         type="number"
                         min={0}
                         max={1440}
-                        defaultValue={offering?.turnoverMin ?? 0}
+                        defaultValue={seed?.turnoverMin ?? 0}
                       />
                     </div>
                   </div>
@@ -323,7 +333,7 @@ export function OfferingForm({
                         name="startTime"
                         label={t("form.startTime")}
                         defaultValue={
-                          offering?.startTime ??
+                          seed?.startTime ??
                           OFFERING_DEFAULTS.stay.startTime
                         }
                       />
@@ -335,7 +345,7 @@ export function OfferingForm({
                         name="endTime"
                         label={t("form.endTime")}
                         defaultValue={
-                          offering?.endTime ?? OFFERING_DEFAULTS.stay.endTime
+                          seed?.endTime ?? OFFERING_DEFAULTS.stay.endTime
                         }
                       />
                     </div>
@@ -351,7 +361,7 @@ export function OfferingForm({
                         min={1}
                         max={365}
                         defaultValue={
-                          offering?.minStay ?? OFFERING_DEFAULTS.stay.minStay
+                          seed?.minStay ?? OFFERING_DEFAULTS.stay.minStay
                         }
                       />
                     </div>
@@ -364,7 +374,7 @@ export function OfferingForm({
                         min={1}
                         max={365}
                         placeholder={t("form.unlimited")}
-                        defaultValue={offering?.maxStay ?? ""}
+                        defaultValue={seed?.maxStay ?? ""}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -375,7 +385,7 @@ export function OfferingForm({
                         type="number"
                         min={0}
                         max={30}
-                        defaultValue={offering?.turnoverDays ?? 0}
+                        defaultValue={seed?.turnoverDays ?? 0}
                       />
                     </div>
                   </div>
@@ -394,8 +404,8 @@ export function OfferingForm({
                     step="0.01"
                     placeholder={t("form.unpriced")}
                     defaultValue={
-                      offering?.priceCents != null
-                        ? offering.priceCents / 100
+                      seed?.priceCents != null
+                        ? seed.priceCents / 100
                         : ""
                     }
                   />
@@ -406,7 +416,7 @@ export function OfferingForm({
                     id="offering-pricing-mode"
                     name="pricingMode"
                     className={selectClass}
-                    defaultValue={offering?.pricingMode ?? "per_unit"}
+                    defaultValue={seed?.pricingMode ?? "per_unit"}
                   >
                     <option value="per_unit">
                       {rangeMode === "hours"
@@ -487,9 +497,9 @@ export function OfferingForm({
                       min={0}
                       step="0.01"
                       defaultValue={
-                        offering?.depositType === "fixed" &&
-                        offering.depositValue != null
-                          ? offering.depositValue / 100
+                        seed?.depositType === "fixed" &&
+                        seed.depositValue != null
+                          ? seed.depositValue / 100
                           : ""
                       }
                     />
@@ -504,9 +514,9 @@ export function OfferingForm({
                       min={1}
                       max={100}
                       defaultValue={
-                        offering?.depositType === "percent" &&
-                        offering.depositValue != null
-                          ? offering.depositValue
+                        seed?.depositType === "percent" &&
+                        seed.depositValue != null
+                          ? seed.depositValue
                           : ""
                       }
                     />
@@ -524,10 +534,10 @@ export function OfferingForm({
                   min={0}
                   placeholder={t("form.noWindow")}
                   defaultValue={
-                    offering && offering.cancelWindowMin > 0
-                      ? offering.rangeMode === "hours"
-                        ? offering.cancelWindowMin / 60
-                        : offering.cancelWindowMin / 1440
+                    seed && seed.cancelWindowMin > 0
+                      ? seed.rangeMode === "hours"
+                        ? seed.cancelWindowMin / 60
+                        : seed.cancelWindowMin / 1440
                       : ""
                   }
                 />
@@ -539,7 +549,7 @@ export function OfferingForm({
                   name="termsText"
                   rows={4}
                   maxLength={10000}
-                  defaultValue={offering?.termsText ?? ""}
+                  defaultValue={seed?.termsText ?? ""}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -554,7 +564,7 @@ export function OfferingForm({
                       type="number"
                       min={0}
                       max={43200}
-                      defaultValue={offering?.minNoticeMin ?? 0}
+                      defaultValue={seed?.minNoticeMin ?? 0}
                     />
                   </div>
                 ) : (
@@ -568,7 +578,7 @@ export function OfferingForm({
                       type="number"
                       min={0}
                       max={365}
-                      defaultValue={offering?.minNoticeDays ?? 0}
+                      defaultValue={seed?.minNoticeDays ?? 0}
                     />
                   </div>
                 )}
@@ -582,7 +592,7 @@ export function OfferingForm({
                     type="number"
                     min={1}
                     max={730}
-                    defaultValue={offering?.bookingWindowDays ?? 180}
+                    defaultValue={seed?.bookingWindowDays ?? 180}
                   />
                 </div>
               </div>
@@ -595,7 +605,7 @@ export function OfferingForm({
                     id="offering-unit-selection"
                     name="unitSelection"
                     className={selectClass}
-                    defaultValue={offering?.unitSelection ?? "auto"}
+                    defaultValue={seed?.unitSelection ?? "auto"}
                   >
                     <option value="auto">{t("form.unitAuto")}</option>
                     <option value="client_picks">{t("form.unitClientPicks")}</option>
