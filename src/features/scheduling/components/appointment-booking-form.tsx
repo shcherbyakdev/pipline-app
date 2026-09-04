@@ -14,9 +14,11 @@ import { ChevronDownIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DialogFooter,
-  dialogBareInputClass as bareInputClass,
+  dialogFieldClass as fieldClass,
+  dialogFieldLabelClass as labelClass,
   dialogPillClass as pillClass,
 } from "@/components/ui/dialog";
+import { initials } from "@/features/scheduling/staff-slug";
 import { TIME_OPTIONS, endOptions } from "@/features/scheduling/time-options";
 import { DatePicker } from "./date-picker";
 import { TimeCombobox } from "./time-combobox";
@@ -87,6 +89,8 @@ export function AppointmentBookingForm({
     (eligible.some((s) => s.id === defaultStaffId) ? defaultStaffId : eligible[0]?.id) ??
     "";
 
+  const picked = eligible.find((s) => s.id === staffId) ?? null;
+
   const validStart = TIME_RE.test(startTime);
   const validDate = DATE_RE.test(date) && !Number.isNaN(new Date(`${date}T12:00:00Z`).getTime());
   const startMin = validStart ? timeToMin(startTime) : 0;
@@ -150,104 +154,134 @@ export function AppointmentBookingForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col">
-      <div className="flex flex-col px-5 pt-5 pb-6">
-        <input
-          aria-label={t("form.clientName")}
-          required
-          maxLength={200}
-          value={name}
-          placeholder={t("form.clientName")}
-          className={cn(bareInputClass, "text-[15px] font-medium")}
-          onChange={(e) => { setName(e.target.value); clearOverlap(); }}
-        />
-        <input
-          aria-label={t("form.email")}
-          type="email"
-          maxLength={320}
-          value={email}
-          placeholder={t("form.email")}
-          className={cn(bareInputClass, "mt-3 text-sm")}
-          onChange={(e) => { setEmail(e.target.value); clearOverlap(); }}
-        />
-        <textarea
-          aria-label={t("form.note")}
-          maxLength={2000}
-          rows={2}
-          value={note}
-          placeholder={t("form.notePlaceholder")}
-          className={cn(bareInputClass, "mt-3 resize-none text-sm")}
-          onChange={(e) => { setNote(e.target.value); clearOverlap(); }}
-        />
+      {/* Two named sections: who it is for, and when — the member rides in
+          the same row as the clock, wearing their own colour disc so the
+          row says WHO, not just a name (2026-09-04). Every control is a
+          real field now, fill AND hairline: the bare inputs this dialog
+          used to have were indistinguishable from the text around them. */}
+      <div className="flex flex-col gap-5 px-5 pt-5 pb-6">
+        <section>
+          <h3 className={labelClass}>{t("new.client")}</h3>
+          <div className="flex flex-col gap-2">
+            <input
+              aria-label={t("form.clientName")}
+              required
+              maxLength={200}
+              value={name}
+              placeholder={t("form.clientName")}
+              className={cn(fieldClass, "h-9 font-medium")}
+              onChange={(e) => { setName(e.target.value); clearOverlap(); }}
+            />
+            <input
+              aria-label={t("form.email")}
+              type="email"
+              maxLength={320}
+              value={email}
+              placeholder={t("form.email")}
+              className={cn(fieldClass, "h-9")}
+              onChange={(e) => { setEmail(e.target.value); clearOverlap(); }}
+            />
+            <textarea
+              aria-label={t("form.note")}
+              maxLength={2000}
+              rows={2}
+              value={note}
+              placeholder={t("form.notePlaceholder")}
+              className={cn(fieldClass, "resize-none py-2")}
+              onChange={(e) => { setNote(e.target.value); clearOverlap(); }}
+            />
+          </div>
+        </section>
+
         {/* The app's own pickers in the pill dress — the native date/time
             inputs wore browser chrome no theme could reach. */}
-        <div className="mt-6 flex flex-wrap items-center gap-2">
-          <DatePicker
-            label={t("form.date")}
-            value={date}
-            className={pillClass}
-            onCommit={(d) => { setDate(d); clearOverlap(); }}
-          />
-          <TimeCombobox
-            label={t("form.startsAt", { tz: timeZone })}
-            value={startTime}
-            options={TIME_OPTIONS}
-            className={cn(pillClass, "w-20 text-center")}
-            onCommit={(hm) => { setStartTime(hm); clearOverlap(); }}
-          />
-          <span aria-hidden className="text-muted-foreground text-xs">–</span>
-          <TimeCombobox
-            label={t("form.endsAt")}
-            value={effectiveEndTime}
-            options={endOptions(startTime)}
-            className={cn(pillClass, "w-20 text-center")}
-            onCommit={(hm) => { setEndTouched(true); setEndTime(hm); clearOverlap(); }}
-          />
-          {activeStaff.length > 1 ? (
-            <span className="relative inline-flex">
-              <select
-                aria-label={t("teamMember")}
-                className={cn(pillClass, "appearance-none pr-6")}
-                value={staffId}
-                disabled={eligible.length === 0}
-                onChange={(e) => { setPickedStaffId(e.target.value); clearOverlap(); }}
-              >
-                {eligible.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-              <ChevronDownIcon aria-hidden className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2" />
-            </span>
-          ) : null}
-          <span className="text-muted-foreground text-xs">
+        <section>
+          <h3 className={labelClass}>{t("new.when")}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <DatePicker
+              label={t("form.date")}
+              value={date}
+              className={pillClass}
+              onCommit={(d) => { setDate(d); clearOverlap(); }}
+            />
+            <TimeCombobox
+              label={t("form.startsAt", { tz: timeZone })}
+              value={startTime}
+              options={TIME_OPTIONS}
+              className={cn(pillClass, "w-20 text-center")}
+              onCommit={(hm) => { setStartTime(hm); clearOverlap(); }}
+            />
+            <span aria-hidden className="text-muted-foreground text-xs">–</span>
+            <TimeCombobox
+              label={t("form.endsAt")}
+              value={effectiveEndTime}
+              options={endOptions(startTime)}
+              className={cn(pillClass, "w-20 text-center")}
+              onCommit={(hm) => { setEndTouched(true); setEndTime(hm); clearOverlap(); }}
+            />
+            {activeStaff.length > 1 ? (
+              // The person's own colour disc rides inside the pill, so the
+              // row shows WHO at a glance. Decorative — the select's text is
+              // the accessible value (StaffSwitch's proportions).
+              <span className="relative inline-flex">
+                {picked ? (
+                  <span
+                    aria-hidden
+                    style={{ background: picked.color }}
+                    className="pointer-events-none absolute top-1/2 left-1.5 z-10 flex size-4 -translate-y-1/2 items-center justify-center rounded-full text-[8px] font-semibold text-white"
+                  >
+                    {initials(picked.name)}
+                  </span>
+                ) : null}
+                <select
+                  aria-label={t("teamMember")}
+                  className={cn(pillClass, "appearance-none pr-6", picked ? "pl-7" : "pl-2.5")}
+                  value={staffId}
+                  disabled={eligible.length === 0}
+                  onChange={(e) => { setPickedStaffId(e.target.value); clearOverlap(); }}
+                >
+                  {eligible.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <ChevronDownIcon aria-hidden className="text-muted-foreground pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2" />
+              </span>
+            ) : null}
+          </div>
+          {/* A caption, not a control — on its own line so it reads the same
+              whether or not the row above wraps. */}
+          <p className="text-muted-foreground mt-2 text-xs">
             {durationMin > 0 ? tUnits("minutes", { count: durationMin }) : "—"} · {timeZone}
-          </span>
+          </p>
+        </section>
+        <div className="flex flex-col gap-2 empty:hidden">
+          {outsideHours ? (
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              {t("form.outsideHours")}
+            </p>
+          ) : null}
+          {insideNotice && !tooFarPast ? (
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              {t("form.insideNotice")}
+            </p>
+          ) : null}
+          {tooFarPast ? (
+            <p className="text-destructive text-xs">
+              {t("form.tooFarPast")}
+            </p>
+          ) : null}
+          {invalidDuration ? (
+            <p className="text-destructive text-xs">
+              {t("form.invalidDuration")}
+            </p>
+          ) : null}
+          {serviceId && !staffId ? (
+            <p className="text-destructive text-xs">
+              {t("form.nobodyOffers")}
+            </p>
+          ) : null}
+          {overlapError ? <p className="text-destructive text-xs">{overlapError}</p> : null}
         </div>
-        {outsideHours ? (
-          <p className="mt-3 text-xs text-amber-600 dark:text-amber-500">
-            {t("form.outsideHours")}
-          </p>
-        ) : null}
-        {insideNotice && !tooFarPast ? (
-          <p className="mt-3 text-xs text-amber-600 dark:text-amber-500">
-            {t("form.insideNotice")}
-          </p>
-        ) : null}
-        {tooFarPast ? (
-          <p className="text-destructive mt-3 text-xs">
-            {t("form.tooFarPast")}
-          </p>
-        ) : null}
-        {invalidDuration ? (
-          <p className="text-destructive mt-3 text-xs">
-            {t("form.invalidDuration")}
-          </p>
-        ) : null}
-        {serviceId && !staffId ? (
-          <p className="text-destructive mt-3 text-xs">
-            {t("form.nobodyOffers")}
-          </p>
-        ) : null}
-        {overlapError ? <p className="text-destructive mt-3 text-xs">{overlapError}</p> : null}
       </div>
       <DialogFooter className="mx-0 mb-0 items-center rounded-b-3xl px-5">
         <Button

@@ -784,7 +784,9 @@
     "new": {
       "title": "New booking",
       "blurb": "Recorded on your behalf — notice and booking-window limits don’t apply.",
-      "services": "Services"
+      "services": "Services",
+      "client": "Client",
+      "when": "When"
     },
     "create": {
       "button": "Create booking",
@@ -1435,7 +1437,7 @@
         "sub": "Change how this page shows what is free. It goes live when you publish; the website embed has its own layout.",
         "use": "Use this layout"
       },
-        "current": "current",
+      "current": "current",
       "times": "Times",
       "stays": "Stays"
     },
