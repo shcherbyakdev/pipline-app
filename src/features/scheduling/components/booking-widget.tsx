@@ -13,6 +13,7 @@ import type { SlotLayout, StayLayout } from "@/lib/widget-theme";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { StaffSwitch } from "@/features/scheduling/components/staff-switch";
+import { staffOffers } from "@/features/scheduling/staff-offers";
 import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
 import { HourlyBookingFlow } from "@/features/rentals/components/hourly-booking-flow";
 import { formatOfferingPrice, stayHint } from "@/features/rentals/pricing";
@@ -36,11 +37,13 @@ export function BookingWidget({
   offerings = [],
   staff = [],
   serviceStaffIds,
+  requestedStaff = null,
   lockedStaff = null,
   preview,
   requestedService = null,
   requestedOffering = null,
   listServices = true,
+  listStaff = true,
   listOfferings = true,
   layout = "calendar",
   stayLayout = "one-month",
@@ -57,6 +60,9 @@ export function BookingWidget({
   staff?: PublicStaff[];
   /** serviceId → eligible staff ids; absent means "every staff member". */
   serviceStaffIds?: Record<string, string[]>;
+  /** The page's Team section pick (page-request.ts): the service list narrows
+      to that person, and they stay chosen through the service step. */
+  requestedStaff?: { id: string | null; key: number } | null;
   /** Per-staff page / `?staff=`: no person switch, no "Anyone". */
   lockedStaff?: PublicStaff | null;
   /** Canned data for the admin's live previews: the appointment slots, and
@@ -74,6 +80,9 @@ export function BookingWidget({
       waits for its card instead of showing the catalogue a second time. */
   listServices?: boolean;
   listOfferings?: boolean;
+  /** False when a Team section on the page is the person picker: the widget
+      keeps the choice but shows no switch of its own. */
+  listStaff?: boolean;
   /** How free times are shown — the widget template (widget-theme.ts). */
   layout?: SlotLayout;
   /** How a stay is picked — the stays template (spec §8). */
@@ -174,6 +183,19 @@ export function BookingWidget({
       setOffering(null);
       restart();
     }
+  }
+
+  // The Team section's pick, once per key: the person becomes the choice, and
+  // a service they cannot take steps back to the list rather than showing
+  // times nobody can book.
+  const [appliedStaffKey, setAppliedStaffKey] = React.useState<number | null>(null);
+  if (requestedStaff && requestedStaff.key !== appliedStaffKey && !lockedStaff) {
+    setAppliedStaffKey(requestedStaff.key);
+    setStaffChoice(requestedStaff.id ?? "any");
+    if (service && requestedStaff.id && !staffOffers(serviceStaffIds, service.id, requestedStaff.id)) {
+      setService(null);
+      setSlot(null);
+    } else restart();
   }
 
   // A layout change (the studio's previews switch it live; on a real page
@@ -331,6 +353,11 @@ export function BookingWidget({
   // only ever picked there, so "change" makes sense only while something is
   // listed here to change to.
   const showServices = listServices && services.length > 0;
+  // Who before what: a person picked in the page's Team section narrows this
+  // list to what they do. The pick itself lives up there, so the widget only
+  // follows it.
+  const picked = lockedStaff ? null : (requestedStaff?.id ?? null);
+  const listedServices = picked ? services.filter((s) => staffOffers(serviceStaffIds, s.id, picked)) : services;
   const showOfferings = listOfferings && offerings.length > 0;
   const deferredServices = !listServices && services.length > 0;
   const deferredOfferings = !listOfferings && offerings.length > 0;
@@ -360,7 +387,9 @@ export function BookingWidget({
       ) : null}
     </p>
   ) : null;
-  const toolbar = service && canChooseStaff(service) ? (
+  // The switch, or — when the page's Team section is the picker — the line
+  // that says who these times are for, since nothing else here would.
+  const toolbar = !service || !canChooseStaff(service) ? null : listStaff ? (
     <StaffSwitch
       options={eligibleFor(service)}
       value={staffChoice ?? "any"}
@@ -369,6 +398,8 @@ export function BookingWidget({
         restart();
       }}
     />
+  ) : chosenStaff ? (
+    <p className="text-muted-foreground text-xs">{t("with", { name: chosenStaff.name })}</p>
   ) : null;
 
   return (
@@ -383,14 +414,18 @@ export function BookingWidget({
                 <h2 className="text-muted-foreground text-sm font-medium">{t("appointments")}</h2>
               ) : null}
               <ul className="flex flex-col gap-2">
-                {services.map((s) => (
+                {listedServices.map((s) => (
                   <li key={s.id}>
                     <button
                       type="button"
                       onClick={() => {
                         flushSync(() => {
                           setService(s);
-                          setStaffChoice(resolveStaff(s));
+                          // The page's person stays picked, as long as they
+                          // take this service.
+                          setStaffChoice(
+                            picked && staffOffers(serviceStaffIds, s.id, picked) ? picked : resolveStaff(s),
+                          );
                           restart();
                         });
                         // The times always come next now; move focus there so

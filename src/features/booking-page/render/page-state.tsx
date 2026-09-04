@@ -1,11 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { initialRequest, nextRequest, type PageRequest } from "./page-request";
+import { initialRequest, nextRequest, nextStaffRequest, type PageRequest, type StaffRequest } from "./page-request";
 
-type PageState = { requested: PageRequest; selectService: (id: string) => void; selectOffering: (id: string) => void };
+type PageState = {
+  requested: PageRequest;
+  /** The Team section's pick; the widget narrows to it (staff.tsx). */
+  staffPick: StaffRequest;
+  selectService: (id: string) => void;
+  selectOffering: (id: string) => void;
+  selectStaff: (id: string) => void;
+};
 
-const Ctx = React.createContext<PageState>({ requested: null, selectService: () => {}, selectOffering: () => {} });
+const Ctx = React.createContext<PageState>({ requested: null, staffPick: null, selectService: () => {}, selectOffering: () => {}, selectStaff: () => {} });
 
 /* Services / Spaces section → booking widget hand-off (see page-request.ts).
    `initialServiceId` / `initialOfferingId` are the `?service=` / `?space=`
@@ -22,7 +29,12 @@ export function PageStateProvider({
   const [requested, setRequested] = React.useState<PageRequest>(() => initialRequest(initialServiceId, initialOfferingId));
   const selectService = React.useCallback((id: string) => setRequested((prev) => nextRequest(prev, "service", id)), []);
   const selectOffering = React.useCallback((id: string) => setRequested((prev) => nextRequest(prev, "offering", id)), []);
-  const value = React.useMemo(() => ({ requested, selectService, selectOffering }), [requested, selectService, selectOffering]);
+  const [staffPick, setStaffPick] = React.useState<StaffRequest>(null);
+  const selectStaff = React.useCallback((id: string) => setStaffPick((prev) => nextStaffRequest(prev, id)), []);
+  const value = React.useMemo(
+    () => ({ requested, staffPick, selectService, selectOffering, selectStaff }),
+    [requested, staffPick, selectService, selectOffering, selectStaff],
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

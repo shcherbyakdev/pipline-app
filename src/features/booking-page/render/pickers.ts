@@ -7,11 +7,15 @@ import type { PageDocument } from "../schema";
    sees the same catalogue twice in a row. Decided on the public-visible set
    (hidden and empty sections are dropped there), so the studio preview and
    the template thumbnails agree with the live page. */
-export type Pickers = { services: boolean; spaces: boolean };
+export type Pickers = { services: boolean; spaces: boolean; staff: boolean };
 
 export function pickersOnPage(doc: PageDocument, ctx: EmptyContext): Pickers {
   const shown = publicSections(doc, ctx);
-  return { services: shown.some((s) => s.type === "services"), spaces: shown.some((s) => s.type === "spaces") };
+  return {
+    services: shown.some((s) => s.type === "services"),
+    spaces: shown.some((s) => s.type === "spaces"),
+    staff: shown.some((s) => s.type === "staff"),
+  };
 }
 
 /** Where the cover's Book button goes: the first step of booking — the

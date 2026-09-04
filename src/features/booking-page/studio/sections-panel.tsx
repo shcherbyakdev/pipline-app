@@ -28,7 +28,6 @@ import {
 } from "../doc-ops";
 import type { SectionType } from "../schema";
 import { AddSectionPopover } from "./add-section-popover";
-import { LayoutToggle } from "./layout-toggle";
 import { SectionRow } from "./section-row";
 import type { PageDraft } from "./use-page-draft";
 
@@ -40,7 +39,6 @@ export function SectionsPanel({
   pageSections,
   mode,
   seed,
-  templatePicker,
 }: {
   draft: PageDraft;
   selectedId: string | null;
@@ -51,8 +49,6 @@ export function SectionsPanel({
   mode: OrgMode;
   /** The words a new section starts with, in the org's language (defaults.ts). */
   seed: SectionSeed;
-  /** The picker-mode StarterDialog (spec 2026-08-28 §5.4). */
-  templatePicker: React.ReactNode;
 }) {
   const t = useTranslations("studio");
   const { doc, update, issues, published } = draft;
@@ -82,13 +78,6 @@ export function SectionsPanel({
   };
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <LayoutToggle
-          value={doc.layout}
-          onChange={(layout) => update((d) => ({ ...d, layout }))}
-        />
-        {templatePicker}
-      </div>
       {published === null && deepEqual(doc, DEFAULT_PAGE) ? (
         <p className="text-muted-foreground text-xs">
           {t("defaultPageHint")}

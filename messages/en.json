@@ -1398,7 +1398,7 @@
     "starter": {
       "title": "How should clients pick a time?",
       "titleSpaces": "How should clients pick dates and times?",
-      "sub": "Pick how this page's widget shows what is free. It applies straight away, and you can change it any time on Settings.",
+      "sub": "Pick how this page's widget shows what is free. You can change it any time on Settings — it goes live when you publish.",
       "firstService": {
         "title": "Add your first service",
         "sub": "It goes straight onto your page. Add more on Services whenever you like.",
@@ -1430,13 +1430,12 @@
       "leave": "Leave for now",
       "continue": "Continue",
       "picker": {
-        "trigger": "Widget layout",
+        "trigger": "Compare layouts",
         "title": "Widget layout",
-        "sub": "Change how this page shows what is free. It applies straight away; the website embed has its own layout.",
+        "sub": "Change how this page shows what is free. It goes live when you publish; the website embed has its own layout.",
         "use": "Use this layout"
       },
-      "applied": "Widget layout saved",
-      "current": "current",
+        "current": "current",
       "times": "Times",
       "stays": "Stays"
     },
@@ -1486,7 +1485,7 @@
       "settings": "Settings"
     },
     "layout": {
-      "label": "Layout",
+      "label": "Page layout",
       "column": "Column",
       "columnHint": "One column, like today's page",
       "split": "Split",
@@ -1527,8 +1526,6 @@
       "tooManyImages": "At most {max} images per page."
     },
     "publishBar": {
-      "notPublished": "Not published yet",
-      "unpublished": "Unpublished changes",
       "live": "Live",
       "saveFailed": "Couldn't save",
       "fixErrors": "Fix errors to save",
@@ -1563,9 +1560,7 @@
       "mobile": "Mobile",
       "systemTheme": "Visitor's system theme",
       "lightSystem": "Light system",
-      "darkSystem": "Dark system",
-      "themeFixedLight": "Theme is fixed to Light — every visitor sees this. Set Theme to Auto to preview both.",
-      "themeFixedDark": "Theme is fixed to Dark — every visitor sees this. Set Theme to Auto to preview both."
+      "darkSystem": "Dark system"
     },
     "notice": {
       "contrastUnreadable": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — unreadable. Adjust them on <link>Website embed</link>.",
@@ -1578,7 +1573,8 @@
       "look": "Look",
       "lookHint": "Logo and accent colour. Saved as you go.",
       "widget": "Booking page widget",
-      "widgetHint": "This page's own style. The website embed has its own on Website embed. Saved as you go."
+      "widgetHint": "This page's own style. The website embed has its own on Website embed. Publishes with the page.",
+      "pageLayoutHint": "How the page stacks up. Publishes with the page."
     },
     "image": {
       "hint": "PNG, JPEG or WebP · max 4 MB · best under 2000 px wide.",

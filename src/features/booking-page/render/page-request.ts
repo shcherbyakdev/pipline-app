@@ -14,3 +14,13 @@ export function initialRequest(serviceId: string | null, offeringId: string | nu
 export function nextRequest(prev: PageRequest, kind: RequestKind, id: string): PageRequest {
   return { kind, id, key: (prev?.key ?? 0) + 1 };
 }
+
+/* The Team section's pick, separate from the catalogue's: a person and a
+   service are chosen independently, so a new person must not wipe the
+   service the way one catalogue card replaces another. `id: null` is
+   "Anyone" — picking the chosen person again clears the choice. */
+export type StaffRequest = { id: string | null; key: number } | null;
+
+export function nextStaffRequest(prev: StaffRequest, id: string): StaffRequest {
+  return { id: prev?.id === id ? null : id, key: (prev?.key ?? 0) + 1 };
+}
