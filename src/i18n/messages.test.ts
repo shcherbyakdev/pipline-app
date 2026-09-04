@@ -33,6 +33,8 @@ const SAME_IN_EVERY_LOCALE = new Set([
   "public.units.summary",
   // Push bodies are three placeholders joined by middots (the title carries
   // the words); the same in every language.
+  // "Push" is the same loanword in Ukrainian.
+  "notifications.events.push",
   "emails.push.newBooking.body",
   "emails.push.newRequest.body",
   "emails.push.cancelled.body",

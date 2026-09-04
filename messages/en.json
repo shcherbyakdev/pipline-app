@@ -515,6 +515,7 @@
       "bookingPage": "Booking page",
       "embed": "Website embed",
       "billing": "Billing",
+      "notifications": "Notifications",
       "settings": "Settings"
     },
     "section": {
@@ -1758,5 +1759,67 @@
   "embedTitle": {
     "appointment": "Book an appointment",
     "space": "Book a space"
+  },
+  "notifications": {
+    "intro": "What you hear about, and what your clients receive.",
+    "sections": {
+      "you": "You",
+      "clients": "Your clients"
+    },
+    "push": {
+      "title": "Push notifications",
+      "blurb": "On your phone and computer, like an app.",
+      "status": {
+        "enabledHere": "Enabled on this device",
+        "notEnabledHere": "Not enabled on this device",
+        "unsupported": "Not available in this browser.",
+        "iosHint": "On iPhone or iPad, add Booklo to your Home Screen first (Share, then Add to Home Screen), open it from there and enable.",
+        "notConfigured": "Push is not set up on this server yet.",
+        "denied": "Notifications are blocked for this site in your browser settings.",
+        "checking": "Checking this device…"
+      },
+      "enable": "Enable on this device",
+      "enabling": "Enabling…",
+      "disableHere": "Turn off on this device",
+      "test": "Send a test",
+      "testSent": "Test sent. Check this device.",
+      "testFailed": "Nothing went out. Enable a device first.",
+      "devices": "Enabled devices",
+      "noDevices": "No devices yet.",
+      "thisDevice": "This device",
+      "added": "Added {date}",
+      "unknownBrowser": "Unknown browser",
+      "removeDevice": "Remove {device}",
+      "failed": "Couldn't enable push on this device."
+    },
+    "events": {
+      "title": "What you hear about",
+      "blurb": "Each event, on the channels you choose.",
+      "email": "Email",
+      "push": "Push",
+      "newBooking": "New booking",
+      "newRequest": "New booking request",
+      "cancelled": "Cancellation by a client",
+      "rescheduled": "Reschedule by a client",
+      "switchLabel": "{event}, by {channel}"
+    },
+    "reminders": {
+      "title": "Reminders",
+      "blurb": "An email to each client before their booking.",
+      "enabled": "Send reminders",
+      "lead": "How long before",
+      "leadOption": "{count, plural, one {# hour} other {# hours}} before",
+      "quotaFree": "On Free, reminders go to the first {count} bookings each month.",
+      "premium": "Premium"
+    },
+    "alwaysSent": {
+      "title": "Always sent to clients",
+      "blurb": "These carry the booking's link, so they always go out, in the client's language.",
+      "confirmation": "Booking confirmation",
+      "request": "Request received, accepted or declined",
+      "cancelled": "Cancellation",
+      "rescheduled": "Reschedule",
+      "manageLink": "Booking link on request"
+    }
   }
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { PremiumChip } from "@/features/billing/components/premium-chip";
 import { SettingsRow } from "@/components/settings-row";
 import { cn } from "@/lib/utils";
 import {
@@ -159,15 +159,7 @@ export function AppearanceFields({
         <Label htmlFor={id("hide-powered-by")} className="text-xs font-medium">
           {t("appearance.hideBadge")}
         </Label>
-        {canHideBadge ? null : upgradeHref ? (
-          <Link id={id("hide-powered-by-plan")} href={upgradeHref} className="border-brand/40 text-brand-text hover:bg-brand/10 rounded-full border px-1.5 py-0.5 text-[10px] font-medium">
-            {t("appearance.premium")}
-          </Link>
-        ) : (
-          <span id={id("hide-powered-by-plan")} className="border-brand/40 text-brand-text rounded-full border px-1.5 py-0.5 text-[10px] font-medium">
-            {t("appearance.premium")}
-          </span>
-        )}
+        {canHideBadge ? null : <PremiumChip id={id("hide-powered-by-plan")} href={upgradeHref} label={t("appearance.premium")} />}
       </div>
     </>
   );
