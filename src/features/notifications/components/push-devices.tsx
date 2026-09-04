@@ -44,7 +44,11 @@ async function probeDevice(publicKey: string | null, devices: PushDevice[]): Pro
   }
   if (Notification.permission === "denied") return { status: "denied", endpoint: null };
   try {
-    const reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.register("/sw.js");
+    // Wait for the worker to be ACTIVE before offering the button: a
+    // subscribe() issued against a still-installing worker was seen to hang
+    // in Chrome (QA 2026-09-05), and "Checking…" for a moment costs nothing.
+    const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
     const endpoint = sub?.endpoint ?? null;
     const known = endpoint !== null && devices.some((d) => d.endpoint === endpoint);

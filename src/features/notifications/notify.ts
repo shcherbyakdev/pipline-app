@@ -142,7 +142,12 @@ export async function notifyMembers(input: NotifyInput, deps: NotifyDeps = {}): 
 
       if (prefs.push) {
         try {
-          await push(member.user_id, pushPayload);
+          const summary = await push(member.user_id, pushPayload);
+          // One line per notice so a "did the phone ring?" question has an
+          // answer in the logs (the drain routes log their summaries too).
+          if (summary && typeof summary === "object" && "sent" in summary) {
+            console.info(`[notifications] ${input.event} push:`, summary);
+          }
         } catch (error) {
           console.error(`[notifications] ${input.event} push failed:`, error);
         }
