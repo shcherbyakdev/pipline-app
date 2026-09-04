@@ -6,6 +6,7 @@ import { getSchedulingSettings } from "@/features/orgs/queries";
 import { listStaff } from "@/features/scheduling/staff-queries";
 import { StaffList } from "@/features/scheduling/components/staff-list";
 import { PageIntro } from "@/components/shell/page-header";
+import { PageActions } from "@/components/shell/page-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { loadPublicResources } from "@/lib/booking/public-offering";
 import { gateHref } from "@/lib/billing/gate-href";
@@ -33,13 +34,13 @@ export default async function TeamPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <PageIntro>{t("intro")}</PageIntro>
+      <PageActions>
         {/* A capped org gets the door, not a form the action would refuse. */}
-        <Link href={doorHref ?? "/team/new"} className={cn(buttonVariants({ size: "sm" }), "w-fit")}>
+        <Link href={doorHref ?? "/team/new"} className={cn(buttonVariants({ variant: "ghost" }), "w-fit")}>
           <Plus className="size-4" /> {t("newButton")}
         </Link>
-      </div>
+      </PageActions>
+      <PageIntro>{t("intro")}</PageIntro>
       <StaffList staff={staff} handle={scheduling.handle} publicStaffIds={publicStaffIds} />
     </div>
   );
