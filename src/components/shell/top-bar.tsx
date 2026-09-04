@@ -7,6 +7,7 @@ import type { OrgMode } from "@/features/orgs/mode";
 import type { PlanStatus } from "@/features/billing/queries";
 import { MobileNav } from "./mobile-nav";
 import { navItemsFor, titleForPath } from "./nav";
+import { PAGE_ACTIONS_ID } from "./page-actions";
 
 /* Panel header row, Linear-style: hairline underneath, the view title at
    13px/500 on the left (pages no longer render their own <h1>). It sits above
@@ -37,6 +38,8 @@ export function TopBar({
     <header className="flex h-11 shrink-0 items-center gap-2 border-b px-4 md:px-6">
       <MobileNav org={org} userEmail={userEmail} flags={flags} mode={mode} pendingRequests={pendingRequests} planStatus={planStatus} />
       <h1 className="text-[13px] font-medium">{title}</h1>
+      {/* Where a page puts its own actions (PageActions portals into it). */}
+      <div id={PAGE_ACTIONS_ID} className="ml-auto flex items-center gap-2" />
     </header>
   );
 }

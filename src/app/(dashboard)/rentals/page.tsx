@@ -5,6 +5,7 @@ import { listOfferings, getOrgCurrency } from "@/features/rentals/queries";
 import { OfferingsList } from "@/features/rentals/components/offerings-list";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageIntro } from "@/components/shell/page-header";
+import { PageActions } from "@/components/shell/page-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { requireOrg } from "@/lib/auth/session";
 import { gateHref } from "@/lib/billing/gate-href";
@@ -23,8 +24,10 @@ export default async function RentalsPage() {
     gateHref(org.id, evaluateResourceGate),
     getTranslations("spaces"),
   ]);
-  const newSpace = (
-    <Link href={doorHref ?? "/rentals/new"} className={cn(buttonVariants({ size: "sm" }), "w-fit")}>
+  // Linear's header action: quiet until hovered. The empty state keeps the
+  // solid pill — there the button is the page's only CTA.
+  const newSpace = (v: Parameters<typeof buttonVariants>[0]) => (
+    <Link href={doorHref ?? "/rentals/new"} className={cn(buttonVariants(v), "w-fit")}>
       <Plus className="size-4" /> {t("newButton")}
     </Link>
   );
@@ -33,7 +36,7 @@ export default async function RentalsPage() {
   if (offerings.length === 0) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-        <EmptyState title={t("emptyTitle")} action={newSpace}>
+        <EmptyState title={t("emptyTitle")} action={newSpace({ size: "sm" })}>
           {t("empty")}
         </EmptyState>
       </div>
@@ -42,10 +45,8 @@ export default async function RentalsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <PageIntro>{t("intro")}</PageIntro>
-        {newSpace}
-      </div>
+      <PageActions>{newSpace({ variant: "ghost" })}</PageActions>
+      <PageIntro>{t("intro")}</PageIntro>
       <OfferingsList offerings={offerings} currency={currency} />
     </div>
   );

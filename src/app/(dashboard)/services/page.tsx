@@ -6,6 +6,7 @@ import { listStaff } from "@/features/scheduling/staff-queries";
 import { ServicesList } from "@/features/scheduling/components/services-list";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageIntro } from "@/components/shell/page-header";
+import { PageActions } from "@/components/shell/page-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { requireOrg } from "@/lib/auth/session";
 import { gateHref } from "@/lib/billing/gate-href";
@@ -25,8 +26,10 @@ export default async function ServicesPage() {
     gateHref(org.id, evaluateServiceGate),
     getTranslations("services"),
   ]);
-  const newService = (
-    <Link href={doorHref ?? "/services/new"} className={cn(buttonVariants({ size: "sm" }), "w-fit")}>
+  // Linear's header action: quiet until hovered. The empty state keeps the
+  // solid pill — there the button is the page's only CTA.
+  const newService = (v: Parameters<typeof buttonVariants>[0]) => (
+    <Link href={doorHref ?? "/services/new"} className={cn(buttonVariants(v), "w-fit")}>
       <Plus className="size-4" /> {t("newButton")}
     </Link>
   );
@@ -35,7 +38,7 @@ export default async function ServicesPage() {
   if (services.length === 0) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-        <EmptyState title={t("emptyTitle")} action={newService}>
+        <EmptyState title={t("emptyTitle")} action={newService({ size: "sm" })}>
           {t("emptyBody")}
         </EmptyState>
       </div>
@@ -44,10 +47,8 @@ export default async function ServicesPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <PageIntro>{t("intro")}</PageIntro>
-        {newService}
-      </div>
+      <PageActions>{newService({ variant: "ghost" })}</PageActions>
+      <PageIntro>{t("intro")}</PageIntro>
       <ServicesList services={services} staff={staff} />
     </div>
   );

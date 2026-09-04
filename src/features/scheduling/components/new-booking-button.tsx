@@ -30,7 +30,7 @@ export function NewBookingButton({
   const [open, setOpen] = React.useState(false);
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)}>
+      <Button variant="ghost" onClick={() => setOpen(true)}>
         <Plus className="size-4" /> {t("new.title")}
       </Button>
       {open ? (

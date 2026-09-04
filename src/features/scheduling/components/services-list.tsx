@@ -9,16 +9,53 @@ import { Switch } from "@/components/ui/switch";
 import type { ServiceRow } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
+import { initials } from "@/features/scheduling/staff-slug";
 import { cn } from "@/lib/utils";
 
 /* Shared column template so the header row and every service row align:
-   Service | Duration | Price | bookable — the Team page's table grammar
-   (staff-list.tsx). Fixed tracks only fit from lg: up; below that the row
-   keeps the stacked layout. */
-const gridCols =
-  "lg:grid lg:grid-cols-[minmax(0,1.6fr)_110px_minmax(0,1fr)_56px] lg:items-center lg:gap-3";
+   Service | Duration | Price | Team | bookable — the Team page's table
+   grammar (staff-list.tsx). Fixed tracks only fit from lg: up; below that
+   the row keeps the stacked layout. The Team column exists only once there
+   is a team: on a solo org every row would read "1 of 1" (the solo rule).*/
+const gridCols = (isTeam: boolean) =>
+  cn(
+    "lg:grid lg:items-center lg:gap-3",
+    isTeam
+      ? "lg:grid-cols-[minmax(0,1.6fr)_110px_minmax(0,1fr)_120px_56px]"
+      : "lg:grid-cols-[minmax(0,1.6fr)_110px_minmax(0,1fr)_56px]",
+  );
 
-function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
+// Four faces, then a count — the rest of the roster is a number, not a
+// smaller disc.
+const MAX_FACES = 4;
+
+/* Who offers a service, in the Team page's colours: overlapping discs, the
+   overflow as "+n". Non-interactive on purpose — the row's one link is the
+   service — and labelled as a whole, so a screen reader reads the names
+   instead of a pile of initials. */
+function StaffStack({ people }: { people: StaffRow[] }) {
+  const faces = people.length > MAX_FACES ? people.slice(0, MAX_FACES - 1) : people;
+  const rest = people.length - faces.length;
+  return (
+    // Tighter overlap than the kit's default: at size-6 the -space-x-2 it
+    // ships for photos eats the second letter of every initial.
+    <AvatarGroup role="img" aria-label={people.map((p) => p.name).join(", ")} className="-space-x-1">
+      {faces.map((p) => (
+        // after:hidden: the kit's inner hairline is for photos; on a solid
+        // colour it only muddies the edge.
+        <Avatar key={p.id} size="sm" className="after:hidden">
+          <AvatarFallback style={{ background: p.color }} className="text-[10px] font-medium text-white">
+            {initials(p.name)}
+          </AvatarFallback>
+        </Avatar>
+      ))}
+      {rest > 0 ? <AvatarGroupCount className="text-[10px]">+{rest}</AvatarGroupCount> : null}
+    </AvatarGroup>
+  );
+}
+
+function Row({ service, people }: { service: ServiceRow; people: StaffRow[] }) {
   const t = useTranslations("services");
   const tCommon = useTranslations("common");
   const tUnits = useTranslations("public.units");
@@ -26,12 +63,8 @@ function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
   // The switch moves the moment it's clicked and snaps back on its own if
   // the action fails (staff-list.tsx idiom).
   const [active, setActive] = React.useOptimistic(service.active);
-  // Solo rule: one active person means the count is always "1 of 1" — noise,
-  // so the hint only exists once there is a team to narrow.
-  const activeStaff = staff.filter((s) => s.active);
-  const assigned = activeStaff.filter((s) => service.staffIds.includes(s.id)).length;
-  const team =
-    activeStaff.length < 2 ? null : assigned === 0 ? t("noTeam") : t("teamCount", { assigned, total: activeStaff.length });
+  const isTeam = people.length > 1;
+  const assigned = people.filter((s) => service.staffIds.includes(s.id));
   const duration = tUnits("minutes", { count: service.durationMin });
 
   const onToggle = (next: boolean) => {
@@ -47,7 +80,7 @@ function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
       role="row"
       className={cn(
         "relative flex flex-col gap-2 rounded-lg px-3 py-2 hover:bg-muted/50 has-[a:focus-visible]:bg-muted/50",
-        gridCols,
+        gridCols(isTeam),
       )}
     >
       <div role="cell" className="min-w-0 max-lg:pr-12">
@@ -63,7 +96,6 @@ function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
           </Link>
           {!service.active ? <Badge variant="outline">{tCommon("inactive")}</Badge> : null}
         </div>
-        {team ? <p className="text-muted-foreground truncate text-xs">{team}</p> : null}
       </div>
       <span role="cell" className="text-muted-foreground text-xs tabular-nums max-lg:hidden">
         {duration}
@@ -75,6 +107,17 @@ function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
       <p role="cell" className="text-muted-foreground text-xs lg:hidden">
         {service.priceLabel ? `${duration} · ${service.priceLabel}` : duration}
       </p>
+      {isTeam ? (
+        <div role="cell" className="flex min-w-0">
+          {assigned.length === 0 ? (
+            <span className="text-muted-foreground text-xs">
+              —<span className="sr-only">{t("noTeam")}</span>
+            </span>
+          ) : (
+            <StaffStack people={assigned} />
+          )}
+        </div>
+      ) : null}
       <div role="cell" className="flex lg:justify-end">
         <Switch
           checked={active}
@@ -89,6 +132,10 @@ function Row({ service, staff }: { service: ServiceRow; staff: StaffRow[] }) {
 
 export function ServicesList({ services, staff }: { services: ServiceRow[]; staff: StaffRow[] }) {
   const t = useTranslations("services");
+  // A deactivated person is off the stack; the whole roster still arrives so
+  // the page can count what a service would lose.
+  const people = staff.filter((s) => s.active);
+  const isTeam = people.length > 1;
   return (
     // ARIA table grammar on the styled rows so duration and price read in
     // their columns; the layout stays the responsive grid.
@@ -97,19 +144,20 @@ export function ServicesList({ services, staff }: { services: ServiceRow[]; staf
         role="row"
         className={cn(
           "hidden border-b px-3 pb-2 text-xs font-medium text-muted-foreground",
-          gridCols,
+          gridCols(isTeam),
         )}
       >
         <span role="columnheader">{t("columns.service")}</span>
         <span role="columnheader">{t("columns.duration")}</span>
         <span role="columnheader">{t("columns.price")}</span>
+        {isTeam ? <span role="columnheader">{t("columns.team")}</span> : null}
         <span role="columnheader">
           <span className="sr-only">{t("columns.actions")}</span>
         </span>
       </div>
       <ol role="rowgroup" className="flex flex-col max-lg:divide-y">
         {services.map((service) => (
-          <Row key={service.id} service={service} staff={staff} />
+          <Row key={service.id} service={service} people={people} />
         ))}
       </ol>
     </div>
