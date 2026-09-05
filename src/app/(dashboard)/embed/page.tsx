@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { AbstractIntlMessages } from "next-intl";
 import { getMessages, getTranslations } from "next-intl/server";
 import { publicMessages } from "@/i18n/public-provider";
 import { LOCALES, type Locale } from "@/i18n/config";
@@ -48,14 +49,15 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   const tTitle = await getTranslations({ locale: schedulingSettings.locale, namespace: "embedTitle" });
   // The preview speaks whichever language the snippet pins (Code › Language),
   // else the org's — so every public language is loaded, not just the org's.
-  const previewMessages = Object.fromEntries(
-    await Promise.all(LOCALES.map(async (locale) => [locale, publicMessages(await getMessages({ locale }))])),
-  ) as Record<Locale, Awaited<ReturnType<typeof getMessages>>>;
   // The preview narrows by person the way the public embed does, which
   // needs the roster (public shape: never email) and who offers what.
+  const [bundles, serviceStaffIds] = await Promise.all([
+    Promise.all(LOCALES.map(async (locale) => [locale, publicMessages(await getMessages({ locale }))] as const)),
+    listServiceStaffMap(org.id),
+  ]);
+  const previewMessages = Object.fromEntries(bundles) as Record<Locale, AbstractIntlMessages>;
   const activeStaff = staff.filter((s) => s.active);
   const publicStaff = activeStaff.map(({ id, name, slug, color }) => ({ id, name, slug, color }));
-  const serviceStaffIds = await listServiceStaffMap(org.id);
   const titles = { appointment: tTitle("appointment"), space: tTitle("space") };
   // What the snippet can point at (admin IA spec §5): the page, one person,
   // one service, one space. A solo team lists no people (there is only one

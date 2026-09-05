@@ -40,8 +40,8 @@ export function SegmentedTabs<T extends string>({
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(item.value)}
             onKeyDown={(e) => {
-              if (e.key === "ArrowRight" || e.key === "ArrowDown") go(i + 1);
-              else if (e.key === "ArrowLeft" || e.key === "ArrowUp") go(i - 1);
+              if (e.key === "ArrowRight") go(i + 1);
+              else if (e.key === "ArrowLeft") go(i - 1);
               else if (e.key === "Home") go(0);
               else if (e.key === "End") go(items.length - 1);
               else return;
