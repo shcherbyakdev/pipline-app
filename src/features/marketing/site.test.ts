@@ -172,8 +172,8 @@ describe("site config", () => {
     expect(ONBOARDING.modes.map((m) => m.value)).toEqual(["rentals", "appointments"]);
   });
 
-  it("FORBIDDEN_COPY retires the old channel words and keeps the H4 ones (H5b ruling 7)", () => {
-    expect(FORBIDDEN_COPY).toEqual(["google", "calendar sync", "stripe", "payment", "offering", "rentals"]);
+  it("FORBIDDEN_COPY retires the old channel words and keeps the H4 ones (H5b ruling 7); google left with the Google Calendar slice", () => {
+    expect(FORBIDDEN_COPY).toEqual(["stripe", "payment", "offering", "rentals"]);
   });
 
   it("the Premium section shows while billing is off and reads its number from PLANS", () => {
