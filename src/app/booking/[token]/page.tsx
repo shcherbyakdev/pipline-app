@@ -13,12 +13,16 @@ import { PublicIntl } from "@/i18n/public-provider";
 import { PublicLanguageLinks } from "@/i18n/public-language-links";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getOrgBranding } from "@/lib/org-branding";
+import { parseWidgetTheme } from "@/lib/widget-theme";
+import { BOOK_COLUMN_CLASS, bookShellClass } from "@/lib/book-shell";
+import { PAGE_PANEL_CLASS } from "@/features/booking-page/render/page-renderer";
 
 // The client's page for one booking, in the same world as the page they
-// booked on: the soft ground, one floating panel, the booking as a card.
-const GROUND = "bg-sidebar flex flex-1 flex-col";
-const COLUMN = "mx-auto flex w-full max-w-md flex-col gap-5 px-3 pt-4 pb-8 sm:px-6 sm:pt-10";
-const PANEL = "bg-background rounded-2xl border p-5 shadow-(--shadow-card) sm:p-7 flex flex-col gap-4";
+// booked on: the org's page theme on the same shell (ground, column, one
+// floating panel), the booking as a card inside it.
+const COLUMN = cn(BOOK_COLUMN_CLASS, "max-w-md");
+const PANEL = cn(PAGE_PANEL_CLASS, "flex flex-col gap-4");
 
 // Booking statuses → `public.manage.status.*` keys; anything unknown shows
 // its raw status rather than a blank line.
@@ -39,7 +43,7 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
     // No org yet: `?lang=` and the region still decide, then English.
     const t = await getTranslations({ locale: await publicLocale(null, sp), namespace: "public.manage" });
     return (
-      <div className={GROUND}>
+      <div className={bookShellClass("auto")}>
         <main className={COLUMN}>
           <div className={PANEL}>
             <p className="text-muted-foreground text-sm">{t("tooManyRequests")}</p>
@@ -85,9 +89,11 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
     !b.cancelWindowMin ||
     now <= b.startsAt.getTime() - b.cancelWindowMin * 60_000;
   const statusKey = (STATUS_KEY as Partial<Record<string, (typeof STATUS_KEY)[keyof typeof STATUS_KEY]>>)[b.status];
+  // The org's page theme (light / dark / auto), as the hosted page reads it.
+  const theme = parseWidgetTheme((await getOrgBranding(b.orgId)).pageThemeRaw);
   return (
     <PublicIntl locale={locale} timeZone={b.orgTimezone}>
-    <div className={GROUND}>
+    <div className={bookShellClass(theme.theme)}>
     <main className={COLUMN}>
       <div className={PANEL}>
       <h1 className="text-[17px] leading-tight font-medium">{b.orgName}</h1>

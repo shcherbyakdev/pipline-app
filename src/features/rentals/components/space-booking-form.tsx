@@ -357,7 +357,14 @@ export function SpaceBookingForm({
               }
             />
           ) : (
-            <form action={submit} className="flex flex-col gap-3">
+            <form
+          // onSubmit rather than action: React resets an action form's fields
+          // when the action settles, so a refused booking would wipe what the
+          // staff member typed (the public flows' rule).
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(new FormData(e.currentTarget));
+          }} className="flex flex-col gap-3">
               <p className="text-sm">
                 {formatDurationLabel(durationMin, tu)} ·{" "}
                 {new Intl.DateTimeFormat(intlLocale, {
@@ -404,7 +411,14 @@ export function SpaceBookingForm({
             timeZone={timeZone}
           />
           {range.start && range.end ? (
-            <form action={submit} className="flex flex-col gap-3">
+            <form
+          // onSubmit rather than action: React resets an action form's fields
+          // when the action settles, so a refused booking would wipe what the
+          // staff member typed (the public flows' rule).
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(new FormData(e.currentTarget));
+          }} className="flex flex-col gap-3">
               <UnitSelect
                 id="new-rental-unit"
                 label={t("form.unit")}

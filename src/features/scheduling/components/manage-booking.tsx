@@ -151,6 +151,7 @@ export function ManageBooking({
             <p className="text-sm font-medium">{t("pickNewTime")}</p>
             <PagerDiscs
               prevDisabled={pending || fromDate <= todayISO()}
+              nextDisabled={pending}
               onPrev={() => nav(-7)}
               onNext={() => nav(7)}
               prevLabel={ts("prevWeek")}

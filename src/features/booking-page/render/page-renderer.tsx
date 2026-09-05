@@ -26,9 +26,11 @@ export function pageContainerClass(layout: PageDocument["layout"]): string {
 
 /* The page itself: one floating panel on the shell's soft ground — the
    admin's content panel and the landing's hero card, drawn with the widget
-   theme's shapes (2r) and the app's hairline + card shadow. Sections lay
-   out inside it; the badge and the language links stay on the ground. */
-export const PAGE_PANEL_CLASS = "wt-r2 bg-background border shadow-(--shadow-card) p-5 sm:p-7";
+   theme's shapes (2r; `rounded-2xl` only reaches a use outside the widget
+   theme, like the manage page — inside it the theme squares and wt-r2 wins)
+   and the app's hairline + card shadow. Sections lay out inside it; the
+   badge and the language links stay on the ground. */
+export const PAGE_PANEL_CLASS = "wt-r2 rounded-2xl bg-background border shadow-(--shadow-card) p-5 sm:p-7";
 
 function renderSection(section: Section, ctx: RenderContext, pickers: Pickers, crossLink: RenderContext["crossLink"], heroCtaHidden: boolean) {
   switch (section.type) {
@@ -47,12 +49,15 @@ function renderSection(section: Section, ctx: RenderContext, pickers: Pickers, c
   }
 }
 
-// Split layout, container-query driven (@3xl = 48rem of the page column, not
-// the viewport) so the studio preview and its phone toggle behave like the
-// real page. The booking section docks in column 2 and spans every explicit
-// row (gridTemplateRows below); the rest auto-place down column 1. Below
-// @3xl the container is a plain flex column in DOM (= array) order.
-const DOCKED = "@3xl:col-start-2 @3xl:row-start-1 @3xl:row-end-[-1] @3xl:sticky @3xl:top-6 @3xl:self-start";
+// Split layout, container-query driven (the page column, not the viewport)
+// so the studio preview and its phone toggle behave like the real page. The
+// query is 710px of CONTENT box: the container is the panel, whose padding
+// and hairline (2 × 29px at sm:) come off the 48rem the layout used to
+// split at, so it still flips at the same page width. The booking section
+// docks in column 2 and spans every explicit row (gridTemplateRows below);
+// the rest auto-place down column 1. Below the query the container is a
+// plain flex column in DOM (= array) order.
+const DOCKED = "@min-[710px]:col-start-2 @min-[710px]:row-start-1 @min-[710px]:row-end-[-1] @min-[710px]:sticky @min-[710px]:top-6 @min-[710px]:self-start";
 
 /* One renderer for /book/[handle], staff pages, the studio preview and
    template thumbnails. Public mode drops hidden and empty sections; preview
@@ -95,7 +100,7 @@ export function PageRenderer({
           wrapper and the @3xl: variants on the layout div inside it. */}
       <div className={cn("@container w-full", PAGE_PANEL_CLASS)}>
         <div
-          className={cn("flex w-full flex-col gap-8", split && "@3xl:grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)] @3xl:gap-x-10")}
+          className={cn("flex w-full flex-col gap-8", split && "@min-[710px]:grid @min-[710px]:grid-cols-[minmax(0,1fr)_minmax(0,400px)] @min-[710px]:gap-x-10")}
           style={split ? { gridTemplateRows: `repeat(${Math.max(others, 1)}, auto)` } : undefined}
         >
           {sections.map((section) => {

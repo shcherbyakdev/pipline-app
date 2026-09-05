@@ -9,15 +9,15 @@ import { CHIP } from "@/features/booking-page/render/type";
 
 /** The paging discs every picker shares (the landing card's white discs on
     the panel): SlotFrame's month/week arrows, the stay picker's months. */
-export function PagerDiscs({ prevDisabled, onPrev, onNext, prevLabel, nextLabel }: {
-  prevDisabled: boolean; onPrev: () => void; onNext: () => void; prevLabel: string; nextLabel: string;
+export function PagerDiscs({ prevDisabled, nextDisabled = false, onPrev, onNext, prevLabel, nextLabel }: {
+  prevDisabled: boolean; nextDisabled?: boolean; onPrev: () => void; onNext: () => void; prevLabel: string; nextLabel: string;
 }) {
   return (
     <div className="flex items-center gap-1.5">
       <Button variant="outline" size="icon" className={`${CHIP} wt-round`} aria-label={prevLabel} title={prevLabel} disabled={prevDisabled} onClick={onPrev}>
         <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
       </Button>
-      <Button variant="outline" size="icon" className={`${CHIP} wt-round`} aria-label={nextLabel} title={nextLabel} onClick={onNext}>
+      <Button variant="outline" size="icon" className={`${CHIP} wt-round`} aria-label={nextLabel} title={nextLabel} disabled={nextDisabled} onClick={onNext}>
         <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
       </Button>
     </div>

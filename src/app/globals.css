@@ -621,8 +621,11 @@
    newly picked day, the form) rises in on the strong ease-out at admin
    tempo. Reduced motion keeps the fade, drops the rise. */
 .widget-theme .wt-enter { animation: fade-up 0.25s var(--ease-strong) both; }
+/* Opacity only: an animation's transform outranks a normal `transform:
+   none`, so the reduced-motion branch needs keyframes without one. */
+@keyframes wt-fade { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .widget-theme .wt-enter { animation: fade-up 0.15s ease both; transform: none; }
+  .widget-theme .wt-enter { animation: wt-fade 0.15s ease both; }
 }
 /* Scoped to plain `.border`/`border-*` tokens (attribute *contains* match,
    not `.border` exact-token) so Input/Textarea/Button's `border-input`,
@@ -665,6 +668,15 @@
 .widget-theme.wt-transparent {
   background: transparent;
 }
+/* App tokens the widget's vocabulary reaches for (render/type.ts), pointed
+   at the widget's own vars: an embed on a third-party site carries no
+   `.dark`/`.light` shell scope, so `bg-card` / `text-foreground` would
+   otherwise resolve to the ROOT light palette inside a dark widget — white
+   rows under off-white text. Same unlayered-beats-utility mechanism as the
+   border rule above. */
+.widget-theme .bg-card { background-color: var(--widget-card); }
+.widget-theme :is(.text-foreground, .hover\:text-foreground:hover) { color: var(--widget-text); }
+.widget-theme .text-subtle { color: color-mix(in oklab, var(--widget-text) 72%, transparent); }
 /* Secondary text inside the widget (day labels, timezone notes, "change").
    `text-muted-foreground` is an admin token — the dark palette's #8a8f98 —
    which on a light host page is ~3.2:1 (fails AA). Derive it from the

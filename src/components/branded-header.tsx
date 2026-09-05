@@ -23,7 +23,9 @@ export function BrandedHeader({
   subtitle?: string;
   aside?: React.ReactNode;
 }) {
-  const initial = orgName.trim()[0]?.toUpperCase() ?? "";
+  // Array.from: the first CHARACTER, not the first UTF-16 unit (an org
+  // named "🌿 Green Room" must not show a lone surrogate).
+  const initial = Array.from(orgName.trim())[0]?.toUpperCase() ?? "";
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
       {logoUrl ? (
