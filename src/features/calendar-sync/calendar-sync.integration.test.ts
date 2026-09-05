@@ -77,6 +77,11 @@ beforeAll(async () => {
   staffId = st!.id;
   const { error: e4 } = await owner.from("service_staff").insert({ org_id: orgId, service_id: serviceId, staff_id: staffId });
   if (e4) throw e4;
+  // The system reschedule checks hours (slot_within_availability); walk-ins do not.
+  const { error: e5 } = await owner
+    .from("availability_rules")
+    .insert([0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ org_id: orgId, staff_id: staffId, weekday, start_time: "09:00", end_time: "17:00" })));
+  if (e5) throw e5;
 });
 
 describe("queue trigger", () => {
@@ -118,6 +123,24 @@ describe("grants", () => {
     expect(ev.error).not.toBeNull();
     const mine = await admin.from("calendar_connections").select("id, account_email").eq("org_id", orgId);
     expect(mine.data).toHaveLength(1);
+  });
+
+  it("reschedule_booking_system (0077) is service_role only and moves a confirmed appointment", async () => {
+    const id = await walkIn();
+    const hash = generateAccessToken().tokenHash;
+    const target = `2027-08-${String(day).padStart(2, "0")}T11:00:00Z`;
+    const asOwner = await owner.rpc("reschedule_booking_system", { p_booking_id: id, p_starts_at: target, p_token_hash: hash });
+    expect(asOwner.error).not.toBeNull();
+    const { data, error } = await admin.rpc("reschedule_booking_system", { p_booking_id: id, p_starts_at: target, p_token_hash: hash });
+    expect(error).toBeNull();
+    const row = (data as Array<{ new_booking_id: string; staff_name: string }>)[0];
+    const { data: old } = await admin.from("bookings").select("status").eq("id", id).single();
+    const { data: fresh } = await admin.from("bookings").select("status, starts_at, rescheduled_from_id").eq("id", row.new_booking_id).single();
+    expect(old?.status).toBe("rescheduled");
+    expect(fresh).toMatchObject({ status: "confirmed", rescheduled_from_id: id });
+    expect(new Date(fresh!.starts_at).toISOString()).toBe(new Date(target).toISOString());
+    // Both rows were queued for the mirror by the trigger.
+    expect(await queueRow(row.new_booking_id)).toMatchObject({ pending: true });
   });
 
   it("'integrations' is a reserved handle", async () => {

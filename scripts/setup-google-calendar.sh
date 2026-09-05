@@ -209,7 +209,7 @@ vercel_env() {
   fi
 }
 
-TOTAL_STAGES=6
+TOTAL_STAGES=7
 
 banner "Google Calendar setup"
 
@@ -277,6 +277,28 @@ say ""
 say "Local dev is ready: restart 'npm run dev', open /integrations, Connect."
 
 # ── 6 ─────────────────────────────────────────────────────────────────────
+stage "Google — verify the domain (push notifications)"
+say "With the 'cancel when I delete' / 'reschedule when I move' switches on,"
+say "Google pushes changes to Booklo the moment they happen — but only to a"
+say "domain you have verified. Without this Booklo still notices changes,"
+say "every 15 minutes, by asking. Skip it for now if you like (Enter twice)."
+open_url "https://search.google.com/search-console/welcome"
+step "URL prefix: your deployed origin (${TEST_URL} or your production domain)."
+step "Verification method: HTML tag. Copy ONLY the content value of the meta"
+step "  tag (the long token after content=\"...\"), not the whole tag."
+ask GOOGLE_SITE_VERIFICATION "Paste the verification token (or leave empty to skip):"
+if [[ -n "$GOOGLE_SITE_VERIFICATION" ]]; then
+  write_env GOOGLE_SITE_VERIFICATION "$GOOGLE_SITE_VERIFICATION"
+  say "Deploy with that value set, then press Verify in Search Console."
+  open_url "https://console.cloud.google.com/apis/credentials/domainverification"
+  step "Cloud console → Domain verification → Add domain → the same origin."
+  step "(It offers to verify through Search Console; the tag is already live.)"
+  pause
+else
+  SKIPPED+=("Domain verification (Search Console + Cloud console) — Booklo polls Google every 15 min until then")
+fi
+
+# ── 7 ─────────────────────────────────────────────────────────────────────
 stage "Vercel — production environment"
 say "The same three values on the Vercel project, so the test/prod site can"
 say "connect too. The client ID and secret can be the same client as local;"
@@ -289,6 +311,7 @@ if command -v vercel >/dev/null 2>&1 && [[ -f .vercel/project.json ]]; then
     vercel_env GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID"
     vercel_env GOOGLE_CLIENT_SECRET "$GOOGLE_CLIENT_SECRET" --sensitive
     vercel_env GCAL_TOKEN_KEY "$PROD_KEY" --sensitive
+    [[ -n "${GOOGLE_SITE_VERIFICATION:-}" ]] && vercel_env GOOGLE_SITE_VERIFICATION "$GOOGLE_SITE_VERIFICATION"
     note "redeploy (or push to main) for the new values to take effect"
   else
     SKIPPED+=("Vercel env GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GCAL_TOKEN_KEY (Settings → Environment Variables)")
