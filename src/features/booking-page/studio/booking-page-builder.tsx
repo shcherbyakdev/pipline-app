@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import type {
   BrandingSettings,
@@ -263,18 +262,10 @@ export function BookingPageBuilder({
       ? bookingUrl(appUrl, scheduling.handle)
       : null;
 
-  // Colour overrides (set on Website embed) apply here too — surface a weak
-  // pair the same way the embed page does, so it isn't missed on this page.
+  // The page's own colour overrides (Settings › widget): surface a weak pair
+  // here, next to the preview it dims, the way the embed page does for its.
   const overrideRatio =
     theme.background || theme.text ? effectiveContrast(theme) : null;
-  const embedRisk = !theme.background && theme.theme !== "auto";
-  const embedLink = {
-    link: (chunks: React.ReactNode) => (
-      <Link href="/embed" className="underline underline-offset-3">
-        {chunks}
-      </Link>
-    ),
-  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -425,14 +416,7 @@ export function BookingPageBuilder({
             notices={
               overrideRatio !== null && overrideRatio < 4.5 ? (
                 <PreviewNotice tone={overrideRatio < 3 ? "error" : "warn"}>
-                  {t.rich(overrideRatio < 3 ? "notice.contrastUnreadable" : "notice.contrastLow", {
-                    ratio: overrideRatio,
-                    ...embedLink,
-                  })}
-                </PreviewNotice>
-              ) : embedRisk ? (
-                <PreviewNotice tone="warn">
-                  {t.rich(theme.theme === "light" ? "notice.embedRiskLight" : "notice.embedRiskDark", embedLink)}
+                  {t(overrideRatio < 3 ? "notice.contrastUnreadable" : "notice.contrastLow", { ratio: overrideRatio })}
                 </PreviewNotice>
               ) : theme.theme === "auto" ? (
                 <PreviewNotice tone="info">{t("notice.auto")}</PreviewNotice>

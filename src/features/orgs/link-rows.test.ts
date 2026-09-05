@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { linkRows, type LinkRow } from "./link-rows";
+import { initialRowKey, linkRows, type LinkRow } from "./link-rows";
 
 const APPTS = { offersAppointments: true, offersRentals: false };
 const RENTALS = { offersAppointments: false, offersRentals: true };
@@ -22,5 +22,20 @@ describe("linkRows (spec §5 — the Links & embeds table)", () => {
   });
   it("a solo team lists no people (the caller passes [] then); nothing else changes", () => {
     expect(linkRows({ mode: APPTS, staff: [], services, spaces }).map(label)).toEqual(["bookingPage", "Massage"]);
+  });
+});
+
+describe("initialRowKey (the Team / Service / Space pages' Embed links)", () => {
+  const rows = linkRows({ mode: APPTS, staff, services, spaces });
+  it("?staff=, ?service= and ?space= preselect that row", () => {
+    expect(initialRowKey(rows, { staff: "ben" })).toBe("staff:ben");
+    expect(initialRowKey(rows, { service: "s1" })).toBe("service:s1");
+    expect(initialRowKey(linkRows({ mode: RENTALS, staff, services, spaces }), { space: "o1" })).toBe("space:o1");
+  });
+  it("anything the table doesn't list — unknown, wrong channel, repeated, absent — is the page", () => {
+    expect(initialRowKey(rows, { staff: "zed" })).toBe("page");
+    expect(initialRowKey(rows, { space: "o1" })).toBe("page");
+    expect(initialRowKey(rows, { staff: ["anna", "ben"] })).toBe("page");
+    expect(initialRowKey(rows, {})).toBe("page");
   });
 });

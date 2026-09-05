@@ -7,22 +7,29 @@ import { NextIntlClientProvider, useTranslations, type AbstractIntlMessages } fr
 import { toast } from "sonner";
 import { updateSurfaceTheme } from "@/features/orgs/actions";
 import { resolveLayout, resolveStayLayout, type WidgetThemeConfig } from "@/lib/widget-theme";
-import { AppearanceFields, SELECT_CLASS, contrastOf } from "./appearance-fields";
+import { AppearanceFields, contrastOf } from "./appearance-fields";
 // Pure module (no server-only import, no DB) — safe in a client component.
 import { badgeShows } from "@/lib/billing/entitlements";
 import { EmbedPreviewFrame } from "./embed-preview-frame";
+import { EmbedCode } from "./embed-code";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import type { PublicOffering, PublicService } from "@/lib/booking/public";
 import type { OrgMode } from "@/features/orgs/mode";
+import type { LinkRow } from "@/features/orgs/link-rows";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { SettingsCard } from "@/components/settings-row";
-import { cn } from "@/lib/utils";
-import { embedSnippet, type EmbedTitles } from "./widget-embed-snippet";
-import { LOCALES, LOCALE_NAMES } from "@/i18n/config";
+import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
+import type { EmbedTitles } from "./widget-embed-snippet";
 import { PREVIEW_AVAILABILITY } from "@/features/rentals/preview-availability";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 
+type Tab = "code" | "style";
+const TABS: readonly Tab[] = ["code", "style"];
+
+/* Website embed, the studio's shape: Code / Style on the left, the widget on
+   a mock host page on the right. Code is the page's one job and opens first;
+   Style is the same appearance fields the studio's Settings tab renders,
+   bound to the embed's own stored config (updateSurfaceTheme "embed"). */
 export function WidgetAppearance({
   previewIntl,
   orgTimeZone,
@@ -35,8 +42,8 @@ export function WidgetAppearance({
   previewOfferings,
   mode,
   titles,
-  staffOptions = [],
-  initialStaffSlug = null,
+  rows,
+  initialKey,
   canHideBadge = true,
   upgradeHref = null,
 }: {
@@ -58,10 +65,9 @@ export function WidgetAppearance({
   mode: OrgMode;
   /** The iframe titles in the org's language (public.embedTitle.*). */
   titles: EmbedTitles;
-  // Only passed when the org has more than one active team member — a solo
-  // provider never sees a "Book with" choice they can't make.
-  staffOptions?: Array<{ slug: string; name: string }>;
-  initialStaffSlug?: string | null;
+  /** What the snippet can point at (linkRows) and which row a deep link opens on. */
+  rows: readonly LinkRow[];
+  initialKey: string;
   // Hiding "Powered by Booklo" is a paid perk (spec §5). Defaults to true, so
   // a caller that doesn't pass it — and the whole flag-off world — behaves
   // exactly as before. The server enforces it regardless (badgeVisible): this
@@ -73,16 +79,9 @@ export function WidgetAppearance({
 }) {
   const t = useTranslations("embed");
   const tc = useTranslations("common");
+  const [tab, setTab] = React.useState<Tab>("code");
   const [config, setConfig] = React.useState<WidgetThemeConfig>(initial);
   const [pending, startTransition] = React.useTransition();
-  // "" = the whole team (the org-wide flow, byte-identical to the old snippet).
-  const [staffSlug, setStaffSlug] = React.useState<string>(initialStaffSlug ?? "");
-  const target = staffSlug ? { staff: staffSlug } : null;
-  // "" = follow the visitor (the widget's own rule: region, then the org's
-  // language). Not stored — like the target above, it is part of the string
-  // you copy, so one site can paste an English snippet and another Ukrainian.
-  const [lang, setLang] = React.useState<string>("");
-  const snippet = handle ? embedSnippet(appUrl, handle, target, mode, titles, lang || undefined) : "";
 
   const { blocked: contrastBlocked } = contrastOf(config);
 
@@ -101,138 +100,88 @@ export function WidgetAppearance({
     });
   };
 
-  // Awaited: the clipboard write can be refused (permissions, insecure
-  // context) and "Copied" must not claim otherwise (portal-links-panel.tsx).
-  const copySnippet = async () => {
-    if (!handle) return;
-    try {
-      await navigator.clipboard.writeText(snippet);
-      toast.success(t("copied"));
-    } catch {
-      toast.error(t("copyRefused"));
-    }
-  };
-
   const dirty = JSON.stringify(config) !== JSON.stringify(initial);
-  const selectClass = SELECT_CLASS;
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* The page's one job first: the snippet, in the first viewport —
-          styling below is the refinement, not the point. */}
-      {handle ? (
-        <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm font-medium">{t("snippet")}</p>
-          {staffOptions.length > 0 && mode.offersAppointments ? (
-            <div className="flex items-center gap-2">
-              <Label htmlFor="wt-staff" className="text-xs font-medium">
-                {t("bookWith")}
-              </Label>
-              <select
-                id="wt-staff"
-                className={cn(selectClass, "w-auto")}
-                value={staffSlug}
-                onChange={(e) => setStaffSlug(e.target.value)}
-              >
-                <option value="">{t("wholeTeam")}</option>
-                {staffOptions.map((s) => (
-                  <option key={s.slug} value={s.slug}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <span className="text-muted-foreground text-xs">
-                {staffSlug ? t("staffOnly") : t("clientsPick")}
-              </span>
-            </div>
-          ) : null}
-          <div className="flex items-center gap-2">
-            <Label htmlFor="wt-lang" className="text-xs font-medium">
-              {t("language")}
-            </Label>
-            <select
-              id="wt-lang"
-              className={cn(selectClass, "w-auto")}
-              value={lang}
-              onChange={(e) => setLang(e.target.value)}
+    // Controls stay a narrow column; the preview gets the room, since
+    // judging the widget in context is the point of this page.
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+      <div className="flex flex-col gap-4">
+        {/* Local-state tab strip (studio-tabs.tsx; there is no Tabs primitive). */}
+        <div role="tablist" aria-label={t("tabs.label")} className={SEGMENTED_NAV_CLASS}>
+          {TABS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={segmentedItemClass(tab === id)}
             >
-              <option value="">{t("languageAuto")}</option>
-              {/* LOCALE_NAMES: each language named in itself, never translated. */}
-              {LOCALES.map((l) => (
-                <option key={l} value={l}>
-                  {LOCALE_NAMES[l]}
-                </option>
-              ))}
-            </select>
-            {lang ? null : <span className="text-muted-foreground text-xs">{t("languageAutoHint")}</span>}
-          </div>
-          <pre className="bg-muted overflow-x-auto rounded-md border p-3 font-mono text-xs">
-            {snippet}
-          </pre>
-          <div>
-            <Button variant="outline" size="sm" onClick={copySnippet}>
-              {t("copy")}
-            </Button>
-          </div>
+              {t(`tabs.${id}`)}
+            </button>
+          ))}
         </div>
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          {t.rich("noHandle", {
-            link: (chunks) => (
-              <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
-                {chunks}
-              </Link>
-            ),
-          })}
-        </p>
-      )}
-      {/* Controls stay a narrow column; the preview gets the room, since
-          judging the widget in context is the point of this page. */}
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
-        <SettingsCard
-          title={t("style.title")}
-          description={t("style.description")}
-          footer={
-            <>
-              {dirty ? <span className="text-muted-foreground mr-auto text-xs">{tc("unsavedChanges")}</span> : null}
-              <Button size="sm" onClick={save} disabled={pending || contrastBlocked || !dirty}>
-                {pending ? tc("saving") : tc("save")}
-              </Button>
-            </>
-          }
-        >
-          <AppearanceFields
-            idPrefix="wt"
-            config={config}
-            onChange={setConfig}
-            pending={pending}
-            offersRentals={mode.offersRentals}
-            canHideBadge={canHideBadge}
-            upgradeHref={upgradeHref}
-          />
-        </SettingsCard>
-        {/* Sticks inside the shell panel's scroll container (the header row
-            sits above it), so the offset is just the content padding. */}
-        <div className="lg:sticky lg:top-6 lg:self-start">
-          <EmbedPreviewFrame config={previewConfig} accentColor={accentColor}>
-            {/* Only the widget speaks the org's language; the frame around it
-                is admin chrome and keeps the admin's messages. */}
-            <NextIntlClientProvider locale={previewIntl.locale} messages={previewIntl.messages} timeZone={orgTimeZone}>
-            <div lang={previewIntl.locale} className="contents">
-            <BookingWidget
-              handle="preview"
-              orgTimeZone="UTC"
-              currency={currency}
-              layout={resolveLayout(previewConfig)}
-              stayLayout={resolveStayLayout(previewConfig)}
-              services={previewServices}
-              offerings={previewOfferings}
-              preview={{ slots: PREVIEW_SLOTS, availability: PREVIEW_AVAILABILITY }}
+        {tab === "code" ? (
+          handle ? (
+            <EmbedCode appUrl={appUrl} handle={handle} rows={rows} initialKey={initialKey} mode={mode} titles={titles} />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t.rich("noHandle", {
+                link: (chunks) => (
+                  <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
+                    {chunks}
+                  </Link>
+                ),
+              })}
+            </p>
+          )
+        ) : (
+          <SettingsCard
+            title={t("style.title")}
+            description={t("style.description")}
+            footer={
+              <>
+                {dirty ? <span className="text-muted-foreground mr-auto text-xs">{tc("unsavedChanges")}</span> : null}
+                <Button size="sm" onClick={save} disabled={pending || contrastBlocked || !dirty}>
+                  {pending ? tc("saving") : tc("save")}
+                </Button>
+              </>
+            }
+          >
+            <AppearanceFields
+              idPrefix="wt"
+              config={config}
+              onChange={setConfig}
+              pending={pending}
+              offersRentals={mode.offersRentals}
+              canHideBadge={canHideBadge}
+              upgradeHref={upgradeHref}
             />
+          </SettingsCard>
+        )}
+      </div>
+      {/* Sticks inside the shell panel's scroll container (the header row
+          sits above it), so the offset is just the content padding. */}
+      <div className="lg:sticky lg:top-6 lg:self-start">
+        <EmbedPreviewFrame config={previewConfig} accentColor={accentColor}>
+          {/* Only the widget speaks the org's language; the frame around it
+              is admin chrome and keeps the admin's messages. */}
+          <NextIntlClientProvider locale={previewIntl.locale} messages={previewIntl.messages} timeZone={orgTimeZone}>
+            <div lang={previewIntl.locale} className="contents">
+              <BookingWidget
+                handle="preview"
+                orgTimeZone="UTC"
+                currency={currency}
+                layout={resolveLayout(previewConfig)}
+                stayLayout={resolveStayLayout(previewConfig)}
+                services={previewServices}
+                offerings={previewOfferings}
+                preview={{ slots: PREVIEW_SLOTS, availability: PREVIEW_AVAILABILITY }}
+              />
             </div>
-            </NextIntlClientProvider>
-          </EmbedPreviewFrame>
-        </div>
+          </NextIntlClientProvider>
+        </EmbedPreviewFrame>
       </div>
     </div>
   );

@@ -23,7 +23,7 @@ export function linkRows(input: {
   spaces: readonly { id: string; name: string }[];
 }): LinkRow[] {
   const { mode } = input;
-  const rows: LinkRow[] = [{ key: "page", label: { key: "bookingPage" }, badge: null, target: null }];
+  const rows: LinkRow[] = [{ key: PAGE_ROW_KEY, label: { key: "bookingPage" }, badge: null, target: null }];
   if (mode.offersRentals) {
     for (const o of input.spaces) rows.push({ key: `space:${o.id}`, label: { name: o.name }, badge: "space", target: { space: o.id } });
   }
@@ -32,4 +32,23 @@ export function linkRows(input: {
     for (const s of input.services) rows.push({ key: `service:${s.id}`, label: { name: s.name }, badge: "service", target: { service: s.id } });
   }
   return rows;
+}
+
+/* The row a deep link preselects — the Team, Service and Space pages' Embed
+   links land here as ?staff=<slug>, ?service=<id> or ?space=<id>. Row keys
+   are already `<kind>:<id>`, so a match is a key lookup; anything the table
+   doesn't list (unknown, the other channel, repeated) is the page row. */
+export const PAGE_ROW_KEY = "page";
+
+export function initialRowKey(
+  rows: readonly LinkRow[],
+  params: Record<string, string | string[] | undefined>,
+): string {
+  for (const kind of ["staff", "service", "space"] as const) {
+    const value = params[kind];
+    if (typeof value !== "string" || !value) continue;
+    const key = `${kind}:${value}`;
+    if (rows.some((r) => r.key === key)) return key;
+  }
+  return PAGE_ROW_KEY;
 }
