@@ -26,7 +26,6 @@ export async function GoogleCalendarCard({
   offersAppointments: boolean;
 }) {
   const t = await getTranslations("integrations.google");
-  const connect = (label: string) => <ConnectLink label={label} />;
 
   let body: React.ReactNode;
   if (!configured) {
@@ -42,7 +41,7 @@ export async function GoogleCalendarCard({
     body = (
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
         <p className="text-muted-foreground text-xs">{t("notConnected")}</p>
-        {connect(t("connect"))}
+        <ConnectLink label={t("connect")} />
       </div>
     );
   } else {
@@ -53,7 +52,7 @@ export async function GoogleCalendarCard({
         ))}
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
           <p className="text-muted-foreground text-xs">{t("anotherHint")}</p>
-          {connect(t("connectAnother"))}
+          <ConnectLink label={t("connectAnother")} variant="outline" />
         </div>
       </>
     );
