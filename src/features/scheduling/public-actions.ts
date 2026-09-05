@@ -19,6 +19,7 @@ import { chooseStaffForBooking } from "@/lib/booking/bookable";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { getProviderEmail } from "@/lib/booking/provider";
 import { notifyMembers } from "@/features/notifications/notify";
+import { kickCalendarSync } from "@/features/calendar-sync/run";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
@@ -248,6 +249,7 @@ export async function createBooking(
       .from("bookings").select("status").eq("id", row.booking_id).maybeSingle();
     if (statusError) console.error("[scheduling] createBooking status read:", statusError);
     const isPending = statusRow?.status === "pending";
+    kickCalendarSync(ctx.org.orgId); // Google mirror (spec 2026-09-05 §2.2)
 
     // Solo orgs never name a staff member (resolveClientStaffName holds that
     // rule, and degrades to the unnamed copy if the count blows up — past this

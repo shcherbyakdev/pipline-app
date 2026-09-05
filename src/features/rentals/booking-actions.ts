@@ -50,6 +50,7 @@ import {
   rescheduleRentalHoursAdminInput,
 } from "./schema";
 import { getTranslations } from "next-intl/server";
+import { kickCalendarSync } from "@/features/calendar-sync/run";
 
 // Admin posture (Task 10, the R2 ignoreLimits equivalent): the provider is
 // not bound by their own offering's notice/booking-window policy — occupancy
@@ -265,6 +266,7 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
       dates_changed: boolean;
     }> | null)?.[0];
     if (!moved) return { ok: false, error: t("generic") };
+    kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
 
     // Notification rules (R2 spec): the client hears about a date change; a
     // unit swap only matters to a client who chose the unit themselves; an
@@ -390,6 +392,7 @@ export async function createRentalBookingAdmin(
       if (isTaken(error)) return { ok: false, error: t("datesTaken"), datesTaken: true };
       return fail("createRentalBookingAdmin", error);
     }
+    kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
 
     let emailed = false;
     if (email) {
@@ -548,6 +551,7 @@ export async function createRentalBookingHoursAdmin(
       if (isTaken(error)) return { ok: false, error: t("slotTaken"), slotTaken: true };
       return fail("createRentalBookingHoursAdmin", error);
     }
+    kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
 
     let emailed = false;
     if (email) {
@@ -691,6 +695,7 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
       dates_changed: boolean;
     }> | null)?.[0];
     if (!moved) return { ok: false, error: t("generic") };
+    kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
 
     // Same notification rules as rescheduleRentalBookingAdmin (R2 spec): the
     // client hears about a time change; a unit swap only matters to a

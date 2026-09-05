@@ -18,6 +18,7 @@ import {
   type PublicUnit,
 } from "@/lib/booking/public";
 import { notifyMembers } from "@/features/notifications/notify";
+import { kickCalendarSync } from "@/features/calendar-sync/run";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
@@ -249,6 +250,7 @@ export async function rescheduleRentalBooking(
     }> | null)?.[0];
     // A token miss comes back as no rows (resolver doctrine), never a raise.
     if (!moved) return publicError(orgLocale, "notChangeable");
+    kickCalendarSync(moved.org_id); // Google mirror (spec 2026-09-05 §2.2)
 
     // Best-effort notifications — the move is already committed. The client
     // always gets one when they have an address on file, even if nothing
@@ -489,6 +491,7 @@ export async function rescheduleRentalBookingHours(
     }> | null)?.[0];
     // A token miss comes back as no rows (resolver doctrine), never a raise.
     if (!moved) return publicError(orgLocale, "notChangeable");
+    kickCalendarSync(moved.org_id); // Google mirror (spec 2026-09-05 §2.2)
 
     // Best-effort notifications, copied wholesale from rescheduleRentalBooking
     // (provider notice IS sent on client reschedules — R2's admin-only-silence

@@ -39,6 +39,10 @@ export type BusyInterval = {
   bufferBeforeMin?: number;
   bufferAfterMin?: number;
   serviceId?: string;
+  // A block from outside Booklo (a Busy event in a connected Google
+  // calendar, spec 2026-09-05): hides its time like any other interval but
+  // is not a booking, so it never counts toward the service's max/day.
+  external?: true;
 };
 export type SlotInput = {
   service: SlotService;
@@ -134,6 +138,7 @@ export function computeSlots(input: SlotInput): Date[] {
     if (service.maxPerDay !== null) {
       const bookedToday = busy.filter(
         (b) =>
+          !b.external &&
           dateInZone(b.startsAt, timeZone) === date &&
           (!service.id || !b.serviceId || b.serviceId === service.id),
       ).length;

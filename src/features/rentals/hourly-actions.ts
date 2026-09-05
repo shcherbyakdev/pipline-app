@@ -11,6 +11,7 @@ import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext, type PublicUnit } from "@/lib/booking/public";
 import { loadPublicResources } from "@/lib/booking/public-offering";
 import { notifyMembers } from "@/features/notifications/notify";
+import { kickCalendarSync } from "@/features/calendar-sync/run";
 import { withUnit } from "@/features/rentals/unit-label";
 import { selectTransport } from "@/lib/email/transport";
 import { emailBadgeUrl } from "@/lib/billing/queries";
@@ -246,6 +247,7 @@ export async function createRentalBookingHours(
       .from("bookings").select("status").eq("id", bookingId as string).maybeSingle();
     if (statusError) console.error("[rentals] createRentalBookingHours status read:", statusError);
     const isPending = statusRow?.status === "pending";
+    kickCalendarSync(ctx.org.orgId); // Google mirror (spec 2026-09-05 §2.2)
 
     // Everything both mails share, computed once; nothing below may fail the
     // committed booking, so the unit-name/provider-email reads swallow their

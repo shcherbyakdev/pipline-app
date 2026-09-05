@@ -144,6 +144,24 @@ describe("computeSlots", () => {
     expect(slots).toEqual([]);
   });
 
+  it("an external (Google) block hides its time but never counts toward maxPerDay", () => {
+    const slots = computeSlots(
+      input({
+        service: { ...input().service, maxPerDay: 2 },
+        busy: [
+          { startsAt: new Date("2027-02-01T08:00:00Z"), endsAt: new Date("2027-02-01T09:00:00Z"), external: true },
+          { startsAt: new Date("2027-02-01T09:00:00Z"), endsAt: new Date("2027-02-01T10:00:00Z"), external: true },
+        ],
+      }),
+    );
+    // 09:00–17:00 Berlin = 08:00–16:00Z, eight slots; the two blocked hours
+    // are gone and the rest of the day stays open.
+    expect(slots.map(iso)).toEqual([
+      "2027-02-01T10:00:00.000Z", "2027-02-01T11:00:00.000Z", "2027-02-01T12:00:00.000Z",
+      "2027-02-01T13:00:00.000Z", "2027-02-01T14:00:00.000Z", "2027-02-01T15:00:00.000Z",
+    ]);
+  });
+
   it("multi-day scan concatenates days in order", () => {
     const slots = computeSlots(input({ days: 3 }));
     // Mon+Tue+Wed × 8.
