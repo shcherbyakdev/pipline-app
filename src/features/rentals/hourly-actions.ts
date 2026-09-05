@@ -53,7 +53,7 @@ async function loadHourlyContext(
   offeringId: string,
   fromDate: string,
   days: number,
-  opts?: { unitId?: string; excludeBookingId?: string },
+  opts?: { unitId?: string; excludeBookingId?: string; freshExternal?: boolean },
 ) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
@@ -180,7 +180,9 @@ export async function createRentalBookingHours(
     // Deliberately NOT narrowed by unitId (unlike getHourlySlots above) —
     // a client_picks request's unitId is checked against every unit's own
     // slot membership below, not assumed correct.
-    const ctx = await loadHourlyContext(handle, offeringId, dateInZone(starts, "UTC"), 2);
+    // freshExternal: the slot being taken is checked against Google now,
+    // not the minute-old memo (spec 2026-09-05 §2.6).
+    const ctx = await loadHourlyContext(handle, offeringId, dateInZone(starts, "UTC"), 2, { freshExternal: true });
     if (!ctx || !isHourlyOffering(ctx.offering)) return publicError(orgLocale, "generic");
     if (!durationOptions(ctx.offering).includes(durationMin)) {
       return publicError(orgLocale, "generic");
