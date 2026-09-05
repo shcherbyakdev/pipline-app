@@ -68,7 +68,8 @@ export type SyncStore = {
   saveState(bookingId: string, state: NonNullable<SyncState>, queuedAt: string): Promise<void>;
   /** Nothing exists and nothing should: drop the row, unless it was re-queued since `queuedAt` (then just forget the state). */
   deleteState(bookingId: string, queuedAt: string): Promise<void>;
-  recordFailure(bookingId: string, attempts: number, error: string): Promise<void>;
+  /** Bump attempts, unless the row was re-queued since `queuedAt` (its fresh attempts=0 wins). */
+  recordFailure(bookingId: string, attempts: number, error: string, queuedAt: string): Promise<void>;
 };
 
 export type DrainDeps = {
@@ -143,7 +144,7 @@ export async function runCalendarSyncDrain(
         }
         const message = error instanceof Error ? error.message : String(error);
         console.error(`[calendar] sync failed for booking ${b.id}:`, message);
-        await deps.store.recordFailure(b.id, row.attempts + 1, message.slice(0, 500));
+        await deps.store.recordFailure(b.id, row.attempts + 1, message.slice(0, 500), row.queuedAt);
         summary.failed += 1;
       }
     }
@@ -244,11 +245,15 @@ export function supabaseSyncStore(db: SupabaseClient): SyncStore {
         .eq("booking_id", bookingId);
       if (e2) throw e2;
     },
-    async recordFailure(bookingId, attempts, message) {
+    async recordFailure(bookingId, attempts, message, queuedAt) {
+      // Same CAS as the two writes above (review 2026-09-05): a change the
+      // trigger queued mid-flight reset attempts to 0 and must keep its full
+      // budget; a miss here just leaves that fresh row to the next pass.
       const { error } = await db
         .from("booking_calendar_events")
         .update({ attempts, last_error: message, updated_at: new Date().toISOString() })
-        .eq("booking_id", bookingId);
+        .eq("booking_id", bookingId)
+        .eq("updated_at", queuedAt);
       if (error) throw error;
     },
   };

@@ -130,14 +130,14 @@ describe("syncBooking — the reconcile table", () => {
 
 function memoryStore(rows: PendingRow[], bookings: SyncBooking[]) {
   const states = new Map<string, SyncState>();
-  const failures: Array<{ id: string; attempts: number; error: string }> = [];
+  const failures: Array<{ id: string; attempts: number; error: string; queuedAt: string }> = [];
   const deleted: string[] = [];
   const store: SyncStore = {
     loadPending: async () => rows,
     loadBookings: async (ids) => bookings.filter((b) => ids.includes(b.id)),
     saveState: async (id, state) => { states.set(id, state); },
     deleteState: async (id) => { deleted.push(id); },
-    recordFailure: async (id, attempts, error) => { failures.push({ id, attempts, error }); },
+    recordFailure: async (id, attempts, error, queuedAt) => { failures.push({ id, attempts, error, queuedAt }); },
   };
   return { store, states, failures, deleted };
 }
@@ -176,7 +176,7 @@ describe("runCalendarSyncDrain", () => {
     const m = memoryStore([row(booking.id, { attempts: 2 }), row(other.id)], [booking, other]);
     const summary = await runCalendarSyncDrain({}, { store: m.store, connectionsFor: async () => [anna], clientFor: f.clientFor, allowed: async () => true, appUrl: "https://app.test" });
     expect(summary).toEqual({ synced: 1, failed: 1, skipped: 0 });
-    expect(m.failures).toEqual([{ id: booking.id, attempts: 3, error: "Google API 500" }]);
+    expect(m.failures).toEqual([{ id: booking.id, attempts: 3, error: "Google API 500", queuedAt: "2026-09-05T10:00:00Z" }]);
     expect(m.states.has(other.id)).toBe(true);
   });
 
