@@ -4,6 +4,7 @@ import { emailTranslators } from "@/i18n/emails";
 import { clientMailCopy } from "@/lib/booking/client-locale";
 import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
+import { kickCalendarSync } from "@/features/calendar-sync/run";
 import { createClient } from "@/lib/supabase/server";
 import { generateAccessToken } from "@/lib/tokens";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
@@ -96,6 +97,7 @@ export async function cancelBookingAdmin(
       rental_units: { name: string } | null;
     }>)?.[0];
     if (!row) return { ok: false, error: t("bookings.notCancellable") };
+    kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
 
     // Past this line the cancel is APPLIED — nothing below may turn into a
     // failed action, so the whole tail sits in its own catch rather than
@@ -286,6 +288,7 @@ export async function rescheduleBookingAdmin(
       }
       return fail("rescheduleBookingAdmin", error);
     }
+    kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
     // Past this line the move is COMMITTED — nothing below may turn into a
     // failed action, so the whole tail sits in its own catch rather than
     // falling through to the outer one (which returns `ok: false`).
@@ -506,6 +509,7 @@ export async function createBookingAdmin(
       }
       return fail("createBookingAdmin", error);
     }
+    kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
     // Past this line the booking EXISTS — nothing below may fail the action,
     // so the whole tail sits in its own catch rather than falling through to
     // the outer one (which returns `ok: false`).
@@ -605,6 +609,7 @@ export async function acceptBookingRequest(
         ? { ok: false, error: t("bookings.notPendingAccept") }
         : fail("acceptBookingRequest", rpcError);
     }
+    kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
 
     // Past this line the accept is COMMITTED — nothing below may turn into a
     // failed action, so the whole tail (the re-read included) sits in its own
@@ -760,6 +765,7 @@ export async function declineBookingRequest(
         ? { ok: false, error: t("bookings.notPendingDecline") }
         : fail("declineBookingRequest", rpcError);
     }
+    kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
 
     // Committed from here — same discipline as accept above: the re-read
     // included, nothing below may fail the action.

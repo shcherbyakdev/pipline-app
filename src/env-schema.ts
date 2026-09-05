@@ -43,8 +43,29 @@ export const envSchema = z.object({
   VAPID_PUBLIC_KEY: z.string().min(1).optional(),
   VAPID_PRIVATE_KEY: z.string().min(1).optional(),
   VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)/, "VAPID_SUBJECT must be a mailto: or https: URL").optional(),
+  // Google Calendar (spec 2026-09-05). All three or none, VAPID idiom: the
+  // page says "not set up", the OAuth routes 404, sync and busy reads are
+  // skipped. The key seals the stored Google tokens (AES-256-GCM,
+  // lib/google/crypto.ts): 32 random bytes, base64 — `openssl rand -base64 32`.
+  // Rotating it orphans every connection (they show as needing a reconnect).
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+  GCAL_TOKEN_KEY: z.string().min(1).optional(),
+  // Local QA only: point the OAuth and API clients at a fake Google
+  // (scripts/fake-google.mjs). Refused in production below.
+  // Search Console meta-tag token: Google pushes calendar notifications only
+  // to a verified domain (v2 decision 20). Absent → poll every tick instead.
+  GOOGLE_SITE_VERIFICATION: z.string().min(1).optional(),
+  GOOGLE_OAUTH_BASE: z.string().url().optional(),
+  GOOGLE_API_BASE: z.string().url().optional(),
 }).superRefine((value, ctx) => {
   if (value.APP_ENV !== "production") return;
+
+  for (const key of ["GOOGLE_OAUTH_BASE", "GOOGLE_API_BASE"] as const) {
+    if (value[key]) {
+      ctx.addIssue({ code: "custom", path: [key], message: `${key} must not be set when APP_ENV=production (local fake only)` });
+    }
+  }
 
   // Everything below is optional in the base schema because local
   // development legitimately runs without it. In production each one is

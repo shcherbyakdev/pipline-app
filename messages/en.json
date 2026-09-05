@@ -499,6 +499,16 @@
       "test": {
         "title": "Booklo notifications are on",
         "body": "This device will hear about new bookings."
+      },
+      "calendarRefused": {
+        "title": "Google Calendar",
+        "body": "{client}: {reason} The event was put back."
+      },
+      "calendarReason": {
+        "slotTaken": "that time isn't free.",
+        "spaces": "space bookings are moved in Booklo, not in Google.",
+        "notFound": "the booking can't be moved any more.",
+        "failed": "the move didn't go through."
       }
     },
     "appointment": "Appointment"
@@ -516,7 +526,8 @@
       "embed": "Website embed",
       "billing": "Billing",
       "notifications": "Notifications",
-      "settings": "Settings"
+      "settings": "Settings",
+      "integrations": "Integrations"
     },
     "section": {
       "offer": "Offer",
@@ -1820,6 +1831,62 @@
       "cancelled": "Cancellation",
       "rescheduled": "Reschedule",
       "manageLink": "Booking link on request"
+    }
+  },
+  "integrations": {
+    "intro": "Apps connected to your workspace.",
+    "google": {
+      "title": "Google Calendar",
+      "blurb": "Bookings appear in your calendar; Busy time in it blocks your booking page.",
+      "notConfigured": "Google Calendar is not set up on this server yet.",
+      "proOnly": "Google Calendar sync is a premium feature.",
+      "paused": "Sync is paused: Google Calendar sync is a premium feature. Your connection is kept.",
+      "proChip": "Premium",
+      "notConnected": "No Google account connected.",
+      "connect": "Connect Google Calendar",
+      "connectAnother": "Connect another account",
+      "anotherHint": "One account per person, or one shared calendar for the whole business.",
+      "connected": "Connected",
+      "needsReconnect": "Google no longer accepts this connection. Reconnect to resume.",
+      "reconnect": "Reconnect",
+      "belongsTo": "This calendar belongs to",
+      "shared": "Everyone (shared)",
+      "belongsToPersonHint": "Their bookings go here; Busy time here blocks only their slots.",
+      "belongsToSharedHint": "Busy time here blocks every person and every space; bookings without a person go here.",
+      "addTo": "Add bookings to",
+      "dontAdd": "Don't add bookings",
+      "blockFrom": "Block time from",
+      "blockFromHint": "Anything marked Busy in a ticked calendar can't be booked. Events marked Free are ignored.",
+      "disconnect": "Disconnect",
+      "disconnectConfirm": "Disconnect",
+      "keep": "Keep",
+      "disconnectNote": "Events already added to Google stay there.",
+      "disconnected": "Disconnected.",
+      "notice": {
+        "connected": "Google Calendar connected. Upcoming bookings are on their way.",
+        "reconnected": "Reconnected. Sync resumes.",
+        "error": {
+          "plan": "Google Calendar sync is a premium feature.",
+          "denied": "Google access was not granted.",
+          "state": "That link has expired. Try connecting again.",
+          "google": "Google didn't complete the connection. Try again.",
+          "no_calendars": "That Google account has no calendars."
+        }
+      },
+      "inviteClients": "Invite clients to the Google event",
+      "inviteClientsHint": "They get a Google Calendar invitation from your account, on top of Booklo's confirmation email.",
+      "cancelOnDelete": "When I delete or decline the event in Google, cancel the booking",
+      "rescheduleOnMove": "When I move the event in Google, reschedule the booking",
+      "inboundHint": "Booklo emails the client either way. A move that isn't possible is put back and you're told why.",
+      "inboundNotice": "Last refused change — {client}: {reason}",
+      "watching": "Google tells Booklo about changes as they happen.",
+      "polling": "Booklo checks Google for changes every 15 minutes."
+    },
+    "how": {
+      "title": "How it works",
+      "push": "Every confirmed booking becomes an event in the calendar you choose. Cancellations, reschedules and accepted requests keep it in step.",
+      "busy": "Anything marked Busy in the calendars you tick can't be booked — on your booking page and in reschedule pickers.",
+      "record": "Change a booking in Booklo, or — with the switches on — delete or move the event in Google and Booklo follows, emailing the client."
     }
   }
 }

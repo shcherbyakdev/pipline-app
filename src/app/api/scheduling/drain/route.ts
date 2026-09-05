@@ -7,6 +7,8 @@ import { emailBadgeUrl, getEntitlementsAdmin, monthlyBookingUsage } from "@/lib/
 import { reminderQuotaExceeded } from "@/lib/billing/entitlements";
 import { plansEnforced } from "@/lib/flags";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
+import { runCalendarSync } from "@/features/calendar-sync/run";
+import { runInbound } from "@/features/calendar-sync/inbound-run";
 
 // A tick is up to REMINDER_BATCH_LIMIT (25) sequential sends plus a handful
 // of reads per row; the platform default function budget is tighter than a
@@ -80,7 +82,21 @@ export async function POST(request: Request) {
         return (await entitlementsFor(orgId)).customReminders;
       },
     });
-    return Response.json(summary);
+    // Google Calendar mirror (spec 2026-09-05 §2.2): the retry half of the
+    // sync. Same tick, same secret; a Google outage shows up here as
+    // `failed` rather than as a lost event. Its own try: a calendar
+    // problem must not hide the reminder summary.
+    let calendar: Awaited<ReturnType<typeof runCalendarSync>> | { error: string };
+    try {
+      calendar = await runCalendarSync({}, admin);
+    } catch (error) {
+      console.error("[calendar] drain tick failed:", error);
+      calendar = { error: "calendar sync failed" };
+    }
+    // Google → Booklo (spec v2 decision 19): the poll fallback and the
+    // channel renewal. runInbound never throws.
+    const inbound = await runInbound({}, admin);
+    return Response.json({ ...summary, calendar, inbound });
   } catch (error) {
     console.error("[scheduling] drain tick failed:", error);
     return Response.json({ error: "drain failed" }, { status: 500 });

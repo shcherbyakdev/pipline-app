@@ -20,6 +20,7 @@ import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { notifyMembers } from "@/features/notifications/notify";
+import { kickCalendarSync } from "@/features/calendar-sync/run";
 import { withUnit } from "@/features/rentals/unit-label";
 import { wallTimeToUtc } from "@/features/scheduling/slots";
 import {
@@ -243,6 +244,7 @@ export async function createRentalBooking(
       .from("bookings").select("status").eq("id", bookingId as string).maybeSingle();
     if (statusError) console.error("[rentals] createRentalBooking status read:", statusError);
     const isPending = statusRow?.status === "pending";
+    kickCalendarSync(org.orgId); // Google mirror (spec 2026-09-05 §2.2)
 
     // Everything both mails share, computed once; nothing below may fail the
     // committed booking, so the unit-name/provider-email reads swallow their

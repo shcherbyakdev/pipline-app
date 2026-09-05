@@ -335,10 +335,11 @@ export const WELCOME = {
 } as const;
 
 /** Words that must not appear in marketing copy: features not shipped yet
-    (google / calendar sync / stripe / payment — the last two leave after H4)
-    and the retired channel words (H5b: "Spaces" is the word; "rentals" plural
-    is the old channel, "Gear rental" the business type stays legal). */
-export const FORBIDDEN_COPY = ["google", "calendar sync", "stripe", "payment", "offering", "rentals"] as const;
+    (stripe / payment leave after H4; google / calendar sync left with the
+    Google Calendar slice, spec 2026-09-05) and the retired channel words
+    (H5b: "Spaces" is the word; "rentals" plural is the old channel, "Gear
+    rental" the business type stays legal). */
+export const FORBIDDEN_COPY = ["stripe", "payment", "offering", "rentals"] as const;
 
 /** Every internal href on the page (for route/anchor guard tests). `#` alone is a placeholder and skipped. */
 export function allInternalHrefs(): string[] {

@@ -11,6 +11,7 @@ import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext, type PublicUnit } from "@/lib/booking/public";
 import { loadPublicResources } from "@/lib/booking/public-offering";
 import { notifyMembers } from "@/features/notifications/notify";
+import { kickCalendarSync } from "@/features/calendar-sync/run";
 import { withUnit } from "@/features/rentals/unit-label";
 import { selectTransport } from "@/lib/email/transport";
 import { emailBadgeUrl } from "@/lib/billing/queries";
@@ -52,7 +53,7 @@ async function loadHourlyContext(
   offeringId: string,
   fromDate: string,
   days: number,
-  opts?: { unitId?: string; excludeBookingId?: string },
+  opts?: { unitId?: string; excludeBookingId?: string; freshExternal?: boolean },
 ) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
@@ -179,7 +180,9 @@ export async function createRentalBookingHours(
     // Deliberately NOT narrowed by unitId (unlike getHourlySlots above) —
     // a client_picks request's unitId is checked against every unit's own
     // slot membership below, not assumed correct.
-    const ctx = await loadHourlyContext(handle, offeringId, dateInZone(starts, "UTC"), 2);
+    // freshExternal: the slot being taken is checked against Google now,
+    // not the minute-old memo (spec 2026-09-05 §2.6).
+    const ctx = await loadHourlyContext(handle, offeringId, dateInZone(starts, "UTC"), 2, { freshExternal: true });
     if (!ctx || !isHourlyOffering(ctx.offering)) return publicError(orgLocale, "generic");
     if (!durationOptions(ctx.offering).includes(durationMin)) {
       return publicError(orgLocale, "generic");
@@ -246,6 +249,7 @@ export async function createRentalBookingHours(
       .from("bookings").select("status").eq("id", bookingId as string).maybeSingle();
     if (statusError) console.error("[rentals] createRentalBookingHours status read:", statusError);
     const isPending = statusRow?.status === "pending";
+    kickCalendarSync(ctx.org.orgId); // Google mirror (spec 2026-09-05 §2.2)
 
     // Everything both mails share, computed once; nothing below may fail the
     // committed booking, so the unit-name/provider-email reads swallow their

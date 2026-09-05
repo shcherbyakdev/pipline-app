@@ -14,3 +14,4 @@ export * from "./billing";
 export * from "./utils";
 export * from "./booking-pages";
 export * from "./notifications";
+export * from "./calendar-sync";
