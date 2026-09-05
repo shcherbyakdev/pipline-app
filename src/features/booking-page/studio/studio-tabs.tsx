@@ -1,29 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/components/ui/segmented";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 
 export type StudioTab = "sections" | "settings";
 const TABS: readonly StudioTab[] = ["sections", "settings"];
 
-/* Local-state tab strip (staff-tabs.tsx look; there is no Tabs primitive).
-   Sections = the draft → Publish model; Settings = saved-as-you-go. */
+/* Sections = the draft → Publish model; Settings = saved-as-you-go. */
 export function StudioTabs({ value, onChange }: { value: StudioTab; onChange: (tab: StudioTab) => void }) {
   const t = useTranslations("studio");
-  return (
-    <div role="tablist" aria-label={t("name")} className={SEGMENTED_NAV_CLASS}>
-      {TABS.map((id) => (
-        <button
-          key={id}
-          type="button"
-          role="tab"
-          aria-selected={value === id}
-          onClick={() => onChange(id)}
-          className={segmentedItemClass(value === id)}
-        >
-          {t(`tabs.${id}`)}
-        </button>
-      ))}
-    </div>
-  );
+  return <SegmentedTabs label={t("name")} value={value} onChange={onChange} items={TABS.map((id) => ({ value: id, label: t(`tabs.${id}`) }))} />;
 }

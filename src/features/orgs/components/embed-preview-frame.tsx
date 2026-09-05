@@ -37,8 +37,8 @@ export function EmbedPreviewFrame({
   // while the embed is transparent — with a background override the widget
   // paints its own, and that pair is guarded by the contrast check next to
   // the colour pickers. The one notice this page shows: measured, on the
-  // site colour the toggle above has picked (the toggle IS the question
-  // "is your site light or dark?").
+  // site colour the toggle above has picked. A warning, not an error — the
+  // toggle is a hypothesis about the org's site, and Save stays open.
   const transparent = !config.background;
   const ratio = hostContrast(config, host, HOST_BG[host]);
   const clash = transparent && ratio < 3;
@@ -59,7 +59,7 @@ export function EmbedPreviewFrame({
           optionLabels={{ light: t("lightPage"), dark: t("darkPage") }}
         />
       }
-      notices={clash ? <PreviewNotice tone="error">{t("clash", { host, theme, ratio: ratio.toFixed(1) })}</PreviewNotice> : null}
+      notices={clash ? <PreviewNotice tone="warn">{t("clash", { host, theme, ratio: ratio.toFixed(1) })}</PreviewNotice> : null}
     >
       <Skeleton dark={dark} />
       <WidgetTheme config={previewConfig} accentColor={accentColor} transparent={transparent} className="rounded-lg p-4">

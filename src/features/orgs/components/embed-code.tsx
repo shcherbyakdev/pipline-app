@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,22 +7,30 @@ import { Label } from "@/components/ui/label";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { LinkRow } from "@/features/orgs/link-rows";
 import { LOCALES, LOCALE_NAMES } from "@/i18n/config";
-import { bookingLink } from "@/lib/booking/url";
+import { bookingLink, embedSrc } from "@/lib/booking/url";
 import { copyText } from "@/lib/clipboard";
 import { SELECT_CLASS } from "./appearance-fields";
 import { embedSnippet, type EmbedTitles } from "./widget-embed-snippet";
 
+/** What the Code tab points the snippet at: a linkRows key and a language
+    ("" = follow the visitor). Owned by the page so the preview beside the
+    code can follow both. Neither is stored — they are part of the string
+    you copy, so one site can embed the team in English and another one
+    person in Ukrainian. */
+export type EmbedPick = { key: string; lang: string };
+
 /* The Code tab: one snippet, for one target, in one language. The target
    (admin IA spec §5: the page, one person, one service or one space) is the
-   old Links & embeds table folded into a select — its rows still come from
-   linkRows, grouped by kind. Neither pick is stored: both are part of the
-   string you copy, so one site can embed the team in English and another
-   one person in Ukrainian. "Copy link" is the same target as a plain URL. */
+   old Links & embeds table folded into a select, its rows still from
+   linkRows, grouped by kind. Three copies: the snippet; the widget's bare
+   address, for site builders that embed by URL (Wix, Squarespace) rather
+   than by HTML; and the booking-page link for the same target. */
 export function EmbedCode({
   appUrl,
   handle,
   rows,
-  initialKey,
+  pick,
+  onPick,
   mode,
   titles,
 }: {
@@ -31,8 +38,8 @@ export function EmbedCode({
   handle: string;
   /** linkRows for the org — the page row first, then only its own channel. */
   rows: readonly LinkRow[];
-  /** initialRowKey: the row a deep link (?staff=, ?service=, ?space=) opens on. */
-  initialKey: string;
+  pick: EmbedPick;
+  onPick: (next: EmbedPick) => void;
   mode: OrgMode;
   /** The iframe titles in the org's language (public.embedTitle.*). */
   titles: EmbedTitles;
@@ -40,11 +47,9 @@ export function EmbedCode({
   const t = useTranslations("embed");
   const tc = useTranslations("common");
   const refused = useTranslations("settings")("copyRefused");
-  const [key, setKey] = React.useState(initialKey);
-  // "" = follow the visitor (the widget's own rule: region, then the org's language).
-  const [lang, setLang] = React.useState("");
-  const row = rows.find((r) => r.key === key) ?? rows[0];
-  const snippet = embedSnippet(appUrl, handle, row.target, mode, titles, lang || undefined);
+  const row = rows.find((r) => r.key === pick.key) ?? rows[0];
+  const lang = pick.lang || undefined;
+  const snippet = embedSnippet(appUrl, handle, row.target, mode, titles, lang);
   const name = (r: LinkRow) => ("key" in r.label ? t(`rows.${r.label.key}`) : r.label.name);
   const kinds = ["team", "service", "space"] as const;
 
@@ -62,7 +67,7 @@ export function EmbedCode({
           <Label htmlFor="embed-show" className="text-xs font-medium">
             {t("show")}
           </Label>
-          <select id="embed-show" className={SELECT_CLASS} value={row.key} onChange={(e) => setKey(e.target.value)}>
+          <select id="embed-show" className={SELECT_CLASS} value={row.key} onChange={(e) => onPick({ ...pick, key: e.target.value })}>
             {rows.filter((r) => !r.badge).map((r) => (
               <option key={r.key} value={r.key}>{name(r)}</option>
             ))}
@@ -83,7 +88,7 @@ export function EmbedCode({
         <Label htmlFor="embed-lang" className="text-xs font-medium">
           {t("language")}
         </Label>
-        <select id="embed-lang" className={SELECT_CLASS} value={lang} onChange={(e) => setLang(e.target.value)}>
+        <select id="embed-lang" className={SELECT_CLASS} value={pick.lang} onChange={(e) => onPick({ ...pick, lang: e.target.value })}>
           <option value="">{t("languageAuto")}</option>
           {/* LOCALE_NAMES: each language named in itself, never translated. */}
           {LOCALES.map((l) => (
@@ -92,12 +97,15 @@ export function EmbedCode({
         </select>
       </div>
       {/* Wrapped, not scrolled: the point is to see what you are pasting. */}
-      <pre className="bg-muted rounded-lg border p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
+      <pre className="bg-card rounded-lg border p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
         {snippet}
       </pre>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={() => copy(snippet, t("copied"))}>
           {t("copyCode")}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => copy(embedSrc(appUrl, handle, row.target, lang), t("addressCopied"))}>
+          {t("copyAddress")}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => copy(bookingLink(appUrl, handle, row.target), tc("linkCopied"))}>
           {tc("copyLink")}

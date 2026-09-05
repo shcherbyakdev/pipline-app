@@ -21,6 +21,9 @@ describe("embedSnippet", () => {
   it("carries the data-rollout-embed attribute embed.js selects iframes by", () => {
     expect(snippet).toContain("data-rollout-embed");
   });
+  it("carries a fallback height, so a host that blocks embed.js still shows the first step", () => {
+    expect(snippet).toContain('style="width:100%;border:0;height:640px"');
+  });
   it("marks the script async so the pasted snippet doesn't parser-block the host page", () => {
     expect(snippet).toMatch(/<script src="[^"]+" async><\/script>/);
   });

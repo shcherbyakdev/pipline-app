@@ -1724,17 +1724,19 @@
     "languageAuto": "Follow the visitor",
     "copyCode": "Copy code",
     "copied": "Code copied",
+    "copyAddress": "Copy address",
+    "addressCopied": "Address copied",
     "noHandle": "Set a booking page address on <link>Booking page</link> to get your embed code.",
     "style": {
       "title": "Widget style",
-      "description": "Logo and accent colour come from Booking page › Branding. The booking page keeps its own style."
+      "description": "Logo and accent colour live on <link>Booking page › Look</link>. The booking page keeps its own style."
     },
     "saved": "Widget style saved",
     "preview": {
       "hostPage": "Your site",
       "lightPage": "Light site",
       "darkPage": "Dark site",
-      "clash": "On a {host, select, dark {dark site} other {light site}} the {theme, select, dark {Dark theme's} other {Light theme's}} text is unreadable ({ratio, number, ::.0}:1). Pick the {theme, select, dark {Light theme} other {Dark theme}}, or set a background colour."
+      "clash": "On a {host, select, dark {dark site} other {light site}} the {theme, select, dark {Dark theme's} other {Light theme's}} text is unreadable ({ratio, number, ::.0}:1). If your site is like this {host, select, dark {dark page} other {light page}}, pick the {theme, select, dark {Light theme} other {Dark theme}} or set a background colour."
     }
   },
   "seed": {

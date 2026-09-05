@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getMessages, getTranslations } from "next-intl/server";
 import { publicMessages } from "@/i18n/public-provider";
+import { LOCALES, type Locale } from "@/i18n/config";
+import { listServiceStaffMap } from "@/lib/booking/public";
 import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
 import { WidgetAppearance } from "@/features/orgs/components/widget-appearance";
 import { listServices } from "@/features/scheduling/queries";
@@ -44,14 +46,21 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   // the org's site, so it speaks the org's language (Booking page › Settings
   // › Language), not the admin's — the booking-page preview's rule.
   const tTitle = await getTranslations({ locale: schedulingSettings.locale, namespace: "embedTitle" });
-  // The preview widget speaks the org's language, like the studio's preview.
-  const previewIntl = { locale: schedulingSettings.locale, messages: publicMessages(await getMessages({ locale: schedulingSettings.locale })) };
+  // The preview speaks whichever language the snippet pins (Code › Language),
+  // else the org's — so every public language is loaded, not just the org's.
+  const previewMessages = Object.fromEntries(
+    await Promise.all(LOCALES.map(async (locale) => [locale, publicMessages(await getMessages({ locale }))])),
+  ) as Record<Locale, Awaited<ReturnType<typeof getMessages>>>;
+  // The preview narrows by person the way the public embed does, which
+  // needs the roster (public shape: never email) and who offers what.
+  const activeStaff = staff.filter((s) => s.active);
+  const publicStaff = activeStaff.map(({ id, name, slug, color }) => ({ id, name, slug, color }));
+  const serviceStaffIds = await listServiceStaffMap(org.id);
   const titles = { appointment: tTitle("appointment"), space: tTitle("space") };
   // What the snippet can point at (admin IA spec §5): the page, one person,
   // one service, one space. A solo team lists no people (there is only one
   // answer); the Team, Service and Space pages' Embed links land here with
   // ?staff= / ?service= / ?space= preselected.
-  const activeStaff = staff.filter((s) => s.active);
   const rows = linkRows({
     mode,
     staff: activeStaff.length > 1 ? activeStaff.map((s) => ({ slug: s.slug, name: s.name })) : [],
@@ -63,7 +72,8 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
       <WidgetAppearance
-        previewIntl={previewIntl}
+        previewMessages={previewMessages}
+        orgLocale={schedulingSettings.locale}
         orgTimeZone={schedulingSettings.timezone}
         initial={parseWidgetTheme(settings.widgetTheme)}
         accentColor={settings.accentColor}
@@ -72,6 +82,8 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         appUrl={env.NEXT_PUBLIC_APP_URL}
         previewServices={catalog.services}
         previewOfferings={catalog.offerings}
+        staff={publicStaff}
+        serviceStaffIds={serviceStaffIds}
         mode={mode}
         titles={titles}
         rows={rows}
