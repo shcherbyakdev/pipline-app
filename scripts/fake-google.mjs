@@ -76,7 +76,8 @@ createServer(async (req, res) => {
     const calendarId = decodeURIComponent(del[1]), id = decodeURIComponent(del[2]);
     const store = events.get(calendarId);
     if (!store?.has(id)) return json(res, 404, { error: "no such event" });
-    store.set(id, stamp({ ...store.get(id), status: "cancelled" }));
+    // Like Google: a deleted event is "only guaranteed to have the id field".
+    store.set(id, stamp({ id, status: "cancelled" }));
     log("debug: owner deleted", calendarId, id);
     await notify(calendarId);
     return json(res, 200, store.get(id));
@@ -165,6 +166,7 @@ createServer(async (req, res) => {
       const items = [...store.values()].filter((e) => {
         if (e.status === "cancelled" && !showDeleted) return false;
         if (updatedMin && (e.updated ?? "") < updatedMin) return false;
+        if (!e.start) return true; // a deleted stub carries no times
         const s = e.start.dateTime ?? `${e.start.date}T00:00:00Z`;
         const en = e.end.dateTime ?? `${e.end.date}T00:00:00Z`;
         return (!max || s < max) && (!min || en > min);
@@ -189,7 +191,7 @@ createServer(async (req, res) => {
     if (req.method === "DELETE" && eventId) {
       const had = store.has(eventId);
       // Google keeps deleted events as cancelled (a re-insert 409s, an update resurrects).
-      if (had) store.set(eventId, stamp({ ...store.get(eventId), status: "cancelled" }));
+      if (had) store.set(eventId, stamp({ id: eventId, status: "cancelled" }));
       log("delete", calendarId, eventId, had ? "" : "(404)");
       res.writeHead(had ? 204 : 404);
       return res.end();

@@ -7,7 +7,7 @@ import { requireOrg } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CONNECTION_COLUMNS, requeueScope, rowToConnection } from "./connections";
 import { runCalendarSync } from "./run";
-import { refreshWatch } from "./inbound-run";
+import { refreshWatch, stopWatch } from "./inbound-run";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -153,6 +153,7 @@ export async function disconnectCalendar(input: unknown): Promise<ActionResult> 
   if (!parsed.success) return invalid();
   const { admin, connection } = await ownConnection(parsed.data.connectionId);
   if (!connection) return invalid();
+  await stopWatch(connection, admin);
   const { error: stateError } = await admin.from("booking_calendar_events").delete().eq("connection_id", connection.id);
   if (stateError) return fail("disconnectCalendar state", stateError);
   const { error } = await admin.from("calendar_connections").delete().eq("id", connection.id);

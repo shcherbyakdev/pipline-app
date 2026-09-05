@@ -19,8 +19,9 @@ export type GoogleEvent = {
   status?: "confirmed" | "tentative" | "cancelled";
   /** "opaque" (default, Busy) or "transparent" (Free). */
   transparency?: "opaque" | "transparent";
-  start: { dateTime?: string; date?: string; timeZone?: string };
-  end: { dateTime?: string; date?: string; timeZone?: string };
+  /** Absent on a deleted event: "only guaranteed to have the id field". */
+  start?: { dateTime?: string; date?: string; timeZone?: string };
+  end?: { dateTime?: string; date?: string; timeZone?: string };
   extendedProperties?: { private?: Record<string, string> };
   attendees?: GoogleAttendee[];
   updated?: string;

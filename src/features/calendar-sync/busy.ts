@@ -18,9 +18,9 @@ export function eventsToBusy(events: GoogleEvent[], timeZone: string): BusyInter
   for (const e of events) {
     if (e.status === "cancelled" || e.transparency === "transparent") continue;
     if (e.extendedProperties?.private?.[BOOKLO_MARKER]) continue;
-    if (e.start.dateTime && e.end.dateTime) {
+    if (e.start?.dateTime && e.end?.dateTime) {
       out.push({ startsAt: new Date(e.start.dateTime), endsAt: new Date(e.end.dateTime), external: true });
-    } else if (e.start.date && e.end.date) {
+    } else if (e.start?.date && e.end?.date) {
       // end.date is exclusive (the morning after).
       out.push({ startsAt: wallTimeToUtc(e.start.date, "00:00", timeZone), endsAt: wallTimeToUtc(e.end.date, "00:00", timeZone), external: true });
     }

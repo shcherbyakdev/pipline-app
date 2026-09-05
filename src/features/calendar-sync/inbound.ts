@@ -1,5 +1,5 @@
 import type { GoogleCalendarClient, GoogleEvent } from "@/lib/google/calendar";
-import { BOOKLO_MARKER, type SyncBooking } from "./event-body";
+import { BOOKLO_MARKER, bookingIdFromEventId, type SyncBooking } from "./event-body";
 import type { Connection } from "./connections";
 import type { SyncState } from "./sync";
 
@@ -24,19 +24,28 @@ function selfDeclined(e: GoogleEvent): boolean {
   return e.attendees?.some((a) => a.self && a.responseStatus === "declined") ?? false;
 }
 
+/** Which booking an event speaks for: the marker when Google sent it, else
+    the id itself — a deleted event comes back with nothing but its id
+    (review 2026-09-05). Ownership is proven below by the state row, never
+    by this guess. */
+export function bookingIdOf(event: GoogleEvent): string | null {
+  return event.extendedProperties?.private?.[BOOKLO_MARKER] ?? bookingIdFromEventId(event.id);
+}
+
 export function classifyInbound(event: GoogleEvent, booking: SyncBooking | null, state: SyncState, conn: Connection): InboundDecision {
-  const marker = event.extendedProperties?.private?.[BOOKLO_MARKER];
-  if (!marker) return { kind: "ignore", reason: "not ours" };
-  if (!booking || booking.id !== marker) return { kind: "ignore", reason: "no booking" };
+  const candidate = bookingIdOf(event);
+  if (!candidate) return { kind: "ignore", reason: "not ours" };
+  if (!booking || booking.id !== candidate) return { kind: "ignore", reason: "no booking" };
   // Only the booking's CURRENT mirror speaks for it: an event left behind
-  // on an old calendar, or one another connection owns, is history.
+  // on an old calendar, or one another connection owns, is history. This
+  // is also what makes the id-derived candidate safe.
   if (!state || state.connectionId !== conn.id || state.eventId !== event.id) return { kind: "ignore", reason: "stale mirror" };
   if (booking.status !== "confirmed") return { kind: "ignore", reason: `booking is ${booking.status}` };
 
   if (event.status === "cancelled" || selfDeclined(event)) {
     return conn.cancelOnDelete ? { kind: "cancel" } : { kind: "ignore", reason: "cancel_on_delete off" };
   }
-  if (!event.start.dateTime) return { kind: "ignore", reason: "no start" };
+  if (!event.start?.dateTime) return { kind: "ignore", reason: "no start" };
   const movedTo = new Date(event.start.dateTime);
   if (Math.abs(movedTo.getTime() - new Date(booking.startsAt).getTime()) < MOVE_TOLERANCE_MS) return { kind: "ignore", reason: "unchanged" };
   if (!conn.rescheduleOnMove) return { kind: "ignore", reason: "reschedule_on_move off" };
@@ -52,7 +61,8 @@ export type InboundDeps = {
     loadBookingWithState(bookingId: string): Promise<{ booking: SyncBooking; state: SyncState } | null>;
     /** Put the mirror back: the outbound sync re-asserts the event. */
     requeue(bookingId: string, orgId: string): Promise<void>;
-    markChecked(connectionId: string, at: Date, notice: string | null): Promise<void>;
+    /** `at` null = keep the cursor where it was (something in the batch failed). */
+    markChecked(connectionId: string, at: Date | null, notice: string | null): Promise<void>;
   };
   apply: {
     cancel(booking: SyncBooking): Promise<ApplyResult>;
@@ -79,8 +89,12 @@ export async function pollConnection(conn: Connection, deps: InboundDeps): Promi
 
   const events = await deps.client.listEvents(conn.pushCalendarId, "", "", { updatedMin: pollSince(conn, now).toISOString(), showDeleted: true });
   let notice: string | null = null;
+  // A batch with a failure keeps the cursor: Google's updatedMin filters
+  // on the EVENT's timestamp, so an edit skipped now would never be
+  // fetched again once the cursor moved past it.
+  let failed = false;
   for (const event of events) {
-    const marker = event.extendedProperties?.private?.[BOOKLO_MARKER];
+    const marker = bookingIdOf(event);
     if (!marker) continue;
     summary.seen += 1;
     try {
@@ -109,9 +123,10 @@ export async function pollConnection(conn: Connection, deps: InboundDeps): Promi
       notice = `${refused}:${row.booking.clientName}`;
       await deps.notify(conn, notice);
     } catch (error) {
+      failed = true;
       console.error(`[calendar] inbound for booking ${marker} failed:`, error instanceof Error ? error.message : error);
     }
   }
-  await deps.store.markChecked(conn.id, now, notice);
+  await deps.store.markChecked(conn.id, failed ? null : now, notice);
   return summary;
 }

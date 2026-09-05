@@ -34,6 +34,14 @@ export function eventIdFor(bookingId: string): string {
   return bookingId.replace(/-/g, "").toLowerCase();
 }
 
+/** The inverse, for events Google hands back stripped to their id (a
+    deleted event is "only guaranteed to have the id field populated"):
+    32 hex chars → the booking uuid, anything else → null. */
+export function bookingIdFromEventId(eventId: string): string | null {
+  const m = /^([0-9a-f]{8})([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{12})$/.exec(eventId);
+  return m ? `${m[1]}-${m[2]}-${m[3]}-${m[4]}-${m[5]}` : null;
+}
+
 export function buildEventBody(b: SyncBooking, appUrl: string, opts: { inviteClient?: boolean } = {}): GoogleEventBody {
   const day = dateInZone(new Date(b.startsAt), b.timeZone);
   const lines = [b.clientEmail, b.note].filter((x): x is string => Boolean(x));

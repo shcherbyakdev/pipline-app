@@ -29,11 +29,13 @@ export function verifyWebhookToken(connectionId: string, token: string | null): 
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** Where Google should post. Google insists on https on a verified domain;
-    the local fake takes anything, so an overridden API base lifts the rule. */
+/** Where Google should post. Google insists on https on a VERIFIED domain
+    (decision 20): without the Search Console token there is no point
+    asking — the tick polls instead. The local fake takes anything, so an
+    overridden API base lifts both rules. */
 export function webhookAddress(): string | null {
   const origin = env.NEXT_PUBLIC_APP_URL;
-  if (!origin.startsWith("https://") && !env.GOOGLE_API_BASE) return null;
+  if (!env.GOOGLE_API_BASE && (!origin.startsWith("https://") || !env.GOOGLE_SITE_VERIFICATION)) return null;
   return `${origin}/api/google/webhook`;
 }
 
@@ -95,7 +97,10 @@ function inboundDeps(conn: Connection, db: SupabaseClient): InboundDeps {
             .maybeSingle(),
           db.from("booking_calendar_events").select("connection_id, calendar_id, event_id").eq("booking_id", bookingId).maybeSingle(),
         ]);
-        if (b.error || !b.data) return null;
+        // A read error is a failure (the poll keeps its cursor), not "no booking".
+        if (b.error) throw b.error;
+        if (s.error) throw s.error;
+        if (!b.data) return null;
         const r = b.data as unknown as BookingRow;
         return {
           booking: {
@@ -112,7 +117,10 @@ function inboundDeps(conn: Connection, db: SupabaseClient): InboundDeps {
         if (error) throw error;
       },
       async markChecked(connectionId, at, notice) {
-        const { error } = await db.from("calendar_connections").update({ inbound_checked_at: at.toISOString(), inbound_notice: notice }).eq("id", connectionId);
+        const { error } = await db
+          .from("calendar_connections")
+          .update({ ...(at ? { inbound_checked_at: at.toISOString() } : {}), inbound_notice: notice })
+          .eq("id", connectionId);
         if (error) throw error;
       },
     },
@@ -178,6 +186,15 @@ export async function runInbound(opts: { connectionId?: string } = {}, db: Supab
     await runCalendarSync({ orgId }, db).catch((e) => console.error("[calendar] mirror after inbound failed:", e));
   }
   return summary;
+}
+
+/** Before a disconnect: Google keeps posting to a channel nobody stops
+    (harmless — the webhook 200s an unknown channel — but noisy for a week). */
+export async function stopWatch(conn: Connection, db: SupabaseClient = createAdminClient()): Promise<void> {
+  if (!conn.watch) return;
+  await clientFor(conn.id, db)
+    .stopChannel(conn.watch.channelId, conn.watch.resourceId)
+    .catch((e) => console.error("[calendar] stop channel on disconnect:", e instanceof Error ? e.message : e));
 }
 
 /** After a connect, a switch change or a destination change: the channel

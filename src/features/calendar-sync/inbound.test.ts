@@ -39,6 +39,11 @@ describe("classifyInbound", () => {
 
   it("a deleted or self-declined event cancels — only with the switch on", () => {
     expect(classifyInbound(ev({ status: "cancelled" }), booking, state, conn)).toEqual({ kind: "cancel" });
+    // Google strips a deleted event to its id: no marker, no times. The id
+    // is the booking's, and the state row proves the mirror is current.
+    expect(classifyInbound({ id: EVENT_ID, status: "cancelled" }, booking, state, conn)).toEqual({ kind: "cancel" });
+    expect(classifyInbound({ id: EVENT_ID, status: "cancelled" }, booking, { ...state, eventId: "other" }, conn).kind).toBe("ignore");
+    expect(classifyInbound({ id: "not-a-uuid-shape", status: "cancelled" }, booking, state, conn)).toEqual({ kind: "ignore", reason: "not ours" });
     expect(classifyInbound(ev({ attendees: [{ email: "me@example.com", self: true, responseStatus: "declined" }] }), booking, state, conn)).toEqual({ kind: "cancel" });
     expect(classifyInbound(ev({ status: "cancelled" }), booking, state, { ...conn, cancelOnDelete: false }).kind).toBe("ignore");
   });
@@ -74,7 +79,7 @@ function fakeDeps(events: GoogleEvent[], rows: Record<string, { booking: SyncBoo
     store: {
       loadBookingWithState: async (id) => rows[id] ?? null,
       requeue: async (id) => { calls.push(`requeue ${id}`); },
-      markChecked: async (id, at, notice) => { calls.push(`checked ${id} ${at.toISOString()} notice=${notice}`); },
+      markChecked: async (id, at, notice) => { calls.push(`checked ${id} ${at ? at.toISOString() : "kept"} notice=${notice}`); },
     },
     apply: {
       cancel: async (b) => { calls.push(`cancel ${b.id}`); return applyOk.cancel ? { ok: true } : { ok: false, reason: "failed" }; },
@@ -128,11 +133,17 @@ describe("pollConnection", () => {
     ]);
   });
 
-  it("a throwing apply does not stop the rest of the batch", async () => {
+  it("a stripped deleted event (id only) still cancels", async () => {
+    const f = fakeDeps([{ id: EVENT_ID, status: "cancelled" }], { [booking.id]: { booking, state } });
+    const s = await pollConnection(conn, f.deps);
+    expect(s.cancelled).toBe(1);
+  });
+
+  it("a throwing apply does not stop the rest of the batch, and keeps the cursor so the edit is seen again", async () => {
     const f = fakeDeps([ev({ status: "cancelled" }), ev({ status: "cancelled" })], { [booking.id]: { booking, state } });
     f.deps.apply.cancel = async () => { throw new Error("db down"); };
     const s = await pollConnection(conn, f.deps);
     expect(s.seen).toBe(2);
-    expect(f.calls.at(-1)).toContain("checked conn-1");
+    expect(f.calls.at(-1)).toBe("checked conn-1 kept notice=null");
   });
 });
