@@ -6,6 +6,14 @@
 
 export type CalendarInfo = { id: string; summary: string; primary: boolean; canWrite: boolean };
 
+export type GoogleAttendee = {
+  email: string;
+  displayName?: string;
+  /** The connected account itself, on calendars where it is a guest. */
+  self?: boolean;
+  responseStatus?: "needsAction" | "declined" | "tentative" | "accepted";
+};
+
 export type GoogleEvent = {
   id: string;
   status?: "confirmed" | "tentative" | "cancelled";
@@ -14,6 +22,8 @@ export type GoogleEvent = {
   start: { dateTime?: string; date?: string; timeZone?: string };
   end: { dateTime?: string; date?: string; timeZone?: string };
   extendedProperties?: { private?: Record<string, string> };
+  attendees?: GoogleAttendee[];
+  updated?: string;
 };
 
 export type GoogleEventBody = {
@@ -24,7 +34,25 @@ export type GoogleEventBody = {
   end: { dateTime: string; timeZone: string };
   extendedProperties?: { private?: Record<string, string> };
   reminders?: { useDefault: boolean };
+  attendees?: GoogleAttendee[];
+  guestsCanInviteOthers?: boolean;
+  guestsCanSeeOtherGuests?: boolean;
 };
+
+export type ListEventsOptions = {
+  timeMin?: string;
+  timeMax?: string;
+  /** RFC3339: only events changed since then (inbound poll). */
+  updatedMin?: string;
+  /** Include deleted events (status "cancelled"). */
+  showDeleted?: boolean;
+};
+
+/** Google's `sendUpdates`: who it mails about a write. "none" when the
+    event has no guests; "all" when it does (spec v2 decision 16). */
+export type SendUpdates = "all" | "none";
+
+export type WatchChannel = { id: string; resourceId: string; expiresAt: Date | null };
 
 export class GoogleApiError extends Error {
   constructor(public readonly status: number, message?: string) {
@@ -35,12 +63,16 @@ export class GoogleApiError extends Error {
 
 export type GoogleCalendarClient = {
   listCalendars(): Promise<CalendarInfo[]>;
-  listEvents(calendarId: string, timeMinIso: string, timeMaxIso: string): Promise<GoogleEvent[]>;
+  listEvents(calendarId: string, timeMinIso: string, timeMaxIso: string, opts?: ListEventsOptions): Promise<GoogleEvent[]>;
   /** Insert; if the id already exists (409 — also after a delete, Google
       keeps the id as cancelled) update it in full with status confirmed. */
-  upsertEvent(calendarId: string, event: GoogleEventBody): Promise<void>;
+  upsertEvent(calendarId: string, event: GoogleEventBody, sendUpdates?: SendUpdates): Promise<void>;
   /** 404 / 410 count as done. */
-  deleteEvent(calendarId: string, eventId: string): Promise<void>;
+  deleteEvent(calendarId: string, eventId: string, sendUpdates?: SendUpdates): Promise<void>;
+  /** Push notifications for a calendar to `address` (spec v2 decision 19). */
+  watchEvents(calendarId: string, channel: { id: string; address: string; token: string }): Promise<WatchChannel>;
+  /** 404 = already gone. */
+  stopChannel(channelId: string, resourceId: string): Promise<void>;
 };
 
 export type GoogleClientDeps = {
@@ -93,16 +125,18 @@ export function createGoogleClient(deps: GoogleClientDeps): GoogleCalendarClient
       }));
     },
 
-    async listEvents(calendarId, timeMinIso, timeMaxIso) {
+    async listEvents(calendarId, timeMinIso, timeMaxIso, opts = {}) {
       const items: GoogleEvent[] = [];
       let pageToken: string | undefined;
       do {
         const res = await call("GET", `${cal(calendarId)}/events`, {
           singleEvents: "true",
-          timeMin: timeMinIso,
-          timeMax: timeMaxIso,
+          ...(timeMinIso ? { timeMin: timeMinIso } : {}),
+          ...(timeMaxIso ? { timeMax: timeMaxIso } : {}),
+          ...(opts.updatedMin ? { updatedMin: opts.updatedMin } : {}),
+          ...(opts.showDeleted ? { showDeleted: "true" } : {}),
           maxResults: "2500",
-          fields: "items(id,status,transparency,start,end,extendedProperties),nextPageToken",
+          fields: "items(id,status,transparency,start,end,extendedProperties,attendees,updated),nextPageToken",
           ...(pageToken ? { pageToken } : {}),
         });
         if (!res.ok) await fail(res);
@@ -113,20 +147,39 @@ export function createGoogleClient(deps: GoogleClientDeps): GoogleCalendarClient
       return items;
     },
 
-    async upsertEvent(calendarId, event) {
-      const inserted = await call("POST", `${cal(calendarId)}/events`, undefined, event);
+    async upsertEvent(calendarId, event, sendUpdates = "none") {
+      const params = { sendUpdates };
+      const inserted = await call("POST", `${cal(calendarId)}/events`, params, event);
       if (inserted.ok) return;
       if (inserted.status !== 409) await fail(inserted);
-      const updated = await call("PUT", `${cal(calendarId)}/events/${encodeURIComponent(event.id)}`, undefined, {
+      const updated = await call("PUT", `${cal(calendarId)}/events/${encodeURIComponent(event.id)}`, params, {
         ...event,
         status: "confirmed",
       });
       if (!updated.ok) await fail(updated);
     },
 
-    async deleteEvent(calendarId, eventId) {
-      const res = await call("DELETE", `${cal(calendarId)}/events/${encodeURIComponent(eventId)}`);
+    async deleteEvent(calendarId, eventId, sendUpdates = "none") {
+      const res = await call("DELETE", `${cal(calendarId)}/events/${encodeURIComponent(eventId)}`, { sendUpdates });
       if (res.ok || res.status === 404 || res.status === 410) return;
+      await fail(res);
+    },
+
+    async watchEvents(calendarId, channel) {
+      const res = await call("POST", `${cal(calendarId)}/events/watch`, undefined, {
+        id: channel.id,
+        type: "web_hook",
+        address: channel.address,
+        token: channel.token,
+      });
+      if (!res.ok) await fail(res);
+      const json = (await res.json()) as { id: string; resourceId: string; expiration?: string };
+      return { id: json.id, resourceId: json.resourceId, expiresAt: json.expiration ? new Date(Number(json.expiration)) : null };
+    },
+
+    async stopChannel(channelId, resourceId) {
+      const res = await call("POST", "channels/stop", undefined, { id: channelId, resourceId });
+      if (res.ok || res.status === 404) return;
       await fail(res);
     },
   };

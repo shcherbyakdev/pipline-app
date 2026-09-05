@@ -2,9 +2,12 @@ import type { GoogleEventBody } from "@/lib/google/calendar";
 import { dateInZone } from "@/features/scheduling/slots";
 
 /* Pure: a booking row → the Google event that mirrors it (spec 2026-09-05
-   §2.10). No attendees: Google would mail the client a second invitation
-   from the owner's account. The private extended property is how the busy
-   reader recognises our own events and leaves them out. */
+   §2.10, v2 decision 16). With `inviteClients` the client is a guest —
+   Google mails them the invitation from the owner's account, on top of
+   Booklo's own confirmation, which is what Calendly does. The private
+   extended property is how the busy reader recognises our own events and
+   leaves them out, and how the inbound poll matches a Google edit back to
+   its booking. */
 
 export type SyncBooking = {
   id: string;
@@ -31,11 +34,12 @@ export function eventIdFor(bookingId: string): string {
   return bookingId.replace(/-/g, "").toLowerCase();
 }
 
-export function buildEventBody(b: SyncBooking, appUrl: string): GoogleEventBody {
+export function buildEventBody(b: SyncBooking, appUrl: string, opts: { inviteClient?: boolean } = {}): GoogleEventBody {
   const day = dateInZone(new Date(b.startsAt), b.timeZone);
   const lines = [b.clientEmail, b.note].filter((x): x is string => Boolean(x));
   if (lines.length) lines.push("");
   lines.push("Booked through Booklo", `${appUrl}/bookings?date=${day}`);
+  const guest = opts.inviteClient && b.clientEmail ? [{ email: b.clientEmail, displayName: b.clientName }] : [];
   return {
     id: eventIdFor(b.id),
     summary: `${b.clientName} — ${b.title}`,
@@ -44,5 +48,6 @@ export function buildEventBody(b: SyncBooking, appUrl: string): GoogleEventBody 
     end: { dateTime: new Date(b.endsAt).toISOString(), timeZone: b.timeZone },
     extendedProperties: { private: { [BOOKLO_MARKER]: b.id } },
     reminders: { useDefault: true },
+    ...(guest.length ? { attendees: guest, guestsCanInviteOthers: false, guestsCanSeeOtherGuests: false } : {}),
   };
 }

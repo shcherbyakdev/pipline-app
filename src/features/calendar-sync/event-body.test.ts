@@ -37,6 +37,15 @@ describe("buildEventBody", () => {
     );
   });
 
+  it("adds the client as a guest only when asked, and only with an email", () => {
+    const withGuest = buildEventBody(booking, "https://app.test", { inviteClient: true });
+    expect(withGuest.attendees).toEqual([{ email: "anna@example.com", displayName: "Anna Kowalska" }]);
+    expect(withGuest.guestsCanInviteOthers).toBe(false);
+    expect(withGuest.guestsCanSeeOtherGuests).toBe(false);
+    expect(buildEventBody(booking, "https://app.test").attendees).toBeUndefined();
+    expect(buildEventBody({ ...booking, clientEmail: null }, "https://app.test", { inviteClient: true }).attendees).toBeUndefined();
+  });
+
   it("leaves out what the booking does not have and dates the link in the org's zone", () => {
     const body = buildEventBody(
       { ...booking, clientEmail: null, note: null, startsAt: "2026-09-06T23:30:00Z", endsAt: "2026-09-07T00:30:00Z" },

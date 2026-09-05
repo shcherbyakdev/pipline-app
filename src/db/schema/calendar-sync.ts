@@ -36,6 +36,19 @@ export const calendarConnections = pgTable(
     calendars: jsonb("calendars").default([]).notNull(),
     // 'active' | 'needs_reconnect' (CHECK in 0076).
     status: text("status").default("active").notNull(),
+    // v2 (0077, Calendly parity): the client is a guest on the event.
+    inviteClients: boolean("invite_clients").default(true).notNull(),
+    // v2 opt-ins: a Google delete/decline cancels; a Google move reschedules.
+    cancelOnDelete: boolean("cancel_on_delete").default(false).notNull(),
+    rescheduleOnMove: boolean("reschedule_on_move").default(false).notNull(),
+    // events.watch channel on the destination calendar (null = polling only).
+    watchChannelId: text("watch_channel_id"),
+    watchResourceId: text("watch_resource_id"),
+    watchExpiresAt: timestamp("watch_expires_at", { withTimezone: true }),
+    // updatedMin cursor for the inbound poll.
+    inboundCheckedAt: timestamp("inbound_checked_at", { withTimezone: true }),
+    // Last refused inbound edit, shown on the row until the next clean poll.
+    inboundNotice: text("inbound_notice"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

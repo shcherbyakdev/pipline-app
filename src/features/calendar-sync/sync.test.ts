@@ -14,6 +14,7 @@ import { GoogleAuthError } from "@/lib/google/oauth";
 const shared: Connection = {
   id: "conn-shared", orgId: "org-1", staffId: null, accountEmail: "studio@example.com",
   pushCalendarId: "studio@example.com", busyCalendarIds: [], calendars: [], status: "active",
+  inviteClients: false, cancelOnDelete: false, rescheduleOnMove: false, watch: null, inboundCheckedAt: null, inboundNotice: null,
 };
 const anna: Connection = { ...shared, id: "conn-anna", staffId: "staff-anna", accountEmail: "anna@example.com", pushCalendarId: "anna@example.com" };
 
@@ -24,20 +25,22 @@ const booking: SyncBooking = {
 };
 const EVENT_ID = "0b42f6d012344abc9def0123456789ab";
 
-type Call = { conn: string; op: "upsert" | "delete"; calendarId: string; eventId: string; body?: GoogleEventBody };
+type Call = { conn: string; op: "upsert" | "delete"; calendarId: string; eventId: string; body?: GoogleEventBody; sendUpdates?: string };
 function fakeClients(fail?: (c: Call) => Error | undefined) {
   const calls: Call[] = [];
   const clientFor = (conn: string): GoogleCalendarClient => ({
     listCalendars: async () => [],
     listEvents: async () => [],
-    upsertEvent: async (calendarId, body) => {
-      const c: Call = { conn, op: "upsert", calendarId, eventId: body.id, body };
+    watchEvents: async () => ({ id: "ch", resourceId: "res", expiresAt: null }),
+    stopChannel: async () => {},
+    upsertEvent: async (calendarId, body, sendUpdates) => {
+      const c: Call = { conn, op: "upsert", calendarId, eventId: body.id, body, sendUpdates };
       calls.push(c);
       const e = fail?.(c);
       if (e) throw e;
     },
-    deleteEvent: async (calendarId, eventId) => {
-      const c: Call = { conn, op: "delete", calendarId, eventId };
+    deleteEvent: async (calendarId, eventId, sendUpdates) => {
+      const c: Call = { conn, op: "delete", calendarId, eventId, sendUpdates };
       calls.push(c);
       const e = fail?.(c);
       if (e) throw e;
@@ -69,7 +72,18 @@ describe("syncBooking — the reconcile table", () => {
     const state: SyncState = { connectionId: "conn-anna", calendarId: "anna@example.com", eventId: EVENT_ID };
     const out = await syncBooking({ ...booking, status: "cancelled_by_client" }, state, deps([shared, anna], f));
     expect(out).toEqual({ outcome: "synced", state: null });
-    expect(f.calls).toEqual([{ conn: "conn-anna", op: "delete", calendarId: "anna@example.com", eventId: EVENT_ID }]);
+    expect(f.calls).toEqual([{ conn: "conn-anna", op: "delete", calendarId: "anna@example.com", eventId: EVENT_ID, sendUpdates: "none" }]);
+  });
+
+  it("with invite_clients the client is a guest and Google mails on every write", async () => {
+    const f = fakeClients();
+    const inviting = { ...anna, inviteClients: true };
+    await syncBooking({ ...booking, clientEmail: "kim@example.com" }, null, deps([inviting], f));
+    expect(f.calls[0].sendUpdates).toBe("all");
+    expect(f.calls[0].body?.attendees).toEqual([{ email: "kim@example.com", displayName: "Kim" }]);
+    const state: SyncState = { connectionId: "conn-anna", calendarId: "anna@example.com", eventId: EVENT_ID };
+    await syncBooking({ ...booking, status: "cancelled_by_client" }, state, deps([inviting], f));
+    expect(f.calls[1]).toMatchObject({ op: "delete", sendUpdates: "all" });
   });
 
   it("pending, declined and rescheduled rows are never events", async () => {

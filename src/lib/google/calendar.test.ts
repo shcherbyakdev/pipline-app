@@ -93,12 +93,12 @@ describe("upsertEvent", () => {
     const { c } = client(g);
     await c.upsertEvent("cal", body);
     expect(g.calls).toHaveLength(1);
-    expect(g.calls[0]).toMatchObject({ method: "POST", url: "https://www.googleapis.com/calendar/v3/calendars/cal/events" });
+    expect(g.calls[0]).toMatchObject({ method: "POST", url: "https://www.googleapis.com/calendar/v3/calendars/cal/events?sendUpdates=none" });
 
     const g2 = fakeGoogle([{ status: 409, body: { error: { code: 409 } } }, { status: 200, body: { id: "abc123" } }]);
     const { c: c2 } = client(g2);
     await c2.upsertEvent("cal", body);
-    expect(g2.calls[1]).toMatchObject({ method: "PUT", url: "https://www.googleapis.com/calendar/v3/calendars/cal/events/abc123" });
+    expect(g2.calls[1]).toMatchObject({ method: "PUT", url: "https://www.googleapis.com/calendar/v3/calendars/cal/events/abc123?sendUpdates=none" });
     expect((g2.calls[1].body as { status: string }).status).toBe("confirmed");
   });
 
@@ -134,6 +134,36 @@ describe("deleteEvent", () => {
     await c.deleteEvent("cal", "e2");
     await c.deleteEvent("cal", "e3");
     expect(g.calls.map((x) => x.method)).toEqual(["DELETE", "DELETE", "DELETE"]);
-    expect(g.calls[0].url).toBe("https://www.googleapis.com/calendar/v3/calendars/cal/events/e1");
+    expect(g.calls[0].url).toBe("https://www.googleapis.com/calendar/v3/calendars/cal/events/e1?sendUpdates=none");
+  });
+
+  it("mails guests when asked", async () => {
+    const g = fakeGoogle([{ status: 204 }]);
+    const { c } = client(g);
+    await c.deleteEvent("cal", "e1", "all");
+    expect(g.calls[0].url).toContain("sendUpdates=all");
+  });
+});
+
+describe("listEvents options / watch / stop", () => {
+  it("passes updatedMin and showDeleted through", async () => {
+    const g = fakeGoogle([{ status: 200, body: { items: [] } }]);
+    const { c } = client(g);
+    await c.listEvents("cal", "", "", { updatedMin: "2026-09-05T09:55:00Z", showDeleted: true });
+    const u = new URL(g.calls[0].url);
+    expect(u.searchParams.get("updatedMin")).toBe("2026-09-05T09:55:00Z");
+    expect(u.searchParams.get("showDeleted")).toBe("true");
+    expect(u.searchParams.has("timeMin")).toBe(false);
+  });
+
+  it("opens a web_hook channel and reads back its expiry; stop tolerates 404", async () => {
+    const g = fakeGoogle([{ status: 200, body: { id: "ch1", resourceId: "res1", expiration: "1788600000000" } }, { status: 404, body: {} }]);
+    const { c } = client(g);
+    const ch = await c.watchEvents("cal", { id: "ch1", address: "https://app.test/api/google/webhook", token: "tok" });
+    expect(ch).toEqual({ id: "ch1", resourceId: "res1", expiresAt: new Date(1788600000000) });
+    expect(g.calls[0]).toMatchObject({ method: "POST", url: "https://www.googleapis.com/calendar/v3/calendars/cal/events/watch" });
+    expect(g.calls[0].body).toEqual({ id: "ch1", type: "web_hook", address: "https://app.test/api/google/webhook", token: "tok" });
+    await c.stopChannel("ch1", "res1");
+    expect(g.calls[1]).toMatchObject({ method: "POST", url: "https://www.googleapis.com/calendar/v3/channels/stop" });
   });
 });

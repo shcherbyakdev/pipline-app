@@ -44,12 +44,15 @@ export async function syncBooking(b: SyncBooking, state: SyncState, deps: SyncDe
     } else if (owner.status !== "active") {
       return { outcome: "waiting", state: existing };
     } else {
-      await deps.clientFor(owner.id).deleteEvent(existing.calendarId, existing.eventId);
+      // Guests (v2) hear about the removal from Google as well as from Booklo.
+      await deps.clientFor(owner.id).deleteEvent(existing.calendarId, existing.eventId, owner.inviteClients ? "all" : "none");
     }
   }
 
-  if (!desired) return { outcome: "synced", state: null };
-  await deps.clientFor(desired.connectionId).upsertEvent(desired.calendarId, buildEventBody(b, deps.appUrl));
+  if (!desired || !target) return { outcome: "synced", state: null };
+  await deps
+    .clientFor(desired.connectionId)
+    .upsertEvent(desired.calendarId, buildEventBody(b, deps.appUrl, { inviteClient: target.inviteClients }), target.inviteClients ? "all" : "none");
   return { outcome: "synced", state: { ...desired, eventId: eventIdFor(b.id) } };
 }
 

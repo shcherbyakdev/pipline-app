@@ -28,10 +28,19 @@ export type Connection = {
   busyCalendarIds: string[];
   calendars: CalendarInfo[];
   status: ConnectionStatus;
+  /** v2: the client is a guest on the event (Google mails them too). */
+  inviteClients: boolean;
+  /** v2 opt-ins: a Google delete/decline cancels; a Google move reschedules. */
+  cancelOnDelete: boolean;
+  rescheduleOnMove: boolean;
+  watch: { channelId: string; resourceId: string; expiresAt: Date | null } | null;
+  inboundCheckedAt: Date | null;
+  inboundNotice: string | null;
 };
 
 /** The columns the page and the sync read — never the token columns. */
-export const CONNECTION_COLUMNS = "id, org_id, staff_id, account_email, push_calendar_id, busy_calendar_ids, calendars, status";
+export const CONNECTION_COLUMNS =
+  "id, org_id, staff_id, account_email, push_calendar_id, busy_calendar_ids, calendars, status, invite_clients, cancel_on_delete, reschedule_on_move, watch_channel_id, watch_resource_id, watch_expires_at, inbound_checked_at, inbound_notice";
 
 type ConnectionRow = {
   id: string;
@@ -42,6 +51,14 @@ type ConnectionRow = {
   busy_calendar_ids: string[];
   calendars: unknown;
   status: string;
+  invite_clients: boolean;
+  cancel_on_delete: boolean;
+  reschedule_on_move: boolean;
+  watch_channel_id: string | null;
+  watch_resource_id: string | null;
+  watch_expires_at: string | null;
+  inbound_checked_at: string | null;
+  inbound_notice: string | null;
 };
 
 export function rowToConnection(r: ConnectionRow): Connection {
@@ -54,6 +71,15 @@ export function rowToConnection(r: ConnectionRow): Connection {
     busyCalendarIds: r.busy_calendar_ids ?? [],
     calendars: Array.isArray(r.calendars) ? (r.calendars as CalendarInfo[]) : [],
     status: r.status === "needs_reconnect" ? "needs_reconnect" : "active",
+    inviteClients: r.invite_clients ?? true,
+    cancelOnDelete: r.cancel_on_delete ?? false,
+    rescheduleOnMove: r.reschedule_on_move ?? false,
+    watch:
+      r.watch_channel_id && r.watch_resource_id
+        ? { channelId: r.watch_channel_id, resourceId: r.watch_resource_id, expiresAt: r.watch_expires_at ? new Date(r.watch_expires_at) : null }
+        : null,
+    inboundCheckedAt: r.inbound_checked_at ? new Date(r.inbound_checked_at) : null,
+    inboundNotice: r.inbound_notice,
   };
 }
 

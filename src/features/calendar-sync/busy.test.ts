@@ -48,6 +48,7 @@ describe("eventsToBusy", () => {
 const shared: Connection = {
   id: "conn-shared", orgId: "org-1", staffId: null, accountEmail: "s@example.com",
   pushCalendarId: "s@example.com", busyCalendarIds: ["s@example.com", "holidays"], calendars: [], status: "active",
+  inviteClients: false, cancelOnDelete: false, rescheduleOnMove: false, watch: null, inboundCheckedAt: null, inboundNotice: null,
 };
 const anna: Connection = { ...shared, id: "conn-anna", staffId: "staff-anna", accountEmail: "a@example.com", busyCalendarIds: ["a@example.com"] };
 
@@ -55,6 +56,8 @@ function fakeClients(perCalendar: Record<string, GoogleEvent[]>, throwFor: strin
   const listed: string[] = [];
   const clientFor = (conn: string): GoogleCalendarClient => ({
     listCalendars: async () => [],
+    watchEvents: async () => ({ id: "ch", resourceId: "res", expiresAt: null }),
+    stopChannel: async () => {},
     listEvents: async (calendarId) => {
       listed.push(`${conn}/${calendarId}`);
       if (throwFor.includes(calendarId)) throw new Error("Google API 500");
