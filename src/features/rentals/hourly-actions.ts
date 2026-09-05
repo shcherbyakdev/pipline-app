@@ -10,7 +10,7 @@ import { publicBookingLimiter, publicSlotsLimiter } from "@/lib/tokens/rate-limi
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext, type PublicUnit } from "@/lib/booking/public";
 import { loadPublicResources } from "@/lib/booking/public-offering";
-import { getProviderEmail } from "@/lib/booking/provider";
+import { notifyMembers } from "@/features/notifications/notify";
 import { withUnit } from "@/features/rentals/unit-label";
 import { selectTransport } from "@/lib/email/transport";
 import { emailBadgeUrl } from "@/lib/billing/queries";
@@ -22,7 +22,6 @@ import {
   bookingIdempotencyKey,
   bookingLifecycleKey,
   bookingRequestReceivedEmail,
-  providerNewBookingEmail,
   formatHourlyWhenLine,
 } from "@/features/scheduling/templates";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
@@ -264,7 +263,6 @@ export async function createRentalBookingHours(
       serviceName: string;
       infoLines: string[];
       clientInfoLines: string[];
-      providerEmail: string | null;
     } | null = null;
     try {
       const tz = ctx.org.timeZone;
@@ -276,12 +274,6 @@ export async function createRentalBookingHours(
         return null;
       });
       const serviceName = withUnit(ctx.offering.name, unitName);
-      // Best-effort like everything below: a null provider address only means
-      // the provider gets no copy of this booking.
-      const providerEmail = await getProviderEmail(ctx.org.orgId).catch((e) => {
-        console.error("[rentals] getProviderEmail:", e);
-        return null;
-      });
       // H3: total / deposit / pay-at-venue / cancellation-policy lines, shared
       // by the client confirmation and the provider's copy below.
       const total = totalCents(ctx.offering, durationMin / 60);
@@ -293,12 +285,12 @@ export async function createRentalBookingHours(
       };
       const infoLines = moneyInfoLines(money, mail.tUnits);
       const clientInfoLines = moneyInfoLines(money, client.tUnits);
-      prep = { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines, providerEmail };
+      prep = { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines };
     } catch (error) {
       console.error("[rentals] post-booking mail prep failed:", error);
       return { ok: true, token, pending: isPending };
     }
-    const { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines, providerEmail } = prep;
+    const { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines } = prep;
 
     // Best-effort confirmation (the booking survives email failure). Pending:
     // the request-received twin instead — nothing is confirmed yet.
@@ -340,30 +332,19 @@ export async function createRentalBookingHours(
     // (scheduling/public-actions.ts), reply-to wiring included. The
     // nights/days twin lives in createRentalBooking (public-actions.ts) —
     // the two actions mirror each other.
-    // Its own try so a failed client mail can't skip it.
-    if (providerEmail) {
-      try {
-        const notice = providerNewBookingEmail(mail.t, {
-          serviceName,
-          clientName: name,
-          clientEmail: email,
-          whenLine,
-          note: note ?? null,
-          infoLines,
-          pending: isPending,
-        });
-        await selectTransport().send({
-          to: providerEmail,
-          subject: notice.subject,
-          html: notice.html,
-          text: notice.text,
-          replyTo: email,
-          idempotencyKey: bookingLifecycleKey(bookingId as string, "provider-new"),
-        });
-      } catch (mailError) {
-        console.error("[rentals] provider notice failed:", mailError);
-      }
-    }
+    // One seam, each member's channels (/notifications); it swallows its own
+    // errors, so a failed client mail can't skip it.
+    await notifyMembers({
+      orgId: ctx.org.orgId,
+      event: isPending ? "newRequest" : "newBooking",
+      serviceName,
+      clientName: name,
+      clientEmail: email,
+      whenLine,
+      note: note ?? null,
+      infoLines,
+      idempotencyKey: bookingLifecycleKey(bookingId as string, "provider-new"),
+    });
 
     return { ok: true, token, pending: isPending };
   } catch (error) {

@@ -18,6 +18,7 @@ import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { chooseStaffForBooking } from "@/lib/booking/bookable";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { getProviderEmail } from "@/lib/booking/provider";
+import { notifyMembers } from "@/features/notifications/notify";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
@@ -28,7 +29,6 @@ import {
   bookingIdempotencyKey,
   bookingLifecycleKey,
   bookingRequestReceivedEmail,
-  providerNewBookingEmail,
   formatWhenLine,
 } from "./templates";
 import { getSlotsInput, createBookingInput } from "./schema";
@@ -308,32 +308,22 @@ export async function createBooking(
       console.error("[scheduling] confirmation email failed:", mailError);
     }
 
-    // The provider's own copy — the org owner, whoever the booking landed
-    // with (audit 2026-08-24: solo providers previously got nothing at all).
-    // Its own try so a failed client mail can't skip it.
-    if (providerEmail) {
-      try {
-        const notice = providerNewBookingEmail(mail.t, {
-          serviceName: ctx.service.name,
-          clientName: name,
-          clientEmail: email,
-          whenLine,
-          staffName,
-          note: note ?? null,
-          pending: isPending,
-        });
-        await selectTransport().send({
-          to: providerEmail,
-          subject: notice.subject,
-          html: notice.html,
-          text: notice.text,
-          replyTo: email,
-          idempotencyKey: bookingLifecycleKey(row.booking_id, "provider-new"),
-        });
-      } catch (mailError) {
-        console.error("[scheduling] provider notice failed:", mailError);
-      }
-    }
+    // The org's own people — the owner, whoever the booking landed with
+    // (audit 2026-08-24: solo providers previously got nothing at all). One
+    // seam, every member's channels (email and/or push per their
+    // /notifications prefs); it swallows its own errors, so a failed client
+    // mail above can't skip it and it can't fail the booking.
+    await notifyMembers({
+      orgId: ctx.org.orgId,
+      event: isPending ? "newRequest" : "newBooking",
+      serviceName: ctx.service.name,
+      clientName: name,
+      clientEmail: email,
+      whenLine,
+      staffName,
+      note: note ?? null,
+      idempotencyKey: bookingLifecycleKey(row.booking_id, "provider-new"),
+    });
 
     // Staff-side heads-up (never throws, swallows its own errors). Solo orgs
     // are unaffected: sendStaffNotice itself skips orgs with <= 1 active staff,

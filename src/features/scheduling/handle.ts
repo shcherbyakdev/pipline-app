@@ -14,7 +14,7 @@ export const RESERVED_HANDLES = [
   "api", "auth", "availability", "billing", "book", "booking", "booking-page", "bookings",
   "clients", "dev", "embed", "forgot-password", "login", "onboarding", "overview", "portal",
   "pricing", "privacy", "programs", "rentals", "reset-password", "services", "settings", "signup",
-  "team", "templates", "terms", "utils", "waitlist",
+  "team", "templates", "terms", "utils", "waitlist", "notifications",
   "admin", "app", "www", "mail", "help", "support", "docs", "blog", "about", "contact", "status",
   "static", "assets", "public", "booklo", "new", "home", "index", "sitemap", "robots",
   "favicon",

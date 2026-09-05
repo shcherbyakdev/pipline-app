@@ -19,7 +19,7 @@ import { loadPublicResources } from "@/lib/booking/public-offering";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
-import { getProviderEmail } from "@/lib/booking/provider";
+import { notifyMembers } from "@/features/notifications/notify";
 import { withUnit } from "@/features/rentals/unit-label";
 import { wallTimeToUtc } from "@/features/scheduling/slots";
 import {
@@ -28,7 +28,6 @@ import {
   bookingLifecycleKey,
   bookingRequestReceivedEmail,
   formatRangeWhenLine,
-  providerNewBookingEmail,
 } from "@/features/scheduling/templates";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
@@ -261,7 +260,6 @@ export async function createRentalBooking(
       serviceName: string;
       infoLines: string[];
       clientInfoLines: string[];
-      providerEmail: string | null;
     } | null = null;
     try {
       const tz = org.timeZone;
@@ -287,16 +285,12 @@ export async function createRentalBooking(
       };
       const infoLines = moneyInfoLines(money, mail.tUnits);
       const clientInfoLines = moneyInfoLines(money, client.tUnits);
-      const providerEmail = await getProviderEmail(org.orgId).catch((e) => {
-        console.error("[rentals] getProviderEmail:", e);
-        return null;
-      });
-      prep = { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines, providerEmail };
+      prep = { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines };
     } catch (error) {
       console.error("[rentals] post-booking mail prep failed:", error);
       return { ok: true, token, pending: isPending };
     }
-    const { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines, providerEmail } = prep;
+    const { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines } = prep;
 
     // Best-effort confirmation (the booking survives email failure). Pending:
     // the request-received twin instead — nothing is confirmed yet.
@@ -329,32 +323,21 @@ export async function createRentalBooking(
       console.error("[rentals] confirmation email failed:", mailError);
     }
 
-    // The provider's own copy — the nights/days twin of the notice
+    // The org's own people — the nights/days twin of the notice
     // createRentalBookingHours sends (H5b closes the gap H3 and H5a noted).
-    // Its own try so a failed client mail can't skip it.
-    if (providerEmail) {
-      try {
-        const notice = providerNewBookingEmail(mail.t, {
-          serviceName,
-          clientName: name,
-          clientEmail: email,
-          whenLine,
-          note: note ?? null,
-          infoLines,
-          pending: isPending,
-        });
-        await selectTransport().send({
-          to: providerEmail,
-          subject: notice.subject,
-          html: notice.html,
-          text: notice.text,
-          replyTo: email,
-          idempotencyKey: bookingLifecycleKey(bookingId as string, "provider-new"),
-        });
-      } catch (mailError) {
-        console.error("[rentals] provider notice failed:", mailError);
-      }
-    }
+    // One seam, each member's channels (/notifications); it swallows its own
+    // errors, so a failed client mail can't skip it.
+    await notifyMembers({
+      orgId: org.orgId,
+      event: isPending ? "newRequest" : "newBooking",
+      serviceName,
+      clientName: name,
+      clientEmail: email,
+      whenLine,
+      note: note ?? null,
+      infoLines,
+      idempotencyKey: bookingLifecycleKey(bookingId as string, "provider-new"),
+    });
 
     return { ok: true, token, pending: isPending };
   } catch (error) {

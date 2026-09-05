@@ -35,6 +35,14 @@ export const envSchema = z.object({
   BILLING_FOUNDER_CUTOFF: z.string().date().optional(),
   // Comma-separated emails allowed into /utils (owner-only back office). Unset = nobody.
   INTERNAL_EMAILS: z.string().optional(),
+  // Web Push (spec 2026-09-05). All three or none: the page shows push as
+  // "not set up" and the seam skips it when absent — unlike the email
+  // transport this never throws, an optional channel must not break a
+  // booking. Generate once: `npx web-push generate-vapid-keys`. The subject
+  // is a mailto: or https: URL the push services may contact about abuse.
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+  VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)/, "VAPID_SUBJECT must be a mailto: or https: URL").optional(),
 }).superRefine((value, ctx) => {
   if (value.APP_ENV !== "production") return;
 

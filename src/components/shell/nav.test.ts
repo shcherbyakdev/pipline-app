@@ -13,12 +13,12 @@ const hrefs = (flags: typeof FLAGS, mode: OrgMode) => navItemsFor(flags, mode).m
 describe("navItemsFor (flags × mode) — spec §1 table, fixed order, spaces first (H5b)", () => {
   it("rentals-only: keeps Availability (it covers spaces from U3), hides Services and Team", () => {
     expect(hrefs(FLAGS, RENTALS_ONLY)).toEqual([
-      "/overview", "/bookings", "/clients", "/rentals", "/availability", "/booking-page", "/embed", "/settings",
+      "/overview", "/bookings", "/clients", "/rentals", "/availability", "/booking-page", "/embed", "/notifications", "/settings",
     ]);
   });
   it("appointments-only: hides Spaces, keeps the rest in order", () => {
     expect(hrefs(FLAGS, APPTS_ONLY)).toEqual([
-      "/overview", "/bookings", "/clients", "/services", "/team", "/availability", "/booking-page", "/embed", "/settings",
+      "/overview", "/bookings", "/clients", "/services", "/team", "/availability", "/booking-page", "/embed", "/notifications", "/settings",
     ]);
   });
   it("sections: Offer holds the catalogue nouns, Share the channels, account the rest", () => {
@@ -29,7 +29,7 @@ describe("navItemsFor (flags × mode) — spec §1 table, fixed order, spaces fi
     expect(by(RENTALS_ONLY, "offer")).toEqual(["/rentals", "/availability"]);
     expect(by(APPTS_ONLY, "offer")).toEqual(["/services", "/team", "/availability"]);
     expect(by(APPTS_ONLY, "share")).toEqual(["/booking-page", "/embed"]);
-    expect(by(APPTS_ONLY, "account")).toEqual(["/billing", "/settings"]);
+    expect(by(APPTS_ONLY, "account")).toEqual(["/billing", "/notifications", "/settings"]);
     for (const i of navItemsFor(flags, APPTS_ONLY)) expect(NAV_SECTIONS).toContain(i.section);
   });
   it("section labels: Offer and Share are labelled, main and account are not", () => {

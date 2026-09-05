@@ -17,7 +17,7 @@ import {
   type PublicOffering,
   type PublicUnit,
 } from "@/lib/booking/public";
-import { getProviderEmail } from "@/lib/booking/provider";
+import { notifyMembers } from "@/features/notifications/notify";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
@@ -27,7 +27,6 @@ import {
   bookingRescheduledEmail,
   formatHourlyWhenLine,
   formatRangeWhenLine,
-  providerRescheduledEmail,
 } from "@/features/scheduling/templates";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
@@ -290,21 +289,17 @@ export async function rescheduleRentalBooking(
           idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "rescheduled"),
         });
       }
-      // The provider only hears about a real move: a no-op re-confirm (same
+      // The org's people only hear about a real move: a no-op re-confirm (same
       // dates, same unit) reissues the client's link and nothing else.
-      const providerEmail = moved.dates_changed ? await getProviderEmail(moved.org_id) : null;
-      if (providerEmail) {
-        const notice = providerRescheduledEmail(mail.t, {
+      if (moved.dates_changed) {
+        await notifyMembers({
+          orgId: moved.org_id,
+          event: "rescheduled",
           serviceName: moved.service_name,
-          oldWhenLine,
-          whenLine,
           clientName: moved.client_name,
-        });
-        await selectTransport().send({
-          to: providerEmail,
-          subject: notice.subject,
-          html: notice.html,
-          text: notice.text,
+          clientEmail: moved.client_email,
+          whenLine,
+          oldWhenLine,
           idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "provider-rescheduled"),
         });
       }
@@ -537,21 +532,17 @@ export async function rescheduleRentalBookingHours(
           idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "rescheduled"),
         });
       }
-      // The provider only hears about a real move: a no-op re-confirm (same
+      // The org's people only hear about a real move: a no-op re-confirm (same
       // time, same unit) reissues the client's link and nothing else.
-      const providerEmail = moved.dates_changed ? await getProviderEmail(moved.org_id) : null;
-      if (providerEmail) {
-        const notice = providerRescheduledEmail(mail.t, {
+      if (moved.dates_changed) {
+        await notifyMembers({
+          orgId: moved.org_id,
+          event: "rescheduled",
           serviceName: moved.service_name,
-          oldWhenLine,
-          whenLine,
           clientName: moved.client_name,
-        });
-        await selectTransport().send({
-          to: providerEmail,
-          subject: notice.subject,
-          html: notice.html,
-          text: notice.text,
+          clientEmail: moved.client_email,
+          whenLine,
+          oldWhenLine,
           idempotencyKey: bookingLifecycleKey(moved.new_booking_id, "provider-rescheduled"),
         });
       }

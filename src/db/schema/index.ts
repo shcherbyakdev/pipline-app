@@ -13,3 +13,4 @@ export * from "./rentals";
 export * from "./billing";
 export * from "./utils";
 export * from "./booking-pages";
+export * from "./notifications";
