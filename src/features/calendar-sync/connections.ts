@@ -9,6 +9,7 @@ import { createGoogleClient, type CalendarInfo, type GoogleCalendarClient } from
 import { getEntitlementsAdmin } from "@/lib/billing/queries";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { plansEnforced } from "@/lib/flags";
+import type { ConnectStore } from "./oauth-flow";
 
 /* The connection rows and everything that needs the sealed tokens (spec
    2026-09-05 §2.5, §2.7, §2.9). Every read here is service_role: the
@@ -72,6 +73,11 @@ export function oauthConfig(): OAuthConfig {
 
 export function apiBase(): string {
   return env.GOOGLE_API_BASE ?? "https://www.googleapis.com";
+}
+
+/** Registered verbatim in the Google Cloud console (one per environment). */
+export function redirectUri(): string {
+  return `${env.NEXT_PUBLIC_APP_URL}/api/google/callback`;
 }
 
 export async function listConnections(orgId: string, db: SupabaseClient = createAdminClient()): Promise<Connection[]> {
@@ -184,4 +190,61 @@ export async function requeueScope(orgId: string, staffId: string | null, db: Su
       { onConflict: "booking_id" },
     );
   if (up) throw up;
+}
+
+// ---------- the connect flow's store (oauth-flow.ts ConnectStore)
+
+export function supabaseConnectStore(db: SupabaseClient = createAdminClient()): ConnectStore {
+  const key = () => env.GCAL_TOKEN_KEY!;
+  return {
+    async orgContext(orgId) {
+      const [org, staff] = await Promise.all([
+        db.from("orgs").select("offers_appointments").eq("id", orgId).maybeSingle(),
+        db.from("staff").select("id").eq("org_id", orgId).eq("active", true),
+      ]);
+      if (org.error) throw org.error;
+      if (staff.error) throw staff.error;
+      return { offersAppointments: org.data?.offers_appointments ?? false, activeStaffIds: (staff.data ?? []).map((s) => s.id) };
+    },
+    async findByEmail(orgId, accountEmail) {
+      const { data, error } = await db.from("calendar_connections").select("id, staff_id").eq("org_id", orgId).eq("account_email", accountEmail).maybeSingle();
+      if (error) throw error;
+      return data ? { id: data.id, staffId: data.staff_id } : null;
+    },
+    async insert(row) {
+      const { data, error } = await db
+        .from("calendar_connections")
+        .insert({
+          org_id: row.orgId,
+          user_id: row.userId,
+          staff_id: row.staffId,
+          account_email: row.accountEmail,
+          refresh_token_enc: seal(row.refreshToken, key()),
+          access_token_enc: seal(row.accessToken, key()),
+          access_expires_at: row.accessExpiresAt.toISOString(),
+          push_calendar_id: row.pushCalendarId,
+          busy_calendar_ids: row.busyCalendarIds,
+          calendars: row.calendars,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
+    },
+    async reconnect(id, patch) {
+      const { error } = await db
+        .from("calendar_connections")
+        .update({
+          refresh_token_enc: seal(patch.refreshToken, key()),
+          access_token_enc: seal(patch.accessToken, key()),
+          access_expires_at: patch.accessExpiresAt.toISOString(),
+          calendars: patch.calendars,
+          status: "active",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    requeueScope: (orgId, staffId) => requeueScope(orgId, staffId, db),
+  };
 }
