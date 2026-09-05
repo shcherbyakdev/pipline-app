@@ -18,7 +18,7 @@ web
 
 ## Product Purpose
 
-Booklo gives a provider a hosted booking page at `/<handle>` (plus `/<handle>/spaces`, per-person pages and an embeddable widget) where a client picks a service or a space and a time. Confirmations, reminders, cancellation and rescheduling run over email. The provider runs everything from an admin app: Bookings (week grid, timeline, list), Services, Spaces with units, Team, one Availability page for people and hourly spaces, a Booking page builder, Links & embeds, Settings and Billing.
+Booklo gives a provider a hosted booking page at `/<handle>` (plus `/<handle>/spaces`, per-person pages and an embeddable widget) where a client picks a service or a space and a time. Confirmations, reminders, cancellation and rescheduling run over email. The provider runs everything from an admin app: Bookings (week grid, timeline, list), Services, Spaces with units, Team, one Availability page for people and hourly spaces, a Booking page builder, Website embed, Settings and Billing.
 
 It exists because appointment scheduling is priced at zero by payment- and marketplace-subsidised incumbents (Square, Fresha, Cal.com, Booksy) while space booking is priced honestly (Skedda-style, no free tier), and no small-operator product does both well.
 

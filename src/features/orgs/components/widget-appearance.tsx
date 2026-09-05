@@ -122,8 +122,10 @@ export function WidgetAppearance({
             </button>
           ))}
         </div>
-        {tab === "code" ? (
-          handle ? (
+        {/* Both panes stay mounted: Show / Language live in EmbedCode's own
+            state and must survive a trip to Style and back. */}
+        <div hidden={tab !== "code"} className="flex flex-col gap-4">
+          {handle ? (
             <EmbedCode appUrl={appUrl} handle={handle} rows={rows} initialKey={initialKey} mode={mode} titles={titles} />
           ) : (
             <p className="text-muted-foreground text-sm">
@@ -135,8 +137,9 @@ export function WidgetAppearance({
                 ),
               })}
             </p>
-          )
-        ) : (
+          )}
+        </div>
+        <div hidden={tab !== "style"}>
           <SettingsCard
             title={t("style.title")}
             description={t("style.description")}
@@ -159,7 +162,7 @@ export function WidgetAppearance({
               upgradeHref={upgradeHref}
             />
           </SettingsCard>
-        )}
+        </div>
       </div>
       {/* Sticks inside the shell panel's scroll container (the header row
           sits above it), so the offset is just the content padding. */}
