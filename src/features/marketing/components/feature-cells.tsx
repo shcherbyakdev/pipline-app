@@ -128,7 +128,7 @@ function Embed() {
   return (
     <pre className="flex min-h-[170px] items-center overflow-x-auto rounded-[16px] bg-white/6 px-4 py-3.5 font-mono text-[12px] leading-[1.65] text-[#dcd8e6] ring-1 ring-white/10 ring-inset">
       {"<"}
-      <span className="text-[#b9b0ff]">script</span>
+      <span className="text-[#828fff]">script</span>
       {' src="booklo.co/embed.js"\n  data-page="anna-studio">'}
     </pre>
   );
