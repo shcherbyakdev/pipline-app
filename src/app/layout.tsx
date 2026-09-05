@@ -26,6 +26,9 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "Booklo",
   description: SITE.description,
+  // Google only pushes calendar notifications to a verified domain (spec
+  // 2026-09-05 v2 decision 20): Search Console's meta-tag verification.
+  ...(process.env.GOOGLE_SITE_VERIFICATION ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } } : {}),
 };
 
 const DIRECTION_CONTRACT = `<!--

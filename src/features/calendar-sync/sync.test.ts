@@ -12,7 +12,7 @@ import type { GoogleCalendarClient, GoogleEventBody } from "@/lib/google/calenda
 import { GoogleAuthError } from "@/lib/google/oauth";
 
 const shared: Connection = {
-  id: "conn-shared", orgId: "org-1", staffId: null, accountEmail: "studio@example.com",
+  id: "conn-shared", orgId: "org-1", userId: "user-1", staffId: null, accountEmail: "studio@example.com",
   pushCalendarId: "studio@example.com", busyCalendarIds: [], calendars: [], status: "active",
   inviteClients: false, cancelOnDelete: false, rescheduleOnMove: false, watch: null, inboundCheckedAt: null, inboundNotice: null,
 };

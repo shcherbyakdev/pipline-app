@@ -21,6 +21,8 @@ export type ConnectionStatus = "active" | "needs_reconnect";
 export type Connection = {
   id: string;
   orgId: string;
+  /** Who connected it — the refusal push goes to them. */
+  userId: string;
   /** null = shared (blocks everyone, receives bookings with no person). */
   staffId: string | null;
   accountEmail: string;
@@ -40,11 +42,12 @@ export type Connection = {
 
 /** The columns the page and the sync read — never the token columns. */
 export const CONNECTION_COLUMNS =
-  "id, org_id, staff_id, account_email, push_calendar_id, busy_calendar_ids, calendars, status, invite_clients, cancel_on_delete, reschedule_on_move, watch_channel_id, watch_resource_id, watch_expires_at, inbound_checked_at, inbound_notice";
+  "id, org_id, user_id, staff_id, account_email, push_calendar_id, busy_calendar_ids, calendars, status, invite_clients, cancel_on_delete, reschedule_on_move, watch_channel_id, watch_resource_id, watch_expires_at, inbound_checked_at, inbound_notice";
 
 type ConnectionRow = {
   id: string;
   org_id: string;
+  user_id: string;
   staff_id: string | null;
   account_email: string;
   push_calendar_id: string | null;
@@ -65,6 +68,7 @@ export function rowToConnection(r: ConnectionRow): Connection {
   return {
     id: r.id,
     orgId: r.org_id,
+    userId: r.user_id,
     staffId: r.staff_id,
     accountEmail: r.account_email,
     pushCalendarId: r.push_calendar_id,

@@ -499,6 +499,16 @@
       "test": {
         "title": "Booklo notifications are on",
         "body": "This device will hear about new bookings."
+      },
+      "calendarRefused": {
+        "title": "Google Calendar",
+        "body": "{client}: {reason} The event was put back."
+      },
+      "calendarReason": {
+        "slotTaken": "that time isn't free.",
+        "spaces": "space bookings are moved in Booklo, not in Google.",
+        "notFound": "the booking can't be moved any more.",
+        "failed": "the move didn't go through."
       }
     },
     "appointment": "Appointment"
@@ -1862,13 +1872,21 @@
           "google": "Google didn't complete the connection. Try again.",
           "no_calendars": "That Google account has no calendars."
         }
-      }
+      },
+      "inviteClients": "Invite clients to the Google event",
+      "inviteClientsHint": "They get a Google Calendar invitation from your account, on top of Booklo's confirmation email.",
+      "cancelOnDelete": "When I delete or decline the event in Google, cancel the booking",
+      "rescheduleOnMove": "When I move the event in Google, reschedule the booking",
+      "inboundHint": "Booklo emails the client either way. A move that isn't possible is put back and you're told why.",
+      "inboundNotice": "Last refused change — {client}: {reason}",
+      "watching": "Google tells Booklo about changes as they happen.",
+      "polling": "Booklo checks Google for changes every 15 minutes."
     },
     "how": {
       "title": "How it works",
       "push": "Every confirmed booking becomes an event in the calendar you choose. Cancellations, reschedules and accepted requests keep it in step.",
       "busy": "Anything marked Busy in the calendars you tick can't be booked — on your booking page and in reschedule pickers.",
-      "record": "Booklo stays the record: change a booking here, not in Google. Moving the Google event doesn't move the booking."
+      "record": "Change a booking in Booklo, or — with the switches on — delete or move the event in Google and Booklo follows, emailing the client."
     }
   }
 }

@@ -46,7 +46,7 @@ describe("eventsToBusy", () => {
 });
 
 const shared: Connection = {
-  id: "conn-shared", orgId: "org-1", staffId: null, accountEmail: "s@example.com",
+  id: "conn-shared", orgId: "org-1", userId: "user-1", staffId: null, accountEmail: "s@example.com",
   pushCalendarId: "s@example.com", busyCalendarIds: ["s@example.com", "holidays"], calendars: [], status: "active",
   inviteClients: false, cancelOnDelete: false, rescheduleOnMove: false, watch: null, inboundCheckedAt: null, inboundNotice: null,
 };

@@ -5,6 +5,7 @@ import { createGoogleClient } from "@/lib/google/calendar";
 import { apiBase, googleConfigured, oauthConfig, redirectUri, supabaseConnectStore } from "@/features/calendar-sync/connections";
 import { completeConnect, NONCE_COOKIE } from "@/features/calendar-sync/oauth-flow";
 import { runCalendarSync } from "@/features/calendar-sync/run";
+import { refreshWatch } from "@/features/calendar-sync/inbound-run";
 
 /* GET /api/google/callback?code=&state= — Google sends the person back
    here (spec 2026-09-05 §5). The signed state and the nonce cookie must
@@ -50,5 +51,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[calendar] first sync after connect failed:", error);
   }
+  // A reconnect with the inbound switches on gets its channel back now.
+  await refreshWatch(result.connectionId, { force: true }, db);
   return done(result.reconnected ? "reconnected=1" : "connected=1");
 }

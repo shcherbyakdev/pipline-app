@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DialogSelect } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { disconnectCalendar, setConnectionCalendars, setConnectionStaff } from "../actions";
+import { disconnectCalendar, setConnectionCalendars, setConnectionStaff, setConnectionSwitches } from "../actions";
 import type { Connection } from "../connections";
 import { ConnectLink } from "./connect-link";
 
@@ -45,6 +46,19 @@ export function ConnectionRow({
     startTransition(async () => {
       setShown({ ...shown, staffId });
       const result = await setConnectionStaff({ connectionId: connection.id, staffId });
+      if (!result.ok) toast.error(result.error);
+    });
+  };
+  const saveSwitches = (next: Partial<Pick<Connection, "inviteClients" | "cancelOnDelete" | "rescheduleOnMove">>) => {
+    startTransition(async () => {
+      const merged = { ...shown, ...next };
+      setShown(merged);
+      const result = await setConnectionSwitches({
+        connectionId: connection.id,
+        inviteClients: merged.inviteClients,
+        cancelOnDelete: merged.cancelOnDelete,
+        rescheduleOnMove: merged.rescheduleOnMove,
+      });
       if (!result.ok) toast.error(result.error);
     });
   };
@@ -135,6 +149,16 @@ export function ConnectionRow({
         <p className="text-muted-foreground text-[11px] leading-4">{t("blockFromHint")}</p>
       </fieldset>
 
+      <div className="flex flex-col gap-2 border-t pt-3">
+        <SwitchRow id={`${id}-invite`} label={t("inviteClients")} hint={t("inviteClientsHint")} checked={shown.inviteClients} onChange={(v) => saveSwitches({ inviteClients: v })} />
+        <SwitchRow id={`${id}-cancel`} label={t("cancelOnDelete")} checked={shown.cancelOnDelete} onChange={(v) => saveSwitches({ cancelOnDelete: v })} />
+        <SwitchRow id={`${id}-move`} label={t("rescheduleOnMove")} checked={shown.rescheduleOnMove} onChange={(v) => saveSwitches({ rescheduleOnMove: v })} />
+        <p className="text-muted-foreground text-[11px] leading-4">
+          {t("inboundHint")} {shown.cancelOnDelete || shown.rescheduleOnMove ? (shown.watch ? t("watching") : t("polling")) : null}
+        </p>
+        {shown.inboundNotice ? <InboundNotice notice={shown.inboundNotice} /> : null}
+      </div>
+
       <div className="flex items-center justify-between gap-2 pt-1">
         <p className="text-muted-foreground text-[11px] leading-4">{t("disconnectNote")}</p>
         {confirming ? (
@@ -154,4 +178,28 @@ export function ConnectionRow({
       </div>
     </div>
   );
+}
+
+function SwitchRow({ id, label, hint, checked, onChange }: { id: string; label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-col">
+        <label htmlFor={id} className="text-xs font-medium">
+          {label}
+        </label>
+        {hint ? <p className="text-muted-foreground text-[11px] leading-4">{hint}</p> : null}
+      </div>
+      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+/** `reason:client` as inbound.ts writes it; the reason maps to the same
+    line the refusal push uses. */
+function InboundNotice({ notice }: { notice: string }) {
+  const t = useTranslations("integrations.google");
+  const tr = useTranslations("emails.push.calendarReason");
+  const [reason, client] = notice.split(":");
+  const key = (["slotTaken", "spaces", "notFound", "failed"] as const).find((k) => k === reason) ?? "failed";
+  return <p className="text-destructive text-[11px] leading-4">{t("inboundNotice", { client, reason: tr(key) })}</p>;
 }

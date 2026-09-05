@@ -7,6 +7,7 @@ import { requireOrg } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CONNECTION_COLUMNS, requeueScope, rowToConnection } from "./connections";
 import { runCalendarSync } from "./run";
+import { refreshWatch } from "./inbound-run";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -67,7 +68,47 @@ export async function setConnectionCalendars(input: unknown): Promise<ActionResu
     } catch (e) {
       console.error("[calendar] re-sync after destination change:", e);
     }
+    // The push channel watches a calendar: reopen it on the new one.
+    await refreshWatch(connection.id, { force: true }, admin);
   }
+  revalidatePath("/integrations");
+  return { ok: true };
+}
+
+const switchesInput = z.object({
+  connectionId: z.string().uuid(),
+  inviteClients: z.boolean(),
+  cancelOnDelete: z.boolean(),
+  rescheduleOnMove: z.boolean(),
+});
+
+/** The three v2 switches (spec v2 decisions 16–17). Guests: the scope's
+    upcoming bookings are re-mirrored so existing events gain or lose the
+    client (Google mails them). Inbound: the channel follows the switches. */
+export async function setConnectionSwitches(input: unknown): Promise<ActionResult> {
+  const parsed = switchesInput.safeParse(input);
+  if (!parsed.success) return invalid();
+  const { org, admin, connection } = await ownConnection(parsed.data.connectionId);
+  if (!connection) return invalid();
+  const { error } = await admin
+    .from("calendar_connections")
+    .update({
+      invite_clients: parsed.data.inviteClients,
+      cancel_on_delete: parsed.data.cancelOnDelete,
+      reschedule_on_move: parsed.data.rescheduleOnMove,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", connection.id);
+  if (error) return fail("setConnectionSwitches", error);
+  if (parsed.data.inviteClients !== connection.inviteClients) {
+    try {
+      await requeueScope(org.id, connection.staffId, admin);
+      await runCalendarSync({ orgId: org.id }, admin);
+    } catch (e) {
+      console.error("[calendar] re-sync after guests change:", e);
+    }
+  }
+  await refreshWatch(connection.id, {}, admin);
   revalidatePath("/integrations");
   return { ok: true };
 }

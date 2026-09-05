@@ -8,6 +8,7 @@ import { reminderQuotaExceeded } from "@/lib/billing/entitlements";
 import { plansEnforced } from "@/lib/flags";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { runCalendarSync } from "@/features/calendar-sync/run";
+import { runInbound } from "@/features/calendar-sync/inbound-run";
 
 // A tick is up to REMINDER_BATCH_LIMIT (25) sequential sends plus a handful
 // of reads per row; the platform default function budget is tighter than a
@@ -92,7 +93,10 @@ export async function POST(request: Request) {
       console.error("[calendar] drain tick failed:", error);
       calendar = { error: "calendar sync failed" };
     }
-    return Response.json({ ...summary, calendar });
+    // Google → Booklo (spec v2 decision 19): the poll fallback and the
+    // channel renewal. runInbound never throws.
+    const inbound = await runInbound({}, admin);
+    return Response.json({ ...summary, calendar, inbound });
   } catch (error) {
     console.error("[scheduling] drain tick failed:", error);
     return Response.json({ error: "drain failed" }, { status: 500 });

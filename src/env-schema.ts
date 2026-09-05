@@ -53,6 +53,9 @@ export const envSchema = z.object({
   GCAL_TOKEN_KEY: z.string().min(1).optional(),
   // Local QA only: point the OAuth and API clients at a fake Google
   // (scripts/fake-google.mjs). Refused in production below.
+  // Search Console meta-tag token: Google pushes calendar notifications only
+  // to a verified domain (v2 decision 20). Absent → poll every tick instead.
+  GOOGLE_SITE_VERIFICATION: z.string().min(1).optional(),
   GOOGLE_OAUTH_BASE: z.string().url().optional(),
   GOOGLE_API_BASE: z.string().url().optional(),
 }).superRefine((value, ctx) => {
