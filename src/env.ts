@@ -27,4 +27,9 @@ export const env = envSchema.parse({
   VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
   VAPID_SUBJECT: process.env.VAPID_SUBJECT,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  GCAL_TOKEN_KEY: process.env.GCAL_TOKEN_KEY,
+  GOOGLE_OAUTH_BASE: process.env.GOOGLE_OAUTH_BASE,
+  GOOGLE_API_BASE: process.env.GOOGLE_API_BASE,
 });
