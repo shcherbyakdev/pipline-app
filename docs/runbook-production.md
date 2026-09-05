@@ -345,3 +345,53 @@ environments may carry their own pair, but production keeps its first one.
 
 Push needs no vendor account: the browsers' own push services (Google,
 Apple, Mozilla) deliver, and `web-push` does the encryption.
+
+## 9. Google Calendar (OAuth client + token key)
+
+Three values, all optional; with any missing the /integrations page says
+"not set up", the OAuth routes 404, and sync and busy reads are skipped
+(spec 2026-09-05 §2.13). The wizard walks the Google Cloud console once
+and writes them locally and on Vercel:
+
+```
+bash scripts/setup-google-calendar.sh
+```
+
+| Value | What it is | Where it comes from |
+|---|---|---|
+| `GOOGLE_CLIENT_ID` | The OAuth web client Booklo signs in with | Google Cloud → Auth Platform → Clients (one client, every environment's redirect URI on it) |
+| `GOOGLE_CLIENT_SECRET` | Its secret (shown once at creation) | same |
+| `GCAL_TOKEN_KEY` | 32 random bytes, base64: seals the stored Google tokens (AES-256-GCM) | `openssl rand -base64 32`; one per environment |
+
+Redirect URI per environment: `<origin>/api/google/callback`, registered
+verbatim on the client. `NEXT_PUBLIC_APP_URL` must be the same origin the
+person is on, or Google answers `redirect_uri_mismatch`.
+
+**Rotating `GOOGLE_CLIENT_SECRET`:** create a new secret on the same client
+in the console, set it on Vercel, redeploy, then delete the old one. Existing
+connections keep working — refresh tokens belong to the client, not the
+secret.
+
+**Rotating `GCAL_TOKEN_KEY`:** every stored token becomes unreadable; each
+connection flips to "needs reconnect" the first time it is used and the page
+offers Reconnect. Plan it like the VAPID rotation: announce, rotate, watch
+/integrations. Bookings queued while a connection is in that state wait
+(no attempts burned) and push once it is reconnected.
+
+**Verification.** The `calendar.events` scope is *sensitive*: while the
+consent screen is in Testing only the listed test users (up to 100) can
+connect, and their refresh tokens expire after seven days of the app
+staying unverified in Testing — reconnect prompts will appear weekly until
+the app is verified. Submit for verification (Auth Platform → Branding /
+Verification) before inviting real providers.
+
+**Fake Google for local QA.** `node scripts/fake-google.mjs` serves the
+consent, token and Calendar v3 endpoints in memory; the env comment at its
+top shows the five variables to run `next dev` with. The two `*_BASE`
+overrides are refused when `APP_ENV=production`.
+
+**Where things show up.** A push that fails is retried up to five times by
+the 15-minute drain tick (`/api/scheduling/drain` answers with a `calendar`
+summary next to the reminder counts); the row keeps its `last_error` in
+`booking_calendar_events`. A connection Google no longer honours
+(`invalid_grant`) is `needs_reconnect` in `calendar_connections`.
