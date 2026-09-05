@@ -4,6 +4,8 @@ import * as React from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { relativeDayLabel } from "@/features/scheduling/slot-paging";
+import { cn } from "@/lib/utils";
+import { CHANGE_LINK, CHIP, STEP_LABEL } from "@/features/booking-page/render/type";
 import { useSlotFormats } from "./use-slot-formats";
 
 const SHOW = 10;
@@ -34,14 +36,14 @@ export function NextAvailable({ byDay, today, onPick, onLater, onSooner }: { byD
         const rel = relativeDayLabel(d, today);
         return (
           <div key={d} className="flex flex-col gap-2">
-            <p className="text-muted-foreground text-xs font-medium">
-              {rel ? <span className="text-foreground">{t(rel)}</span> : null}
-              {rel ? " · " : ""}
-              {dayFmt.format(new Date(daySlots[0]!))}
+            <p className={STEP_LABEL}>
+              {rel ? <span>{t(rel)}</span> : null}
+              {rel ? <span className="text-muted-foreground font-normal">{" · "}</span> : null}
+              <span className={cn(rel && "text-muted-foreground font-normal")}>{dayFmt.format(new Date(daySlots[0]!))}</span>
             </p>
             <div className="flex flex-wrap gap-2">
               {shown.map((s) => (
-                <Button key={s} variant="outline" size="sm" className="wt-surface" onClick={() => onPick(s)} aria-label={`${dayFmt.format(new Date(s))}, ${timeLabel(s, daySlots)}`}>
+                <Button key={s} variant="outline" className={cn(CHIP, "h-9 px-3.5 tabular-nums")} onClick={() => onPick(s)} aria-label={`${dayFmt.format(new Date(s))}, ${timeLabel(s, daySlots)}`}>
                   {timeLabel(s, daySlots)}
                 </Button>
               ))}
@@ -51,12 +53,12 @@ export function NextAvailable({ byDay, today, onPick, onLater, onSooner }: { byD
       })}
       <div className="flex flex-wrap items-center gap-3">
         {total > limit ? (
-          <Button variant="outline" size="sm" className="wt-surface" onClick={() => setLimit((n) => n + SHOW)}>{t("showMore")}</Button>
+          <Button variant="outline" size="sm" className={cn(CHIP, "h-8 px-3")} onClick={() => setLimit((n) => n + SHOW)}>{t("showMore")}</Button>
         ) : (
-          <Button variant="outline" size="sm" className="wt-surface" onClick={onLater}>{t("laterDates")}</Button>
+          <Button variant="outline" size="sm" className={cn(CHIP, "h-8 px-3")} onClick={onLater}>{t("laterDates")}</Button>
         )}
         {onSooner ? (
-          <button type="button" className="text-muted-foreground text-sm underline underline-offset-3" onClick={onSooner}>{t("backToSoonest")}</button>
+          <button type="button" className={CHANGE_LINK} onClick={onSooner}>{t("backToSoonest")}</button>
         ) : null}
       </div>
     </>

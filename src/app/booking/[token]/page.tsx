@@ -11,6 +11,14 @@ import { INTL_LOCALES } from "@/i18n/config";
 import { publicLocale } from "@/i18n/public";
 import { PublicIntl } from "@/i18n/public-provider";
 import { PublicLanguageLinks } from "@/i18n/public-language-links";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+// The client's page for one booking, in the same world as the page they
+// booked on: the soft ground, one floating panel, the booking as a card.
+const GROUND = "bg-sidebar flex flex-1 flex-col";
+const COLUMN = "mx-auto flex w-full max-w-md flex-col gap-5 px-3 pt-4 pb-8 sm:px-6 sm:pt-10";
+const PANEL = "bg-background rounded-2xl border p-5 shadow-(--shadow-card) sm:p-7 flex flex-col gap-4";
 
 // Booking statuses → `public.manage.status.*` keys; anything unknown shows
 // its raw status rather than a blank line.
@@ -31,9 +39,13 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
     // No org yet: `?lang=` and the region still decide, then English.
     const t = await getTranslations({ locale: await publicLocale(null, sp), namespace: "public.manage" });
     return (
-      <main className="mx-auto w-full max-w-md p-6">
-        <p className="text-muted-foreground text-sm">{t("tooManyRequests")}</p>
-      </main>
+      <div className={GROUND}>
+        <main className={COLUMN}>
+          <div className={PANEL}>
+            <p className="text-muted-foreground text-sm">{t("tooManyRequests")}</p>
+          </div>
+        </main>
+      </div>
     );
   }
   if (result.status !== "ok") notFound();
@@ -75,12 +87,14 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
   const statusKey = (STATUS_KEY as Partial<Record<string, (typeof STATUS_KEY)[keyof typeof STATUS_KEY]>>)[b.status];
   return (
     <PublicIntl locale={locale} timeZone={b.orgTimezone}>
-    <main className="mx-auto flex w-full max-w-md flex-col gap-4 p-6">
-      <h1 className="text-lg font-semibold">{b.orgName}</h1>
-      <div className="flex flex-col gap-1 rounded-md border p-4 text-sm">
+    <div className={GROUND}>
+    <main className={COLUMN}>
+      <div className={PANEL}>
+      <h1 className="text-[17px] leading-tight font-medium">{b.orgName}</h1>
+      <div className="bg-card flex flex-col gap-1 rounded-xl border p-4 text-sm">
         <p className="font-medium">{b.serviceName}</p>
         {staffName ? <p className="text-muted-foreground">{tConfirmed("with", { name: staffName })}</p> : null}
-        <p>
+        <p className="tabular-nums">
           {whenLineFor(
             {
               startsAt: b.startsAt,
@@ -110,7 +124,7 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
       </div>
       {b.status === "confirmed" ? (
         <>
-          <a className="text-sm underline" href={`/booking/${token}/calendar.ics`}>
+          <a className={cn(buttonVariants({ variant: "outline" }), "h-9 self-start px-3.5")} href={`/booking/${token}/calendar.ics`}>
             {tConfirmed("addToCalendar")}
           </a>
           {isInFuture ? (
@@ -144,8 +158,10 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
           />
         </>
       ) : null}
+      </div>
       <PublicLanguageLinks locale={locale} />
     </main>
+    </div>
     </PublicIntl>
   );
 }

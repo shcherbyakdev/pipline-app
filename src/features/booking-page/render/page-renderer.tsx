@@ -21,8 +21,14 @@ import { BookingSection } from "./sections/booking";
 
 /** Page column width per layout — the public <main> and the studio preview share it. */
 export function pageContainerClass(layout: PageDocument["layout"]): string {
-  return layout === "split" ? "max-w-5xl" : "max-w-lg";
+  return layout === "split" ? "max-w-5xl" : "max-w-xl";
 }
+
+/* The page itself: one floating panel on the shell's soft ground — the
+   admin's content panel and the landing's hero card, drawn with the widget
+   theme's shapes (2r) and the app's hairline + card shadow. Sections lay
+   out inside it; the badge and the language links stay on the ground. */
+export const PAGE_PANEL_CLASS = "wt-r2 bg-background border shadow-(--shadow-card) p-5 sm:p-7";
 
 function renderSection(section: Section, ctx: RenderContext, pickers: Pickers, crossLink: RenderContext["crossLink"], heroCtaHidden: boolean) {
   switch (section.type) {
@@ -87,7 +93,7 @@ export function PageRenderer({
       {/* Container queries resolve against an ancestor, never the element
           that declares containment — so the @container lives on this plain
           wrapper and the @3xl: variants on the layout div inside it. */}
-      <div className="@container w-full">
+      <div className={cn("@container w-full", PAGE_PANEL_CLASS)}>
         <div
           className={cn("flex w-full flex-col gap-8", split && "@3xl:grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)] @3xl:gap-x-10")}
           style={split ? { gridTemplateRows: `repeat(${Math.max(others, 1)}, auto)` } : undefined}

@@ -1,12 +1,15 @@
-/* Shared header for the two token surfaces (/p and /portal) plus the
-   BrandingForm settings preview. Pure and server-compatible. /p and /portal
-   source branding from getOrgBranding at the call site; the preview sources
-   it from getBrandingSettings but overrides the accent with the form's own
-   client-regex-validated (not DB CHECK-validated) input while the user is
-   typing an unsaved value. Either way the accent is expected to already be
-   a #rrggbb hex, safe for inline style. `aside` is the booking page's link
-   to its sibling channel page (render/cross-link.tsx); /p and /portal never
-   pass it. */
+import { cn } from "@/lib/utils";
+
+/* Shared header for the hosted booking page's Header section, the two token
+   surfaces (/p and /portal) and the BrandingForm settings preview. Pure and
+   server-compatible. The org's identity block, as the landing's hero card
+   draws it (2026-09-06): a disc with the logo or the initial, the name at
+   17px medium, the tagline as secondary text. The accent lives on the disc
+   (a fill with a white letter, like every accent control on the page); no
+   accent rule under the header — the page panel carries the structure.
+   `aside` is the booking page's link to its sibling channel page
+   (render/cross-link.tsx); /p and /portal never pass it. The accent is
+   expected to already be a #rrggbb hex, safe for inline style. */
 export function BrandedHeader({
   orgName,
   accentColor,
@@ -20,22 +23,33 @@ export function BrandedHeader({
   subtitle?: string;
   aside?: React.ReactNode;
 }) {
+  const initial = orgName.trim()[0]?.toUpperCase() ?? "";
   return (
-    <div
-      className="flex flex-col gap-2 border-b-2 pb-3"
-      style={accentColor ? { borderBottomColor: accentColor } : undefined}
-    >
-      <div className="flex items-center gap-2">
-        {logoUrl ? (
-          // External Supabase public URL; next/image would need
-          // remotePatterns configured for marginal gain on a tiny logo.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt={`${orgName} logo`} className="h-6 w-auto max-w-32 object-contain" />
-        ) : null}
-        <span className="text-sm font-semibold">{orgName}</span>
-        {aside ? <span className="ml-auto">{aside}</span> : null}
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      {logoUrl ? (
+        // External Supabase public URL; next/image would need
+        // remotePatterns configured for marginal gain on a tiny logo.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logoUrl} alt={`${orgName} logo`} className="h-11 w-auto max-w-40 shrink-0 object-contain" />
+      ) : (
+        <span
+          aria-hidden
+          // wt-r2: the widget theme squares every `rounded` to r; the disc
+          // takes the card radius. Ink when the org has no accent.
+          className={cn(
+            "wt-r2 flex size-11 shrink-0 items-center justify-center rounded-2xl text-lg font-semibold",
+            accentColor ? "text-white" : "bg-primary text-primary-foreground",
+          )}
+          style={accentColor ? { background: accentColor } : undefined}
+        >
+          {initial}
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-[17px] leading-tight font-medium text-balance">{orgName}</p>
+        {subtitle ? <p className="text-muted-foreground mt-0.5 text-sm text-pretty">{subtitle}</p> : null}
       </div>
-      {subtitle ? <p className="text-muted-foreground text-xs">{subtitle}</p> : null}
+      {aside ? <div className="shrink-0">{aside}</div> : null}
     </div>
   );
 }

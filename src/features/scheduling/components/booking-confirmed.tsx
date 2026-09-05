@@ -1,9 +1,15 @@
 import { withLang } from "@/i18n/public-locale";
 import { useLocale, useTranslations } from "next-intl";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Tick02Icon } from "@hugeicons/core-free-icons";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { CARD, CHIP } from "@/features/booking-page/render/type";
 
 // The post-booking panel, shared by the appointment and rental flows.
 // Plain markup — no state, no client hooks — so it inherits whichever
-// boundary imports it.
+// boundary imports it. The landing card's "Booked" moment: an accent disc
+// with the check, the title, what was booked, then the two ways on.
 export function BookingConfirmed({
   token,
   summary,
@@ -22,30 +28,40 @@ export function BookingConfirmed({
   const t = useTranslations("public.confirmed");
   const locale = useLocale();
   return (
-    <div className="flex flex-col gap-3 rounded-md border p-4">
-      <h2 className="font-semibold">{pending ? t("requestSent") : t("bookingConfirmed")}</h2>
-      {summary ? (
-        <div>
-          <p className="font-medium">{summary.title}</p>
-          <p>{summary.whenLine}</p>
+    <div className={cn(CARD, "wt-enter flex flex-col gap-4 p-5")}>
+      <div className="flex items-start gap-3">
+        <span aria-hidden className="wt-primary wt-round flex size-9 shrink-0 items-center justify-center rounded-full">
+          <HugeiconsIcon icon={Tick02Icon} size={18} strokeWidth={2.5} />
+        </span>
+        <div className="min-w-0 pt-1">
+          <h2 className="text-[17px] leading-tight font-medium">{pending ? t("requestSent") : t("bookingConfirmed")}</h2>
+          {summary ? (
+            <p className="mt-1.5 text-sm">
+              <span className="font-medium">{summary.title}</span>
+              <span className="text-muted-foreground"> · </span>
+              <span className="tabular-nums">{summary.whenLine}</span>
+            </p>
+          ) : null}
+          {staffName ? <p className="mt-0.5 text-sm">{t("with", { name: staffName })}</p> : null}
+          <p className="text-muted-foreground mt-1.5 text-sm text-pretty">
+            {pending ? t("pendingBody") : t("confirmedBody")}
+          </p>
         </div>
-      ) : null}
-      {staffName ? <p className="text-sm">{t("with", { name: staffName })}</p> : null}
-      <p className="text-muted-foreground text-sm">
-        {pending ? t("pendingBody") : t("confirmedBody")}
-      </p>
-      {/* New tab: inside the website embed these would otherwise navigate
-          the iframe itself into the manage page (audit 2026-08-24).
-          `?lang=` carries this page's language to the manage page. */}
-      <a className="text-sm underline" href={withLang(`/booking/${token}`, locale)} target="_blank" rel="noopener">
-        {pending ? t("viewRequest") : t("viewBooking")}
-      </a>
-      {/* No .ics while pending — nothing is on anyone's calendar yet. */}
-      {pending ? null : (
-        <a className="text-sm underline" href={`/booking/${token}/calendar.ics`} target="_blank" rel="noopener">
-          {t("addToCalendar")}
+      </div>
+      <div className="flex flex-wrap gap-2 sm:pl-12">
+        {/* New tab: inside the website embed these would otherwise navigate
+            the iframe itself into the manage page (audit 2026-08-24).
+            `?lang=` carries this page's language to the manage page. */}
+        <a className={cn(buttonVariants({ variant: "outline" }), CHIP, "h-9 px-3.5")} href={withLang(`/booking/${token}`, locale)} target="_blank" rel="noopener">
+          {pending ? t("viewRequest") : t("viewBooking")}
         </a>
-      )}
+        {/* No .ics while pending — nothing is on anyone's calendar yet. */}
+        {pending ? null : (
+          <a className={cn(buttonVariants({ variant: "outline" }), CHIP, "h-9 px-3.5")} href={`/booking/${token}/calendar.ics`} target="_blank" rel="noopener">
+            {t("addToCalendar")}
+          </a>
+        )}
+      </div>
     </div>
   );
 }

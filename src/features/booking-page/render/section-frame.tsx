@@ -54,10 +54,12 @@ export function SectionFrame({
           select(id);
         }}
         className={cn(
-          "absolute -top-3 left-2 z-10 rounded-full px-2 py-0.5 text-[10px] font-medium text-white outline-none transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-white/70",
+          "absolute -top-3 left-2 z-10 rounded-full px-2 py-0.5 text-[10px] font-medium outline-none transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-white/70",
           selected || hidden ? "opacity-100" : "opacity-0",
         )}
-        style={{ background: "var(--widget-accent)" }}
+        // The accent's own label colour (widget-theme.ts): white on an org
+        // accent, the theme's primary foreground on the ink/off-white fallback.
+        style={{ background: "var(--widget-accent)", color: "var(--widget-accent-fg, #ffffff)" }}
       >
         {chip.label}
         {hidden ? ` · ${chrome.hidden}` : ""}
