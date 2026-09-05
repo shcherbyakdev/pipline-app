@@ -297,3 +297,84 @@ lines.
 - **Google verification**: the `calendar.events` scope is *sensitive*; the
   consent screen stays in Testing (100 test users) until the app is
   verified — a launch-checklist item, not code.
+
+---
+
+## v2 — Calendly parity (same day, ruling: "make the same integration as Calendly has")
+
+Calendly's Google connection does three more things than v1 (its help pages,
+verified 2026-09-05): the invitee is a **guest** on the event; and two opt-in
+switches — *"When you decline or delete a Calendly meeting in Google Calendar,
+it'll also be canceled in Calendly"* and *"When you update the date or time of
+a Calendly meeting in Google Calendar, it'll also be rescheduled in Calendly."*
+Decision 15 ("no Google → Booklo edits") is superseded by this section; the
+How-it-works copy changes with it. Left out on purpose: buffers written as
+separate events (Calendly optional, nobody asked) and Google Meet (Calendly's
+is an event-type *location*; Booklo has no location concept — its own slice).
+
+### v2 decisions
+
+16. **Clients are guests.** `invite_clients` per connection, default on
+    (Calendly's default). The event carries the client as an attendee
+    (`guestsCanInviteOthers`/`guestsCanSeeOtherGuests` false) and every write
+    passes `sendUpdates=all`, so Google mails the invitation, updates and the
+    cancellation from the owner's account. Booklo's own mails stay (they carry
+    the manage link — the client's record). The switch says the client gets
+    both. Off → no attendee, no Google mail.
+17. **Two inbound switches, off by default**, Calendly's wording:
+    `cancel_on_delete` and `reschedule_on_move`. Both read the same signal:
+    a Google event that carries our `bookloBookingId` marker and now differs
+    from the booking. A deleted event (status `cancelled`) or one the account
+    declined → cancel the booking as the provider (client cancellation mail,
+    staff notice). A moved event → reschedule through Booklo's own rules
+    (engine pre-check with the booking excluded and a fresh Google read,
+    then `reschedule_booking_system`; the client gets the reschedule mail
+    with a new manage link). Start moves; the duration stays Booklo's — the
+    mirror re-asserts the end. Appointments only: a moved stay or hourly
+    space snaps back with a notice (their reschedule RPCs are session-bound;
+    a later slice). With a switch off, Google is left alone — the mirror is
+    re-asserted only when the booking next changes (Calendly behaviour).
+18. **Refusals snap back and say why.** A move the engine or the database
+    refuses (slot taken, outside hours, Busy in Google, past) re-queues the
+    booking so the mirror puts the event back, and writes a one-line
+    `inbound_notice` on the connection that the /integrations row shows until
+    the next clean poll; the connecting user also gets a push. No email.
+19. **Detection: push + poll.** `events.watch` on the destination calendar
+    (channel token = HMAC of the connection id, address =
+    `/api/google/webhook`, Google's 7-day cap), renewed by the tick when
+    under a day left, stopped when both switches are off. Every
+    notification and every tick runs the same `pollConnection`: one
+    `events.list` with `updatedMin` = last check minus five minutes,
+    `showDeleted`, filtered to our marker. Idempotent by construction: a
+    cancelled booking, a row already rescheduled, or an event whose id no
+    longer matches the booking's state is skipped. Locally (http origin)
+    no channel is created and the tick polls; the fake Google posts the
+    notification itself so the webhook path is exercised too.
+20. **Domain verification.** Google only pushes to a verified domain:
+    `GOOGLE_SITE_VERIFICATION` renders Next's `metadata.verification.google`
+    tag; the wizard walks Search Console → Cloud console → Domain
+    verification. Absent → no watch, poll only.
+
+### v2 data (migration 0077)
+
+```sql
+alter table calendar_connections
+  add column invite_clients boolean not null default true,
+  add column cancel_on_delete boolean not null default false,
+  add column reschedule_on_move boolean not null default false,
+  add column watch_channel_id text,
+  add column watch_resource_id text,
+  add column watch_expires_at timestamptz,
+  add column inbound_checked_at timestamptz,
+  add column inbound_notice text;
+-- reschedule_booking_system(p_booking_id, p_starts_at, p_token_hash): the
+-- admin reschedule body without the membership guard; service_role only.
+```
+
+### v2 modules
+
+`lib/google/calendar.ts`: `listEvents` options (`updatedMin`, `showDeleted`),
+`sendUpdates` on writes, `watchEvents`, `stopChannel`. `features/calendar-sync/
+inbound.ts`: `classifyInbound` (pure), `pollConnection`, `applyGoogleCancel`,
+`applyGoogleReschedule`, `ensureWatch`, `runInboundDrain`. Route
+`app/api/google/webhook/route.ts`. Page: three switches + the notice line.
