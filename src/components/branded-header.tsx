@@ -30,7 +30,7 @@ export function BrandedHeader({
       ) : null}
       <div className="min-w-0 flex-1">
         <p className={H2}>{orgName}</p>
-        {subtitle ? <p className="text-muted-foreground mt-1 text-[15px] text-pretty">{subtitle}</p> : null}
+        {subtitle ? <p className="text-muted-foreground mt-1 text-sm text-pretty">{subtitle}</p> : null}
       </div>
       {aside ? <div className="shrink-0">{aside}</div> : null}
     </div>
