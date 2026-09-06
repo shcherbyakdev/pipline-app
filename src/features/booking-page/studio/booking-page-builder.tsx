@@ -379,7 +379,7 @@ export function BookingPageBuilder({
             dark={resolved === "dark"}
             // Same shell as /[handle], resolved for the preview: scoping
             // .light/.dark here keeps it faithful whatever the admin's theme is.
-            pageClassName={cn(resolved, "bg-sidebar text-foreground")}
+            pageClassName={cn(resolved, "bg-background text-foreground")}
             desktopMaxWidth={pageContainerClass(draft.doc.layout)}
             // Everything that changes how this looks sits over the preview it
             // changes: the widget's layout, then the two view switches. A

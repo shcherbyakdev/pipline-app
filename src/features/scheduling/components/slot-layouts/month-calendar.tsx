@@ -7,15 +7,14 @@ import { monthGrid, monthOf } from "@/features/rentals/calendar-grid";
 import type { SlotWindow } from "@/features/scheduling/slot-paging";
 import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
-import { CHIP, PANEL, STEP_LABEL } from "@/features/booking-page/render/type";
+import { CHIP, STEP_LABEL } from "@/features/booking-page/render/type";
 import { useSlotFormats } from "./use-slot-formats";
 
-/* Calendar + times (the default template), drawn as the landing's hero
-   card draws it: the month on a soft panel, days with a free time as
-   accent-tinted discs, the picked day as the accent fill, and the day's
-   times as white chips beside the grid (below it on a narrow widget). The
-   picked day resets with the window (the parent keys this component by
-   window.from). */
+/* Calendar + times (the default template): the month straight on the
+   ground, days with a free time as accent-tinted discs, the picked day as
+   the accent fill, and the day's times as white chips beside the grid
+   (below it on a narrow widget). The picked day resets with the window
+   (the parent keys this component by window.from). */
 export function MonthCalendar({ byDay, window: w, today, onPick }: { byDay: Map<string, string[]>; window: SlotWindow; today: string; onPick: (iso: string) => void }) {
   const t = useTranslations("public.slots");
   const { dayFmt, timeLabel } = useSlotFormats();
@@ -26,8 +25,8 @@ export function MonthCalendar({ byDay, window: w, today, onPick }: { byDay: Map<
   const day = picked && byDay.has(picked) ? picked : first;
   const daySlots = day ? (byDay.get(day) ?? []) : [];
   return (
-    <div className="grid items-start gap-4 @md:grid-cols-[minmax(0,1fr)_minmax(0,11rem)]">
-      <div className={cn(PANEL, "flex flex-col gap-1 p-3 sm:p-4")}>
+    <div className="grid items-start gap-6 @md:grid-cols-[minmax(0,1fr)_minmax(0,11rem)]">
+      <div className="flex flex-col gap-1">
         <div className="grid grid-cols-7 text-center">
           {weekdays.map((wd) => (
             <span key={wd} className="text-muted-foreground py-1 text-xs font-medium">{wd}</span>

@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { moneyInfoLines, totalCents, depositCents, type MoneyFields } from "@/features/rentals/pricing";
 import { cn } from "@/lib/utils";
-import { PANEL } from "@/features/booking-page/render/type";
+
 
 // Confirm-step money block, shared by RentalBookingFlow and
 // HourlyBookingFlow. `units` is the nights/days count (range flow) or
@@ -38,7 +38,7 @@ export function BookingMoneySummary({
   if (lines.length === 0 && offering.termsText === null) return null;
   const termsId = `${idPrefix}terms-accepted`;
   return (
-    <div className={cn(PANEL, "flex flex-col gap-2 px-4 py-3 text-sm")}>
+    <div className={cn("flex flex-col gap-2 border-t pt-4 text-sm")}>
       {/* moneyInfoLines puts the total first whenever there is one. */}
       {lines.map((l, i) => (
         <p key={l} className={cn("tabular-nums", i === 0 && total !== null ? "font-medium" : "text-muted-foreground")}>

@@ -16,13 +16,13 @@ import { cn } from "@/lib/utils";
 import { getOrgBranding } from "@/lib/org-branding";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { BOOK_COLUMN_CLASS, bookShellClass } from "@/lib/book-shell";
-import { PAGE_PANEL_CLASS } from "@/features/booking-page/render/page-renderer";
+import { H2 } from "@/features/booking-page/render/type";
 
 // The client's page for one booking, in the same world as the page they
-// booked on: the org's page theme on the same shell (ground, column, one
-// floating panel), the booking as a card inside it.
-const COLUMN = cn(BOOK_COLUMN_CLASS, "max-w-md");
-const PANEL = cn(PAGE_PANEL_CLASS, "flex flex-col gap-4");
+// booked on: the org's page theme on the same shell (ground and column),
+// the booking as lines under the org's name — no card.
+const COLUMN = cn(BOOK_COLUMN_CLASS, "max-w-md gap-6");
+const PANEL = "flex flex-col gap-5";
 
 // Booking statuses → `public.manage.status.*` keys; anything unknown shows
 // its raw status rather than a blank line.
@@ -96,8 +96,8 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
     <div className={bookShellClass(theme.theme)}>
     <main className={COLUMN}>
       <div className={PANEL}>
-      <h1 className="text-[17px] leading-tight font-medium">{b.orgName}</h1>
-      <div className="bg-card flex flex-col gap-1 rounded-xl border p-4 text-sm">
+      <h1 className={H2}>{b.orgName}</h1>
+      <div className="flex flex-col gap-1 border-b pb-5 text-sm">
         <p className="font-medium">{b.serviceName}</p>
         {staffName ? <p className="text-muted-foreground">{tConfirmed("with", { name: staffName })}</p> : null}
         <p className="tabular-nums">

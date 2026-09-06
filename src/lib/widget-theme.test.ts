@@ -35,10 +35,9 @@ describe("themeCssVars", () => {
     expect(vars["--widget-tint" as keyof typeof vars]).toBe("var(--brand)");
     expect(vars["--widget-tint-space" as keyof typeof vars]).toBe("var(--kind-space)");
   });
-  it("a painted background takes the panel and card fills with it", () => {
+  it("a painted background becomes the card fill too", () => {
     const vars = themeCssVars({ ...WIDGET_THEME_DEFAULTS, background: "#0b2a4a" }, null);
     expect(vars["--widget-card" as keyof typeof vars]).toBe("#0b2a4a");
-    expect(vars["--widget-panel" as keyof typeof vars]).toContain("color-mix");
   });
   it("includes overrides when set and falls back accent", () => {
     const vars = themeCssVars(
