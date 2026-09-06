@@ -35,7 +35,7 @@ export function filterBookableServices<T extends { id: string }>(
 
 /** Admin-side twin of filterBookableServices for rows that carry their own
     `staffIds` (ServiceRow) and a full roster with `active`: the services a
-    Copy-link / Links & embeds row may point at — active, and linked to at
+    Copy-link button or embed Show row may point at — active, and linked to at
     least one active person. Plan caps (public service limits) are NOT
     applied here; a capped service's link degrades to the org flow. */
 export function bookableAdminServices<T extends { id: string; active: boolean; staffIds: string[] }>(

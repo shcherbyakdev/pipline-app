@@ -12,7 +12,7 @@ import { describe, it, expect } from "vitest";
 // source scan is the label-prop rule: the ratchet runs with ignoreProps, so a
 // re-inlined aria-label="… rental …" is only caught here.
 export const SURFACES = [
-  "src/features/orgs/components/links-table.tsx",
+  "src/features/orgs/components/embed-code.tsx",
 ];
 
 /* The exact literals the audit found. Cheap, unambiguous, and the first thing

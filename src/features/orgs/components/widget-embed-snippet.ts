@@ -11,6 +11,11 @@ import { embedSrc, type LinkTarget } from "@/lib/booking/url";
 // iframes via `iframe[data-rollout-embed]` — and `async` on the script tag
 // keeps the pasted snippet from parser-blocking the customer's page.
 //
+// `height:640px` is the fallback for a host where embed.js never runs (a
+// blocked script, a builder's sandboxed HTML block): the browser's default
+// 150px iframe shows a sliver; 640 shows the first step. embed.js overwrites
+// it with the measured height as soon as the widget loads.
+//
 // The `target` (admin IA spec §5) pins the embed to one person, one
 // service or one space — `embedSrc` builds the query. A null target is the
 // whole-catalogue embed, byte-identical to what solo orgs have always pasted.
@@ -47,7 +52,7 @@ export function embedSnippet(
   const scriptBase = appUrl.replace(/\/+$/, "");
   return (
     `<iframe data-rollout-embed src="${embedSrc(appUrl, handle, target, lang)}" `
-    + `style="width:100%;border:0" title="${snippetTitle(target, mode, titles)}"></iframe>\n`
+    + `style="width:100%;border:0;height:640px" title="${snippetTitle(target, mode, titles)}"></iframe>\n`
     + `<script src="${scriptBase}/embed.js" async></script>`
   );
 }

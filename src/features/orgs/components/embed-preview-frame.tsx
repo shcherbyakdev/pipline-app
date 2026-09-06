@@ -36,14 +36,14 @@ export function EmbedPreviewFrame({
   // Legibility against the surface the widget really sits on. Only meaningful
   // while the embed is transparent — with a background override the widget
   // paints its own, and that pair is guarded by the contrast check next to
-  // the colour pickers.
+  // the colour pickers. The one notice this page shows: measured, on the
+  // site colour the toggle above has picked. A warning, not an error — the
+  // toggle is a hypothesis about the org's site, and Save stays open.
   const transparent = !config.background;
   const ratio = hostContrast(config, host, HOST_BG[host]);
   const clash = transparent && ratio < 3;
-  const fixedRisk = transparent && (config.theme === "light" || config.theme === "dark");
-  const autoRisk = transparent && config.theme === "auto";
-  // The notices name the theme and the host as ICU selects; "auto" reads
-  // as dark there, as it always has (it is only reached with a text override).
+  // The notice names the theme as an ICU select; "auto" reads as dark there,
+  // as it always has (it is only reached with a text override).
   const theme: Scheme = config.theme === "light" ? "light" : "dark";
 
   return (
@@ -59,15 +59,7 @@ export function EmbedPreviewFrame({
           optionLabels={{ light: t("lightPage"), dark: t("darkPage") }}
         />
       }
-      notices={
-        clash ? (
-          <PreviewNotice tone="error">{t("clash", { host, theme, ratio: ratio.toFixed(1) })}</PreviewNotice>
-        ) : fixedRisk ? (
-          <PreviewNotice tone="warn">{t("fixedRisk", { host, theme })}</PreviewNotice>
-        ) : autoRisk ? (
-          <PreviewNotice tone="warn">{t("autoRisk")}</PreviewNotice>
-        ) : null
-      }
+      notices={clash ? <PreviewNotice tone="warn">{t("clash", { host, theme, ratio: ratio.toFixed(1) })}</PreviewNotice> : null}
     >
       <Skeleton dark={dark} />
       <WidgetTheme config={previewConfig} accentColor={accentColor} transparent={transparent} className="rounded-lg p-4">

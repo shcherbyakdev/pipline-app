@@ -1598,11 +1598,9 @@
       "darkSystem": "Dark system"
     },
     "notice": {
-      "contrastUnreadable": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — unreadable. Adjust them on <link>Website embed</link>.",
-      "contrastLow": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — below 4.5:1 (AA body text). Adjust them on <link>Website embed</link>.",
-      "embedRiskLight": "This page is always readable — it paints its own light ground. But Theme is shared with the website embed, which takes your site's surface: on a dark site its text becomes unreadable. If your site is dark, choose Dark (or Auto), or set a background colour on <link>Website embed</link>.",
-      "embedRiskDark": "This page is always readable — it paints its own dark ground. But Theme is shared with the website embed, which takes your site's surface: on a light site its text becomes unreadable. If your site is light, choose Light (or Auto), or set a background colour on <link>Website embed</link>.",
-      "auto": "Auto follows each visitor's system setting. This page always matches, so both variants are readable (use the toggle above). The website embed only matches if your site does too — check it there."
+      "contrastUnreadable": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — unreadable. Adjust them under Settings.",
+      "contrastLow": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — below 4.5:1 (AA body text). Adjust them under Settings.",
+      "auto": "Auto follows each visitor's system setting. This page always matches, so both variants are readable (use the toggle above)."
     },
     "settings": {
       "look": "Look",
@@ -1722,43 +1720,34 @@
       "bookingPage": "Booking page"
     },
     "badge": {
-      "space": "Space",
       "team": "Team",
-      "service": "Service"
+      "service": "Services",
+      "space": "Spaces"
     },
-    "intro": "Add booking to your own site. Style the widget against the live preview, then paste the snippet into your page. Logo and accent colour come from Booking page › Branding.",
-    "snippet": "Embed snippet",
-    "bookWith": "Book with",
-    "wholeTeam": "Whole team",
-    "staffOnly": "This snippet books that person only.",
-    "clientsPick": "Clients pick who they book.",
+    "tabs": {
+      "label": "Website embed",
+      "code": "Code",
+      "style": "Style"
+    },
+    "paste": "Paste this where the widget should appear on your site.",
+    "show": "Show",
     "language": "Language",
     "languageAuto": "Follow the visitor",
-    "languageAutoHint": "Clients see their own language when we speak it, otherwise your booking page's.",
-    "copy": "Copy",
-    "copied": "Copied",
-    "copyRefused": "Couldn't copy — select the snippet and copy manually.",
+    "copyCode": "Copy code",
+    "copied": "Code copied",
+    "copyAddress": "Copy address",
+    "addressCopied": "Address copied",
     "noHandle": "Set a booking page address on <link>Booking page</link> to get your embed code.",
     "style": {
       "title": "Widget style",
-      "description": "The widget on your own site. The booking page has its own style."
+      "description": "Logo and accent colour live on <link>Booking page › Look</link>. The booking page keeps its own style."
     },
-    "saved": "Widget appearance saved",
+    "saved": "Widget style saved",
     "preview": {
-      "hostPage": "Host page",
-      "lightPage": "Light page",
-      "darkPage": "Dark page",
-      "clash": "On {host, select, dark {a dark page} other {a light page}} the {theme, select, dark {Dark theme's} other {Light theme's}} text is unreadable ({ratio, number, ::.0}:1) — the embed paints no background of its own. If your site is like this {host, select, dark {dark page} other {light page}}, choose {theme, select, dark {the Light theme} other {the Dark theme}} (or Auto), or set a background colour so the widget brings its own surface.",
-      "fixedRisk": "{theme, select, dark {Dark theme} other {Light theme}} with no background: the widget takes your site's surface, so on {theme, select, dark {a light site} other {a dark site}} its text becomes unreadable. Fine if your site is like this {host, select, dark {dark page} other {light page}} — otherwise choose {theme, select, dark {the Light theme} other {the Dark theme}}, or set a background colour. Preview {theme, select, dark {a light page} other {a dark page}} above to see it.",
-      "autoRisk": "Auto follows each visitor's system setting, not your site's colours. On a site that is always light or always dark, some visitors will get the mismatched variant. Pick the theme that matches your site, or set a background colour. Switch the host page above to see both."
-    },
-    "links": {
-      "title": "Links & embeds",
-      "description": "A link opens your booking page on that thing; an embed is the snippet for it.",
-      "copyEmbed": "Copy embed",
-      "copyLinkFor": "Copy link — {name}",
-      "copyEmbedFor": "Copy embed — {name}",
-      "embedCopied": "Embed copied"
+      "hostPage": "Your site",
+      "lightPage": "Light site",
+      "darkPage": "Dark site",
+      "clash": "On a {host, select, dark {dark site} other {light site}} the {theme, select, dark {Dark theme's} other {Light theme's}} text is unreadable ({ratio, number, ::.0}:1). If your site is like this {host, select, dark {dark page} other {light page}}, pick the {theme, select, dark {Light theme} other {Dark theme}} or set a background colour."
     }
   },
   "seed": {

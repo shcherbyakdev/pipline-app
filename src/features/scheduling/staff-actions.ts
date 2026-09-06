@@ -39,8 +39,8 @@ const UNIQUE_VIOLATION = "23505";
 
 // Who can be booked changes what every other scheduling surface shows: the
 // availability editor's staff tabs, the calendar's columns, the eligibility
-// pickers on Services, the counts on Bookings — and the embed studio's
-// "Book with" selector, which only exists once a second member is active.
+// pickers on Services, the counts on Bookings — and the embed page's people
+// rows in its Show select, which only exist once a second member is active.
 function revalidateStaff() {
   // "layout": /team/[id] shows the same person and must not keep a stale name.
   revalidatePath("/team", "layout");
