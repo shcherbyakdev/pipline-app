@@ -143,28 +143,33 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
   so below `lg:` rows stack with `divide-y` hairlines and actions always
   visible. Row hover is `bg-muted/50`; per-row actions are opacity-revealed
   on hover/focus-within. Page column is `max-w-6xl`.
-- Public booking pages (2026-09-06, the landing's hero card made real):
-  the admin's panel shell — the soft ground (`bg-sidebar`) with the page
-  as **one floating panel** on it (`PAGE_PANEL_CLASS` in page-renderer.tsx:
-  `bg-background`, hairline, `--shadow-card`, 2r corners), the badge and
-  the language links below it on the ground. Column `BOOK_COLUMN_CLASS`
-  (book-shell.ts), width from `pageContainerClass` (`max-w-xl`, split
-  `max-w-5xl`); the studio preview and a person's page compose exactly the
-  same. The widget's own themes (`.wt-light` / `.wt-dark` in globals.css)
-  are the app's light and night tokens, plus `--widget-panel` (the soft
-  panel: `--secondary`) and `--widget-card` (the white control), so an
-  embed on a matching host draws the same world. Vocabulary
-  (render/type.ts): a month grid or a receipt sits on a **panel**
-  (`wt-panel`); a free time, a duration, a stay length is a **chip**
-  (`wt-chip`: card fill, hairline, lift on hover); a day with free times
-  is an accent-**tinted disc** (`wt-tint`, the org's accent — or, without
-  one, the channel's kind colour: appointments periwinkle, spaces green)
-  and the pick is the accent fill (`wt-primary`); a service, a space, a
-  unit, a free stay is a **row** card (`ROW`, price right, lift on hover,
-  accent ring when picked). Paging is a pair of white discs
-  (`PagerDiscs`), the timezone note carries the globe. The header is the
-  identity block: a 44px disc (logo, or the initial on the accent) beside
-  the name at 17px/500 and the tagline. No accent rule under it.
+- Public booking pages (2026-09-06, ruled minimal the same day — Andrii:
+  "more minimalistic, I don't like the wrappers"): the page sits straight
+  on the app's ground (`bookShellClass`: `bg-background`), nothing in a box.
+  Column `BOOK_COLUMN_CLASS` (book-shell.ts, `gap-8`, `pt-10 sm:pt-14`),
+  width from `pageContainerClass` (`max-w-xl`, split `max-w-5xl`); the
+  studio preview and a person's page compose exactly the same, the badge
+  and the language links close the column. The header is the org's name
+  in the section display size (`H2`, 24px/500) with the tagline under it
+  and the logo beside it when there is one — no disc, no rule, no accent
+  in the chrome. The widget's own themes (`.wt-light` / `.wt-dark` in
+  globals.css) are the app's light and night tokens plus `--widget-card`
+  (the white control) and `--widget-primary` (the control fill when the
+  org has no accent), so an embed on a matching host draws the same world;
+  app tokens the widget reaches for (`bg-card`, `text-foreground`,
+  `text-subtle`) are remapped inside `.widget-theme` because an embed has
+  no shell scope. Vocabulary (render/type.ts): a service, a space, a unit,
+  a free stay is a **row** in a hairline-divided list (`ROW_LIST` / `ROW`:
+  the hover tint reaches 12px past the text, the divider stays on the
+  text's edges, the pick is a tint); a free time, a duration, a stay
+  length is a **chip** (`wt-chip`: card fill, hairline, lift on hover); a
+  day with free times is an accent-**tinted disc** (`wt-tint`, the org's
+  accent — or, without one, the channel's kind colour: appointments
+  periwinkle, spaces green) and the pick is the accent fill (`wt-primary`);
+  the stay picker draws the same discs with a band behind a picked stay;
+  the **receipt** (`RECEIPT`) and the money block are lines on the ground
+  closed by a hairline. Paging is a pair of white discs (`PagerDiscs`), the
+  timezone note carries the globe.
 
 ## Elevation & Depth
 

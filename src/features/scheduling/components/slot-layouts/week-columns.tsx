@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { shiftDays, type SlotWindow } from "@/features/scheduling/slot-paging";
 import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
-import { CHIP, PANEL, STEP_LABEL } from "@/features/booking-page/render/type";
+import { CHIP, STEP_LABEL } from "@/features/booking-page/render/type";
 import { useSlotFormats } from "./use-slot-formats";
 
 /* Week columns: Monday to Sunday as columns, the day's number in a disc
@@ -24,7 +24,7 @@ export function WeekColumns({ byDay, window: w, today, onPick }: { byDay: Map<st
   );
   return (
     <>
-      <div className={cn(PANEL, "hidden grid-cols-7 gap-1.5 p-3 @md:grid")}>
+      <div className="hidden grid-cols-7 gap-1.5 @md:grid">
         {days.map((d) => {
           const daySlots = byDay.get(d) ?? [];
           const isToday = d === today;

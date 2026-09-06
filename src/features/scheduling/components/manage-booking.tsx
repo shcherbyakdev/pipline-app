@@ -146,7 +146,7 @@ export function ManageBooking({
           />
         )
       ) : (
-        <div className="bg-secondary flex flex-col gap-3 rounded-xl p-4">
+        <div className="flex flex-col gap-3 border-t pt-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium">{t("pickNewTime")}</p>
             <PagerDiscs

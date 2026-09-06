@@ -4,11 +4,11 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Tick02Icon } from "@hugeicons/core-free-icons";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CARD, CHIP } from "@/features/booking-page/render/type";
+import { CHIP } from "@/features/booking-page/render/type";
 
 // The post-booking panel, shared by the appointment and rental flows.
 // Plain markup — no state, no client hooks — so it inherits whichever
-// boundary imports it. The landing card's "Booked" moment: an accent disc
+// boundary imports it. The "Booked" moment, on the ground: an accent disc
 // with the check, the title, what was booked, then the two ways on.
 export function BookingConfirmed({
   token,
@@ -28,7 +28,7 @@ export function BookingConfirmed({
   const t = useTranslations("public.confirmed");
   const locale = useLocale();
   return (
-    <div className={cn(CARD, "wt-enter flex flex-col gap-4 p-5")}>
+    <div className="wt-enter flex flex-col gap-4 py-2">
       <div className="flex items-start gap-3">
         <span aria-hidden className="wt-primary wt-round flex size-9 shrink-0 items-center justify-center rounded-full">
           <HugeiconsIcon icon={Tick02Icon} size={18} strokeWidth={2.5} />

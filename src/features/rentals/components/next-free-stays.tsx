@@ -8,7 +8,7 @@ import type { PublicOffering } from "@/lib/booking/public";
 import { asEngineOffering, type RangeAvailability } from "@/features/rentals/range";
 import { nextFreeStays, stayLengthOptions } from "@/features/rentals/next-free-stays";
 import { cn } from "@/lib/utils";
-import { CHANGE_LINK, CHIP, ROW, STEP_LABEL } from "@/features/booking-page/render/type";
+import { CHANGE_LINK, CHIP, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
 
 const SHOW = 8;
 // Org-local dates carry no zone: pin the formatter to UTC so the viewer's
@@ -82,7 +82,7 @@ export function NextFreeStays({
         ) : shown.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("nothingFreePeriod")}</p>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className={ROW_LIST}>
             {shown.map((s) => (
               <li key={s.start}>
                 <button type="button" onClick={() => onPick(s.start, s.end)} className={ROW}>

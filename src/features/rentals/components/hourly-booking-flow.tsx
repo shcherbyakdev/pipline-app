@@ -18,7 +18,7 @@ import { BookingConfirmed } from "@/features/scheduling/components/booking-confi
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { BookingMoneySummary } from "./booking-money-summary";
 import { cn } from "@/lib/utils";
-import { CHANGE_LINK, CHIP, PANEL, ROW, STEP_LABEL } from "@/features/booking-page/render/type";
+import { CHANGE_LINK, CHIP, RECEIPT, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
 
 // offering-form.tsx's native-<select> idiom, on the widget's chip surface.
 const selectClass = "wt-chip h-9 rounded-md border px-3 text-sm";
@@ -358,7 +358,7 @@ export function HourlyBookingFlow({
           {eligibleUnits.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t("nothingFreeTime")}</p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className={ROW_LIST}>
               {eligibleUnits.map((u) => (
                 <li key={u.id}>
                   <button type="button" onClick={() => setUnitId(u.id)} className={ROW}>
@@ -385,8 +385,8 @@ export function HourlyBookingFlow({
           }}
           className="wt-enter flex flex-col gap-4"
         >
-          {/* The receipt: the pick restated on a soft panel, with the way back. */}
-          <div className={cn(PANEL, "flex items-start justify-between gap-3 px-4 py-3 text-sm")}>
+          {/* The receipt: the pick restated, with the way back. */}
+          <div className={RECEIPT}>
             <div className="min-w-0">
               <p className="font-medium tabular-nums">{pickSummary}</p>
               {offering.unitSelection === "client_picks" && unitId ? (

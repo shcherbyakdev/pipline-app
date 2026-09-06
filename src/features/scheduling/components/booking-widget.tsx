@@ -19,7 +19,7 @@ import { HourlyBookingFlow } from "@/features/rentals/components/hourly-booking-
 import { formatOfferingPrice, stayHint } from "@/features/rentals/pricing";
 import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
-import { CHANGE_LINK, PANEL, ROW, STEP_LABEL } from "@/features/booking-page/render/type";
+import { CHANGE_LINK, RECEIPT, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
 
 // The VIEWER's local date (audit 2026-08-24: the UTC date sent a far-west
 // evening visitor one day ahead, hiding the rest of their own today with no
@@ -416,16 +416,14 @@ export function BookingWidget({
     <div className="@container flex flex-col gap-6">
       {!service ? (
         <div className="flex flex-col gap-6">
-          {/* Waiting for the page's own picker: a soft panel, not a bare line,
-              so a docked widget column reads as a place rather than a gap. */}
-          {prompt ? <p className={cn(PANEL, "text-muted-foreground px-4 py-3 text-sm")}>{prompt}</p> : null}
+          {prompt ? <p className="text-muted-foreground text-sm">{prompt}</p> : null}
           {showServices ? (
             <div className="flex flex-col gap-2">
               {/* Headings only when there is something to tell apart. */}
               {showOfferings ? (
                 <h2 className="text-muted-foreground text-xs font-medium">{t("appointments")}</h2>
               ) : null}
-              <ul className="flex flex-col gap-2">
+              <ul className={ROW_LIST}>
                 {listedServices.map((s) => (
                   <li key={s.id}>
                     <button
@@ -470,7 +468,7 @@ export function BookingWidget({
               {showServices ? (
                 <h2 className="text-muted-foreground text-xs font-medium">{t("spaces")}</h2>
               ) : null}
-              <ul className="flex flex-col gap-2">
+              <ul className={ROW_LIST}>
                 {offerings.map((o) => (
                   <li key={o.id}>
                     <button
@@ -534,9 +532,9 @@ export function BookingWidget({
           className="wt-enter flex flex-col gap-4"
         >
           {/* The receipt: what they're committing to, restated at the moment
-              of commitment on a soft panel — service, person, time, then
-              length and price when the service names one. */}
-          <div className={cn(PANEL, "flex items-start justify-between gap-3 px-4 py-3 text-sm")}>
+              of commitment — service, person, time, then length and price
+              when the service names one. */}
+          <div className={RECEIPT}>
             <div className="min-w-0">
               <p className="font-medium">
                 {service.name}

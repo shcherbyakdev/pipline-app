@@ -165,14 +165,11 @@ export function themeCssVars(
   vars["--widget-tint-space"] = accentColor || "var(--kind-space)";
 
   // Only include background and text if overridden. A painted background
-  // also takes over the panel and card fills the theme classes would
-  // otherwise supply (globals.css): the panel becomes a tint of the ink over
-  // the org's colour, the card the colour itself — nothing lavender or white
-  // can then sit on a brand background.
+  // also becomes the card fill the theme classes would otherwise supply
+  // (globals.css), so no white control can sit on a brand background.
   if (config.background) {
     vars["--widget-bg"] = config.background;
     vars["--widget-card"] = config.background;
-    vars["--widget-panel"] = "color-mix(in oklab, var(--widget-text) 6%, transparent)";
   }
   if (config.text) {
     vars["--widget-text"] = config.text;
