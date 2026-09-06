@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { PAGE_DAYS, shiftDays } from "@/features/scheduling/slot-paging";
 import { INTL_LOCALES } from "@/i18n/config";
+import { cn } from "@/lib/utils";
+import { CHIP, STEP_LABEL } from "@/features/booking-page/render/type";
+import { PagerDiscs, TimezoneNote } from "./slot-layouts/frame";
 
 export function TimeSlotGrid({
   slots,
@@ -41,7 +42,6 @@ export function TimeSlotGrid({
 }): React.JSX.Element {
   const t = useTranslations("public.slots");
   const intl = INTL_LOCALES[useLocale()];
-  const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   // Intentionally duplicated, not shared with booking-widget.tsx's own
   // dayFmt/timeFmt (used there for the post-pick confirmation step) — two
   // cheap Intl formatters beat threading them through as props.
@@ -78,31 +78,15 @@ export function TimeSlotGrid({
     // direct row of the parent's `flex flex-col gap-*` — no wrapper of our
     // own that would introduce an extra gap or nesting level.
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         {headerSlot}
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="wt-surface"
-            aria-label={t("prevWeek")}
-            title={t("prevWeek")}
-            disabled={fromDate <= todayISO}
-            onClick={() => onNavigate(shiftDays(fromDate, -PAGE_DAYS))}
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            className="wt-surface"
-            aria-label={t("nextWeek")}
-            title={t("nextWeek")}
-            onClick={() => onNavigate(shiftDays(fromDate, PAGE_DAYS))}
-          >
-            <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
-          </Button>
-        </div>
+        <PagerDiscs
+          prevDisabled={fromDate <= todayISO}
+          onPrev={() => onNavigate(shiftDays(fromDate, -PAGE_DAYS))}
+          onNext={() => onNavigate(shiftDays(fromDate, PAGE_DAYS))}
+          prevLabel={t("prevWeek")}
+          nextLabel={t("nextWeek")}
+        />
       </div>
       {toolbar}
       {/* While a new week loads, the previous list stays put (dimmed) so
@@ -128,7 +112,7 @@ export function TimeSlotGrid({
         ) : (
           [...byDay.entries()].map(([day, daySlots]) => (
             <div key={day} className="flex flex-col gap-2">
-              <p className="text-muted-foreground text-xs font-medium">
+              <p className={STEP_LABEL}>
                 {dayFmt.format(new Date(daySlots[0]))}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -136,8 +120,7 @@ export function TimeSlotGrid({
                   <Button
                     key={s}
                     variant="outline"
-                    size="sm"
-                    className="wt-surface"
+                    className={cn(CHIP, "h-9 px-3.5 tabular-nums")}
                     onClick={() => onPick(s)}
                     aria-label={`${dayFmt.format(new Date(s))}, ${timeLabel(s, daySlots)}`}
                   >
@@ -149,10 +132,7 @@ export function TimeSlotGrid({
           ))
         )}
       </div>
-      <p className="text-muted-foreground text-xs">{t("viewerTz", { tz: viewerTz })}</p>
-      {viewerTz !== orgTimeZone ? (
-        <p className="text-muted-foreground text-xs">{t("orgTz", { tz: orgTimeZone })}</p>
-      ) : null}
+      <TimezoneNote orgTimeZone={orgTimeZone} />
     </>
   );
 }

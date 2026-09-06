@@ -20,6 +20,7 @@ import {
   type WidgetThemeConfig,
 } from "@/lib/widget-theme";
 import { WidgetTheme } from "@/components/widget-theme";
+import { PoweredByLabel } from "@/components/powered-by";
 import { contrastOf } from "@/features/orgs/components/appearance-fields";
 import { NextIntlClientProvider, useTranslations, type AbstractIntlMessages } from "next-intl";
 import type { Locale } from "@/i18n/config";
@@ -64,8 +65,7 @@ type SchedulingSettings = NonNullable<
    draws it: inside the preview's own provider, so it speaks the org's
    language rather than the admin's. */
 function PreviewBadge() {
-  const t = useTranslations("public");
-  return <p className="mt-4 text-center text-xs opacity-60">{t("poweredBy")}</p>;
+  return <p className="mt-2 text-center"><PoweredByLabel className="px-2 py-1" /></p>;
 }
 
 /* Booking page builder: Sections / Settings on the left, the hosted page as
@@ -379,7 +379,7 @@ export function BookingPageBuilder({
             dark={resolved === "dark"}
             // Same shell as /[handle], resolved for the preview: scoping
             // .light/.dark here keeps it faithful whatever the admin's theme is.
-            pageClassName={cn(resolved, "bg-background text-foreground")}
+            pageClassName={cn(resolved, "bg-sidebar text-foreground")}
             desktopMaxWidth={pageContainerClass(draft.doc.layout)}
             // Everything that changes how this looks sits over the preview it
             // changes: the widget's layout, then the two view switches. A

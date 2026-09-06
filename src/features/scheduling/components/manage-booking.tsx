@@ -14,6 +14,7 @@ import { RentalReschedulePanel } from "@/features/rentals/components/rental-resc
 import { HourlyReschedulePanel } from "@/features/rentals/components/hourly-reschedule-panel";
 import { INTL_LOCALES } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
+import { PagerDiscs } from "@/features/scheduling/components/slot-layouts/frame";
 
 // The viewer's local date (booking-widget's rule; getManageSlots pads its
 // engine window a day each side, the picker keeps what lands on its page).
@@ -145,29 +146,17 @@ export function ManageBooking({
           />
         )
       ) : (
-        <div className="flex flex-col gap-3 rounded-md border p-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-secondary flex flex-col gap-3 rounded-xl p-4">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium">{t("pickNewTime")}</p>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => nav(-7)}
-                disabled={pending || fromDate <= todayISO()}
-                aria-label={ts("prevWeek")}
-              >
-                ←
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => nav(7)}
-                disabled={pending}
-                aria-label={ts("nextWeek")}
-              >
-                →
-              </Button>
-            </div>
+            <PagerDiscs
+              prevDisabled={pending || fromDate <= todayISO()}
+              nextDisabled={pending}
+              onPrev={() => nav(-7)}
+              onNext={() => nav(7)}
+              prevLabel={ts("prevWeek")}
+              nextLabel={ts("nextWeek")}
+            />
           </div>
           {slots === null ? (
             <p className="text-muted-foreground text-sm">{tc("loading")}</p>
@@ -193,7 +182,7 @@ export function ManageBooking({
                 <Button
                   key={s}
                   variant="outline"
-                  size="sm"
+                  className="h-9 tabular-nums"
                   disabled={pending}
                   onClick={() => setCandidate(s)}
                 >

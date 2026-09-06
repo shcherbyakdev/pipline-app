@@ -304,6 +304,13 @@
   --border: rgb(37 34 40 / 0.08);
   --input: rgb(37 34 40 / 0.12);
   --ring: #4b5bc4;
+  /* The hosted booking page draws the admin's panel shell (ground below,
+     floating page panel on it), so the scope carries the ground, the
+     caption tone and the two shadows too. */
+  --subtle: #686472;
+  --sidebar: #f6f4fb;
+  --shadow-card: 0 1px 2px rgb(37 34 40 / 0.04), 0 16px 40px -20px rgb(37 34 40 / 0.18);
+  --shadow-lift: 0 1px 2px rgb(37 34 40 / 0.05), 0 6px 16px -8px rgb(37 34 40 / 0.14);
 }
 
 /* Hosted booking page (/book/[handle]) in the org's widget theme "auto":
@@ -314,7 +321,7 @@
 @media not (prefers-color-scheme: light) {
   .book-auto {
     color-scheme: dark;
-    --background: #09090a;
+    --background: #111212;
     --foreground: #e2e3e5;
     --card: #19191b;
     --card-foreground: #e2e3e5;
@@ -332,60 +339,10 @@
     --border: rgb(255 255 255 / 0.09);
     --input: rgb(255 255 255 / 0.1);
     --ring: #6975e2;
-  }
-}
-
-/* Hosted booking pages (`.book-page`, 2026-09-02, gumloop.com-referenced):
-   the reference's neutrals instead of the app's lavender — near-white
-   ground, near-black ink, grey panels, hairlines at 10% ink — so the org's
-   own accent is the only colour on its page. Light values only; the night
-   set above stays the night set. `.book-auto` takes them under the same
-   light condition its dark block negates. */
-.book-page.light,
-.book-page.light .light {
-  --background: #fcfcfc;
-  --foreground: #17171a;
-  --card: #ffffff;
-  --card-foreground: #17171a;
-  --popover: #ffffff;
-  --popover-foreground: #17171a;
-  --primary: #17171a;
-  --primary-foreground: #ffffff;
-  --secondary: #f2f2f5;
-  --secondary-foreground: #17171a;
-  --muted: #f2f2f5;
-  --muted-foreground: #5f5f66;
-  --subtle: #6b6b72;
-  --accent: #ececef;
-  --accent-foreground: #17171a;
-  --border: rgb(23 23 26 / 0.1);
-  --input: rgb(23 23 26 / 0.12);
-  --ring: #17171a;
-  --shadow-card: 0 1px 2px rgb(23 23 26 / 0.04), 0 16px 40px -20px rgb(23 23 26 / 0.16);
-  --shadow-lift: 0 1px 2px rgb(23 23 26 / 0.05), 0 6px 16px -8px rgb(23 23 26 / 0.12);
-}
-@media (prefers-color-scheme: light) {
-  .book-page.book-auto {
-    --background: #fcfcfc;
-    --foreground: #17171a;
-    --card: #ffffff;
-    --card-foreground: #17171a;
-    --popover: #ffffff;
-    --popover-foreground: #17171a;
-    --primary: #17171a;
-    --primary-foreground: #ffffff;
-    --secondary: #f2f2f5;
-    --secondary-foreground: #17171a;
-    --muted: #f2f2f5;
-    --muted-foreground: #5f5f66;
-    --subtle: #6b6b72;
-    --accent: #ececef;
-    --accent-foreground: #17171a;
-    --border: rgb(23 23 26 / 0.1);
-    --input: rgb(23 23 26 / 0.12);
-    --ring: #17171a;
-    --shadow-card: 0 1px 2px rgb(23 23 26 / 0.04), 0 16px 40px -20px rgb(23 23 26 / 0.16);
-    --shadow-lift: 0 1px 2px rgb(23 23 26 / 0.05), 0 6px 16px -8px rgb(23 23 26 / 0.12);
+    --subtle: #8a8f98;
+    --sidebar: #09090a;
+    --shadow-card: 0 3px 8px rgb(0 0 0 / 0.12), 0 2px 5px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.12);
+    --shadow-lift: 0 4px 40px rgb(0 0 0 / 0.1), 0 3px 20px rgb(0 0 0 / 0.12), 0 3px 12px rgb(0 0 0 / 0.12), 0 2px 8px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.12);
   }
 }
 
@@ -627,16 +584,48 @@
    discs. Declared after the rule above so they win at equal specificity. */
 .widget-theme .wt-r2 { border-radius: calc(var(--widget-radius) * 2); }
 .widget-theme .wt-round { border-radius: 9999px; }
-.wt-light { --widget-bg: #ffffff; --widget-text: #18181b; --widget-line: #e4e4e7; }
-.wt-dark  { --widget-bg: #18181b; --widget-text: #fafafa; --widget-line: #3f3f46; }
-.wt-auto  { --widget-bg: #ffffff; --widget-text: #18181b; --widget-line: #e4e4e7; }
+/* The widget's two named themes are the product's own light and night sets
+   (`:root` / `.dark` above, 2026-09-06): the same ground, ink, hairline,
+   panel and card, so a hosted page, the studio preview and an embed on a
+   matching host all draw one world. `--widget-panel` is the soft panel the
+   month grid and the receipt sit on, `--widget-card` the white control
+   floating on it (times, durations, nav discs). An org that paints its own
+   background gets text-alpha versions of both from themeCssVars. */
+.wt-light { --widget-bg: #fefefe; --widget-text: #252228; --widget-line: rgb(37 34 40 / 0.1); --widget-panel: #f4f2fb; --widget-card: #ffffff; --widget-primary: #252228; --widget-primary-fg: #ffffff; }
+.wt-dark  { --widget-bg: #111212; --widget-text: #e2e3e5; --widget-line: rgb(255 255 255 / 0.1); --widget-panel: #242526; --widget-card: #19191b; --widget-primary: #f7f8f8; --widget-primary-fg: #111212; }
+.wt-auto  { --widget-bg: #fefefe; --widget-text: #252228; --widget-line: rgb(37 34 40 / 0.1); --widget-panel: #f4f2fb; --widget-card: #ffffff; --widget-primary: #252228; --widget-primary-fg: #ffffff; }
 @media (prefers-color-scheme: dark) {
-  .wt-auto { --widget-bg: #18181b; --widget-text: #fafafa; --widget-line: #3f3f46; }
+  .wt-auto { --widget-bg: #111212; --widget-text: #e2e3e5; --widget-line: rgb(255 255 255 / 0.1); --widget-panel: #242526; --widget-card: #19191b; --widget-primary: #f7f8f8; --widget-primary-fg: #111212; }
 }
+/* A soft panel inside the widget: the month grid, the pick receipt, the
+   money block. */
+.widget-theme .wt-panel { background-color: var(--widget-panel); }
+/* A control floating on the ground or a panel — a free time, a duration,
+   a stay length, a paging disc: card fill on the hairline, lifts on hover
+   (the landing card's white pills). Declared before .wt-primary so the
+   accent fill wins when a picked chip carries both. */
+.widget-theme .wt-chip { background-color: var(--widget-card); border-color: var(--widget-line); }
+.widget-theme .wt-chip:hover:not(:disabled) { box-shadow: var(--shadow-lift); }
+/* The org's accent (or, without one, the channel colour — themeCssVars) at
+   low alpha: a day with free times, the nights inside a picked stay. Text
+   stays the widget ink, which holds on a 14% tint of any accent in either
+   theme. */
+.widget-theme .wt-tint { background-color: color-mix(in oklab, var(--widget-tint, var(--widget-accent)) 14%, transparent); }
+.widget-theme .wt-tint:hover:not(:disabled) { background-color: color-mix(in oklab, var(--widget-tint, var(--widget-accent)) 26%, transparent); }
 .widget-theme .wt-primary {
   background: var(--widget-accent);
-  color: #ffffff;
+  color: var(--widget-accent-fg, #ffffff);
   border-color: transparent;
+}
+/* The widget's one authored moment: a step's content (the times for a
+   newly picked day, the form) rises in on the strong ease-out at admin
+   tempo. Reduced motion keeps the fade, drops the rise. */
+.widget-theme .wt-enter { animation: fade-up 0.25s var(--ease-strong) both; }
+/* Opacity only: an animation's transform outranks a normal `transform:
+   none`, so the reduced-motion branch needs keyframes without one. */
+@keyframes wt-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .widget-theme .wt-enter { animation: wt-fade 0.15s ease both; }
 }
 /* Scoped to plain `.border`/`border-*` tokens (attribute *contains* match,
    not `.border` exact-token) so Input/Textarea/Button's `border-input`,
@@ -679,6 +668,15 @@
 .widget-theme.wt-transparent {
   background: transparent;
 }
+/* App tokens the widget's vocabulary reaches for (render/type.ts), pointed
+   at the widget's own vars: an embed on a third-party site carries no
+   `.dark`/`.light` shell scope, so `bg-card` / `text-foreground` would
+   otherwise resolve to the ROOT light palette inside a dark widget — white
+   rows under off-white text. Same unlayered-beats-utility mechanism as the
+   border rule above. */
+.widget-theme .bg-card { background-color: var(--widget-card); }
+.widget-theme :is(.text-foreground, .hover\:text-foreground:hover) { color: var(--widget-text); }
+.widget-theme .text-subtle { color: color-mix(in oklab, var(--widget-text) 72%, transparent); }
 /* Secondary text inside the widget (day labels, timezone notes, "change").
    `text-muted-foreground` is an admin token — the dark palette's #8a8f98 —
    which on a light host page is ~3.2:1 (fails AA). Derive it from the
@@ -689,9 +687,10 @@
   color: color-mix(in oklab, var(--widget-text) 72%, transparent);
 }
 /* Form fields inside the widget: same dashboard-token bleed as the buttons
-   had (dark:bg-input/30 etc.) — keep them transparent so they inherit the
-   widget (or host) surface. Background only; focus/invalid borders are
-   handled by the border rule's exclusions above. */
+   had (dark:bg-input/30 etc.) — they take the widget's own card fill (the
+   product's white input on the hairline) so they read the same on the
+   hosted page, in the preview and on a host site. Background only;
+   focus/invalid borders are handled by the border rule's exclusions above. */
 .widget-theme :is(input, textarea, select) {
-  background-color: transparent;
+  background-color: var(--widget-card);
 }
