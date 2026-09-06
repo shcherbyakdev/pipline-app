@@ -18,7 +18,7 @@ import { BookingConfirmed } from "@/features/scheduling/components/booking-confi
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { BookingMoneySummary } from "./booking-money-summary";
 import { cn } from "@/lib/utils";
-import { CHANGE_LINK, PANEL, ROW, STEP_LABEL } from "@/features/booking-page/render/type";
+import { CHANGE_LINK, RECEIPT, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -251,7 +251,7 @@ export function RentalBookingFlow({
           {eligibleUnits.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t("nothingFreeDates")}</p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className={ROW_LIST}>
               {eligibleUnits.map((u) => (
                 <li key={u.id}>
                   <button type="button" onClick={() => setUnitId(u.id)} className={ROW}>
@@ -278,8 +278,8 @@ export function RentalBookingFlow({
           }}
           className="wt-enter flex flex-col gap-4"
         >
-          {/* The receipt: the stay restated on a soft panel, with the way back. */}
-          <div className={cn(PANEL, "flex items-start justify-between gap-3 px-4 py-3 text-sm")}>
+          {/* The receipt: the stay restated, with the way back. */}
+          <div className={RECEIPT}>
             <div className="min-w-0">
               {/* The dates first — the summary line names the length and the
                   check-in/out times, never the days themselves. */}

@@ -585,25 +585,21 @@
 .widget-theme .wt-r2 { border-radius: calc(var(--widget-radius) * 2); }
 .widget-theme .wt-round { border-radius: 9999px; }
 /* The widget's two named themes are the product's own light and night sets
-   (`:root` / `.dark` above, 2026-09-06): the same ground, ink, hairline,
-   panel and card, so a hosted page, the studio preview and an embed on a
-   matching host all draw one world. `--widget-panel` is the soft panel the
-   month grid and the receipt sit on, `--widget-card` the white control
-   floating on it (times, durations, nav discs). An org that paints its own
-   background gets text-alpha versions of both from themeCssVars. */
-.wt-light { --widget-bg: #fefefe; --widget-text: #252228; --widget-line: rgb(37 34 40 / 0.1); --widget-panel: #f4f2fb; --widget-card: #ffffff; --widget-primary: #252228; --widget-primary-fg: #ffffff; }
-.wt-dark  { --widget-bg: #111212; --widget-text: #e2e3e5; --widget-line: rgb(255 255 255 / 0.1); --widget-panel: #242526; --widget-card: #19191b; --widget-primary: #f7f8f8; --widget-primary-fg: #111212; }
-.wt-auto  { --widget-bg: #fefefe; --widget-text: #252228; --widget-line: rgb(37 34 40 / 0.1); --widget-panel: #f4f2fb; --widget-card: #ffffff; --widget-primary: #252228; --widget-primary-fg: #ffffff; }
+   (`:root` / `.dark` above, 2026-09-06): the same ground, ink, hairline and
+   card, so a hosted page, the studio preview and an embed on a matching
+   host all draw one world. `--widget-card` is the white control on the
+   ground (times, durations, nav discs, inputs); `--widget-primary` the
+   theme's own control fill when the org has no accent. An org that paints
+   its own background gets that colour as the card from themeCssVars. */
+.wt-light { --widget-bg: #fefefe; --widget-text: #252228; --widget-line: rgb(37 34 40 / 0.1); --widget-card: #ffffff; --widget-primary: #252228; --widget-primary-fg: #ffffff; }
+.wt-dark  { --widget-bg: #111212; --widget-text: #e2e3e5; --widget-line: rgb(255 255 255 / 0.1); --widget-card: #19191b; --widget-primary: #f7f8f8; --widget-primary-fg: #111212; }
+.wt-auto  { --widget-bg: #fefefe; --widget-text: #252228; --widget-line: rgb(37 34 40 / 0.1); --widget-card: #ffffff; --widget-primary: #252228; --widget-primary-fg: #ffffff; }
 @media (prefers-color-scheme: dark) {
-  .wt-auto { --widget-bg: #111212; --widget-text: #e2e3e5; --widget-line: rgb(255 255 255 / 0.1); --widget-panel: #242526; --widget-card: #19191b; --widget-primary: #f7f8f8; --widget-primary-fg: #111212; }
+  .wt-auto { --widget-bg: #111212; --widget-text: #e2e3e5; --widget-line: rgb(255 255 255 / 0.1); --widget-card: #19191b; --widget-primary: #f7f8f8; --widget-primary-fg: #111212; }
 }
-/* A soft panel inside the widget: the month grid, the pick receipt, the
-   money block. */
-.widget-theme .wt-panel { background-color: var(--widget-panel); }
-/* A control floating on the ground or a panel — a free time, a duration,
-   a stay length, a paging disc: card fill on the hairline, lifts on hover
-   (the landing card's white pills). Declared before .wt-primary so the
-   accent fill wins when a picked chip carries both. */
+/* A control on the ground — a free time, a duration, a stay length, a
+   paging disc: card fill on the hairline, lifts on hover. Declared before
+   .wt-primary so the accent fill wins when a picked chip carries both. */
 .widget-theme .wt-chip { background-color: var(--widget-card); border-color: var(--widget-line); }
 .widget-theme .wt-chip:hover:not(:disabled) { box-shadow: var(--shadow-lift); }
 /* The org's accent (or, without one, the channel colour — themeCssVars) at
