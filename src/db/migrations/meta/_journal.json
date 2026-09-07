@@ -554,6 +554,13 @@
       "when": 1788774781828,
       "tag": "0078_pricing_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1788791446689,
+      "tag": "0079_holds_collection",
+      "breakpoints": true
     }
   ]
 }

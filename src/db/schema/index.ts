@@ -9,6 +9,7 @@ export * from "./chases";
 export * from "./evidence";
 export * from "./clients";
 export * from "./scheduling";
+export * from "./payments";
 export * from "./rentals";
 export * from "./billing";
 export * from "./utils";
