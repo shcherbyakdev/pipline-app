@@ -216,6 +216,85 @@ describe("refundBooking", () => {
       .single();
     expect(row).toMatchObject({ status: "refund_failed", error: "stripe down" });
   });
+
+  it("caps at amountCents across rows: the first row empties, the second stays paid", async () => {
+    const { id } = await paidBooking("cap", "cs_cap"); // row A: 5000, paid_cents 5000
+    const { data: b0 } = await admin.from("bookings").select("org_id").eq("id", id).single();
+    // Row B: a second 2000 payment on the same booking. apply_booking_payment
+    // only confirms a pending_payment/expired hold; this booking is already
+    // confirmed, so the RPC would flip the ledger row to paid but return
+    // slot_lost and never bump bookings.paid_cents. Insert the row already
+    // `paid` and bump paid_cents directly instead (no bump_booking_paid RPC exists).
+    const { error } = await admin.from("booking_payments").insert({
+      org_id: b0!.org_id,
+      booking_id: id,
+      kind: "deposit",
+      provider: "fake",
+      amount_cents: 2000,
+      currency: "PLN",
+      status: "paid",
+      checkout_session_id: `cs_cap2_${id}`,
+      stripe_account_id: "acct_fake_x",
+      payment_intent_id: "pi_cap2",
+      paid_at: new Date().toISOString(),
+    });
+    if (error) throw error;
+    const { error: bumpError } = await admin
+      .from("bookings")
+      .update({ paid_cents: 7000 })
+      .eq("id", id);
+    if (bumpError) throw bumpError;
+
+    const r = await refundBooking(
+      id,
+      "cancel",
+      { db: admin, provider: fakePaymentsProvider() },
+      { amountCents: 6000 },
+    );
+    expect(r).toEqual({ refundedCents: 6000, failed: false });
+    const { data: rows } = await admin
+      .from("booking_payments")
+      .select("amount_cents, refunded_cents, status")
+      .eq("booking_id", id)
+      .order("created_at");
+    expect(rows).toEqual([
+      { amount_cents: 5000, refunded_cents: 5000, status: "refunded" },
+      { amount_cents: 2000, refunded_cents: 1000, status: "paid" },
+    ]);
+    const { data: b } = await admin
+      .from("bookings")
+      .select("paid_cents, refunded_cents")
+      .eq("id", id)
+      .single();
+    expect(b).toEqual({ paid_cents: 7000, refunded_cents: 6000 });
+
+    // The remainder can still go back later (a waived fee).
+    const rest = await refundBooking(id, "admin-cancel", { db: admin, provider: fakePaymentsProvider() });
+    expect(rest).toEqual({ refundedCents: 1000, failed: false });
+    const { data: after } = await admin
+      .from("booking_payments")
+      .select("status")
+      .eq("booking_id", id)
+      .order("created_at");
+    expect(after!.map((x) => x.status)).toEqual(["refunded", "refunded"]);
+  });
+
+  it("amountCents 0 refunds nothing and touches nothing", async () => {
+    const { id } = await paidBooking("zero", "cs_zero");
+    const r = await refundBooking(
+      id,
+      "cancel",
+      { db: admin, provider: fakePaymentsProvider() },
+      { amountCents: 0 },
+    );
+    expect(r).toEqual({ refundedCents: 0, failed: false });
+    const { data: row } = await admin
+      .from("booking_payments")
+      .select("status, refunded_cents")
+      .eq("booking_id", id)
+      .single();
+    expect(row).toEqual({ status: "paid", refunded_cents: 0 });
+  });
 });
 
 describe("expireOpenCheckouts", () => {
