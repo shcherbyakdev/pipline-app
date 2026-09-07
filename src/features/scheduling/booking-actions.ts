@@ -16,7 +16,9 @@ import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { computeSlots, dateInZone } from "./slots";
 import { moneyInfoLines } from "@/features/rentals/pricing";
+import type { Line } from "@/features/rentals/pricing-rules";
 import type { RangeMode } from "@/features/rentals/range";
+import { formatMoney } from "@/lib/money";
 import {
   bookingCancelledEmail,
   bookingRescheduledEmail,
@@ -25,7 +27,9 @@ import {
   bookingConfirmationEmail,
   bookingManageLinkEmail,
   bookingIdempotencyKey,
+  formatUntil,
   formatWhenLine,
+  paymentDueEmail,
   whenLineFor,
 } from "./templates";
 import { bookingTitle } from "./booking-label";
@@ -620,13 +624,15 @@ export async function acceptBookingRequest(
       const { data: rows, error: readError } = await supabase
         .from("bookings")
         .select(
-          "id, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, locale, price_cents, currency, deposit_cents, staff(name), services(name), rental_offerings(name, range_mode, cancel_window_min), rental_units(name)",
+          "id, status, hold_expires_at, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, locale, price_cents, currency, deposit_cents, lines, staff(name), services(name), rental_offerings(name, range_mode, cancel_window_min), rental_units(name)",
         )
         .eq("id", parsed.data.id)
         .eq("org_id", org.id);
       if (readError) console.error("[scheduling] acceptBookingRequest read:", readError);
       const row = (rows as unknown as Array<{
         id: string;
+        status: string;
+        hold_expires_at: string | null;
         client_name: string;
         client_email: string | null;
         staff_id: string | null;
@@ -637,6 +643,7 @@ export async function acceptBookingRequest(
         price_cents: number | null;
         currency: string | null;
         deposit_cents: number | null;
+        lines: unknown;
         staff: { name: string } | null;
         services: { name: string } | null;
         rental_offerings: { name: string; range_mode: RangeMode; cancel_window_min: number } | null;
@@ -647,6 +654,9 @@ export async function acceptBookingRequest(
       if (!row) {
         noEmail = true;
       } else {
+        // S2 (0079): the RPC may have HELD the row instead of confirming it —
+        // the client then gets "pay by", not the confirmation.
+        const held = row.status === "pending_payment" && row.hold_expires_at !== null;
         const mail = await emailTranslators(org.locale);
         // The staff notice below is the org's; the confirmation is the
         // client's, in the language they booked in (0072).
@@ -689,20 +699,40 @@ export async function acceptBookingRequest(
                         depositCents: row.deposit_cents,
                         currency: row.currency,
                         cancelWindowMin: row.rental_offerings?.cancel_window_min ?? 0,
+                        // S1: the row's own quote breakdown; S2: "pay now"
+                        // rather than "pay at the venue" while it is held.
+                        lines: (row.lines as Line[] | null) ?? null,
+                        holding: held,
                       },
                       forClient.tUnits,
                     )
                   : [];
-              const msg = bookingConfirmationEmail(forClient.t, {
-                orgName: org.name,
-                serviceName: forClient.serviceName,
-                whenLine: forClient.whenLine,
-                manageUrl: buildBookingManageUrl(fresh.token),
-                icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
-                staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
-                badgeUrl: await emailBadgeUrl(org.id),
-                infoLines,
-              });
+              // The pay link carries the FRESH token — the request link died
+              // with the rotation above.
+              const manageUrl = buildBookingManageUrl(fresh.token);
+              const msg =
+                held && row.deposit_cents !== null && row.currency
+                  ? paymentDueEmail(forClient.t, {
+                      orgName: org.name,
+                      serviceName: forClient.serviceName,
+                      whenLine: forClient.whenLine,
+                      until: formatUntil(new Date(row.hold_expires_at!), org.timezone, forClient.intlLocale),
+                      amount: formatMoney(row.deposit_cents, row.currency),
+                      payUrl: `${manageUrl}/pay`,
+                      manageUrl,
+                      badgeUrl: await emailBadgeUrl(org.id),
+                      infoLines,
+                    })
+                  : bookingConfirmationEmail(forClient.t, {
+                      orgName: org.name,
+                      serviceName: forClient.serviceName,
+                      whenLine: forClient.whenLine,
+                      manageUrl,
+                      icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+                      staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
+                      badgeUrl: await emailBadgeUrl(org.id),
+                      infoLines,
+                    });
               await selectTransport().send({
                 to: row.client_email,
                 subject: msg.subject,

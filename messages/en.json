@@ -321,11 +321,15 @@
     "confirmed": {
       "requestSent": "Request sent",
       "bookingConfirmed": "Booking confirmed",
+      "reservedUntil": "Reserved until {until}",
       "with": "with {name}",
       "pendingBody": "Nothing is booked yet — you'll get an email as soon as it's confirmed. Keep that email; the link below is your access to the request.",
       "confirmedBody": "A confirmation email is on its way. Keep it — the links below are your access to this booking.",
+      "payBody": "Pay {amount} to confirm. Unpaid reservations are released automatically.",
       "viewRequest": "View your request",
       "viewBooking": "View your booking",
+      "pay": "Pay {amount}",
+      "viewReservation": "View reservation",
       "addToCalendar": "Add to calendar (.ics)"
     },
     "manage": {

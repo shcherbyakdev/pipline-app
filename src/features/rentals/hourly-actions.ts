@@ -24,7 +24,10 @@ import {
   bookingLifecycleKey,
   bookingRequestReceivedEmail,
   formatHourlyWhenLine,
+  formatUntil,
+  paymentDueEmail,
 } from "@/features/scheduling/templates";
+import { formatMoney } from "@/lib/money";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import {
   durationOptions,
@@ -162,7 +165,7 @@ function isTaken(error: { message?: string; code?: string }): boolean {
 export async function createRentalBookingHours(
   input: unknown,
 ): Promise<
-  | { ok: true; token: string; pending: boolean }
+  | { ok: true; token: string; pending: boolean; payment?: { until: string; amount: string } }
   | { ok: false; error: string; slotTaken?: boolean; quote?: boolean }
 > {
   let orgLocale: OrgLocaleSource = null;
@@ -258,11 +261,16 @@ export async function createRentalBookingHours(
     // here, before mail prep, so every success return below can carry it.
     const { data: statusRow, error: statusError } = await admin
       .from("bookings")
-      .select("status, lines, people, price_cents, deposit_cents")
+      .select("status, hold_expires_at, lines, people, price_cents, deposit_cents")
       .eq("id", bookingId as string)
       .maybeSingle();
     if (statusError) console.error("[rentals] createRentalBookingHours status read:", statusError);
     const isPending = statusRow?.status === "pending";
+    // S2: the RPC held the row for its deposit (0079) — the client gets the
+    // "pay by" mail instead of a confirmation, and the provider hears
+    // nothing until the payment lands (the webhook's newBooking).
+    const isHeld = statusRow?.status === "pending_payment";
+    const holdUntil = isHeld && statusRow?.hold_expires_at ? new Date(statusRow.hold_expires_at) : null;
     kickCalendarSync(ctx.org.orgId); // Google mirror (spec 2026-09-05 §2.2)
 
     // Everything both mails share, computed once; nothing below may fail the
@@ -282,6 +290,10 @@ export async function createRentalBookingHours(
       infoLines: string[];
       clientInfoLines: string[];
     } | null = null;
+    // S2: the hold's deadline and deposit, in the client's language — what
+    // the widget's pay panel and the "pay by" mail both print. Set inside the
+    // prep block below (same locale reads), so an early return carries it too.
+    let payment: { until: string; amount: string } | undefined;
     try {
       const tz = ctx.org.timeZone;
       const ends = new Date(starts.getTime() + durationMin * 60_000);
@@ -303,13 +315,20 @@ export async function createRentalBookingHours(
         currency: ctx.org.currency,
         cancelWindowMin: ctx.offering.cancelWindowMin,
         lines: (statusRow?.lines as Line[] | null) ?? null,
+        holding: isHeld,
       };
       const infoLines = moneyInfoLines(money, mail.tUnits);
       const clientInfoLines = moneyInfoLines(money, client.tUnits);
+      if (holdUntil && statusRow?.deposit_cents != null) {
+        payment = {
+          until: formatUntil(holdUntil, tz, client.intlLocale),
+          amount: formatMoney(statusRow.deposit_cents, ctx.org.currency),
+        };
+      }
       prep = { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines };
     } catch (error) {
       console.error("[rentals] post-booking mail prep failed:", error);
-      return { ok: true, token, pending: isPending };
+      return { ok: true, token, pending: isPending, payment };
     }
     const { whenLine, clientWhenLine, serviceName, infoLines, clientInfoLines } = prep;
 
@@ -317,33 +336,47 @@ export async function createRentalBookingHours(
     // the request-received twin instead — nothing is confirmed yet.
     try {
       const manageUrl = buildBookingManageUrl(token);
-      const msg = isPending
-        ? bookingRequestReceivedEmail(client.t, {
+      const msg = payment
+        ? paymentDueEmail(client.t, {
             orgName: ctx.org.orgName,
             serviceName,
             whenLine: clientWhenLine,
+            until: payment.until,
+            amount: payment.amount,
+            payUrl: `${manageUrl}/pay`,
             manageUrl,
             badgeUrl: await emailBadgeUrl(ctx.org.orgId),
             infoLines: clientInfoLines,
           })
-        : bookingConfirmationEmail(client.t, {
-            orgName: ctx.org.orgName,
-            serviceName,
-            whenLine: clientWhenLine,
-            manageUrl,
-            icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
-            // "Powered by Booklo" unless the org's plan lets it opt out and it
-            // did (emailBadgeUrl swallows its own errors — same discipline as
-            // scheduling/public-actions.ts's own confirmation send).
-            badgeUrl: await emailBadgeUrl(ctx.org.orgId),
-            infoLines: clientInfoLines,
-          });
+        : isPending
+          ? bookingRequestReceivedEmail(client.t, {
+              orgName: ctx.org.orgName,
+              serviceName,
+              whenLine: clientWhenLine,
+              manageUrl,
+              badgeUrl: await emailBadgeUrl(ctx.org.orgId),
+              infoLines: clientInfoLines,
+            })
+          : bookingConfirmationEmail(client.t, {
+              orgName: ctx.org.orgName,
+              serviceName,
+              whenLine: clientWhenLine,
+              manageUrl,
+              icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+              // "Powered by Booklo" unless the org's plan lets it opt out and it
+              // did (emailBadgeUrl swallows its own errors — same discipline as
+              // scheduling/public-actions.ts's own confirmation send).
+              badgeUrl: await emailBadgeUrl(ctx.org.orgId),
+              infoLines: clientInfoLines,
+            });
       await selectTransport().send({
         to: email,
         subject: msg.subject,
         html: msg.html,
         text: msg.text,
-        idempotencyKey: bookingIdempotencyKey(bookingId as string),
+        idempotencyKey: payment
+          ? bookingLifecycleKey(bookingId as string, "payment-due")
+          : bookingIdempotencyKey(bookingId as string),
       });
     } catch (mailError) {
       console.error("[rentals] confirmation email failed:", mailError);
@@ -355,19 +388,23 @@ export async function createRentalBookingHours(
     // the two actions mirror each other.
     // One seam, each member's channels (/notifications); it swallows its own
     // errors, so a failed client mail can't skip it.
-    await notifyMembers({
-      orgId: ctx.org.orgId,
-      event: isPending ? "newRequest" : "newBooking",
-      serviceName,
-      clientName: name,
-      clientEmail: email,
-      whenLine,
-      note: note ?? null,
-      infoLines,
-      idempotencyKey: bookingLifecycleKey(bookingId as string, "provider-new"),
-    });
+    // A hold is not a booking yet: the webhook sends this notice when the
+    // money lands, so the provider is told once, about a real booking.
+    if (!isHeld) {
+      await notifyMembers({
+        orgId: ctx.org.orgId,
+        event: isPending ? "newRequest" : "newBooking",
+        serviceName,
+        clientName: name,
+        clientEmail: email,
+        whenLine,
+        note: note ?? null,
+        infoLines,
+        idempotencyKey: bookingLifecycleKey(bookingId as string, "provider-new"),
+      });
+    }
 
-    return { ok: true, token, pending: isPending };
+    return { ok: true, token, pending: isPending, payment };
   } catch (error) {
     console.error("[rentals] createRentalBookingHours:", error);
     return publicError(orgLocale, "generic");
