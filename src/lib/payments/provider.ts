@@ -1,3 +1,4 @@
+import "server-only";
 import { env } from "@/env";
 import { stripePaymentsProvider } from "./stripe";
 import { fakePaymentsProvider } from "./fake";
