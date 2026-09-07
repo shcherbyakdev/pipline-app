@@ -471,6 +471,28 @@
       "lead": "{orgName} couldn't take your booking request.",
       "again": "You're welcome to request another time on the booking page."
     },
+    "paymentDue": {
+      "subject": "Pay {amount} by {until} to confirm — {service}, {when}",
+      "lead": "Your time is reserved until {until}. Pay the deposit to confirm it — unpaid reservations are released automatically.",
+      "pay": "Pay {amount}",
+      "payText": "Pay {amount}: {url}",
+      "keep": "Keep this email — the links above are your access to the reservation."
+    },
+    "paymentReceived": {
+      "subject": "Payment received — {service}, {when}",
+      "lead": "Thank you — your payment was received and your booking is confirmed.",
+      "manageHint": "To view or change it, use the link in your reservation email."
+    },
+    "holdExpired": {
+      "subject": "Reservation released — {service}, {when}",
+      "lead": "The deposit for this reservation was not received in time, so the time was released.",
+      "bookAgain": "Book again",
+      "bookAgainText": "Book again: {url}"
+    },
+    "slotLost": {
+      "subject": "We couldn't confirm {service}, {when}",
+      "lead": "Your payment arrived after the reservation had been released, and the time was taken meanwhile. {amount} is being refunded to you — bank refunds take up to 3 business days."
+    },
     "rescheduled": {
       "subject": "Booking rescheduled — {service}, {when}",
       "lead": "Your booking has been moved.",

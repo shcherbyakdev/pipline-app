@@ -19,6 +19,11 @@ import {
   providerNewBookingEmail,
   bookingRequestReceivedEmail,
   bookingDeclinedEmail,
+  formatUntil,
+  paymentDueEmail,
+  paymentReceivedEmail,
+  holdExpiredEmail,
+  slotLostEmail,
 } from "./templates";
 
 describe("booking lifecycle templates", () => {
@@ -466,5 +471,52 @@ describe("Ukrainian mails (i18n Wave 2, spec D4)", () => {
     expect(m.text).toContain("Іван <b> скасував(ла) бронювання.");
     // Org names are mostly feminine or neuter: the verb agrees with «Заклад», never with the name.
     expect(bookingCancelledEmail(U, { ...base, cancelledBy: "provider" }).text).toContain("Заклад Студія Анна мусив скасувати");
+  });
+});
+
+describe("S2 payment mails", () => {
+  it("payment due carries the amount, the deadline, both links", () => {
+    const m = paymentDueEmail(T, {
+      orgName: "Studio X",
+      serviceName: "Daylight room",
+      whenLine: "Mon, 10 May 10:00–11:00",
+      until: "Mon, 10 May 11:00",
+      amount: "60 zł",
+      payUrl: "https://app/booking/tok/pay",
+      manageUrl: "https://app/booking/tok",
+      infoLines: ["Total: 300 zł"],
+    });
+    expect(m.subject).toBe("Pay 60 zł by Mon, 10 May 11:00 to confirm — Daylight room, Mon, 10 May 10:00–11:00");
+    expect(m.html).toContain('href="https://app/booking/tok/pay"');
+    expect(m.text).toContain("https://app/booking/tok/pay");
+    expect(m.text).toContain("https://app/booking/tok");
+    expect(m.text).toContain("Total: 300 zł");
+  });
+
+  it("payment received has no manage link and says where the link is", () => {
+    const m = paymentReceivedEmail(T, {
+      orgName: "Studio X",
+      serviceName: "Daylight room",
+      whenLine: "Mon",
+      infoLines: ["Paid: 60 zł"],
+    });
+    expect(m.subject).toBe("Payment received — Daylight room, Mon");
+    expect(m.html).not.toContain("href=");
+    expect(m.text).toContain("reservation email");
+  });
+
+  it("hold expired links to the booking page; slot lost names the refund", () => {
+    expect(
+      holdExpiredEmail(T, { orgName: "S", serviceName: "R", whenLine: "W", bookAgainUrl: "https://app/studio-x" }).html,
+    ).toContain('href="https://app/studio-x"');
+    expect(slotLostEmail(T, { orgName: "S", serviceName: "R", whenLine: "W", amount: "60 zł" }).text).toContain("60 zł");
+  });
+
+  it("formatUntil prints a zoned day + time", () => {
+    expect(formatUntil(new Date("2027-05-10T09:32:00Z"), "Europe/Warsaw", "en-GB")).toBe("Mon 10 May, 11:32");
+  });
+
+  it("lifecycle keys", () => {
+    expect(bookingLifecycleKey("b1", "payment-due")).toBe("booking/b1/payment-due");
   });
 });
