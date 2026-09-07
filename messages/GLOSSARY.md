@@ -51,6 +51,10 @@ A term missing here is added here first, then used.
 | publish / draft | опублікувати / чернетка | |
 | Latin only (font note) | Лише латиниця | Geist, DM Sans, Space Grotesk |
 | an org as the subject of a verb | Заклад {orgName} … | anchors the verb to a masculine noun, since org names are mostly feminine/neuter (Студія, Клініка) |
+| rate by length (hourly-rules pricing) | ставка за тривалість | `spaces.form.pricing.bands.*`, `public.units.line.base` |
+| surcharge | надбавка | `spaces.form.pricing.surcharges.*` |
+| extra (addable item, e.g. gear) | додаток | `spaces.form.pricing.extras.*`, never "додаткова опція" |
+| included (people count in the base price) | у вартості | `spaces.form.pricing.people.included`, `public.widget.included` |
 
 ## Style — uk
 
@@ -99,6 +103,10 @@ A term missing here is added here first, then used.
 | layout / section / cover | układ / sekcja / okładka | |
 | publish / draft | opublikuj / wersja robocza | |
 | Free / Pro / Premium | Free / Pro / Premium | plan names stay; "Premium" is the same word |
+| rate by length (hourly-rules pricing) | stawka za długość | `spaces.form.pricing.bands.*`, `public.units.line.base` |
+| surcharge | dopłata | `spaces.form.pricing.surcharges.*` |
+| extra (addable item, e.g. gear) | dodatek | `spaces.form.pricing.extras.*` |
+| included (people count in the base price) | w cenie | `spaces.form.pricing.people.included`, `public.widget.included` |
 
 ## Style — pl
 

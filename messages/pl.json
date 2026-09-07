@@ -155,6 +155,7 @@
     "slotTaken": "Ten termin został właśnie zajęty — wybierz inny.",
     "staffUnavailable": "Ten członek zespołu nie może przyjąć tego terminu — wybierz inny.",
     "datesTaken": "Te daty zostały właśnie zajęte — wybierz ponownie.",
+    "rentalsQuote": "Nie udało się wyliczyć ceny dla tego wyboru — wybierz ponownie.",
     "termsRequired": "Aby zarezerwować, zaakceptuj regulamin.",
     "stayStarted": "Ten pobyt już się rozpoczął.",
     "checkInPassed": "Godzina zameldowania już minęła — wybierz późniejszą datę.",
@@ -280,7 +281,14 @@
       "confirmBooking": "Potwierdź rezerwację",
       "selected": "Wybrano",
       "nothingFreeDates": "Te daty nie są już wolne — wybierz ponownie.",
-      "nothingFreeTime": "Ten termin nie jest już wolny — wybierz ponownie."
+      "nothingFreeTime": "Ten termin nie jest już wolny — wybierz ponownie.",
+      "people": "Osoby",
+      "included": "do {count} w cenie",
+      "fewer": "Mniej osób",
+      "more": "Więcej osób",
+      "extras": "Dodatki",
+      "fewerOf": "Mniej: {label}",
+      "moreOf": "Więcej: {label}"
     },
     "slots": {
       "loading": "Wczytywanie terminów…",
@@ -404,7 +412,18 @@
       "total": "Razem: {amount}",
       "depositDue": "Zaliczka: {amount}",
       "payAtVenue": "Płatność: na miejscu",
-      "freeCancellation": "Bezpłatne odwołanie do {window} przed rozpoczęciem"
+      "freeCancellation": "Bezpłatne odwołanie do {window} przed rozpoczęciem",
+      "fromPerHour": "od {amount} / godz.",
+      "totalFor": "{amount} / {length}",
+      "from": "od {amount}",
+      "perHourShort": "za godzinę",
+      "perPiece": "za sztukę",
+      "line": {
+        "base": "{hours} × {rate}",
+        "surcharge": "{label} +{pct}%",
+        "people": "{count, plural, one {# dodatkowa osoba} few {# dodatkowe osoby} many {# dodatkowych osób} other {# dodatkowej osoby}} × {each}",
+        "extra": "{label} × {qty}"
+      }
     }
   },
   "emails": {
@@ -669,6 +688,51 @@
       "unitSelection": "Wybór jednostki",
       "unitAuto": "Przypisuj jednostkę automatycznie",
       "unitClientPicks": "Pozwól klientowi wybrać jednostkę",
+      "pricing": {
+        "useRules": "Stawki za długość, dopłaty i dodatki",
+        "useRulesHint": "Zamiast jednej ceny za godzinę. Cena jest wyliczana dla każdej rezerwacji i pokazywana, zanim klient potwierdzi.",
+        "bands": {
+          "title": "Stawki za długość",
+          "from": "od",
+          "fromAria": "Stawka {n} obowiązuje od (godzin)",
+          "kindAria": "Rodzaj stawki {n}",
+          "amountAria": "Kwota stawki {n}",
+          "perHour": "{currency} za godzinę",
+          "total": "{currency} łącznie",
+          "add": "Dodaj stawkę",
+          "remove": "Usuń stawkę {n}"
+        },
+        "surcharges": {
+          "title": "Dopłaty",
+          "labelAria": "Nazwa dopłaty {n}",
+          "labelPlaceholder": "Noc",
+          "pctAria": "Procent dopłaty {n}",
+          "pctSuffix": "%",
+          "days": "Dni",
+          "from": "Od",
+          "to": "Do",
+          "add": "Dodaj dopłatę",
+          "remove": "Usuń dopłatę {n}"
+        },
+        "people": {
+          "title": "Osoby",
+          "included": "W cenie",
+          "extra": "Za dodatkową osobę ({currency})",
+          "max": "Maksymalnie"
+        },
+        "extras": {
+          "title": "Dodatki",
+          "labelAria": "Nazwa dodatku {n}",
+          "labelPlaceholder": "ARRI 2 kW",
+          "unitAria": "Jednostka dodatku {n}",
+          "perHour": "za godzinę",
+          "perPiece": "za sztukę",
+          "priceAria": "Cena dodatku {n}",
+          "maxAria": "Maksimum dodatku {n}",
+          "add": "Dodaj dodatek",
+          "remove": "Usuń dodatek {n}"
+        }
+      },
       "create": "Utwórz przestrzeń",
       "created": "Przestrzeń utworzona"
     },
