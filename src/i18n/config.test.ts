@@ -5,6 +5,7 @@ describe("locale config", () => {
   it("names every locale in itself", () => {
     for (const l of LOCALES) expect(LOCALE_NAMES[l]).toBeTruthy();
     expect(LOCALE_NAMES.uk).toBe("Українська");
+    expect(LOCALE_NAMES.pl).toBe("Polski");
   });
 
   it("isLocale accepts only listed codes", () => {
@@ -25,7 +26,7 @@ describe("locale config", () => {
     expect(negotiateLocale(undefined)).toBe(DEFAULT_LOCALE);
     expect(negotiateLocale("")).toBe(DEFAULT_LOCALE);
     expect(negotiateLocale("*")).toBe(DEFAULT_LOCALE);
-    expect(negotiateLocale("ru,pl;q=0.9")).toBe(DEFAULT_LOCALE);
+    expect(negotiateLocale("ru,de;q=0.9")).toBe(DEFAULT_LOCALE);
     expect(negotiateLocale("uk;q=0")).toBe(DEFAULT_LOCALE);
     expect(negotiateLocale("uk;q=abc")).toBe(DEFAULT_LOCALE);
   });

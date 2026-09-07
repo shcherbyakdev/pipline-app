@@ -1,0 +1,1825 @@
+{
+  "common": {
+    "language": "Język",
+    "localeNotice": {
+      "body": "Booklo jest po polsku, zgodnie z językiem Twojej przeglądarki.",
+      "keep": "Zostaw polski"
+    },
+    "loading": "Wczytywanie…",
+    "save": "Zapisz",
+    "saving": "Zapisywanie…",
+    "saved": "Zapisano",
+    "cancel": "Anuluj",
+    "close": "Zamknij",
+    "back": "Wstecz",
+    "delete": "Usuń",
+    "deleting": "Usuwanie…",
+    "edit": "Edytuj",
+    "add": "Dodaj",
+    "remove": "Usuń",
+    "done": "Gotowe",
+    "create": "Utwórz",
+    "creating": "Tworzenie…",
+    "search": "Szukaj",
+    "none": "Brak",
+    "optional": "opcjonalnie",
+    "yes": "Tak",
+    "no": "Nie",
+    "unsavedChanges": "Niezapisane zmiany",
+    "name": "Nazwa",
+    "email": "E-mail",
+    "active": "Aktywne",
+    "inactive": "Nieaktywne",
+    "new": "Nowe",
+    "open": "Otwórz",
+    "copyLink": "Kopiuj link",
+    "linkCopied": "Link skopiowany",
+    "today": "Dziś",
+    "previous": "Poprzedni",
+    "next": "Następny",
+    "all": "Wszystko",
+    "min": "min",
+    "notFound": "Nie znaleziono"
+  },
+  "settings": {
+    "language": {
+      "title": "Język",
+      "blurb": "Dla Twojego panelu. Język, który widzą klienci, ustawiasz na stronie rezerwacji.",
+      "label": "Język interfejsu"
+    },
+    "intro": "Ustawienia panelu i to, co oferuje Twoja firma.",
+    "sections": {
+      "interface": "Interfejs",
+      "business": "Firma"
+    },
+    "appearance": {
+      "title": "Motyw interfejsu",
+      "blurb": "Dotyczy tylko tej przeglądarki.",
+      "light": "Jasny",
+      "dark": "Ciemny"
+    },
+    "business": {
+      "title": "Co oferujesz",
+      "blurb": "Jedno na przestrzeń roboczą. Można zmienić, dopóki nie dodasz pierwszej usługi lub przestrzeni.",
+      "locked": "Ustawione przy rejestracji. Aby zmienić, najpierw dezaktywuj wszystko, co oferujesz."
+    },
+    "copyRefused": "Nie udało się skopiować — zaznacz tekst linku i skopiuj ręcznie.",
+    "bookingPage": {
+      "title": "Adres, strefa czasowa i język",
+      "description": "Obowiązuje po zapisaniu.",
+      "saved": "Strona rezerwacji zapisana",
+      "unpublishTitle": "Wycofać publikację strony rezerwacji?",
+      "changeTitle": "Zmienić adres strony rezerwacji?",
+      "changeDescription": "Stary link i kod osadzony na Twojej stronie przestaną działać — zaktualizuj kod w sekcji Osadzenie na stronie.",
+      "unpublish": "Wycofaj publikację",
+      "changeAddress": "Zmień adres",
+      "handle": "Adres strony rezerwacji",
+      "handleHint": "Małe litery, cyfry i myślniki, 3–50 znaków. Pusty adres wycofuje publikację strony.",
+      "handlePlaceholder": "twoja-nazwa",
+      "copyLinkLabel": "Kopiuj link do strony rezerwacji",
+      "timezone": "Strefa czasowa",
+      "timezoneHint": "Twoja dostępność jest ustawiana w tej strefie czasowej.",
+      "currency": "Waluta",
+      "currencyHint": "Widoczna przy cenach i zaliczkach.",
+      "language": "Język",
+      "languageHint": "To, co klienci widzą na Twojej stronie rezerwacji. Odwiedzający z Ukrainy i tak zobaczą ukraiński."
+    }
+  },
+  "auth": {
+    "email": "E-mail",
+    "emailPlaceholder": "you@company.com",
+    "password": "Hasło",
+    "passwordHint": "Co najmniej 8 znaków.",
+    "login": {
+      "title": "Zaloguj się",
+      "expiredLink": "Ten link jest nieprawidłowy lub wygasł — poproś o nowy.",
+      "noAccount": "Nie masz konta? <link>Zarejestruj się</link>",
+      "forgot": "Nie pamiętasz hasła?",
+      "submit": "Zaloguj się",
+      "submitting": "Logowanie…",
+      "useMagic": "Wyślij mi zamiast tego link do logowania",
+      "usePassword": "Zaloguj się zamiast tego hasłem",
+      "magicSent": "Sprawdź skrzynkę — wysłaliśmy link do logowania.",
+      "sendMagic": "Wyślij link do logowania",
+      "sending": "Wysyłanie…"
+    },
+    "signup": {
+      "title": "Utwórz konto",
+      "blurb": "Przed pierwszym logowaniem potwierdzisz adres e-mail.",
+      "claiming": "Rezerwujesz adres <handle>{claimed}</handle>",
+      "sent": "Sprawdź skrzynkę, aby potwierdzić konto.",
+      "sentClaimed": "Sprawdź skrzynkę, aby potwierdzić konto i zająć adres {claimed}.",
+      "submit": "Utwórz konto",
+      "submitting": "Tworzenie konta…",
+      "haveAccount": "Masz już konto? <link>Zaloguj się</link>"
+    },
+    "forgot": {
+      "title": "Zresetuj hasło",
+      "blurb": "Wyślemy Ci e-mailem link do ustawienia nowego hasła.",
+      "expired": "Ten link do resetu został już użyty lub wygasł — poproś o nowy.",
+      "sent": "Jeśli dla tego adresu istnieje konto, otrzymasz link do resetu hasła.",
+      "submit": "Wyślij link do resetu",
+      "sending": "Wysyłanie…",
+      "back": "Wróć do logowania"
+    },
+    "reset": {
+      "title": "Ustaw nowe hasło",
+      "blurb": "Zalogowaliśmy Cię przez link do resetu — wybierz nowe hasło.",
+      "newPassword": "Nowe hasło",
+      "confirm": "Powtórz nowe hasło",
+      "submit": "Ustaw nowe hasło",
+      "saving": "Zapisywanie…"
+    },
+    "errors": {
+      "emailInvalid": "Podaj prawidłowy adres e-mail.",
+      "credentialsInvalid": "Podaj prawidłowy e-mail i hasło.",
+      "signInFailed": "Nieprawidłowy e-mail lub hasło.",
+      "linkFailed": "Nie udało się wysłać linku. Spróbuj ponownie za chwilę.",
+      "passwordMin": "Hasło musi mieć co najmniej 8 znaków.",
+      "passwordsMismatch": "Hasła nie są takie same.",
+      "passwordInvalid": "Podaj prawidłowe hasło.",
+      "passwordWeak": "To hasło jest zbyt popularne lub pojawiło się w wycieku danych — wybierz inne.",
+      "tooManyAttempts": "Zbyt wiele prób — odczekaj kilka minut i spróbuj ponownie.",
+      "signUpFailed": "Nie udało się utworzyć konta. Spróbuj ponownie.",
+      "handleInvalid": "Ta nazwa strony jest nieprawidłowa.",
+      "handleUnavailable": "Ta nazwa strony jest niedostępna.",
+      "resetExpired": "Twój link do resetu wygasł — poproś o nowy.",
+      "updateFailed": "Nie udało się zmienić hasła. Poproś o nowy link do resetu."
+    }
+  },
+  "errors": {
+    "generic": "Nie udało się zapisać. Spróbuj ponownie.",
+    "tooManyRequests": "Zbyt wiele żądań — zwolnij.",
+    "tooManyForEmail": "Zbyt wiele rezerwacji na ten adres e-mail w ciągu ostatniej godziny — spróbuj później.",
+    "changedTooOften": "Ta rezerwacja była zmieniana zbyt wiele razy w ciągu ostatniej godziny — spróbuj później.",
+    "slotTaken": "Ten termin został właśnie zajęty — wybierz inny.",
+    "staffUnavailable": "Ten członek zespołu nie może przyjąć tego terminu — wybierz inny.",
+    "datesTaken": "Te daty zostały właśnie zajęte — wybierz ponownie.",
+    "termsRequired": "Aby zarezerwować, zaakceptuj regulamin.",
+    "stayStarted": "Ten pobyt już się rozpoczął.",
+    "checkInPassed": "Godzina zameldowania już minęła — wybierz późniejszą datę.",
+    "cancelWindowPassed": "Okres bezpłatnego odwołania minął — skontaktuj się z usługodawcą, aby anulować.",
+    "notChangeable": "Tej rezerwacji nie można już zmienić online.",
+    "planLimitServices": "Twój plan pozwala na {max} usług na stronie rezerwacji.",
+    "planLimitResourceOne": "Free obejmuje 1 zasób do rezerwacji — jedną osobę lub jedną jednostkę.",
+    "planLimitResources": "Twój plan pozwala na {max} zasobów do rezerwacji — osób i jednostek łącznie.",
+    "upgradeHint": {
+      "billing": "Zmień plan w Rozliczeniach, aby dodać więcej.",
+      "waitlist": "Dołącz do listy oczekujących Premium, aby dodać więcej.",
+      "none": "Wyższe limity są w planach płatnych."
+    },
+    "upgradeLabel": {
+      "billing": "Otwórz Rozliczenia",
+      "waitlist": "Dołącz do listy oczekujących"
+    },
+    "spaces": {
+      "hasBookings": "Ma rezerwacje — zamiast tego dezaktywuj.",
+      "blackoutOrder": "Data końcowa nie może być wcześniejsza niż początkowa.",
+      "blackoutSpan": "Niedostępne daty mogą obejmować najwyżej 2 lata.",
+      "lastUnit": "To ostatnia jednostka tej przestrzeni — aby ją usunąć, usuń przestrzeń."
+    },
+    "clients": {
+      "createdNotAssigned": "Klient utworzony, ale nie udało się go przypisać. Wybierz go z listy.",
+      "copyFailed": "Nie udało się skopiować — zaznacz tekst linku i skopiuj ręcznie."
+    },
+    "availability": {
+      "overlap": "Godziny nakładają się na inny przedział."
+    },
+    "services": {
+      "hasBookings": "Usługa ma rezerwacje — zamiast tego dezaktywuj."
+    },
+    "staff": {
+      "lastActive": "Potrzebujesz co najmniej jednego aktywnego członka zespołu.",
+      "slugTaken": "Ta nazwa linku jest już zajęta.",
+      "futureBookings": "{name} ma nadchodzące rezerwacje lub oczekujące prośby — najpierw je przenieś lub rozstrzygnij.",
+      "someone": "Ta osoba"
+    },
+    "settings": {
+      "handleReserved": "Ten adres jest zarezerwowany — wybierz inny.",
+      "handleFormat": "Użyj 3–50 małych liter, cyfr lub myślników.",
+      "handleTaken": "Ten adres jest już zajęty."
+    },
+    "orgs": {
+      "invalidInput": "Sprawdź nazwę (2–80 znaków) i adres strony.",
+      "timezoneUnknown": "Nie rozpoznano tej strefy czasowej — wybierz z listy.",
+      "handleJustTaken": "Ta nazwa została właśnie zajęta — wybierz inną.",
+      "contrast": "Kontrast tekstu i tła jest poniżej 3:1 — wybierz bardziej różniące się kolory.",
+      "channelInUse": "Najpierw dezaktywuj wszystko, co oferujesz, a potem przełącz."
+    },
+    "billing": {
+      "checkout": "Nie udało się otworzyć kasy — spróbuj ponownie.",
+      "usePortal": "Zmień plan w portalu rozliczeń.",
+      "complimentary": "Twój plan jest obecnie bezpłatny — nie ma czego kupować, dopóki nie wygaśnie.",
+      "founderEnded": "Oferta Founder dobiegła końca — obowiązuje cena regularna.",
+      "portal": "Nie ma jeszcze subskrypcji do zarządzania.",
+      "portalUnavailable": "Nie udało się otworzyć portalu rozliczeń — spróbuj ponownie."
+    },
+    "bookings": {
+      "notCancellable": "Anulować można tylko potwierdzoną, nadchodzącą rezerwację.",
+      "notReschedulable": "Przełożyć można tylko potwierdzoną rezerwację.",
+      "stayNotReschedulable": "Pobytów nie da się tu przenieść — anuluj i zarezerwuj ponownie.",
+      "noManageLink": "Link do zarządzania ma tylko nadchodząca rezerwacja lub prośba.",
+      "noEmail": "Brak adresu e-mail tego klienta.",
+      "overlap": "Ten termin nakłada się na istniejącą rezerwację.",
+      "staffNotOffering": "Ten członek zespołu nie oferuje tej usługi.",
+      "notPendingAccept": "Zaakceptować można tylko aktualną oczekującą prośbę.",
+      "notPendingDecline": "Odrzucić można tylko aktualną oczekującą prośbę.",
+      "stayNotMovable": "Przenieść można tylko potwierdzony pobyt.",
+      "notMovable": "Przenieść można tylko potwierdzoną rezerwację.",
+      "alreadyStarted": "Ta rezerwacja już się rozpoczęła.",
+      "spaceInactive": "Ta przestrzeń jest nieaktywna — aktywuj ją ponownie, aby przenosić jej rezerwacje."
+    },
+    "studio": {
+      "pageTooLarge": "Ta strona jest zbyt duża, aby ją zapisać — usuń część treści lub zdjęć.",
+      "imageRejected": "Użyj obrazu PNG, JPEG lub WebP do 4 MB.",
+      "imageLimit": "Ta strona osiągnęła limit obrazów. Opublikuj lub odrzuć wersję roboczą, aby usunąć nieużywane obrazy, i spróbuj ponownie.",
+      "pageGated": "Niektóre sekcje tej strony wymagają wyższego planu. Ukryj je lub usuń, aby opublikować."
+    }
+  },
+  "public": {
+    "meta": {
+      "description": "{channel, select, spaces {Zarezerwuj przestrzeń w {orgName}.} other {Umów wizytę w {orgName}.}}"
+    },
+    "poweredBy": "Działa na Booklo",
+    "language": "Język",
+    "crossLink": {
+      "backTo": "← Wróć do {orgName}"
+    },
+    "header": {
+      "bookingWith": "Rezerwacja: {name}"
+    },
+    "location": {
+      "title": "Jak nas znaleźć",
+      "openMaps": "Otwórz w Mapach ↗"
+    },
+    "links": {
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "tiktok": "TikTok",
+      "whatsapp": "WhatsApp",
+      "website": "Strona www",
+      "phone": "Telefon",
+      "email": "E-mail",
+      "other": "Link"
+    },
+    "widget": {
+      "promptServices": "Wybierz usługę, aby zobaczyć wolne terminy.",
+      "promptSpaces": "Wybierz przestrzeń, aby zobaczyć jej dostępność.",
+      "appointments": "Wizyty",
+      "spaces": "Przestrzenie",
+      "change": "zmień",
+      "changeDates": "zmień daty",
+      "with": "u: {name}",
+      "anyone": "Ktokolwiek",
+      "bookWith": "Rezerwuj u",
+      "withShort": "U",
+      "noneInFirstLook": "Brak wolnych terminów w najbliższe cztery tygodnie — sprawdź późniejsze daty.",
+      "preview": "Podgląd",
+      "sending": "Wysyłanie…",
+      "requestToBook": "Poproś o rezerwację",
+      "confirmBooking": "Potwierdź rezerwację",
+      "selected": "Wybrano",
+      "nothingFreeDates": "Te daty nie są już wolne — wybierz ponownie.",
+      "nothingFreeTime": "Ten termin nie jest już wolny — wybierz ponownie."
+    },
+    "slots": {
+      "loading": "Wczytywanie terminów…",
+      "viewerTz": "Godziny w Twojej strefie czasowej ({tz}).",
+      "orgTz": "Lokalna strefa czasowa firmy to {tz}.",
+      "providerTz": "Godziny w strefie czasowej usługodawcy ({tz}).",
+      "localTzProviderIn": "Godziny w Twojej lokalnej strefie czasowej; usługodawca jest w strefie {tz}.",
+      "emptyWeek": "Brak wolnych terminów w tym tygodniu — sprawdź następny.",
+      "emptyMonth": "Brak wolnych terminów w tym miesiącu — sprawdź następny.",
+      "emptyFourWeeks": "Brak wolnych terminów w te cztery tygodnie — sprawdź późniejsze daty.",
+      "prevMonth": "Poprzedni miesiąc",
+      "nextMonth": "Następny miesiąc",
+      "prevWeek": "Poprzedni tydzień",
+      "nextWeek": "Następny tydzień",
+      "weekOf": "Tydzień od {date}",
+      "daysWithFreeTimes": "Dni z wolnymi terminami",
+      "weekdays": "Pn Wt Śr Cz Pt So Nd",
+      "showMore": "Pokaż więcej",
+      "laterDates": "Późniejsze daty",
+      "backToSoonest": "Wróć do najbliższych",
+      "today": "Dziś",
+      "tomorrow": "Jutro"
+    },
+    "details": {
+      "name": "Imię i nazwisko",
+      "email": "E-mail",
+      "emailOptional": "E-mail (opcjonalnie)",
+      "note": "Uwagi (opcjonalnie)"
+    },
+    "confirmed": {
+      "requestSent": "Prośba wysłana",
+      "bookingConfirmed": "Rezerwacja potwierdzona",
+      "with": "u: {name}",
+      "pendingBody": "Nic nie jest jeszcze zarezerwowane — dostaniesz e-mail, gdy tylko prośba zostanie potwierdzona. Zachowaj tę wiadomość; poniższy link to Twój dostęp do prośby.",
+      "confirmedBody": "E-mail z potwierdzeniem jest w drodze. Zachowaj go — poniższe linki to Twój dostęp do tej rezerwacji.",
+      "viewRequest": "Zobacz swoją prośbę",
+      "viewBooking": "Zobacz swoją rezerwację",
+      "addToCalendar": "Dodaj do kalendarza (.ics)"
+    },
+    "manage": {
+      "status": {
+        "confirmed": "Potwierdzona",
+        "pending": "Czeka na potwierdzenie",
+        "declined": "Prośba odrzucona",
+        "cancelledByClient": "Anulowana",
+        "cancelledByProvider": "Anulowana przez usługodawcę",
+        "rescheduled": "Przełożona",
+        "expired": "Prośba wygasła"
+      },
+      "tooManyRequests": "Zbyt wiele żądań — spróbuj ponownie za chwilę.",
+      "alreadyStarted": "Ta rezerwacja już się rozpoczęła.",
+      "awaiting": "{orgName} nie potwierdził jeszcze tej prośby — dostaniesz e-mail, gdy to zrobi.",
+      "reschedule": "Przełóż",
+      "pickNewTime": "Wybierz nowy termin",
+      "pickNewDates": "Wybierz nowe daty",
+      "keepCurrentTime": "Zostaw obecny termin",
+      "keepCurrentDates": "Zostaw obecne daty",
+      "moveTo": "Przenieść tę rezerwację na <b>{when}</b>?",
+      "confirmNewTime": "Potwierdź nowy termin",
+      "confirmNewDates": "Potwierdź nowe daty",
+      "pickAnother": "Wybierz inny",
+      "rescheduling": "Przekładanie…",
+      "cancelled": "Rezerwacja anulowana",
+      "rescheduled": "Rezerwacja przełożona",
+      "stayRescheduled": "Pobyt przełożony",
+      "withdrawConfirm": "Tak, wycofaj tę prośbę",
+      "cancelConfirm": "Tak, anuluj tę rezerwację",
+      "keepIt": "Zostaw",
+      "withdraw": "Wycofaj prośbę",
+      "cancel": "Anuluj rezerwację",
+      "unit": "Jednostka",
+      "loadingAvailability": "Wczytywanie dostępności…",
+      "unitAuto": "Automatycznie",
+      "unitAutoKeep": "Automatycznie — zostaw {name}, jeśli wolne",
+      "unitInactive": "{name} (nieaktywna)",
+      "quotedNote": "„{note}”"
+    },
+    "stay": {
+      "howLong": "Jak długo?",
+      "duration": "Czas trwania",
+      "chooseDuration": "Wybierz czas trwania",
+      "checkIn": "Zameldowanie",
+      "checkOut": "Wymeldowanie",
+      "pickup": "Odbiór",
+      "return": "Zwrot",
+      "pickCheckIn": "Wybierz datę zameldowania.",
+      "pickPickup": "Wybierz datę odbioru.",
+      "pickCheckOut": "Teraz wybierz datę wymeldowania.",
+      "pickReturn": "Teraz wybierz datę zwrotu.",
+      "faded": "Wyszarzone daty są niedostępne.",
+      "fadedForStay": "Wyszarzone daty są niedostępne dla tego pobytu.",
+      "addDate": "Dodaj datę",
+      "howManyNights": "Ile nocy?",
+      "howManyDays": "Ile dni?",
+      "lengthInNights": "Długość pobytu w nocach",
+      "lengthInDays": "Długość pobytu w dniach",
+      "nextFree": "Najbliższe wolne: {length}.",
+      "tapToBook": "Dotknij, aby zarezerwować te daty.",
+      "nothingFreePeriod": "Brak wolnych terminów w tym okresie — sprawdź późniejsze daty.",
+      "range": "od {start} do {end}",
+      "acceptTerms": "Akceptuję regulamin",
+      "showTerms": "Pokaż regulamin"
+    },
+    "units": {
+      "perHour": "{amount} / godz.",
+      "perNight": "{amount} / noc",
+      "perDay": "{amount} / dzień",
+      "nights": "{count, plural, one {# noc} few {# noce} many {# nocy} other {# nocy}}",
+      "days": "{count, plural, one {# dzień} few {# dni} many {# dni} other {# dnia}}",
+      "hours": "{count, plural, one {# godzina} few {# godziny} many {# godzin} other {# godziny}}",
+      "minutes": "{count} min",
+      "hoursShort": "{count} godz.",
+      "hoursMinutes": "{hours} godz. {minutes} min",
+      "minNights": "min. {count, plural, one {# noc} few {# noce} many {# nocy} other {# nocy}}",
+      "minDays": "min. {count, plural, one {# dzień} few {# dni} many {# dni} other {# dnia}}",
+      "summary": "{length} · {inLabel} {inTime} · {outLabel} {outTime} ({tz})",
+      "summaryCheckIn": "zameldowanie",
+      "summaryCheckOut": "wymeldowanie",
+      "summaryPickup": "odbiór",
+      "summaryReturn": "zwrot",
+      "total": "Razem: {amount}",
+      "depositDue": "Zaliczka: {amount}",
+      "payAtVenue": "Płatność: na miejscu",
+      "freeCancellation": "Bezpłatne odwołanie do {window} przed rozpoczęciem"
+    }
+  },
+  "emails": {
+    "with": "U: {name}",
+    "poweredBy": "Działa na Booklo",
+    "addToCalendar": "Dodaj do kalendarza (.ics)",
+    "addToCalendarText": "Dodaj do kalendarza: {url}",
+    "viewOrManage": "Zobacz lub zmień tę rezerwację",
+    "viewOrManageText": "Zobacz lub zmień: {url}",
+    "viewOrWithdraw": "Zobacz lub wycofaj tę prośbę",
+    "viewOrWithdrawText": "Zobacz lub wycofaj: {url}",
+    "was": "Było: {when}",
+    "now": "Jest: {when}",
+    "quoted": "„{note}”",
+    "confirmation": {
+      "subject": "Rezerwacja potwierdzona — {service}, {when}",
+      "lead": "Twoja rezerwacja jest potwierdzona.",
+      "keep": "Zachowaj tę wiadomość — link powyżej to Twój dostęp do rezerwacji."
+    },
+    "manageLink": {
+      "subjectBooking": "Twój link do rezerwacji — {service}, {orgName}",
+      "subjectRequest": "Twój link do prośby — {service}, {orgName}",
+      "intro": "Oto nowy link, pod którym zobaczysz, przełożysz lub anulujesz swoją rezerwację ({when}). Poprzedni link już nie działa.",
+      "introNoReschedule": "Oto nowy link, pod którym zobaczysz lub anulujesz swoją rezerwację ({when}). Poprzedni link już nie działa.",
+      "introRequest": "Oto nowy link, pod którym zobaczysz lub wycofasz swoją prośbę o rezerwację ({when}). Poprzedni link już nie działa.",
+      "keep": "Zachowaj tę wiadomość — link powyżej zastępuje poprzedni link do zarządzania."
+    },
+    "cancelled": {
+      "subject": "Rezerwacja anulowana — {service}, {when}",
+      "leadClient": "Twoja rezerwacja została anulowana zgodnie z prośbą.",
+      "leadProvider": "{orgName} musiał anulować Twoją rezerwację.",
+      "rebook": "Chcesz zarezerwować ponownie? Możesz to zrobić w każdej chwili na stronie rezerwacji."
+    },
+    "requestReceived": {
+      "subject": "Prośba otrzymana — {service}, {when}",
+      "lead": "Twoja prośba o rezerwację została wysłana. Dostaniesz e-mail, gdy {orgName} ją potwierdzi.",
+      "keep": "Zachowaj tę wiadomość — link powyżej to Twój dostęp do prośby."
+    },
+    "declined": {
+      "subject": "Prośba odrzucona — {service}, {when}",
+      "lead": "{orgName} nie mógł przyjąć Twojej prośby o rezerwację.",
+      "again": "Możesz poprosić o inny termin na stronie rezerwacji."
+    },
+    "rescheduled": {
+      "subject": "Rezerwacja przełożona — {service}, {when}",
+      "lead": "Twoja rezerwacja została przeniesiona.",
+      "keep": "Zachowaj tę wiadomość — link powyżej zastępuje Twój poprzedni link do zarządzania."
+    },
+    "reminder": {
+      "subject": "Przypomnienie — {service}, {when}",
+      "lead": "Przypomnienie o Twojej nadchodzącej rezerwacji.",
+      "change": "Chcesz zmienić lub anulować? Użyj linku z e-maila z potwierdzeniem."
+    },
+    "staffNew": {
+      "subject": "Nowa rezerwacja — {service}, {when}",
+      "lead": "Cześć {name}, masz nową rezerwację."
+    },
+    "providerNew": {
+      "subject": "Nowa rezerwacja — {service}, {when}",
+      "subjectRequest": "Nowa prośba o rezerwację — {service}, {when}",
+      "lead": "<b>{client}</b> zarezerwował(a) u Ciebie.",
+      "leadRequest": "<b>{client}</b> poprosił(a) o rezerwację u Ciebie.",
+      "footer": "Jest w Twoim kalendarzu; klient dostał potwierdzenie.",
+      "footerRequest": "Zaakceptuj lub odrzuć na stronie Przegląd — termin jest wstrzymany, dopóki tego nie zrobisz."
+    },
+    "providerCancelled": {
+      "subject": "Anulowana przez klienta — {service}, {when}",
+      "lead": "<b>{client}</b> anulował(a) swoją rezerwację.",
+      "open": "Termin jest znów wolny."
+    },
+    "providerRescheduled": {
+      "subject": "Przełożona przez klienta — {service}, {when}",
+      "lead": "<b>{client}</b> przeniósł/przeniosła swoją rezerwację."
+    },
+    "push": {
+      "newBooking": {
+        "title": "Nowa rezerwacja",
+        "body": "{client} · {service} · {when}"
+      },
+      "newRequest": {
+        "title": "Nowa prośba o rezerwację",
+        "body": "{client} · {service} · {when}"
+      },
+      "cancelled": {
+        "title": "Anulowana przez klienta",
+        "body": "{client} · {service} · {when}"
+      },
+      "rescheduled": {
+        "title": "Przełożona przez klienta",
+        "body": "{client} · {service} · teraz {when}"
+      },
+      "test": {
+        "title": "Powiadomienia Booklo są włączone",
+        "body": "To urządzenie będzie dostawać informacje o nowych rezerwacjach."
+      }
+    },
+    "appointment": "Wizyta"
+  },
+  "shell": {
+    "nav": {
+      "overview": "Przegląd",
+      "bookings": "Rezerwacje",
+      "clients": "Klienci",
+      "spaces": "Przestrzenie",
+      "services": "Usługi",
+      "team": "Zespół",
+      "availability": "Dostępność",
+      "bookingPage": "Strona rezerwacji",
+      "embed": "Osadzenie na stronie",
+      "billing": "Rozliczenia",
+      "notifications": "Powiadomienia",
+      "settings": "Ustawienia"
+    },
+    "section": {
+      "offer": "Oferta",
+      "share": "Udostępnianie"
+    },
+    "search": "Szukaj",
+    "workspace": "Przestrzeń robocza",
+    "requestsWaiting": "{count, plural, one {# prośba czeka} few {# prośby czekają} many {# próśb czeka} other {# prośby czeka}}",
+    "signOut": "Wyloguj się",
+    "openNavigation": "Otwórz nawigację",
+    "navigation": "Nawigacja",
+    "command": {
+      "placeholder": "Wpisz polecenie lub szukaj…",
+      "noResults": "Brak wyników.",
+      "navigate": "Przejdź",
+      "clients": "Klienci",
+      "actions": "Akcje",
+      "preferences": "Preferencje",
+      "newService": "Nowa usługa",
+      "newSpace": "Nowa przestrzeń",
+      "toggleTheme": "Przełącz motyw"
+    }
+  },
+  "spaces": {
+    "nav": "Przestrzenie",
+    "one": "przestrzeń",
+    "newButton": "Nowa przestrzeń",
+    "back": "← Przestrzenie",
+    "addUnit": "Dodaj jednostkę do przestrzeni",
+    "intro": "Sale, studia i sprzęt, rezerwowane na godziny, noce lub dni.",
+    "empty": "Brak przestrzeni — przestrzeń to sala, studio lub przedmiot, który klienci rezerwują na godziny, noce lub dni.",
+    "timelineEmpty": "Brak przestrzeni — dodaj przestrzeń w sekcji",
+    "unitsHint": "Jednostki to poszczególne sale lub przedmioty przypisywane klientowi — jedna na salę.",
+    "unitsEmpty": "Brak jednostek — przestrzeń nie pojawi się na stronie rezerwacji, dopóki nie będzie miała aktywnej jednostki.",
+    "blackoutsHint": "Daty, w których tej przestrzeni nie można zarezerwować — konserwacja, własny pobyt, zamknięty tydzień.",
+    "splitIntoUnits": "Kilka identycznych sal lub przedmiotów? Podziel tę przestrzeń na jednostki →",
+    "field": "Przestrzeń",
+    "badge": "Przestrzeń",
+    "settings": {
+      "label": "Przestrzenie",
+      "blurb": "Sale, studia i sprzęt, rezerwowane na godziny, noce lub dni."
+    },
+    "add": "Dodaj przestrzeń",
+    "hoursNotSet": "Przestrzeń zapisana, ale nie udało się ustawić domyślnych godzin — ustaw je w Dostępności.",
+    "notBookable": "Niedostępna do rezerwacji — brak aktywnej jednostki",
+    "hoursNote": "Przestrzenie na noce i dni używają zamiast tego godzin zameldowania i wymeldowania — ustaw je w przestrzeni.",
+    "hoursNightsOnly": "Przestrzenie na noce i dni używają godzin zameldowania i wymeldowania, ustawianych w każdej przestrzeni. Przestrzenie godzinowe i członkowie zespołu ustawiają tu swoje godziny tygodniowe.",
+    "scope": {
+      "group": "Przestrzenie",
+      "all": "Wszystkie przestrzenie"
+    },
+    "emptyTitle": "Dodaj pierwszą przestrzeń",
+    "mode": {
+      "hours": "Na godziny",
+      "nights": "Na noce",
+      "days": "Na dni"
+    },
+    "schedule": {
+      "hours": "{min}–{max} · co {step} min",
+      "nights": "zameldowanie {start} · wymeldowanie {end}",
+      "days": "odbiór {start} · zwrot {end}"
+    },
+    "list": {
+      "type": "Typ",
+      "price": "Cena",
+      "unitCount": "{count, plural, one {# jednostka} few {# jednostki} many {# jednostek} other {# jednostki}}",
+      "confirmDelete": "Potwierdź usunięcie",
+      "keep": "Zostaw",
+      "deleteAria": "Usuń {name}",
+      "bookableAria": "{name} jest dostępna do rezerwacji",
+      "deleted": "Usunięto",
+      "bookable": "Do rezerwacji"
+    },
+    "detail": {
+      "openingHours": "Godziny otwarcia",
+      "editHours": "Edytuj godziny →",
+      "reactivateToEdit": "Aktywuj ponownie, aby edytować godziny",
+      "settings": "Ustawienia",
+      "bookings": "Rezerwacje",
+      "upcoming": "Nadchodzące",
+      "recent": "Ostatnie",
+      "noUpcoming": "Nic nie jest zarezerwowane.",
+      "noRecent": "Brak wcześniejszych rezerwacji.",
+      "note": "„{note}”",
+      "quickActions": "Szybkie akcje",
+      "embed": "Osadzenie na stronie",
+      "timeline": "Zobacz na osi czasu",
+      "delete": "Usuń przestrzeń"
+    },
+    "form": {
+      "namePlaceholder": "Nazwa przestrzeni",
+      "description": "Opis",
+      "descriptionPlaceholder": "Dodaj opis…",
+      "section": {
+        "session": "Sesja",
+        "stay": "Pobyt",
+        "pricing": "Cennik"
+      },
+      "bookedBy": "Rezerwowana",
+      "mode": {
+        "nights": "Na noce (zameldowanie → wymeldowanie)",
+        "days": "Na dni (odbiór → zwrot)",
+        "hours": "Na godziny (rezerwacja godzinowa)"
+      },
+      "slotIncrement": "Krok terminów",
+      "minDuration": "Min. czas trwania (min)",
+      "maxDuration": "Maks. czas trwania (min)",
+      "turnoverMinutes": "Przerwa techniczna (minuty)",
+      "startTime": "Godzina rozpoczęcia",
+      "endTime": "Godzina zakończenia",
+      "minStay": "Min. pobyt",
+      "maxStay": "Maks. pobyt",
+      "unlimited": "Bez limitu",
+      "turnoverDays": "Przerwa techniczna (dni)",
+      "price": "Cena ({currency})",
+      "unpriced": "Bez ceny",
+      "pricingMode": "Sposób naliczania",
+      "perHour": "Za godzinę",
+      "perNight": "Za noc",
+      "perDay": "Za dzień",
+      "flat": "Stała cena za rezerwację",
+      "requireApproval": "Wymaga zatwierdzenia",
+      "requireApprovalHint": "Nowe rezerwacje czekają na Twoje potwierdzenie zamiast potwierdzać się od razu.",
+      "rules": "Zaliczka, odwołania i zasady rezerwacji",
+      "deposit": "Zaliczka",
+      "depositNone": "Bez zaliczki",
+      "depositFixed": "Stała kwota",
+      "depositPercent": "Procent całości",
+      "depositFull": "Pełna kwota",
+      "depositAmount": "Kwota zaliczki ({currency})",
+      "depositPercentLabel": "Zaliczka (%)",
+      "cancelWindowHours": "Bezpłatne odwołanie do (godzin przed rozpoczęciem)",
+      "cancelWindowDays": "Bezpłatne odwołanie do (dni przed rozpoczęciem)",
+      "noWindow": "Bez okresu",
+      "terms": "Regulamin",
+      "minNoticeMinutes": "Min. wyprzedzenie (minuty)",
+      "minNoticeDays": "Min. wyprzedzenie (dni)",
+      "bookingWindow": "Okno rezerwacji (dni)",
+      "unitSelection": "Wybór jednostki",
+      "unitAuto": "Przypisuj jednostkę automatycznie",
+      "unitClientPicks": "Pozwól klientowi wybrać jednostkę",
+      "create": "Utwórz przestrzeń",
+      "created": "Przestrzeń utworzona"
+    },
+    "units": {
+      "title": "Jednostki",
+      "namePlaceholder": "Dodaj jednostkę…",
+      "descriptionPlaceholder": "Opis (opcjonalnie)",
+      "newNameAria": "Nazwa nowej jednostki",
+      "newDescriptionAria": "Opis nowej jednostki",
+      "description": "Opis",
+      "added": "Jednostka dodana",
+      "needsName": "Jednostka musi mieć nazwę.",
+      "activated": "Jednostka jest aktywna",
+      "deactivated": "Jednostka jest nieaktywna",
+      "deleted": "Jednostka usunięta",
+      "deleteAria": "Usuń jednostkę {name}",
+      "blackouts": {
+        "title": "Niedostępne daty",
+        "none": "Brak — dostępna cały rok.",
+        "from": "Niedostępna od",
+        "until": "Niedostępna do",
+        "reason": "Powód",
+        "reasonPlaceholder": "Powód (opcjonalnie)",
+        "block": "Zablokuj daty",
+        "blocked": "Daty zablokowane",
+        "freed": "Daty zwolnione",
+        "removeAria": "Usuń niedostępne daty {range}"
+      }
+    }
+  },
+  "appointments": {
+    "settings": {
+      "label": "Wizyty",
+      "blurb": "Usługi rezerwowane jako terminy u Twojego zespołu."
+    },
+    "add": "Dodaj usługę",
+    "field": "Usługa",
+    "badge": "Wizyta",
+    "scope": {
+      "group": "Wizyty",
+      "all": "Wszystkie wizyty"
+    }
+  },
+  "bookings": {
+    "checklist": {
+      "addSpace": "Dodaj przestrzeń",
+      "addUnit": "Dodaj jednostkę do przestrzeni",
+      "addService": "Dodaj usługę",
+      "setHours": "Ustaw godziny"
+    },
+    "status": {
+      "confirmed": "Potwierdzona",
+      "pending": "Czeka na zatwierdzenie",
+      "declined": "Odrzucona",
+      "cancelledByClient": "Anulowana przez klienta",
+      "cancelledByProvider": "Anulowana przez Ciebie",
+      "rescheduled": "Przełożona"
+    },
+    "fallbackTitle": "Wizyta",
+    "weekdays": "Pn Wt Śr Cz Pt So Nd",
+    "prevWeek": "Poprzedni tydzień",
+    "nextWeek": "Następny tydzień",
+    "teamMember": "Członek zespołu",
+    "keep": "Zostaw",
+    "resendLink": "Wyślij link ponownie",
+    "resendStartedHint": "Rezerwacja już się rozpoczęła — nie można wystawić nowego linku.",
+    "noEmailShort": "Brak adresu e-mail",
+    "requestExpired": "Prośba wygasła",
+    "ended": "Ta rezerwacja się zakończyła.",
+    "view": {
+      "label": "Widok rezerwacji",
+      "day": "Dzień",
+      "week": "Tydzień",
+      "month": "Miesiąc",
+      "timeline": "Oś czasu"
+    },
+    "scope": {
+      "show": "Pokaż",
+      "all": "Wszystkie rezerwacje",
+      "selected": "Wybrano: {count}"
+    },
+    "ownerTabs": {
+      "label": "Czyje godziny",
+      "people": "Osoby"
+    },
+    "requests": {
+      "title": "Prośby",
+      "chip": "Prośba",
+      "accept": "Akceptuj",
+      "decline": "Odrzuć…",
+      "acceptFrom": "Zaakceptuj prośbę od {name}",
+      "declineFrom": "Odrzuć prośbę od {name}",
+      "accepted": "Zaakceptowano.",
+      "acceptedEmailed": "Zaakceptowano — potwierdzenie wysłane.",
+      "declineTitle": "Odrzuć prośbę",
+      "declineBody": "Termin zostaje zwolniony, a klient dostaje e-mail, że nie możesz go przyjąć.",
+      "declineNote": "Wiadomość do klienta (opcjonalnie)",
+      "declineNotePlaceholder": "Wiadomość do klienta (opcjonalnie) — np. Tego ranka mamy komplet, chętnie przyjmiemy o 14:00.",
+      "declining": "Odrzucanie…",
+      "declined": "Prośba odrzucona.",
+      "lapsed": "Ta prośba wygasła, zanim została rozpatrzona."
+    },
+    "cancel": {
+      "button": "Anuluj rezerwację",
+      "confirm": "Potwierdź anulowanie",
+      "doneNoEmail": "Rezerwacja anulowana — brak adresu e-mail tego klienta.",
+      "doneEmailed": "Rezerwacja anulowana — klient dostał e-mail.",
+      "doneEmailFailed": "Rezerwacja anulowana — ale e-mail do klienta nie doszedł. Skontaktuj się z nim bezpośrednio."
+    },
+    "resend": {
+      "sent": "Nowy link jest w drodze do klienta.",
+      "failed": "Link został zresetowany, ale e-mail nie doszedł — stary link już nie działa. Skontaktuj się z klientem bezpośrednio."
+    },
+    "reschedule": {
+      "button": "Przełóż",
+      "title": "Przenieś: {name}",
+      "moveTo": "Przenieś na",
+      "weekOf": "Tydzień od {date}",
+      "noFreeTimes": "Brak wolnych terminów w tym tygodniu.",
+      "tzNote": "Godziny w strefie czasowej Twojej przeglądarki; strefa Twojej firmy: {tz}.",
+      "movedNoEmail": "Rezerwacja przeniesiona{name, select, none {} other { do: {name}}} — brak adresu e-mail tego klienta.",
+      "movedEmailed": "Rezerwacja przeniesiona{name, select, none {} other { do: {name}}} — klient dostał e-mail.",
+      "movedEmailFailed": "Rezerwacja przeniesiona — ale e-mail z nowym linkiem do zarządzania nie doszedł. Skontaktuj się z klientem bezpośrednio."
+    },
+    "move": {
+      "button": "Przenieś…",
+      "title": "Przenieś rezerwację",
+      "stayTitle": "Przenieś pobyt",
+      "moving": "Przenoszenie…",
+      "done": "Rezerwacja przeniesiona.",
+      "doneEmailed": "Rezerwacja przeniesiona — klient dostał e-mail.",
+      "stayDone": "Pobyt przeniesiony.",
+      "stayDoneEmailed": "Pobyt przeniesiony — klient dostał e-mail.",
+      "unitChanged": "Jednostka zmieniona.",
+      "unitChangedEmailed": "Jednostka zmieniona — klient dostał e-mail."
+    },
+    "new": {
+      "title": "Nowa rezerwacja",
+      "blurb": "Zapisana w Twoim imieniu — limity wyprzedzenia i okna rezerwacji nie obowiązują.",
+      "services": "Usługi",
+      "client": "Klient",
+      "when": "Kiedy"
+    },
+    "create": {
+      "button": "Utwórz rezerwację",
+      "done": "Rezerwacja utworzona.",
+      "doneNoEmail": "Rezerwacja utworzona — brak adresu e-mail tego klienta.",
+      "doneEmailed": "Rezerwacja utworzona — klient dostał e-mail.",
+      "doneEmailFailed": "Rezerwacja utworzona — ale e-mail z potwierdzeniem nie doszedł. Skontaktuj się z klientem bezpośrednio."
+    },
+    "form": {
+      "clientName": "Imię i nazwisko klienta",
+      "email": "E-mail — opcjonalnie, potwierdzenie wysyłamy tylko, jeśli jest podany",
+      "note": "Uwagi (opcjonalnie)",
+      "notePlaceholder": "Dodaj uwagę…",
+      "date": "Data",
+      "startsAt": "Początek ({tz})",
+      "endsAt": "Koniec",
+      "outsideHours": "Poza Twoimi godzinami pracy — dozwolone dla rezerwacji, które tworzysz samodzielnie.",
+      "insideNotice": "W okresie minimalnego wyprzedzenia tej usługi — dozwolone dla rezerwacji, które tworzysz samodzielnie.",
+      "tooFarPast": "Ten termin jest ponad 24 godziny wstecz — tak dawnych rezerwacji nie można zapisać. Wybierz termin z ostatniej doby lub przyszły.",
+      "invalidDuration": "Koniec musi być po początku — od 5 minut do 8 godzin.",
+      "nobodyOffers": "Nikt w zespole nie oferuje jeszcze tej usługi — przypisz kogoś na stronie Usługi.",
+      "howLong": "Jak długo?",
+      "duration": "Czas trwania",
+      "chooseDuration": "Wybierz czas trwania",
+      "change": "zmień",
+      "unit": "Jednostka",
+      "loadingAvailability": "Wczytywanie dostępności…"
+    },
+    "week": {
+      "pickOneToBlock": "Wybierz jednego członka zespołu, aby zablokować czas.",
+      "timeBlocked": "Czas zablokowany.",
+      "timeUnblocked": "Czas odblokowany.",
+      "dayReopened": "Dzień ponownie otwarty — przywrócono godziny tygodniowe.",
+      "block": "Zablokuj",
+      "unblock": "Odblokuj",
+      "reopenDay": "Otwórz dzień ponownie",
+      "closedHours": "Godziny zamknięcia",
+      "hint": "Kliknij lub przeciągnij po siatce, aby dodać rezerwację.",
+      "hintBlockable": "Kliknij lub przeciągnij po siatce, aby dodać rezerwację lub zablokować czas.",
+      "selected": "Wybrano {start}–{end}, {date}. Tab przechodzi do akcji, Shift ze strzałkami zmienia długość, Escape anuluje."
+    },
+    "timeline": {
+      "window": "Zakres osi czasu",
+      "back": "{count, plural, one {Wstecz o # dzień} few {Wstecz o # dni} many {Wstecz o # dni} other {Wstecz o # dnia}}",
+      "forward": "{count, plural, one {Naprzód o # dzień} few {Naprzód o # dni} many {Naprzód o # dni} other {Naprzód o # dnia}}",
+      "zoom": "Powiększenie osi czasu",
+      "weeks": "{count} tyg.",
+      "conflicts": "{count, plural, one {# rezerwacja} few {# rezerwacje} many {# rezerwacji} other {# rezerwacji}} w konflikcie w tym zakresie",
+      "show": "Pokaż",
+      "mode": {
+        "nights": "Na noce",
+        "days": "Na dni",
+        "hours": "Na godziny"
+      },
+      "units": "{count, plural, one {# jednostka} few {# jednostki} many {# jednostek} other {# jednostki}}",
+      "inConflict": "{count} w konflikcie",
+      "legend": "Legenda",
+      "stay": "Pobyt",
+      "unavailable": "Niedostępne",
+      "turnover": "Przerwa techniczna",
+      "conflict": "Konflikt",
+      "now": "Teraz",
+      "dragHint": "Przeciągaj w bok, aby przesuwać się w czasie.",
+      "newHere": "Nowa rezerwacja, {unit}, {date}",
+      "unavailableRange": "Niedostępne od {from} do {to}",
+      "unavailableRangeReason": "Niedostępne od {from} do {to}, {reason}",
+      "editOnSpacePage": "Kliknij, aby edytować na stronie przestrzeni",
+      "turnoverAfter": "Przerwa techniczna po: {name}",
+      "continuesFrom": "od {date}",
+      "continuesTo": "do {date}",
+      "inHouse": "Na miejscu",
+      "inHouseNow": "Teraz na miejscu",
+      "ended": "Zakończona",
+      "countPill": "{count, plural, one {# rezerwacja} few {# rezerwacje} many {# rezerwacji} other {# rezerwacji}}, {date}, {unit} — powiększ",
+      "zoomIn": "Kliknij, aby powiększyć",
+      "conflictBlackout": "Niedostępność {from}–{to}{reason, select, none {} other { ({reason})}} nakłada się na tę rezerwację",
+      "conflictTurnover": "Przerwa techniczna po {name} zachodzi na to zameldowanie",
+      "conflictOverlap": "Nakłada się na rezerwację: {name}"
+    },
+    "welcome": {
+      "owned": "{url} jest Twój.",
+      "sub": "Dodaj usługę i ustaw godziny, aby wystartować.",
+      "subSpaces": "Dodaj przestrzeń i jej jednostki, aby wystartować.",
+      "noHandle": "Twoja przestrzeń robocza jest gotowa.",
+      "noHandleSub": "Wybierz adres strony i można Cię rezerwować.",
+      "setUpPage": "Skonfiguruj stronę rezerwacji",
+      "dismiss": "Zamknij",
+      "copyFailed": "Nie udało się skopiować — zaznacz tekst linku i skopiuj ręcznie.",
+      "dismissFailed": "Nie udało się zamknąć — spróbuj ponownie.",
+      "checklist": "Lista startowa",
+      "done": "{label} — gotowe"
+    },
+    "datePicker": {
+      "pick": "Wybierz datę",
+      "prevMonth": "Poprzedni miesiąc",
+      "nextMonth": "Następny miesiąc"
+    },
+    "timeCombobox": {
+      "noMatches": "Brak dopasowań"
+    },
+    "prevDay": "Poprzedni dzień",
+    "nextDay": "Następny dzień",
+    "prevMonth": "Poprzedni miesiąc",
+    "nextMonth": "Następny miesiąc",
+    "month": {
+      "more": "+{count} więcej",
+      "addOn": "Nowa rezerwacja: {date}",
+      "closed": "Zamknięte cały dzień"
+    }
+  },
+  "clients": {
+    "emptyTitle": "Brak klientów",
+    "emptyBody": "Klienci pojawiają się tu automatycznie po pierwszej rezerwacji — z rezerwacjami, uwagami i linkami w jednym miejscu.",
+    "intro": "Wszyscy, którzy u Ciebie rezerwowali, i ich historia.",
+    "directory": {
+      "searchPlaceholder": "Szukaj po imieniu lub e-mailu",
+      "searchAria": "Szukaj klientów",
+      "noMatch": "Brak klientów pasujących do „{query}”.",
+      "bookingCount": "{count, plural, one {# rezerwacja} few {# rezerwacje} many {# rezerwacji} other {# rezerwacji}}"
+    },
+    "detail": {
+      "back": "← Klienci",
+      "noEmail": "Brak adresu e-mail",
+      "bookings": "Rezerwacje ({count})",
+      "bookingsLast": "Rezerwacje (ostatnie {count})",
+      "noBookings": "Brak rezerwacji.",
+      "note": "„{note}”"
+    },
+    "header": {
+      "nameAria": "Imię i nazwisko klienta",
+      "deleteButton": "Usuń klienta",
+      "deleteTitle": "Usunąć tego klienta?",
+      "deleteBody": "Rezerwacje zachowują historię (imię i e-mail zostają przy każdej rezerwacji); usuwany jest sam wpis klienta."
+    },
+    "create": {
+      "title": "Nowy klient",
+      "chip": "Klient",
+      "namePlaceholder": "Imię i nazwisko klienta",
+      "submit": "Utwórz klienta"
+    },
+    "assign": {
+      "prompt": "Imię i nazwisko nowego klienta",
+      "aria": "Przypisz klienta do {unit}",
+      "none": "Brak klienta",
+      "new": "+ Nowy klient…"
+    },
+    "portal": {
+      "title": "Linki do portalu",
+      "issue": "Wystaw link",
+      "newLinkAria": "Nowy link (pokazany raz)",
+      "shownOnce": "Pokazany raz — skopiuj teraz.",
+      "status": {
+        "active": "aktywny",
+        "expired": "wygasł",
+        "revoked": "unieważniony"
+      },
+      "issued": "wystawiony {date}",
+      "expires": "wygasa {date}",
+      "used": "użyty {date}",
+      "revokeAria": "Unieważnij link do portalu wystawiony {date}",
+      "empty": "Brak linków — wystaw link, aby dać temu klientowi podgląd jego jednostek."
+    }
+  },
+  "availability": {
+    "weekdaysShort": "Nd Pn Wt Śr Cz Pt So",
+    "weekdaysLong": "Niedziela Poniedziałek Wtorek Środa Czwartek Piątek Sobota",
+    "noHours": "Zamknięte — brak ustawionych godzin",
+    "noActive": "Nikt w zespole nie jest teraz aktywny. <link>Aktywuj kogoś ponownie</link>, aby ustawić godziny.",
+    "openSpaces": "Otwórz Przestrzenie →",
+    "timezoneNote": "Godziny w strefie {timezone} · <link>Zmień na stronie rezerwacji</link>",
+    "unavailable": "Niedostępne",
+    "endAfterStart": "Koniec musi być po początku.",
+    "defaultPrompt": {
+      "title": "Brak godzin — nic nie da się jeszcze zarezerwować.",
+      "blurb": "Zacznij od pn–pt, {start}–{end}, i dostosuj.",
+      "apply": "Użyj domyślnych godzin",
+      "applying": "Ustawianie godzin…"
+    },
+    "day": {
+      "addInterval": "Dodaj przedział: {day}",
+      "noRoom": "Brak miejsca po ostatnim przedziale",
+      "copyHours": "Kopiuj godziny z {day} na inne dni",
+      "copyTo": "Kopiuj godziny na…",
+      "apply": "Zastosuj",
+      "startTime": "{day} — początek",
+      "endTime": "{day} — koniec",
+      "removeInterval": "Usuń {day} {start}–{end}"
+    },
+    "overrides": {
+      "title": "Wyjątki dla dat",
+      "blurbSpace": "Dni, w których dostępność tej przestrzeni różni się od godzin tygodniowych.",
+      "blurbYou": "Dni, w których Twoja dostępność różni się od godzin tygodniowych.",
+      "add": "Dodaj wyjątek dla daty",
+      "editTitle": "Edytuj wyjątek dla daty",
+      "date": "Data",
+      "removeFor": "Usuń wyjątek dla {date}",
+      "removed": "Wyjątek usunięty",
+      "updated": "Wyjątek zaktualizowany",
+      "added": "Wyjątek dodany",
+      "needWindow": "Dodaj co najmniej jeden przedział godzin albo oznacz dzień jako niedostępny.",
+      "windowStart": "Przedział {n} — początek",
+      "windowEnd": "Przedział {n} — koniec",
+      "removeWindow": "Usuń przedział {n}",
+      "addWindow": "Dodaj przedział"
+    }
+  },
+  "services": {
+    "intro": "To, co klienci wybierają na Twojej stronie rezerwacji.",
+    "emptyTitle": "Dodaj pierwszą usługę",
+    "emptyBody": "Usługa to to, co klienci wybierają na Twojej stronie rezerwacji — jej nazwa, czas trwania, bufory i etykieta ceny.",
+    "newButton": "Nowa usługa",
+    "back": "← Usługi",
+    "table": "Usługi",
+    "columns": {
+      "service": "Usługa",
+      "duration": "Czas trwania",
+      "price": "Cena",
+      "team": "Zespół",
+      "actions": "Akcje"
+    },
+    "noTeam": "Brak członków zespołu",
+    "deleted": "Usunięto",
+    "confirmDelete": "Potwierdź usunięcie",
+    "keep": "Zostaw",
+    "deleteNamed": "Usuń {name}",
+    "bookableSwitch": "{name} jest dostępna do rezerwacji",
+    "notBookable": "Niedostępna do rezerwacji — nikt jej nie oferuje",
+    "form": {
+      "namePlaceholder": "Nazwa usługi",
+      "description": "Opis",
+      "descriptionPlaceholder": "Dodaj opis…",
+      "duration": "Czas trwania (min)",
+      "priceLabel": "Etykieta ceny",
+      "pricePlaceholder": "np. 150 zł",
+      "bufferBefore": "Bufor przed (min)",
+      "bufferAfter": "Bufor po (min)",
+      "minNotice": "Min. wyprzedzenie (min)",
+      "maxPerDay": "Maks. dziennie",
+      "unlimited": "Bez limitu",
+      "bookingWindow": "Okno rezerwacji (dni)",
+      "windowError": "Podaj, ile dni naprzód klienci mogą rezerwować — od 1 do 365.",
+      "teamMembers": "Członkowie zespołu",
+      "teamHint": "Tylko te osoby są proponowane dla tej usługi.",
+      "requireApproval": "Wymaga zatwierdzenia",
+      "requireApprovalHint": "Nowe rezerwacje czekają na Twoje potwierdzenie zamiast potwierdzać się od razu.",
+      "create": "Utwórz usługę",
+      "created": "Usługa utworzona"
+    },
+    "detail": {
+      "team": "Kto ją oferuje",
+      "teamSolo": "Oferujesz każdą usługę, dopóki jesteś jedyną osobą w zespole.",
+      "settings": "Ustawienia",
+      "appointments": "Wizyty",
+      "upcoming": "Nadchodzące",
+      "recent": "Ostatnie",
+      "noUpcoming": "Nic nie jest zarezerwowane.",
+      "noRecent": "Brak wcześniejszych wizyt.",
+      "note": "„{note}”",
+      "quickActions": "Szybkie akcje",
+      "embed": "Osadzenie na stronie",
+      "delete": "Usuń usługę"
+    }
+  },
+  "team": {
+    "intro": "Osoby, które można u Ciebie rezerwować. Każda ma własne godziny, usługi i link do rezerwacji.",
+    "newButton": "Nowy członek zespołu",
+    "table": "Członkowie zespołu",
+    "columns": {
+      "link": "Link do rezerwacji",
+      "role": "Rola",
+      "bookable": "Do rezerwacji"
+    },
+    "noHandle": "Najpierw ustaw adres strony rezerwacji w sekcji <link>Strona rezerwacji</link> — wtedy każdy dostanie własny link.",
+    "servicesCount": "{count, plural, =0 {Brak usług} one {# usługa} few {# usługi} many {# usług} other {# usługi}}",
+    "owner": "Właściciel",
+    "member": "Członek",
+    "overLimit": "Ponad limit planu",
+    "overLimitTitle": "Nie ma go na Twojej stronie publicznej — ponad limit planu",
+    "overLimitSr": ": nie jest widoczny na Twojej stronie publicznej, bo przekracza limit planu",
+    "bookableSwitch": "{name} jest dostępny(a) do rezerwacji",
+    "detail": {
+      "back": "← Zespół",
+      "addEmail": "Dodaj e-mail",
+      "hours": "Godziny tygodniowe",
+      "editHours": "Edytuj godziny →",
+      "reactivateToEdit": "Włącz rezerwacje, aby edytować godziny",
+      "appointments": "Wizyty",
+      "upcoming": "Nadchodzące",
+      "recent": "Ostatnie",
+      "noUpcoming": "Nic nie jest zarezerwowane.",
+      "noRecent": "Brak wcześniejszych wizyt.",
+      "note": "„{note}”",
+      "quickActions": "Szybkie akcje",
+      "addService": "Dodaj usługę",
+      "embed": "Osadzenie na stronie",
+      "calendar": "Zobacz w kalendarzu"
+    },
+    "form": {
+      "namePlaceholder": "Imię i nazwisko członka zespołu",
+      "emailPlaceholder": "E-mail — opcjonalnie, do powiadomień o rezerwacjach",
+      "slugHint": "Małe litery, cyfry i myślniki.",
+      "colour": "Kolor",
+      "colourNamed": "Kolor {hex}",
+      "services": "Usługi",
+      "inheritsHours": "Zaczyna z godzinami tygodniowymi: {name} — edytuj je w Dostępności."
+    }
+  },
+  "billing": {
+    "intro": "Twój plan i to, co obejmuje. Faktury i dane karty obsługuje bezpieczny portal rozliczeń.",
+    "checkoutCancelled": "Zakup anulowany — nic nie zostało pobrane.",
+    "complimentary": "Twój plan jest bezpłatny. Plany będzie można kupić, gdy wygaśnie.",
+    "complimentaryUntil": "Twój plan jest bezpłatny do {date}. Plany będzie można kupić, gdy wygaśnie.",
+    "activation": {
+      "waiting": "Aktywowanie planu… to potrwa kilka sekund.",
+      "timedOut": "Wciąż czekamy na operatora — odśwież za minutę lub skontaktuj się z pomocą."
+    },
+    "current": {
+      "complimentary": "Bezpłatny",
+      "perMonth": "{price} / miesiąc",
+      "perMonthYearly": "{price} / miesiąc · rozliczane rocznie",
+      "noCard": "Bez karty",
+      "until": "Do {date}",
+      "noExpiry": "Bezterminowo",
+      "pastDue": "Nie udało się obciążyć Twojej karty — zaktualizuj ją w portalu rozliczeń, aby zachować plan.",
+      "endedOn": "Zakończony {date}",
+      "endsOn": "Kończy się {date}",
+      "renewsOn": "Odnawia się {date}",
+      "manage": "Zarządzaj subskrypcją"
+    },
+    "plans": {
+      "free": {
+        "blurb": "Wszystko, czego dwie osoby — lub dwie sale — potrzebują, aby przyjmować rezerwacje."
+      },
+      "pro": {
+        "blurb": "Twoja marka, przypomnienia dla każdej rezerwacji, do pięciu osób lub jednostek do rezerwacji."
+      },
+      "team": {
+        "blurb": "Do dziesięciu osób i jednostek do rezerwacji, przypisywanych automatycznie."
+      }
+    },
+    "picker": {
+      "title": "Plany",
+      "interval": "Okres rozliczeniowy",
+      "yearly": "Rocznie",
+      "monthly": "Miesięcznie",
+      "current": "Obecny",
+      "perMo": "{price} / mies.",
+      "freePrice": "Bezpłatny",
+      "billedYearly": "rozliczane rocznie · {yearly} rocznie · oszczędzasz {percent}%",
+      "billedMonthly": "rozliczane miesięcznie",
+      "noCard": "bez karty",
+      "founderRibbon": "Cena Founder · {price}/mies. na zawsze",
+      "founderYearlyNote": "Cena Founder ({price}/mies. na zawsze) dotyczy rozliczenia miesięcznego.",
+      "rows": {
+        "resources": "Zasoby do rezerwacji (osoby + jednostki)",
+        "reminders": "E-maile z przypomnieniem",
+        "everyBooking": "Każda rezerwacja",
+        "firstBookings": "Pierwsze {count} rezerwacji w miesiącu",
+        "brand": "Twoje logo, kolory, tekst powitalny",
+        "included": "W cenie",
+        "badge": "Usuń „Działa na Booklo”",
+        "team": "Warstwa zespołu: linki dla każdej osoby, „Ktokolwiek dostępny”, kolory"
+      },
+      "currentPlan": "Obecny plan",
+      "includedEverywhere": "W każdym planie",
+      "upgradeTo": "Przejdź na {plan}",
+      "openingCheckout": "Otwieranie kasy…",
+      "openingPortal": "Otwieranie portalu…",
+      "switchInPortal": "Zmień w portalu rozliczeń"
+    },
+    "usage": {
+      "reminders": "Rezerwacje z przypomnieniem w tym miesiącu",
+      "everyBookingReminded": "każda rezerwacja dostaje przypomnienie",
+      "remindersResume": "przypomnienia wracają w przyszłym miesiącu",
+      "confirmationsAlways": "potwierdzenia zawsze wychodzą",
+      "resources": "Zasoby do rezerwacji",
+      "services": "Usługi",
+      "unlimitedServices": "bez limitu w Twoim planie",
+      "firstServicesPublic": "publicznie widoczne są tylko pierwsze {count}",
+      "servicesPublic": "widoczne na Twojej stronie rezerwacji"
+    },
+    "meter": {
+      "firstBookable": "publicznie dostępne są tylko pierwsze {count}",
+      "onPage": "osoby i jednostki na Twojej stronie rezerwacji"
+    },
+    "banner": {
+      "managePlan": "Zarządzaj planem",
+      "upgrade": "Zmień plan",
+      "resources": "Twój plan pozwala na {cap, plural, one {# zasób do rezerwacji} few {# zasoby do rezerwacji} many {# zasobów do rezerwacji} other {# zasobu do rezerwacji}} (osoby i jednostki); {hidden, plural, one {# nie jest dostępny} few {# nie są dostępne} many {# nie jest dostępnych} other {# nie jest dostępnych}} publicznie.",
+      "remindersUsedAll": "Wykorzystano wszystkie {cap} bezpłatne rezerwacje z przypomnieniem w tym miesiącu — nowe rezerwacje nie dostaną przypomnienia do końca miesiąca.",
+      "remindersUsed": "Wykorzystano {used} z {cap} bezpłatnych rezerwacji z przypomnieniem w tym miesiącu."
+    },
+    "planTag": {
+      "srPrefix": "Plan:",
+      "waitlistTitle": "Premium z listy oczekujących, bezpłatnie, póki budujemy",
+      "planTitle": "Plan {plan}"
+    },
+    "waitlist": {
+      "cardTitle": "Lista oczekujących Premium",
+      "cardBody": "Twoja marka, więcej osób i przestrzeni, przypomnienia dla każdej rezerwacji. Bezpłatnie, póki budujemy.",
+      "cardCta": "Dołącz do listy",
+      "intro": "Premium jest w drodze. Dołącz do listy oczekujących i korzystaj już teraz ze wszystkiego, co odblokowuje — bezpłatnie, póki budujemy.",
+      "heading": "Odblokuj Premium wcześniej",
+      "sub": "Dołącz do listy oczekujących, a Twoja przestrzeń robocza od razu przełączy się na Premium. Bez karty, bez niczego do anulowania.",
+      "join": "Dołącz do listy",
+      "joinedHeading": "Jesteś na liście",
+      "joinedSub": "Premium jest odblokowane dla Twojej przestrzeni roboczej. Napiszemy, zanim cokolwiek się zmieni.",
+      "joinedJustNow": "Witaj na pokładzie — wszystko poniżej jest już Twoje.",
+      "alreadyPremium": "Twój plan obejmuje już wszystko, co odblokowuje Premium.",
+      "error": "Nie udało się teraz dodać Cię do listy. Spróbuj ponownie.",
+      "perksHeading": "Co jest odblokowane",
+      "perks": {
+        "resources": "Do {count} osób lub jednostek do rezerwacji",
+        "reminders": "Przypomnienia dla każdej rezerwacji, nie tylko pierwszych {free} w miesiącu",
+        "badge": "Bez plakietki „Działa na Booklo” na Twojej stronie i w e-mailach"
+      }
+    }
+  },
+  "onboarding": {
+    "heading": "Utwórz przestrzeń roboczą",
+    "sub": "To adres, pod którym klienci rezerwują u Ciebie. Można go zmienić.",
+    "nameLabel": "Twoje imię lub nazwa firmy",
+    "namePlaceholder": "Studio Anna",
+    "handleLabel": "Adres strony",
+    "handlePlaceholder": "twoja-nazwa",
+    "handleHint": "3–50 znaków: litery, cyfry, myślniki. Zostaw puste, aby wybrać potem.",
+    "handleReserved": "Tej nazwy nie można użyć — wybierz inną.",
+    "handleTaken": "{url} jest zajęty",
+    "handleTakenSuggest": "spróbuj {suggestion}",
+    "handleCheckFailed": "Nie udało się teraz sprawdzić — możesz kontynuować.",
+    "timezoneLabel": "Strefa czasowa",
+    "modeLegend": "Co rezerwujesz?",
+    "modes": {
+      "spaces": {
+        "title": "Przestrzenie",
+        "blurb": "Sale, studia i sprzęt, rezerwowane na godziny, noce lub dni."
+      },
+      "appointments": {
+        "title": "Wizyty",
+        "blurb": "Czas w Twoim kalendarzu: konsultacje, sesje, zajęcia."
+      }
+    },
+    "next": "Dalej",
+    "notNow": "Nie teraz",
+    "submit": "Utwórz przestrzeń roboczą",
+    "submitting": "Tworzenie…",
+    "usingEmail": "Używasz {email}",
+    "useDifferentAccount": "Użyj innego konta",
+    "stepOf": "Krok {step} z {count}",
+    "wizard": {
+      "mode": {
+        "heading": "Co rezerwujesz?",
+        "sub": "Możesz to zmienić w Ustawieniach, dopóki nie dodasz pierwszej usługi lub przestrzeni."
+      },
+      "service": {
+        "heading": "Dodaj pierwszą usługę",
+        "sub": "To, co klienci u Ciebie rezerwują. Więcej dodasz w Usługach.",
+        "name": "Nazwa",
+        "namePlaceholder": "np. Strzyżenie",
+        "duration": "Czas trwania",
+        "price": "Cena (opcjonalnie)",
+        "pricePlaceholder": "np. 120 {currency}"
+      },
+      "space": {
+        "heading": "Dodaj pierwszą przestrzeń",
+        "sub": "Sala, studio lub przedmiot, który klienci rezerwują. Pierwsza jednostka powstaje razem z nią.",
+        "name": "Nazwa",
+        "namePlaceholder": "np. Studio A",
+        "bookedBy": "Rezerwowana",
+        "byHour": "na godziny",
+        "byNight": "na noce",
+        "byDay": "na dni",
+        "price": "{per, select, hours {Cena za godzinę} nights {Cena za noc} other {Cena za dzień}} ({currency}, opcjonalnie)",
+        "noticeHint": "Możesz iść dalej i opublikować, gdy będzie dostępna do rezerwacji."
+      },
+      "hours": {
+        "heading": "Twoje godziny tygodniowe",
+        "sub": "Kiedy klienci mogą u Ciebie rezerwować. Zaczynasz od pn–pt, 9–17.",
+        "save": "Zapisz godziny",
+        "startFor": "{day} — początek",
+        "endFor": "{day} — koniec"
+      },
+      "share": {
+        "heading": "Twoja strona działa",
+        "sub": "Udostępnij link wszędzie tam, gdzie klienci Cię znajdują.",
+        "almostHeading": "Prawie gotowe",
+        "almostSub": "Dodaj to, co klienci rezerwują, a Twoja strona otworzy się pod adresem:",
+        "noHandle": "Twoja przestrzeń robocza jest gotowa.",
+        "noHandleSub": "Wybierz adres strony w sekcji Strona rezerwacji i można Cię rezerwować.",
+        "setUpPage": "Skonfiguruj stronę rezerwacji",
+        "finish": "Przejdź do rezerwacji"
+      }
+    }
+  },
+  "overview": {
+    "activity": "Aktywność",
+    "summary": "{count, plural, one {# wizyta} few {# wizyty} many {# wizyt} other {# wizyty}}{pending, plural, =0 {} one { · # oczekująca} few { · # oczekujące} many { · # oczekujących} other { · # oczekujące}} w {year}",
+    "appointmentCount": "{count, plural, one {# wizyta} few {# wizyty} many {# wizyt} other {# wizyty}}",
+    "pendingCount": "{count} oczekuje",
+    "year": "Rok",
+    "showYear": "Pokaż {year}",
+    "less": "Mniej",
+    "more": "Więcej",
+    "legendPending": "oczekująca prośba",
+    "legendToday": "dziś",
+    "members": "Członkowie",
+    "teamMembers": "Członkowie zespołu ({count})",
+    "goTo": "Przejdź do"
+  },
+  "studio": {
+    "layouts": {
+      "calendar": {
+        "label": "Kalendarz + terminy",
+        "description": "Miesiąc do wyboru dnia, potem wolne terminy tego dnia."
+      },
+      "week-list": {
+        "label": "Lista tygodnia",
+        "description": "Siedem dni naraz, terminy każdego dnia w rzędzie."
+      },
+      "week-columns": {
+        "label": "Kolumny tygodnia",
+        "description": "Tydzień jako kolumny, terminy ułożone pod każdym dniem."
+      },
+      "next-available": {
+        "label": "Najbliższe wolne",
+        "description": "Najpierw najbliższe wolne terminy, bez przeglądania."
+      }
+    },
+    "stayLayouts": {
+      "one-month": {
+        "label": "Jeden miesiąc",
+        "description": "Siatka miesiąca; dotknij zameldowania, potem wymeldowania."
+      },
+      "two-months": {
+        "label": "Dwa miesiące",
+        "description": "Dwa miesiące obok siebie, te same dwa dotknięcia."
+      },
+      "fields": {
+        "label": "Pola zameldowania i wymeldowania",
+        "description": "Dwa pola daty; dotknięcie otwiera siatkę miesiąca."
+      },
+      "next-free": {
+        "label": "Najbliższe wolne pobyty",
+        "description": "Najbliższe wolne okna pasujące do minimalnego pobytu, jedno dotknięcie każde."
+      }
+    },
+    "themes": {
+      "light": "Jasny",
+      "dark": "Ciemny",
+      "auto": "Auto (jak system odwiedzającego)"
+    },
+    "latinOnly": "Tylko alfabet łaciński",
+    "sections": {
+      "header": {
+        "label": "Nagłówek",
+        "description": "Twoje logo, nazwa i opcjonalny slogan."
+      },
+      "hero": {
+        "label": "Okładka",
+        "description": "Duży nagłówek z opcjonalnym zdjęciem w tle."
+      },
+      "about": {
+        "label": "O nas",
+        "description": "Kim jesteś, ze zdjęciem."
+      },
+      "services": {
+        "label": "Usługi",
+        "description": "To, co oferujesz, z Twojej listy usług."
+      },
+      "staff": {
+        "label": "Zespół",
+        "description": "Członkowie zespołu, których można rezerwować."
+      },
+      "spaces": {
+        "label": "Przestrzenie",
+        "description": "Twoje sale, studia i sprzęt, ze zdjęciami i cenami."
+      },
+      "gallery": {
+        "label": "Galeria",
+        "description": "Siatka zdjęć."
+      },
+      "testimonials": {
+        "label": "Opinie",
+        "description": "Cytaty zadowolonych klientów."
+      },
+      "faq": {
+        "label": "FAQ",
+        "description": "Odpowiedzi na częste pytania."
+      },
+      "links": {
+        "label": "Linki",
+        "description": "Instagram, WhatsApp, Twoja strona…"
+      },
+      "location": {
+        "label": "Lokalizacja",
+        "description": "Twój adres i link do map."
+      },
+      "booking": {
+        "label": "Rezerwacja",
+        "description": "Widżet rezerwacji. Zawsze na stronie."
+      }
+    },
+    "ghost": {
+      "headline": "Dodaj nagłówek",
+      "cover": "Dodaj zdjęcie okładki",
+      "about": "Napisz kilka zdań o sobie",
+      "services": "Dodaj usługę, a pojawi się tutaj",
+      "spaces": "Dodaj przestrzeń, a pojawi się tutaj",
+      "staff": "Pojawi się, gdy co najmniej dwie osoby z zespołu będą dostępne do rezerwacji",
+      "address": "Dodaj adres",
+      "link": "Dodaj link",
+      "faq": "Dodaj pytanie i odpowiedź",
+      "gallery": "Dodaj zdjęcia do galerii",
+      "testimonial": "Dodaj cytat klienta"
+    },
+    "frame": {
+      "edit": "Edytuj sekcję {section}",
+      "hidden": "ukryta"
+    },
+    "starter": {
+      "title": "Jak klienci mają wybierać termin?",
+      "titleSpaces": "Jak klienci mają wybierać daty i godziny?",
+      "sub": "Wybierz, jak widżet tej strony pokazuje wolne terminy. Możesz to zmienić w każdej chwili w Ustawieniach — zacznie działać po publikacji.",
+      "firstService": {
+        "title": "Dodaj pierwszą usługę",
+        "sub": "Trafia od razu na Twoją stronę. Więcej dodasz w Usługach, kiedy zechcesz.",
+        "why": "Układ potrzebuje co najmniej jednej usługi — dodaj ją, a strona się wypełni.",
+        "name": "Nazwa",
+        "namePlaceholder": "np. Strzyżenie",
+        "duration": "Czas trwania",
+        "price": "Cena (opcjonalnie)",
+        "pricePlaceholder": "np. 120 {currency}",
+        "submit": "Dodaj usługę"
+      },
+      "firstSpace": {
+        "title": "Dodaj pierwszą przestrzeń",
+        "sub": "Trafia od razu na Twoją stronę, z jedną jednostką. Więcej dodasz w Przestrzeniach, kiedy zechcesz.",
+        "why": "Układ potrzebuje co najmniej jednej przestrzeni do rezerwacji — dodaj ją, a strona się wypełni.",
+        "name": "Nazwa",
+        "namePlaceholder": "np. Studio A",
+        "bookedBy": "Rezerwowana",
+        "hours": "na godziny",
+        "nights": "na noce",
+        "days": "na dni",
+        "priceHour": "Cena za godzinę ({currency}, opcjonalnie)",
+        "priceNight": "Cena za noc ({currency}, opcjonalnie)",
+        "priceDay": "Cena za dzień ({currency}, opcjonalnie)",
+        "submit": "Dodaj przestrzeń",
+        "noticeHint": "Możesz iść dalej i opublikować, gdy będzie dostępna do rezerwacji."
+      },
+      "back": "Wstecz",
+      "leave": "Zostaw na razie",
+      "continue": "Dalej",
+      "picker": {
+        "trigger": "Porównaj układy",
+        "title": "Układ widżetu",
+        "sub": "Zmień, jak ta strona pokazuje wolne terminy. Zacznie działać po publikacji; osadzenie na stronie ma własny układ.",
+        "use": "Użyj tego układu"
+      },
+      "current": "bieżący",
+      "times": "Terminy",
+      "stays": "Pobyty"
+    },
+    "appearance": {
+      "theme": "Motyw",
+      "radius": "Zaokrąglenie rogów",
+      "radiusOptions": {
+        "none": "Brak",
+        "subtle": "Delikatne",
+        "round": "Okrągłe"
+      },
+      "layout": "Układ widżetu",
+      "stayLayout": "Układ pobytów",
+      "font": "Czcionka",
+      "fontSystem": "Systemowa",
+      "background": "Własne tło",
+      "text": "Własny kolor tekstu",
+      "clear": "Wyczyść",
+      "themeDefault": "Domyślny motywu",
+      "contrast": "Kontrast {ratio, number, ::.0}:1",
+      "contrastBlocked": "Kontrast {ratio, number, ::.0}:1 — poniżej 3:1, zablokowane. Wybierz bardziej różniące się kolory.",
+      "contrastWarn": "Kontrast {ratio, number, ::.0}:1 — poniżej 4,5:1 (AA dla tekstu).",
+      "overridesHint": "Własne kolory malują tło widżetu, więc nie przejmuje on już tła strony, na której jest osadzony.",
+      "hideBadge": "Ukryj „Działa na Booklo”",
+      "premium": "Premium"
+    },
+    "branding": {
+      "logo": "Logo",
+      "logoHint": "PNG, JPEG lub WebP · maks. 1 MB.",
+      "logoAlt": "Obecne logo",
+      "upload": "Prześlij",
+      "replace": "Zamień",
+      "accent": "Kolor akcentu",
+      "accentHint": "Używany na stronie rezerwacji i w osadzeniu na stronie.",
+      "pickAccent": "Wybierz kolor akcentu",
+      "accentInvalid": "Akcent musi być kolorem hex #rrggbb.",
+      "accentSaved": "Akcent zapisany",
+      "logoType": "Tylko PNG, JPEG lub WebP.",
+      "logoTooBig": "Logo może mieć najwyżej 1 MB.",
+      "logoUpdated": "Logo zaktualizowane",
+      "logoRemoved": "Logo usunięte"
+    },
+    "name": "Strona rezerwacji",
+    "intro": "Strona, na której klienci u Ciebie rezerwują. Ułóż sekcje, dodaj markę, opublikuj.",
+    "tabs": {
+      "sections": "Sekcje",
+      "settings": "Ustawienia"
+    },
+    "layout": {
+      "label": "Układ strony",
+      "column": "Kolumna",
+      "columnHint": "Jedna kolumna, jak dzisiejsza strona",
+      "split": "Podział",
+      "splitHint": "Rezerwacja dokuje po prawej na szerokich ekranach"
+    },
+    "defaultPageHint": "To strona domyślna. Wybierz szablon lub dodaj sekcje.",
+    "addSection": "Dodaj sekcję",
+    "proBadge": "Pro",
+    "addRefused": {
+      "max": "Strona mieści najwyżej {max} sekcji.",
+      "alreadyOn": "Już jest na stronie."
+    },
+    "row": {
+      "reorder": "Zmień kolejność: {section}",
+      "required": "Wymagana",
+      "show": "Pokaż sekcję",
+      "hide": "Ukryj sekcję",
+      "remove": "Usuń sekcję"
+    },
+    "summary": {
+      "header": "Logo i nazwa",
+      "noHeadline": "Brak nagłówka",
+      "nothingWritten": "Nic jeszcze nie napisano",
+      "staff": "Członkowie zespołu do rezerwacji",
+      "noAddress": "Brak adresu",
+      "images": "{count, plural, one {# obraz} few {# obrazy} many {# obrazów} other {# obrazu}}",
+      "quotes": "{count, plural, one {# cytat} few {# cytaty} many {# cytatów} other {# cytatu}}",
+      "questions": "{count, plural, one {# pytanie} few {# pytania} many {# pytań} other {# pytania}}",
+      "links": "{count, plural, one {# link} few {# linki} many {# linków} other {# linku}}"
+    },
+    "issues": {
+      "httpsLink": "Użyj linku https:// (tel: dla telefonu, mailto: dla e-maila).",
+      "httpsOnly": "Użyj linku https://.",
+      "oneBooking": "Strona potrzebuje dokładnie jednej sekcji rezerwacji.",
+      "onlyOne": "Dozwolona jest tylko jedna sekcja {section}.",
+      "onePhotoPerSpace": "Jedno zdjęcie na przestrzeń.",
+      "uniqueIds": "Identyfikatory sekcji muszą być unikalne.",
+      "tooManyImages": "Najwyżej {max} obrazów na stronę."
+    },
+    "publishBar": {
+      "live": "Opublikowana",
+      "saveFailed": "Nie udało się zapisać",
+      "fixErrors": "Popraw błędy, aby zapisać",
+      "retry": "Ponów",
+      "capped": "Nie ma jej na Twojej stronie publicznej — ponad limit planu, więc klienci zobaczyliby stronę „nie znaleziono”.",
+      "liftLimit": "Zwiększ limit",
+      "viewLive": "Zobacz opublikowaną stronę",
+      "discard": "Odrzuć zmiany",
+      "publish": "Opublikuj"
+    },
+    "draft": {
+      "fixFields": "Popraw zaznaczone pola przed publikacją.",
+      "published": "Strona opublikowana",
+      "discarded": "Wersja robocza odrzucona"
+    },
+    "discard": {
+      "title": "Odrzucić zmiany?",
+      "toPublished": "Wersja robocza wróci do opublikowanej strony.",
+      "toDefault": "Wersja robocza wróci do strony domyślnej.",
+      "confirm": "Odrzuć"
+    },
+    "publishEmpty": {
+      "title": "{count, plural, one {# sekcja jest pusta} few {# sekcje są puste} many {# sekcji jest pustych} other {# sekcji jest pustych}}",
+      "description": "{sections} nie pokaże się na opublikowanej stronie. Opublikować mimo to?"
+    },
+    "preview": {
+      "title": "Podgląd na żywo",
+      "light": "Jasny",
+      "dark": "Ciemny",
+      "device": "Urządzenie",
+      "desktop": "Komputer",
+      "mobile": "Telefon",
+      "systemTheme": "Motyw systemu odwiedzającego",
+      "lightSystem": "Jasny system",
+      "darkSystem": "Ciemny system"
+    },
+    "notice": {
+      "contrastUnreadable": "Własne kolory widżetu dają kontrast {ratio, number, ::.0}:1 — nieczytelny. Popraw je w sekcji <link>Osadzenie na stronie</link>.",
+      "contrastLow": "Własne kolory widżetu dają kontrast {ratio, number, ::.0}:1 — poniżej 4,5:1 (AA dla tekstu). Popraw je w sekcji <link>Osadzenie na stronie</link>.",
+      "embedRiskLight": "Ta strona jest zawsze czytelna — maluje własne jasne tło. Ale motyw jest wspólny z osadzeniem na stronie, które przejmuje tło Twojej witryny: na ciemnej witrynie jego tekst staje się nieczytelny. Jeśli Twoja witryna jest ciemna, wybierz Ciemny (lub Auto) albo ustaw kolor tła w sekcji <link>Osadzenie na stronie</link>.",
+      "embedRiskDark": "Ta strona jest zawsze czytelna — maluje własne ciemne tło. Ale motyw jest wspólny z osadzeniem na stronie, które przejmuje tło Twojej witryny: na jasnej witrynie jego tekst staje się nieczytelny. Jeśli Twoja witryna jest jasna, wybierz Jasny (lub Auto) albo ustaw kolor tła w sekcji <link>Osadzenie na stronie</link>.",
+      "auto": "Auto podąża za ustawieniem systemu każdego odwiedzającego. Ta strona zawsze się dopasowuje, więc oba warianty są czytelne (użyj przełącznika powyżej). Osadzenie na stronie dopasuje się tylko wtedy, gdy Twoja witryna też to robi — sprawdź to tam."
+    },
+    "settings": {
+      "look": "Wygląd",
+      "lookHint": "Logo i kolor akcentu. Zapisywane na bieżąco.",
+      "widget": "Widżet strony rezerwacji",
+      "widgetHint": "Własny styl tej strony. Osadzenie na stronie ma swój w sekcji Osadzenie na stronie. Publikuje się razem ze stroną.",
+      "pageLayoutHint": "Jak strona się układa. Publikuje się razem ze stroną."
+    },
+    "image": {
+      "hint": "PNG, JPEG lub WebP · maks. 4 MB · najlepiej poniżej 2000 px szerokości.",
+      "typeOnly": "Tylko PNG, JPEG lub WebP.",
+      "tooLarge": "Obrazy mogą mieć najwyżej 4 MB.",
+      "uploading": "Przesyłanie…",
+      "upload": "Prześlij",
+      "replace": "Zamień"
+    },
+    "list": {
+      "moveUp": "Przenieś element {n} wyżej",
+      "moveDown": "Przenieś element {n} niżej",
+      "remove": "Usuń element {n}"
+    },
+    "forms": {
+      "title": "Tytuł",
+      "style": "Styl",
+      "list": "Lista",
+      "cards": "Karty",
+      "showPrices": "Pokaż ceny",
+      "header": {
+        "tagline": "Slogan",
+        "taglinePlaceholder": "Kolorystka z Krakowa",
+        "taglineHint": "Pod Twoją nazwą. Logo i akcent są w zakładce Ustawienia."
+      },
+      "hero": {
+        "image": "Zdjęcie okładki",
+        "headline": "Nagłówek",
+        "headlinePlaceholder": "Włosy i kolor u Anny",
+        "subheadline": "Podtytuł",
+        "align": "Wyrównanie",
+        "left": "Do lewej",
+        "center": "Wyśrodkowane",
+        "button": "Przycisk",
+        "buttonPlaceholder": "Zarezerwuj",
+        "buttonHint": "Przenosi do widżetu rezerwacji. Zostaw puste, aby nie było przycisku."
+      },
+      "about": {
+        "photo": "Zdjęcie",
+        "titlePlaceholder": "O mnie",
+        "text": "Tekst",
+        "textHint": "Pusta linia = nowy akapit."
+      },
+      "services": {
+        "showDurations": "Pokaż czasy trwania"
+      },
+      "staff": {
+        "hint": "Pojawia się, gdy co najmniej dwie osoby z zespołu są dostępne do rezerwacji; kliknięcie osoby otwiera jej własny link do rezerwacji."
+      },
+      "spaces": {
+        "showStay": "Pokaż pobyt / czas trwania",
+        "addFirst": "Najpierw dodaj przestrzeń — <link>Zarządzaj przestrzeniami</link>.",
+        "editedOn": "Same przestrzenie edytujesz w sekcji <link>Zarządzaj przestrzeniami</link>."
+      },
+      "gallery": {
+        "columns": "Kolumny",
+        "two": "Dwie",
+        "three": "Trzy",
+        "photos": "Zdjęcia",
+        "upTo": "Do {max}.",
+        "addPhotos": "Dodaj zdjęcia",
+        "altPlaceholder": "Opisz zdjęcie (tekst alternatywny)",
+        "altAria": "Opis zdjęcia {n}"
+      },
+      "testimonials": {
+        "add": "Dodaj cytat",
+        "quotePlaceholder": "Co powiedzieli?",
+        "authorPlaceholder": "Kto to powiedział",
+        "quoteAria": "Cytat {n}",
+        "authorAria": "Autor cytatu {n}"
+      },
+      "faq": {
+        "add": "Dodaj pytanie",
+        "question": "Pytanie",
+        "answer": "Odpowiedź",
+        "questionAria": "Pytanie {n}",
+        "answerAria": "Odpowiedź {n}"
+      },
+      "links": {
+        "add": "Dodaj link",
+        "label": "Etykieta",
+        "typeAria": "Typ linku {n}",
+        "labelAria": "Etykieta linku {n}",
+        "addressAria": "Adres linku {n}",
+        "icon": {
+          "instagram": "Instagram",
+          "facebook": "Facebook",
+          "tiktok": "TikTok",
+          "whatsapp": "WhatsApp",
+          "website": "Strona www",
+          "phone": "Telefon",
+          "email": "E-mail",
+          "other": "Inny"
+        }
+      },
+      "location": {
+        "address": "Adres",
+        "addressPlaceholder": "ul. Główna 1\n00-001 Warszawa",
+        "maps": "Link do map",
+        "mapsHint": "Widoczny jako „Otwórz w Mapach”."
+      },
+      "booking": {
+        "titlePlaceholder": "Zarezerwuj termin",
+        "hint": "Sam widżet stylizujesz w zakładce Ustawienia i w sekcji Osadzenie na stronie."
+      }
+    }
+  },
+  "embed": {
+    "rows": {
+      "bookingPage": "Strona rezerwacji"
+    },
+    "badge": {
+      "space": "Przestrzeń",
+      "team": "Zespół",
+      "service": "Usługa"
+    },
+    "intro": "Dodaj rezerwacje do własnej witryny. Dopasuj styl widżetu na podglądzie, a potem wklej kod do swojej strony. Logo i kolor akcentu pochodzą z sekcji Strona rezerwacji › Marka.",
+    "snippet": "Kod do osadzenia",
+    "bookWith": "Rezerwuj u",
+    "wholeTeam": "Cały zespół",
+    "staffOnly": "Ten kod rezerwuje tylko tę osobę.",
+    "clientsPick": "Klienci wybierają, u kogo rezerwują.",
+    "language": "Język",
+    "languageAuto": "Jak u odwiedzającego",
+    "languageAutoHint": "Klienci widzą swój język, jeśli go obsługujemy, a w przeciwnym razie język Twojej strony rezerwacji.",
+    "copy": "Kopiuj",
+    "copied": "Skopiowano",
+    "copyRefused": "Nie udało się skopiować — zaznacz kod i skopiuj ręcznie.",
+    "noHandle": "Ustaw adres strony rezerwacji w sekcji <link>Strona rezerwacji</link>, aby dostać kod do osadzenia.",
+    "style": {
+      "title": "Styl widżetu",
+      "description": "Widżet na Twojej własnej witrynie. Strona rezerwacji ma własny styl."
+    },
+    "saved": "Wygląd widżetu zapisany",
+    "preview": {
+      "hostPage": "Strona osadzająca",
+      "lightPage": "Jasna strona",
+      "darkPage": "Ciemna strona",
+      "clash": "Na {host, select, dark {ciemnej stronie} other {jasnej stronie}} tekst {theme, select, dark {ciemnego motywu} other {jasnego motywu}} jest nieczytelny ({ratio, number, ::.0}:1) — osadzenie nie maluje własnego tła. Jeśli Twoja witryna wygląda jak ta {host, select, dark {ciemna strona} other {jasna strona}}, wybierz {theme, select, dark {jasny motyw} other {ciemny motyw}} (lub Auto) albo ustaw kolor tła, aby widżet miał własne tło.",
+      "fixedRisk": "{theme, select, dark {Ciemny motyw} other {Jasny motyw}} bez tła: widżet przejmuje tło Twojej witryny, więc na {theme, select, dark {jasnej witrynie} other {ciemnej witrynie}} jego tekst staje się nieczytelny. W porządku, jeśli Twoja witryna wygląda jak ta {host, select, dark {ciemna strona} other {jasna strona}} — w przeciwnym razie wybierz {theme, select, dark {jasny motyw} other {ciemny motyw}} albo ustaw kolor tła. Zobacz powyżej podgląd na {theme, select, dark {jasnej stronie} other {ciemnej stronie}}.",
+      "autoRisk": "Auto podąża za ustawieniem systemu każdego odwiedzającego, nie za kolorami Twojej witryny. Na witrynie, która jest zawsze jasna lub zawsze ciemna, część odwiedzających dostanie niedopasowany wariant. Wybierz motyw pasujący do witryny albo ustaw kolor tła. Przełącz stronę osadzającą powyżej, aby zobaczyć oba."
+    },
+    "links": {
+      "title": "Linki i osadzenia",
+      "description": "Link otwiera Twoją stronę rezerwacji na danej rzeczy; osadzenie to kod dla niej.",
+      "copyEmbed": "Kopiuj kod",
+      "copyLinkFor": "Kopiuj link — {name}",
+      "copyEmbedFor": "Kopiuj kod — {name}",
+      "embedCopied": "Kod skopiowany"
+    }
+  },
+  "seed": {
+    "bookNow": "Zarezerwuj",
+    "services": "Usługi",
+    "team": "Zespół",
+    "spaces": "Przestrzenie"
+  },
+  "embedTitle": {
+    "appointment": "Umów wizytę",
+    "space": "Zarezerwuj przestrzeń"
+  },
+  "notifications": {
+    "intro": "O czym się dowiadujesz i co dostają Twoi klienci.",
+    "sections": {
+      "you": "Ty",
+      "clients": "Twoi klienci"
+    },
+    "push": {
+      "title": "Powiadomienia push",
+      "blurb": "Na telefonie i komputerze, jak w aplikacji.",
+      "status": {
+        "enabledHere": "Włączone na tym urządzeniu",
+        "notEnabledHere": "Niewłączone na tym urządzeniu",
+        "unsupported": "Niedostępne w tej przeglądarce.",
+        "iosHint": "Na iPhonie lub iPadzie najpierw dodaj Booklo do ekranu początkowego (Udostępnij, potem Do ekranu początkowego), otwórz stamtąd i włącz.",
+        "notConfigured": "Push nie jest jeszcze skonfigurowany na tym serwerze.",
+        "denied": "Powiadomienia dla tej witryny są zablokowane w ustawieniach przeglądarki.",
+        "checking": "Sprawdzanie tego urządzenia…"
+      },
+      "enable": "Włącz na tym urządzeniu",
+      "enabling": "Włączanie…",
+      "disableHere": "Wyłącz na tym urządzeniu",
+      "test": "Wyślij test",
+      "testSent": "Test wysłany. Sprawdź to urządzenie.",
+      "testFailed": "Nic nie wyszło. Najpierw włącz jakieś urządzenie.",
+      "devices": "Włączone urządzenia",
+      "noDevices": "Brak urządzeń.",
+      "thisDevice": "To urządzenie",
+      "added": "Dodano {date}",
+      "unknownBrowser": "Nieznana przeglądarka",
+      "removeDevice": "Usuń {device}",
+      "failed": "Nie udało się włączyć push na tym urządzeniu."
+    },
+    "events": {
+      "title": "O czym się dowiadujesz",
+      "blurb": "Każde zdarzenie, kanałami, które wybierzesz.",
+      "email": "E-mail",
+      "push": "Push",
+      "newBooking": "Nowa rezerwacja",
+      "newRequest": "Nowa prośba o rezerwację",
+      "cancelled": "Anulowanie przez klienta",
+      "rescheduled": "Przełożenie przez klienta",
+      "switchLabel": "{event}, przez {channel}"
+    },
+    "reminders": {
+      "title": "Przypomnienia",
+      "blurb": "E-mail do każdego klienta przed rezerwacją.",
+      "enabled": "Wysyłaj przypomnienia",
+      "lead": "Ile wcześniej",
+      "leadOption": "{count, plural, one {# godzinę} few {# godziny} many {# godzin} other {# godziny}} wcześniej",
+      "quotaFree": "W planie Free przypomnienia trafiają do pierwszych {count} rezerwacji w miesiącu.",
+      "premium": "Premium"
+    },
+    "alwaysSent": {
+      "title": "Zawsze wysyłane do klientów",
+      "blurb": "Zawierają link do rezerwacji, więc zawsze wychodzą, w języku klienta.",
+      "confirmation": "Potwierdzenie rezerwacji",
+      "request": "Prośba otrzymana, zaakceptowana lub odrzucona",
+      "cancelled": "Anulowanie",
+      "rescheduled": "Przełożenie",
+      "manageLink": "Link do rezerwacji na życzenie"
+    }
+  }
+}

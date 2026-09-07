@@ -18,9 +18,14 @@ describe("resolvePublicLocale (spec §4 + region detection)", () => {
     expect(resolvePublicLocale({ lang: undefined, country: "ua", orgLocale: "en" })).toBe("uk");
   });
 
+  it("a visitor from Poland gets Polish whatever the org chose", () => {
+    expect(resolvePublicLocale({ lang: undefined, country: "PL", orgLocale: "en" })).toBe("pl");
+    expect(resolvePublicLocale({ lang: undefined, country: "PL", orgLocale: "uk" })).toBe("pl");
+  });
+
   it("no country ever overrides the org towards English", () => {
     expect(resolvePublicLocale({ lang: undefined, country: "US", orgLocale: "uk" })).toBe("uk");
-    expect(resolvePublicLocale({ lang: undefined, country: "PL", orgLocale: "uk" })).toBe("uk");
+    expect(resolvePublicLocale({ lang: undefined, country: "DE", orgLocale: "uk" })).toBe("uk");
     expect(resolvePublicLocale({ lang: undefined, country: "GB", orgLocale: "en" })).toBe("en");
   });
 

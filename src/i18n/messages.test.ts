@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import IntlMessageFormat from "intl-messageformat";
 import en from "../../messages/en.json";
 import uk from "../../messages/uk.json";
+import pl from "../../messages/pl.json";
 import { LOCALES, type Locale } from "./config";
 import { deepMerge } from "./messages";
 
@@ -13,13 +14,16 @@ import { deepMerge } from "./messages";
 const FORBIDDEN: Record<Locale, readonly string[]> = {
   en: ["rental", "offering", "skip"],
   uk: ["оренда", "офер", "пропустити"],
+  // "wynaj-" catches wynajem/wynająć (rental); "oferta" is the ordinary word
+  // for what a business offers, so the "offering" ban has no Polish twin.
+  pl: ["wynaj", "pomiń"],
 };
 
 /* The guards from spec 2026-09-02 §6. Every locale must carry every key,
    compile as ICU, name the same placeholders and tags as English, cover
    every plural category its language has, and actually be translated. */
 
-const MESSAGES: Record<Locale, unknown> = { en, uk };
+const MESSAGES: Record<Locale, unknown> = { en, uk, pl };
 
 // Values that are the same in every language on purpose: codes, brand,
 // examples. Anything else equal to English is an untranslated string.
@@ -44,6 +48,16 @@ const SAME_IN_EVERY_LOCALE = new Set([
   "studio.forms.links.icon.whatsapp",
   // A plan name.
   "studio.proBadge",
+  // Polish shares these with English: "min", "Link", "Plan:", "FAQ", "Logo"
+  // and the "Premium" plan word are the same in both languages.
+  "common.min",
+  "public.units.minutes",
+  "public.links.other",
+  "studio.appearance.premium",
+  "notifications.reminders.premium",
+  "billing.planTag.srPrefix",
+  "studio.sections.faq.label",
+  "studio.branding.logo",
 ]);
 
 // The studio never offers to "skip" or do something "later" (widget
@@ -51,6 +65,7 @@ const SAME_IN_EVERY_LOCALE = new Set([
 const STUDIO_FORBIDDEN: Record<Locale, readonly string[]> = {
   en: ["skip", "later"],
   uk: ["пропустити", "пізніше"],
+  pl: ["pomiń", "później"],
 };
 
 function flatten(value: unknown, prefix = "", out: Record<string, string> = {}): Record<string, string> {
