@@ -13,7 +13,7 @@ const hrefs = (flags: typeof FLAGS, mode: OrgMode) => navItemsFor(flags, mode).m
 describe("navItemsFor (flags × mode) — spec §1 table, fixed order, spaces first (H5b)", () => {
   it("rentals-only: keeps Availability (it covers spaces from U3), hides Services and Team", () => {
     expect(hrefs(FLAGS, RENTALS_ONLY)).toEqual([
-      "/overview", "/bookings", "/clients", "/rentals", "/availability", "/booking-page", "/embed", "/notifications", "/integrations", "/settings",
+      "/overview", "/bookings", "/clients", "/rentals", "/availability", "/booking-page", "/embed", "/payments", "/notifications", "/integrations", "/settings",
     ]);
   });
   it("appointments-only: hides Spaces, keeps the rest in order", () => {

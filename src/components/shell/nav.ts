@@ -12,6 +12,7 @@ import {
   SourceCodeIcon,
   UserGroupIcon,
   UserMultipleIcon,
+  Wallet01Icon,
 } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
 import type { Flags } from "@/lib/flags";
@@ -74,6 +75,9 @@ const ALL_NAV_ITEMS: readonly NavItem[] = [
   // Shown only when the org's `billing` flag resolves true; the route 404s
   // in the same world.
   { href: "/billing", labelKey: "billing", icon: CreditCardIcon, section: "account" },
+  // Stripe Connect, the deposit hold window, the legal identity the public
+  // footer prints (S2) — rentals-only, same as the channel it collects for.
+  { href: "/payments", labelKey: "payments", icon: Wallet01Icon, section: "account", channel: "rentals" },
   // What the person hears about (email, push) and what clients receive
   // (reminders) — its own page, not a Settings section (spec 2026-09-05).
   { href: "/notifications", labelKey: "notifications", icon: Notification03Icon, section: "account" },

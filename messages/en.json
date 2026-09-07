@@ -574,6 +574,7 @@
       "bookingPage": "Booking page",
       "embed": "Website embed",
       "billing": "Billing",
+      "payments": "Payments",
       "notifications": "Notifications",
       "settings": "Settings",
       "integrations": "Integrations"
@@ -1854,6 +1855,38 @@
   "embedTitle": {
     "appointment": "Book an appointment",
     "space": "Book a space"
+  },
+  "payments": {
+    "intro": "How clients pay deposits, and the business details shown on your booking page.",
+    "stripe": {
+      "title": "Stripe",
+      "blurb": "Deposits are paid through Stripe on your own account — Booklo never holds the money and takes no fee.",
+      "notConfigured": "Payments aren't set up on this server.",
+      "notConnected": "Connect Stripe to collect deposits online. Bookings that need a deposit are held until it's paid.",
+      "country": "Business country",
+      "connect": "Connect Stripe",
+      "continue": "Continue setup",
+      "onboarding": "Stripe still needs some details before you can take payments.",
+      "active": "Active — clients can pay deposits online.",
+      "restricted": "Stripe has paused payments on this account and needs more information.",
+      "openDashboard": "Open Stripe dashboard",
+      "capability": { "card_payments": "Cards", "p24_payments": "Przelewy24", "blik_payments": "BLIK" },
+      "notice": { "return": "Stripe details saved.", "returnIncomplete": "Stripe still needs a few details — continue setup when you're ready.", "error": "Couldn't reach Stripe. Try again in a moment." }
+    },
+    "hold": {
+      "title": "Payment window",
+      "blurb": "How long a booking is held for its deposit. Unpaid bookings are released automatically.",
+      "label": "Hold for",
+      "options": { "30": "30 minutes", "60": "1 hour", "180": "3 hours", "1440": "24 hours" }
+    },
+    "legal": {
+      "title": "Business details",
+      "blurb": "Shown in the footer of your booking page. Przelewy24 requires them for online payments.",
+      "legalName": "Legal name", "address": "Address", "taxId": "NIP", "regNo": "REGON or KRS",
+      "termsUrl": "Terms link", "privacyUrl": "Privacy policy link", "refundUrl": "Refund policy link"
+    },
+    "save": "Save",
+    "saved": "Saved"
   },
   "notifications": {
     "intro": "What you hear about, and what your clients receive.",
