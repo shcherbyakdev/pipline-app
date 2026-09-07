@@ -3,45 +3,51 @@
 import { useTranslations } from "next-intl";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { moneyInfoLines, totalCents, depositCents, type MoneyFields } from "@/features/rentals/pricing";
+import { moneyInfoLines, depositCents, type MoneyFields } from "@/features/rentals/pricing";
+import type { Line } from "@/features/rentals/pricing-rules";
 import { cn } from "@/lib/utils";
 
 
 // Confirm-step money block, shared by RentalBookingFlow and
-// HourlyBookingFlow. `units` is the nights/days count (range flow) or
-// durationMin / 60 (hourly flow) — null while the picker hasn't settled on
-// a stay/slot yet, which shows the deposit/terms without a total. Renders
-// nothing when the offering carries no money AND no terms (pre-H3 shape).
+// HourlyBookingFlow. The caller now does the quoting (S1's rules-aware
+// hourly flow and the nights/days flat total are computed differently) and
+// hands down the result: `lines` is the itemised breakdown (null while the
+// picker hasn't settled, [] for an unpriced offering) and `totalCents` its
+// sum. Renders nothing when the offering carries no money AND no terms
+// (pre-H3 shape).
 export function BookingMoneySummary({
   offering,
   currency,
-  units,
+  lines,
+  totalCents,
   termsAccepted,
   onTermsChange,
   idPrefix = "",
 }: {
   offering: MoneyFields & { cancelWindowMin: number; termsText: string | null };
   currency: string;
-  units: number | null;
+  /** The quote (S1) — null while the picker hasn't settled; [] for an unpriced offering. */
+  lines: Line[] | null;
+  totalCents: number | null;
   termsAccepted: boolean;
   onTermsChange: (v: boolean) => void;
   idPrefix?: string;
 }) {
   const t = useTranslations("public.stay");
   const tu = useTranslations("public.units");
-  const total = units === null ? null : totalCents(offering, units);
-  const deposit = depositCents(offering, total);
-  const lines = moneyInfoLines(
-    { totalCents: total, depositCents: deposit, currency, cancelWindowMin: offering.cancelWindowMin },
+  const deposit = depositCents(offering, totalCents);
+  const info = moneyInfoLines(
+    { totalCents, depositCents: deposit, currency, cancelWindowMin: offering.cancelWindowMin, lines },
     tu,
   );
-  if (lines.length === 0 && offering.termsText === null) return null;
+  if (info.length === 0 && offering.termsText === null) return null;
   const termsId = `${idPrefix}terms-accepted`;
+  // moneyInfoLines puts the breakdown lines first, then the total.
+  const totalIdx = totalCents === null ? -1 : (lines?.length ?? 0);
   return (
     <div className={cn("flex flex-col gap-2 border-t pt-4 text-sm")}>
-      {/* moneyInfoLines puts the total first whenever there is one. */}
-      {lines.map((l, i) => (
-        <p key={l} className={cn("tabular-nums", i === 0 && total !== null ? "font-medium" : "text-muted-foreground")}>
+      {info.map((l, i) => (
+        <p key={l} className={cn("tabular-nums", i === totalIdx ? "font-medium" : "text-muted-foreground")}>
           {l}
         </p>
       ))}

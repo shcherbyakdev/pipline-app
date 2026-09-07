@@ -281,7 +281,14 @@
       "confirmBooking": "Confirm booking",
       "selected": "Selected",
       "nothingFreeDates": "Nothing is free for those dates any more — please pick again.",
-      "nothingFreeTime": "Nothing is free for that time any more — please pick again."
+      "nothingFreeTime": "Nothing is free for that time any more — please pick again.",
+      "people": "People",
+      "included": "up to {count} included",
+      "fewer": "Fewer people",
+      "more": "More people",
+      "extras": "Extras",
+      "fewerOf": "Fewer: {label}",
+      "moreOf": "More: {label}"
     },
     "slots": {
       "loading": "Loading times…",
@@ -408,6 +415,9 @@
       "freeCancellation": "Free cancellation until {window} before start",
       "fromPerHour": "from {amount} / hour",
       "totalFor": "{amount} / {length}",
+      "from": "from {amount}",
+      "perHourShort": "per hour",
+      "perPiece": "per piece",
       "line": {
         "base": "{hours} × {rate}",
         "surcharge": "{label} +{pct}%",

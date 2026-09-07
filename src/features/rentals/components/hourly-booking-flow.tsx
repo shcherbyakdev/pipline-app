@@ -3,11 +3,13 @@
 import * as React from "react";
 import { flushSync } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
+import { Minus, Plus } from "lucide-react";
 import { INTL_LOCALES } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { durationOptions, formatDurationLabel, type HourlyOffering } from "@/features/rentals/hourly";
-import { formatOfferingPrice, totalCents } from "@/features/rentals/pricing";
+import { quoteHours, sumLines, headlinePrice } from "@/features/rentals/pricing";
+import type { ExtraPick } from "@/features/rentals/pricing-rules";
 import { formatMoney } from "@/lib/money";
 import { getHourlySlots, createRentalBookingHours } from "@/features/rentals/hourly-actions";
 import { formatHourlyWhenLine } from "@/features/scheduling/templates";
@@ -87,6 +89,9 @@ export function HourlyBookingFlow({
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
   const [slot, setSlot] = React.useState<string | null>(null);
   const [unitId, setUnitId] = React.useState<string | null>(null);
+  // S1: null people = the offering's included count; [] extras = none picked.
+  const [people, setPeople] = React.useState<number | null>(null);
+  const [extras, setExtras] = React.useState<ExtraPick[]>([]);
   const [termsAccepted, setTermsAccepted] = React.useState(false);
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
   // Whether the RPC left it pending (the space requires approval) — the done
@@ -163,6 +168,8 @@ export function HourlyBookingFlow({
       setSlot(null);
       setUnitId(null);
       setTermsAccepted(false);
+      setPeople(null);
+      setExtras([]);
       return;
     }
     flushSync(() => {
@@ -188,6 +195,8 @@ export function HourlyBookingFlow({
     setSlot(null);
     setUnitId(null);
     setTermsAccepted(false);
+    setPeople(null);
+    setExtras([]);
   }
 
   const matchingSlot = slot ? slots.find((s) => s.startsAt === slot) : undefined;
@@ -213,6 +222,8 @@ export function HourlyBookingFlow({
         email: String(formData.get("email") ?? ""),
         note: String(formData.get("note") ?? "") || undefined,
         termsAccepted,
+        people,
+        extras,
       });
       if (result.ok) {
         setDoneToken(result.token);
@@ -220,6 +231,13 @@ export function HourlyBookingFlow({
         return;
       }
       setError(result.error);
+      // S1: the RPC couldn't work out a quote (duration/people/extras drifted
+      // from what the offering's rules now allow) — reset the picks and let
+      // the error stand so the client can retry with the defaults.
+      if (result.quote) {
+        setPeople(null);
+        setExtras([]);
+      }
       if (result.slotTaken) {
         setSlot(null);
         setUnitId(null);
@@ -239,8 +257,38 @@ export function HourlyBookingFlow({
     slot && durationMin
       ? `${formatDurationLabel(durationMin, tu)} · ${dayFmt.format(new Date(slot))}, ${timeFmt.format(new Date(slot))}`
       : null;
-  const priceLabel = formatOfferingPrice(offering, currency, tu);
-  const durationUnits = durationMin === null ? null : durationMin / 60;
+  const priceLabel = headlinePrice(offering, currency, tu);
+
+  // The pill/option price (base only, no people/extras yet): "from …" once
+  // the offering carries a surcharge (the base band alone would understate
+  // it), else the plain amount. A flat/unpriced offering shows nothing on
+  // its pills, as before S1 (quoteHours's flat-mode line is one constant
+  // amount regardless of duration, which would say nothing useful here).
+  const pillPrice = (d: number) => {
+    if (hourly.pricing === null && hourly.pricingMode === "flat") return null;
+    try {
+      const lines = quoteHours(hourly, new Date(), d, null, [], orgTimeZone).filter((l) => l.kind === "base");
+      if (lines.length === 0) return null;
+      const amount = formatMoney(sumLines(lines), currency);
+      return hourly.pricing?.surcharges.length ? tu("from", { amount }) : amount;
+    } catch {
+      // A duration below the rules' first band throws quote_band — no price
+      // for that pill rather than a broken render.
+      return null;
+    }
+  };
+
+  // S1: the live itemised quote once a slot is picked — recomputes with
+  // every people/extras change so the confirm step always shows what
+  // submit is about to charge.
+  const quote = React.useMemo(() => {
+    if (!slot || !durationMin) return null;
+    try {
+      return quoteHours(hourly, new Date(slot), durationMin, people, extras, orgTimeZone);
+    } catch {
+      return null;
+    }
+  }, [hourly, slot, durationMin, people, extras, orgTimeZone]);
 
   if (doneToken) {
     const summary =
@@ -281,24 +329,24 @@ export function HourlyBookingFlow({
           <p className={STEP_LABEL}>{tStay("howLong")}</p>
           {options.length <= MAX_PILL_OPTIONS ? (
             <div className="flex flex-wrap gap-2">
-              {options.map((d) => (
-                <Button
-                  key={d}
-                  type="button"
-                  variant="outline"
-                  className={cn(CHIP, "h-9 px-3.5 tabular-nums")}
-                  onClick={() => changeDuration(d)}
-                >
-                  {formatDurationLabel(d, tu)}
-                  {/* Price tracks the choice (per-hour offerings only — a
-                      flat price is the same on every pill and says nothing). */}
-                  {hourly.pricingMode === "per_unit" && hourly.priceCents !== null ? (
-                    <span className="text-muted-foreground">
-                      · {formatMoney(totalCents(hourly, d / 60)!, currency)}
-                    </span>
-                  ) : null}
-                </Button>
-              ))}
+              {options.map((d) => {
+                // Price tracks the choice — rules-priced or per-hour
+                // offerings only; a flat price is the same on every pill
+                // and says nothing (pillPrice already returns null there).
+                const price = pillPrice(d);
+                return (
+                  <Button
+                    key={d}
+                    type="button"
+                    variant="outline"
+                    className={cn(CHIP, "h-9 px-3.5 tabular-nums")}
+                    onClick={() => changeDuration(d)}
+                  >
+                    {formatDurationLabel(d, tu)}
+                    {price ? <span className="text-muted-foreground">· {price}</span> : null}
+                  </Button>
+                );
+              })}
             </div>
           ) : (
             <select
@@ -313,9 +361,7 @@ export function HourlyBookingFlow({
               {options.map((d) => (
                 <option key={d} value={d}>
                   {formatDurationLabel(d, tu)}
-                  {hourly.pricingMode === "per_unit" && hourly.priceCents !== null
-                    ? ` · ${formatMoney(totalCents(hourly, d / 60)!, currency)}`
-                    : ""}
+                  {pillPrice(d) ? ` · ${pillPrice(d)}` : ""}
                 </option>
               ))}
             </select>
@@ -403,10 +449,84 @@ export function HourlyBookingFlow({
             </button>
           </div>
           <ClientDetailsFields idPrefix="hourly-" />
+          {hourly.pricing?.people ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className={STEP_LABEL}>
+                {t("people")}{" "}
+                <span className="text-muted-foreground">{t("included", { count: hourly.pricing.people.included })}</span>
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={t("fewer")}
+                  disabled={(people ?? hourly.pricing.people.included) <= 1}
+                  onClick={() => setPeople((people ?? hourly.pricing!.people!.included) - 1)}
+                >
+                  <Minus />
+                </Button>
+                <span className="w-6 text-center tabular-nums">{people ?? hourly.pricing.people.included}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={t("more")}
+                  disabled={(people ?? hourly.pricing.people.included) >= hourly.pricing.people.max}
+                  onClick={() => setPeople((people ?? hourly.pricing!.people!.included) + 1)}
+                >
+                  <Plus />
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          {hourly.pricing && hourly.pricing.extras.length > 0 ? (
+            <ul className={ROW_LIST} aria-label={t("extras")}>
+              {hourly.pricing.extras.map((x) => {
+                const qty = extras.find((e) => e.id === x.id)?.qty ?? 0;
+                const setQty = (q: number) =>
+                  setExtras(q <= 0 ? extras.filter((e) => e.id !== x.id) : [...extras.filter((e) => e.id !== x.id), { id: x.id, qty: q }]);
+                return (
+                  <li key={x.id} className="flex items-center justify-between gap-3 py-2">
+                    <span className="min-w-0">
+                      <span className="block">{x.label}</span>
+                      <span className="text-muted-foreground block text-xs">
+                        {formatMoney(x.priceCents, currency)} · {x.unit === "hour" ? tu("perHourShort") : tu("perPiece")}
+                      </span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={t("fewerOf", { label: x.label })}
+                        disabled={qty === 0}
+                        onClick={() => setQty(qty - 1)}
+                      >
+                        <Minus />
+                      </Button>
+                      <span className="w-6 text-center tabular-nums">{qty}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={t("moreOf", { label: x.label })}
+                        disabled={qty >= x.maxQty}
+                        onClick={() => setQty(qty + 1)}
+                      >
+                        <Plus />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
           <BookingMoneySummary
             offering={offering}
             currency={currency}
-            units={durationUnits}
+            lines={quote}
+            totalCents={quote === null ? null : quote.length === 0 ? null : sumLines(quote)}
             termsAccepted={termsAccepted}
             onTermsChange={setTermsAccepted}
             idPrefix="hourly-"

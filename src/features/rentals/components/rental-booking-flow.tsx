@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
 import { addMonths, monthOf } from "@/features/rentals/calendar-grid";
-import { formatOfferingPrice, stayUnits } from "@/features/rentals/pricing";
+import { formatOfferingPrice, stayUnits, totalCents } from "@/features/rentals/pricing";
 import { getRangeAvailability, createRentalBooking } from "@/features/rentals/public-actions";
 import { RangePicker, staySummary, type RangeValue } from "./range-picker";
 import { NextFreeStays } from "./next-free-stays";
@@ -304,7 +304,8 @@ export function RentalBookingFlow({
           <BookingMoneySummary
             offering={offering}
             currency={currency}
-            units={stayUnitCount}
+            lines={null}
+            totalCents={stayUnitCount === null ? null : totalCents(offering, stayUnitCount)}
             termsAccepted={termsAccepted}
             onTermsChange={setTermsAccepted}
             idPrefix="rental-"
