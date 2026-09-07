@@ -1,6 +1,6 @@
 # Translation glossary and style
 
-Source language: English (`messages/en.json`). Every other language is a
+Source language: English (`messages/en.json`). Every other language (`uk`, `pl`) is a
 full translation of it; `src/i18n/messages.test.ts` refuses a partial one.
 
 Before drafting a language: read the term table, then the style notes.
@@ -59,6 +59,55 @@ A term missing here is added here first, then used.
 - No exclamation marks. Sentence case. One idea per sentence.
 - Typographic apostrophe `’` inside words (з’являвся), em dash `—` with spaces.
 - Forbidden words (the `FORBIDDEN_COPY` guard, per locale): оренда, офер, пропустити.
+
+## Terms — pl
+
+| en | pl | note |
+|---|---|---|
+| appointment | wizyta | |
+| service | usługa | |
+| space | przestrzeń | rooms, studios and gear alike |
+| unit (of a space) | jednostka | the individual room or item |
+| booking | rezerwacja | |
+| request (pending approval) | prośba (o rezerwację) | "Czeka na zatwierdzenie" for the pending status |
+| client | klient | |
+| team member | członek zespołu | never "personel" / "pracownik" |
+| the provider (you) | Ty / Twoja firma | never "usługodawca" when addressing the provider |
+| the provider (client-facing) | usługodawca | "skontaktuj się z usługodawcą"; "na miejscu" for the venue |
+| availability, hours | dostępność, godziny pracy | |
+| time / slot | termin | never "slot" |
+| stay (nights) | pobyt | |
+| check-in / check-out | zameldowanie / wymeldowanie | |
+| pickup / return (day stays) | odbiór / zwrot | |
+| reschedule / cancel / confirm | przełożyć / anulować / potwierdzić | "przenieść" when the provider moves a booking |
+| deposit | zaliczka | |
+| widget / booking page | widżet / strona rezerwacji | |
+| embed | osadzenie na stronie / kod do osadzenia | the nav item and the snippet |
+| handle (page address) | adres strony | |
+| Powered by Booklo | Działa na Booklo | |
+| team member (client-facing "with Anna") | u: Anna | "u:" with a colon sidesteps name declension |
+| anyone (staff switch) | ktokolwiek | |
+| night / day / hour (counts) | noc, noce, nocy · dzień, dni, dni · godzina, godziny, godzin | four ICU forms: one/few/many/other |
+| min / h (short units) | min / godz. | "60 min", "1 godz. 30 min" |
+| admin nav | Przegląd · Rezerwacje · Klienci · Przestrzenie · Usługi · Zespół · Dostępność · Strona rezerwacji · Osadzenie na stronie · Rozliczenia · Powiadomienia · Ustawienia | sections: Oferta (Offer), Udostępnianie (Share) |
+| billing (page) | Rozliczenia | not "Płatności" — that word is reserved for client payments |
+| hourly / nightly / daily (a space's mode) | na godziny / na noce / na dni | |
+| turnover | przerwa techniczna | |
+| require approval (toggle) | Wymaga zatwierdzenia | |
+| booking window (days) | Okno rezerwacji (dni) | |
+| date override | wyjątek dla daty | |
+| layout / section / cover | układ / sekcja / okładka | |
+| publish / draft | opublikuj / wersja robocza | |
+| Free / Pro / Premium | Free / Pro / Premium | plan names stay; "Premium" is the same word |
+
+## Style — pl
+
+- Informal **ty**, with the polite capital in direct address ("Twoja strona", "u Ciebie").
+- Command buttons use the imperative ("Zapisz", "Anuluj", "Zaloguj się"); errors and instructions too ("Wybierz", "Spróbuj ponownie").
+- No exclamation marks. Sentence case. One idea per sentence.
+- Polish quotation marks „ ”, em dash — with spaces, decimal comma in prose ("4,5:1").
+- Forbidden words (the `FORBIDDEN` guard, per locale): wynaj- (wynajem/wynająć), pomiń; the studio also never says "później".
+- Same as English on purpose (`SAME_IN_EVERY_LOCALE`): min, Link, Plan:, FAQ, Logo, Premium.
 
 ## Never translated
 

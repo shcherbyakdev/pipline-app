@@ -5,6 +5,7 @@ import { DEFAULT_LOCALE, type Locale } from "./config";
 const LOADERS: Record<Locale, () => Promise<AbstractIntlMessages>> = {
   en: () => import("../../messages/en.json").then((m) => m.default),
   uk: () => import("../../messages/uk.json").then((m) => m.default),
+  pl: () => import("../../messages/pl.json").then((m) => m.default),
 };
 
 export function deepMerge(base: AbstractIntlMessages, over: AbstractIntlMessages): AbstractIntlMessages {

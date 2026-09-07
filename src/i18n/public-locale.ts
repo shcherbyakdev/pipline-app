@@ -14,7 +14,7 @@ import { DEFAULT_LOCALE, isLocale, type Locale } from "./config";
    never overridden *towards* English: a Ukrainian business abroad sets `uk`
    on the Booking page Settings tab and every visitor gets it; a visitor
    browsing from Ukraine gets Ukrainian whatever the org chose. */
-export const REGION_LOCALES: Readonly<Record<string, Locale>> = { UA: "uk" };
+export const REGION_LOCALES: Readonly<Record<string, Locale>> = { UA: "uk", PL: "pl" };
 
 /** The header Vercel stamps with the visitor's ISO 3166-1 alpha-2 country;
     absent on localhost, so local runs fall through to the org locale. */
