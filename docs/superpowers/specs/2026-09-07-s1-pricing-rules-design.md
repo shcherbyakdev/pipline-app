@@ -38,7 +38,7 @@ Rules, enforced by a zod schema (`rentals/pricing-rules.ts`) on write and by a S
 - `bands[0].fromMin ≤ min_duration_min` so every allowed duration has a band; each band has exactly one of `perHourCents` / `totalCents`; cents are integers 0–100 000 000.
 - `surcharges[].pct` 1–200; `days` is a non-empty subset of 0–6 (0 = Sunday, matching `availability.weekdaysShort`); `from`/`to` are `HH:MM` and differ; `to < from` means the window crosses midnight. `days` names the day the window **starts** on.
 - `people.included ≥ 0`, `extraCents ≥ 0`, `max ≥ included`, `max ≤ 500`.
-- `extras[].id` is a slug unique within the offering (`^[a-z0-9-]{1,32}$`, generated from the label, never shown); `unit` ∈ `hour | piece`; `maxQty` 1–99; labels ≤ 60 characters.
+- `extras[].id` is a slug unique within the offering (`^[a-z0-9-]{1,32}$`, generated once when the row is added and kept across relabels, never shown); `unit` ∈ `hour | piece`; `maxQty` 1–99; labels ≤ 60 characters.
 - When `pricing` is set for an hourly offering, `pricing_mode` and `price_cents` are ignored for quoting (kept for the NULL fallback and for nights/days).
 
 ### `bookings.lines jsonb`, `bookings.people int`
@@ -62,10 +62,10 @@ Bookings made before 0078 keep `lines = NULL`; every reader treats NULL as "no b
 
 `security definer`, `set search_path = ''`, revoked from every role, callable only from the RPCs below. `p_extras` is `[{ "id": "arri", "qty": 1 }]`. Steps, in the org's timezone:
 
-1. **Base.** If `pricing` is NULL: one `base` line from `rental_total_cents(pricing_mode, price_cents, p_duration_min / 60.0)`; if that is NULL (unpriced offering) return `[]`. Otherwise the applicable band is the last one with `fromMin ≤ p_duration_min`; `cents = totalCents` or `round(perHourCents × p_duration_min / 60.0)`; `qty = p_duration_min / 60.0`, `unitCents = perHourCents` (NULL for a fixed total). No band → `raise 'quote: no band'`.
+1. **Base.** If `pricing` is NULL: one `base` line from `rental_total_cents(pricing_mode, price_cents, p_duration_min / 60.0)`; if that is NULL (unpriced offering) return `[]`. Otherwise the applicable band is the last one with `fromMin ≤ p_duration_min`; `cents = totalCents` or `round(perHourCents × p_duration_min / 60.0)`; `qty = p_duration_min / 60.0`, `unitCents = perHourCents` (NULL for a fixed total). No band → `raise 'quote_band'`.
 2. **Surcharges.** For each surcharge, for each local calendar day `d` from the day before the booking starts to the day it ends, if `extract(dow from d) ∈ days`, the window is `[d + from, d + to]` (or `[d + from, d + 1 + to]` when it crosses midnight); `overlap = minutes of (window ∩ booking)`. `cents = round(base.cents × pct / 100.0 × overlap / p_duration_min)`; a surcharge with zero overlap emits no line. Surcharges stack additively on the base (never on each other).
-3. **People.** Only when `pricing.people` is set: `p_people` NULL → treated as `included`; `p_people > max` → `raise 'quote: people'`; `qty = greatest(0, p_people − included)`; a zero qty emits no line.
-4. **Extras.** Each `{id, qty}`: unknown id or `qty > maxQty` or `qty < 1` → `raise 'quote: extra'`; `hour` → `cents = round(priceCents × qty × p_duration_min / 60.0)`, `piece` → `cents = priceCents × qty`. Duplicate ids are refused.
+3. **People.** Only when `pricing.people` is set: `p_people` NULL → treated as `included`; `p_people > max` → `raise 'quote_people'`; `qty = greatest(0, p_people − included)`; a zero qty emits no line.
+4. **Extras.** Each `{id, qty}`: unknown id or `qty > maxQty` or `qty < 1` → `raise 'quote_extra'`; `hour` → `cents = round(priceCents × qty × p_duration_min / 60.0)`, `piece` → `cents = priceCents × qty`. Duplicate ids are refused.
 5. Every `cents` is rounded to an integer at line level; all amounts are non-negative, so SQL `round()` (half away from zero) and JS `Math.round` (half up) agree. The function returns the array; the caller sums it.
 
 Deposit stays `rental_deposit_cents(deposit_type, deposit_value, total)`.
@@ -79,13 +79,13 @@ Deposit stays `rental_deposit_cents(deposit_type, deposit_value, total)`.
 | RPC | Latest body | Delta |
 |---|---|---|
 | `create_rental_booking_hours` (public) | 0062 | new params `p_people int, p_extras jsonb` (signature change → `drop` + recreate + regrant to `service_role`); replace the `rental_total_cents` line with `v_lines := rental_quote_hours(…)`, `v_total := sum`; insert `lines`, `people` |
-| `create_rental_booking_hours_admin` | 0056 | same computation with `p_people = NULL`, `p_extras = '[]'` — walk-ins are priced at base + surcharges; the admin adds extras later through S7's lines editor |
+| `create_rental_booking_hours_admin` | 0058 | same computation with `p_people = NULL`, `p_extras = '[]'` — walk-ins are priced at base + surcharges; the admin adds extras later through S7's lines editor |
 | `reschedule_rental_hours_apply` (core behind the client and admin hourly reschedules) | 0070 | re-quote at the new `starts_at`/duration with the booking's own `people` and the `extra` lines' `{extraId, qty}`; rewrite `lines`, `price_cents`, `deposit_cents` |
 | `resolve_booking_token` | 0070 | return type gains `lines jsonb, people int` (drop + recreate + regrant to `anon, service_role`) |
 
 Nothing changes for `create_rental_booking` / `reschedule_rental_booking` (nights/days) or any appointment RPC.
 
-`src/features/rentals/hourly-actions.ts` validates `people` and `extras` with zod before calling the RPC; the RPC's `raise 'quote: …'` messages map to `errors.rentals.quote` ("The price for that choice can't be worked out — pick again.") the same way `SLOT_TAKEN` maps today.
+`src/features/rentals/hourly-actions.ts` validates `people` and `extras` with zod before calling the RPC; the RPC's `quote_band` / `quote_people` / `quote_extra` sentinels map to `errors.rentals.quote` ("The price for that choice can't be worked out — pick again.") the same way `SLOT_TAKEN` maps today.
 
 ## Admin — the space form (`offering-form.tsx`, hourly spaces only)
 
