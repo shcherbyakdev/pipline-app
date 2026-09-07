@@ -4,8 +4,9 @@ import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { INTL_LOCALES } from "@/i18n/config";
 import type { UnitsT } from "@/i18n/translator";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { CHANGE_LINK, STEP_LABEL } from "@/features/booking-page/render/type";
+import { PagerDiscs } from "@/features/scheduling/components/slot-layouts/frame";
 import type { PublicOffering } from "@/lib/booking/public";
 import { asEngineOffering, stayLength, validateStay, type RangeAvailability } from "@/features/rentals/range";
 import { addMonths, monthGrid } from "@/features/rentals/calendar-grid";
@@ -98,6 +99,9 @@ export function RangePicker({
   const { start, end } = value;
   const picking = start !== null && end === null;
   const widget = variant === "widget";
+  // The stay band: the org's tint (or the channel's) at low alpha in the
+  // widget, the app's primary in the admin dialogs.
+  const band = `color-mix(in oklab, transparent, ${widget ? "var(--widget-tint, var(--widget-accent))" : "var(--primary)"} 16%)`;
 
   function isDisabled(date: string): boolean {
     if (!availability) return true;
@@ -140,8 +144,8 @@ export function RangePicker({
       {/* The step prompt leads the picker (aria-live announces the
           check-in → check-out swap) — below the grids it taught the
           two-click model a viewport too late on phones. */}
-      <div className="flex items-center justify-between gap-2">
-        <div aria-live="polite">
+      <div className="flex items-center justify-between gap-3">
+        <div aria-live="polite" className="min-w-0">
           {!(start && end) ? (
             <p className="text-sm">
               <span className="font-medium">
@@ -155,47 +159,36 @@ export function RangePicker({
             </p>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className={widget ? "wt-surface" : undefined}
-            disabled={!canGoBack}
-            aria-label={tSlots("prevMonth")}
-            onClick={() => onMonthChange(addMonths(month, -1))}
-          >
-            ←
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className={widget ? "wt-surface" : undefined}
-            aria-label={tSlots("nextMonth")}
-            onClick={() => onMonthChange(addMonths(month, 1))}
-          >
-            →
-          </Button>
-        </div>
+        <PagerDiscs
+          prevDisabled={!canGoBack}
+          onPrev={() => onMonthChange(addMonths(month, -1))}
+          onNext={() => onMonthChange(addMonths(month, 1))}
+          prevLabel={tSlots("prevMonth")}
+          nextLabel={tSlots("nextMonth")}
+        />
       </div>
 
       <div aria-live="polite">
         {loading ? <p className="text-muted-foreground text-sm">{tManage("loadingAvailability")}</p> : null}
       </div>
 
-      <div className={cn("grid gap-6", months === 2 && "md:grid-cols-2")}>
+      {/* The month(s) straight on the ground. A day is a disc like the
+          appointment calendar's; a picked stay is a band behind the discs:
+          full cells between the dates, a half cell under each endpoint. */}
+      <div className={cn("grid gap-6", months === 2 && "md:grid-cols-2", loading && "opacity-60 transition-opacity duration-150")}>
         {(months === 2 ? [month, addMonths(month, 1)] : [month]).map((m) => (
-          <div key={m} className="flex flex-col gap-2">
-            <p className="text-center text-sm font-medium">
+          <div key={m} className="flex flex-col gap-1">
+            <p className={cn(STEP_LABEL, "pb-1")}>
               {monthLabelFmt.format(utcDate(`${m}-01`))}
             </p>
-            <div className="text-muted-foreground grid grid-cols-7 gap-1 text-center text-xs">
+            <div className="text-muted-foreground grid grid-cols-7 text-center text-xs font-medium">
               {weekdays.map((w) => (
-                <span key={w} aria-hidden="true">
+                <span key={w} aria-hidden="true" className="py-1">
                   {w}
                 </span>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-y-1">
               {monthGrid(m)
                 .flat()
                 .map((date, i) => {
@@ -203,6 +196,8 @@ export function RangePicker({
                   const disabled = isDisabled(date);
                   const selected = date === start || date === end;
                   const between = inRange(date);
+                  // An endpoint of a finished stay carries half the band.
+                  const halfBand = selected && start && end && start !== end ? (date === start ? "right" : "left") : null;
                   return (
                     <button
                       key={date}
@@ -212,28 +207,29 @@ export function RangePicker({
                       aria-pressed={selected}
                       aria-label={dayLabelFmt.format(utcDate(date))}
                       onClick={() => click(date)}
-                      className={cn(
-                        "rounded-md border py-1.5 text-center text-sm tabular-nums",
-                        widget
-                          ? selected
-                            ? "wt-primary font-semibold"
-                            : "wt-surface"
-                          : selected
-                            ? "bg-primary text-primary-foreground border-primary font-semibold"
-                            : "bg-background hover:bg-muted",
-                        disabled && "cursor-not-allowed border-transparent opacity-35",
-                      )}
-                      style={
-                        between
-                          ? {
-                              backgroundColor: `color-mix(in oklab, transparent, ${
-                                widget ? "var(--widget-accent)" : "var(--primary)"
-                              } 18%)`,
-                            }
-                          : undefined
-                      }
+                      className="group relative flex h-9 items-center justify-center outline-none"
+                      style={between ? { backgroundColor: band } : undefined}
                     >
-                      {Number(date.slice(8, 10))}
+                      {halfBand ? (
+                        <span aria-hidden className="absolute inset-y-0 w-1/2" style={{ [halfBand]: 0, backgroundColor: band }} />
+                      ) : null}
+                      <span
+                        className={cn(
+                          // wt-round: the widget theme squares every `rounded`.
+                          "wt-round relative flex size-9 items-center justify-center rounded-full text-sm tabular-nums transition-[background-color,color] duration-150 ease-strong",
+                          "group-focus-visible:ring-2 group-focus-visible:ring-[var(--widget-accent)] group-focus-visible:ring-offset-2",
+                          widget
+                            ? selected
+                              ? "wt-primary font-semibold"
+                              : !disabled && "font-medium group-hover:bg-[color-mix(in_oklab,transparent,var(--widget-text)_8%)]"
+                            : selected
+                              ? "bg-primary text-primary-foreground font-semibold"
+                              : !disabled && "group-hover:bg-muted font-medium",
+                          disabled && "text-muted-foreground cursor-not-allowed opacity-40",
+                        )}
+                      >
+                        {Number(date.slice(8, 10))}
+                      </span>
                     </button>
                   );
                 })}
@@ -245,11 +241,7 @@ export function RangePicker({
       {start && end ? (
         <p className="text-sm">
           <span className="font-medium">{staySummary(offering, start, end, timeZone, tu)}</span>{" "}
-          <button
-            type="button"
-            className="text-muted-foreground underline"
-            onClick={() => onChange({ start: null, end: null })}
-          >
+          <button type="button" className={CHANGE_LINK} onClick={() => onChange({ start: null, end: null })}>
             {tWidget("change")}
           </button>
         </p>

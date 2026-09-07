@@ -52,8 +52,8 @@ export const WIDGET_THEME_DEFAULTS: WidgetThemeConfig = {
 // pair the org didn't override, so a lone override can't slip an unreadable
 // combination past the guard.
 export const WIDGET_THEME_DEFAULT_COLORS = {
-  light: { background: "#ffffff", text: "#18181b" },
-  dark: { background: "#18181b", text: "#fafafa" },
+  light: { background: "#fefefe", text: "#252228" },
+  dark: { background: "#111212", text: "#e2e3e5" },
 } as const;
 
 export const WIDGET_FONT_IDS = [
@@ -71,9 +71,11 @@ export const WIDGET_THEMES = ["light", "dark", "auto"] as const;
 const THEME_VALUES = WIDGET_THEMES;
 const RADIUS_VALUES = ["none", "subtle", "round"] as const;
 
+// Controls r, cards 2r (globals.css): "subtle" is the product's own
+// fragment radius, so the default page reads like the app.
 const RADIUS_MAP: Record<WidgetThemeConfig["radius"], string> = {
   none: "0px",
-  subtle: "6px",
+  subtle: "8px",
   round: "12px",
 };
 
@@ -149,13 +151,25 @@ export function themeCssVars(
 
   // Always include radius and accent (with fallback)
   vars["--widget-radius"] = RADIUS_MAP[config.radius];
-  // No accent set: ink (the hosted page's --foreground, gumloop.com's
-  // button), not a blue-leaning slate.
-  vars["--widget-accent"] = accentColor || "#17171a";
+  // No accent set: the theme's own primary (globals.css — ink by day, the
+  // off-white pill at night), so the Book button and the picked day are the
+  // app's own control in either theme. An org accent always takes a white
+  // label, as every accent control on the page does.
+  vars["--widget-accent"] = accentColor || "var(--widget-primary)";
+  vars["--widget-accent-fg"] = accentColor ? "#ffffff" : "var(--widget-primary-fg)";
+  // The low-alpha tint behind a free day or a picked stay (.wt-tint): the
+  // org's accent — or, when it has none, the channel's own colour as the
+  // landing card draws it (appointments periwinkle, spaces green). The space
+  // flows re-point --widget-tint at the space value on their root.
+  vars["--widget-tint"] = accentColor || "var(--brand)";
+  vars["--widget-tint-space"] = accentColor || "var(--kind-space)";
 
-  // Only include background and text if overridden
+  // Only include background and text if overridden. A painted background
+  // also becomes the card fill the theme classes would otherwise supply
+  // (globals.css), so no white control can sit on a brand background.
   if (config.background) {
     vars["--widget-bg"] = config.background;
+    vars["--widget-card"] = config.background;
   }
   if (config.text) {
     vars["--widget-text"] = config.text;

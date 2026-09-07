@@ -19,14 +19,14 @@ export async function PublicLanguageLinks({ locale }: { locale: Locale }) {
   // pathname + search, stamped by the proxy (lib/supabase/middleware.ts).
   const path = h.get("x-pathname");
   return (
-    <nav aria-label={t("language")} className="mt-3 flex items-center justify-center gap-3 text-xs opacity-60">
+    <nav aria-label={t("language")} className="text-subtle flex items-center justify-center gap-1 text-xs">
       {LOCALES.map((l) =>
         l === locale ? (
-          <span key={l} aria-current="true" className="font-medium">
+          <span key={l} aria-current="true" className="text-foreground rounded-full px-2 py-1 font-medium">
             {LOCALE_NAMES[l]}
           </span>
         ) : (
-          <a key={l} href={langHref(path, l)} hrefLang={l} className="underline underline-offset-2">
+          <a key={l} href={langHref(path, l)} hrefLang={l} className="hover:text-foreground rounded-full px-2 py-1 underline-offset-3 transition-colors duration-150 hover:underline">
             {LOCALE_NAMES[l]}
           </a>
         ),

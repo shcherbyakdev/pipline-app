@@ -21,8 +21,9 @@ import { BookingSection } from "./sections/booking";
 
 /** Page column width per layout — the public <main> and the studio preview share it. */
 export function pageContainerClass(layout: PageDocument["layout"]): string {
-  return layout === "split" ? "max-w-5xl" : "max-w-lg";
+  return layout === "split" ? "max-w-5xl" : "max-w-xl";
 }
+
 
 function renderSection(section: Section, ctx: RenderContext, pickers: Pickers, crossLink: RenderContext["crossLink"], heroCtaHidden: boolean) {
   switch (section.type) {
@@ -89,7 +90,7 @@ export function PageRenderer({
           wrapper and the @3xl: variants on the layout div inside it. */}
       <div className="@container w-full">
         <div
-          className={cn("flex w-full flex-col gap-8", split && "@3xl:grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)] @3xl:gap-x-10")}
+          className={cn("flex w-full flex-col gap-10", split && "@3xl:grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)] @3xl:gap-x-12")}
           style={split ? { gridTemplateRows: `repeat(${Math.max(others, 1)}, auto)` } : undefined}
         >
           {sections.map((section) => {

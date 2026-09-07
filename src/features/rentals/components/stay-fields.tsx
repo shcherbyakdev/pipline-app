@@ -42,13 +42,15 @@ export function StayFields({
         if (label === outLabel && value.start && value.end) onChange({ start: null, end: null });
         setOpen(true);
       }}
+      // The product's input: card fill on the hairline, the accent ring on
+      // the field being filled.
       className={cn(
-        "wt-surface flex flex-col items-start gap-0.5 rounded-md border px-3 py-2 text-left",
+        "wt-chip flex flex-col items-start gap-0.5 rounded-md border px-3.5 py-2.5 text-left transition-[box-shadow] duration-150 ease-strong",
         active && "ring-2 ring-[var(--widget-accent)]",
       )}
     >
-      <span className="text-muted-foreground text-xs">{label}</span>
-      <span className={cn("text-sm", date ? "font-medium" : "text-muted-foreground")}>{date ? fieldFmt.format(utcDate(date)) : t("addDate")}</span>
+      <span className="text-muted-foreground text-xs font-medium">{label}</span>
+      <span className={cn("text-sm tabular-nums", date ? "font-medium" : "text-muted-foreground")}>{date ? fieldFmt.format(utcDate(date)) : t("addDate")}</span>
     </button>
   );
   const picking = value.start !== null && value.end === null;

@@ -150,7 +150,7 @@ export default async function ServiceDetailPage({ params }: PageProps<"/services
         <section className="flex flex-col gap-1">
           <h2 className="mb-1.5 text-[13px] font-medium text-muted-foreground">{t("detail.quickActions")}</h2>
           {url ? (
-            <Link href="/embed" className={railLinkClass}>
+            <Link href={`/embed?service=${service.id}`} className={railLinkClass}>
               <HugeiconsIcon icon={SourceCodeIcon} size={14} className="text-subtle shrink-0" />
               {t("detail.embed")}
             </Link>

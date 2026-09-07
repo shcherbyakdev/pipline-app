@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { INTL_LOCALES } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { asEngineOffering, validateStay, type RangeAvailability } from "@/features/rentals/range";
@@ -16,6 +17,8 @@ import type { StayLayout } from "@/lib/widget-theme";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { BookingMoneySummary } from "./booking-money-summary";
+import { cn } from "@/lib/utils";
+import { CHANGE_LINK, RECEIPT, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -42,6 +45,10 @@ export function RentalBookingFlow({
 }) {
   const t = useTranslations("public.widget");
   const tu = useTranslations("public.units");
+  const tStay = useTranslations("public.stay");
+  // Org-local dates carry no zone: pinned to UTC like the picker's own
+  // formatters so the viewer's zone never shifts a day.
+  const rangeFmt = new Intl.DateTimeFormat(INTL_LOCALES[useLocale()], { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
   const [month, setMonth] = React.useState(() => monthOf(preview ? preview.availability.notBefore : todayISO()));
   const [availability, setAvailability] = React.useState<RangeAvailability | null>(preview?.availability ?? null);
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
@@ -177,18 +184,20 @@ export function RentalBookingFlow({
   const homeMonth = monthOf(preview ? preview.availability.notBefore : todayISO());
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">
+    // The space channel's tint (widget-theme.ts): green open days for an org
+    // without an accent of its own.
+    <div className="flex flex-col gap-6" style={{ "--widget-tint": "var(--widget-tint-space)" } as React.CSSProperties}>
+      <div className="flex items-center justify-between gap-3">
+        <p className={cn(STEP_LABEL, "min-w-0")}>
           {offering.name}{" "}
           {onBack ? (
-            <button type="button" className="text-muted-foreground underline" onClick={onBack}>
+            <button type="button" className={CHANGE_LINK} onClick={onBack}>
               {t("change")}
             </button>
           ) : null}
         </p>
         {priceLabel ? (
-          <span className="text-muted-foreground shrink-0 text-xs">{priceLabel}</span>
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">{priceLabel}</span>
         ) : null}
       </div>
 
@@ -232,32 +241,26 @@ export function RentalBookingFlow({
           />
         )
       ) : needsUnitStep ? (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm">
+        <div className="wt-enter flex flex-col gap-3">
+          <p className={STEP_LABEL}>
             {summary}{" "}
-            <button
-              type="button"
-              className="text-muted-foreground underline"
-              onClick={() => changeRange({ start: null, end: null })}
-            >
+            <button type="button" className={CHANGE_LINK} onClick={() => changeRange({ start: null, end: null })}>
               {t("changeDates")}
             </button>
           </p>
           {eligibleUnits.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t("nothingFreeDates")}</p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className={ROW_LIST}>
               {eligibleUnits.map((u) => (
                 <li key={u.id}>
-                  <button
-                    type="button"
-                    onClick={() => setUnitId(u.id)}
-                    className="wt-surface flex w-full flex-col items-start gap-0.5 rounded-md border px-4 py-3 text-left text-sm"
-                  >
-                    <span className="font-medium">{u.name}</span>
-                    {u.description ? (
-                      <span className="text-muted-foreground text-xs">{u.description}</span>
-                    ) : null}
+                  <button type="button" onClick={() => setUnitId(u.id)} className={ROW}>
+                    <span className="min-w-0">
+                      <span className="block font-medium">{u.name}</span>
+                      {u.description ? (
+                        <span className="text-muted-foreground mt-0.5 block text-xs leading-relaxed">{u.description}</span>
+                      ) : null}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -265,31 +268,38 @@ export function RentalBookingFlow({
           )}
         </div>
       ) : (
-        <form action={submit} className="flex flex-col gap-4">
-          <p className="text-sm">
-            {summary}{" "}
-            <button
-              type="button"
-              className="text-muted-foreground underline"
-              onClick={() => changeRange({ start: null, end: null })}
-            >
+        <form
+          // onSubmit rather than action: React resets an action form's fields
+          // when the action settles, so a refused booking (rate limit, a slot
+          // just taken) would wipe the name and email the visitor typed.
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(new FormData(e.currentTarget));
+          }}
+          className="wt-enter flex flex-col gap-4"
+        >
+          {/* The receipt: the stay restated, with the way back. */}
+          <div className={RECEIPT}>
+            <div className="min-w-0">
+              {/* The dates first — the summary line names the length and the
+                  check-in/out times, never the days themselves. */}
+              <p className="font-medium tabular-nums">
+                {tStay("range", { start: rangeFmt.format(new Date(`${range.start}T00:00:00Z`)), end: rangeFmt.format(new Date(`${range.end}T00:00:00Z`)) })}
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-xs">{summary}</p>
+              {offering.unitSelection === "client_picks" && unitId ? (
+                <p className="mt-0.5">
+                  {units.find((u) => u.id === unitId)?.name ?? t("selected")}{" "}
+                  <button type="button" className={cn(CHANGE_LINK, "text-xs")} onClick={() => setUnitId(null)}>
+                    {t("change")}
+                  </button>
+                </p>
+              ) : null}
+            </div>
+            <button type="button" className={cn(CHANGE_LINK, "shrink-0")} onClick={() => changeRange({ start: null, end: null })}>
               {t("change")}
             </button>
-          </p>
-          {offering.unitSelection === "client_picks" && unitId ? (
-            <p className="text-sm">
-              <span className="font-medium">
-                {units.find((u) => u.id === unitId)?.name ?? t("selected")}
-              </span>{" "}
-              <button
-                type="button"
-                className="text-muted-foreground underline"
-                onClick={() => setUnitId(null)}
-              >
-                {t("change")}
-              </button>
-            </p>
-          ) : null}
+          </div>
           <ClientDetailsFields idPrefix="rental-" />
           <BookingMoneySummary
             offering={offering}
@@ -299,12 +309,12 @@ export function RentalBookingFlow({
             onTermsChange={setTermsAccepted}
             idPrefix="rental-"
           />
-          <Button type="submit" className="wt-primary" disabled={pending}>
+          <Button type="submit" size="lg" className="wt-primary mt-1 w-full" disabled={pending}>
             {pending ? t("sending") : offering.requiresApproval ? t("requestToBook") : t("confirmBooking")}
           </Button>
         </form>
       )}
-      {error ? <p className="text-destructive text-sm">{error}</p> : null}
+      {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
     </div>
   );
 }

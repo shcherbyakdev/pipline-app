@@ -17,9 +17,11 @@ import type { SlotLayout } from "@/lib/widget-theme";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
 import { BookingMoneySummary } from "./booking-money-summary";
+import { cn } from "@/lib/utils";
+import { CHANGE_LINK, CHIP, RECEIPT, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
 
-// offering-form.tsx's native-<select> idiom.
-const selectClass = "border-input h-9 rounded-md border bg-transparent px-3 text-sm";
+// offering-form.tsx's native-<select> idiom, on the widget's chip surface.
+const selectClass = "wt-chip h-9 rounded-md border px-3 text-sm";
 
 // Above this many options a pill row would wrap onto several lines and eat
 // into the embed's height budget — offering-form's own increment picker
@@ -257,24 +259,26 @@ export function HourlyBookingFlow({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">
+    // The space channel's tint (widget-theme.ts): green open days for an org
+    // without an accent of its own.
+    <div className="flex flex-col gap-6" style={{ "--widget-tint": "var(--widget-tint-space)" } as React.CSSProperties}>
+      <div className="flex items-center justify-between gap-3">
+        <p className={cn(STEP_LABEL, "min-w-0")}>
           {offering.name}{" "}
           {onBack ? (
-            <button type="button" className="text-muted-foreground underline" onClick={onBack}>
+            <button type="button" className={CHANGE_LINK} onClick={onBack}>
               {t("change")}
             </button>
           ) : null}
         </p>
         {priceLabel ? (
-          <span className="text-muted-foreground shrink-0 text-xs">{priceLabel}</span>
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">{priceLabel}</span>
         ) : null}
       </div>
 
       {!durationMin ? (
-        <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm">{tStay("howLong")}</p>
+        <div className="wt-enter flex flex-col gap-2">
+          <p className={STEP_LABEL}>{tStay("howLong")}</p>
           {options.length <= MAX_PILL_OPTIONS ? (
             <div className="flex flex-wrap gap-2">
               {options.map((d) => (
@@ -282,8 +286,7 @@ export function HourlyBookingFlow({
                   key={d}
                   type="button"
                   variant="outline"
-                  size="sm"
-                  className="wt-surface"
+                  className={cn(CHIP, "h-9 px-3.5 tabular-nums")}
                   onClick={() => changeDuration(d)}
                 >
                   {formatDurationLabel(d, tu)}
@@ -330,12 +333,12 @@ export function HourlyBookingFlow({
           onPick={setSlot}
           regionRef={slotsRegionRef}
           headerSlot={
-            <p className="text-sm font-medium">
+            <p className={cn(STEP_LABEL, "min-w-0")}>
               {formatDurationLabel(durationMin, tu)}{" "}
               {options.length > 1 ? (
                 <button
                   type="button"
-                  className="text-muted-foreground underline"
+                  className={CHANGE_LINK}
                   onClick={() => changeDuration(null)}
                 >
                   {t("change")}
@@ -345,28 +348,26 @@ export function HourlyBookingFlow({
           }
         />
       ) : needsUnitStep ? (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm">
-            {pickSummary}{" "}
-            <button type="button" className="text-muted-foreground underline" onClick={backToTime}>
+        <div className="wt-enter flex flex-col gap-3">
+          <p className={STEP_LABEL}>
+            <span className="tabular-nums">{pickSummary}</span>{" "}
+            <button type="button" className={CHANGE_LINK} onClick={backToTime}>
               {t("change")}
             </button>
           </p>
           {eligibleUnits.length === 0 ? (
             <p className="text-muted-foreground text-sm">{t("nothingFreeTime")}</p>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className={ROW_LIST}>
               {eligibleUnits.map((u) => (
                 <li key={u.id}>
-                  <button
-                    type="button"
-                    onClick={() => setUnitId(u.id)}
-                    className="wt-surface flex w-full flex-col items-start gap-0.5 rounded-md border px-4 py-3 text-left text-sm"
-                  >
-                    <span className="font-medium">{u.name}</span>
-                    {u.description ? (
-                      <span className="text-muted-foreground text-xs">{u.description}</span>
-                    ) : null}
+                  <button type="button" onClick={() => setUnitId(u.id)} className={ROW}>
+                    <span className="min-w-0">
+                      <span className="block font-medium">{u.name}</span>
+                      {u.description ? (
+                        <span className="text-muted-foreground mt-0.5 block text-xs leading-relaxed">{u.description}</span>
+                      ) : null}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -374,27 +375,33 @@ export function HourlyBookingFlow({
           )}
         </div>
       ) : (
-        <form action={submit} className="flex flex-col gap-4">
-          <p className="text-sm">
-            {pickSummary}{" "}
-            <button type="button" className="text-muted-foreground underline" onClick={backToTime}>
+        <form
+          // onSubmit rather than action: React resets an action form's fields
+          // when the action settles, so a refused booking (rate limit, a slot
+          // just taken) would wipe the name and email the visitor typed.
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(new FormData(e.currentTarget));
+          }}
+          className="wt-enter flex flex-col gap-4"
+        >
+          {/* The receipt: the pick restated, with the way back. */}
+          <div className={RECEIPT}>
+            <div className="min-w-0">
+              <p className="font-medium tabular-nums">{pickSummary}</p>
+              {offering.unitSelection === "client_picks" && unitId ? (
+                <p className="mt-0.5">
+                  {units.find((u) => u.id === unitId)?.name ?? t("selected")}{" "}
+                  <button type="button" className={cn(CHANGE_LINK, "text-xs")} onClick={() => setUnitId(null)}>
+                    {t("change")}
+                  </button>
+                </p>
+              ) : null}
+            </div>
+            <button type="button" className={cn(CHANGE_LINK, "shrink-0")} onClick={backToTime}>
               {t("change")}
             </button>
-          </p>
-          {offering.unitSelection === "client_picks" && unitId ? (
-            <p className="text-sm">
-              <span className="font-medium">
-                {units.find((u) => u.id === unitId)?.name ?? t("selected")}
-              </span>{" "}
-              <button
-                type="button"
-                className="text-muted-foreground underline"
-                onClick={() => setUnitId(null)}
-              >
-                {t("change")}
-              </button>
-            </p>
-          ) : null}
+          </div>
           <ClientDetailsFields idPrefix="hourly-" />
           <BookingMoneySummary
             offering={offering}
@@ -404,12 +411,12 @@ export function HourlyBookingFlow({
             onTermsChange={setTermsAccepted}
             idPrefix="hourly-"
           />
-          <Button type="submit" className="wt-primary" disabled={pending || !!preview}>
+          <Button type="submit" size="lg" className="wt-primary mt-1 w-full" disabled={pending || !!preview}>
             {preview ? t("preview") : pending ? t("sending") : offering.requiresApproval ? t("requestToBook") : t("confirmBooking")}
           </Button>
         </form>
       )}
-      {error ? <p className="text-destructive text-sm">{error}</p> : null}
+      {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
     </div>
   );
 }

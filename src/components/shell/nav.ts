@@ -7,6 +7,7 @@ import {
   Globe02Icon,
   House01Icon,
   Notification03Icon,
+  PlugSocketIcon,
   Settings01Icon,
   SourceCodeIcon,
   UserGroupIcon,
@@ -76,6 +77,8 @@ const ALL_NAV_ITEMS: readonly NavItem[] = [
   // What the person hears about (email, push) and what clients receive
   // (reminders) — its own page, not a Settings section (spec 2026-09-05).
   { href: "/notifications", labelKey: "notifications", icon: Notification03Icon, section: "account" },
+  // Connected apps — Google Calendar today (spec 2026-09-05 §2.12).
+  { href: "/integrations", labelKey: "integrations", icon: PlugSocketIcon, section: "account" },
   { href: "/settings", labelKey: "settings", icon: Settings01Icon, section: "account" },
 ];
 

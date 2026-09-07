@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import type { PublicOffering } from "@/lib/booking/public";
 import { asEngineOffering, type RangeAvailability } from "@/features/rentals/range";
 import { nextFreeStays, stayLengthOptions } from "@/features/rentals/next-free-stays";
+import { cn } from "@/lib/utils";
+import { CHANGE_LINK, CHIP, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
 
 const SHOW = 8;
 // Org-local dates carry no zone: pin the formatter to UTC so the viewer's
@@ -46,19 +48,19 @@ export function NextFreeStays({
     <div className="flex flex-col gap-3">
       {lengths.length > 1 ? (
         <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-sm">{t(nights ? "howManyNights" : "howManyDays")}</p>
+          <p className={STEP_LABEL}>{t(nights ? "howManyNights" : "howManyDays")}</p>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t(nights ? "lengthInNights" : "lengthInDays")}>
             {lengths.map((n) => (
               <Button
                 key={n}
                 type="button"
                 variant="outline"
-                size="sm"
                 role="radio"
                 aria-checked={n === length}
-                // wt-surface is declared after wt-primary in globals.css and
-                // would paint the chosen pill transparent: one or the other.
-                className={n === length ? "wt-primary" : "wt-surface"}
+                // wt-primary wins over wt-chip on a shared element (globals.css
+                // order), but keep them exclusive so the hover lift never
+                // fights the picked fill.
+                className={cn("h-9 px-3.5", n === length ? "wt-primary border-transparent" : CHIP)}
                 onClick={() => {
                   setLength(n);
                   setLimit(SHOW);
@@ -80,15 +82,11 @@ export function NextFreeStays({
         ) : shown.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("nothingFreePeriod")}</p>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className={ROW_LIST}>
             {shown.map((s) => (
               <li key={s.start}>
-                <button
-                  type="button"
-                  onClick={() => onPick(s.start, s.end)}
-                  className="wt-surface flex w-full items-center justify-between gap-3 rounded-md border px-4 py-3 text-left text-sm"
-                >
-                  <span className="font-medium">
+                <button type="button" onClick={() => onPick(s.start, s.end)} className={ROW}>
+                  <span className="font-medium tabular-nums">
                     {t("range", { start: dayFmt.format(utcDate(s.start)), end: dayFmt.format(utcDate(s.end)) })}
                   </span>
                   <span className="text-muted-foreground shrink-0 text-xs tabular-nums">{plural(s.length)}</span>
@@ -100,12 +98,12 @@ export function NextFreeStays({
       </div>
       <div className="flex flex-wrap items-center gap-3">
         {stays.length > limit ? (
-          <Button variant="outline" size="sm" className="wt-surface" onClick={() => setLimit((n) => n + SHOW)}>{tSlots("showMore")}</Button>
+          <Button variant="outline" size="sm" className={cn(CHIP, "h-8 px-3")} onClick={() => setLimit((n) => n + SHOW)}>{tSlots("showMore")}</Button>
         ) : (
-          <Button variant="outline" size="sm" className="wt-surface" onClick={onLater}>{tSlots("laterDates")}</Button>
+          <Button variant="outline" size="sm" className={cn(CHIP, "h-8 px-3")} onClick={onLater}>{tSlots("laterDates")}</Button>
         )}
         {onSooner ? (
-          <button type="button" className="text-muted-foreground text-sm underline underline-offset-3" onClick={onSooner}>{tSlots("backToSoonest")}</button>
+          <button type="button" className={CHANGE_LINK} onClick={onSooner}>{tSlots("backToSoonest")}</button>
         ) : null}
       </div>
     </div>

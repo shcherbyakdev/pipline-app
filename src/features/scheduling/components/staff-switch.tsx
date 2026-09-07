@@ -36,16 +36,16 @@ export function StaffSwitch({
           <label
             key={o.id}
             className={cn(
-              "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-[background-color,color,box-shadow] duration-150 ease-strong",
               "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--widget-accent)] has-[:focus-visible]:ring-offset-1",
-              checked ? "wt-primary" : "wt-surface",
+              checked ? "wt-primary" : "wt-chip",
             )}
           >
             <input type="radio" name={name} value={o.id} checked={checked} onChange={() => onChange(o.id)} className="sr-only" />
             {o.color ? (
               <span
                 aria-hidden
-                className="inline-flex size-4 items-center justify-center rounded-full text-[8px] font-semibold text-white"
+                className="wt-round inline-flex size-4 items-center justify-center rounded-full text-[8px] font-semibold text-white"
                 style={{ background: o.color }}
               >
                 {initials(o.name)}

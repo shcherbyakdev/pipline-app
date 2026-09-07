@@ -20,7 +20,24 @@ describe("parseWidgetTheme", () => {
 describe("themeCssVars", () => {
   it("maps radius and accent, omits bg/text unless overridden", () => {
     const vars = themeCssVars({ ...WIDGET_THEME_DEFAULTS, radius: "round" }, "#ff0000");
-    expect(vars).toEqual({ "--widget-accent": "#ff0000", "--widget-radius": "12px" });
+    expect(vars).toEqual({
+      "--widget-accent": "#ff0000",
+      "--widget-accent-fg": "#ffffff",
+      "--widget-tint": "#ff0000",
+      "--widget-tint-space": "#ff0000",
+      "--widget-radius": "12px",
+    });
+  });
+  it("without an accent falls back to the theme primary and the channel tints", () => {
+    const vars = themeCssVars(WIDGET_THEME_DEFAULTS, null);
+    expect(vars["--widget-accent" as keyof typeof vars]).toBe("var(--widget-primary)");
+    expect(vars["--widget-accent-fg" as keyof typeof vars]).toBe("var(--widget-primary-fg)");
+    expect(vars["--widget-tint" as keyof typeof vars]).toBe("var(--brand)");
+    expect(vars["--widget-tint-space" as keyof typeof vars]).toBe("var(--kind-space)");
+  });
+  it("a painted background becomes the card fill too", () => {
+    const vars = themeCssVars({ ...WIDGET_THEME_DEFAULTS, background: "#0b2a4a" }, null);
+    expect(vars["--widget-card" as keyof typeof vars]).toBe("#0b2a4a");
   });
   it("includes overrides when set and falls back accent", () => {
     const vars = themeCssVars(
@@ -28,7 +45,7 @@ describe("themeCssVars", () => {
     );
     expect(vars["--widget-bg" as keyof typeof vars]).toBe("#101010");
     expect(vars["--widget-text" as keyof typeof vars]).toBe("#fafafa");
-    expect(vars["--widget-accent" as keyof typeof vars]).toBe("#17171a");
+    expect(vars["--widget-accent" as keyof typeof vars]).toBe("var(--widget-primary)");
   });
 });
 

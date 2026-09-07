@@ -3,7 +3,7 @@ import { badgeVisible } from "@/lib/billing/entitlements";
 import { PoweredBy } from "@/components/powered-by";
 import { WidgetTheme } from "@/components/widget-theme";
 import { parseWidgetTheme } from "@/lib/widget-theme";
-import { bookShellClass } from "@/lib/book-shell";
+import { BOOK_COLUMN_CLASS, bookShellClass } from "@/lib/book-shell";
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import type { BookingOrg } from "@/lib/booking/public";
@@ -53,7 +53,7 @@ export async function renderChannelPage({
           always transparent — the shell paints the ground. The booking
           section nests its own WidgetTheme for the widget's surface. */}
       <WidgetTheme config={theme} accentColor={branding.accentColor} transparent className="flex flex-1 flex-col">
-        <main className={cn("mx-auto flex w-full flex-col gap-6 px-6 pt-10 pb-8", pageContainerClass(doc.layout))}>
+        <main className={cn(BOOK_COLUMN_CLASS, pageContainerClass(doc.layout))}>
           <PageRenderer
             doc={doc}
             ctx={ctx}

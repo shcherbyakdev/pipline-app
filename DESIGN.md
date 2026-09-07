@@ -116,12 +116,13 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 - **Outfit 500 for landing display type** (`font-display`): the hero (54px
   desktop, 32px phones) and section H2s (44px desktop) on the marketing
   pages only. Admin headlines stay Inter.
-- **Hosted booking pages** (`features/booking-page/render/type.ts`, 2026-09-02,
-  gumloop.com-referenced: type and colour only, the page stays a booking
-  page) set display at weight 500 with -0.025em tracking in the org's own
-  widget font — the Main template's skin picks **Geist** (the reference's
-  UI face; `widget-fonts.ts`), and an org may choose any other: cover H1
-  32/40px, section H2 24px, lead and quotes 17px, body 16/400.
+- **Hosted booking pages** (`features/booking-page/render/type.ts`) set
+  display at weight 500 with -0.025em tracking in the org's own widget
+  font (`widget-fonts.ts`; "system" is the visitor's UI face, Geist and
+  five others on offer): cover H1 32/40px, section H2 24px, lead and
+  quotes 17px, body 16/400. Inside the widget, a step heading (the
+  service, the day) is 14px/500 ink (`STEP_LABEL`), the way back a step is
+  the muted "change" link (`CHANGE_LINK`), values are tabular.
 - **Outfit Semibold for the "booklo" wordmark** (`BookloWordmark`).
 - **Geist Mono only where a value is a value** (handle URLs, kbd hints, tick
   labels). Monospace is never a "technical" costume.
@@ -142,14 +143,33 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
   so below `lg:` rows stack with `divide-y` hairlines and actions always
   visible. Row hover is `bg-muted/50`; per-row actions are opacity-revealed
   on hover/focus-within. Page column is `max-w-6xl`.
-- Public booking pages: `px-6 pt-10 pb-8` column, width from
-  `pageContainerClass`. They take the reference's **neutrals** instead of
-  the app's lavender (`.book-page` in globals.css: ground #fcfcfc, ink
-  #17171a, panels #f2f2f5, hairlines 10% ink) so the org's own accent is
-  the only colour on its page; the night set is unchanged. Catalogue picks
-  are white hairline cards with the price on the right and an accent ring
-  on the pick; the cover's Book button is the accent fill, the sibling-
-  channel link the outlined twin beside it.
+- Public booking pages (2026-09-06, ruled minimal the same day — Andrii:
+  "more minimalistic, I don't like the wrappers"): the page sits straight
+  on the app's ground (`bookShellClass`: `bg-background`), nothing in a box.
+  Column `BOOK_COLUMN_CLASS` (book-shell.ts, `gap-8`, `pt-10 sm:pt-14`),
+  width from `pageContainerClass` (`max-w-xl`, split `max-w-5xl`); the
+  studio preview and a person's page compose exactly the same, the badge
+  and the language links close the column. The header is the org's name
+  in the section display size (`H2`, 24px/500) with the tagline under it
+  and the logo beside it when there is one — no disc, no rule, no accent
+  in the chrome. The widget's own themes (`.wt-light` / `.wt-dark` in
+  globals.css) are the app's light and night tokens plus `--widget-card`
+  (the white control) and `--widget-primary` (the control fill when the
+  org has no accent), so an embed on a matching host draws the same world;
+  app tokens the widget reaches for (`bg-card`, `text-foreground`,
+  `text-subtle`) are remapped inside `.widget-theme` because an embed has
+  no shell scope. Vocabulary (render/type.ts): a service, a space, a unit,
+  a free stay is a **row** in a hairline-divided list (`ROW_LIST` / `ROW`:
+  the hover tint reaches 12px past the text, the divider stays on the
+  text's edges, the pick is a tint); a free time, a duration, a stay
+  length is a **chip** (`wt-chip`: card fill, hairline, lift on hover); a
+  day with free times is an accent-**tinted disc** (`wt-tint`, the org's
+  accent — or, without one, the channel's kind colour: appointments
+  periwinkle, spaces green) and the pick is the accent fill (`wt-primary`);
+  the stay picker draws the same discs with a band behind a picked stay;
+  the **receipt** (`RECEIPT`) and the money block are lines on the ground
+  closed by a hairline. Paging is a pair of white discs (`PagerDiscs`), the
+  timezone note carries the globe.
 
 ## Elevation & Depth
 
@@ -179,9 +199,11 @@ small radii. Inside button/input groups, pills square off to the group's
 radius.
 
 Hosted booking pages derive every shape from the org's corner setting
-(`--widget-radius`, 0/6/12px): controls r, cards 2r (`wt-r2`), discs
-`wt-round`. The widget theme squares every `rounded-*` to r (globals.css),
-so those two classes are the only way to another radius on a public page.
+(`--widget-radius`, 0/8/12px — "subtle" is the app's fragment radius):
+controls r, cards and panels 2r (`wt-r2`), discs `wt-round`. The widget
+theme squares every `rounded-*` to r (globals.css), so those two classes
+(or an inline style, as the stay picker's band does) are the only way to
+another radius on a public page.
 
 ## Components
 

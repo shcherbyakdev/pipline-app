@@ -15,6 +15,7 @@ import type {
   RangeBooking,
 } from "@/features/rentals/range";
 import { blackoutBusy } from "@/features/rentals/hourly";
+import { externalBusy } from "@/features/calendar-sync/busy";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { UnitRef } from "./bookable";
 
@@ -74,6 +75,15 @@ export const getOrgLocale = cache(async (orgId: string): Promise<string | null> 
   const admin = createAdminClient();
   const { data } = await admin.from("orgs").select("locale").eq("id", orgId).maybeSingle();
   return data?.locale ?? null;
+});
+
+/** For the slot loader's Google read (all-day events block an ORG-local
+    day): one memoised admin read rather than a new parameter on five
+    callers, most of which already hold it. */
+const getOrgTimeZone = cache(async (orgId: string): Promise<string> => {
+  const admin = createAdminClient();
+  const { data } = await admin.from("orgs").select("timezone").eq("id", orgId).maybeSingle();
+  return data?.timezone ?? "UTC";
 });
 
 /** The language the client booked in (bookings.locale, 0072), or null for a
@@ -363,6 +373,9 @@ export async function loadOrgSlotContext(
     allowedStaffIds?: string[];
     // Admin reschedule of a booking whose service was deactivated.
     includeInactive?: boolean;
+    // The public create pre-check: read Google now, not from the memo, so
+    // the slot being taken is checked at this moment (spec 2026-09-05 §2.6).
+    freshExternal?: boolean;
   },
 ): Promise<{
   service: PublicService;
@@ -387,13 +400,17 @@ export async function loadOrgSlotContext(
   // org-local midnight in UTC terms.
   const fromIso = `${addDaysISO(fromDate, -1)}T00:00:00Z`;
   const toIso = `${addDaysISO(fromDate, days + 1)}T23:59:59Z`;
+  // Busy time from a connected Google calendar joins the person's own
+  // bookings (features/calendar-sync/busy.ts: never throws, [] on outage).
+  const timeZone = await getOrgTimeZone(orgId);
   const perStaff = await Promise.all(
     targets.map(async (st) => {
-      const [{ rules, exceptions }, busy] = await Promise.all([
+      const [{ rules, exceptions }, busy, external] = await Promise.all([
         getAvailability(st.id),
         getBusyIntervals(st.id, fromIso, toIso, opts.excludeBookingId),
+        externalBusy(orgId, st.id, fromIso, toIso, { timeZone, fresh: opts.freshExternal }),
       ]);
-      return { staffId: st.id, rules, exceptions, busy };
+      return { staffId: st.id, rules, exceptions, busy: [...busy, ...external] };
     }),
   );
   return { service, perStaff, eligibleStaffIds: eligible.map((s) => s.id) };
@@ -739,6 +756,8 @@ export async function loadOrgHourlyContext(
     excludeBookingId?: string;
     unitId?: string;
     includeInactiveUnits?: boolean;
+    // See loadOrgSlotContext.freshExternal.
+    freshExternal?: boolean;
   },
 ): Promise<{
   offering: PublicOffering;
@@ -768,7 +787,12 @@ export async function loadOrgHourlyContext(
   const fromIso = `${addDaysISO(fromDate, -1)}T00:00:00Z`;
   const toIso = `${addDaysISO(fromDate, days + 1)}T23:59:59Z`;
   const unitIds = units.map((u) => u.id);
-  const [bookingRes, blackoutRes] = await Promise.all([
+  // A shared Google calendar's Busy time blocks every unit (spec
+  // 2026-09-05 §2.5); a person's calendar never applies to a unit.
+  const externalPromise = unitIds.length
+    ? externalBusy(orgId, null, fromIso, toIso, { timeZone, fresh: opts?.freshExternal })
+    : Promise.resolve([] as BusyInterval[]);
+  const [bookingRes, blackoutRes, external] = await Promise.all([
     unitIds.length
       ? admin
           .from("bookings")
@@ -786,6 +810,7 @@ export async function loadOrgHourlyContext(
           .gte("end_date", addDaysISO(fromDate, -1))
           .lte("start_date", addDaysISO(fromDate, days + 1))
       : Promise.resolve({ data: [], error: null }),
+    externalPromise,
   ]);
   if (bookingRes.error) throw bookingRes.error;
   if (blackoutRes.error) throw blackoutRes.error;
@@ -808,6 +833,7 @@ export async function loadOrgHourlyContext(
           bufferAfterMin: offering.turnoverMin,
         })),
       ...(blackoutMap.get(u.id) ?? []),
+      ...external,
     ],
   }));
   return { offering, units, rules, exceptions, perUnit };

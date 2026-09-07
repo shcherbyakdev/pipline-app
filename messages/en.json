@@ -250,7 +250,7 @@
     },
     "location": {
       "title": "Where to find us",
-      "openMaps": "Open in Maps ↗"
+      "openMaps": "Open in Maps"
     },
     "links": {
       "instagram": "Instagram",
@@ -499,6 +499,16 @@
       "test": {
         "title": "Booklo notifications are on",
         "body": "This device will hear about new bookings."
+      },
+      "calendarRefused": {
+        "title": "Google Calendar",
+        "body": "{client}: {reason} The event was put back."
+      },
+      "calendarReason": {
+        "slotTaken": "that time isn't free.",
+        "spaces": "space bookings are moved in Booklo, not in Google.",
+        "notFound": "the booking can't be moved any more.",
+        "failed": "the move didn't go through."
       }
     },
     "appointment": "Appointment"
@@ -516,7 +526,8 @@
       "embed": "Website embed",
       "billing": "Billing",
       "notifications": "Notifications",
-      "settings": "Settings"
+      "settings": "Settings",
+      "integrations": "Integrations"
     },
     "section": {
       "offer": "Offer",
@@ -1587,11 +1598,9 @@
       "darkSystem": "Dark system"
     },
     "notice": {
-      "contrastUnreadable": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — unreadable. Adjust them on <link>Website embed</link>.",
-      "contrastLow": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — below 4.5:1 (AA body text). Adjust them on <link>Website embed</link>.",
-      "embedRiskLight": "This page is always readable — it paints its own light ground. But Theme is shared with the website embed, which takes your site's surface: on a dark site its text becomes unreadable. If your site is dark, choose Dark (or Auto), or set a background colour on <link>Website embed</link>.",
-      "embedRiskDark": "This page is always readable — it paints its own dark ground. But Theme is shared with the website embed, which takes your site's surface: on a light site its text becomes unreadable. If your site is light, choose Light (or Auto), or set a background colour on <link>Website embed</link>.",
-      "auto": "Auto follows each visitor's system setting. This page always matches, so both variants are readable (use the toggle above). The website embed only matches if your site does too — check it there."
+      "contrastUnreadable": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — unreadable. Adjust them under Settings.",
+      "contrastLow": "The widget's colour overrides give {ratio, number, ::.0}:1 contrast — below 4.5:1 (AA body text). Adjust them under Settings.",
+      "auto": "Auto follows each visitor's system setting. This page always matches, so both variants are readable (use the toggle above)."
     },
     "settings": {
       "look": "Look",
@@ -1711,43 +1720,34 @@
       "bookingPage": "Booking page"
     },
     "badge": {
-      "space": "Space",
       "team": "Team",
-      "service": "Service"
+      "service": "Services",
+      "space": "Spaces"
     },
-    "intro": "Add booking to your own site. Style the widget against the live preview, then paste the snippet into your page. Logo and accent colour come from Booking page › Branding.",
-    "snippet": "Embed snippet",
-    "bookWith": "Book with",
-    "wholeTeam": "Whole team",
-    "staffOnly": "This snippet books that person only.",
-    "clientsPick": "Clients pick who they book.",
+    "tabs": {
+      "label": "Website embed",
+      "code": "Code",
+      "style": "Style"
+    },
+    "paste": "Paste this where the widget should appear on your site.",
+    "show": "Show",
     "language": "Language",
     "languageAuto": "Follow the visitor",
-    "languageAutoHint": "Clients see their own language when we speak it, otherwise your booking page's.",
-    "copy": "Copy",
-    "copied": "Copied",
-    "copyRefused": "Couldn't copy — select the snippet and copy manually.",
+    "copyCode": "Copy code",
+    "copied": "Code copied",
+    "copyAddress": "Copy address",
+    "addressCopied": "Address copied",
     "noHandle": "Set a booking page address on <link>Booking page</link> to get your embed code.",
     "style": {
       "title": "Widget style",
-      "description": "The widget on your own site. The booking page has its own style."
+      "description": "Logo and accent colour live on <link>Booking page › Look</link>. The booking page keeps its own style."
     },
-    "saved": "Widget appearance saved",
+    "saved": "Widget style saved",
     "preview": {
-      "hostPage": "Host page",
-      "lightPage": "Light page",
-      "darkPage": "Dark page",
-      "clash": "On {host, select, dark {a dark page} other {a light page}} the {theme, select, dark {Dark theme's} other {Light theme's}} text is unreadable ({ratio, number, ::.0}:1) — the embed paints no background of its own. If your site is like this {host, select, dark {dark page} other {light page}}, choose {theme, select, dark {the Light theme} other {the Dark theme}} (or Auto), or set a background colour so the widget brings its own surface.",
-      "fixedRisk": "{theme, select, dark {Dark theme} other {Light theme}} with no background: the widget takes your site's surface, so on {theme, select, dark {a light site} other {a dark site}} its text becomes unreadable. Fine if your site is like this {host, select, dark {dark page} other {light page}} — otherwise choose {theme, select, dark {the Light theme} other {the Dark theme}}, or set a background colour. Preview {theme, select, dark {a light page} other {a dark page}} above to see it.",
-      "autoRisk": "Auto follows each visitor's system setting, not your site's colours. On a site that is always light or always dark, some visitors will get the mismatched variant. Pick the theme that matches your site, or set a background colour. Switch the host page above to see both."
-    },
-    "links": {
-      "title": "Links & embeds",
-      "description": "A link opens your booking page on that thing; an embed is the snippet for it.",
-      "copyEmbed": "Copy embed",
-      "copyLinkFor": "Copy link — {name}",
-      "copyEmbedFor": "Copy embed — {name}",
-      "embedCopied": "Embed copied"
+      "hostPage": "Your site",
+      "lightPage": "Light site",
+      "darkPage": "Dark site",
+      "clash": "On a {host, select, dark {dark site} other {light site}} the {theme, select, dark {Dark theme's} other {Light theme's}} text is unreadable ({ratio, number, ::.0}:1). If your site is like this {host, select, dark {dark page} other {light page}}, pick the {theme, select, dark {Light theme} other {Dark theme}} or set a background colour."
     }
   },
   "seed": {
@@ -1820,6 +1820,62 @@
       "cancelled": "Cancellation",
       "rescheduled": "Reschedule",
       "manageLink": "Booking link on request"
+    }
+  },
+  "integrations": {
+    "intro": "Apps connected to your workspace.",
+    "google": {
+      "title": "Google Calendar",
+      "blurb": "Bookings appear in your calendar; Busy time in it blocks your booking page.",
+      "notConfigured": "Google Calendar is not set up on this server yet.",
+      "proOnly": "Google Calendar sync is a premium feature.",
+      "paused": "Sync is paused: Google Calendar sync is a premium feature. Your connection is kept.",
+      "proChip": "Premium",
+      "notConnected": "No Google account connected.",
+      "connect": "Connect Google Calendar",
+      "connectAnother": "Connect another account",
+      "anotherHint": "One account per person, or one shared calendar for the whole business.",
+      "connected": "Connected",
+      "needsReconnect": "Google no longer accepts this connection. Reconnect to resume.",
+      "reconnect": "Reconnect",
+      "belongsTo": "This calendar belongs to",
+      "shared": "Everyone (shared)",
+      "belongsToPersonHint": "Their bookings go here; Busy time here blocks only their slots.",
+      "belongsToSharedHint": "Busy time here blocks every person and every space; bookings without a person go here.",
+      "addTo": "Add bookings to",
+      "dontAdd": "Don't add bookings",
+      "blockFrom": "Block time from",
+      "blockFromHint": "Anything marked Busy in a ticked calendar can't be booked. Events marked Free are ignored.",
+      "disconnect": "Disconnect",
+      "disconnectConfirm": "Disconnect",
+      "keep": "Keep",
+      "disconnectNote": "Events already added to Google stay there.",
+      "disconnected": "Disconnected.",
+      "notice": {
+        "connected": "Google Calendar connected. Upcoming bookings are on their way.",
+        "reconnected": "Reconnected. Sync resumes.",
+        "error": {
+          "plan": "Google Calendar sync is a premium feature.",
+          "denied": "Google access was not granted.",
+          "state": "That link has expired. Try connecting again.",
+          "google": "Google didn't complete the connection. Try again.",
+          "no_calendars": "That Google account has no calendars."
+        }
+      },
+      "inviteClients": "Invite clients to the Google event",
+      "inviteClientsHint": "They get a Google Calendar invitation from your account, on top of Booklo's confirmation email.",
+      "cancelOnDelete": "When I delete or decline the event in Google, cancel the booking",
+      "rescheduleOnMove": "When I move the event in Google, reschedule the booking",
+      "inboundHint": "Booklo emails the client either way. A move that isn't possible is put back and you're told why.",
+      "inboundNotice": "Last refused change — {client}: {reason}",
+      "watching": "Google tells Booklo about changes as they happen.",
+      "polling": "Booklo checks Google for changes every 15 minutes."
+    },
+    "how": {
+      "title": "How it works",
+      "push": "Every confirmed booking becomes an event in the calendar you choose. Cancellations, reschedules and accepted requests keep it in step.",
+      "busy": "Anything marked Busy in the calendars you tick can't be booked — on your booking page and in reschedule pickers.",
+      "record": "Change a booking in Booklo, or — with the switches on — delete or move the event in Google and Booklo follows, emailing the client."
     }
   }
 }

@@ -19,6 +19,7 @@ import { chooseStaffForBooking } from "@/lib/booking/bookable";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { getProviderEmail } from "@/lib/booking/provider";
 import { notifyMembers } from "@/features/notifications/notify";
+import { kickCalendarSync } from "@/features/calendar-sync/run";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
 import { selectTransport } from "@/lib/email/transport";
@@ -66,6 +67,7 @@ async function loadSlotContext(
   fromDate: string,
   days: number,
   staffId: string,
+  freshExternal = false,
 ) {
   const org = await getBookingOrg(handle);
   if (!org) return null;
@@ -79,6 +81,7 @@ async function loadSlotContext(
   const ctx = await loadOrgSlotContext(org.orgId, serviceId, fromDate, days, {
     staffId,
     allowedStaffIds: bookableIds,
+    freshExternal,
   });
   if (!ctx) return null;
   return {
@@ -179,7 +182,9 @@ export async function createBooking(
 
   try {
     const starts = new Date(startsAt);
-    const ctx = await loadSlotContext(handle, serviceId, dateInZone(starts, "UTC"), 2, staffId);
+    // freshExternal: the slot being taken is checked against Google now,
+    // not the minute-old memo (spec 2026-09-05 §2.6).
+    const ctx = await loadSlotContext(handle, serviceId, dateInZone(starts, "UTC"), 2, staffId, true);
     if (!ctx) return publicError(orgLocale, "generic");
 
     // Re-run the engine for the org-local day of the requested slot; the
@@ -248,6 +253,7 @@ export async function createBooking(
       .from("bookings").select("status").eq("id", row.booking_id).maybeSingle();
     if (statusError) console.error("[scheduling] createBooking status read:", statusError);
     const isPending = statusRow?.status === "pending";
+    kickCalendarSync(ctx.org.orgId); // Google mirror (spec 2026-09-05 §2.2)
 
     // Solo orgs never name a staff member (resolveClientStaffName holds that
     // rule, and degrades to the unnamed copy if the count blows up — past this

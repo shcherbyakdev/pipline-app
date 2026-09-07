@@ -106,8 +106,8 @@ describe("reserved list covers every top-level app route", () => {
 describe("reserved list parity with the migration that last defined reserved_handles()", () => {
   it("RESERVED_HANDLES equals the array in reserved_handles()", () => {
     // The LAST definition wins in Postgres, so the check reads the newest
-    // migration that redefines the function (0051 first, 0066, 0075 since).
-    const sql = readFileSync(join(process.cwd(), "src/db/migrations/0075_notifications.sql"), "utf8");
+    // migration that redefines the function (0051 first, 0066, 0075, 0076 since).
+    const sql = readFileSync(join(process.cwd(), "src/db/migrations/0076_google_calendar.sql"), "utf8");
     const block = /function public\.reserved_handles\(\)[\s\S]*?select array\[([\s\S]*?)\]::text\[\]/.exec(sql);
     expect(block, "reserved_handles() array not found").not.toBeNull();
     const inSql = [...block![1].matchAll(/'([^']+)'/g)].map((m) => m[1]).sort();

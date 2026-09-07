@@ -126,11 +126,11 @@ export function AppearanceFields({
           })))}
         </SettingsRow>
       </div>
-      {colourRow("background", t("appearance.background"), "#ffffff")}
+      {colourRow("background", t("appearance.background"), "#fefefe")}
       {colourRow(
         "text",
         t("appearance.text"),
-        "#17171a",
+        "#252228",
         ratio !== null ? (
           <span className={cn(blocked ? "text-destructive" : warn ? "text-amber-600 dark:text-amber-500" : undefined)}>{contrastHint}</span>
         ) : (

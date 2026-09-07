@@ -12,6 +12,7 @@ import { publicLocale } from "@/i18n/public";
 import { getBookingLocale, getOrgLocale, loadOrgSlotContext, resolveClientStaffName } from "@/lib/booking/public";
 import { getProviderEmail } from "@/lib/booking/provider";
 import { notifyMembers } from "@/features/notifications/notify";
+import { kickCalendarSync } from "@/features/calendar-sync/run";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { selectTransport } from "@/lib/email/transport";
@@ -135,6 +136,7 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
       staff_name: string | null;
     }> | null)?.[0];
     if (!row) return publicError(orgLocale, "notChangeable");
+    kickCalendarSync(row.org_id); // Google mirror (spec 2026-09-05 §2.2)
 
     // Everything below is post-RPC: the cancellation is already committed, so
     // nothing here may turn into a failed action. Both of these are safe by
@@ -294,6 +296,7 @@ export async function rescheduleBooking(
       staff_name: string | null;
     }> | null)?.[0];
     if (!row) return publicError(orgLocale, "notChangeable");
+    kickCalendarSync(row.org_id); // Google mirror (spec 2026-09-05 §2.2)
 
     // Post-RPC: the move is committed. See cancelBooking — neither of these
     // can throw.

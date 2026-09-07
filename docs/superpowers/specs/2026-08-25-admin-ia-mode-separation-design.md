@@ -418,6 +418,9 @@ export function embedSnippet(appUrl: string, handle: string, target?: LinkTarget
 
 ### Website embed page
 
+> Superseded 2026-09-05: the table below was folded into the Code tab's
+> **Show** select (`embed-code.tsx`); the rows and targets are unchanged.
+
 Under the snippet, a **Links & embeds** table (client component
 `links-table.tsx`):
 

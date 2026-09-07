@@ -18,6 +18,8 @@ import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-
 import { HourlyBookingFlow } from "@/features/rentals/components/hourly-booking-flow";
 import { formatOfferingPrice, stayHint } from "@/features/rentals/pricing";
 import { INTL_LOCALES } from "@/i18n/config";
+import { cn } from "@/lib/utils";
+import { CHANGE_LINK, RECEIPT, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
 
 // The VIEWER's local date (audit 2026-08-24: the UTC date sent a far-west
 // evening visitor one day ahead, hiding the rest of their own today with no
@@ -336,7 +338,15 @@ export function BookingWidget({
   }
 
   if (doneToken)
-    return <BookingConfirmed token={doneToken} staffName={doneStaffName} pending={donePending} />;
+    return (
+      <BookingConfirmed
+        token={doneToken}
+        // What landed, restated (service and slot are still in state).
+        summary={service && slot ? { title: service.name, whenLine: whenFmt.format(new Date(slot)) } : undefined}
+        staffName={doneStaffName}
+        pending={donePending}
+      />
+    );
 
   // Whom this booking is with, or null when there is nothing worth saying —
   // a solo org (or one eligible person) must read exactly as it did before
@@ -373,15 +383,15 @@ export function BookingWidget({
   // The picking step's shared chrome, whatever the layout.
   const today = todayISO();
   const header = service ? (
-    <p className="text-sm font-medium">
+    <p className={cn(STEP_LABEL, "min-w-0")}>
       {service.name}
       {lockedStaff ? (
         // "with X" only when the person is fixed by the link the visitor
         // followed; a pick of their own shows on the switch.
-        <span className="text-muted-foreground">{" "}{t("with", { name: lockedStaff.name })}</span>
+        <span className="text-muted-foreground font-normal">{" "}{t("with", { name: lockedStaff.name })}</span>
       ) : null}{" "}
       {canChangeService ? (
-        <button type="button" className="text-muted-foreground underline" onClick={changeService}>
+        <button type="button" className={CHANGE_LINK} onClick={changeService}>
           {t("change")}
         </button>
       ) : null}
@@ -411,9 +421,9 @@ export function BookingWidget({
             <div className="flex flex-col gap-2">
               {/* Headings only when there is something to tell apart. */}
               {showOfferings ? (
-                <h2 className="text-muted-foreground text-sm font-medium">{t("appointments")}</h2>
+                <h2 className="text-muted-foreground text-xs font-medium">{t("appointments")}</h2>
               ) : null}
-              <ul className="flex flex-col gap-2">
+              <ul className={ROW_LIST}>
                 {listedServices.map((s) => (
                   <li key={s.id}>
                     <button
@@ -433,18 +443,19 @@ export function BookingWidget({
                         // <body>.
                         slotsRegionRef.current?.focus();
                       }}
-                      className="wt-surface flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
+                      className={ROW}
                     >
-                      <span>
-                        <span className="font-medium">{s.name}</span>
+                      <span className="min-w-0">
+                        <span className="block font-medium">{s.name}</span>
                         {s.description ? (
-                          <span className="text-muted-foreground block text-xs">
+                          <span className="text-muted-foreground mt-0.5 block text-xs leading-relaxed">
                             {s.description}
                           </span>
                         ) : null}
                       </span>
-                      <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                        {tu("minutes", { count: s.durationMin })}{s.priceLabel ? ` · ${s.priceLabel}` : ""}
+                      <span className="shrink-0 text-right text-sm tabular-nums">
+                        {s.priceLabel ? <span className="block font-medium">{s.priceLabel}</span> : null}
+                        <span className="text-muted-foreground block text-xs">{tu("minutes", { count: s.durationMin })}</span>
                       </span>
                     </button>
                   </li>
@@ -455,9 +466,9 @@ export function BookingWidget({
           {showOfferings ? (
             <div className="flex flex-col gap-2">
               {showServices ? (
-                <h2 className="text-muted-foreground text-sm font-medium">{t("spaces")}</h2>
+                <h2 className="text-muted-foreground text-xs font-medium">{t("spaces")}</h2>
               ) : null}
-              <ul className="flex flex-col gap-2">
+              <ul className={ROW_LIST}>
                 {offerings.map((o) => (
                   <li key={o.id}>
                     <button
@@ -468,18 +479,19 @@ export function BookingWidget({
                       // touches the network.
                       onClick={preview && !rentalPreview ? undefined : () => setOffering(o)}
                       aria-disabled={preview && !rentalPreview ? true : undefined}
-                      className="wt-surface flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm"
+                      className={ROW}
                     >
-                      <span>
-                        <span className="font-medium">{o.name}</span>
+                      <span className="min-w-0">
+                        <span className="block font-medium">{o.name}</span>
                         {o.description ? (
-                          <span className="text-muted-foreground block text-xs">
+                          <span className="text-muted-foreground mt-0.5 block text-xs leading-relaxed">
                             {o.description}
                           </span>
                         ) : null}
                       </span>
-                      <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                        {[formatOfferingPrice(o, currency, tu), stayHint(o, tu)].filter(Boolean).join(" · ")}
+                      <span className="shrink-0 text-right text-sm tabular-nums">
+                        {formatOfferingPrice(o, currency, tu) ? <span className="block font-medium">{formatOfferingPrice(o, currency, tu)}</span> : null}
+                        {stayHint(o, tu) ? <span className="text-muted-foreground block text-xs">{stayHint(o, tu)}</span> : null}
                       </span>
                     </button>
                   </li>
@@ -509,25 +521,38 @@ export function BookingWidget({
           />
         </div>
       ) : (
-        <form action={submit} className="flex flex-col gap-4">
-          <p className="text-sm">
-            <span className="font-medium">{service.name}</span>
-            {/* "with Anna" only when the person is fixed by the link — "with
-                Anyone" would be nonsense — else "· X" for the visitor's own pick. */}
-            {withLabel ? (lockedStaff ? ` ${t("with", { name: withLabel })}` : ` · ${withLabel}`) : ""} —{" "}
-            {whenFmt.format(new Date(slot))}
-            {/* What they're committing to, restated at the moment of
-                commitment: length and price, when the service names one. */}
-            <span className="text-muted-foreground">
-              {" · "}
-              {tu("minutes", { count: service.durationMin })}{service.priceLabel ? ` · ${service.priceLabel}` : ""}
-            </span>{" "}
-            <button type="button" className="text-muted-foreground underline" onClick={() => setSlot(null)}>
+        <form
+          // onSubmit rather than action: React resets an action form's fields
+          // when the action settles, so a refused booking (rate limit, a slot
+          // just taken) would wipe the name and email the visitor typed.
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(new FormData(e.currentTarget));
+          }}
+          className="wt-enter flex flex-col gap-4"
+        >
+          {/* The receipt: what they're committing to, restated at the moment
+              of commitment — service, person, time, then length and price
+              when the service names one. */}
+          <div className={RECEIPT}>
+            <div className="min-w-0">
+              <p className="font-medium">
+                {service.name}
+                {/* "with Anna" only when the person is fixed by the link — "with
+                    Anyone" would be nonsense — else "· X" for the visitor's own pick. */}
+                {withLabel ? <span className="text-muted-foreground font-normal">{lockedStaff ? ` ${t("with", { name: withLabel })}` : ` · ${withLabel}`}</span> : null}
+              </p>
+              <p className="mt-0.5 tabular-nums">{whenFmt.format(new Date(slot))}</p>
+              <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
+                {tu("minutes", { count: service.durationMin })}{service.priceLabel ? ` · ${service.priceLabel}` : ""}
+              </p>
+            </div>
+            <button type="button" className={cn(CHANGE_LINK, "shrink-0")} onClick={() => setSlot(null)}>
               {t("change")}
             </button>
-          </p>
+          </div>
           <ClientDetailsFields />
-          <Button type="submit" className="wt-primary" disabled={pending || !!preview}>
+          <Button type="submit" size="lg" className="wt-primary mt-1 w-full" disabled={pending || !!preview}>
             {preview
               ? t("preview")
               : pending
@@ -538,7 +563,7 @@ export function BookingWidget({
           </Button>
         </form>
       )}
-      {error ? <p className="text-destructive text-sm">{error}</p> : null}
+      {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
     </div>
   );
 }
