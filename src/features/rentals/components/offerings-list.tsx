@@ -8,7 +8,7 @@ import { setOfferingActive } from "@/features/rentals/actions";
 import { Switch } from "@/components/ui/switch";
 import type { OfferingRow } from "@/features/rentals/queries";
 import { formatDurationLabel } from "@/features/rentals/hourly";
-import { formatOfferingPrice } from "@/features/rentals/pricing";
+import { headlinePrice } from "@/features/rentals/pricing";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +27,7 @@ function Row({ offering, currency }: { offering: OfferingRow; currency: string }
   // The switch moves the moment it's clicked and snaps back on its own if
   // the action fails (staff-list.tsx idiom).
   const [active, setActive] = React.useOptimistic(offering.active);
-  const priceLabel = formatOfferingPrice(offering, currency, tu);
+  const priceLabel = headlinePrice(offering, currency, tu);
   const modeLabel = t(`mode.${offering.rangeMode}`);
   const schedule =
     offering.rangeMode === "hours"

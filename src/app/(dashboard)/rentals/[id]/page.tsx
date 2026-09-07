@@ -11,7 +11,7 @@ import {
   type OfferingBookingRow,
 } from "@/features/rentals/queries";
 import { formatDurationLabel } from "@/features/rentals/hourly";
-import { formatOfferingPrice } from "@/features/rentals/pricing";
+import { headlinePrice } from "@/features/rentals/pricing";
 import { OfferingForm } from "@/features/rentals/components/offering-form";
 import { SpaceHeader } from "@/features/rentals/components/space-header";
 import { DeleteSpaceButton } from "@/features/rentals/components/delete-space-button";
@@ -72,7 +72,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
         step: offering.slotIncrementMin!,
       })
     : t(`schedule.${offering.rangeMode}`, { start: offering.startTime!, end: offering.endTime! });
-  const price = formatOfferingPrice(offering, currency, tu);
+  const price = headlinePrice(offering, currency, tu);
   // The list row's rule: a public link only for an active space, once the
   // org has a handle.
   const url =

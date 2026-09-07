@@ -11,6 +11,7 @@ import type { OfferingRow } from "@/features/rentals/queries";
 import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
 import type { RangeMode } from "@/features/rentals/range";
 import type { DepositType } from "@/features/rentals/pricing";
+import type { PricingRules } from "@/features/rentals/pricing-rules";
 import { Button } from "@/components/ui/button";
 import { Input, nativeSelectClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ import { dialogBareInputClass } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { TIME_OPTIONS } from "@/features/scheduling/time-options";
 import { TimeCombobox } from "@/features/scheduling/components/time-combobox";
+import { PricingRulesEditor } from "./pricing-rules-editor";
 
 const selectClass = nativeSelectClass;
 
@@ -88,6 +90,16 @@ export function OfferingForm({
   const [slotIncrementMin, setSlotIncrementMin] = React.useState<number>(
     offering?.slotIncrementMin ?? OFFERING_DEFAULTS.hours.slotIncrementMin,
   );
+  // Controlled so PricingRulesEditor's first band always follows the live
+  // value, not just the one at mount.
+  const [minDurationMin, setMinDurationMin] = React.useState<number>(
+    offering?.minDurationMin ?? OFFERING_DEFAULTS.hours.minDurationMin,
+  );
+  // S1: null = the flat Price/Pricing-mode grid above applies; rules make
+  // that pair inert (submitted as priceCents: null, pricingMode: "per_unit").
+  const [pricing, setPricing] = React.useState<PricingRules | null>(
+    offering?.pricing ?? null,
+  );
   // Controlled so the deposit-value input's semantics (amount vs. percent)
   // and its very presence (none/full take no value) track the select live.
   const [depositType, setDepositType] = React.useState<DepositType>(
@@ -155,6 +167,13 @@ export function OfferingForm({
             maxDurationMin: Number(fd.get("maxDurationMin")),
             turnoverMin: Number(fd.get("turnoverMin")),
             minNoticeMin: Number(fd.get("minNoticeMin")),
+            pricing,
+            // Rules replace the flat price — the two models must never
+            // disagree on the row (the Price/Pricing-mode grid isn't even
+            // rendered once rules are on).
+            ...(pricing !== null
+              ? { priceCents: null, pricingMode: "per_unit" as const }
+              : {}),
           }
         : {
             ...common,
@@ -285,10 +304,8 @@ export function OfferingForm({
                         required
                         max={1440}
                         step={slotIncrementMin}
-                        defaultValue={
-                          seed?.minDurationMin ??
-                          OFFERING_DEFAULTS.hours.minDurationMin
-                        }
+                        value={minDurationMin}
+                        onChange={(e) => setMinDurationMin(Number(e.target.value))}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -393,42 +410,56 @@ export function OfferingForm({
               )}
 
               <SectionHeading>{t("form.section.pricing")}</SectionHeading>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-price">{t("form.price", { currency })}</Label>
-                  <Input
-                    id="offering-price"
-                    name="price"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    placeholder={t("form.unpriced")}
-                    defaultValue={
-                      seed?.priceCents != null
-                        ? seed.priceCents / 100
-                        : ""
-                    }
-                  />
+              {/* Rules replace the flat price for an hourly space — the grid
+                  below is meaningless once they're on, so it's hidden rather
+                  than submitted-and-ignored (onSubmit sends priceCents: null,
+                  pricingMode: "per_unit" for that case). */}
+              {rangeMode !== "hours" || pricing === null ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="offering-price">{t("form.price", { currency })}</Label>
+                    <Input
+                      id="offering-price"
+                      name="price"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder={t("form.unpriced")}
+                      defaultValue={
+                        seed?.priceCents != null
+                          ? seed.priceCents / 100
+                          : ""
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="offering-pricing-mode">{t("form.pricingMode")}</Label>
+                    <select
+                      id="offering-pricing-mode"
+                      name="pricingMode"
+                      className={selectClass}
+                      defaultValue={seed?.pricingMode ?? "per_unit"}
+                    >
+                      <option value="per_unit">
+                        {rangeMode === "hours"
+                          ? t("form.perHour")
+                          : rangeMode === "nights"
+                            ? t("form.perNight")
+                            : t("form.perDay")}
+                      </option>
+                      <option value="flat">{t("form.flat")}</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="offering-pricing-mode">{t("form.pricingMode")}</Label>
-                  <select
-                    id="offering-pricing-mode"
-                    name="pricingMode"
-                    className={selectClass}
-                    defaultValue={seed?.pricingMode ?? "per_unit"}
-                  >
-                    <option value="per_unit">
-                      {rangeMode === "hours"
-                        ? t("form.perHour")
-                        : rangeMode === "nights"
-                          ? t("form.perNight")
-                          : t("form.perDay")}
-                    </option>
-                    <option value="flat">{t("form.flat")}</option>
-                  </select>
-                </div>
-              </div>
+              ) : null}
+              {rangeMode === "hours" ? (
+                <PricingRulesEditor
+                  value={pricing}
+                  onChange={setPricing}
+                  currency={currency}
+                  minDurationMin={minDurationMin}
+                />
+              ) : null}
 
               <div className="flex items-center justify-between gap-3">
                 <Label htmlFor="offering-active">{tc("active")}</Label>
