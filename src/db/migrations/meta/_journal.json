@@ -547,6 +547,13 @@
       "when": 1788596224334,
       "tag": "0077_google_calendar_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1788774781828,
+      "tag": "0078_pricing_rules",
+      "breakpoints": true
     }
   ]
 }

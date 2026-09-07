@@ -221,6 +221,8 @@ export async function createRentalBookingHours(
         p_email: email,
         p_note: note ?? null,
         p_token_hash: tokenHash,
+        p_people: null,
+        p_extras: [],
       });
 
     // Same ladder as createRentalBooking (public-actions.ts): explicit unit

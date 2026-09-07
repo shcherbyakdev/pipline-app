@@ -9,6 +9,7 @@ import {
   index,
   uniqueIndex,
   primaryKey,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 import { clients } from "./clients";
@@ -206,6 +207,10 @@ export const bookings = pgTable(
     priceCents: integer("price_cents"),
     currency: text("currency"),
     depositCents: integer("deposit_cents"),
+    // S1: the itemised quote the booking was made at (price_cents = sum)
+    // and the people count the client chose; NULL before 0078 / no rules.
+    lines: jsonb("lines"),
+    people: integer("people"),
     // Stamped by the public create RPCs iff the offering had terms_text;
     // carried forward across reschedules.
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),

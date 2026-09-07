@@ -198,6 +198,8 @@ describe("hourly rental RPCs (0056 part B)", () => {
       p_email: over.email ?? `kasia-${Date.now()}-${Math.random()}@example.com`,
       p_note: null,
       p_token_hash: over.tokenHash ?? hash(),
+      p_people: null,
+      p_extras: [],
     });
 
   const createHoursAdmin = (client: SupabaseClient, over: CreateOver) =>
@@ -294,6 +296,8 @@ describe("hourly rental RPCs (0056 part B)", () => {
       p_email: "kasia@example.com",
       p_note: null,
       p_token_hash: hash(),
+      p_people: null,
+      p_extras: [],
     });
     expect(error).toBeNull();
     const row = await bookingRow(data as string);
@@ -539,6 +543,8 @@ describe("hourly rental RPCs (0056 part B)", () => {
       p_email: "nope@example.com",
       p_note: null,
       p_token_hash: hash(),
+      p_people: null,
+      p_extras: [],
     });
     expect(error?.message).toMatch(/not found/);
   });
@@ -600,6 +606,8 @@ describe("hourly rental RPCs (0056 part B)", () => {
         p_email: email,
         p_note: null,
         p_token_hash: hash(),
+        p_people: null,
+        p_extras: [],
       });
       messages.push(error?.message);
     }
@@ -618,6 +626,8 @@ describe("hourly rental RPCs (0056 part B)", () => {
       p_email: "nope@example.com",
       p_note: null,
       p_token_hash: hash(),
+      p_people: null,
+      p_extras: [],
     });
     expect(anonCreateDirect.error?.code).toBe("42501");
 
@@ -631,6 +641,8 @@ describe("hourly rental RPCs (0056 part B)", () => {
       p_email: "nope@example.com",
       p_note: null,
       p_token_hash: hash(),
+      p_people: null,
+      p_extras: [],
     });
     expect(authCreateDirect.error?.code).toBe("42501");
 

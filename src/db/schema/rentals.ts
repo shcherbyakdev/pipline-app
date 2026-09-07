@@ -7,6 +7,7 @@ import {
   timestamp,
   date,
   index,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 
@@ -37,6 +38,8 @@ export const rentalOfferings = pgTable(
     cancelWindowMin: integer("cancel_window_min").default(0).notNull(),
     // House rules; public flows require a checkbox iff set.
     termsText: text("terms_text"),
+    // S1: hourly pricing rules (spec 2026-09-07). NULL = the H3 flat rate.
+    pricing: jsonb("pricing"),
     // 'nights' | 'days' — CHECK in 0037.
     rangeMode: text("range_mode").notNull(),
     // Org-local "HH:MM": check-in/check-out (nights) or pickup/return (days).

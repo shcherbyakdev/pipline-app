@@ -259,6 +259,8 @@ describe("booking approval — rentals", () => {
       p_email: "h@example.com",
       p_note: null,
       p_token_hash: t.tokenHash,
+      p_people: null,
+      p_extras: [],
     });
     expect(error).toBeNull();
     expect((await bookingRow(id as string)).status).toBe("pending");
@@ -273,6 +275,8 @@ describe("booking approval — rentals", () => {
       p_email: "h2@example.com",
       p_note: null,
       p_token_hash: generateAccessToken().tokenHash,
+      p_people: null,
+      p_extras: [],
     });
     expect(e2).not.toBeNull(); // rental_unit_is_free_hours now sees pending
   });
