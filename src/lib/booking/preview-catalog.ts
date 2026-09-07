@@ -46,6 +46,7 @@ const CANNED_PREVIEW_OFFERING: PublicOffering = {
   cancelWindowMin: 0,
   termsText: null,
   requiresApproval: false,
+  pricing: null,
 };
 
 // The public projection of an admin row — listed field by field so an
@@ -77,6 +78,7 @@ function toPublicOffering(o: OfferingRow): PublicOffering {
     cancelWindowMin: o.cancelWindowMin,
     termsText: o.termsText,
     requiresApproval: o.requiresApproval,
+    pricing: o.pricing,
   };
 }
 

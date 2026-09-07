@@ -17,6 +17,7 @@ import type {
 import { blackoutBusy } from "@/features/rentals/hourly";
 import { externalBusy } from "@/features/calendar-sync/busy";
 import type { OrgMode } from "@/features/orgs/mode";
+import type { PricingRules } from "@/features/rentals/pricing-rules";
 import type { UnitRef } from "./bookable";
 
 // Admin-client reads for the anonymous booking page (getOrgBranding
@@ -448,11 +449,14 @@ export type PublicOffering = {
   cancelWindowMin: number;
   termsText: string | null;
   requiresApproval: boolean;
+  // S1: an hours offering's rate bands/surcharges/extras; null everywhere
+  // else (the flat priceCents/pricingMode pair still applies then).
+  pricing: PricingRules | null;
 };
 export type PublicUnit = { id: string; name: string; description: string | null; active: boolean };
 
 const PUBLIC_OFFERING_COLUMNS =
-  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text, requires_approval";
+  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text, requires_approval, pricing";
 
 type PublicOfferingDb = {
   id: string;
@@ -479,6 +483,7 @@ type PublicOfferingDb = {
   cancel_window_min: number;
   terms_text: string | null;
   requires_approval: boolean;
+  pricing: PricingRules | null;
 };
 
 function toPublicOffering(o: PublicOfferingDb): PublicOffering {
@@ -507,6 +512,7 @@ function toPublicOffering(o: PublicOfferingDb): PublicOffering {
     cancelWindowMin: o.cancel_window_min,
     termsText: o.terms_text,
     requiresApproval: o.requires_approval,
+    pricing: o.pricing,
   };
 }
 

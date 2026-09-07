@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TIME_RE, HANDLE_RE } from "@/features/scheduling/schema";
 import { daysBetween } from "./range";
-import { pricingRulesSchema, pricingRulesFor } from "./pricing-rules";
+import { pricingRulesSchema, pricingRulesFor, extraPicksSchema } from "./pricing-rules";
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -272,6 +272,9 @@ export const createRentalBookingHoursInput = z.object({
   email: z.email().max(320),
   note: z.string().trim().max(2000).optional(),
   termsAccepted: z.boolean().default(false),
+  // S1: the client's people count (null = the offering's included count) and extras.
+  people: z.number().int().min(0).max(500).nullable().default(null),
+  extras: extraPicksSchema.default([]),
 });
 
 // ---------- Hourly mode (H2), admin (Task 10). Same shapes as the admin

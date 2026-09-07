@@ -155,6 +155,7 @@
     "slotTaken": "That time was just taken — please pick another.",
     "staffUnavailable": "That team member can't take this time — pick another.",
     "datesTaken": "Those dates were just taken — please pick again.",
+    "rentalsQuote": "The price for that choice can't be worked out — pick again.",
     "termsRequired": "Please accept the terms to book.",
     "stayStarted": "This stay has already started.",
     "checkInPassed": "That check-in time has already passed — pick a later date.",

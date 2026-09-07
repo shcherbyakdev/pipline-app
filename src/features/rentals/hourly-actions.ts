@@ -33,7 +33,8 @@ import {
   unionUnitSlots,
   type HourlyOffering,
 } from "./hourly";
-import { moneyInfoLines, totalCents, depositCents } from "./pricing";
+import { moneyInfoLines } from "./pricing";
+import type { Line } from "./pricing-rules";
 import {
   getHourlySlotsInput,
   createRentalBookingHoursInput,
@@ -161,7 +162,8 @@ function isTaken(error: { message?: string; code?: string }): boolean {
 export async function createRentalBookingHours(
   input: unknown,
 ): Promise<
-  { ok: true; token: string; pending: boolean } | { ok: false; error: string; slotTaken?: boolean }
+  | { ok: true; token: string; pending: boolean }
+  | { ok: false; error: string; slotTaken?: boolean; quote?: boolean }
 > {
   let orgLocale: OrgLocaleSource = null;
   if (await limited("booking")) return publicError(orgLocale, "tooManyRequests");
@@ -169,7 +171,8 @@ export async function createRentalBookingHours(
   if (!parsed.success) return publicError(orgLocale, "generic");
   // getBookingOrg is memoised per request: the loaders below re-use this read.
   orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
-  const { handle, offeringId, unitId, startsAt, durationMin, name, email, note, termsAccepted } = parsed.data;
+  const { handle, offeringId, unitId, startsAt, durationMin, name, email, note, termsAccepted, people, extras } =
+    parsed.data;
 
   try {
     const starts = new Date(startsAt);
@@ -221,8 +224,8 @@ export async function createRentalBookingHours(
         p_email: email,
         p_note: note ?? null,
         p_token_hash: tokenHash,
-        p_people: null,
-        p_extras: [],
+        p_people: people,
+        p_extras: extras,
       });
 
     // Same ladder as createRentalBooking (public-actions.ts): explicit unit
@@ -239,6 +242,12 @@ export async function createRentalBookingHours(
     if (error) {
       // Per-email hourly cap (0056).
       if (isRpcSentinel(error, "too_many")) return publicError(orgLocale, "tooManyForEmail");
+      // S1: the quote couldn't be worked out (a duration below the first
+      // band, people over the max, or a bad extra pick) — re-open the step
+      // rather than the generic error, so the flow can let the client fix it.
+      if (isRpcSentinel(error, "quote_band") || isRpcSentinel(error, "quote_people") || isRpcSentinel(error, "quote_extra")) {
+        return publicError(orgLocale, "rentalsQuote", { quote: true });
+      }
       if (isTaken(error)) return publicError(orgLocale, "slotTaken", { slotTaken: true });
       console.error("[rentals] createRentalBookingHours:", error.code || "rpc error");
       return publicError(orgLocale, "generic");
@@ -248,7 +257,10 @@ export async function createRentalBookingHours(
     // keeps the emails honest even if the toggle flips mid-flight. Read it
     // here, before mail prep, so every success return below can carry it.
     const { data: statusRow, error: statusError } = await admin
-      .from("bookings").select("status").eq("id", bookingId as string).maybeSingle();
+      .from("bookings")
+      .select("status, lines, people, price_cents, deposit_cents")
+      .eq("id", bookingId as string)
+      .maybeSingle();
     if (statusError) console.error("[rentals] createRentalBookingHours status read:", statusError);
     const isPending = statusRow?.status === "pending";
     kickCalendarSync(ctx.org.orgId); // Google mirror (spec 2026-09-05 §2.2)
@@ -256,8 +268,8 @@ export async function createRentalBookingHours(
     // Everything both mails share, computed once; nothing below may fail the
     // committed booking, so the unit-name/provider-email reads swallow their
     // own errors AND the whole block is wrapped below — a throw here (e.g.
-    // formatHourlyWhenLine, totalCents) must not report a committed booking
-    // as failed to the caller.
+    // formatHourlyWhenLine) must not report a committed booking as failed to
+    // the caller.
     // Two languages (spec §4, amended 2026-09-03): the client reads the one
     // they booked in, the provider reads the org's — so the when-line and the
     // money lines, both locale-formatted, are built twice.
@@ -280,14 +292,17 @@ export async function createRentalBookingHours(
         return null;
       });
       const serviceName = withUnit(ctx.offering.name, unitName);
-      // H3: total / deposit / pay-at-venue / cancellation-policy lines, shared
-      // by the client confirmation and the provider's copy below.
-      const total = totalCents(ctx.offering, durationMin / 60);
+      // H3/S1: total / deposit / pay-at-venue / cancellation-policy lines,
+      // shared by the client confirmation and the provider's copy below. The
+      // RPC's own snapshot on the committed row is the source of truth (a
+      // rules-priced offering has no single totalCents/depositCents formula
+      // to re-derive here) — this read is that snapshot, not a recomputation.
       const money = {
-        totalCents: total,
-        depositCents: depositCents(ctx.offering, total),
+        totalCents: statusRow?.price_cents ?? null,
+        depositCents: statusRow?.deposit_cents ?? null,
         currency: ctx.org.currency,
         cancelWindowMin: ctx.offering.cancelWindowMin,
+        lines: (statusRow?.lines as Line[] | null) ?? null,
       };
       const infoLines = moneyInfoLines(money, mail.tUnits);
       const clientInfoLines = moneyInfoLines(money, client.tUnits);
