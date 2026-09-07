@@ -337,15 +337,23 @@
       "status": {
         "confirmed": "Confirmed",
         "pending": "Waiting for confirmation",
+        "pendingPayment": "Awaiting payment",
         "declined": "Request declined",
         "cancelledByClient": "Cancelled",
         "cancelledByProvider": "Cancelled by the provider",
         "rescheduled": "Rescheduled",
-        "expired": "Request expired"
+        "requestExpired": "Request expired",
+        "expired": "Released — the deposit wasn't paid in time"
       },
       "tooManyRequests": "Too many requests — try again shortly.",
       "alreadyStarted": "This booking has already started.",
       "awaiting": "{orgName} hasn't confirmed this request yet — you'll get an email when they do.",
+      "reservedUntil": "Reserved until {until}. Pay the deposit to confirm.",
+      "holdLapsed": "The payment window has passed. This time will be released shortly — book again to reserve it.",
+      "paymentReceived": "Payment received — thank you.",
+      "paymentProcessing": "We're confirming your payment — this page updates once your bank settles it.",
+      "paymentFailed": "Payment isn't available right now — try again in a moment.",
+      "expiredBody": "This reservation was released because the deposit wasn't paid in time. You can book again on the studio's page.",
       "reschedule": "Reschedule",
       "pickNewTime": "Pick a new time",
       "pickNewDates": "Pick new dates",
@@ -433,6 +441,13 @@
         "people": "{count, plural, one {# extra person} other {# extra people}} × {each}",
         "extra": "{label} × {qty}"
       }
+    },
+    "legal": {
+      "taxId": "NIP {id}",
+      "regNo": "Reg. no. {id}",
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "refund": "Refund policy"
     }
   },
   "emails": {

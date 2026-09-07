@@ -18,6 +18,7 @@ import { blackoutBusy } from "@/features/rentals/hourly";
 import { externalBusy } from "@/features/calendar-sync/busy";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { Line, PricingRules } from "@/features/rentals/pricing-rules";
+import { parseLegal, type Legal } from "@/features/payments/legal";
 import type { UnitRef } from "./bookable";
 
 // Admin-client reads for the anonymous booking page (getOrgBranding
@@ -76,6 +77,13 @@ export const getOrgLocale = cache(async (orgId: string): Promise<string | null> 
   const admin = createAdminClient();
   const { data } = await admin.from("orgs").select("locale").eq("id", orgId).maybeSingle();
   return data?.locale ?? null;
+});
+
+/** S2: the legal identity the public footer prints (orgs.legal, 0079). */
+export const getOrgLegal = cache(async (orgId: string): Promise<Legal> => {
+  const admin = createAdminClient();
+  const { data } = await admin.from("orgs").select("legal").eq("id", orgId).maybeSingle();
+  return parseLegal(data?.legal);
 });
 
 /** For the slot loader's Google read (all-day events block an ORG-local
