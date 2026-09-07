@@ -17,11 +17,18 @@ export type Deps = { db?: SupabaseClient; provider?: PaymentsProvider; transport
 export async function refundLedgerRow(ledgerId: string, reason: string, deps: Deps = {}): Promise<boolean> {
   const db = deps.db ?? createAdminClient();
   const provider = deps.provider ?? selectPaymentsProvider();
-  const { data: row } = await db
+  const { data: row, error: readError } = await db
     .from("booking_payments")
     .select("id, booking_id, status, amount_cents, refunded_cents, payment_intent_id, stripe_account_id")
     .eq("id", ledgerId)
     .maybeSingle();
+  // The contract is "never throws on a provider refusal", and a database that
+  // cannot even read the row is the same answer to every caller: nothing was
+  // refunded. Say so loudly in the log, quietly in the return.
+  if (readError) {
+    console.error("[payments] refund: ledger row read failed:", readError);
+    return false;
+  }
   if (!row || row.status !== "paid" || !row.payment_intent_id || !row.stripe_account_id) return false;
   const amount = row.amount_cents - row.refunded_cents;
   if (amount <= 0) return true;
@@ -32,7 +39,7 @@ export async function refundLedgerRow(ledgerId: string, reason: string, deps: De
       amount,
       `${row.id}:${reason}`,
     );
-    await db
+    const { error: markError } = await db
       .from("booking_payments")
       .update({
         status: "refunded",
@@ -41,6 +48,21 @@ export async function refundLedgerRow(ledgerId: string, reason: string, deps: De
         updated_at: new Date().toISOString(),
       })
       .eq("id", row.id);
+    // Same story as the bump below: the money already left the connected
+    // account, so the row must say exactly that and the caller must hear
+    // "needs a human" rather than "refunded".
+    if (markError) {
+      console.error("[payments] refunded at provider; ledger row update failed:", markError);
+      await db
+        .from("booking_payments")
+        .update({
+          status: "refund_failed",
+          error: `refunded at provider (${refundId}); row update failed: ${markError.message}`.slice(0, 500),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+      return false;
+    }
     // bump_booking_refunded clamps at the booking's paid_cents, so a
     // slot_lost refund (which the booking never counted as paid) is a no-op
     // rather than an error. Anything that DOES come back is a real write
@@ -135,4 +157,31 @@ export async function sendSlotLost(ledgerId: string, deps: Deps = {}): Promise<v
   } catch (e) {
     console.error("[payments] slot-lost mail failed:", e);
   }
+}
+
+/** Refund everything paid on a booking (spec ruling 3: full refunds in S2).
+    Never throws: each row's outcome is recorded on the row itself, and
+    `failed` says "at least one needs a human in Stripe". */
+export async function refundBooking(
+  bookingId: string,
+  reason: string,
+  deps: Deps = {},
+): Promise<{ refundedCents: number; failed: boolean }> {
+  const db = deps.db ?? createAdminClient();
+  const { data: rows, error } = await db
+    .from("booking_payments")
+    .select("id, amount_cents, refunded_cents")
+    .eq("booking_id", bookingId)
+    .eq("status", "paid");
+  if (error) {
+    console.error("[payments] refundBooking: ledger read failed:", error);
+    return { refundedCents: 0, failed: true };
+  }
+  let refundedCents = 0;
+  let failed = false;
+  for (const row of rows ?? []) {
+    if (await refundLedgerRow(row.id, reason, deps)) refundedCents += row.amount_cents - row.refunded_cents;
+    else failed = true;
+  }
+  return { refundedCents, failed };
 }

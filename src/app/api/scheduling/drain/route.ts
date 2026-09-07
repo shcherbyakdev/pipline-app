@@ -9,6 +9,8 @@ import { plansEnforced } from "@/lib/flags";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { runCalendarSync } from "@/features/calendar-sync/run";
 import { runInbound } from "@/features/calendar-sync/inbound-run";
+import { runHoldExpiry } from "@/features/payments/hold-expiry";
+import { paymentsConfigured, selectPaymentsProvider } from "@/lib/payments/provider";
 
 // A tick is up to REMINDER_BATCH_LIMIT (25) sequential sends plus a handful
 // of reads per row; the platform default function budget is tighter than a
@@ -96,7 +98,21 @@ export async function POST(request: Request) {
     // Google → Booklo (spec v2 decision 19): the poll fallback and the
     // channel renewal. runInbound never throws.
     const inbound = await runInbound({}, admin);
-    return Response.json({ ...summary, calendar, inbound });
+    // S2: release lapsed holds. Its own try — a payments problem must not
+    // hide the other three summaries. The provider is only for expiring
+    // open Checkout sessions; the status flip needs none.
+    let holds: Awaited<ReturnType<typeof runHoldExpiry>> | { error: string };
+    try {
+      holds = await runHoldExpiry({
+        db: admin,
+        transport: selectTransport(),
+        provider: paymentsConfigured() ? selectPaymentsProvider() : undefined,
+      });
+    } catch (error) {
+      console.error("[payments] hold expiry tick failed:", error);
+      holds = { error: "hold expiry failed" };
+    }
+    return Response.json({ ...summary, calendar, inbound, holds });
   } catch (error) {
     console.error("[scheduling] drain tick failed:", error);
     return Response.json({ error: "drain failed" }, { status: 500 });

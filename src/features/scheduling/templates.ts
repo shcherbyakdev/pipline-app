@@ -347,6 +347,8 @@ export function bookingCancelledEmail(t: EmailsT, input: {
   cancelledBy: "client" | "provider";
   staffName?: string | null;
   badgeUrl?: string | null;
+  // S2: the refund line, when money came back with the cancellation.
+  infoLines?: string[];
 }): { subject: string; html: string; text: string } {
   const lead =
     input.cancelledBy === "client"
@@ -358,7 +360,7 @@ export function bookingCancelledEmail(t: EmailsT, input: {
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
   <p style="margin: 0 0 8px;">${esc(lead)}</p>
   <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(t, input.staffName)}
-  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${infoHtml(input.infoLines)}
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     ${esc(t("cancelled.rebook"))}
   </p>${badgeHtmlLine(t, input.badgeUrl)}
@@ -370,6 +372,7 @@ export function bookingCancelledEmail(t: EmailsT, input: {
     input.serviceName,
     ...staffTextLine(t, input.staffName),
     input.whenLine,
+    ...(input.infoLines ?? []),
     ...badgeTextLines(t, input.badgeUrl),
   ].join("\n");
   return { subject, html, text };
