@@ -55,6 +55,7 @@ const SAME_IN_EVERY_LOCALE = new Set([
   "public.links.other",
   "studio.appearance.premium",
   "notifications.reminders.premium",
+  "integrations.google.proChip",
   "billing.planTag.srPrefix",
   "studio.sections.faq.label",
   "studio.branding.logo",

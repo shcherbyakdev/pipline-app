@@ -250,7 +250,7 @@
     },
     "location": {
       "title": "Jak nas znaleźć",
-      "openMaps": "Otwórz w Mapach ↗"
+      "openMaps": "Otwórz w Mapach"
     },
     "links": {
       "instagram": "Instagram",
@@ -499,6 +499,16 @@
       "test": {
         "title": "Powiadomienia Booklo są włączone",
         "body": "To urządzenie będzie dostawać informacje o nowych rezerwacjach."
+      },
+      "calendarRefused": {
+        "title": "Kalendarz Google",
+        "body": "{client}: {reason} Wydarzenie zostało przywrócone."
+      },
+      "calendarReason": {
+        "slotTaken": "ten termin nie jest wolny.",
+        "spaces": "rezerwacje przestrzeni przenosi się w Booklo, nie w Google.",
+        "notFound": "tej rezerwacji nie można już przenieść.",
+        "failed": "przeniesienie się nie udało."
       }
     },
     "appointment": "Wizyta"
@@ -516,7 +526,8 @@
       "embed": "Osadzenie na stronie",
       "billing": "Rozliczenia",
       "notifications": "Powiadomienia",
-      "settings": "Ustawienia"
+      "settings": "Ustawienia",
+      "integrations": "Integracje"
     },
     "section": {
       "offer": "Oferta",
@@ -1587,11 +1598,9 @@
       "darkSystem": "Ciemny system"
     },
     "notice": {
-      "contrastUnreadable": "Własne kolory widżetu dają kontrast {ratio, number, ::.0}:1 — nieczytelny. Popraw je w sekcji <link>Osadzenie na stronie</link>.",
-      "contrastLow": "Własne kolory widżetu dają kontrast {ratio, number, ::.0}:1 — poniżej 4,5:1 (AA dla tekstu). Popraw je w sekcji <link>Osadzenie na stronie</link>.",
-      "embedRiskLight": "Ta strona jest zawsze czytelna — maluje własne jasne tło. Ale motyw jest wspólny z osadzeniem na stronie, które przejmuje tło Twojej witryny: na ciemnej witrynie jego tekst staje się nieczytelny. Jeśli Twoja witryna jest ciemna, wybierz Ciemny (lub Auto) albo ustaw kolor tła w sekcji <link>Osadzenie na stronie</link>.",
-      "embedRiskDark": "Ta strona jest zawsze czytelna — maluje własne ciemne tło. Ale motyw jest wspólny z osadzeniem na stronie, które przejmuje tło Twojej witryny: na jasnej witrynie jego tekst staje się nieczytelny. Jeśli Twoja witryna jest jasna, wybierz Jasny (lub Auto) albo ustaw kolor tła w sekcji <link>Osadzenie na stronie</link>.",
-      "auto": "Auto podąża za ustawieniem systemu każdego odwiedzającego. Ta strona zawsze się dopasowuje, więc oba warianty są czytelne (użyj przełącznika powyżej). Osadzenie na stronie dopasuje się tylko wtedy, gdy Twoja witryna też to robi — sprawdź to tam."
+      "contrastUnreadable": "Własne kolory widżetu dają kontrast {ratio, number, ::.0}:1 — nieczytelny. Popraw je w Ustawieniach.",
+      "contrastLow": "Własne kolory widżetu dają kontrast {ratio, number, ::.0}:1 — poniżej 4,5:1 (AA dla tekstu). Popraw je w Ustawieniach.",
+      "auto": "Auto podąża za ustawieniem systemu każdego odwiedzającego. Ta strona zawsze się dopasowuje, więc oba warianty są czytelne (użyj przełącznika powyżej)."
     },
     "settings": {
       "look": "Wygląd",
@@ -1711,43 +1720,34 @@
       "bookingPage": "Strona rezerwacji"
     },
     "badge": {
-      "space": "Przestrzeń",
       "team": "Zespół",
-      "service": "Usługa"
+      "service": "Usługi",
+      "space": "Przestrzenie"
     },
-    "intro": "Dodaj rezerwacje do własnej witryny. Dopasuj styl widżetu na podglądzie, a potem wklej kod do swojej strony. Logo i kolor akcentu pochodzą z sekcji Strona rezerwacji › Marka.",
-    "snippet": "Kod do osadzenia",
-    "bookWith": "Rezerwuj u",
-    "wholeTeam": "Cały zespół",
-    "staffOnly": "Ten kod rezerwuje tylko tę osobę.",
-    "clientsPick": "Klienci wybierają, u kogo rezerwują.",
+    "tabs": {
+      "label": "Osadzenie na stronie",
+      "code": "Kod",
+      "style": "Styl"
+    },
+    "paste": "Wklej to tam, gdzie widżet ma się pojawić na Twojej witrynie.",
+    "show": "Pokaż",
     "language": "Język",
     "languageAuto": "Jak u odwiedzającego",
-    "languageAutoHint": "Klienci widzą swój język, jeśli go obsługujemy, a w przeciwnym razie język Twojej strony rezerwacji.",
-    "copy": "Kopiuj",
-    "copied": "Skopiowano",
-    "copyRefused": "Nie udało się skopiować — zaznacz kod i skopiuj ręcznie.",
+    "copyCode": "Kopiuj kod",
+    "copied": "Kod skopiowany",
+    "copyAddress": "Kopiuj adres",
+    "addressCopied": "Adres skopiowany",
     "noHandle": "Ustaw adres strony rezerwacji w sekcji <link>Strona rezerwacji</link>, aby dostać kod do osadzenia.",
     "style": {
       "title": "Styl widżetu",
-      "description": "Widżet na Twojej własnej witrynie. Strona rezerwacji ma własny styl."
+      "description": "Logo i kolor akcentu są w sekcji <link>Strona rezerwacji › Wygląd</link>. Strona rezerwacji zachowuje własny styl."
     },
-    "saved": "Wygląd widżetu zapisany",
+    "saved": "Styl widżetu zapisany",
     "preview": {
-      "hostPage": "Strona osadzająca",
-      "lightPage": "Jasna strona",
-      "darkPage": "Ciemna strona",
-      "clash": "Na {host, select, dark {ciemnej stronie} other {jasnej stronie}} tekst {theme, select, dark {ciemnego motywu} other {jasnego motywu}} jest nieczytelny ({ratio, number, ::.0}:1) — osadzenie nie maluje własnego tła. Jeśli Twoja witryna wygląda jak ta {host, select, dark {ciemna strona} other {jasna strona}}, wybierz {theme, select, dark {jasny motyw} other {ciemny motyw}} (lub Auto) albo ustaw kolor tła, aby widżet miał własne tło.",
-      "fixedRisk": "{theme, select, dark {Ciemny motyw} other {Jasny motyw}} bez tła: widżet przejmuje tło Twojej witryny, więc na {theme, select, dark {jasnej witrynie} other {ciemnej witrynie}} jego tekst staje się nieczytelny. W porządku, jeśli Twoja witryna wygląda jak ta {host, select, dark {ciemna strona} other {jasna strona}} — w przeciwnym razie wybierz {theme, select, dark {jasny motyw} other {ciemny motyw}} albo ustaw kolor tła. Zobacz powyżej podgląd na {theme, select, dark {jasnej stronie} other {ciemnej stronie}}.",
-      "autoRisk": "Auto podąża za ustawieniem systemu każdego odwiedzającego, nie za kolorami Twojej witryny. Na witrynie, która jest zawsze jasna lub zawsze ciemna, część odwiedzających dostanie niedopasowany wariant. Wybierz motyw pasujący do witryny albo ustaw kolor tła. Przełącz stronę osadzającą powyżej, aby zobaczyć oba."
-    },
-    "links": {
-      "title": "Linki i osadzenia",
-      "description": "Link otwiera Twoją stronę rezerwacji na danej rzeczy; osadzenie to kod dla niej.",
-      "copyEmbed": "Kopiuj kod",
-      "copyLinkFor": "Kopiuj link — {name}",
-      "copyEmbedFor": "Kopiuj kod — {name}",
-      "embedCopied": "Kod skopiowany"
+      "hostPage": "Twoja witryna",
+      "lightPage": "Jasna witryna",
+      "darkPage": "Ciemna witryna",
+      "clash": "Na {host, select, dark {ciemnej witrynie} other {jasnej witrynie}} tekst {theme, select, dark {ciemnego motywu} other {jasnego motywu}} jest nieczytelny ({ratio, number, ::.0}:1). Jeśli Twoja witryna wygląda jak ta {host, select, dark {ciemna strona} other {jasna strona}}, wybierz {theme, select, dark {jasny motyw} other {ciemny motyw}} albo ustaw kolor tła."
     }
   },
   "seed": {
@@ -1820,6 +1820,62 @@
       "cancelled": "Anulowanie",
       "rescheduled": "Przełożenie",
       "manageLink": "Link do rezerwacji na życzenie"
+    }
+  },
+  "integrations": {
+    "intro": "Aplikacje połączone z Twoją przestrzenią roboczą.",
+    "google": {
+      "title": "Kalendarz Google",
+      "blurb": "Rezerwacje pojawiają się w Twoim kalendarzu; czas oznaczony jako Zajęty blokuje Twoją stronę rezerwacji.",
+      "notConfigured": "Kalendarz Google nie jest jeszcze skonfigurowany na tym serwerze.",
+      "proOnly": "Synchronizacja z Kalendarzem Google to funkcja Premium.",
+      "paused": "Synchronizacja wstrzymana: synchronizacja z Kalendarzem Google to funkcja Premium. Twoje połączenie zostaje zachowane.",
+      "proChip": "Premium",
+      "notConnected": "Brak połączonego konta Google.",
+      "connect": "Połącz Kalendarz Google",
+      "connectAnother": "Połącz kolejne konto",
+      "anotherHint": "Jedno konto na osobę albo jeden wspólny kalendarz dla całej firmy.",
+      "connected": "Połączono",
+      "needsReconnect": "Google nie akceptuje już tego połączenia. Połącz ponownie, aby wznowić.",
+      "reconnect": "Połącz ponownie",
+      "belongsTo": "Ten kalendarz należy do",
+      "shared": "Wszyscy (wspólny)",
+      "belongsToPersonHint": "Trafiają tu rezerwacje tej osoby; czas Zajęty blokuje tylko jej terminy.",
+      "belongsToSharedHint": "Czas Zajęty blokuje każdą osobę i każdą przestrzeń; trafiają tu rezerwacje bez przypisanej osoby.",
+      "addTo": "Dodawaj rezerwacje do",
+      "dontAdd": "Nie dodawaj rezerwacji",
+      "blockFrom": "Blokuj czas z",
+      "blockFromHint": "Wszystko oznaczone jako Zajęty w zaznaczonym kalendarzu jest niedostępne do rezerwacji. Wydarzenia oznaczone jako Wolny są pomijane.",
+      "disconnect": "Rozłącz",
+      "disconnectConfirm": "Rozłącz",
+      "keep": "Zostaw",
+      "disconnectNote": "Wydarzenia już dodane do Google tam zostają.",
+      "disconnected": "Rozłączono.",
+      "notice": {
+        "connected": "Kalendarz Google połączony. Nadchodzące rezerwacje są w drodze.",
+        "reconnected": "Połączono ponownie. Synchronizacja wznowiona.",
+        "error": {
+          "plan": "Synchronizacja z Kalendarzem Google to funkcja Premium.",
+          "denied": "Nie udzielono dostępu do Google.",
+          "state": "Ten link wygasł. Spróbuj połączyć ponownie.",
+          "google": "Google nie dokończył połączenia. Spróbuj ponownie.",
+          "no_calendars": "To konto Google nie ma żadnych kalendarzy."
+        }
+      },
+      "inviteClients": "Zapraszaj klientów do wydarzenia w Google",
+      "inviteClientsHint": "Dostają zaproszenie z Kalendarza Google z Twojego konta, oprócz e-maila z potwierdzeniem od Booklo.",
+      "cancelOnDelete": "Gdy usunę lub odrzucę wydarzenie w Google, anuluj rezerwację",
+      "rescheduleOnMove": "Gdy przeniosę wydarzenie w Google, przełóż rezerwację",
+      "inboundHint": "Booklo i tak wysyła e-mail do klienta. Zmiana, która nie jest możliwa, zostaje cofnięta, a Ty dowiadujesz się dlaczego.",
+      "inboundNotice": "Ostatnia odrzucona zmiana — {client}: {reason}",
+      "watching": "Google informuje Booklo o zmianach na bieżąco.",
+      "polling": "Booklo sprawdza zmiany w Google co 15 minut."
+    },
+    "how": {
+      "title": "Jak to działa",
+      "push": "Każda potwierdzona rezerwacja staje się wydarzeniem w wybranym kalendarzu. Anulowania, przełożenia i zaakceptowane prośby utrzymują go w zgodzie.",
+      "busy": "Wszystko oznaczone jako Zajęty w zaznaczonych kalendarzach jest niedostępne do rezerwacji — na Twojej stronie rezerwacji i w wyborze nowego terminu.",
+      "record": "Zmień rezerwację w Booklo albo — z włączonymi przełącznikami — usuń lub przenieś wydarzenie w Google, a Booklo podąży za tym i wyśle e-mail do klienta."
     }
   }
 }
