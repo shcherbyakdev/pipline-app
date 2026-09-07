@@ -404,7 +404,15 @@
       "total": "Total: {amount}",
       "depositDue": "Deposit due: {amount}",
       "payAtVenue": "Payment: pay at the venue",
-      "freeCancellation": "Free cancellation until {window} before start"
+      "freeCancellation": "Free cancellation until {window} before start",
+      "fromPerHour": "from {amount} / hour",
+      "totalFor": "{amount} / {length}",
+      "line": {
+        "base": "{hours} × {rate}",
+        "surcharge": "{label} +{pct}%",
+        "people": "{count, plural, one {# extra person} other {# extra people}} × {each}",
+        "extra": "{label} × {qty}"
+      }
     }
   },
   "emails": {

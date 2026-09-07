@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { wallTimeToUtc } from "@/features/scheduling/slots";
 import { enTranslator } from "@/i18n/test-translator";
 
 const t = enTranslator("public.units");
 import {
   stayUnits, totalCents, depositCents, formatOfferingPrice,
-  formatCancelWindow, moneyInfoLines, stayHint, type MoneyFields,
+  formatCancelWindow, moneyInfoLines, stayHint,
+  quoteHours, sumLines, formatLine, headlinePrice,
+  type MoneyFields,
 } from "./pricing";
+import { FIXTURE_CASES, FIXTURE_RULES, FIXTURE_TZ, FALLBACK_CASES } from "./pricing-fixture";
 
 const base: MoneyFields = { priceCents: 10000, pricingMode: "per_unit", depositType: "none", depositValue: null };
 
@@ -90,5 +94,61 @@ describe("stayHint", () => {
   it("nothing to say: one-night minimum, or an hourly row missing its grid", () => {
     expect(stayHint({ rangeMode: "nights", minStay: 1, minDurationMin: null, maxDurationMin: null }, t)).toBeNull();
     expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: null, maxDurationMin: null }, t)).toBeNull();
+  });
+});
+
+const at = (local: string) => {
+  const [date, time] = local.split("T");
+  return wallTimeToUtc(date, time, FIXTURE_TZ);
+};
+const offering = { pricing: FIXTURE_RULES, priceCents: null, pricingMode: "per_unit" as const };
+
+describe("quoteHours (TS mirror of rental_quote_hours)", () => {
+  for (const c of FIXTURE_CASES) {
+    it(c.name, () => {
+      if (typeof c.expect === "string") {
+        expect(() => quoteHours(offering, at(c.startsLocal), c.durationMin, c.people, c.extras, FIXTURE_TZ)).toThrow(c.expect);
+      } else {
+        expect(quoteHours(offering, at(c.startsLocal), c.durationMin, c.people, c.extras, FIXTURE_TZ)).toEqual(c.expect);
+      }
+    });
+  }
+  for (const c of FALLBACK_CASES) {
+    it(`pricing NULL — ${c.name}`, () => {
+      const o = { pricing: null, priceCents: c.priceCents, pricingMode: c.pricingMode };
+      expect(quoteHours(o, at("2027-03-01T12:00"), c.durationMin, null, [], FIXTURE_TZ)).toEqual(c.expect);
+    });
+  }
+  it("people is ignored when the offering has no people rule", () => {
+    const o = { pricing: { ...FIXTURE_RULES, people: undefined }, priceCents: null, pricingMode: "per_unit" as const };
+    expect(quoteHours(o, at("2027-03-01T12:00"), 60, 50, [], FIXTURE_TZ)).toEqual([{ kind: "base", qty: 1, unitCents: 14000, cents: 14000 }]);
+  });
+  it("sumLines adds cents", () => {
+    expect(sumLines([{ kind: "base", qty: 1, unitCents: 1, cents: 100 }, { kind: "people", qty: 1, unitCents: 5, cents: 5 }])).toBe(105);
+    expect(sumLines([])).toBe(0);
+  });
+});
+
+describe("formatting", () => {
+  it("formatLine renders each kind in the viewer's words with the studio's label", () => {
+    expect(formatLine({ kind: "base", qty: 2, unitCents: 12000, cents: 24000 }, "PLN", t)).toBe("2 h × 120 zł");
+    expect(formatLine({ kind: "base", qty: 1.5, unitCents: null, cents: 19500 }, "PLN", t)).toBe("1 h 30 min");
+    expect(formatLine({ kind: "surcharge", qty: 60, unitCents: null, cents: 3000, label: "Noc", pct: 25 }, "PLN", t)).toBe("Noc +25%");
+    expect(formatLine({ kind: "people", qty: 2, unitCents: 1000, cents: 2000 }, "PLN", t)).toBe("2 extra people × 10 zł");
+    expect(formatLine({ kind: "extra", qty: 2, unitCents: 5000, cents: 15000, extraId: "arri", label: "ARRI 2 kW", unit: "hour" }, "PLN", t)).toBe("ARRI 2 kW × 2");
+  });
+  it("headlinePrice shows the lowest hourly band with 'from' when rules are set", () => {
+    expect(headlinePrice({ ...offering, rangeMode: "hours" }, "PLN", t)).toBe("from 120 zł / hour");
+    const totalsOnly = { pricing: { bands: [{ fromMin: 60, totalCents: 19700 }], surcharges: [], extras: [] }, priceCents: null, pricingMode: "per_unit" as const, rangeMode: "hours" as const };
+    expect(headlinePrice(totalsOnly, "PLN", t)).toBe("197 zł / 1 h");
+    expect(headlinePrice({ pricing: null, priceCents: 12000, pricingMode: "per_unit", rangeMode: "hours" }, "PLN", t)).toBe("120 zł / hour");
+  });
+  it("moneyInfoLines prints the lines before the total", () => {
+    const lines = moneyInfoLines(
+      { totalCents: 26000, depositCents: null, currency: "PLN", cancelWindowMin: 0,
+        lines: [{ kind: "base", qty: 2, unitCents: 12000, cents: 24000 }, { kind: "people", qty: 2, unitCents: 1000, cents: 2000 }] },
+      t,
+    );
+    expect(lines).toEqual(["2 h × 120 zł — 240 zł", "2 extra people × 10 zł — 20 zł", "Total: 260 zł", "Payment: pay at the venue"]);
   });
 });
