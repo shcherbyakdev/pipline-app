@@ -29,6 +29,8 @@ Booklo becomes **booking operations for multi-room photo/content studios** that 
 | Google Calendar sync built, unreleased (needs app verification) | PR #129 | Release path only, as a paid-plan feature — not in the pilot cut |
 | CSV import (legacy fire-safety domain, papaparse in deps) | 2026-08-11 plan | Re-point at future bookings for migration |
 
+> **D1 recorded 2026-09-07** (`2026-09-07-d1-decision.md`): interviews dropped by ruling; G3 not triggered; G4 viable; ICP re-cut around behaviour (tiered pricing + combinations + after-charges + prepayment, 1–10 rooms); Poland first; Phase 1 order becomes **S1 → S2 → S3 → S7 → S4 → S6 → S8** (after-session charges promoted: 36 of 40 studios publish them). S5 done.
+
 ## Phases
 
 ### Phase 0 — Gates (no product code) · 3–4 weeks
