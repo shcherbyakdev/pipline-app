@@ -92,7 +92,10 @@ end; $$;
 
 -- ---------- cancel_booking (base: 0079). The window gate and its sentinel
 -- go (ruling 5): a confirmed rental cancels at the tier's fee, a hold or a
--- pending request withdraws free. SET reads the OLD row.
+-- pending request withdraws adding nothing. Fee ACCUMULATES (spec amendment,
+-- T2 review): a prior late-change fee survives a cancel that lands in a
+-- cheaper (even free) tier — it is never overwritten, only added to. SET
+-- reads the OLD row.
 create or replace function public.cancel_booking(p_token text)
 returns table (
   booking_id uuid, org_id uuid, org_name text, org_timezone text, service_name text, client_name text,
@@ -104,7 +107,7 @@ begin
   v_hash := encode(extensions.digest(convert_to(p_token, 'utf8'), 'sha256'), 'hex');
   update public.bookings b
     set status = 'cancelled_by_client',
-        fee_cents = case
+        fee_cents = b.fee_cents + case
           when b.status = 'confirmed' and b.price_cents is not null
             then round(b.price_cents * public.cancel_fee_pct(b.cancel_policy, b.starts_at, now()) / 100.0)::int
           else 0 end

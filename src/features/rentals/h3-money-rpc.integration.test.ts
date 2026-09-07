@@ -215,7 +215,7 @@ const bookingRow = async (id: string): Promise<Row> => {
   return data as unknown as Row;
 };
 
-describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", () => {
+describe("H3 money RPC snapshot, terms, cancellation policy, resolver (0058 part B)", () => {
   it("case 1: hours create snapshots money + terms", async () => {
     const { client, orgId, handle } = await newOrg("h3_c1", "MoneyHoursCo");
     const { offeringId } = await hoursFixture(client, orgId, {
@@ -539,7 +539,7 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
     expect(row.fee_cents).toBe(0);
   });
 
-  it("case 12: appointments are unaffected by the rental cancel-window gate", async () => {
+  it("case 12: appointments are unaffected by the rental cancellation policy", async () => {
     const { client, orgId, handle } = await newOrg("h3_c12", "CancelWindowApptCo", "appointments");
     const { serviceId } = await serviceFixture(client, orgId);
 
@@ -608,7 +608,7 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
     expect(badErr?.message).toMatch(/invalid currency/);
   });
 
-  it("case 14: resolve_booking_token returns money + cancel window for a rental, nulls for an appointment", async () => {
+  it("case 14: resolve_booking_token returns money + cancellation policy for a rental, nulls for an appointment", async () => {
     const { client, orgId, handle } = await newOrg("h3_c14", "ResolverMoneyCo");
     const { offeringId } = await hoursFixture(client, orgId, {
       price_cents: 8000,

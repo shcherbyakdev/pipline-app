@@ -28,7 +28,8 @@ const TWO: CancelPolicy = [{ beforeMin: 72 * H, feePct: 0 }, { beforeMin: 48 * H
 let counter = 0;
 type Row = Record<string, unknown>;
 
-/** A start N hours from now, snapped to the next :00 (the fixture's grid is 30 min). */
+/** A start N hours from now, truncated down to the current :00 (the fixture's
+    grid is 30 min) — so the actual lead is between N and N-1 hours. */
 function startIn(hours: number): string {
   const d = new Date(Date.now() + hours * 3_600_000);
   d.setUTCMinutes(0, 0, 0);
@@ -193,11 +194,14 @@ describe("policy snapshot + cancel_booking", () => {
 
   it("an offering edit does not change a live booking's policy", async () => {
     const { id, token } = await createHours(handle, offeringId, startIn(60));
-    const { error } = await admin.from("rental_offerings").update({ cancel_policy: [] }).eq("id", offeringId);
-    expect(error).toBeNull();
-    await admin.rpc("cancel_booking", { p_token: token });
-    expect((await bookingRow(id)).fee_cents).toBe(5000);
-    await admin.from("rental_offerings").update({ cancel_policy: TWO }).eq("id", offeringId);
+    try {
+      const { error } = await admin.from("rental_offerings").update({ cancel_policy: [] }).eq("id", offeringId);
+      expect(error).toBeNull();
+      await admin.rpc("cancel_booking", { p_token: token });
+      expect((await bookingRow(id)).fee_cents).toBe(5000);
+    } finally {
+      await admin.from("rental_offerings").update({ cancel_policy: TWO }).eq("id", offeringId);
+    }
   });
 
   it("a hold withdraws free", async () => {
@@ -319,5 +323,92 @@ describe("reschedule cores", () => {
     const newId = (data as Row[])[0]!.new_booking_id as string;
     expect((await bookingRow(newId)).fee_cents).toBe(0);
     expect((await bookingRow(newId)).cancel_policy).toEqual(TWO);
+  });
+
+  // Controller ruling (spec amended, T2 review): consequences ACCUMULATE on
+  // cancel too — a prior late-change fee survives a cancel that lands in a
+  // cheaper (even free) tier.
+  it("cancelling after a late move into a now-free window keeps the earlier fee", async () => {
+    const { token } = await paidHours(startIn(60)); // 60h out -> 50% tier
+    const t2 = generateAccessToken();
+    const moved = await admin.rpc("reschedule_rental_booking_hours", {
+      p_token: token, p_unit_id: null, p_starts_at: startIn(84), p_new_token_hash: t2.tokenHash,
+    });
+    expect(moved.error).toBeNull();
+    const newId = (moved.data as Row[])[0]!.new_booking_id as string;
+    expect((await bookingRow(newId)).fee_cents).toBe(5000);
+    // 84h out is the free tier, but cancelling adds 0 — it does not zero the
+    // fee the earlier move already incurred.
+    const { error: cancelErr } = await admin.rpc("cancel_booking", { p_token: t2.token });
+    expect(cancelErr).toBeNull();
+    const row = await bookingRow(newId);
+    expect(row.status).toBe("cancelled_by_client");
+    expect(row.fee_cents).toBe(5000);
+  });
+
+  it("cancelling after a late move while still late adds the fee again", async () => {
+    const { token } = await paidHours(startIn(60)); // 60h out -> 50% tier
+    const t2 = generateAccessToken();
+    const moved = await admin.rpc("reschedule_rental_booking_hours", {
+      p_token: token, p_unit_id: null, p_starts_at: startIn(50), p_new_token_hash: t2.tokenHash,
+    });
+    expect(moved.error).toBeNull();
+    const newId = (moved.data as Row[])[0]!.new_booking_id as string;
+    expect((await bookingRow(newId)).fee_cents).toBe(5000);
+    // 50h out is still the 50% tier: the cancel adds another 5000 on top.
+    const { error: cancelErr } = await admin.rpc("cancel_booking", { p_token: t2.token });
+    expect(cancelErr).toBeNull();
+    const row = await bookingRow(newId);
+    expect(row.status).toBe("cancelled_by_client");
+    expect(row.fee_cents).toBe(10000);
+  });
+});
+
+describe("nights reschedule core (reschedule_rental_apply)", () => {
+  // Wide tier gap (7 days / 2 days) so the offering's fixed check-in clock
+  // time can't push a d(4) check-in across a boundary (h3-money-rpc's own
+  // `d()` idiom: pick leads with a comfortable margin, never a boundary).
+  const NIGHTS: CancelPolicy = [{ beforeMin: 7 * 24 * H, feePct: 0 }, { beforeMin: 2 * 24 * H, feePct: 50 }];
+  const addDaysISO = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+
+  it("a client date-range move inside the 50% tier carries the fee and the policy", async () => {
+    const org = await newOrg("nights");
+    const { data: off, error: e1 } = await org.client
+      .from("rental_offerings")
+      .insert({
+        org_id: org.orgId, name: "Cabin", range_mode: "nights",
+        start_time: "15:00", end_time: "11:00", min_stay: 1, turnover_days: 0,
+        booking_window_days: 365, price_cents: 10000, pricing_mode: "per_unit",
+        cancel_policy: NIGHTS,
+      })
+      .select("id")
+      .single();
+    if (e1) throw e1;
+    const offeringId = off!.id as string;
+    const { error: e2 } = await org.client
+      .from("rental_units")
+      .insert({ org_id: org.orgId, offering_id: offeringId, name: "Cabin", active: true, sort_order: 0 });
+    if (e2) throw e2;
+
+    const t = generateAccessToken();
+    const created = await admin.rpc("create_rental_booking", {
+      p_handle: org.handle, p_offering_id: offeringId, p_unit_id: null,
+      p_start_date: addDaysISO(4), p_end_date: addDaysISO(6), // check-in 4 days out -> inside the 50% tier
+      p_name: "Jamie", p_email: `jamie${counter++}@example.com`, p_note: null, p_token_hash: t.tokenHash,
+    });
+    expect(created.error).toBeNull();
+    const oldRow = await bookingRow(created.data as string);
+    expect(oldRow.price_cents).toBe(20000); // 10000 * 2 nights
+
+    const { data, error } = await admin.rpc("reschedule_rental_booking", {
+      p_token: t.token, p_unit_id: null,
+      p_start_date: addDaysISO(90), p_end_date: addDaysISO(92), // far out, free tier
+      p_new_token_hash: generateAccessToken().tokenHash,
+    });
+    expect(error).toBeNull();
+    const newId = (data as Row[])[0]!.new_booking_id as string;
+    const newRow = await bookingRow(newId);
+    expect(newRow.fee_cents).toBe(10000); // 50% of the OLD row's price_cents (20000)
+    expect(newRow.cancel_policy).toEqual(NIGHTS);
   });
 });
