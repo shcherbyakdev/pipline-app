@@ -368,6 +368,10 @@ export function bookingRescheduledEmail(t: EmailsT, input: {
   icsUrl: string;
   staffName?: string | null;
   badgeUrl?: string | null;
+  // S1: the moved booking is re-quoted at its new time, so the money lines
+  // are the NEW row's snapshot. Absent or empty renders byte-identical to
+  // the pre-S1 template.
+  infoLines?: string[];
 }): { subject: string; html: string; text: string } {
   const subject = t("rescheduled.subject", { service: input.serviceName, when: input.whenLine });
   const html = `
@@ -376,7 +380,7 @@ export function bookingRescheduledEmail(t: EmailsT, input: {
   <p style="margin: 0 0 8px;">${esc(t("rescheduled.lead"))}</p>
   <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(t, input.staffName)}
   <p style="margin: 0 0 4px; text-decoration: line-through; color: #666;">${esc(input.oldWhenLine)}</p>
-  <p style="margin: 0 0 16px;"><strong>${esc(input.whenLine)}</strong></p>
+  <p style="margin: 0 0 16px;"><strong>${esc(input.whenLine)}</strong></p>${(input.infoLines ?? []).map((l) => `\n  <p style="margin: 0 0 4px; color: #444;">${esc(l)}</p>`).join("")}
   <p style="margin: 0 0 8px;">
     <a href="${esc(input.icsUrl)}">${esc(t("addToCalendar"))}</a>
   </p>
@@ -395,6 +399,7 @@ export function bookingRescheduledEmail(t: EmailsT, input: {
     ...staffTextLine(t, input.staffName),
     t("was", { when: input.oldWhenLine }),
     t("now", { when: input.whenLine }),
+    ...(input.infoLines ?? []),
     "",
     t("addToCalendarText", { url: input.icsUrl }),
     t("viewOrManageText", { url: input.manageUrl }),

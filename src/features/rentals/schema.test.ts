@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   offeringInput,
+  updateOfferingInput,
   unitInput,
   blackoutInput,
   getRangeAvailabilityInput,
@@ -12,6 +13,7 @@ import {
   rescheduleRentalInput,
   OFFERING_DEFAULTS,
 } from "./schema";
+import { FIXTURE_RULES } from "./pricing-fixture";
 
 const base = { name: "Studio", rangeMode: "nights", startTime: "15:00", endTime: "11:00" };
 
@@ -189,5 +191,28 @@ describe("admin inputs", () => {
     expect(createRentalAdminInput.safeParse({ ...c, email: "j@example.com" }).success).toBe(true);
     expect(createRentalAdminInput.safeParse({ ...c, email: "nope" }).success).toBe(false);
     expect(createRentalAdminInput.safeParse({ ...c, name: "  " }).success).toBe(false);
+  });
+});
+describe("S1 pricing on the offering schemas", () => {
+  const hours = { name: "Studio", rangeMode: "hours", slotIncrementMin: 30, minDurationMin: 60, maxDurationMin: 240 };
+  it("hours accepts rules and defaults to null", () => {
+    expect(offeringInput.safeParse({ ...hours, pricing: FIXTURE_RULES }).success).toBe(true);
+    const r = offeringInput.safeParse(hours);
+    expect(r.success && (r.data as { pricing: unknown }).pricing).toBeNull();
+  });
+  it("hours refuses a first band above the minimum duration", () => {
+    expect(offeringInput.safeParse({ ...hours, minDurationMin: 30, pricing: FIXTURE_RULES }).success).toBe(false);
+  });
+  it("nights refuses pricing (strict)", () => {
+    expect(offeringInput.safeParse({ name: "Cabin", rangeMode: "nights", startTime: "15:00", endTime: "11:00", pricing: FIXTURE_RULES }).success).toBe(false);
+  });
+  it("the settings form carries it too", () => {
+    const { name: _n, ...settings } = hours;
+    expect(updateOfferingInput.safeParse({ id: "8d0b9f2e-3c1a-4b5e-9f6a-1c2d3e4f5a6b", ...settings, pricing: FIXTURE_RULES }).success).toBe(true);
+  });
+  // 0078 widened the DB CHECK so a percent/full deposit is fine off pricing
+  // alone, no flat priceCents required — the zod refine must match.
+  it("a percent deposit is fine off pricing alone, with no flat priceCents", () => {
+    expect(offeringInput.safeParse({ ...hours, pricing: FIXTURE_RULES, priceCents: null, depositType: "percent", depositValue: 20 }).success).toBe(true);
   });
 });

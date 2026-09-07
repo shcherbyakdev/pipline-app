@@ -19,6 +19,7 @@ import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { generateAccessToken } from "@/lib/tokens/mint";
 import { addDaysISO, wallTimeToUtc } from "@/features/scheduling/slots";
+import { FIXTURE_RULES } from "./pricing-fixture";
 
 try {
   loadEnvFile(".env.local");
@@ -159,6 +160,27 @@ describe("listOfferings activeUnitCount", () => {
     const row = (await listOfferings()).find((o) => o.id === id)!;
     expect(row.unitCount).toBe(0);
     expect(row.activeUnitCount).toBe(0);
+  });
+
+  // S1: OFFERING_COLUMNS carries pricing, and PostgREST hands the jsonb
+  // column back already parsed.
+  it("OfferingRow carries pricing", async () => {
+    const { data: off, error } = await alice
+      .from("rental_offerings")
+      .insert({
+        org_id: orgId,
+        name: "Studio S1",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+        pricing: FIXTURE_RULES,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    const row = (await listOfferings()).find((o) => o.id === off!.id)!;
+    expect(row.pricing).toEqual(FIXTURE_RULES);
   });
 });
 

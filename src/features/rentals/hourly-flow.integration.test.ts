@@ -21,7 +21,15 @@ import { enTranslator } from "@/i18n/test-translator";
 const ERR = enTranslator("errors");
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
+import { createHash } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { FIXTURE_RULES } from "./pricing-fixture";
+
+// The RPC stores cancel_token_hash as this sha256 hex (lib/tokens/mint.ts's
+// hashToken, duplicated here rather than dynamically imported — that module
+// pulls in @/env, and every other dynamic import in this file exists only to
+// defer @/env past loadEnvFile below).
+const hashOf = (token: string) => createHash("sha256").update(token, "utf8").digest("hex");
 
 const net = vi.hoisted(() => ({ clientIp: "203.0.113.11" }));
 vi.mock("next/headers", () => ({
@@ -77,6 +85,9 @@ async function signedInUser(tag: string): Promise<SupabaseClient> {
 describe("hourly public booking flow (action layer)", () => {
   let orgId: string;
   let offeringId: string;
+  // S1: a second, rules-priced offering (own unit + all-day availability),
+  // alongside the flat-rate one above — same org, so no extra org/flag setup.
+  let rulesOfferingId: string;
 
   beforeAll(async () => {
     const owner = await signedInUser("h2flow_owner");
@@ -131,6 +142,42 @@ describe("hourly public booking flow (action layer)", () => {
     }));
     const { error: e5 } = await owner.from("availability_rules").insert(rules);
     if (e5) throw e5;
+
+    // S1: the rules-priced twin — FIXTURE_RULES' first band starts at 60
+    // min, so min_duration_min matches; 730-day window so d(3)/d(30)-style
+    // offsets never fall outside it; all-day (00:00-23:59, not 24:00 — the
+    // hourly grid rejects that) so the fixture's 21:00 cases are always open.
+    const { data: rulesOffering, error: e3b } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: orgId,
+        name: "Studio (rules)",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+        turnover_min: 0,
+        min_notice_min: 0,
+        booking_window_days: 730,
+        pricing: FIXTURE_RULES,
+      })
+      .select("id")
+      .single();
+    if (e3b) throw e3b;
+    rulesOfferingId = rulesOffering!.id as string;
+    const { error: e4b } = await owner
+      .from("rental_units")
+      .insert({ org_id: orgId, offering_id: rulesOfferingId, name: "Studio A", sort_order: 0 });
+    if (e4b) throw e4b;
+    const allDayRules = Array.from({ length: 7 }, (_, weekday) => ({
+      org_id: orgId,
+      rental_offering_id: rulesOfferingId,
+      weekday,
+      start_time: "00:00",
+      end_time: "23:59",
+    }));
+    const { error: e5b } = await owner.from("availability_rules").insert(allDayRules);
+    if (e5b) throw e5b;
   });
 
   it("lists slots on the increment grid and books one", async () => {
@@ -175,6 +222,27 @@ describe("hourly public booking flow (action layer)", () => {
     expect(new Date(rows![0].starts_at as string).getTime()).toBe(
       new Date(slots.slots[0].startsAt).getTime(),
     );
+  });
+
+  it("S1: a booking with people and extras is quoted and the email lists the lines", async () => {
+    net.clientIp = "203.0.113.61";
+    const res = await hourlyActions.createRentalBookingHours({
+      handle: HANDLE, offeringId: rulesOfferingId, unitId: null, startsAt: iso(`${d(3)}T21:00`), durationMin: 120,
+      name: "Ola", email: `ola-s1-${Date.now()}@example.com`, people: 7, extras: [{ id: "arri", qty: 1 }], termsAccepted: false,
+    });
+    expect(res.ok).toBe(true);
+    const { data: row } = await admin.from("bookings").select("lines, people, price_cents").eq("cancel_token_hash", /* hash of res.token */ hashOf((res as { token: string }).token)).single();
+    expect(row!.people).toBe(7);
+    expect((row!.lines as unknown[]).map((l) => (l as { kind: string }).kind)).toEqual(["base", "surcharge", "people", "extra"]);
+  });
+
+  it("S1: people over the max is refused with the quote error and never books", async () => {
+    net.clientIp = "203.0.113.62";
+    const res = await hourlyActions.createRentalBookingHours({
+      handle: HANDLE, offeringId: rulesOfferingId, unitId: null, startsAt: iso(`${d(3)}T12:00`), durationMin: 60,
+      name: "Ola", email: `ola-s1b-${Date.now()}@example.com`, people: 11, extras: [], termsAccepted: false,
+    });
+    expect(res).toEqual({ ok: false, error: ERR("rentalsQuote"), quote: true });
   });
 
   it("mode-gates: rentals kill switch off → generic error, no slot disclosure", async () => {

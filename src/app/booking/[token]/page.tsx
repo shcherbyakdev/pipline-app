@@ -69,12 +69,15 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
   // null, so the card reads exactly as it did before the team slice.
   const staffName = await resolveClientStaffName(b.orgId, b.staffName);
   // H3: money lines (total/deposit/cancel-window) for the booking card.
+  // S1: `lines` is the quote the RPC snapshotted — the breakdown the client
+  // saw at checkout, printed above the total.
   const infoLines = moneyInfoLines(
     {
       totalCents: b.priceCents,
       depositCents: b.depositCents,
       currency: b.currency,
       cancelWindowMin: b.cancelWindowMin ?? 0,
+      lines: b.lines,
     },
     tUnits,
   );

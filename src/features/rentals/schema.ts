@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TIME_RE, HANDLE_RE } from "@/features/scheduling/schema";
 import { daysBetween } from "./range";
+import { pricingRulesSchema, pricingRulesFor, extraPicksSchema } from "./pricing-rules";
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -48,6 +49,8 @@ const hoursFields = z.object({
   maxDurationMin: z.number().int().min(5).max(1440),
   turnoverMin: z.number().int().min(0).max(1440).default(0),
   minNoticeMin: z.number().int().min(0).max(43200).default(0),
+  // S1: NULL = the flat price above applies; rules make price_cents inert.
+  pricing: pricingRulesSchema.nullable().default(null),
 });
 const stayOrder = (o: { minStay: number; maxStay: number | null }) =>
   o.maxStay === null || o.maxStay >= o.minStay;
@@ -74,7 +77,14 @@ const depositRules = (o: {
 const depositNeedsPrice = (o: {
   depositType: "none" | "fixed" | "percent" | "full";
   priceCents: number | null;
-}) => !["percent", "full"].includes(o.depositType) || o.priceCents !== null;
+}) => {
+  if (!["percent", "full"].includes(o.depositType)) return true;
+  if (o.priceCents !== null) return true;
+  // S1: a rules-priced hours offering satisfies the deposit even with no
+  // flat price — the range branches never carry `pricing`, so this is
+  // false there (0078 widened the DB CHECK the same way).
+  return "pricing" in o && (o as { pricing: unknown }).pricing !== null;
+};
 
 // `strict()` on each branch so hours fields on a nights offering (and vice
 // versa) are rejected rather than silently dropped. The deposit refinements
@@ -87,7 +97,10 @@ const rangeOffering = offeringCommon.extend(rangeFields.shape).strict()
 const hoursOffering = offeringCommon.extend(hoursFields.shape).strict()
   .refine(hoursGrid, { message: HOURS_GRID_MSG })
   .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
-  .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG });
+  .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG })
+  .refine((o) => o.pricing === null || pricingRulesFor(o.minDurationMin).safeParse(o.pricing).success, {
+    message: "the first rate band must start at or below the minimum duration", path: ["pricing", "bands", 0, "fromMin"],
+  });
 export const offeringInput = z.union([rangeOffering, hoursOffering]);
 // The settings form: everything but the name and description, which the
 // space page edits in place (patchOfferingInput). `strict()` means a payload
@@ -102,7 +115,10 @@ export const updateOfferingInput = z.union([
   settingsCommon.extend(hoursFields.shape).extend({ id: z.uuid() }).strict()
     .refine(hoursGrid, { message: HOURS_GRID_MSG })
     .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
-    .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
+    .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG })
+    .refine((o) => o.pricing === null || pricingRulesFor(o.minDurationMin).safeParse(o.pricing).success, {
+      message: "the first rate band must start at or below the minimum duration", path: ["pricing", "bands", 0, "fromMin"],
+    }),
 ]);
 export const offeringIdInput = z.object({ id: z.uuid() });
 /** The space page edits name and description in place, one field per blur;
@@ -256,6 +272,9 @@ export const createRentalBookingHoursInput = z.object({
   email: z.email().max(320),
   note: z.string().trim().max(2000).optional(),
   termsAccepted: z.boolean().default(false),
+  // S1: the client's people count (null = the offering's included count) and extras.
+  people: z.number().int().min(0).max(500).nullable().default(null),
+  extras: extraPicksSchema.default([]),
 });
 
 // ---------- Hourly mode (H2), admin (Task 10). Same shapes as the admin

@@ -84,6 +84,7 @@ function toOfferingSettingsRow(d: OfferingSettings) {
       max_duration_min: d.maxDurationMin,
       turnover_min: d.turnoverMin,
       min_notice_min: d.minNoticeMin,
+      pricing: d.pricing,
     };
   }
   return {
@@ -99,6 +100,7 @@ function toOfferingSettingsRow(d: OfferingSettings) {
     max_duration_min: null,
     turnover_min: 0,
     min_notice_min: 0,
+    pricing: null,
   };
 }
 

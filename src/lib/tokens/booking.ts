@@ -3,6 +3,7 @@ import "server-only";
 import { createAnonServerClient } from "@/lib/supabase/anon-server";
 import { env } from "@/env";
 import { tokenLimiter } from "./rate-limit";
+import type { Line } from "@/features/rentals/pricing-rules";
 
 export type ResolveBookingResult =
   | { status: "not_found" }
@@ -38,6 +39,11 @@ export type ResolveBookingResult =
         // Approval: the provider's reason for turning a request down (0064).
         // Null for everything that was never declined.
         declineNote: string | null;
+        // S1: the quoted line-by-line breakdown and the people count the
+        // booking was made for; null for a booking with no quote (flat rate,
+        // or made before this slice).
+        lines: Line[] | null;
+        people: number | null;
       };
     };
 
@@ -81,6 +87,8 @@ export async function resolveBookingToken(
     deposit_cents: number | null;
     cancel_window_min: number | null;
     decline_note: string | null;
+    lines: unknown;
+    people: number | null;
   }> | null)?.[0];
   if (!row) return { status: "not_found" };
   return {
@@ -104,6 +112,8 @@ export async function resolveBookingToken(
       depositCents: row.deposit_cents,
       cancelWindowMin: row.cancel_window_min,
       declineNote: row.decline_note,
+      lines: (row.lines as Line[] | null) ?? null,
+      people: row.people ?? null,
     },
   };
 }

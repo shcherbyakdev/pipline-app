@@ -3,7 +3,7 @@
 
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { formatOfferingPrice, stayHint } from "@/features/rentals/pricing";
+import { headlinePrice, stayHint } from "@/features/rentals/pricing";
 import type { SectionOf } from "../../schema";
 import { pageImageUrl } from "../../images";
 import type { RenderContext } from "../context";
@@ -35,7 +35,7 @@ export function SpacesSection({ section, ctx }: { section: SectionOf<"spaces">; 
       <ul className={cn(cards ? "grid gap-3 sm:grid-cols-2" : cn(CARD, "flex flex-col divide-y"))}>
         {ctx.offerings.map((o) => {
           const photo = photoFor.get(o.id);
-          const price = section.showPrices ? formatOfferingPrice(o, ctx.org.currency, tu) : null;
+          const price = section.showPrices ? headlinePrice(o, ctx.org.currency, tu) : null;
           const stay = section.showStay ? stayHint(o, tu) : null;
           return (
             <li key={o.id}>

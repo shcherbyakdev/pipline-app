@@ -234,6 +234,8 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
       p_email: `kasia-${Date.now()}@example.com`,
       p_note: null,
       p_token_hash: hash(),
+      p_people: null,
+      p_extras: [],
     });
     expect(error).toBeNull();
     const row = await bookingRow(data as string);
@@ -241,6 +243,9 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
     expect(row.deposit_cents).toBe(3600); // 20% of 18000
     expect(row.currency).toBe("PLN");
     expect(row.terms_accepted_at).not.toBeNull();
+    // S1 ruling 6: a flat-rate space (pricing NULL) stays exactly as it was
+    // before 0078 — the quote's single base line is never snapshotted.
+    expect(row.lines).toBeNull();
   });
 
   it("case 2: admin hours create snapshots money but never stamps terms", async () => {
@@ -331,6 +336,8 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
       p_email: `kasia-${Date.now()}@example.com`,
       p_note: null,
       p_token_hash: hash(),
+      p_people: null,
+      p_extras: [],
     });
     expect(error).toBeNull();
     const row = await bookingRow(data as string);
@@ -353,6 +360,8 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
       p_email: `kasia-${Date.now()}@example.com`,
       p_note: null,
       p_token_hash: hash(),
+      p_people: null,
+      p_extras: [],
     });
     expect(error).toBeNull();
     const row = await bookingRow(data as string);
@@ -374,6 +383,8 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
       p_email: `kasia-${Date.now()}@example.com`,
       p_note: null,
       p_token_hash: hash(),
+      p_people: null,
+      p_extras: [],
     });
     expect(error).toBeNull();
     const row = await bookingRow(data as string);
@@ -444,6 +455,8 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
       p_email: `kasia-${Date.now()}@example.com`,
       p_note: null,
       p_token_hash: t1.tokenHash,
+      p_people: null,
+      p_extras: [],
     });
     expect(created.error).toBeNull();
     const oldRow = await bookingRow(created.data as string);
@@ -562,6 +575,8 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
       p_email: `kasia-${Date.now()}@example.com`,
       p_note: null,
       p_token_hash: hash(),
+      p_people: null,
+      p_extras: [],
     });
     expect(created.error).toBeNull();
     const bookingId = created.data as string;
@@ -609,6 +624,8 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
       p_email: `kasia-${Date.now()}@example.com`,
       p_note: null,
       p_token_hash: t.tokenHash,
+      p_people: null,
+      p_extras: [],
     });
     expect(created.error).toBeNull();
 

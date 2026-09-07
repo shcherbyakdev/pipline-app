@@ -35,6 +35,15 @@ const SAME_IN_EVERY_LOCALE = new Set([
   "public.links.tiktok",
   "public.links.whatsapp",
   "public.units.summary",
+  // Placeholder-only patterns, like public.units.summary above.
+  "public.units.totalFor",
+  "public.units.line.base",
+  "public.units.line.surcharge",
+  "public.units.line.extra",
+  // Percent sign, the same in every language.
+  "spaces.form.pricing.surcharges.pctSuffix",
+  // An equipment model name (example placeholder text), not a translatable phrase.
+  "spaces.form.pricing.extras.labelPlaceholder",
   // Push bodies are three placeholders joined by middots (the title carries
   // the words); the same in every language.
   // "Push" is the same loanword in Ukrainian.

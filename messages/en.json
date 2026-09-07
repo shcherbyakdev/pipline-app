@@ -155,6 +155,7 @@
     "slotTaken": "That time was just taken — please pick another.",
     "staffUnavailable": "That team member can't take this time — pick another.",
     "datesTaken": "Those dates were just taken — please pick again.",
+    "rentalsQuote": "The price for that choice can't be worked out — pick again.",
     "termsRequired": "Please accept the terms to book.",
     "stayStarted": "This stay has already started.",
     "checkInPassed": "That check-in time has already passed — pick a later date.",
@@ -280,7 +281,14 @@
       "confirmBooking": "Confirm booking",
       "selected": "Selected",
       "nothingFreeDates": "Nothing is free for those dates any more — please pick again.",
-      "nothingFreeTime": "Nothing is free for that time any more — please pick again."
+      "nothingFreeTime": "Nothing is free for that time any more — please pick again.",
+      "people": "People",
+      "included": "up to {count} included",
+      "fewer": "Fewer people",
+      "more": "More people",
+      "extras": "Extras",
+      "fewerOf": "Fewer: {label}",
+      "moreOf": "More: {label}"
     },
     "slots": {
       "loading": "Loading times…",
@@ -404,7 +412,18 @@
       "total": "Total: {amount}",
       "depositDue": "Deposit due: {amount}",
       "payAtVenue": "Payment: pay at the venue",
-      "freeCancellation": "Free cancellation until {window} before start"
+      "freeCancellation": "Free cancellation until {window} before start",
+      "fromPerHour": "from {amount} / hour",
+      "totalFor": "{amount} / {length}",
+      "from": "from {amount}",
+      "perHourShort": "per hour",
+      "perPiece": "per piece",
+      "line": {
+        "base": "{hours} × {rate}",
+        "surcharge": "{label} +{pct}%",
+        "people": "{count, plural, one {# extra person} other {# extra people}} × {each}",
+        "extra": "{label} × {qty}"
+      }
     }
   },
   "emails": {
@@ -669,6 +688,52 @@
       "unitSelection": "Unit selection",
       "unitAuto": "Assign a unit automatically",
       "unitClientPicks": "Let the client pick a unit",
+      "pricing": {
+        "useRules": "Rates by length, surcharges and extras",
+        "useRulesHint": "Instead of one price per hour. The price is worked out for each booking and shown before the client confirms.",
+        "invalid": "Pricing rules: {issue}",
+        "bands": {
+          "title": "Rates by length",
+          "from": "from",
+          "fromAria": "Rate {n} applies from (hours)",
+          "kindAria": "Rate {n} kind",
+          "amountAria": "Rate {n} amount",
+          "perHour": "{currency} per hour",
+          "total": "{currency} total",
+          "add": "Add a rate",
+          "remove": "Remove rate {n}"
+        },
+        "surcharges": {
+          "title": "Surcharges",
+          "labelAria": "Surcharge {n} name",
+          "labelPlaceholder": "Night",
+          "pctAria": "Surcharge {n} percent",
+          "pctSuffix": "%",
+          "days": "Days",
+          "from": "From",
+          "to": "To",
+          "add": "Add a surcharge",
+          "remove": "Remove surcharge {n}"
+        },
+        "people": {
+          "title": "People",
+          "included": "Included",
+          "extra": "Per extra person ({currency})",
+          "max": "Maximum"
+        },
+        "extras": {
+          "title": "Extras",
+          "labelAria": "Extra {n} name",
+          "labelPlaceholder": "ARRI 2 kW",
+          "unitAria": "Extra {n} unit",
+          "perHour": "per hour",
+          "perPiece": "per piece",
+          "priceAria": "Extra {n} price",
+          "maxAria": "Extra {n} maximum",
+          "add": "Add an extra",
+          "remove": "Remove extra {n}"
+        }
+      },
       "create": "Create space",
       "created": "Space created"
     },

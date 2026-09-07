@@ -40,6 +40,7 @@ function offering(over: Partial<PublicOffering> = {}): PublicOffering {
     cancelWindowMin: 0,
     termsText: null,
     requiresApproval: false,
+    pricing: null,
     ...over,
   };
 }
