@@ -63,7 +63,7 @@ export function PricingRulesEditor({
             {rules.bands.map((b, i) => (
               <div key={i} className="grid grid-cols-[auto_1fr_auto_1fr_auto] items-center gap-2">
                 <span className="text-muted-foreground text-xs">{t("bands.from")}</span>
-                <Input aria-label={t("bands.fromAria", { n: i + 1 })} type="number" min={5} step={5} value={b.fromMin / 60}
+                <Input aria-label={t("bands.fromAria", { n: i + 1 })} type="number" min={0.5} step={0.5} value={b.fromMin / 60}
                   disabled={i === 0}
                   onChange={(e) => set({ bands: rules.bands.map((x, j) => j === i ? { ...x, fromMin: Math.round(Number(e.target.value) * 60) } : x) })} />
                 <select aria-label={t("bands.kindAria", { n: i + 1 })} className={nativeSelectClass}
@@ -134,8 +134,8 @@ export function PricingRulesEditor({
 
           {/* People */}
           <fieldset className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-3">
-              <legend className="text-sm font-medium">{t("people.title")}</legend>
+            <legend className="text-sm font-medium">{t("people.title")}</legend>
+            <div className="flex items-center justify-end gap-3">
               <Switch aria-label={t("people.title")} checked={rules.people !== undefined}
                 onCheckedChange={(on) => set({ people: on ? { included: 5, extraCents: 0, max: 10 } : undefined })} />
             </div>
