@@ -18,6 +18,7 @@ import { blackoutBusy } from "@/features/rentals/hourly";
 import { externalBusy } from "@/features/calendar-sync/busy";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { Line, PricingRules } from "@/features/rentals/pricing-rules";
+import { parseLegal, type Legal } from "@/features/payments/legal";
 import type { UnitRef } from "./bookable";
 
 // Admin-client reads for the anonymous booking page (getOrgBranding
@@ -76,6 +77,13 @@ export const getOrgLocale = cache(async (orgId: string): Promise<string | null> 
   const admin = createAdminClient();
   const { data } = await admin.from("orgs").select("locale").eq("id", orgId).maybeSingle();
   return data?.locale ?? null;
+});
+
+/** S2: the legal identity the public footer prints (orgs.legal, 0079). */
+export const getOrgLegal = cache(async (orgId: string): Promise<Legal> => {
+  const admin = createAdminClient();
+  const { data } = await admin.from("orgs").select("legal").eq("id", orgId).maybeSingle();
+  return parseLegal(data?.legal);
 });
 
 /** For the slot loader's Google read (all-day events block an ORG-local
@@ -169,8 +177,9 @@ export async function getBusyIntervals(
     .from("bookings")
     .select("starts_at, ends_at, service_id, services(buffer_before_min, buffer_after_min)")
     .eq("staff_id", staffId)
-    // Pending requests hold their slot (0062 EXCLUDE) — busy sets must agree.
-    .in("status", ["confirmed", "pending"])
+    // Pending requests and unpaid holds hold their slot (0062/0079
+    // EXCLUDE) — busy sets must agree.
+    .in("status", ["confirmed", "pending", "pending_payment"])
     // Rentals never block the provider's calendar (unit-level guard, R1).
     .is("rental_unit_id", null)
     .gte("ends_at", fromIso)
@@ -695,7 +704,7 @@ export async function loadOrgRangeContext(
       .from("bookings")
       .select("id, rental_unit_id, starts_at, ends_at")
       .in("rental_unit_id", unitIds)
-      .in("status", ["confirmed", "pending"])
+      .in("status", ["confirmed", "pending", "pending_payment"])
       .gte("ends_at", `${windowStart}T00:00:00Z`)
       .lte("starts_at", `${windowEnd}T23:59:59Z`),
   ]);
@@ -804,7 +813,7 @@ export async function loadOrgHourlyContext(
           .from("bookings")
           .select("id, rental_unit_id, starts_at, ends_at")
           .in("rental_unit_id", unitIds)
-          .in("status", ["confirmed", "pending"])
+          .in("status", ["confirmed", "pending", "pending_payment"])
           .gte("ends_at", fromIso)
           .lte("starts_at", toIso)
       : Promise.resolve({ data: [], error: null }),

@@ -16,7 +16,12 @@ import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { computeSlots, dateInZone } from "./slots";
 import { moneyInfoLines } from "@/features/rentals/pricing";
+import { refundBooking } from "@/features/payments/refund";
+import { expireOpenCheckouts } from "@/features/payments/checkout";
+import { sendPaymentReceived } from "@/features/payments/confirm-effects";
+import type { Line } from "@/features/rentals/pricing-rules";
 import type { RangeMode } from "@/features/rentals/range";
+import { formatMoney } from "@/lib/money";
 import {
   bookingCancelledEmail,
   bookingRescheduledEmail,
@@ -25,12 +30,15 @@ import {
   bookingConfirmationEmail,
   bookingManageLinkEmail,
   bookingIdempotencyKey,
+  formatUntil,
   formatWhenLine,
+  paymentDueEmail,
   whenLineFor,
 } from "./templates";
 import { bookingTitle } from "./booking-label";
 import {
   bookingIdInput,
+  bookingCancelInput,
   declineBookingInput,
   adminRescheduleInput,
   adminSlotsInput,
@@ -57,29 +65,32 @@ async function currentOrg(): Promise<{ id: string; name: string; timezone: strin
 export async function cancelBookingAdmin(
   input: unknown,
 ): Promise<
-  { ok: true; emailed: boolean; noEmail?: boolean } | { ok: false; error: string }
+  | { ok: true; emailed: boolean; noEmail?: boolean; refundedCents: number; refundFailed: boolean }
+  | { ok: false; error: string }
 > {
   const t = await getTranslations("errors");
-  const parsed = bookingIdInput.safeParse(input);
+  const parsed = bookingCancelInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: t("generic") };
   try {
     const org = await currentOrg();
     if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
-    // Column-scoped seam from 0028: only confirmed → cancelled_by_provider
-    // can succeed; the org filter is defense-in-depth on top of RLS. Future
-    // only: a booking that has already started is history, and the client
-    // would otherwise get a "had to cancel" email about an appointment that
-    // happened (the RPCs behind reschedule/resend already refuse the past).
+    // Column-scoped seam from 0028: only confirmed | pending_payment →
+    // cancelled_by_provider can succeed (S2 widened the policy to holds —
+    // the studio can drop one before the client pays); the org filter is
+    // defense-in-depth on top of RLS. Future only: a booking that has
+    // already started is history, and the client would otherwise get a "had
+    // to cancel" email about an appointment that happened (the RPCs behind
+    // reschedule/resend already refuse the past).
     const { data, error } = await supabase
       .from("bookings")
       .update({ status: "cancelled_by_provider" })
       .eq("id", parsed.data.id)
       .eq("org_id", org.id)
-      .eq("status", "confirmed")
+      .in("status", ["confirmed", "pending_payment"])
       .gt("starts_at", new Date().toISOString())
       .select(
-        "id, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, locale, staff(name), services(name), rental_offerings(name), rental_units(name)",
+        "id, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, locale, currency, staff(name), services(name), rental_offerings(name), rental_units(name)",
       );
     if (error) return fail("cancelBookingAdmin", error);
     const row = (data as unknown as Array<{
@@ -91,6 +102,7 @@ export async function cancelBookingAdmin(
       ends_at: string;
       rental_unit_id: string | null;
       locale: string | null;
+      currency: string | null;
       staff: { name: string } | null;
       services: { name: string } | null;
       rental_offerings: { name: string } | null;
@@ -98,6 +110,23 @@ export async function cancelBookingAdmin(
     }>)?.[0];
     if (!row) return { ok: false, error: t("bookings.notCancellable") };
     kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
+
+    // S2 (ruling 3): the cancel refunds in full unless the dialog said not
+    // to. Best effort and recorded on the ledger — a failure is finished by
+    // hand in Stripe and never fails the cancel, which is already applied.
+    const refund =
+      parsed.data.refund === false
+        ? { refundedCents: 0, failed: false }
+        : await refundBooking(row.id, "admin-cancel").catch((e) => {
+            console.error("[payments] admin cancel refund:", e);
+            return { refundedCents: 0, failed: true };
+          });
+    // A hold's client may still have the Checkout tab open: close the session
+    // so no money arrives for a slot the studio just gave away. No-ops when
+    // nothing is open, and never fails the cancel (already applied).
+    await expireOpenCheckouts(row.id).catch((e) =>
+      console.error("[payments] admin cancel: expiring checkouts failed:", e),
+    );
 
     // Past this line the cancel is APPLIED — nothing below may turn into a
     // failed action, so the whole tail sits in its own catch rather than
@@ -131,6 +160,16 @@ export async function cancelBookingAdmin(
             serviceName: forClient.serviceName,
             whenLine: forClient.whenLine,
             cancelledBy: "provider",
+            // S2: what came back, in the client's own language. Built here,
+            // inside the mail's own try — the cancel is already applied.
+            infoLines:
+              refund.refundedCents > 0 && row.currency
+                ? [
+                    forClient.tUnits("refund", {
+                      amount: formatMoney(refund.refundedCents, row.currency),
+                    }),
+                  ]
+                : undefined,
             // Solo orgs never name a staff member — resolveClientStaffName is
             // the one place that rule lives (and swallows its own errors).
             staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
@@ -170,9 +209,45 @@ export async function cancelBookingAdmin(
     }
 
     revalidatePath("/bookings");
-    return { ok: true, emailed, noEmail };
+    return { ok: true, emailed, noEmail, refundedCents: refund.refundedCents, refundFailed: refund.failed };
   } catch (error) {
     return fail("cancelBookingAdmin", error);
+  }
+}
+
+/** S2: the money arrived off-platform (a transfer, cash at the desk) — the
+    admin says so and the hold becomes a booking. The RPC does the ledger
+    write and the flip in one transaction (0079); the tail here is the same
+    one a webhook confirmation runs, so the client is told either way. */
+export async function markBookingPaid(
+  input: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const t = await getTranslations("errors");
+  const parsed = bookingIdInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: t("generic") };
+  try {
+    const org = await currentOrg();
+    if (!org) return { ok: false, error: t("generic") };
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("mark_booking_paid", { p_booking_id: parsed.data.id });
+    if (error) {
+      return isRpcSentinel(error, "not found")
+        ? { ok: false, error: t("bookings.notHeld") }
+        : fail("markBookingPaid", error);
+    }
+    // The deposit arrived off-platform, so any Checkout session still open is
+    // a second charge waiting to happen — close it. Never fails the action.
+    await expireOpenCheckouts(parsed.data.id).catch((e) =>
+      console.error("[payments] mark paid: expiring checkouts failed:", e),
+    );
+    // The same tail a webhook confirmation runs (client mail, member notice,
+    // Google) — it swallows its own errors, and the flip is already applied.
+    await sendPaymentReceived(parsed.data.id);
+    revalidatePath("/bookings");
+    revalidatePath("/overview");
+    return { ok: true };
+  } catch (error) {
+    return fail("markBookingPaid", error);
   }
 }
 
@@ -409,9 +484,10 @@ export async function resendManageLink(
       )
       .eq("id", parsed.data.id)
       .eq("org_id", org.id)
-      // A pending request's link is the client's only handle on it, so it
-      // reissues like a confirmed booking's (rotate_booking_token, 0064).
-      .in("status", ["confirmed", "pending"])
+      // A pending request's or unpaid hold's link is the client's only
+      // handle on it — including the pay link — so it reissues like a
+      // confirmed booking's (rotate_booking_token, 0064).
+      .in("status", ["confirmed", "pending", "pending_payment"])
       .maybeSingle();
     if (readError) return fail("resendManageLink", readError);
     if (!booking) return { ok: false, error: t("bookings.noManageLink") };
@@ -587,7 +663,7 @@ export async function createBookingAdmin(
 
 export async function acceptBookingRequest(
   input: unknown,
-): Promise<{ ok: true; emailed: boolean; noEmail?: boolean } | { ok: false; error: string }> {
+): Promise<{ ok: true; emailed: boolean; noEmail?: boolean; held: boolean } | { ok: false; error: string }> {
   const t = await getTranslations("errors");
   const parsed = bookingIdInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: t("generic") };
@@ -616,17 +692,22 @@ export async function acceptBookingRequest(
     // catch rather than falling through to the outer one.
     let emailed = false;
     let noEmail = false;
+    // S2: the RPC may have held the row for a deposit instead of confirming
+    // it — the toast says "asked to pay", not "confirmed".
+    let held = false;
     try {
       const { data: rows, error: readError } = await supabase
         .from("bookings")
         .select(
-          "id, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, locale, price_cents, currency, deposit_cents, staff(name), services(name), rental_offerings(name, range_mode, cancel_window_min), rental_units(name)",
+          "id, status, hold_expires_at, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, locale, price_cents, currency, deposit_cents, lines, staff(name), services(name), rental_offerings(name, range_mode, cancel_window_min), rental_units(name)",
         )
         .eq("id", parsed.data.id)
         .eq("org_id", org.id);
       if (readError) console.error("[scheduling] acceptBookingRequest read:", readError);
       const row = (rows as unknown as Array<{
         id: string;
+        status: string;
+        hold_expires_at: string | null;
         client_name: string;
         client_email: string | null;
         staff_id: string | null;
@@ -637,6 +718,7 @@ export async function acceptBookingRequest(
         price_cents: number | null;
         currency: string | null;
         deposit_cents: number | null;
+        lines: unknown;
         staff: { name: string } | null;
         services: { name: string } | null;
         rental_offerings: { name: string; range_mode: RangeMode; cancel_window_min: number } | null;
@@ -647,6 +729,9 @@ export async function acceptBookingRequest(
       if (!row) {
         noEmail = true;
       } else {
+        // S2 (0079): the RPC may have HELD the row instead of confirming it —
+        // the client then gets "pay by", not the confirmation.
+        held = row.status === "pending_payment" && row.hold_expires_at !== null;
         const mail = await emailTranslators(org.locale);
         // The staff notice below is the org's; the confirmation is the
         // client's, in the language they booked in (0072).
@@ -689,20 +774,40 @@ export async function acceptBookingRequest(
                         depositCents: row.deposit_cents,
                         currency: row.currency,
                         cancelWindowMin: row.rental_offerings?.cancel_window_min ?? 0,
+                        // S1: the row's own quote breakdown; S2: "pay now"
+                        // rather than "pay at the venue" while it is held.
+                        lines: (row.lines as Line[] | null) ?? null,
+                        holding: held,
                       },
                       forClient.tUnits,
                     )
                   : [];
-              const msg = bookingConfirmationEmail(forClient.t, {
-                orgName: org.name,
-                serviceName: forClient.serviceName,
-                whenLine: forClient.whenLine,
-                manageUrl: buildBookingManageUrl(fresh.token),
-                icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
-                staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
-                badgeUrl: await emailBadgeUrl(org.id),
-                infoLines,
-              });
+              // The pay link carries the FRESH token — the request link died
+              // with the rotation above.
+              const manageUrl = buildBookingManageUrl(fresh.token);
+              const msg =
+                held && row.deposit_cents !== null && row.currency
+                  ? paymentDueEmail(forClient.t, {
+                      orgName: org.name,
+                      serviceName: forClient.serviceName,
+                      whenLine: forClient.whenLine,
+                      until: formatUntil(new Date(row.hold_expires_at!), org.timezone, forClient.intlLocale),
+                      amount: formatMoney(row.deposit_cents, row.currency),
+                      payUrl: `${manageUrl}/pay`,
+                      manageUrl,
+                      badgeUrl: await emailBadgeUrl(org.id),
+                      infoLines,
+                    })
+                  : bookingConfirmationEmail(forClient.t, {
+                      orgName: org.name,
+                      serviceName: forClient.serviceName,
+                      whenLine: forClient.whenLine,
+                      manageUrl,
+                      icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+                      staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
+                      badgeUrl: await emailBadgeUrl(org.id),
+                      infoLines,
+                    });
               await selectTransport().send({
                 to: row.client_email,
                 subject: msg.subject,
@@ -737,7 +842,7 @@ export async function acceptBookingRequest(
 
     revalidatePath("/bookings");
     revalidatePath("/overview");
-    return { ok: true, emailed, noEmail };
+    return { ok: true, emailed, noEmail, held };
   } catch (error) {
     return fail("acceptBookingRequest", error);
   }

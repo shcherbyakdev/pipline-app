@@ -125,4 +125,51 @@ describe("envSchema", () => {
   it("does not require the price ids for provider=stripe outside production", () => {
     expect(envSchema.safeParse({ ...CI_BUILD_ENV, BILLING_PROVIDER: "stripe", STRIPE_SECRET_KEY: "sk_test_x" }).success).toBe(true);
   });
+
+  // S2 payments (mirrors BILLING_FAKE_SECRET): the fake webhook trusts a
+  // caller-signed body verbatim and must never be reachable in production —
+  // forbidden whether triggered by the secret or by selecting the provider.
+  it("rejects production when PAYMENTS_FAKE_SECRET is set", () => {
+    const result = envSchema.safeParse({ ...PROD_ENV, PAYMENTS_FAKE_SECRET: "0123456789abcdef0123" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(JSON.stringify(result.error.issues)).toContain("PAYMENTS_PROVIDER");
+    }
+  });
+
+  it("rejects production when PAYMENTS_PROVIDER=fake", () => {
+    const result = envSchema.safeParse({ ...PROD_ENV, PAYMENTS_PROVIDER: "fake", PAYMENTS_FAKE_SECRET: "0123456789abcdef0123" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(JSON.stringify(result.error.issues)).toContain("PAYMENTS_PROVIDER");
+    }
+  });
+
+  // The provider-completeness superRefine runs in every environment (unlike
+  // the production-only block above), so prove it fires outside production too.
+  it.each(["STRIPE_CONNECT_SECRET_KEY", "STRIPE_CONNECT_WEBHOOK_SECRET"])(
+    "rejects PAYMENTS_PROVIDER=stripe without %s, even outside production",
+    (key) => {
+      const paymentsEnv: Record<string, unknown> = {
+        ...CI_BUILD_ENV,
+        PAYMENTS_PROVIDER: "stripe",
+        STRIPE_CONNECT_SECRET_KEY: "sk_connect_x",
+        STRIPE_CONNECT_WEBHOOK_SECRET: "whsec_connect_x",
+      };
+      delete paymentsEnv[key];
+      const result = envSchema.safeParse(paymentsEnv);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(JSON.stringify(result.error.issues)).toContain(key);
+      }
+    },
+  );
+
+  it("rejects PAYMENTS_PROVIDER=fake without PAYMENTS_FAKE_SECRET, even outside production", () => {
+    const result = envSchema.safeParse({ ...CI_BUILD_ENV, PAYMENTS_PROVIDER: "fake" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(JSON.stringify(result.error.issues)).toContain("PAYMENTS_FAKE_SECRET");
+    }
+  });
 });

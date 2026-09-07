@@ -62,20 +62,46 @@ export function formatCancelWindow(min: number, t: UnitsT): string {
   return t("hours", { count: Number.isInteger(h) ? h : Math.round(h * 10) / 10 });
 }
 
+export type MoneyInfo = {
+  totalCents: number | null;
+  depositCents: number | null;
+  currency: string | null;
+  cancelWindowMin: number;
+  lines?: Line[] | null;
+  /** S2: what the committed row says was paid / refunded (never computed here). */
+  paidCents?: number;
+  refundedCents?: number;
+  /** S2: the booking is a hold awaiting its deposit. */
+  holding?: boolean;
+  /** S2: the booking is dead (expired / cancelled / declined) — nobody is
+      turning up, so the lines must not tell the client to bring money. */
+  settled?: boolean;
+};
+
 // Shared copy for the confirm step, the manage page and both emails. The
 // quote's breakdown lines come first, one per line, and the total follows
-// them (booking-money-summary.tsx relies on that order).
-export function moneyInfoLines(
-  i: { totalCents: number | null; depositCents: number | null; currency: string | null; cancelWindowMin: number; lines?: Line[] | null },
-  t: UnitsT,
-): string[] {
+// them (booking-money-summary.tsx relies on that order). S2 states: a hold
+// says "pay now"; a paid booking says what was paid and what is left for the
+// venue; a refund prints last, before the policy line. A `settled` booking
+// (expired, cancelled, declined) drops both "at the venue" lines — nobody is
+// coming, so there is nothing to bring.
+export function moneyInfoLines(i: MoneyInfo, t: UnitsT): string[] {
   const lines: string[] = [];
+  const paid = i.paidCents ?? 0;
+  const refunded = i.refundedCents ?? 0;
   if (i.lines && i.lines.length > 0 && i.currency) {
     for (const l of i.lines) lines.push(`${formatLine(l, i.currency, t)} — ${formatMoney(l.cents, i.currency)}`);
   }
   if (i.totalCents !== null && i.currency) lines.push(t("total", { amount: formatMoney(i.totalCents, i.currency) }));
-  if (i.depositCents !== null && i.currency) lines.push(t("depositDue", { amount: formatMoney(i.depositCents, i.currency) }));
-  if (lines.length > 0) lines.push(t("payAtVenue"));
+  if (i.currency && paid > 0) {
+    lines.push(t("paid", { amount: formatMoney(paid, i.currency) }));
+    if (!i.settled && i.totalCents !== null && i.totalCents > paid) lines.push(t("balanceAtVenue", { amount: formatMoney(i.totalCents - paid, i.currency) }));
+  } else {
+    if (i.depositCents !== null && i.currency) lines.push(t("depositDue", { amount: formatMoney(i.depositCents, i.currency) }));
+    if (i.holding && i.depositCents !== null && i.currency) lines.push(t("payNow", { amount: formatMoney(i.depositCents, i.currency) }));
+    else if (!i.settled && lines.length > 0) lines.push(t("payAtVenue"));
+  }
+  if (i.currency && refunded > 0) lines.push(t("refund", { amount: formatMoney(refunded, i.currency) }));
   if (i.cancelWindowMin > 0) lines.push(t("freeCancellation", { window: formatCancelWindow(i.cancelWindowMin, t) }));
   return lines;
 }

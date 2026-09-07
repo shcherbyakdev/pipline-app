@@ -310,9 +310,9 @@ export async function listTimelineData(
     supabase
       .from("bookings")
       .select(BOOKING_COLUMNS)
-      // Pending requests hold their slot (0062 EXCLUDE) — a pending stay
-      // must occupy its lane on the tape chart.
-      .in("status", ["confirmed", "pending"])
+      // Pending requests and unpaid holds hold their slot (0062/0079
+      // EXCLUDE) — both must occupy their lane on the tape chart.
+      .in("status", ["confirmed", "pending", "pending_payment"])
       .not("rental_unit_id", "is", null)
       .lt("starts_at", toIso)
       .gt("ends_at", fromIso)
@@ -398,7 +398,7 @@ export async function listOfferingBookings(
       .from("bookings")
       .select(OFFERING_BOOKING_COLS)
       .eq("rental_offering_id", offeringId)
-      .or(`status.eq.confirmed,and(status.eq.pending,starts_at.gt.${iso})`)
+      .or(`status.eq.confirmed,status.eq.pending_payment,and(status.eq.pending,starts_at.gt.${iso})`)
       .gte("ends_at", iso)
       .order("starts_at")
       .limit(OFFERING_BOOKINGS_LIMIT),
@@ -407,7 +407,7 @@ export async function listOfferingBookings(
       .select(OFFERING_BOOKING_COLS)
       .eq("rental_offering_id", offeringId)
       .or(
-        `status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined),` +
+        `status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined,expired),` +
           `and(status.eq.confirmed,ends_at.lt.${iso}),` +
           `and(status.eq.pending,starts_at.lte.${iso})`,
       )

@@ -44,6 +44,11 @@ export type ResolveBookingResult =
         // or made before this slice).
         lines: Line[] | null;
         people: number | null;
+        // S2: the hold's deadline (null unless the booking is
+        // pending_payment) and what the row says was collected / given back.
+        holdExpiresAt: Date | null;
+        paidCents: number;
+        refundedCents: number;
       };
     };
 
@@ -89,6 +94,9 @@ export async function resolveBookingToken(
     decline_note: string | null;
     lines: unknown;
     people: number | null;
+    hold_expires_at: string | null;
+    paid_cents: number;
+    refunded_cents: number;
   }> | null)?.[0];
   if (!row) return { status: "not_found" };
   return {
@@ -114,6 +122,9 @@ export async function resolveBookingToken(
       declineNote: row.decline_note,
       lines: (row.lines as Line[] | null) ?? null,
       people: row.people ?? null,
+      holdExpiresAt: row.hold_expires_at ? new Date(row.hold_expires_at) : null,
+      paidCents: row.paid_cents ?? 0,
+      refundedCents: row.refunded_cents ?? 0,
     },
   };
 }

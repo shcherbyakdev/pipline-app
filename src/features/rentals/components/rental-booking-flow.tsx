@@ -59,6 +59,8 @@ export function RentalBookingFlow({
   // Whether the RPC left it pending (the space requires approval) — the done
   // panel says "Request sent" instead of "Booking confirmed".
   const [donePending, setDonePending] = React.useState(false);
+  // S2: the RPC held it for a deposit — the panel offers the pay link instead.
+  const [donePayment, setDonePayment] = React.useState<{ until: string; amount: string } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
   // Request-ordering guard: a fast month-nav click can fire a second fetch
@@ -143,6 +145,7 @@ export function RentalBookingFlow({
       if (result.ok) {
         setDoneToken(result.token);
         setDonePending(result.pending);
+        setDonePayment(result.payment ?? null);
         return;
       }
       setError(result.error);
@@ -169,6 +172,7 @@ export function RentalBookingFlow({
         token={doneToken}
         summary={summary ? { title: offering.name, whenLine: summary } : undefined}
         pending={donePending}
+        payment={donePayment}
       />
     );
   }

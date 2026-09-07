@@ -80,6 +80,42 @@ describe("moneyInfoLines", () => {
       .toEqual(["Free cancellation until 2 hours before start"]));
   it("nothing set → empty", () =>
     expect(moneyInfoLines({ totalCents: null, depositCents: null, currency: null, cancelWindowMin: 0 }, t)).toEqual([]));
+    it("a hold: deposit + pay-now, no venue note", () =>
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 0, holding: true }, t)).toEqual([
+      "Total: 300 zł",
+      "Deposit due: 60 zł",
+      "Pay 60 zł now to confirm",
+    ]));
+  it("paid: paid line + balance at the venue", () =>
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 1440, paidCents: 6000 }, t)).toEqual([
+      "Total: 300 zł",
+      "Paid: 60 zł",
+      "240 zł due at the venue",
+      "Free cancellation until 1 day before start",
+    ]));
+  it("paid in full: no balance line", () =>
+    expect(moneyInfoLines({ totalCents: 6000, depositCents: 6000, currency: "PLN", cancelWindowMin: 0, paidCents: 6000 }, t)).toEqual([
+      "Total: 60 zł",
+      "Paid: 60 zł",
+    ]));
+  it("an expired hold: no pay-at-the-venue line", () =>
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 0, settled: true }, t)).toEqual([
+      "Total: 300 zł",
+      "Deposit due: 60 zł",
+    ]));
+  it("cancelled and refunded: no due-at-the-venue line", () =>
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 0, paidCents: 6000, refundedCents: 6000, settled: true }, t)).toEqual([
+      "Total: 300 zł",
+      "Paid: 60 zł",
+      "Refunded: 60 zł — bank refunds take up to 3 business days",
+    ]));
+  it("refunded: the refund line after the money", () =>
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 0, paidCents: 6000, refundedCents: 6000 }, t)).toEqual([
+      "Total: 300 zł",
+      "Paid: 60 zł",
+      "240 zł due at the venue",
+      "Refunded: 60 zł — bank refunds take up to 3 business days",
+    ]));
 });
 
 describe("stayHint", () => {
@@ -87,6 +123,7 @@ describe("stayHint", () => {
     expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: 60, maxDurationMin: 240 }, t)).toBe("1 h–4 h");
     expect(stayHint({ rangeMode: "hours", minStay: 1, minDurationMin: 90, maxDurationMin: 150 }, t)).toBe("1 h 30 min–2 h 30 min");
   });
+
   it("nights/days: the minimum stay when it is more than one", () => {
     expect(stayHint({ rangeMode: "nights", minStay: 2, minDurationMin: null, maxDurationMin: null }, t)).toBe("min 2 nights");
     expect(stayHint({ rangeMode: "days", minStay: 3, minDurationMin: null, maxDurationMin: null }, t)).toBe("min 3 days");

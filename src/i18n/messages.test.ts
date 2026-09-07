@@ -68,6 +68,13 @@ const SAME_IN_EVERY_LOCALE = new Set([
   "billing.planTag.srPrefix",
   "studio.sections.faq.label",
   "studio.branding.logo",
+  // NIP is the Polish tax ID abbreviation, same across all languages.
+  "public.legal.taxId",
+  "payments.legal.taxId",
+  // Brand names and payment methods
+  "payments.stripe.title",
+  "payments.stripe.capability.p24_payments",
+  "payments.stripe.capability.blik_payments",
 ]);
 
 // The studio never offers to "skip" or do something "later" (widget
@@ -160,6 +167,28 @@ describe("messages", () => {
       });
     }
   }
+
+  // Prevent dotted keys at any depth (e.g., top-level "bookings.status"
+  // that will never be reached by flatten()). Walk raw objects before flatten.
+  it("no message file has dotted keys at any depth", () => {
+    function checkNoDottedKeys(obj: Record<string, unknown>, path = ""): string[] {
+      const errors: string[] = [];
+      for (const [key, value] of Object.entries(obj)) {
+        if (key.includes(".")) {
+          errors.push(`${path}.${key}` || key);
+        }
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          errors.push(...checkNoDottedKeys(value as Record<string, unknown>, path ? `${path}.${key}` : key));
+        }
+      }
+      return errors;
+    }
+
+    for (const locale of LOCALES) {
+      const errors = checkNoDottedKeys(MESSAGES[locale] as Record<string, unknown>);
+      expect(errors, `${locale}: found dotted keys`).toEqual([]);
+    }
+  });
 
   // Six components split these on a space into seven column headings; a
   // translator's stray space or a two-word day would leave a hole silently.

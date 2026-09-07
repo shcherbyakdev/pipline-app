@@ -242,9 +242,108 @@ export function bookingLifecycleKey(
     // rides bookingIdempotencyKey instead — no lifecycle key for it.
     | "request-declined"
     | "manage-accept"
-    | `manage-${string}`,
+    | `manage-${string}`
+    // S2 (0079): the hold's "pay by" mail, the webhook's confirmation, the
+    // drain's release notice, the refund-after-the-fact notice.
+    | "payment-due"
+    | "payment-received"
+    | "hold-expired"
+    | "slot-lost",
 ): string {
   return `booking/${bookingId}/${kind}`;
+}
+
+/** "Mon 10 May, 11:32" in the org's zone — the hold deadline everywhere it prints. */
+export function formatUntil(d: Date, timeZone: string, intlLocale: string): string {
+  const day = new Intl.DateTimeFormat(intlLocale, { timeZone, weekday: "short", day: "numeric", month: "short" }).format(d);
+  const time = new Intl.DateTimeFormat(intlLocale, { timeZone, hour: "2-digit", minute: "2-digit" }).format(d);
+  return `${day}, ${time}`;
+}
+
+const infoHtml = (lines?: string[]) => (lines ?? []).map((l) => `\n  <p style="margin: 0 0 4px; color: #444;">${esc(l)}</p>`).join("");
+
+export function paymentDueEmail(t: EmailsT, input: {
+  orgName: string; serviceName: string; whenLine: string; until: string; amount: string;
+  payUrl: string; manageUrl: string; badgeUrl?: string | null; infoLines?: string[];
+}): { subject: string; html: string; text: string } {
+  const subject = t("paymentDue.subject", { amount: input.amount, until: input.until, service: input.serviceName, when: input.whenLine });
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
+  <p style="margin: 0 0 8px;">${esc(t("paymentDue.lead", { until: input.until }))}</p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${infoHtml(input.infoLines)}
+  <p style="margin: 16px 0 8px;">
+    <a href="${esc(input.payUrl)}" style="display: inline-block; padding: 10px 16px; background: #111; color: #fff; text-decoration: none; border-radius: 6px;">${esc(t("paymentDue.pay", { amount: input.amount }))}</a>
+  </p>
+  <p style="margin: 0 0 8px;"><a href="${esc(input.manageUrl)}">${esc(t("viewOrWithdraw"))}</a></p>
+  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">${esc(t("paymentDue.keep"))}</p>${badgeHtmlLine(t, input.badgeUrl)}
+</div>`.trim();
+  const text = [
+    input.orgName, "", t("paymentDue.lead", { until: input.until }), input.serviceName, input.whenLine,
+    ...(input.infoLines ?? []), "", t("paymentDue.payText", { amount: input.amount, url: input.payUrl }),
+    t("viewOrWithdrawText", { url: input.manageUrl }), ...badgeTextLines(t, input.badgeUrl),
+  ].join("\n");
+  return { subject, html, text };
+}
+
+export function paymentReceivedEmail(t: EmailsT, input: {
+  orgName: string; serviceName: string; whenLine: string; badgeUrl?: string | null; infoLines?: string[];
+}): { subject: string; html: string; text: string } {
+  const subject = t("paymentReceived.subject", { service: input.serviceName, when: input.whenLine });
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
+  <p style="margin: 0 0 8px;">${esc(t("paymentReceived.lead"))}</p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${infoHtml(input.infoLines)}
+  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">${esc(t("paymentReceived.manageHint"))}</p>${badgeHtmlLine(t, input.badgeUrl)}
+</div>`.trim();
+  const text = [
+    input.orgName, "", t("paymentReceived.lead"), input.serviceName, input.whenLine, ...(input.infoLines ?? []), "",
+    t("paymentReceived.manageHint"), ...badgeTextLines(t, input.badgeUrl),
+  ].join("\n");
+  return { subject, html, text };
+}
+
+export function holdExpiredEmail(t: EmailsT, input: {
+  orgName: string; serviceName: string; whenLine: string; bookAgainUrl: string; badgeUrl?: string | null;
+}): { subject: string; html: string; text: string } {
+  const subject = t("holdExpired.subject", { service: input.serviceName, when: input.whenLine });
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
+  <p style="margin: 0 0 8px;">${esc(t("holdExpired.lead"))}</p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
+  <p style="margin: 0 0 8px;"><a href="${esc(input.bookAgainUrl)}">${esc(t("holdExpired.bookAgain"))}</a></p>${badgeHtmlLine(t, input.badgeUrl)}
+</div>`.trim();
+  const text = [
+    input.orgName, "", t("holdExpired.lead"), input.serviceName, input.whenLine, "",
+    t("holdExpired.bookAgainText", { url: input.bookAgainUrl }), ...badgeTextLines(t, input.badgeUrl),
+  ].join("\n");
+  return { subject, html, text };
+}
+
+export function slotLostEmail(t: EmailsT, input: {
+  orgName: string; serviceName: string; whenLine: string; amount: string; badgeUrl?: string | null;
+  /** The refund did not go through: the studio owes it by hand, so the mail
+      promises one rather than reporting one. */
+  refundPending?: boolean;
+}): { subject: string; html: string; text: string } {
+  const subject = t("slotLost.subject", { service: input.serviceName, when: input.whenLine });
+  const lead = input.refundPending
+    ? t("slotLost.leadManual", { orgName: input.orgName, amount: input.amount })
+    : t("slotLost.lead", { amount: input.amount });
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
+  <p style="margin: 0 0 8px;">${esc(lead)}</p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${badgeHtmlLine(t, input.badgeUrl)}
+</div>`.trim();
+  const text = [input.orgName, "", lead, input.serviceName, input.whenLine, ...badgeTextLines(t, input.badgeUrl)].join("\n");
+  return { subject, html, text };
 }
 
 export function bookingCancelledEmail(t: EmailsT, input: {
@@ -254,6 +353,8 @@ export function bookingCancelledEmail(t: EmailsT, input: {
   cancelledBy: "client" | "provider";
   staffName?: string | null;
   badgeUrl?: string | null;
+  // S2: the refund line, when money came back with the cancellation.
+  infoLines?: string[];
 }): { subject: string; html: string; text: string } {
   const lead =
     input.cancelledBy === "client"
@@ -265,7 +366,7 @@ export function bookingCancelledEmail(t: EmailsT, input: {
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
   <p style="margin: 0 0 8px;">${esc(lead)}</p>
   <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>${staffHtmlLine(t, input.staffName)}
-  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${infoHtml(input.infoLines)}
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">
     ${esc(t("cancelled.rebook"))}
   </p>${badgeHtmlLine(t, input.badgeUrl)}
@@ -277,6 +378,7 @@ export function bookingCancelledEmail(t: EmailsT, input: {
     input.serviceName,
     ...staffTextLine(t, input.staffName),
     input.whenLine,
+    ...(input.infoLines ?? []),
     ...badgeTextLines(t, input.badgeUrl),
   ].join("\n");
   return { subject, html, text };

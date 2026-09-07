@@ -228,7 +228,8 @@
       "stayNotMovable": "Przenieść można tylko potwierdzony pobyt.",
       "notMovable": "Przenieść można tylko potwierdzoną rezerwację.",
       "alreadyStarted": "Ta rezerwacja już się rozpoczęła.",
-      "spaceInactive": "Ta przestrzeń jest nieaktywna — aktywuj ją ponownie, aby przenosić jej rezerwacje."
+      "spaceInactive": "Ta przestrzeń jest nieaktywna — aktywuj ją ponownie, aby przenosić jej rezerwacje.",
+      "notHeld": "Ta rezerwacja nie oczekuje już na płatność."
     },
     "studio": {
       "pageTooLarge": "Ta strona jest zbyt duża, aby ją zapisać — usuń część treści lub zdjęć.",
@@ -326,7 +327,11 @@
       "confirmedBody": "E-mail z potwierdzeniem jest w drodze. Zachowaj go — poniższe linki to Twój dostęp do tej rezerwacji.",
       "viewRequest": "Zobacz swoją prośbę",
       "viewBooking": "Zobacz swoją rezerwację",
-      "addToCalendar": "Dodaj do kalendarza (.ics)"
+      "addToCalendar": "Dodaj do kalendarza (.ics)",
+      "reservedUntil": "Zarezerwowano do {until}",
+      "payBody": "Zapłać {amount}, aby potwierdzić. Nieopłacone rezerwacje są zwalniane automatycznie.",
+      "pay": "Zapłać {amount}",
+      "viewReservation": "Zobacz rezerwację"
     },
     "manage": {
       "status": {
@@ -336,7 +341,9 @@
         "cancelledByClient": "Anulowana",
         "cancelledByProvider": "Anulowana przez usługodawcę",
         "rescheduled": "Przełożona",
-        "expired": "Prośba wygasła"
+        "expired": "Zwolniono — zaliczka nie została opłacona w terminie",
+        "pendingPayment": "Oczekuje na płatność",
+        "requestExpired": "Prośba wygasła"
       },
       "tooManyRequests": "Zbyt wiele żądań — spróbuj ponownie za chwilę.",
       "alreadyStarted": "Ta rezerwacja już się rozpoczęła.",
@@ -364,7 +371,13 @@
       "unitAuto": "Automatycznie",
       "unitAutoKeep": "Automatycznie — zostaw {name}, jeśli wolne",
       "unitInactive": "{name} (nieaktywna)",
-      "quotedNote": "„{note}”"
+      "quotedNote": "„{note}”",
+      "reservedUntil": "Zarezerwowano do {until}. Zapłać zaliczkę, aby potwierdzić.",
+      "holdLapsed": "Czas na płatność minął. Termin zostanie wkrótce zwolniony — zarezerwuj ponownie.",
+      "paymentReceived": "Płatność otrzymana — dziękujemy.",
+      "paymentProcessing": "Potwierdzamy Twoją płatność — ta strona zaktualizuje się, gdy bank ją rozliczy.",
+      "paymentFailed": "Płatność jest chwilowo niedostępna — spróbuj ponownie za chwilę.",
+      "expiredBody": "Rezerwacja została zwolniona, ponieważ zaliczka nie została opłacona w terminie. Możesz zarezerwować ponownie na stronie studia."
     },
     "stay": {
       "howLong": "Jak długo?",
@@ -423,7 +436,18 @@
         "surcharge": "{label} +{pct}%",
         "people": "{count, plural, one {# dodatkowa osoba} few {# dodatkowe osoby} many {# dodatkowych osób} other {# dodatkowej osoby}} × {each}",
         "extra": "{label} × {qty}"
-      }
+      },
+      "payNow": "Zapłać {amount} teraz, aby potwierdzić",
+      "paid": "Zapłacono: {amount}",
+      "balanceAtVenue": "{amount} do zapłaty na miejscu",
+      "refund": "Zwrócono: {amount} — zwrot na konto trwa do 3 dni roboczych"
+    },
+    "legal": {
+      "taxId": "NIP {id}",
+      "regNo": "Nr rej. {id}",
+      "terms": "Regulamin",
+      "privacy": "Polityka prywatności",
+      "refund": "Zasady zwrotów"
     }
   },
   "emails": {
@@ -530,7 +554,30 @@
         "failed": "przeniesienie się nie udało."
       }
     },
-    "appointment": "Wizyta"
+    "appointment": "Wizyta",
+    "paymentDue": {
+      "subject": "Zapłać {amount} do {until}, aby potwierdzić — {service}, {when}",
+      "lead": "Termin jest zarezerwowany do {until}. Zapłać zaliczkę, aby go potwierdzić — nieopłacone rezerwacje są zwalniane automatycznie.",
+      "pay": "Zapłać {amount}",
+      "payText": "Zapłać {amount}: {url}",
+      "keep": "Zachowaj tę wiadomość — powyższe linki to Twój dostęp do rezerwacji."
+    },
+    "paymentReceived": {
+      "subject": "Płatność otrzymana — {service}, {when}",
+      "lead": "Dziękujemy — otrzymaliśmy Twoją płatność, rezerwacja jest potwierdzona.",
+      "manageHint": "Aby ją zobaczyć lub zmienić, użyj linku z wiadomości o rezerwacji."
+    },
+    "holdExpired": {
+      "subject": "Rezerwacja zwolniona — {service}, {when}",
+      "lead": "Zaliczka za tę rezerwację nie wpłynęła w terminie, więc termin został zwolniony.",
+      "bookAgain": "Zarezerwuj ponownie",
+      "bookAgainText": "Zarezerwuj ponownie: {url}"
+    },
+    "slotLost": {
+      "subject": "Nie udało się potwierdzić {service}, {when}",
+      "lead": "Twoja płatność dotarła po zwolnieniu rezerwacji, a termin został w międzyczasie zajęty. {amount} zostanie Ci zwrócone — zwrot na konto trwa do 3 dni roboczych.",
+      "leadManual": "Twoja płatność dotarła po zwolnieniu rezerwacji, a termin został w międzyczasie zajęty. {orgName} zwróci Ci {amount}."
+    }
   },
   "shell": {
     "nav": {
@@ -546,7 +593,8 @@
       "billing": "Rozliczenia",
       "notifications": "Powiadomienia",
       "settings": "Ustawienia",
-      "integrations": "Integracje"
+      "integrations": "Integracje",
+      "payments": "Płatności"
     },
     "section": {
       "offer": "Oferta",
@@ -790,7 +838,9 @@
       "declined": "Odrzucona",
       "cancelledByClient": "Anulowana przez klienta",
       "cancelledByProvider": "Anulowana przez Ciebie",
-      "rescheduled": "Przełożona"
+      "rescheduled": "Przełożona",
+      "pendingPayment": "Oczekuje na płatność",
+      "expired": "Zwolniono — nieopłacone"
     },
     "fallbackTitle": "Wizyta",
     "weekdays": "Pn Wt Śr Cz Pt So Nd",
@@ -828,6 +878,7 @@
       "declineFrom": "Odrzuć prośbę od {name}",
       "accepted": "Zaakceptowano.",
       "acceptedEmailed": "Zaakceptowano — potwierdzenie wysłane.",
+      "acceptedHeld": "Zaakceptowano — klient został poproszony o wpłatę zaliczki.",
       "declineTitle": "Odrzuć prośbę",
       "declineBody": "Termin zostaje zwolniony, a klient dostaje e-mail, że nie możesz go przyjąć.",
       "declineNote": "Wiadomość do klienta (opcjonalnie)",
@@ -841,7 +892,9 @@
       "confirm": "Potwierdź anulowanie",
       "doneNoEmail": "Rezerwacja anulowana — brak adresu e-mail tego klienta.",
       "doneEmailed": "Rezerwacja anulowana — klient dostał e-mail.",
-      "doneEmailFailed": "Rezerwacja anulowana — ale e-mail do klienta nie doszedł. Skontaktuj się z nim bezpośrednio."
+      "doneEmailFailed": "Rezerwacja anulowana — ale e-mail do klienta nie doszedł. Skontaktuj się z nim bezpośrednio.",
+      "refund": "Zwróć {amount}",
+      "refundFailed": "Zwrot się nie powiódł — wykonaj go w Stripe."
     },
     "resend": {
       "sent": "Nowy link jest w drodze do klienta.",
@@ -984,6 +1037,17 @@
       "more": "+{count} więcej",
       "addOn": "Nowa rezerwacja: {date}",
       "closed": "Zamknięte cały dzień"
+    },
+    "hold": {
+      "until": "Zarezerwowano do {time}",
+      "lapsed": "Czas na płatność minął — najbliższy przebieg zwolni ten termin.",
+      "paid": "Zapłacono {paid}",
+      "paidBalance": "Zapłacono {paid} · {balance} do zapłaty na miejscu",
+      "refunded": "Zwrócono {amount}"
+    },
+    "markPaid": {
+      "button": "Oznacz jako opłacone",
+      "done": "Oznaczono jako opłacone — klient otrzymał e-mail."
     }
   },
   "clients": {
@@ -1942,5 +2006,55 @@
       "busy": "Wszystko oznaczone jako Zajęty w zaznaczonych kalendarzach jest niedostępne do rezerwacji — na Twojej stronie rezerwacji i w wyborze nowego terminu.",
       "record": "Zmień rezerwację w Booklo albo — z włączonymi przełącznikami — usuń lub przenieś wydarzenie w Google, a Booklo podąży za tym i wyśle e-mail do klienta."
     }
+  },
+  "payments": {
+    "intro": "Jak klienci płacą zaliczki i jakie dane firmy pokazuje Twoja strona rezerwacji.",
+    "stripe": {
+      "title": "Stripe",
+      "blurb": "Zaliczki są płacone przez Stripe na Twoje własne konto — Booklo nie przechowuje pieniędzy i nie pobiera prowizji.",
+      "notConfigured": "Płatności nie są skonfigurowane na tym serwerze.",
+      "notConnected": "Połącz Stripe, aby pobierać zaliczki online. Rezerwacje wymagające zaliczki są wstrzymane do jej opłacenia.",
+      "country": "Kraj firmy",
+      "connect": "Połącz Stripe",
+      "continue": "Kontynuuj konfigurację",
+      "onboarding": "Stripe potrzebuje jeszcze kilku danych, zanim zaczniesz przyjmować płatności.",
+      "active": "Aktywne — klienci mogą płacić zaliczki online.",
+      "restricted": "Stripe wstrzymał płatności na tym koncie i potrzebuje dodatkowych informacji.",
+      "openDashboard": "Otwórz panel Stripe",
+      "capability": {
+        "card_payments": "Karty",
+        "p24_payments": "Przelewy24",
+        "blik_payments": "BLIK"
+      },
+      "notice": {
+        "return": "Dane Stripe zapisane.",
+        "returnIncomplete": "Stripe potrzebuje jeszcze kilku danych — dokończ konfigurację, gdy będziesz gotowy.",
+        "error": "Nie udało się połączyć ze Stripe. Spróbuj ponownie za chwilę."
+      }
+    },
+    "hold": {
+      "title": "Czas na płatność",
+      "blurb": "Jak długo rezerwacja czeka na zaliczkę. Nieopłacone rezerwacje są zwalniane automatycznie.",
+      "label": "Wstrzymaj przez",
+      "options": {
+        "30": "30 minut",
+        "60": "1 godzinę",
+        "180": "3 godziny",
+        "1440": "24 godziny"
+      }
+    },
+    "legal": {
+      "title": "Dane firmy",
+      "blurb": "Widoczne w stopce Twojej strony rezerwacji. Przelewy24 wymaga ich do płatności online.",
+      "legalName": "Nazwa firmy",
+      "address": "Adres",
+      "taxId": "NIP",
+      "regNo": "REGON lub KRS",
+      "termsUrl": "Link do regulaminu",
+      "privacyUrl": "Link do polityki prywatności",
+      "refundUrl": "Link do zasad zwrotów"
+    },
+    "save": "Zapisz",
+    "saved": "Zapisano"
   }
 }

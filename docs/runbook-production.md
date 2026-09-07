@@ -408,3 +408,98 @@ the 15-minute drain tick (`/api/scheduling/drain` answers with a `calendar`
 summary next to the reminder counts); the row keeps its `last_error` in
 `booking_calendar_events`. A connection Google no longer honours
 (`invalid_grant`) is `needs_reconnect` in `calendar_connections`.
+
+## 10. Payments — client deposits (Stripe Connect, S2)
+
+A **second, separate** Stripe relationship, not the billing account:
+`STRIPE_SECRET_KEY` runs Booklo's own subscriptions through Managed
+Payments, and a Managed-Payments account cannot be a Connect platform. The
+S2 keys below belong to a **plain Stripe platform account** whose connected
+accounts are the studios'. Charges are **direct** on the studio's own
+account — the studio is merchant of record, pays Stripe's sticker fees and
+carries its own losses; Booklo takes **no application fee** (spec
+`2026-09-07-s2-holds-collection-design` rulings 1 and 9).
+
+Four environment variables, Production scope:
+
+| Variable | Value | Notes |
+|---|---|---|
+| `PAYMENTS_PROVIDER` | `stripe` | unset (or empty) = payments off: `/payments` says "not set up on this server", the webhook answers 503, no booking is ever held for a deposit |
+| `PAYMENTS_FAKE_SECRET` | — | dev/CI only; `src/env-schema.ts` refuses `PAYMENTS_PROVIDER=fake` when `APP_ENV=production` |
+| `STRIPE_CONNECT_SECRET_KEY` | `sk_live_…` (`sk_test_…` in test mode) | the **platform** account's key, not the billing account's |
+| `STRIPE_CONNECT_WEBHOOK_SECRET` | `whsec_…` | the signing secret of the Connect endpoint below |
+
+With `PAYMENTS_PROVIDER=stripe`, `src/env-schema.ts` requires both Stripe
+values — a deploy missing either fails env validation at module load.
+Test mode is a first-class configuration: the same two variables with
+`sk_test_…` and the signing secret printed by `stripe listen`.
+
+**The Connect webhook endpoint.** On the *platform* account, Developers →
+Webhooks → **Add endpoint** → "Listen to events on **connected accounts**"
+(not the platform's own events — the sessions live on the studios'
+accounts, so a platform-scoped endpoint delivers nothing):
+
+- URL `https://booklo.co/api/payments/webhook`
+- Events: `checkout.session.completed`,
+  `checkout.session.async_payment_succeeded`,
+  `checkout.session.async_payment_failed`, `checkout.session.expired`
+
+Anything else is parsed and ignored (`normalizeConnectEvent`), so extra
+events cost only a 200. The route answers 503 when payments are
+unconfigured, 401 on a bad signature, 400 on a malformed body, 200 for
+business unknowns (an event for a session we do not know), and 500 only
+when our own write fails — the one case Stripe should retry.
+
+Locally and in test mode:
+
+```bash
+stripe listen --forward-connect-to localhost:3000/api/payments/webhook
+# copy the printed whsec_… into STRIPE_CONNECT_WEBHOOK_SECRET
+```
+
+**Deploying 0079 + 0080 — one window.** `0079_holds_collection` drops and
+re-creates `resolve_booking_token(text)` (its return type gains three
+columns) and rewrites the bodies of `create_rental_booking`,
+`create_rental_booking_hours`, `accept_booking`, `cancel_booking` and
+`rotate_booking_token`, plus the four free-check helpers that must stay in
+lockstep with the widened `EXCLUDE` predicates. Between the migration and
+the promote, the old build calls RPCs whose shapes have moved. Deploy
+§0's pipeline as it stands (build → migrate → promote) and **do not run
+the migration ahead of a build**: keep migrate and promote in the same
+window, and roll back both together if the promote fails.
+`0080_payments_reserved_handle` only adds `payments` to
+`reserved_handles()`; existing handles are not re-checked, so if any org
+already holds the handle `payments` rename it before deploying (`select
+handle from orgs where handle = 'payments'`).
+
+**Launch checklist (spec's last section).**
+
+- [ ] Second Stripe platform account created (the billing account cannot be
+      one) and its keys stored.
+- [ ] Connect webhook endpoint on that account, "connected accounts" scope,
+      the four Checkout events above.
+- [ ] `PAYMENTS_PROVIDER=stripe` + both keys set on Vercel Production.
+- [ ] First real onboarding: MCC **7333** (commercial photography — never a
+      rental MCC; 6513 is prohibited for P24) accepted, and the
+      P24 / BLIK capability review passed. Cards go active first; P24 and
+      BLIK may stay `pending` for a while, and `/payments` shows the card as
+      Active as soon as `card_payments` is active.
+- [ ] The pilot studio's legal identity filled on `/payments` (legal name,
+      address, NIP, terms link) **before** requesting P24 — Przelewy24
+      requires it, and the public footer prints it.
+- [ ] The scheduling drain is running (Cloudflare Worker cron `*/15`): hold
+      expiry is the fourth phase (after reminders, calendar sync and the
+      inbound poll), so without it a hold blocks its slot forever.
+      `POST /api/scheduling/drain` answers with a `holds` summary
+      (`{ expired, mailed, failed }`) next to the reminder counts.
+- [ ] Know that a `refund_failed` ledger row has **no automatic retry and no
+      admin surface until S4**: the money is still on the connected account
+      and only the server log names the row. When a cancel or a slot-lost
+      mail reports a failed refund, find the payment in Stripe (the
+      connected account, by payment intent) and refund it by hand.
+- [ ] Never unset `PAYMENTS_PROVIDER` while `payment_accounts` rows are
+      `active`: the create RPCs read those rows, so bookings keep being HELD
+      for a deposit while `/pay` and the webhook answer 503 — every deposit
+      booking becomes an unpayable hold that only lapses. Set the rows to
+      `onboarding` first (`update payment_accounts set status = 'onboarding'`),
+      then unset the variable.

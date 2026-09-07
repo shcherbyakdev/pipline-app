@@ -16,6 +16,9 @@ import { kickCalendarSync } from "@/features/calendar-sync/run";
 import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { selectTransport } from "@/lib/email/transport";
+import { refundBooking } from "@/features/payments/refund";
+import { expireOpenCheckouts } from "@/features/payments/checkout";
+import { formatMoney } from "@/lib/money";
 import { env } from "@/env";
 import { addDaysISO, computeSlots, dateInZone } from "./slots";
 import {
@@ -138,6 +141,27 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     if (!row) return publicError(orgLocale, "notChangeable");
     kickCalendarSync(row.org_id); // Google mirror (spec 2026-09-05 §2.2)
 
+    // S2 (ruling 3): whatever was paid comes back in full. Best effort and
+    // recorded on the ledger; a failure is the studio's to finish in Stripe
+    // (the booking detail shows it) — never the client's problem here.
+    const refund = await refundBooking(row.booking_id, "cancel").catch((e) => {
+      console.error("[payments] cancel refund:", e);
+      return { refundedCents: 0, failed: true };
+    });
+    // A hold cancelled from its own pay screen can still have a live Checkout
+    // session behind it — close it so the money never arrives. No-ops when
+    // nothing is open; never fails the cancel (already committed).
+    await expireOpenCheckouts(row.booking_id).catch((e) =>
+      console.error("[payments] cancel: expiring checkouts failed:", e),
+    );
+    // cancel_booking doesn't return the currency, and only a real refund
+    // needs it — pay for the read on that path alone.
+    const currency: string | null =
+      refund.refundedCents > 0
+        ? ((await admin.from("bookings").select("currency").eq("id", row.booking_id).maybeSingle())
+            .data?.currency ?? null)
+        : null;
+
     // Everything below is post-RPC: the cancellation is already committed, so
     // nothing here may turn into a failed action. Both of these are safe by
     // construction — whenLineFor is pure, resolveClientStaffName swallows.
@@ -174,6 +198,10 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
         whenLine: clientWhenLine,
         cancelledBy: "client",
         staffName,
+        // S2: what came back, in the client's own language.
+        infoLines: currency
+          ? [client.tUnits("refund", { amount: formatMoney(refund.refundedCents, currency) })]
+          : undefined,
         // Client-facing mail carries the badge unless the org's plan lets it
         // opt out and it did (emailBadgeUrl swallows its own errors).
         badgeUrl: await emailBadgeUrl(row.org_id),

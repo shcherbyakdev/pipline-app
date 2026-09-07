@@ -24,7 +24,9 @@ A term missing here is added here first, then used.
 | stay (nights) | проживання | |
 | check-in / check-out | заїзд / виїзд | |
 | reschedule / cancel / confirm | перенести / скасувати / підтвердити | |
-| deposit | завдаток | |
+| deposit | передоплата | |
+| hold / reservation | утримане бронювання | a time held for payment |
+| refund | повернення | |
 | widget / booking page | віджет / сторінка бронювання | |
 | embed | код для сайту | the noun; the verb is "вбудувати" |
 | handle (page address) | адреса сторінки | |
@@ -85,6 +87,8 @@ A term missing here is added here first, then used.
 | pickup / return (day stays) | odbiór / zwrot | |
 | reschedule / cancel / confirm | przełożyć / anulować / potwierdzić | "przenieść" when the provider moves a booking |
 | deposit | zaliczka | |
+| hold / reservation | rezerwacja wstrzymana | a time held for payment |
+| refund | zwrot | |
 | widget / booking page | widżet / strona rezerwacji | |
 | embed | osadzenie na stronie / kod do osadzenia | the nav item and the snippet |
 | handle (page address) | adres strony | |

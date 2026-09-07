@@ -189,11 +189,13 @@ export const bookings = pgTable(
     clientEmail: text("client_email"),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
-    // 'confirmed' | 'pending' | 'declined' | 'cancelled_by_client' |
-    // 'cancelled_by_provider' | 'rescheduled' — CHECK in 0062 (was 0026).
-    // The EXCLUDE guards cover 'confirmed' AND 'pending' (0062): a request
-    // holds its slot. "Expired" is computed (pending && starts_at <= now()),
-    // never stored.
+    // 'confirmed' | 'pending' | 'pending_payment' | 'declined' | 'expired' |
+    // 'cancelled_by_client' | 'cancelled_by_provider' | 'rescheduled' —
+    // CHECK in 0079 (was 0062, 0026). The EXCLUDE guards cover 'confirmed',
+    // 'pending' AND 'pending_payment' (0079): a request and a payment hold
+    // both reserve their slot. 'expired' is a lapsed hold the drain wrote
+    // (S2); a pending request past its starts_at is still computed, never
+    // stored.
     status: text("status").default("confirmed").notNull(),
     // sha256 hex of the manage token (mint.ts idiom). The raw token is
     // returned once from create_booking's caller and never stored.
@@ -211,6 +213,12 @@ export const bookings = pgTable(
     // and the people count the client chose; NULL before 0078 / no rules.
     lines: jsonb("lines"),
     people: integer("people"),
+    // S2: the hold's deadline (set iff status = 'pending_payment', kept after
+    // the flip), and what the client paid / got back — written only by the
+    // payment RPCs and the refund path. Never TS-computed for display.
+    holdExpiresAt: timestamp("hold_expires_at", { withTimezone: true }),
+    paidCents: integer("paid_cents").default(0).notNull(),
+    refundedCents: integer("refunded_cents").default(0).notNull(),
     // Stamped by the public create RPCs iff the offering had terms_text;
     // carried forward across reschedules.
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),

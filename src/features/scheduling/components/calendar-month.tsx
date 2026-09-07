@@ -11,6 +11,7 @@ import type { OfferingOption } from "@/features/rentals/offering-option";
 import type { DayWindow } from "@/features/scheduling/day-windows";
 import { serviceAccent, timeToMin } from "@/features/scheduling/calendar-geometry";
 import { byDate, monthGrid, monthStart } from "@/features/scheduling/month-grid";
+import { ghostWord } from "@/features/scheduling/hold-label";
 import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 import { HATCH } from "./calendar-grid";
@@ -156,7 +157,7 @@ export function CalendarMonth({
                               // nobody has said yes yet (0062).
                               "focus-visible:ring-ring/40 flex w-full items-center gap-1 rounded border px-1 py-0.5 text-left text-[11px] outline-none focus-visible:ring-2",
                               isSpace ? "border-dashed" : "border-transparent",
-                              b.status === "pending" ? "bg-card/50" : "bg-secondary",
+                              b.status === "pending" || b.status === "pending_payment" ? "bg-card/50" : "bg-secondary",
                             )}
                           >
                             <span aria-hidden style={{ background: accent }} className="size-1.5 shrink-0 rounded-full" />
@@ -171,7 +172,7 @@ export function CalendarMonth({
                               </span>
                             )}
                             <span className="truncate">{b.serviceName}</span>
-                            {b.status === "pending" ? <span className="sr-only"> · {t("status.pending")}</span> : null}
+                            {ghostWord(b.status, t) ? <span className="sr-only"> · {ghostWord(b.status, t)}</span> : null}
                           </button>
                         );
                       })}

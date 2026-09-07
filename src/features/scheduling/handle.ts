@@ -12,7 +12,7 @@ export const HANDLE_MAX = 50;
 // Keep in sync with reserved_handles() in 0051_handles.sql (last redefined in 0076).
 export const RESERVED_HANDLES = [
   "api", "auth", "availability", "billing", "book", "booking", "booking-page", "bookings",
-  "clients", "dev", "embed", "forgot-password", "login", "onboarding", "overview", "portal",
+  "clients", "dev", "embed", "forgot-password", "login", "onboarding", "overview", "payments", "portal",
   "pricing", "privacy", "programs", "rentals", "reset-password", "services", "settings", "signup",
   "team", "templates", "terms", "utils", "waitlist", "notifications", "integrations",
   "admin", "app", "www", "mail", "help", "support", "docs", "blog", "about", "contact", "status",

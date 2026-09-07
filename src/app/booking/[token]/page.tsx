@@ -3,10 +3,11 @@ import { headers } from "next/headers";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { clientKeyFrom } from "@/lib/tokens";
 import { resolveBookingToken } from "@/lib/tokens/booking";
-import { getBookingLocale, getOrgLocale, resolveClientStaffName } from "@/lib/booking/public";
-import { whenLineFor } from "@/features/scheduling/templates";
+import { getBookingLocale, getOrgLegal, getOrgLocale, resolveClientStaffName } from "@/lib/booking/public";
+import { formatUntil, whenLineFor } from "@/features/scheduling/templates";
 import { ManageBooking } from "@/features/scheduling/components/manage-booking";
 import { moneyInfoLines } from "@/features/rentals/pricing";
+import { formatMoney } from "@/lib/money";
 import { INTL_LOCALES } from "@/i18n/config";
 import { publicLocale } from "@/i18n/public";
 import { PublicIntl } from "@/i18n/public-provider";
@@ -17,6 +18,7 @@ import { getOrgBranding } from "@/lib/org-branding";
 import { parseWidgetTheme } from "@/lib/widget-theme";
 import { BOOK_COLUMN_CLASS, bookShellClass } from "@/lib/book-shell";
 import { H2 } from "@/features/booking-page/render/type";
+import { LegalFooter } from "@/features/booking-page/render/legal-footer";
 
 // The client's page for one booking, in the same world as the page they
 // booked on: the org's page theme on the same shell (ground and column),
@@ -29,11 +31,17 @@ const PANEL = "flex flex-col gap-5";
 const STATUS_KEY = {
   confirmed: "confirmed",
   pending: "pending",
+  pending_payment: "pendingPayment",
   declined: "declined",
   cancelled_by_client: "cancelledByClient",
   cancelled_by_provider: "cancelledByProvider",
   rescheduled: "rescheduled",
+  expired: "expired",
 } as const;
+
+// Nobody is turning up for these: the money lines drop their "at the venue"
+// half (moneyInfoLines' `settled`).
+const DEAD_STATUSES = new Set(["expired", "cancelled_by_client", "cancelled_by_provider", "declined"]);
 
 export default async function BookingManagePage({ params, searchParams }: PageProps<"/booking/[token]">) {
   const { token } = await params;
@@ -78,6 +86,12 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
       currency: b.currency,
       cancelWindowMin: b.cancelWindowMin ?? 0,
       lines: b.lines,
+      paidCents: b.paidCents,
+      refundedCents: b.refundedCents,
+      holding: b.status === "pending_payment",
+      // S2: a dead row (a lapsed hold, a cancel, a decline) still shows what
+      // was paid and refunded, but never asks for money at the venue.
+      settled: DEAD_STATUSES.has(b.status),
     },
     tUnits,
   );
@@ -92,6 +106,10 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
     !b.cancelWindowMin ||
     now <= b.startsAt.getTime() - b.cancelWindowMin * 60_000;
   const statusKey = (STATUS_KEY as Partial<Record<string, (typeof STATUS_KEY)[keyof typeof STATUS_KEY]>>)[b.status];
+  // Checkout redirects back with `?paid=`/`?pay=` (the pay route) — first
+  // value if Next hands back an array for a repeated key.
+  const paidParam = Array.isArray(sp.paid) ? sp.paid[0] : sp.paid;
+  const payParam = Array.isArray(sp.pay) ? sp.pay[0] : sp.pay;
   // The org's page theme (light / dark / auto), as the hosted page reads it.
   const theme = parseWidgetTheme((await getOrgBranding(b.orgId)).pageThemeRaw);
   return (
@@ -100,6 +118,9 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
     <main className={COLUMN}>
       <div className={PANEL}>
       <h1 className={H2}>{b.orgName}</h1>
+      {paidParam === "1" && b.status === "confirmed" ? <p className="text-sm">{t("paymentReceived")}</p> : null}
+      {paidParam === "1" && b.status === "pending_payment" ? <p className="text-sm">{t("paymentProcessing")}</p> : null}
+      {payParam === "failed" ? <p className="text-destructive text-sm">{t("paymentFailed")}</p> : null}
       <div className="flex flex-col gap-1 border-b pb-5 text-sm">
         <p className="font-medium">{b.serviceName}</p>
         {staffName ? <p className="text-muted-foreground">{tConfirmed("with", { name: staffName })}</p> : null}
@@ -122,7 +143,7 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
         ))}
         <p className="text-muted-foreground">
           {b.status === "pending" && !isInFuture
-            ? t("status.expired")
+            ? t("status.requestExpired")
             : statusKey
               ? t(`status.${statusKey}`)
               : b.status}
@@ -167,8 +188,25 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
           />
         </>
       ) : null}
+      {b.status === "pending_payment" && isInFuture ? (
+        <>
+          <p className="text-muted-foreground text-sm">
+            {b.holdExpiresAt && b.holdExpiresAt.getTime() > now
+              ? t("reservedUntil", { until: formatUntil(b.holdExpiresAt, b.orgTimezone, INTL_LOCALES[locale]) })
+              : t("holdLapsed")}
+          </p>
+          {b.holdExpiresAt && b.holdExpiresAt.getTime() > now ? (
+            <a className={cn(buttonVariants({ variant: "brand" }), "h-9 self-start px-3.5")} href={`/booking/${token}/pay?lang=${locale}`}>
+              {b.depositCents !== null && b.currency ? tConfirmed("pay", { amount: formatMoney(b.depositCents, b.currency) }) : tConfirmed("pay", { amount: "" })}
+            </a>
+          ) : null}
+          <ManageBooking token={token} timeZone={b.orgTimezone} canReschedule={false} canCancel={true} kind="rental" rangeMode={b.rangeMode} request />
+        </>
+      ) : null}
+      {b.status === "expired" ? <p className="text-muted-foreground text-sm">{t("expiredBody")}</p> : null}
       </div>
       <PublicLanguageLinks locale={locale} />
+      <LegalFooter legal={await getOrgLegal(b.orgId)} />
     </main>
     </div>
     </PublicIntl>

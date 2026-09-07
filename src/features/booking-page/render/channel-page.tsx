@@ -6,7 +6,8 @@ import { parseWidgetTheme } from "@/lib/widget-theme";
 import { BOOK_COLUMN_CLASS, bookShellClass } from "@/lib/book-shell";
 import { cn } from "@/lib/utils";
 import { env } from "@/env";
-import type { BookingOrg } from "@/lib/booking/public";
+import { getOrgLegal, type BookingOrg } from "@/lib/booking/public";
+import { LegalFooter } from "./legal-footer";
 import type { listPublicCatalog } from "@/lib/booking/catalog";
 import { setRequestLocale } from "next-intl/server";
 import { publicLocale } from "@/i18n/public";
@@ -66,6 +67,7 @@ export async function renderChannelPage({
           {/* The visitor's escape hatch, its own element: the badge above is
               hideable on a paid plan and the language links are not. */}
           <PublicLanguageLinks locale={locale} />
+          <LegalFooter legal={await getOrgLegal(org.orgId)} />
         </main>
       </WidgetTheme>
     </div>

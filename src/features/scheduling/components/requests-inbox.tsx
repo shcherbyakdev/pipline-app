@@ -129,7 +129,14 @@ function RequestRow({
     startTransition(async () => {
       const result = await acceptBookingRequest({ id: booking.id });
       if (!result.ok) toast.error(result.error);
-      else toast.success(result.emailed ? t("requests.acceptedEmailed") : t("requests.accepted"));
+      else
+        toast.success(
+          result.held
+            ? t("requests.acceptedHeld")
+            : result.emailed
+              ? t("requests.acceptedEmailed")
+              : t("requests.accepted"),
+        );
       router.refresh();
     });
 

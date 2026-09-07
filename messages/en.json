@@ -228,7 +228,8 @@
       "stayNotMovable": "Only a confirmed stay can be moved.",
       "notMovable": "Only a confirmed booking can be moved.",
       "alreadyStarted": "This booking has already started.",
-      "spaceInactive": "This space is inactive — reactivate it to move its bookings."
+      "spaceInactive": "This space is inactive — reactivate it to move its bookings.",
+      "notHeld": "This booking is no longer awaiting payment."
     },
     "studio": {
       "pageTooLarge": "This page is too large to save — remove some content or images.",
@@ -321,26 +322,38 @@
     "confirmed": {
       "requestSent": "Request sent",
       "bookingConfirmed": "Booking confirmed",
+      "reservedUntil": "Reserved until {until}",
       "with": "with {name}",
       "pendingBody": "Nothing is booked yet — you'll get an email as soon as it's confirmed. Keep that email; the link below is your access to the request.",
       "confirmedBody": "A confirmation email is on its way. Keep it — the links below are your access to this booking.",
+      "payBody": "Pay {amount} to confirm. Unpaid reservations are released automatically.",
       "viewRequest": "View your request",
       "viewBooking": "View your booking",
+      "pay": "Pay {amount}",
+      "viewReservation": "View reservation",
       "addToCalendar": "Add to calendar (.ics)"
     },
     "manage": {
       "status": {
         "confirmed": "Confirmed",
         "pending": "Waiting for confirmation",
+        "pendingPayment": "Awaiting payment",
         "declined": "Request declined",
         "cancelledByClient": "Cancelled",
         "cancelledByProvider": "Cancelled by the provider",
         "rescheduled": "Rescheduled",
-        "expired": "Request expired"
+        "requestExpired": "Request expired",
+        "expired": "Released — the deposit wasn't paid in time"
       },
       "tooManyRequests": "Too many requests — try again shortly.",
       "alreadyStarted": "This booking has already started.",
       "awaiting": "{orgName} hasn't confirmed this request yet — you'll get an email when they do.",
+      "reservedUntil": "Reserved until {until}. Pay the deposit to confirm.",
+      "holdLapsed": "The payment window has passed. This time will be released shortly — book again to reserve it.",
+      "paymentReceived": "Payment received — thank you.",
+      "paymentProcessing": "We're confirming your payment — this page updates once your bank settles it.",
+      "paymentFailed": "Payment isn't available right now — try again in a moment.",
+      "expiredBody": "This reservation was released because the deposit wasn't paid in time. You can book again on the studio's page.",
       "reschedule": "Reschedule",
       "pickNewTime": "Pick a new time",
       "pickNewDates": "Pick new dates",
@@ -412,6 +425,10 @@
       "total": "Total: {amount}",
       "depositDue": "Deposit due: {amount}",
       "payAtVenue": "Payment: pay at the venue",
+      "payNow": "Pay {amount} now to confirm",
+      "paid": "Paid: {amount}",
+      "balanceAtVenue": "{amount} due at the venue",
+      "refund": "Refunded: {amount} — bank refunds take up to 3 business days",
       "freeCancellation": "Free cancellation until {window} before start",
       "fromPerHour": "from {amount} / hour",
       "totalFor": "{amount} / {length}",
@@ -424,6 +441,13 @@
         "people": "{count, plural, one {# extra person} other {# extra people}} × {each}",
         "extra": "{label} × {qty}"
       }
+    },
+    "legal": {
+      "taxId": "NIP {id}",
+      "regNo": "Reg. no. {id}",
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "refund": "Refund policy"
     }
   },
   "emails": {
@@ -466,6 +490,29 @@
       "subject": "Request declined — {service}, {when}",
       "lead": "{orgName} couldn't take your booking request.",
       "again": "You're welcome to request another time on the booking page."
+    },
+    "paymentDue": {
+      "subject": "Pay {amount} by {until} to confirm — {service}, {when}",
+      "lead": "Your time is reserved until {until}. Pay the deposit to confirm it — unpaid reservations are released automatically.",
+      "pay": "Pay {amount}",
+      "payText": "Pay {amount}: {url}",
+      "keep": "Keep this email — the links above are your access to the reservation."
+    },
+    "paymentReceived": {
+      "subject": "Payment received — {service}, {when}",
+      "lead": "Thank you — your payment was received and your booking is confirmed.",
+      "manageHint": "To view or change it, use the link in your reservation email."
+    },
+    "holdExpired": {
+      "subject": "Reservation released — {service}, {when}",
+      "lead": "The deposit for this reservation was not received in time, so the time was released.",
+      "bookAgain": "Book again",
+      "bookAgainText": "Book again: {url}"
+    },
+    "slotLost": {
+      "subject": "We couldn't confirm {service}, {when}",
+      "lead": "Your payment arrived after the reservation had been released, and the time was taken meanwhile. {amount} is being refunded to you — bank refunds take up to 3 business days.",
+      "leadManual": "Your payment arrived after the reservation had been released, and the time was taken meanwhile. {orgName} will refund {amount} to you."
     },
     "rescheduled": {
       "subject": "Booking rescheduled — {service}, {when}",
@@ -544,6 +591,7 @@
       "bookingPage": "Booking page",
       "embed": "Website embed",
       "billing": "Billing",
+      "payments": "Payments",
       "notifications": "Notifications",
       "settings": "Settings",
       "integrations": "Integrations"
@@ -790,7 +838,9 @@
       "declined": "Declined",
       "cancelledByClient": "Cancelled by client",
       "cancelledByProvider": "Cancelled by you",
-      "rescheduled": "Rescheduled"
+      "rescheduled": "Rescheduled",
+      "pendingPayment": "Awaiting payment",
+      "expired": "Released — unpaid"
     },
     "fallbackTitle": "Appointment",
     "weekdays": "Mo Tu We Th Fr Sa Su",
@@ -828,6 +878,7 @@
       "declineFrom": "Decline request from {name}",
       "accepted": "Accepted.",
       "acceptedEmailed": "Accepted — confirmation sent.",
+      "acceptedHeld": "Accepted — the client has been asked to pay the deposit.",
       "declineTitle": "Decline request",
       "declineBody": "The time is released and the client is emailed that you can't take it.",
       "declineNote": "Message to the client (optional)",
@@ -841,7 +892,20 @@
       "confirm": "Confirm cancel",
       "doneNoEmail": "Booking cancelled — no email on file for this client.",
       "doneEmailed": "Booking cancelled — the client has been emailed.",
-      "doneEmailFailed": "Booking cancelled — but the email to the client failed. Contact them directly."
+      "doneEmailFailed": "Booking cancelled — but the email to the client failed. Contact them directly.",
+      "refund": "Refund {amount}",
+      "refundFailed": "The refund failed — refund it in Stripe."
+    },
+    "hold": {
+      "until": "Reserved until {time}",
+      "lapsed": "The payment window has passed — the next sweep releases this time.",
+      "paid": "Paid {paid}",
+      "paidBalance": "Paid {paid} · {balance} due at the venue",
+      "refunded": "Refunded {amount}"
+    },
+    "markPaid": {
+      "button": "Mark as paid",
+      "done": "Marked as paid — the client has been emailed."
     },
     "resend": {
       "sent": "A fresh link is on its way to the client.",
@@ -1824,6 +1888,38 @@
   "embedTitle": {
     "appointment": "Book an appointment",
     "space": "Book a space"
+  },
+  "payments": {
+    "intro": "How clients pay deposits, and the business details shown on your booking page.",
+    "stripe": {
+      "title": "Stripe",
+      "blurb": "Deposits are paid through Stripe on your own account — Booklo never holds the money and takes no fee.",
+      "notConfigured": "Payments aren't set up on this server.",
+      "notConnected": "Connect Stripe to collect deposits online. Bookings that need a deposit are held until it's paid.",
+      "country": "Business country",
+      "connect": "Connect Stripe",
+      "continue": "Continue setup",
+      "onboarding": "Stripe still needs some details before you can take payments.",
+      "active": "Active — clients can pay deposits online.",
+      "restricted": "Stripe has paused payments on this account and needs more information.",
+      "openDashboard": "Open Stripe dashboard",
+      "capability": { "card_payments": "Cards", "p24_payments": "Przelewy24", "blik_payments": "BLIK" },
+      "notice": { "return": "Stripe details saved.", "returnIncomplete": "Stripe still needs a few details — continue setup when you're ready.", "error": "Couldn't reach Stripe. Try again in a moment." }
+    },
+    "hold": {
+      "title": "Payment window",
+      "blurb": "How long a booking is held for its deposit. Unpaid bookings are released automatically.",
+      "label": "Hold for",
+      "options": { "30": "30 minutes", "60": "1 hour", "180": "3 hours", "1440": "24 hours" }
+    },
+    "legal": {
+      "title": "Business details",
+      "blurb": "Shown in the footer of your booking page. Przelewy24 requires them for online payments.",
+      "legalName": "Legal name", "address": "Address", "taxId": "NIP", "regNo": "REGON or KRS",
+      "termsUrl": "Terms link", "privacyUrl": "Privacy policy link", "refundUrl": "Refund policy link"
+    },
+    "save": "Save",
+    "saved": "Saved"
   },
   "notifications": {
     "intro": "What you hear about, and what your clients receive.",

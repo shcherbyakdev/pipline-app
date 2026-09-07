@@ -35,6 +35,16 @@ const net = vi.hoisted(() => ({ clientIp: "203.0.113.11" }));
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ "x-forwarded-for": net.clientIp }),
 }));
+// Every send captured, nothing leaves (resources.integration.test.ts idiom) —
+// the S2 hold case below is the one that reads them.
+const mail = vi.hoisted(() => ({ sent: [] as Array<Record<string, unknown>> }));
+vi.mock("@/lib/email/transport", () => ({
+  selectTransport: () => ({
+    send: async (msg: Record<string, unknown>) => {
+      mail.sent.push(msg);
+    },
+  }),
+}));
 
 try {
   loadEnvFile(".env.local");
@@ -85,12 +95,14 @@ async function signedInUser(tag: string): Promise<SupabaseClient> {
 describe("hourly public booking flow (action layer)", () => {
   let orgId: string;
   let offeringId: string;
+  // Kept for the S2 case below, which builds its own offering mid-test.
+  let owner: SupabaseClient;
   // S1: a second, rules-priced offering (own unit + all-day availability),
   // alongside the flat-rate one above — same org, so no extra org/flag setup.
   let rulesOfferingId: string;
 
   beforeAll(async () => {
-    const owner = await signedInUser("h2flow_owner");
+    owner = await signedInUser("h2flow_owner");
     const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "H2FlowCo", p_offers_appointments: false, p_offers_rentals: true });
     if (e1) throw e1;
     orgId = (org as { id: string }).id;
@@ -367,6 +379,88 @@ describe("hourly public booking flow (action layer)", () => {
     expect(stale.status).toBe("ok");
     if (stale.status !== "ok") return;
     expect(stale.booking.status).toBe("rescheduled");
+  });
+
+  // S2 (0079): a deposit on an org that can take money online is HELD, not
+  // confirmed. Own offering (100 zł/h, 50 % deposit) and the org's payment
+  // account are created HERE, last in the block, so every money-free case
+  // above keeps booking against a money-free org.
+  it("S2: a deposit + an active payment account → a hold, the pay-by mail, no provider notice", async () => {
+    net.clientIp = "203.0.113.63";
+    const { data: paid, error: eOff } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: orgId,
+        name: "Studio (deposit)",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+        turnover_min: 0,
+        min_notice_min: 0,
+        booking_window_days: 730,
+        price_cents: 10000,
+        pricing_mode: "per_unit",
+        deposit_type: "percent",
+        deposit_value: 50,
+      })
+      .select("id")
+      .single();
+    if (eOff) throw eOff;
+    const paidOfferingId = paid!.id as string;
+    const { error: eUnit } = await owner
+      .from("rental_units")
+      .insert({ org_id: orgId, offering_id: paidOfferingId, name: "Studio D", sort_order: 0 });
+    if (eUnit) throw eUnit;
+    const { error: eRules } = await owner.from("availability_rules").insert(
+      Array.from({ length: 7 }, (_, weekday) => ({
+        org_id: orgId,
+        rental_offering_id: paidOfferingId,
+        weekday,
+        start_time: "09:00",
+        end_time: "21:00",
+      })),
+    );
+    if (eRules) throw eRules;
+    const { error: eAcct } = await admin.from("payment_accounts").insert({
+      org_id: orgId,
+      stripe_account_id: `acct_flow_${orgId.slice(0, 8)}`,
+      status: "active",
+    });
+    if (eAcct) throw eAcct;
+
+    mail.sent.length = 0;
+    const res = await hourlyActions.createRentalBookingHours({
+      handle: HANDLE,
+      offeringId: paidOfferingId,
+      unitId: null,
+      startsAt: iso(`${d(9)}T10:00`),
+      durationMin: 60,
+      name: "Ola",
+      email: `ola-s2-${Date.now()}@example.com`,
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.pending).toBe(false);
+    // formatMoney's pl-PL separator is U+00A0, not a space.
+    expect(res.payment?.amount).toBe("50\u00a0zł");
+    expect(res.payment?.until).toMatch(/\d{2}:\d{2}$/);
+
+    const { data: row } = await admin
+      .from("bookings")
+      .select("status, hold_expires_at, deposit_cents")
+      .eq("cancel_token_hash", hashOf(res.token))
+      .single();
+    expect(row!.status).toBe("pending_payment");
+    expect(row!.hold_expires_at).not.toBeNull();
+    expect(row!.deposit_cents).toBe(5000);
+
+    const clientMail = mail.sent.find((m) => String(m.subject).startsWith("Pay 50\u00a0zł by"));
+    expect(clientMail, `subjects: ${mail.sent.map((m) => m.subject).join(" | ")}`).toBeTruthy();
+    expect(String(clientMail!.text)).toContain(`/booking/${res.token}/pay`);
+    expect(String(clientMail!.text)).toContain("Pay 50\u00a0zł now to confirm");
+    // A hold is not a booking: the provider hears nothing until the money lands.
+    expect(mail.sent.some((m) => /new booking/i.test(String(m.subject)))).toBe(false);
   });
 });
 

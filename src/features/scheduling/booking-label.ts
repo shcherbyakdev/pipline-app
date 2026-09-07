@@ -29,6 +29,10 @@ export function bookingTitle(row: BookingKindRow, fallback: string): string {
 export const STATUS_KEY = {
   confirmed: "confirmed",
   pending: "pending",
+  // S2 (0079): a hold and the row the drain released when it lapsed. The
+  // detail pages (team, service, space, client) list both.
+  pending_payment: "pendingPayment",
+  expired: "expired",
   declined: "declined",
   cancelled_by_client: "cancelledByClient",
   cancelled_by_provider: "cancelledByProvider",
