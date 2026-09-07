@@ -21,7 +21,7 @@ function offering(id: string, active = true, activeUnitCount = 1): OfferingRow {
     unitSelection: "auto", slotIncrementMin: null, minDurationMin: null, maxDurationMin: null,
     turnoverMin: 0, minNoticeMin: 0, active, requiresApproval: false, sortOrder: 0, unitCount: 1, activeUnitCount,
     priceCents: 20000, pricingMode: "per_unit", depositType: "none", depositValue: null,
-    cancelWindowMin: 0, termsText: null,
+    cancelWindowMin: 0, termsText: null, pricing: null,
   };
 }
 const ids = (rows: Array<{ id: string }>) => rows.map((r) => r.id);
