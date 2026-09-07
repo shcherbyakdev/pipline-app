@@ -451,4 +451,20 @@ describe("hourly RPCs snapshot the quote", () => {
     });
     expect(error?.code).toBe("23514");
   });
+
+  it("the pricing CHECK refuses rules on a non-hourly space", async () => {
+    const { client, orgId } = await newOrg("nights");
+    const { error } = await client.from("rental_offerings").insert({
+      org_id: orgId,
+      name: "Cabin",
+      range_mode: "nights",
+      start_time: "15:00",
+      end_time: "11:00",
+      min_stay: 1,
+      turnover_days: 0,
+      pricing: FIXTURE_RULES,
+    });
+    expect(error?.code).toBe("23514");
+    expect(error?.message).toContain("rental_offerings_pricing_hours_ck");
+  });
 });

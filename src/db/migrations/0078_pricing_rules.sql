@@ -3,12 +3,17 @@
 -- turns rules + a request into line items; the four hourly RPCs snapshot
 -- those lines on bookings.lines with price_cents = their sum. pricing NULL
 -- keeps every pre-0078 path byte-for-byte.
+-- Deploy note: this file DROPS the 9-arg create_rental_booking_hours — ship
+-- migration + build in one window (0058 precedent).
 
 -- ---------- columns
 alter table public.rental_offerings
   add column pricing jsonb,
   add constraint rental_offerings_pricing_ck
-    check (pricing is null or jsonb_typeof(pricing) = 'object');
+    check (pricing is null or jsonb_typeof(pricing) = 'object'),
+  -- Rules only ever describe an hourly space; nights/days never read them.
+  add constraint rental_offerings_pricing_hours_ck
+    check (pricing is null or range_mode = 'hours');
 
 -- Rules are a price source too: 0058 tied a percent/full deposit to
 -- price_cents, which a rules-priced space leaves NULL. Widened, never
@@ -218,7 +223,7 @@ begin
      case when v_off.requires_approval then 'pending' else 'confirmed' end,
      p_token_hash, p_note, v_total, v_snap_currency, v_deposit,
      case when v_off.terms_text is not null then now() end,
-     case when jsonb_array_length(v_lines) = 0 then null else v_lines end,          -- S1
+     case when v_off.pricing is null or jsonb_array_length(v_lines) = 0 then null else v_lines end,  -- S1
      case when v_off.pricing ? 'people' then coalesce(p_people, (v_off.pricing->'people'->>'included')::int) end)  -- S1
   returning id into v_booking_id;
 
@@ -295,7 +300,7 @@ begin
   values
     (v_off.org_id, v_off.id, v_unit, v_client_id, btrim(p_name), lower(p_email),
      p_starts_at, v_ends, 'confirmed', p_token_hash, p_note, v_total, v_snap_currency, v_deposit, null,
-     case when jsonb_array_length(v_lines) = 0 then null else v_lines end, null)     -- S1
+     case when v_off.pricing is null or jsonb_array_length(v_lines) = 0 then null else v_lines end, null)  -- S1
   returning id into v_booking_id;
 
   return v_booking_id;
@@ -464,7 +469,7 @@ begin
     (v_old.org_id, v_off.id, v_unit, v_old.client_id, v_old.client_name, v_old.client_email,
      p_starts_at, v_ends, 'confirmed', p_new_token_hash, v_old.note, v_old.id,
      v_total, v_snap_currency, v_deposit, v_old.terms_accepted_at,
-     case when jsonb_array_length(v_lines) = 0 then null else v_lines end, v_people)  -- S1
+     case when v_off.pricing is null or jsonb_array_length(v_lines) = 0 then null else v_lines end, v_people)  -- S1
   returning id into v_new_id;
 
   return query
@@ -519,5 +524,7 @@ grant execute on function public.resolve_booking_token(text) to anon, service_ro
 -- and reschedule_rental_hours_apply from 0070; then
 --   alter table public.bookings drop column lines, drop column people;
 --   alter table public.rental_offerings drop column pricing;
--- (the column CHECKs go with their columns); and restore 0058's narrower
+-- (the column CHECKs — rental_offerings_pricing_ck,
+-- rental_offerings_pricing_hours_ck, bookings_lines_ck, bookings_people_ck —
+-- go with their columns); and restore 0058's narrower
 -- rental_offerings_deposit_needs_price_ck.

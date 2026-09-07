@@ -691,6 +691,7 @@
       "pricing": {
         "useRules": "Rates by length, surcharges and extras",
         "useRulesHint": "Instead of one price per hour. The price is worked out for each booking and shown before the client confirms.",
+        "invalid": "Pricing rules: {issue}",
         "bands": {
           "title": "Rates by length",
           "from": "from",

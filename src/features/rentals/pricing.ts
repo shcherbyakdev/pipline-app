@@ -63,8 +63,8 @@ export function formatCancelWindow(min: number, t: UnitsT): string {
 }
 
 // Shared copy for the confirm step, the manage page and both emails. The
-// first line is the total whenever there is one (booking-money-summary.tsx
-// emphasises it by position).
+// quote's breakdown lines come first, one per line, and the total follows
+// them (booking-money-summary.tsx relies on that order).
 export function moneyInfoLines(
   i: { totalCents: number | null; depositCents: number | null; currency: string | null; cancelWindowMin: number; lines?: Line[] | null },
   t: UnitsT,
@@ -145,7 +145,7 @@ export function quoteHours(
       overlap += minutesOverlap(start, end, wStart, wEnd);
     }
     if (overlap === 0) continue;
-    lines.push({ kind: "surcharge", qty: overlap, unitCents: null, cents: Math.round((baseCents * s.pct) / 100 * overlap / durationMin), label: s.label, pct: s.pct });
+    lines.push({ kind: "surcharge", qty: overlap, unitCents: null, cents: Math.round((baseCents * s.pct * overlap) / (100 * durationMin)), label: s.label, pct: s.pct });
   }
   // 3. People.
   if (o.pricing.people) {

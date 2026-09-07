@@ -12,8 +12,40 @@ import { TIME_OPTIONS } from "@/features/scheduling/time-options";
 import type { Extra, PricingRules, Surcharge } from "@/features/rentals/pricing-rules";
 import { cn } from "@/lib/utils";
 
-const major = (cents: number | undefined) => (cents === undefined ? "" : String(cents / 100));
-const toCents = (s: string) => (s.trim() === "" ? 0 : Math.round(Number(s) * 100));
+/* A decimal field that survives being typed in. A controlled
+   `type="number"` round-tripped through cents cannot hold a half-typed
+   number: the HTML sanitiser reports "" for "89.", so the state took 0 and
+   "89.50" landed as 0.50. This keeps the raw string while the field is
+   being edited and commits once — on blur or Enter — normalising "," to
+   ".". `value` and the committed number are both in display units (major
+   currency, or hours for a band's start), so the caller does the ×100 / ×60. */
+function DecimalInput({
+  value, min = 0, onCommit, ...rest
+}: { value: number; min?: number; onCommit: (v: number) => void } & Omit<
+  React.ComponentProps<typeof Input>,
+  "value" | "min" | "onChange" | "onBlur" | "onKeyDown"
+>) {
+  const [draft, setDraft] = React.useState<string | null>(null);
+  const commit = () => {
+    if (draft === null) return;
+    const n = Number(draft.trim().replace(",", "."));
+    if (draft.trim() !== "" && Number.isFinite(n) && n >= min) onCommit(n);
+    setDraft(null);
+  };
+  return (
+    <Input
+      {...rest}
+      type="text"
+      inputMode="decimal"
+      value={draft ?? String(value)}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") { e.preventDefault(); commit(); }
+      }}
+    />
+  );
+}
 
 function RowRemove({ label, onClick }: { label: string; onClick: () => void }) {
   return (
@@ -41,6 +73,14 @@ export function PricingRulesEditor({
   const weekdays = tw("weekdaysShort").split(" "); // Sun … Sat (0…6)
   const rules = value;
   const set = (patch: Partial<PricingRules>) => onChange({ ...(rules ?? { bands: [], surcharges: [], extras: [] }), ...patch });
+  // The first band's start mirrors Min duration (its input is disabled), so
+  // it has to follow the live value: lowering Min duration otherwise left a
+  // band the schema refuses and no way to edit it back.
+  React.useEffect(() => {
+    if (rules !== null && rules.bands[0] !== undefined && rules.bands[0].fromMin !== minDurationMin) {
+      onChange({ ...rules, bands: rules.bands.map((b, i) => (i === 0 ? { ...b, fromMin: minDurationMin } : b)) });
+    }
+  }, [minDurationMin, rules, onChange]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -63,9 +103,9 @@ export function PricingRulesEditor({
             {rules.bands.map((b, i) => (
               <div key={i} className="grid grid-cols-[auto_1fr_auto_1fr_auto] items-center gap-2">
                 <span className="text-muted-foreground text-xs">{t("bands.from")}</span>
-                <Input aria-label={t("bands.fromAria", { n: i + 1 })} type="number" min={0.5} step={0.5} value={b.fromMin / 60}
+                <DecimalInput aria-label={t("bands.fromAria", { n: i + 1 })} min={0.5} value={b.fromMin / 60}
                   disabled={i === 0}
-                  onChange={(e) => set({ bands: rules.bands.map((x, j) => j === i ? { ...x, fromMin: Math.round(Number(e.target.value) * 60) } : x) })} />
+                  onCommit={(v) => set({ bands: rules.bands.map((x, j) => j === i ? { ...x, fromMin: Math.round(v * 60) } : x) })} />
                 <select aria-label={t("bands.kindAria", { n: i + 1 })} className={nativeSelectClass}
                   value={b.totalCents !== undefined ? "total" : "perHour"}
                   onChange={(e) => set({ bands: rules.bands.map((x, j) => j === i
@@ -74,10 +114,10 @@ export function PricingRulesEditor({
                   <option value="perHour">{t("bands.perHour", { currency })}</option>
                   <option value="total">{t("bands.total", { currency })}</option>
                 </select>
-                <Input aria-label={t("bands.amountAria", { n: i + 1 })} type="number" min={0} step="0.01"
-                  value={major(b.totalCents ?? b.perHourCents)}
-                  onChange={(e) => set({ bands: rules.bands.map((x, j) => j === i
-                    ? (x.totalCents !== undefined ? { ...x, totalCents: toCents(e.target.value) } : { ...x, perHourCents: toCents(e.target.value) })
+                <DecimalInput aria-label={t("bands.amountAria", { n: i + 1 })}
+                  value={(b.totalCents ?? b.perHourCents ?? 0) / 100}
+                  onCommit={(v) => set({ bands: rules.bands.map((x, j) => j === i
+                    ? (x.totalCents !== undefined ? { ...x, totalCents: Math.round(v * 100) } : { ...x, perHourCents: Math.round(v * 100) })
                     : x) })} />
                 {i === 0 ? <span /> : <RowRemove label={t("bands.remove", { n: i + 1 })} onClick={() => set({ bands: rules.bands.filter((_, j) => j !== i) })} />}
               </div>
@@ -111,7 +151,7 @@ export function PricingRulesEditor({
                     <button key={dow} type="button" aria-pressed={s.days.includes(dow)}
                       className={cn("rounded-md border px-2 py-1 text-xs", s.days.includes(dow) ? "bg-foreground text-background" : "text-muted-foreground")}
                       onClick={() => set({ surcharges: rules.surcharges.map((x, j) => j === i
-                        ? { ...x, days: x.days.includes(dow) ? x.days.filter((d) => d !== dow) : [...x.days, dow].sort() } : x) })}>
+                        ? { ...x, days: x.days.includes(dow) ? (x.days.length > 1 ? x.days.filter((d) => d !== dow) : x.days) : [...x.days, dow].sort() } : x) })}>
                       {name}
                     </button>
                   ))}
@@ -126,7 +166,7 @@ export function PricingRulesEditor({
             ))}
             {rules.surcharges.length < 4 ? (
               <Button type="button" variant="ghost" size="sm" className="self-start"
-                onClick={() => set({ surcharges: [...rules.surcharges, { label: "", pct: 25, days: [0, 1, 2, 3, 4, 5, 6], from: "22:00", to: "08:00" } satisfies Surcharge] })}>
+                onClick={() => set({ surcharges: [...rules.surcharges, { label: t("surcharges.labelPlaceholder"), pct: 25, days: [0, 1, 2, 3, 4, 5, 6], from: "22:00", to: "08:00" } satisfies Surcharge] })}>
                 {t("surcharges.add")}
               </Button>
             ) : null}
@@ -148,8 +188,8 @@ export function PricingRulesEditor({
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="people-extra">{t("people.extra", { currency })}</Label>
-                  <Input id="people-extra" type="number" min={0} step="0.01" value={major(rules.people.extraCents)}
-                    onChange={(e) => set({ people: { ...rules.people!, extraCents: toCents(e.target.value) } })} />
+                  <DecimalInput id="people-extra" value={rules.people.extraCents / 100}
+                    onCommit={(v) => set({ people: { ...rules.people!, extraCents: Math.round(v * 100) } })} />
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="people-max">{t("people.max")}</Label>
@@ -172,8 +212,8 @@ export function PricingRulesEditor({
                   <option value="hour">{t("extras.perHour")}</option>
                   <option value="piece">{t("extras.perPiece")}</option>
                 </select>
-                <Input aria-label={t("extras.priceAria", { n: i + 1 })} type="number" min={0} step="0.01" className="w-24" value={major(x.priceCents)}
-                  onChange={(e) => set({ extras: rules.extras.map((y, j) => j === i ? { ...y, priceCents: toCents(e.target.value) } : y) })} />
+                <DecimalInput aria-label={t("extras.priceAria", { n: i + 1 })} className="w-24" value={x.priceCents / 100}
+                  onCommit={(v) => set({ extras: rules.extras.map((y, j) => j === i ? { ...y, priceCents: Math.round(v * 100) } : y) })} />
                 <Input aria-label={t("extras.maxAria", { n: i + 1 })} type="number" min={1} max={99} className="w-16" value={x.maxQty}
                   onChange={(e) => set({ extras: rules.extras.map((y, j) => j === i ? { ...y, maxQty: Number(e.target.value) } : y) })} />
                 <RowRemove label={t("extras.remove", { n: i + 1 })} onClick={() => set({ extras: rules.extras.filter((_, j) => j !== i) })} />
@@ -185,7 +225,7 @@ export function PricingRulesEditor({
                   // A fresh id once; a later relabel keeps it (existing bookings' lines reference it).
                   const n = rules.extras.length + 1;
                   const id = `extra-${n}-${Date.now().toString(36)}`.slice(0, 32);
-                  set({ extras: [...rules.extras, { id, label: "", unit: "hour", priceCents: 0, maxQty: 1 }] });
+                  set({ extras: [...rules.extras, { id, label: t("extras.labelPlaceholder"), unit: "hour", priceCents: 0, maxQty: 1 }] });
                 }}>
                 {t("extras.add")}
               </Button>

@@ -691,6 +691,7 @@
       "pricing": {
         "useRules": "Stawki za długość, dopłaty i dodatki",
         "useRulesHint": "Zamiast jednej ceny za godzinę. Cena jest wyliczana dla każdej rezerwacji i pokazywana, zanim klient potwierdzi.",
+        "invalid": "Cennik: {issue}",
         "bands": {
           "title": "Stawki za długość",
           "from": "od",

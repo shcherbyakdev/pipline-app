@@ -11,7 +11,7 @@ import type { OfferingRow } from "@/features/rentals/queries";
 import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
 import type { RangeMode } from "@/features/rentals/range";
 import type { DepositType } from "@/features/rentals/pricing";
-import type { PricingRules } from "@/features/rentals/pricing-rules";
+import { pricingRulesFor, type PricingRules } from "@/features/rentals/pricing-rules";
 import { Button } from "@/components/ui/button";
 import { Input, nativeSelectClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -188,6 +188,22 @@ export function OfferingForm({
             turnoverDays: Number(fd.get("turnoverDays")),
             minNoticeDays: Number(fd.get("minNoticeDays")),
           };
+    // The rules are the one part of this form the server can only refuse
+    // with a generic message (they arrive as one JSON blob), so they are
+    // checked here and reported with the offending field. The zod messages
+    // are English developer strings — deliberate for this slice.
+    if (rangeMode === "hours" && pricing !== null) {
+      const parsed = pricingRulesFor(minDurationMin).safeParse(pricing);
+      if (!parsed.success) {
+        const issue = parsed.error.issues[0];
+        toast.error(
+          t("form.pricing.invalid", {
+            issue: `${issue.path.join(" › ")} — ${issue.message}`,
+          }),
+        );
+        return;
+      }
+    }
     startTransition(async () => {
       const result = isEdit
         ? await updateOffering({ id: offering!.id, ...payload })
