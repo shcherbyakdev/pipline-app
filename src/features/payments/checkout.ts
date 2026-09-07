@@ -1,7 +1,12 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { checkoutExpiresAt, selectPaymentsProvider, type PaymentsProvider } from "@/lib/payments/provider";
+import {
+  checkoutExpiresAt,
+  paymentsConfigured,
+  selectPaymentsProvider,
+  type PaymentsProvider,
+} from "@/lib/payments/provider";
 import { withUnit } from "@/features/rentals/unit-label";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { INTL_LOCALES, isLocale, DEFAULT_LOCALE } from "@/i18n/config";
@@ -138,5 +143,44 @@ export async function startCheckout(
       })
       .eq("id", paymentId);
     return { error: "provider" };
+  }
+}
+
+/** Close every Checkout session still open on a booking and mark its ledger
+    row `expired`. Called wherever a hold stops being payable — the drain's
+    expiry phase, an admin or client cancel, "Mark as paid" — so a tab left
+    open on the old session cannot take money for a slot that is gone.
+    Best effort by contract: every caller runs it AFTER its own row is
+    committed, so this never throws — it logs and moves on. A COMPLETED
+    session is deliberately untouched: that one is the webhook's business
+    (it revives the hold or refunds it). */
+export async function expireOpenCheckouts(
+  bookingId: string,
+  deps: { db?: SupabaseClient; provider?: PaymentsProvider } = {},
+): Promise<void> {
+  const db = deps.db ?? createAdminClient();
+  const provider = deps.provider ?? (paymentsConfigured() ? selectPaymentsProvider() : undefined);
+  const { data: open, error } = await db
+    .from("booking_payments")
+    .select("id, checkout_session_id, stripe_account_id")
+    .eq("booking_id", bookingId)
+    .in("status", ["pending", "processing"]);
+  if (error) {
+    console.error("[payments] expireOpenCheckouts: ledger read failed:", error);
+    return;
+  }
+  for (const p of open ?? []) {
+    try {
+      if (provider && p.checkout_session_id && p.stripe_account_id) {
+        await provider.expireCheckout(p.stripe_account_id, p.checkout_session_id);
+      }
+    } catch (e) {
+      console.error("[payments] expiring checkout session failed:", e);
+    }
+    const { error: markError } = await db
+      .from("booking_payments")
+      .update({ status: "expired", updated_at: new Date().toISOString() })
+      .eq("id", p.id);
+    if (markError) console.error("[payments] expireOpenCheckouts: row update failed:", markError);
   }
 }

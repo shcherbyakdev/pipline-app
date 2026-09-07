@@ -7,6 +7,7 @@ import { emailTranslators } from "@/i18n/emails";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { withUnit } from "@/features/rentals/unit-label";
 import { bookingLifecycleKey, holdExpiredEmail, whenLineFor } from "@/features/scheduling/templates";
+import { expireOpenCheckouts } from "./checkout";
 import type { RangeMode } from "@/features/rentals/range";
 
 export const HOLD_EXPIRY_BATCH = 25;
@@ -59,26 +60,7 @@ export async function runHoldExpiry(deps: {
   let mailed = 0;
   let failed = 0;
   for (const raw of (claimed ?? []) as unknown as Row[]) {
-    // Best effort, and only for the sessions still open: a completed one is
-    // the webhook's business (it revives or refunds), not this phase's.
-    const { data: open } = await deps.db
-      .from("booking_payments")
-      .select("id, checkout_session_id, stripe_account_id")
-      .eq("booking_id", raw.id)
-      .in("status", ["pending", "processing"]);
-    for (const p of open ?? []) {
-      try {
-        if (deps.provider && p.checkout_session_id && p.stripe_account_id) {
-          await deps.provider.expireCheckout(p.stripe_account_id, p.checkout_session_id);
-        }
-      } catch (e) {
-        console.error("[payments] expiring checkout session failed:", e);
-      }
-      await deps.db
-        .from("booking_payments")
-        .update({ status: "expired", updated_at: new Date().toISOString() })
-        .eq("id", p.id);
-    }
+    await expireOpenCheckouts(raw.id, { db: deps.db, provider: deps.provider });
     if (!raw.client_email || !raw.orgs) continue;
     try {
       const client = await emailTranslators(raw.locale ?? raw.orgs.locale);

@@ -162,4 +162,4 @@ Tiered cancellation, partial refunds, refund on reschedule difference (S3) · af
 
 ## Launch checklist additions (not code)
 
-Second Stripe platform account vs reusing the billing account (Managed Payments cannot be a Connect platform); Connect webhook endpoint on that account with the five Checkout events; `PAYMENTS_PROVIDER=stripe` + the two keys on Vercel; MCC 7333 acceptance and the P24/BLIK capability review on the first real onboarding; the legal footer filled for the pilot studio before requesting P24.
+Second Stripe platform account vs reusing the billing account (Managed Payments cannot be a Connect platform); Connect webhook endpoint on that account with the four Checkout events (`checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`); `PAYMENTS_PROVIDER=stripe` + the two keys on Vercel; MCC 7333 acceptance and the P24/BLIK capability review on the first real onboarding; the legal footer filled for the pilot studio before requesting P24.

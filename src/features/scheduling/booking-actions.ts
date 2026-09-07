@@ -17,6 +17,7 @@ import { env } from "@/env";
 import { computeSlots, dateInZone } from "./slots";
 import { moneyInfoLines } from "@/features/rentals/pricing";
 import { refundBooking } from "@/features/payments/refund";
+import { expireOpenCheckouts } from "@/features/payments/checkout";
 import { sendPaymentReceived } from "@/features/payments/confirm-effects";
 import type { Line } from "@/features/rentals/pricing-rules";
 import type { RangeMode } from "@/features/rentals/range";
@@ -120,6 +121,12 @@ export async function cancelBookingAdmin(
             console.error("[payments] admin cancel refund:", e);
             return { refundedCents: 0, failed: true };
           });
+    // A hold's client may still have the Checkout tab open: close the session
+    // so no money arrives for a slot the studio just gave away. No-ops when
+    // nothing is open, and never fails the cancel (already applied).
+    await expireOpenCheckouts(row.id).catch((e) =>
+      console.error("[payments] admin cancel: expiring checkouts failed:", e),
+    );
 
     // Past this line the cancel is APPLIED — nothing below may turn into a
     // failed action, so the whole tail sits in its own catch rather than
@@ -228,6 +235,11 @@ export async function markBookingPaid(
         ? { ok: false, error: t("bookings.notHeld") }
         : fail("markBookingPaid", error);
     }
+    // The deposit arrived off-platform, so any Checkout session still open is
+    // a second charge waiting to happen — close it. Never fails the action.
+    await expireOpenCheckouts(parsed.data.id).catch((e) =>
+      console.error("[payments] mark paid: expiring checkouts failed:", e),
+    );
     // The same tail a webhook confirmation runs (client mail, member notice,
     // Google) — it swallows its own errors, and the flip is already applied.
     await sendPaymentReceived(parsed.data.id);
@@ -651,7 +663,7 @@ export async function createBookingAdmin(
 
 export async function acceptBookingRequest(
   input: unknown,
-): Promise<{ ok: true; emailed: boolean; noEmail?: boolean } | { ok: false; error: string }> {
+): Promise<{ ok: true; emailed: boolean; noEmail?: boolean; held: boolean } | { ok: false; error: string }> {
   const t = await getTranslations("errors");
   const parsed = bookingIdInput.safeParse(input);
   if (!parsed.success) return { ok: false, error: t("generic") };
@@ -680,6 +692,9 @@ export async function acceptBookingRequest(
     // catch rather than falling through to the outer one.
     let emailed = false;
     let noEmail = false;
+    // S2: the RPC may have held the row for a deposit instead of confirming
+    // it — the toast says "asked to pay", not "confirmed".
+    let held = false;
     try {
       const { data: rows, error: readError } = await supabase
         .from("bookings")
@@ -716,7 +731,7 @@ export async function acceptBookingRequest(
       } else {
         // S2 (0079): the RPC may have HELD the row instead of confirming it —
         // the client then gets "pay by", not the confirmation.
-        const held = row.status === "pending_payment" && row.hold_expires_at !== null;
+        held = row.status === "pending_payment" && row.hold_expires_at !== null;
         const mail = await emailTranslators(org.locale);
         // The staff notice below is the org's; the confirmation is the
         // client's, in the language they booked in (0072).
@@ -827,7 +842,7 @@ export async function acceptBookingRequest(
 
     revalidatePath("/bookings");
     revalidatePath("/overview");
-    return { ok: true, emailed, noEmail };
+    return { ok: true, emailed, noEmail, held };
   } catch (error) {
     return fail("acceptBookingRequest", error);
   }

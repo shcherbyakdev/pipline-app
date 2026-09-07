@@ -39,6 +39,10 @@ const STATUS_KEY = {
   expired: "expired",
 } as const;
 
+// Nobody is turning up for these: the money lines drop their "at the venue"
+// half (moneyInfoLines' `settled`).
+const DEAD_STATUSES = new Set(["expired", "cancelled_by_client", "cancelled_by_provider", "declined"]);
+
 export default async function BookingManagePage({ params, searchParams }: PageProps<"/booking/[token]">) {
   const { token } = await params;
   const result = await resolveBookingToken(token, clientKeyFrom(await headers()));
@@ -85,6 +89,9 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
       paidCents: b.paidCents,
       refundedCents: b.refundedCents,
       holding: b.status === "pending_payment",
+      // S2: a dead row (a lapsed hold, a cancel, a decline) still shows what
+      // was paid and refunded, but never asks for money at the venue.
+      settled: DEAD_STATUSES.has(b.status),
     },
     tUnits,
   );

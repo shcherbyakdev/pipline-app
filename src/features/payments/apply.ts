@@ -61,12 +61,16 @@ export async function applyPaymentEvents(
       if (markError) throw markError;
       const { data: b, error: bookingError } = await deps.db
         .from("bookings")
-        .select("hold_expires_at, status")
+        .select("hold_expires_at, status, starts_at")
         .eq("id", ledger.booking_id)
         .maybeSingle();
       if (bookingError) throw bookingError;
       if (b?.status === "pending_payment") {
-        const floor = Date.now() + ASYNC_GRACE_MS;
+        // Never hold a booking past its own start: the create RPCs clamp the
+        // hold at starts_at, and this grace period must respect the same
+        // ceiling (a P24 still settling at the appointment's hour is a
+        // no-show, not a live hold).
+        const floor = Math.min(Date.now() + ASYNC_GRACE_MS, new Date(b.starts_at as string).getTime());
         const current = b.hold_expires_at ? new Date(b.hold_expires_at as string).getTime() : 0;
         if (current < floor) {
           const { error: holdError } = await deps.db

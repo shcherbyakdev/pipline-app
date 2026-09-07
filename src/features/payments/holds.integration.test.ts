@@ -470,6 +470,34 @@ describe("holds and the lifecycle RPCs", () => {
   });
 });
 
+// Ledger minor 38: the two payments tables are service_role-only — a signed-in
+// member reads them through server code, never from the browser.
+describe("grants", () => {
+  it("an org member's own client reads neither payments table; service_role does", async () => {
+    const { client, orgId, handle } = await newOrg("grants");
+    await activeAccount(orgId);
+    const { offeringId } = await hoursFixture(client, orgId);
+    const { id } = await createHours(handle, offeringId, 12);
+    await ledgerRow(id!, `cs_g_${id}`);
+
+    // 42501 exactly: a typo'd column would also come back as an error, and
+    // that would fake this test green.
+    const accounts = await client.from("payment_accounts").select("org_id").eq("org_id", orgId);
+    expect(accounts.error?.code).toBe("42501");
+    expect(accounts.data ?? []).toHaveLength(0);
+    const payments = await client.from("booking_payments").select("id").eq("org_id", orgId);
+    expect(payments.error?.code).toBe("42501");
+    expect(payments.data ?? []).toHaveLength(0);
+
+    const mineAccounts = await admin.from("payment_accounts").select("org_id").eq("org_id", orgId);
+    expect(mineAccounts.error).toBeNull();
+    expect(mineAccounts.data).toHaveLength(1);
+    const minePayments = await admin.from("booking_payments").select("id").eq("org_id", orgId);
+    expect(minePayments.error).toBeNull();
+    expect(minePayments.data).toHaveLength(1);
+  });
+});
+
 describe("update_org_payments", () => {
   it("rejects a hold outside the set and a foreign org", async () => {
     const { client, orgId } = await newOrg("org");

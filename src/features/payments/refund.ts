@@ -13,8 +13,16 @@ import type { RangeMode } from "@/features/rentals/range";
 export type Deps = { db?: SupabaseClient; provider?: PaymentsProvider; transport?: EmailTransport };
 
 /** Refund one PAID ledger row in full; records the outcome on the row.
-    Returns false when the provider refused (row → refund_failed + error). */
-export async function refundLedgerRow(ledgerId: string, reason: string, deps: Deps = {}): Promise<boolean> {
+    Returns false when the provider refused (row → refund_failed + error).
+    `bumpBooking: false` refunds money the BOOKING never counted (slot_lost):
+    the ledger row still records refunded/refund_id/refunded_cents, but
+    `bookings.refunded_cents` is left alone. */
+export async function refundLedgerRow(
+  ledgerId: string,
+  reason: string,
+  deps: Deps = {},
+  opts: { bumpBooking?: boolean } = {},
+): Promise<boolean> {
   const db = deps.db ?? createAdminClient();
   const provider = deps.provider ?? selectPaymentsProvider();
   const { data: row, error: readError } = await db
@@ -63,11 +71,13 @@ export async function refundLedgerRow(ledgerId: string, reason: string, deps: De
         .eq("id", row.id);
       return false;
     }
-    // bump_booking_refunded clamps at the booking's paid_cents, so a
-    // slot_lost refund (which the booking never counted as paid) is a no-op
-    // rather than an error. Anything that DOES come back is a real write
+    // The slot_lost path no longer calls this at all (bumpBooking: false) —
+    // money the booking never counted must never touch its refunded_cents.
+    // bump_booking_refunded keeps its own least() clamp as defence for every
+    // other caller. Anything that DOES come back here is a real write
     // failure: the money already left the connected account, so say exactly
     // that on the row and report the row as needing a human.
+    if (opts.bumpBooking === false) return true;
     const { error: bumpError } = await db.rpc("bump_booking_refunded", {
       p_booking_id: row.booking_id,
       p_cents: amount,
@@ -99,10 +109,15 @@ export async function refundLedgerRow(ledgerId: string, reason: string, deps: De
   }
 }
 
-/** A payment landed on a booking whose slot is gone: refund + tell the client. */
+/** A payment landed on a booking whose slot is gone: refund + tell the client.
+    The booking is not bumped — it never counted this money as paid. */
 export async function sendSlotLost(ledgerId: string, deps: Deps = {}): Promise<void> {
   const db = deps.db ?? createAdminClient();
-  await refundLedgerRow(ledgerId, "slot-lost", deps);
+  const refunded = await refundLedgerRow(ledgerId, "slot-lost", deps, { bumpBooking: false });
+  // The mail must never claim a refund that did not happen: the row is
+  // refund_failed and a human finishes it in Stripe, so the client is told
+  // the studio will refund them rather than that it already has.
+  if (!refunded) console.error("[payments] slot-lost refund failed; ledger row needs a human:", ledgerId);
   const { data } = await db
     .from("booking_payments")
     .select(
@@ -146,6 +161,7 @@ export async function sendSlotLost(ledgerId: string, deps: Deps = {}): Promise<v
       ),
       amount: formatMoney(data.amount_cents, data.currency),
       badgeUrl: await emailBadgeUrl(b.org_id),
+      refundPending: !refunded,
     });
     await (deps.transport ?? selectTransport()).send({
       to: b.client_email,

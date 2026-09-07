@@ -487,7 +487,19 @@ handle from orgs where handle = 'payments'`).
 - [ ] The pilot studio's legal identity filled on `/payments` (legal name,
       address, NIP, terms link) **before** requesting P24 — Przelewy24
       requires it, and the public footer prints it.
-- [ ] The scheduling drain is running (Cloudflare Worker cron `*/15`): its
-      third phase releases lapsed holds, so without it a hold blocks its
-      slot forever. `POST /api/scheduling/drain` answers with a `holds`
-      summary (`{ expired, mailed, failed }`) next to the reminder counts.
+- [ ] The scheduling drain is running (Cloudflare Worker cron `*/15`): hold
+      expiry is the fourth phase (after reminders, calendar sync and the
+      inbound poll), so without it a hold blocks its slot forever.
+      `POST /api/scheduling/drain` answers with a `holds` summary
+      (`{ expired, mailed, failed }`) next to the reminder counts.
+- [ ] Know that a `refund_failed` ledger row has **no automatic retry and no
+      admin surface until S4**: the money is still on the connected account
+      and only the server log names the row. When a cancel or a slot-lost
+      mail reports a failed refund, find the payment in Stripe (the
+      connected account, by payment intent) and refund it by hand.
+- [ ] Never unset `PAYMENTS_PROVIDER` while `payment_accounts` rows are
+      `active`: the create RPCs read those rows, so bookings keep being HELD
+      for a deposit while `/pay` and the webhook answer 503 — every deposit
+      booking becomes an unpayable hold that only lapses. Set the rows to
+      `onboarding` first (`update payment_accounts set status = 'onboarding'`),
+      then unset the variable.

@@ -327,16 +327,22 @@ export function holdExpiredEmail(t: EmailsT, input: {
 
 export function slotLostEmail(t: EmailsT, input: {
   orgName: string; serviceName: string; whenLine: string; amount: string; badgeUrl?: string | null;
+  /** The refund did not go through: the studio owes it by hand, so the mail
+      promises one rather than reporting one. */
+  refundPending?: boolean;
 }): { subject: string; html: string; text: string } {
   const subject = t("slotLost.subject", { service: input.serviceName, when: input.whenLine });
+  const lead = input.refundPending
+    ? t("slotLost.leadManual", { orgName: input.orgName, amount: input.amount })
+    : t("slotLost.lead", { amount: input.amount });
   const html = `
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
-  <p style="margin: 0 0 8px;">${esc(t("slotLost.lead", { amount: input.amount }))}</p>
+  <p style="margin: 0 0 8px;">${esc(lead)}</p>
   <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
   <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${badgeHtmlLine(t, input.badgeUrl)}
 </div>`.trim();
-  const text = [input.orgName, "", t("slotLost.lead", { amount: input.amount }), input.serviceName, input.whenLine, ...badgeTextLines(t, input.badgeUrl)].join("\n");
+  const text = [input.orgName, "", lead, input.serviceName, input.whenLine, ...badgeTextLines(t, input.badgeUrl)].join("\n");
   return { subject, html, text };
 }
 

@@ -136,7 +136,15 @@ function DetailBody({
         toast.error(result.error);
         return;
       }
-      toast.success(result.emailed ? t("requests.acceptedEmailed") : t("requests.accepted"));
+      // S2: an accept that HELD the row asked for a deposit — saying
+      // "confirmation sent" would be a lie about a booking still unpaid.
+      toast.success(
+        result.held
+          ? t("requests.acceptedHeld")
+          : result.emailed
+            ? t("requests.acceptedEmailed")
+            : t("requests.accepted"),
+      );
       onClose();
     });
 

@@ -17,6 +17,7 @@ import { sendStaffNotice } from "@/lib/booking/staff-notice";
 import { emailBadgeUrl } from "@/lib/billing/queries";
 import { selectTransport } from "@/lib/email/transport";
 import { refundBooking } from "@/features/payments/refund";
+import { expireOpenCheckouts } from "@/features/payments/checkout";
 import { formatMoney } from "@/lib/money";
 import { env } from "@/env";
 import { addDaysISO, computeSlots, dateInZone } from "./slots";
@@ -147,6 +148,12 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
       console.error("[payments] cancel refund:", e);
       return { refundedCents: 0, failed: true };
     });
+    // A hold cancelled from its own pay screen can still have a live Checkout
+    // session behind it — close it so the money never arrives. No-ops when
+    // nothing is open; never fails the cancel (already committed).
+    await expireOpenCheckouts(row.booking_id).catch((e) =>
+      console.error("[payments] cancel: expiring checkouts failed:", e),
+    );
     // cancel_booking doesn't return the currency, and only a real refund
     // needs it — pay for the read on that path alone.
     const currency: string | null =

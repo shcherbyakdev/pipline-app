@@ -16,6 +16,7 @@ try {
 process.env.NEXT_PUBLIC_APP_URL ??= "http://localhost:3000";
 
 const { refundBooking } = await import("./refund");
+const { expireOpenCheckouts } = await import("./checkout");
 const { fakePaymentsProvider } = await import("@/lib/payments/fake");
 const { generateAccessToken } = await import("@/lib/tokens/mint");
 const { wallTimeToUtc } = await import("@/features/scheduling/slots");
@@ -214,5 +215,49 @@ describe("refundBooking", () => {
       .eq("checkout_session_id", session)
       .single();
     expect(row).toMatchObject({ status: "refund_failed", error: "stripe down" });
+  });
+});
+
+describe("expireOpenCheckouts", () => {
+  it("mark_booking_paid then the sweep: the open session's row becomes expired", async () => {
+    const { client, orgId, handle } = await newOrg("expire");
+    const { offeringId } = await hoursFixture(client, orgId);
+    await activeAccount(orgId);
+    const { id } = await createHours(handle, offeringId, 10);
+    // The row startCheckout leaves behind: pending, with a live session.
+    const { data: pending, error } = await admin
+      .from("booking_payments")
+      .insert({
+        org_id: orgId,
+        booking_id: id,
+        kind: "deposit",
+        provider: "fake",
+        amount_cents: 5000,
+        currency: "PLN",
+        status: "pending",
+        checkout_session_id: `cs_x_${id}`,
+        stripe_account_id: "acct_fake_x",
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    const { error: paidError } = await client.rpc("mark_booking_paid", { p_booking_id: id });
+    if (paidError) throw paidError;
+
+    await expireOpenCheckouts(id, { db: admin, provider: fakePaymentsProvider() });
+    const { data: row } = await admin
+      .from("booking_payments")
+      .select("status")
+      .eq("id", pending!.id)
+      .single();
+    expect(row).toEqual({ status: "expired" });
+    // The manual row mark_booking_paid wrote is untouched: it is not open.
+    const { data: manual } = await admin
+      .from("booking_payments")
+      .select("status")
+      .eq("booking_id", id)
+      .eq("provider", "manual")
+      .single();
+    expect(manual).toEqual({ status: "paid" });
   });
 });

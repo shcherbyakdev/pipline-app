@@ -511,7 +511,8 @@
     },
     "slotLost": {
       "subject": "We couldn't confirm {service}, {when}",
-      "lead": "Your payment arrived after the reservation had been released, and the time was taken meanwhile. {amount} is being refunded to you — bank refunds take up to 3 business days."
+      "lead": "Your payment arrived after the reservation had been released, and the time was taken meanwhile. {amount} is being refunded to you — bank refunds take up to 3 business days.",
+      "leadManual": "Your payment arrived after the reservation had been released, and the time was taken meanwhile. {orgName} will refund {amount} to you."
     },
     "rescheduled": {
       "subject": "Booking rescheduled — {service}, {when}",
@@ -877,6 +878,7 @@
       "declineFrom": "Decline request from {name}",
       "accepted": "Accepted.",
       "acceptedEmailed": "Accepted — confirmation sent.",
+      "acceptedHeld": "Accepted — the client has been asked to pay the deposit.",
       "declineTitle": "Decline request",
       "declineBody": "The time is released and the client is emailed that you can't take it.",
       "declineNote": "Message to the client (optional)",

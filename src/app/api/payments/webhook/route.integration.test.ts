@@ -36,7 +36,8 @@ process.env.PAYMENTS_PROVIDER = "fake";
 process.env.PAYMENTS_FAKE_SECRET = "test-secret-0123456789abcdef";
 
 const { POST } = await import("./route");
-const { signFakePaymentsWebhook } = await import("@/lib/payments/fake");
+const { signFakePaymentsWebhook, fakePaymentsProvider } = await import("@/lib/payments/fake");
+const { sendSlotLost } = await import("@/features/payments/refund");
 const { generateAccessToken } = await import("@/lib/tokens/mint");
 const { wallTimeToUtc } = await import("@/features/scheduling/slots");
 
@@ -316,9 +317,50 @@ describe("POST /api/payments/webhook (fake provider)", () => {
     expect(row).toMatchObject({ status: "refunded", refunded_cents: 5000 });
     expect(row!.refund_id).toMatch(/^re_fake_/);
     // The BOOKING never counted this payment as paid (the confirm was rolled
-    // back by the EXCLUDE guard), so bump_booking_refunded clamps to 0 — the
-    // ledger row is the record of what actually went back.
+    // back by the EXCLUDE guard), so the slot-lost refund does not bump it at
+    // all — the ledger row is the record of what actually went back.
     expect((await admin.from("bookings").select("refunded_cents").eq("id", id).single()).data!.refunded_cents).toBe(0);
+    expect((await admin.from("bookings").select("paid_cents").eq("id", id).single()).data!.paid_cents).toBe(0);
+  });
+
+  it("slot_lost with a broken provider: refund_failed, the booking untouched, the mail promises a refund", async () => {
+    const { client, orgId, handle } = await newOrg("lostfail");
+    const { offeringId } = await hoursFixture(client, orgId);
+    await activeAccount(orgId);
+    const { id } = await createHours(handle, offeringId, 10);
+    await admin.from("bookings").update({ status: "expired" }).eq("id", id);
+    await createHours(handle, offeringId, 10); // someone else took it
+    const ledgerId = await ledger(id, "cs_lf_" + id);
+    // The RPC is what the webhook would have run: the row goes 'paid', the
+    // booking stays dead, the outcome is slot_lost.
+    const { data: outcome, error } = await admin.rpc("apply_booking_payment", {
+      p_session_id: "cs_lf_" + id,
+      p_payment_intent_id: "pi_lf",
+      p_amount_cents: 5000,
+    });
+    if (error) throw error;
+    expect(outcome).toBe("slot_lost");
+
+    const before = mail.sent.length;
+    await sendSlotLost(ledgerId, {
+      db: admin,
+      provider: { ...fakePaymentsProvider(), refund: async () => { throw new Error("stripe down"); } },
+    });
+    const { data: row } = await admin
+      .from("booking_payments")
+      .select("status, refunded_cents, error")
+      .eq("id", ledgerId)
+      .single();
+    expect(row).toMatchObject({ status: "refund_failed", refunded_cents: 0, error: "stripe down" });
+    // Money the booking never counted must never reach its refunded_cents.
+    const { data: b } = await admin.from("bookings").select("paid_cents, refunded_cents").eq("id", id).single();
+    expect(b).toEqual({ paid_cents: 0, refunded_cents: 0 });
+    // The client is told the studio WILL refund — never that it already has.
+    const sent = mail.sent.slice(before);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].text as string).toContain("will refund");
+    expect(sent[0].text as string).toContain("S2 lostfail");
+    expect(sent[0].text as string).not.toContain("is being refunded");
   });
 
   it("bump_booking_refunded is exact under paid_cents and clamps above it", async () => {
