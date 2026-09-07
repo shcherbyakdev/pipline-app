@@ -41,7 +41,27 @@ export async function refundLedgerRow(ledgerId: string, reason: string, deps: De
         updated_at: new Date().toISOString(),
       })
       .eq("id", row.id);
-    await db.rpc("bump_booking_refunded", { p_booking_id: row.booking_id, p_cents: amount });
+    // bump_booking_refunded clamps at the booking's paid_cents, so a
+    // slot_lost refund (which the booking never counted as paid) is a no-op
+    // rather than an error. Anything that DOES come back is a real write
+    // failure: the money already left the connected account, so say exactly
+    // that on the row and report the row as needing a human.
+    const { error: bumpError } = await db.rpc("bump_booking_refunded", {
+      p_booking_id: row.booking_id,
+      p_cents: amount,
+    });
+    if (bumpError) {
+      console.error("[payments] refunded at provider; booking bump failed:", bumpError);
+      await db
+        .from("booking_payments")
+        .update({
+          status: "refund_failed",
+          error: `refunded at provider (${refundId}); booking bump failed: ${bumpError.message}`.slice(0, 500),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+      return false;
+    }
     return true;
   } catch (e) {
     console.error("[payments] refund failed:", e);

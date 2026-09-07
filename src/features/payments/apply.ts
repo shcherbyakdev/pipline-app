@@ -9,17 +9,24 @@ export type ApplySummary = { processed: number; outcomes: string[] };
 
 const ASYNC_GRACE_MS = 60 * 60_000; // P24 settles or fails within the hour (research §B2)
 
+/* Every db call here is destructured WITH its `error` and throws on one:
+   supabase-js reports transport and PostgREST failures in that field rather
+   than rejecting, so an unread error would turn "we dropped this payment"
+   into a 200 the provider never retries. `.maybeSingle()` throughout —
+   zero rows come back as `data: null` with no error, which is the real
+   business `unknown`, and only that answers 200. */
 export async function applyPaymentEvents(
   events: PaymentEvent[],
   deps: { db: SupabaseClient; provider: PaymentsProvider; transport?: EmailTransport },
 ): Promise<ApplySummary> {
   const outcomes: string[] = [];
   for (const e of events) {
-    const { data: ledger } = await deps.db
+    const { data: ledger, error: ledgerError } = await deps.db
       .from("booking_payments")
       .select("id, booking_id, org_id, status, amount_cents, stripe_account_id")
       .eq("checkout_session_id", e.sessionId)
       .maybeSingle();
+    if (ledgerError) throw ledgerError;
     if (!ledger) {
       outcomes.push("unknown");
       continue;
@@ -46,42 +53,40 @@ export async function applyPaymentEvents(
       }
     } else if (e.type === "checkout.completed") {
       // Async method in flight: keep the hold alive for the settlement window.
-      await deps.db
+      const { error: markError } = await deps.db
         .from("booking_payments")
         .update({ status: "processing", payment_intent_id: e.paymentIntentId, ...stamp })
         .eq("id", ledger.id)
         .in("status", ["pending", "processing"]);
-      const { data: b } = await deps.db
+      if (markError) throw markError;
+      const { data: b, error: bookingError } = await deps.db
         .from("bookings")
         .select("hold_expires_at, status")
         .eq("id", ledger.booking_id)
-        .single();
+        .maybeSingle();
+      if (bookingError) throw bookingError;
       if (b?.status === "pending_payment") {
         const floor = Date.now() + ASYNC_GRACE_MS;
         const current = b.hold_expires_at ? new Date(b.hold_expires_at as string).getTime() : 0;
         if (current < floor) {
-          await deps.db
+          const { error: holdError } = await deps.db
             .from("bookings")
             .update({ hold_expires_at: new Date(floor).toISOString() })
             .eq("id", ledger.booking_id)
             .eq("status", "pending_payment");
+          if (holdError) throw holdError;
         }
       }
       outcomes.push("processing");
-    } else if (e.type === "checkout.async_failed") {
-      await deps.db
-        .from("booking_payments")
-        .update({ status: "failed", ...stamp })
-        .eq("id", ledger.id)
-        .in("status", ["pending", "processing"]);
-      outcomes.push("failed");
     } else {
-      await deps.db
+      const status = e.type === "checkout.async_failed" ? "failed" : "expired";
+      const { error } = await deps.db
         .from("booking_payments")
-        .update({ status: "expired", ...stamp })
+        .update({ status, ...stamp })
         .eq("id", ledger.id)
         .in("status", ["pending", "processing"]);
-      outcomes.push("expired");
+      if (error) throw error;
+      outcomes.push(status);
     }
   }
   return { processed: events.length, outcomes };

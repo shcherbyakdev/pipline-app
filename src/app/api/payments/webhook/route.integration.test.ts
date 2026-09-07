@@ -315,5 +315,38 @@ describe("POST /api/payments/webhook (fake provider)", () => {
       .single();
     expect(row).toMatchObject({ status: "refunded", refunded_cents: 5000 });
     expect(row!.refund_id).toMatch(/^re_fake_/);
+    // The BOOKING never counted this payment as paid (the confirm was rolled
+    // back by the EXCLUDE guard), so bump_booking_refunded clamps to 0 — the
+    // ledger row is the record of what actually went back.
+    expect((await admin.from("bookings").select("refunded_cents").eq("id", id).single()).data!.refunded_cents).toBe(0);
+  });
+
+  it("bump_booking_refunded is exact under paid_cents and clamps above it", async () => {
+    const { client, orgId, handle } = await newOrg("bump");
+    const { offeringId } = await hoursFixture(client, orgId);
+    await activeAccount(orgId);
+    const { id } = await createHours(handle, offeringId, 10);
+    await ledger(id, "cs_b_" + id);
+    await post([
+      {
+        type: "checkout.completed",
+        sessionId: "cs_b_" + id,
+        paymentIntentId: "pi_b",
+        amountCents: 5000,
+        paid: true,
+        accountId: "acct_fake_x",
+      },
+    ]);
+    const refunded = async () =>
+      (await admin.from("bookings").select("refunded_cents").eq("id", id).single()).data!.refunded_cents;
+
+    const partial = await admin.rpc("bump_booking_refunded", { p_booking_id: id, p_cents: 2000 });
+    expect(partial.error).toBeNull();
+    expect(await refunded()).toBe(2000);
+
+    // Never above what the booking took: bookings_refunded_ck would raise.
+    const over = await admin.rpc("bump_booking_refunded", { p_booking_id: id, p_cents: 9000 });
+    expect(over.error).toBeNull();
+    expect(await refunded()).toBe(5000);
   });
 });
