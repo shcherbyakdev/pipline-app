@@ -335,15 +335,15 @@
     },
     "manage": {
       "status": {
-        "requestExpired": "Запит прострочено",
-        "pendingPayment": "Очікує оплати",
+        "confirmed": "Підтверджено",
+        "pending": "Очікує підтвердження",
+        "declined": "Запит відхилено",
+        "cancelledByClient": "Скасовано",
+        "cancelledByProvider": "Скасовано закладом",
+        "rescheduled": "Перенесено",
         "expired": "Звільнено — передоплату не внесено вчасно",
-        "confirmed": "Confirmed",
-        "pending": "Waiting for confirmation",
-        "declined": "Request declined",
-        "cancelledByClient": "Cancelled",
-        "cancelledByProvider": "Cancelled by the provider",
-        "rescheduled": "Rescheduled"
+        "pendingPayment": "Очікує оплати",
+        "requestExpired": "Запит прострочено"
       },
       "tooManyRequests": "Забагато запитів — спробуйте трохи пізніше.",
       "alreadyStarted": "Це бронювання вже почалося.",
@@ -832,14 +832,14 @@
       "setHours": "Задайте графік"
     },
     "status": {
+      "confirmed": "Підтверджено",
+      "pending": "Очікує підтвердження",
+      "declined": "Відхилено",
+      "cancelledByClient": "Скасовано клієнтом",
+      "cancelledByProvider": "Скасовано вами",
+      "rescheduled": "Перенесено",
       "pendingPayment": "Очікує оплати",
-      "expired": "Звільнено — не оплачено",
-      "confirmed": "Confirmed",
-      "pending": "Pending approval",
-      "declined": "Declined",
-      "cancelledByClient": "Cancelled by client",
-      "cancelledByProvider": "Cancelled by you",
-      "rescheduled": "Rescheduled"
+      "expired": "Звільнено — не оплачено"
     },
     "fallbackTitle": "Запис",
     "weekdays": "Пн Вт Ср Чт Пт Сб Нд",
@@ -886,13 +886,13 @@
       "lapsed": "Цей запит прострочено — на нього не відповіли вчасно."
     },
     "cancel": {
+      "button": "Скасувати бронювання",
+      "confirm": "Підтвердити скасування",
+      "doneNoEmail": "Бронювання скасовано — у клієнта немає електронної пошти.",
+      "doneEmailed": "Бронювання скасовано — клієнту надіслано лист.",
+      "doneEmailFailed": "Бронювання скасовано, але лист клієнту не надіслано. Зв'яжіться з ним напряму.",
       "refund": "Повернути {amount}",
-      "refundFailed": "Повернення не вдалося — виконайте його у Stripe.",
-      "button": "Cancel booking",
-      "confirm": "Confirm cancel",
-      "doneNoEmail": "Booking cancelled — no email on file for this client.",
-      "doneEmailed": "Booking cancelled — the client has been emailed.",
-      "doneEmailFailed": "Booking cancelled — but the email to the client failed. Contact them directly."
+      "refundFailed": "Повернення не вдалося — виконайте його у Stripe."
     },
     "resend": {
       "sent": "Нове посилання вже прямує до клієнта.",
@@ -2054,28 +2054,5 @@
     },
     "save": "Зберегти",
     "saved": "Збережено"
-  },
-  "bookings.status": {
-    "confirmed": "Підтверджено",
-    "pending": "Очікує підтвердження",
-    "declined": "Відхилено",
-    "cancelledByClient": "Скасовано клієнтом",
-    "cancelledByProvider": "Скасовано вами",
-    "rescheduled": "Перенесено"
-  },
-  "public.manage.status": {
-    "confirmed": "Підтверджено",
-    "pending": "Очікує підтвердження",
-    "declined": "Відхилено",
-    "cancelledByClient": "Скасовано клієнтом",
-    "cancelledByProvider": "Скасовано вами",
-    "rescheduled": "Перенесено"
-  },
-  "bookings.cancel": {
-    "button": "Скасувати бронювання",
-    "confirm": "Потвердити скасування",
-    "doneNoEmail": "Бронювання скасовано — на файл клієнта немає адреси e-mail.",
-    "doneEmailed": "Бронювання скасовано — клієнту надіслано повідомлення по електронній пошті.",
-    "doneEmailFailed": "Бронювання скасовано — але не вдалося надіслати e-mail клієнту. Зв'яжіться з ним безпосередньо."
   }
 }

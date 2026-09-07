@@ -335,15 +335,15 @@
     },
     "manage": {
       "status": {
-        "requestExpired": "Prośba wygasła",
-        "pendingPayment": "Oczekuje na płatność",
+        "confirmed": "Potwierdzona",
+        "pending": "Czeka na potwierdzenie",
+        "declined": "Prośba odrzucona",
+        "cancelledByClient": "Anulowana",
+        "cancelledByProvider": "Anulowana przez usługodawcę",
+        "rescheduled": "Przełożona",
         "expired": "Zwolniono — zaliczka nie została opłacona w terminie",
-        "confirmed": "Confirmed",
-        "pending": "Waiting for confirmation",
-        "declined": "Request declined",
-        "cancelledByClient": "Cancelled",
-        "cancelledByProvider": "Cancelled by the provider",
-        "rescheduled": "Rescheduled"
+        "pendingPayment": "Oczekuje na płatność",
+        "requestExpired": "Prośba wygasła"
       },
       "tooManyRequests": "Zbyt wiele żądań — spróbuj ponownie za chwilę.",
       "alreadyStarted": "Ta rezerwacja już się rozpoczęła.",
@@ -832,14 +832,14 @@
       "setHours": "Ustaw godziny"
     },
     "status": {
+      "confirmed": "Potwierdzona",
+      "pending": "Czeka na zatwierdzenie",
+      "declined": "Odrzucona",
+      "cancelledByClient": "Anulowana przez klienta",
+      "cancelledByProvider": "Anulowana przez Ciebie",
+      "rescheduled": "Przełożona",
       "pendingPayment": "Oczekuje na płatność",
-      "expired": "Zwolniono — nieopłacone",
-      "confirmed": "Confirmed",
-      "pending": "Pending approval",
-      "declined": "Declined",
-      "cancelledByClient": "Cancelled by client",
-      "cancelledByProvider": "Cancelled by you",
-      "rescheduled": "Rescheduled"
+      "expired": "Zwolniono — nieopłacone"
     },
     "fallbackTitle": "Wizyta",
     "weekdays": "Pn Wt Śr Cz Pt So Nd",
@@ -886,13 +886,13 @@
       "lapsed": "Ta prośba wygasła, zanim została rozpatrzona."
     },
     "cancel": {
+      "button": "Anuluj rezerwację",
+      "confirm": "Potwierdź anulowanie",
+      "doneNoEmail": "Rezerwacja anulowana — brak adresu e-mail tego klienta.",
+      "doneEmailed": "Rezerwacja anulowana — klient dostał e-mail.",
+      "doneEmailFailed": "Rezerwacja anulowana — ale e-mail do klienta nie doszedł. Skontaktuj się z nim bezpośrednio.",
       "refund": "Zwróć {amount}",
-      "refundFailed": "Zwrot się nie powiódł — wykonaj go w Stripe.",
-      "button": "Cancel booking",
-      "confirm": "Confirm cancel",
-      "doneNoEmail": "Booking cancelled — no email on file for this client.",
-      "doneEmailed": "Booking cancelled — the client has been emailed.",
-      "doneEmailFailed": "Booking cancelled — but the email to the client failed. Contact them directly."
+      "refundFailed": "Zwrot się nie powiódł — wykonaj go w Stripe."
     },
     "resend": {
       "sent": "Nowy link jest w drodze do klienta.",
@@ -2015,7 +2015,7 @@
       "country": "Kraj firmy",
       "connect": "Połącz Stripe",
       "continue": "Kontynuuj konfigurację",
-      "onboarding": "Stripe potrzebuje jeszcze kilku danych, zanim będziesz mógł przyjmować płatności.",
+      "onboarding": "Stripe potrzebuje jeszcze kilku danych, zanim zaczniesz przyjmować płatności.",
       "active": "Aktywne — klienci mogą płacić zaliczki online.",
       "restricted": "Stripe wstrzymał płatności na tym koncie i potrzebuje dodatkowych informacji.",
       "openDashboard": "Otwórz panel Stripe",
@@ -2054,28 +2054,5 @@
     },
     "save": "Zapisz",
     "saved": "Zapisano"
-  },
-  "bookings.status": {
-    "confirmed": "Potwierdzona",
-    "pending": "Czeka na zatwierdzenie",
-    "declined": "Odrzucona",
-    "cancelledByClient": "Anulowana przez klienta",
-    "cancelledByProvider": "Anulowana przez Ciebie",
-    "rescheduled": "Przełożona"
-  },
-  "public.manage.status": {
-    "confirmed": "Potwierdzona",
-    "pending": "Oczekujące zatwierdzenie",
-    "declined": "Odrzucona",
-    "cancelledByClient": "Anulowana przez klienta",
-    "cancelledByProvider": "Anulowana przez Ciebie",
-    "rescheduled": "Przełożona"
-  },
-  "bookings.cancel": {
-    "button": "Anuluj rezerwację",
-    "confirm": "Potwierdź anulowanie",
-    "doneNoEmail": "Rezerwacja anulowana — brak adresu e-mail klienta.",
-    "doneEmailed": "Rezerwacja anulowana — klient został powiadomiony e-mailem.",
-    "doneEmailFailed": "Rezerwacja anulowana — ale wysłanie e-maila do klienta nie powiodło się. Skontaktuj się z nim bezpośrednio."
   }
 }
