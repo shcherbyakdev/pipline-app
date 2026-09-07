@@ -177,6 +177,44 @@ function DetailBody({
       ? t("resendStartedHint")
       : undefined;
 
+  // Cancelling sits apart from the actions that keep the booking alive:
+  // pushed to the far end of the bar and wearing the destructive tone, so the
+  // one irreversible thing here never reads as a peer of Reschedule or Mark
+  // as paid. Confirm and Keep travel with it (ml-auto on the pair, not on
+  // each) so the row does not reflow when the confirm opens. Shared by the
+  // hold footer and the general one — a hold's cancel refunds and emails
+  // just like a booking's, so it asks the same second time.
+  const cancelControl = confirming ? (
+    <span className="flex items-center gap-2 sm:ml-auto">
+      {refundable === null ? null : (
+        <label className="flex items-center gap-1.5 text-xs">
+          <Checkbox
+            checked={refund}
+            onCheckedChange={(checked) => setRefund(checked === true)}
+            disabled={pending}
+          />
+          {t("cancel.refund", { amount: refundable })}
+        </label>
+      )}
+      <Button variant="destructive" size="sm" onClick={cancel} disabled={pending}>
+        {t("cancel.confirm")}
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => setConfirming(false)} disabled={pending}>
+        {t("keep")}
+      </Button>
+    </span>
+  ) : (
+    <Button
+      variant="destructive"
+      size="sm"
+      className="sm:ml-auto"
+      onClick={() => setConfirming(true)}
+      disabled={pending}
+    >
+      {t("cancel.button")}
+    </Button>
+  );
+
   const isRental = booking.rentalUnitId !== null;
   const contact = [booking.clientName, booking.clientEmail ?? t("noEmailShort"), booking.note ? `“${booking.note}”` : null]
     .filter(Boolean)
@@ -265,15 +303,7 @@ function DetailBody({
               {t("markPaid.button")}
             </Button>
           ) : null}
-          <Button
-            variant="destructive"
-            size="sm"
-            className="sm:ml-auto"
-            onClick={cancel}
-            disabled={pending}
-          >
-            {t("cancel.button")}
-          </Button>
+          {cancelControl}
         </DialogFooterBar>
       ) : liveRequest ? (
         <DialogFooterBar>
@@ -331,52 +361,7 @@ function DetailBody({
           >
             {t("resendLink")}
           </Button>
-          {/* Cancelling sits apart from the two actions that keep the
-              booking alive: pushed to the far end of the bar and wearing the
-              destructive tone, so the one irreversible thing here never
-              reads as a peer of Reschedule. Confirm and Keep travel with it
-              (ml-auto on the pair, not on each) so the row does not reflow
-              when the confirm opens. */}
-          {confirming ? (
-            <span className="flex items-center gap-2 sm:ml-auto">
-              {refundable === null ? null : (
-                <label className="flex items-center gap-1.5 text-xs">
-                  <Checkbox
-                    checked={refund}
-                    onCheckedChange={(checked) => setRefund(checked === true)}
-                    disabled={pending}
-                  />
-                  {t("cancel.refund", { amount: refundable })}
-                </label>
-              )}
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={cancel}
-                disabled={pending}
-              >
-                {t("cancel.confirm")}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setConfirming(false)}
-                disabled={pending}
-              >
-                {t("keep")}
-              </Button>
-            </span>
-          ) : (
-            <Button
-              variant="destructive"
-              size="sm"
-              className="sm:ml-auto"
-              onClick={() => setConfirming(true)}
-              disabled={pending}
-            >
-              {t("cancel.button")}
-            </Button>
-          )}
+          {cancelControl}
         </DialogFooterBar>
       )}
       {/* Nested inside the popup: Base UI's own nested-dialog shape, so
