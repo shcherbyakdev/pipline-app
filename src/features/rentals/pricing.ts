@@ -7,6 +7,9 @@ import { stayLength, type RangeMode } from "./range";
 import { formatDurationLabel } from "./hourly";
 import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 import type { ExtraPick, Line, PricingRules } from "./pricing-rules";
+import { formatCancelPolicy, formatCancelWindow, type CancelPolicy } from "./cancel-policy";
+// H3 callers still import the window formatter from here.
+export { formatCancelWindow };
 
 export type PricingMode = "per_unit" | "flat";
 export type DepositType = "none" | "fixed" | "percent" | "full";
@@ -56,53 +59,88 @@ export function formatOfferingPrice(
   return o.pricingMode === "flat" ? amount : t(PER_UNIT[o.rangeMode], { amount });
 }
 
-export function formatCancelWindow(min: number, t: UnitsT): string {
-  if (min % 1440 === 0) return t("days", { count: min / 1440 });
-  const h = min / 60;
-  return t("hours", { count: Number.isInteger(h) ? h : Math.round(h * 10) / 10 });
-}
-
 export type MoneyInfo = {
   totalCents: number | null;
   depositCents: number | null;
   currency: string | null;
-  cancelWindowMin: number;
+  /** S3: the booking's own snapshot (the offering's tiers for a quote). */
+  cancelPolicy: CancelPolicy | null;
+  /** S3: the consequence the row carries — a cancellation fee on a dead row,
+      an accumulated late-change fee on a live one. */
+  feeCents?: number;
   lines?: Line[] | null;
   /** S2: what the committed row says was paid / refunded (never computed here). */
   paidCents?: number;
   refundedCents?: number;
   /** S2: the booking is a hold awaiting its deposit. */
   holding?: boolean;
-  /** S2: the booking is dead (expired / cancelled / declined) — nobody is
-      turning up, so the lines must not tell the client to bring money. */
+  /** S2: the booking is dead (expired / cancelled / declined / rescheduled) —
+      nobody is turning up, so the lines must not tell the client to bring money. */
   settled?: boolean;
 };
 
 // Shared copy for the confirm step, the manage page and both emails. The
 // quote's breakdown lines come first, one per line, and the total follows
-// them (booking-money-summary.tsx relies on that order). S2 states: a hold
-// says "pay now"; a paid booking says what was paid and what is left for the
-// venue; a refund prints last, before the policy line. A `settled` booking
-// (expired, cancelled, declined) drops both "at the venue" lines — nobody is
-// coming, so there is nothing to bring.
+// them (booking-money-summary.tsx relies on that order). S3: a fee prints
+// right after the total and joins the balance ("due at the venue" = total +
+// fee − paid). S2 states: a hold says "pay now"; a paid booking says what
+// was paid and what is left for the venue; a refund prints last, before the
+// policy line. A `settled` booking drops every "at the venue" / "deposit
+// due" line and the policy line — nobody is coming, nothing is owed at the
+// door, and the terms no longer apply.
 export function moneyInfoLines(i: MoneyInfo, t: UnitsT): string[] {
   const lines: string[] = [];
   const paid = i.paidCents ?? 0;
   const refunded = i.refundedCents ?? 0;
+  const fee = i.feeCents ?? 0;
   if (i.lines && i.lines.length > 0 && i.currency) {
     for (const l of i.lines) lines.push(`${formatLine(l, i.currency, t)} — ${formatMoney(l.cents, i.currency)}`);
   }
   if (i.totalCents !== null && i.currency) lines.push(t("total", { amount: formatMoney(i.totalCents, i.currency) }));
+  if (fee > 0 && i.currency) {
+    lines.push(t(i.settled ? "cancellationFee" : "changeFee", { amount: formatMoney(fee, i.currency) }));
+  }
   if (i.currency && paid > 0) {
     lines.push(t("paid", { amount: formatMoney(paid, i.currency) }));
-    if (!i.settled && i.totalCents !== null && i.totalCents > paid) lines.push(t("balanceAtVenue", { amount: formatMoney(i.totalCents - paid, i.currency) }));
-  } else {
+    if (!i.settled && i.totalCents !== null && i.totalCents + fee > paid) {
+      lines.push(t("balanceAtVenue", { amount: formatMoney(i.totalCents + fee - paid, i.currency) }));
+    }
+  } else if (!i.settled) {
     if (i.depositCents !== null && i.currency) lines.push(t("depositDue", { amount: formatMoney(i.depositCents, i.currency) }));
     if (i.holding && i.depositCents !== null && i.currency) lines.push(t("payNow", { amount: formatMoney(i.depositCents, i.currency) }));
-    else if (!i.settled && lines.length > 0) lines.push(t("payAtVenue"));
+    else if (lines.length > 0) lines.push(t("payAtVenue"));
   }
   if (i.currency && refunded > 0) lines.push(t("refund", { amount: formatMoney(refunded, i.currency) }));
-  if (i.cancelWindowMin > 0) lines.push(t("freeCancellation", { window: formatCancelWindow(i.cancelWindowMin, t) }));
+  if (!i.settled) {
+    const policy = formatCancelPolicy(i.cancelPolicy, t);
+    if (policy) lines.push(policy);
+  }
+  return lines;
+}
+
+/** S3: what a reschedule to the candidate would mean, shown before the
+    client confirms (both reschedule panels). `feeCents` is THIS move's tier
+    fee, `priorFeeCents` what the row already carries from earlier moves;
+    the balance counts both. Unpriced → nothing to say. */
+export function changeLines(
+  i: {
+    newTotalCents: number | null;
+    currency: string | null;
+    feeCents: number;
+    feePct: number;
+    priorFeeCents: number;
+    paidCents: number;
+    refundedCents: number;
+  },
+  t: UnitsT,
+): string[] {
+  if (i.newTotalCents === null || !i.currency) return [];
+  const lines = [t("newTotal", { amount: formatMoney(i.newTotalCents, i.currency) })];
+  if (i.feeCents > 0) lines.push(t("changeFeePct", { amount: formatMoney(i.feeCents, i.currency), pct: i.feePct }));
+  const held = Math.max(0, i.paidCents - i.refundedCents);
+  const due = i.newTotalCents + i.priorFeeCents + i.feeCents - held;
+  if (due < 0) lines.push(t("willRefund", { amount: formatMoney(-due, i.currency) }));
+  else if (due > 0) lines.push(t("balanceAtVenue", { amount: formatMoney(due, i.currency) }));
   return lines;
 }
 
