@@ -33,6 +33,13 @@ export const envSchema = z.object({
   STRIPE_PRICE_TEAM_YEAR: z.string().min(1).optional(),
   BILLING_FOUNDER_PROMO_CODE: z.string().min(1).optional(),
   BILLING_FOUNDER_CUTOFF: z.string().date().optional(),
+  // S2 payments (Stripe Connect, the studio's own account). A SECOND Stripe
+  // relationship: billing's keys sell Booklo's plan (Managed Payments);
+  // these run direct charges on connected accounts. Unset = payments off.
+  PAYMENTS_PROVIDER: z.enum(["fake", "stripe"]).optional(),
+  PAYMENTS_FAKE_SECRET: z.string().min(16).optional(),
+  STRIPE_CONNECT_SECRET_KEY: z.string().min(1).optional(),
+  STRIPE_CONNECT_WEBHOOK_SECRET: z.string().min(1).optional(),
   // Comma-separated emails allowed into /utils (owner-only back office). Unset = nobody.
   INTERNAL_EMAILS: z.string().optional(),
   // Web Push (spec 2026-09-05). All three or none: the page shows push as
@@ -111,6 +118,10 @@ export const envSchema = z.object({
     });
   }
 
+  if (value.PAYMENTS_FAKE_SECRET || value.PAYMENTS_PROVIDER === "fake") {
+    ctx.addIssue({ code: "custom", path: ["PAYMENTS_PROVIDER"], message: "the fake payments provider must not run when APP_ENV=production" });
+  }
+
   // When Stripe billing is actually live, fail closed at boot if it is
   // half-configured, instead of 503-ing on the first webhook or checkout.
   // The four price ids are as load-bearing as the secrets: a missing one
@@ -136,5 +147,14 @@ export const envSchema = z.object({
         });
       }
     }
+  }
+}).superRefine((value, ctx) => {
+  if (value.PAYMENTS_PROVIDER === "stripe") {
+    for (const key of ["STRIPE_CONNECT_SECRET_KEY", "STRIPE_CONNECT_WEBHOOK_SECRET"] as const) {
+      if (!value[key]) ctx.addIssue({ code: "custom", path: [key], message: `${key} is required when PAYMENTS_PROVIDER=stripe` });
+    }
+  }
+  if (value.PAYMENTS_PROVIDER === "fake" && !value.PAYMENTS_FAKE_SECRET) {
+    ctx.addIssue({ code: "custom", path: ["PAYMENTS_FAKE_SECRET"], message: "PAYMENTS_FAKE_SECRET is required when PAYMENTS_PROVIDER=fake" });
   }
 });
