@@ -105,15 +105,17 @@ begin
   -- 4. Extras.
   for v_pick in select e from jsonb_array_elements(coalesce(p_extras, '[]'::jsonb)) e loop
     select d into v_def from jsonb_array_elements(coalesce(v_rules->'extras', '[]'::jsonb)) d where d->>'id' = v_pick->>'id';
+    -- coalesce: a qty-less pick is a refusal, never a line of null cents.
+    v_qty := coalesce((v_pick->>'qty')::int, 0);
     if v_def is null or (v_pick->>'id') = any(v_seen)
-       or (v_pick->>'qty')::int < 1 or (v_pick->>'qty')::int > (v_def->>'maxQty')::int then
+       or v_qty < 1 or v_qty > (v_def->>'maxQty')::int then
       raise exception 'quote_extra';
     end if;
     v_seen := v_seen || (v_pick->>'id');
     v_cents := case when v_def->>'unit' = 'hour'
-      then round((v_def->>'priceCents')::int * (v_pick->>'qty')::int * v_hours)::int
-      else (v_def->>'priceCents')::int * (v_pick->>'qty')::int end;
-    v_lines := v_lines || jsonb_build_object('kind', 'extra', 'qty', (v_pick->>'qty')::int,
+      then round((v_def->>'priceCents')::int * v_qty * v_hours)::int
+      else (v_def->>'priceCents')::int * v_qty end;
+    v_lines := v_lines || jsonb_build_object('kind', 'extra', 'qty', v_qty,
       'unitCents', (v_def->>'priceCents')::int, 'cents', v_cents,
       'extraId', v_def->>'id', 'label', v_def->>'label', 'unit', v_def->>'unit');
   end loop;
@@ -341,12 +343,14 @@ declare
   v_total int;
   v_deposit int;
   v_snap_currency text;
-  v_lines jsonb;   -- S1
-  v_extras jsonb;  -- S1
+  v_lines jsonb;    -- S1
+  v_extras jsonb;   -- S1
+  v_people int;     -- S1
+  v_carry boolean := false;  -- S1
 begin
   select b.id, b.org_id, b.rental_offering_id, b.rental_unit_id, b.client_id, b.client_name,
          b.client_email, b.note, b.starts_at, b.ends_at, b.status, b.terms_accepted_at,
-         b.lines, b.people                                                            -- S1
+         b.lines, b.people, b.price_cents                                              -- S1
     into v_old
     from public.bookings b
     where b.id = p_old_id
@@ -369,10 +373,46 @@ begin
   v_duration := extract(epoch from (v_old.ends_at - v_old.starts_at))::int / 60;
   v_ends := p_starts_at + make_interval(mins => v_duration);
   -- S1: re-quote at the new time with the booking's own people and extras.
-  select coalesce(jsonb_agg(jsonb_build_object('id', l->>'extraId', 'qty', (l->>'qty')::int)), '[]'::jsonb)
-    into v_extras from jsonb_array_elements(coalesce(v_old.lines, '[]'::jsonb)) l where l->>'kind' = 'extra';
-  v_lines := public.rental_quote_hours(v_off.id, p_starts_at, v_duration, v_old.people, v_extras);
-  v_total := case when jsonb_array_length(v_lines) = 0 then null else public.rental_lines_total(v_lines) end;
+  -- A confirmed booking must never be stranded by a menu edit, so the picks
+  -- are DEGRADED to what the offering still sells: an extra the studio
+  -- deleted drops out, a qty over the current maxQty is clamped, and the
+  -- head-count is clamped to the current people.max. The join is an inner
+  -- one on purpose (a deleted extra has no definition row, so it vanishes);
+  -- `with ordinality` + `order by ord` keep the picks in the booked order.
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'id', l.l->>'extraId',
+           'qty', least((l.l->>'qty')::int, (d.d->>'maxQty')::int)) order by l.ord), '[]'::jsonb)
+    into v_extras
+    from jsonb_array_elements(coalesce(v_old.lines, '[]'::jsonb)) with ordinality as l(l, ord)
+    join lateral (
+      select e from jsonb_array_elements(coalesce(v_off.pricing->'extras', '[]'::jsonb)) e
+       where e->>'id' = l.l->>'extraId' limit 1
+    ) as d(d) on true
+   where l.l->>'kind' = 'extra';
+  -- least() ignores NULLs, so the no-head-count case is spelled out first;
+  -- the clamp only applies while the offering still charges by people, and
+  -- a dropped people rule keeps the count as a plain booking fact.
+  v_people := case
+    when v_old.people is null then null
+    when v_off.pricing ? 'people' then least(v_old.people, (v_off.pricing->'people'->>'max')::int)
+    else v_old.people end;
+  -- Last resort: the quote can still refuse (the first band now starts above
+  -- the booked duration). Carry the old snapshot forward rather than strand
+  -- the booking — anything that is NOT one of the quote's own sentinels is a
+  -- real failure and must propagate.
+  begin
+    v_lines := public.rental_quote_hours(v_off.id, p_starts_at, v_duration, v_people, v_extras);
+  exception when others then
+    if sqlerrm not in ('quote_band', 'quote_people', 'quote_extra') then raise; end if;
+    v_carry := true;
+  end;
+  if v_carry then
+    v_lines := v_old.lines;
+    v_total := v_old.price_cents;
+    v_people := v_old.people;
+  else
+    v_total := case when jsonb_array_length(v_lines) = 0 then null else public.rental_lines_total(v_lines) end;
+  end if;
   v_deposit := public.rental_deposit_cents(v_off.deposit_type, v_off.deposit_value, v_total);
   v_snap_currency := case when v_total is not null or v_deposit is not null then v_org.currency end;
 
@@ -424,7 +464,7 @@ begin
     (v_old.org_id, v_off.id, v_unit, v_old.client_id, v_old.client_name, v_old.client_email,
      p_starts_at, v_ends, 'confirmed', p_new_token_hash, v_old.note, v_old.id,
      v_total, v_snap_currency, v_deposit, v_old.terms_accepted_at,
-     case when jsonb_array_length(v_lines) = 0 then null else v_lines end, v_old.people)  -- S1
+     case when jsonb_array_length(v_lines) = 0 then null else v_lines end, v_people)  -- S1
   returning id into v_new_id;
 
   return query

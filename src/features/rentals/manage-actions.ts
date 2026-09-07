@@ -10,6 +10,7 @@ import { publicBookingLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl, resolveBookingToken } from "@/lib/tokens/booking";
 import { getBookingLocale, getOrgLocale } from "@/lib/booking/public";
 import {
+  getBookingMoney,
   getBookingOfferingId,
   getPublicOfferingById,
   loadOrgHourlyContext,
@@ -38,6 +39,7 @@ import {
   type RangeAvailability,
 } from "./range";
 import { hourlySlotService, isHourlyOffering, unionUnitSlots } from "./hourly";
+import { moneyInfoLines } from "./pricing";
 import {
   manageRangeAvailabilityInput,
   manageHourlySlotsInput,
@@ -519,6 +521,14 @@ export async function rescheduleRentalBookingHours(
       const clientOldWhenLine = oldFor(client.intlLocale);
       const clientWhenLine = newFor(client.intlLocale);
       if (moved.client_email) {
+        // S1: the move re-quotes at the new time (a night surcharge is
+        // earned by the hours actually booked, and a menu edit can have
+        // degraded the picks), so the mail prints the NEW row's own
+        // snapshot — read from the committed booking, never recomputed.
+        const clientInfoLines = moneyInfoLines(
+          await getBookingMoney(moved.new_booking_id, ctx.offering.cancelWindowMin),
+          client.tUnits,
+        );
         const msg = bookingRescheduledEmail(client.t, {
           orgName: moved.org_name,
           serviceName: moved.service_name,
@@ -526,6 +536,7 @@ export async function rescheduleRentalBookingHours(
           whenLine: clientWhenLine,
           manageUrl: buildBookingManageUrl(fresh.token),
           icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+          infoLines: clientInfoLines,
         });
         await selectTransport().send({
           to: moved.client_email,

@@ -339,6 +339,105 @@ describe("hourly RPCs snapshot the quote", () => {
     expect(row.people).toBe(6);
   });
 
+  // Ruling 3 (S1): a confirmed booking must never be stranded by a menu
+  // edit — the re-quote drops picks the studio deleted, clamps what it
+  // lowered, and falls back to the old snapshot when it still refuses.
+  it("a reschedule degrades when the menu changed: dropped extra, clamped qty, clamped people", async () => {
+    const { client, orgId, handle } = await newOrg("degrade");
+    const { offeringId } = await hoursFixture(client, orgId);
+    const { token, tokenHash } = generateAccessToken();
+    const created = await admin.rpc("create_rental_booking_hours", {
+      p_handle: handle,
+      p_offering_id: offeringId,
+      p_unit_id: null,
+      p_starts_at: at(`${MON}T12:00`),
+      p_duration_min: 120,
+      p_name: "Ola",
+      p_email: `deg-${Date.now()}@example.com`,
+      p_note: null,
+      p_token_hash: tokenHash,
+      p_people: 8,
+      p_extras: [
+        { id: "arri", qty: 2 },
+        { id: "tlo", qty: 4 },
+      ],
+    });
+    expect(created.error).toBeNull();
+    expect((await bookingRow(created.data as string)).price_cents).toBe(53000);
+
+    // The studio sells the ARRI no more, caps backdrops at 2 and seats 6.
+    const { error: patched } = await admin
+      .from("rental_offerings")
+      .update({
+        pricing: {
+          ...FIXTURE_RULES,
+          people: { ...FIXTURE_RULES.people!, max: 6 },
+          extras: FIXTURE_RULES.extras.filter((e) => e.id === "tlo").map((e) => ({ ...e, maxQty: 2 })),
+        },
+      })
+      .eq("id", offeringId);
+    expect(patched).toBeNull();
+
+    const { data: moved, error } = await admin.rpc("reschedule_rental_booking_hours", {
+      p_token: token,
+      p_unit_id: null,
+      p_starts_at: at(`${MON}T15:00`),
+      p_new_token_hash: hash(),
+    });
+    expect(error).toBeNull();
+    const row = await bookingRow((moved as Row[])[0].new_booking_id as string);
+    expect(row.lines).toEqual([
+      { kind: "base", qty: 2, unitCents: 12000, cents: 24000 },
+      { kind: "people", qty: 1, unitCents: 1000, cents: 1000 },
+      { kind: "extra", qty: 2, unitCents: 1500, cents: 3000, extraId: "tlo", label: "Tło kartonowe", unit: "piece" },
+    ]);
+    expect(row.people).toBe(6);
+    expect(row.price_cents).toBe(28000);
+  });
+
+  it("a reschedule carries the old snapshot forward when the quote can no longer be worked out", async () => {
+    const { client, orgId, handle } = await newOrg("carry");
+    const { offeringId } = await hoursFixture(client, orgId);
+    const { token, tokenHash } = generateAccessToken();
+    const created = await admin.rpc("create_rental_booking_hours", {
+      p_handle: handle,
+      p_offering_id: offeringId,
+      p_unit_id: null,
+      p_starts_at: at(`${MON}T12:00`),
+      p_duration_min: 120,
+      p_name: "Ola",
+      p_email: `carry-${Date.now()}@example.com`,
+      p_note: null,
+      p_token_hash: tokenHash,
+      p_people: null,
+      p_extras: [],
+    });
+    expect(created.error).toBeNull();
+    const old = await bookingRow(created.data as string);
+    expect(old.price_cents).toBe(24000);
+
+    // The studio raises its minimum to 3 h: the 2 h booking has no band left.
+    const { error: patched } = await admin
+      .from("rental_offerings")
+      .update({
+        min_duration_min: 180,
+        pricing: { ...FIXTURE_RULES, bands: [{ fromMin: 180, perHourCents: 12000 }] },
+      })
+      .eq("id", offeringId);
+    expect(patched).toBeNull();
+
+    const { data: moved, error } = await admin.rpc("reschedule_rental_booking_hours", {
+      p_token: token,
+      p_unit_id: null,
+      p_starts_at: at(`${MON}T15:00`),
+      p_new_token_hash: hash(),
+    });
+    expect(error).toBeNull();
+    const row = await bookingRow((moved as Row[])[0].new_booking_id as string);
+    expect(row.lines).toEqual(old.lines);
+    expect(row.price_cents).toBe(old.price_cents);
+  });
+
   it("the pricing CHECK refuses a non-object", async () => {
     const { client, orgId } = await newOrg("check");
     const { error } = await client.from("rental_offerings").insert({

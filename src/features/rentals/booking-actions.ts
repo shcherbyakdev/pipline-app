@@ -7,6 +7,7 @@ import { getDashboardFlags } from "@/lib/flags/resolve";
 import { generateAccessToken } from "@/lib/tokens";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import {
+  getBookingMoney,
   getBookingUnitName,
   loadOrgRangeContext,
   loadOrgHourlyContext,
@@ -41,6 +42,7 @@ import {
   unionUnitSlots,
   type HourlyOffering,
 } from "./hourly";
+import { moneyInfoLines } from "./pricing";
 import {
   adminRangeAvailabilityInput,
   createRentalAdminInput,
@@ -566,6 +568,12 @@ export async function createRentalBookingHoursAdmin(
           whenLine: formatHourlyWhenLine(starts, ends, tz, mail.intlLocale),
           manageUrl: buildBookingManageUrl(token),
           icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
+          // S1: the RPC quoted this walk-in and snapshotted the lines on the
+          // row — the mail prints that snapshot, not a recomputation.
+          infoLines: moneyInfoLines(
+            await getBookingMoney(bookingId as string, ctx.offering.cancelWindowMin),
+            mail.tUnits,
+          ),
         });
         await selectTransport().send({
           to: email,
@@ -727,6 +735,12 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
           whenLine,
           manageUrl: buildBookingManageUrl(fresh.token),
           icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+          // S1: the move was re-quoted at the new time — print the NEW row's
+          // snapshot so the client sees what changed.
+          infoLines: moneyInfoLines(
+            await getBookingMoney(moved.new_booking_id, ctx.offering.cancelWindowMin),
+            mail.tUnits,
+          ),
         });
         await selectTransport().send({
           to: moved.client_email!,

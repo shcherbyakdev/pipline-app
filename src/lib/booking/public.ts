@@ -17,7 +17,7 @@ import type {
 import { blackoutBusy } from "@/features/rentals/hourly";
 import { externalBusy } from "@/features/calendar-sync/busy";
 import type { OrgMode } from "@/features/orgs/mode";
-import type { PricingRules } from "@/features/rentals/pricing-rules";
+import type { Line, PricingRules } from "@/features/rentals/pricing-rules";
 import type { UnitRef } from "./bookable";
 
 // Admin-client reads for the anonymous booking page (getOrgBranding
@@ -856,6 +856,43 @@ export async function getBookingOfferingId(bookingId: string): Promise<string | 
     .maybeSingle();
   if (error || !data) return null;
   return data.rental_offering_id;
+}
+
+/** S1: the money a committed booking actually carries — the RPC's own
+    snapshot on the row, never a recomputation (a rules-priced offering has
+    no single totalCents formula to re-derive, and the studio may have edited
+    its rules since). Shaped for moneyInfoLines; the currency is the one the
+    RPC stamped alongside the total. */
+export async function getBookingMoney(
+  bookingId: string,
+  cancelWindowMin: number,
+): Promise<{
+  totalCents: number | null;
+  depositCents: number | null;
+  currency: string | null;
+  cancelWindowMin: number;
+  lines: Line[] | null;
+}> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("bookings")
+    .select("lines, price_cents, deposit_cents, currency")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (error) console.error("[booking] getBookingMoney:", error);
+  const row = data as {
+    lines: unknown;
+    price_cents: number | null;
+    deposit_cents: number | null;
+    currency: string | null;
+  } | null;
+  return {
+    totalCents: row?.price_cents ?? null,
+    depositCents: row?.deposit_cents ?? null,
+    currency: row?.currency ?? null,
+    cancelWindowMin,
+    lines: (row?.lines as Line[] | null) ?? null,
+  };
 }
 
 // The confirmation email names the unit the RPC picked; only the booking id

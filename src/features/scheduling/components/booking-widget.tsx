@@ -16,7 +16,7 @@ import { StaffSwitch } from "@/features/scheduling/components/staff-switch";
 import { staffOffers } from "@/features/scheduling/staff-offers";
 import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
 import { HourlyBookingFlow } from "@/features/rentals/components/hourly-booking-flow";
-import { formatOfferingPrice, stayHint } from "@/features/rentals/pricing";
+import { headlinePrice, stayHint } from "@/features/rentals/pricing";
 import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 import { CHANGE_LINK, RECEIPT, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
@@ -52,7 +52,7 @@ export function BookingWidget({
 }: {
   handle: string;
   orgTimeZone: string;
-  /** Formats offering prices (formatOfferingPrice) — only ever rendered
+  /** Formats offering prices (headlinePrice) — only ever rendered
       when `offerings` is non-empty, but every caller carries it regardless
       (getBookingOrg / getSchedulingSettings both return it). */
   currency: string;
@@ -490,7 +490,7 @@ export function BookingWidget({
                         ) : null}
                       </span>
                       <span className="shrink-0 text-right text-sm tabular-nums">
-                        {formatOfferingPrice(o, currency, tu) ? <span className="block font-medium">{formatOfferingPrice(o, currency, tu)}</span> : null}
+                        {headlinePrice(o, currency, tu) ? <span className="block font-medium">{headlinePrice(o, currency, tu)}</span> : null}
                         {stayHint(o, tu) ? <span className="text-muted-foreground block text-xs">{stayHint(o, tu)}</span> : null}
                       </span>
                     </button>
