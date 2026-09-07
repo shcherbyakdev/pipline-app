@@ -175,6 +175,29 @@ describe("refundBooking", () => {
     expect(again).toEqual({ refundedCents: 0, failed: false });
   });
 
+  it("skips a manual (cash) paid row: nothing refunded, nothing failed, row untouched", async () => {
+    const { client, orgId, handle } = await newOrg("manual");
+    const { offeringId } = await hoursFixture(client, orgId);
+    await activeAccount(orgId);
+    const { id } = await createHours(handle, offeringId, 10);
+    // mark_booking_paid writes provider 'manual' with no payment intent —
+    // money the provider never took.
+    const { error } = await client.rpc("mark_booking_paid", { p_booking_id: id });
+    if (error) throw error;
+    const r = await refundBooking(id, "cancel", { db: admin, provider: fakePaymentsProvider() });
+    expect(r).toEqual({ refundedCents: 0, failed: false });
+    const { data: row } = await admin
+      .from("booking_payments")
+      .select("provider, status")
+      .eq("booking_id", id)
+      .single();
+    expect(row).toEqual({ provider: "manual", status: "paid" });
+    expect(
+      (await admin.from("bookings").select("refunded_cents").eq("id", id).single()).data!
+        .refunded_cents,
+    ).toBe(0);
+  });
+
   it("a provider failure leaves refund_failed + error, never throws", async () => {
     const { id, session } = await paidBooking("reffail", "cs_rf");
     const broken = {

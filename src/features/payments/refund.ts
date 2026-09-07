@@ -159,9 +159,13 @@ export async function sendSlotLost(ledgerId: string, deps: Deps = {}): Promise<v
   }
 }
 
-/** Refund everything paid on a booking (spec ruling 3: full refunds in S2).
-    Never throws: each row's outcome is recorded on the row itself, and
-    `failed` says "at least one needs a human in Stripe". */
+/** Refund everything paid ONLINE on a booking (spec ruling 3: full refunds in
+    S2). Never throws: each row's outcome is recorded on the row itself, and
+    `failed` means exactly "the provider refused, or the write after its
+    refund failed" — a row needing a human in Stripe.
+    A row with no payment intent is money the provider never took (a cash or
+    transfer payment recorded by mark_booking_paid): it is skipped, stays
+    `paid`, and is the studio's to hand back — never a failure here. */
 export async function refundBooking(
   bookingId: string,
   reason: string,
@@ -172,7 +176,10 @@ export async function refundBooking(
     .from("booking_payments")
     .select("id, amount_cents, refunded_cents")
     .eq("booking_id", bookingId)
-    .eq("status", "paid");
+    .eq("status", "paid")
+    // refundLedgerRow's own precondition, hoisted into the query: no intent,
+    // nothing for the provider to give back.
+    .not("payment_intent_id", "is", null);
   if (error) {
     console.error("[payments] refundBooking: ledger read failed:", error);
     return { refundedCents: 0, failed: true };
