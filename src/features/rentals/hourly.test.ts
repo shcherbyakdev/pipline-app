@@ -37,7 +37,7 @@ function offering(over: Partial<PublicOffering> = {}): PublicOffering {
     pricingMode: "per_unit",
     depositType: "none",
     depositValue: null,
-    cancelWindowMin: 0,
+    cancelPolicy: [],
     termsText: null,
     requiresApproval: false,
     pricing: null,

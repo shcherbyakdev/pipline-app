@@ -571,7 +571,7 @@ export async function createRentalBookingHoursAdmin(
           // S1: the RPC quoted this walk-in and snapshotted the lines on the
           // row — the mail prints that snapshot, not a recomputation.
           infoLines: moneyInfoLines(
-            await getBookingMoney(bookingId as string, ctx.offering.cancelWindowMin),
+            await getBookingMoney(bookingId as string),
             mail.tUnits,
           ),
         });
@@ -738,7 +738,7 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
           // S1: the move was re-quoted at the new time — print the NEW row's
           // snapshot so the client sees what changed.
           infoLines: moneyInfoLines(
-            await getBookingMoney(moved.new_booking_id, ctx.offering.cancelWindowMin),
+            await getBookingMoney(moved.new_booking_id),
             mail.tUnits,
           ),
         });

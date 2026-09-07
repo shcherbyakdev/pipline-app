@@ -313,7 +313,7 @@ export async function createRentalBookingHours(
         totalCents: statusRow?.price_cents ?? null,
         depositCents: statusRow?.deposit_cents ?? null,
         currency: ctx.org.currency,
-        cancelWindowMin: ctx.offering.cancelWindowMin,
+        cancelPolicy: ctx.offering.cancelPolicy,
         lines: (statusRow?.lines as Line[] | null) ?? null,
         holding: isHeld,
       };

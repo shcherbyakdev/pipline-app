@@ -526,7 +526,7 @@ export async function rescheduleRentalBookingHours(
         // degraded the picks), so the mail prints the NEW row's own
         // snapshot — read from the committed booking, never recomputed.
         const clientInfoLines = moneyInfoLines(
-          await getBookingMoney(moved.new_booking_id, ctx.offering.cancelWindowMin),
+          await getBookingMoney(moved.new_booking_id),
           client.tUnits,
         );
         const msg = bookingRescheduledEmail(client.t, {

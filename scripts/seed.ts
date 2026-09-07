@@ -555,7 +555,7 @@ async function ensureDemoHourlyOffering(client: SupabaseClient, orgId: string): 
         pricing_mode: "per_unit",
         deposit_type: "percent",
         deposit_value: 20,
-        cancel_window_min: 1440,
+        cancel_policy: [{ beforeMin: 1440, feePct: 0 }],
         terms_text: "No smoking. Leave the room as you found it. Damages are billed at cost.",
       })
       .select("id")

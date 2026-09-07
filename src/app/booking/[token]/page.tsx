@@ -84,7 +84,8 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
       totalCents: b.priceCents,
       depositCents: b.depositCents,
       currency: b.currency,
-      cancelWindowMin: b.cancelWindowMin ?? 0,
+      cancelPolicy: b.cancelPolicy,
+      feeCents: b.feeCents,
       lines: b.lines,
       paidCents: b.paidCents,
       refundedCents: b.refundedCents,
@@ -98,13 +99,10 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const isInFuture = b.startsAt.getTime() > now;
-  // H3: appointments (rentalUnitId null) and offerings with no cancel window
-  // are always cancellable — the gate only bites a rental past its
-  // free-cancellation deadline (the RPC's cancel_booking is the backstop).
-  const canCancel =
-    b.rentalUnitId === null ||
-    !b.cancelWindowMin ||
-    now <= b.startsAt.getTime() - b.cancelWindowMin * 60_000;
+  // S3: cancellation is never blocked any more — a tiered policy charges a
+  // fee instead of refusing (the RPC applies it; Task 5 shows the fee
+  // before the client confirms).
+  const canCancel = true;
   const statusKey = (STATUS_KEY as Partial<Record<string, (typeof STATUS_KEY)[keyof typeof STATUS_KEY]>>)[b.status];
   // Checkout redirects back with `?paid=`/`?pay=` (the pay route) — first
   // value if Next hands back an array for a repeated key.

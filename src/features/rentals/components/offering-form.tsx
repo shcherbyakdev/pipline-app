@@ -135,13 +135,10 @@ export function OfferingForm({
             ? Math.round(Number(depositValueRaw) * 100)
             : Math.round(Number(depositValueRaw))
         : null;
-    const cancelWindowRaw = String(fd.get("cancelWindow") ?? "").trim();
-    const cancelWindowMin =
-      cancelWindowRaw === ""
-        ? 0
-        : Math.round(
-            Number(cancelWindowRaw) * (rangeMode === "hours" ? 60 : 1440),
-          );
+    // S3: the tiered editor is Task 7's; until then, round-trip whatever
+    // policy the offering already carries (a new offering gets the schema's
+    // `[]` default).
+    const cancelPolicy = offering?.cancelPolicy ?? [];
     const common = {
       ...identity,
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
@@ -152,7 +149,7 @@ export function OfferingForm({
       pricingMode: String(fd.get("pricingMode") ?? "per_unit"),
       depositType,
       depositValue,
-      cancelWindowMin,
+      cancelPolicy,
       termsText: termsText === "" ? undefined : termsText,
     };
     // The hours Zod branch is `.strict()` — only that mode's own fields go
@@ -570,25 +567,8 @@ export function OfferingForm({
                   </div>
                 ) : null}
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-cancel-window">
-                  {rangeMode === "hours" ? t("form.cancelWindowHours") : t("form.cancelWindowDays")}
-                </Label>
-                <Input
-                  id="offering-cancel-window"
-                  name="cancelWindow"
-                  type="number"
-                  min={0}
-                  placeholder={t("form.noWindow")}
-                  defaultValue={
-                    seed && seed.cancelWindowMin > 0
-                      ? seed.rangeMode === "hours"
-                        ? seed.cancelWindowMin / 60
-                        : seed.cancelWindowMin / 1440
-                      : ""
-                  }
-                />
-              </div>
+              {/* S3: the tiered cancel-policy editor is Task 7's; this form
+                  round-trips whatever policy the offering already carries. */}
               <div className="flex flex-col gap-2">
                 <Label htmlFor="offering-terms">{t("form.terms")}</Label>
                 <Textarea

@@ -20,6 +20,7 @@ import { refundBooking } from "@/features/payments/refund";
 import { expireOpenCheckouts } from "@/features/payments/checkout";
 import { sendPaymentReceived } from "@/features/payments/confirm-effects";
 import type { Line } from "@/features/rentals/pricing-rules";
+import type { CancelPolicy } from "@/features/rentals/cancel-policy";
 import type { RangeMode } from "@/features/rentals/range";
 import { formatMoney } from "@/lib/money";
 import {
@@ -699,7 +700,7 @@ export async function acceptBookingRequest(
       const { data: rows, error: readError } = await supabase
         .from("bookings")
         .select(
-          "id, status, hold_expires_at, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, locale, price_cents, currency, deposit_cents, lines, staff(name), services(name), rental_offerings(name, range_mode, cancel_window_min), rental_units(name)",
+          "id, status, hold_expires_at, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, locale, price_cents, currency, deposit_cents, lines, staff(name), services(name), rental_offerings(name, range_mode, cancel_policy), rental_units(name)",
         )
         .eq("id", parsed.data.id)
         .eq("org_id", org.id);
@@ -721,7 +722,7 @@ export async function acceptBookingRequest(
         lines: unknown;
         staff: { name: string } | null;
         services: { name: string } | null;
-        rental_offerings: { name: string; range_mode: RangeMode; cancel_window_min: number } | null;
+        rental_offerings: { name: string; range_mode: RangeMode; cancel_policy: CancelPolicy } | null;
         rental_units: { name: string } | null;
       }> | null)?.[0];
       // No row = the read failed after a committed accept: no mail can go
@@ -773,7 +774,7 @@ export async function acceptBookingRequest(
                         totalCents: row.price_cents,
                         depositCents: row.deposit_cents,
                         currency: row.currency,
-                        cancelWindowMin: row.rental_offerings?.cancel_window_min ?? 0,
+                        cancelPolicy: row.rental_offerings?.cancel_policy ?? [],
                         // S1: the row's own quote breakdown; S2: "pay now"
                         // rather than "pay at the venue" while it is held.
                         lines: (row.lines as Line[] | null) ?? null,
