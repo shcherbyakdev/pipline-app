@@ -683,10 +683,28 @@ begin
 end; $$;
 revoke all on function public.mark_booking_paid(uuid) from public, anon, authenticated, service_role;
 grant execute on function public.mark_booking_paid(uuid) to authenticated;
+--> statement-breakpoint
+
+-- ---------- bump_booking_refunded: the refund path's one write on the
+-- booking (PostgREST cannot express `refunded_cents = refunded_cents + n`).
+-- least(): a slot_lost refund returns money the BOOKING never counted as
+-- paid — the confirm was rolled back by the EXCLUDE guard — and
+-- bookings_refunded_ck caps refunded_cents at paid_cents. Clamp instead of
+-- raising: the ledger row is the record of what was actually refunded.
+create function public.bump_booking_refunded(p_booking_id uuid, p_cents int)
+returns void language sql security definer set search_path = '' as $$
+  update public.bookings set refunded_cents = least(refunded_cents + p_cents, paid_cents)
+    where id = p_booking_id;
+$$;
+--> statement-breakpoint
+revoke all on function public.bump_booking_refunded(uuid, int) from public, anon, authenticated, service_role;
+--> statement-breakpoint
+grant execute on function public.bump_booking_refunded(uuid, int) to service_role;
 
 -- Rollback: drop trigger bookings_payments_carry + carry_booking_payments,
--- `create or replace` carry_booking_locale from 0072; drop mark_booking_paid,
--- apply_booking_payment, update_org_payments;
+-- `create or replace` carry_booking_locale from 0072; drop
+-- bump_booking_refunded, mark_booking_paid, apply_booking_payment,
+-- update_org_payments;
 -- drop and recreate resolve_booking_token from 0078; `create or replace`
 -- create_rental_booking_hours from 0078, create_rental_booking from 0062,
 -- accept_booking from 0063, rotate_booking_token from 0064, cancel_booking
