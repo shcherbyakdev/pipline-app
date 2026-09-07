@@ -228,7 +228,8 @@
       "stayNotMovable": "Only a confirmed stay can be moved.",
       "notMovable": "Only a confirmed booking can be moved.",
       "alreadyStarted": "This booking has already started.",
-      "spaceInactive": "This space is inactive — reactivate it to move its bookings."
+      "spaceInactive": "This space is inactive — reactivate it to move its bookings.",
+      "notHeld": "This booking is no longer awaiting payment."
     },
     "studio": {
       "pageTooLarge": "This page is too large to save — remove some content or images.",
@@ -821,7 +822,9 @@
       "declined": "Declined",
       "cancelledByClient": "Cancelled by client",
       "cancelledByProvider": "Cancelled by you",
-      "rescheduled": "Rescheduled"
+      "rescheduled": "Rescheduled",
+      "pendingPayment": "Awaiting payment",
+      "expired": "Released — unpaid"
     },
     "fallbackTitle": "Appointment",
     "weekdays": "Mo Tu We Th Fr Sa Su",
@@ -872,7 +875,20 @@
       "confirm": "Confirm cancel",
       "doneNoEmail": "Booking cancelled — no email on file for this client.",
       "doneEmailed": "Booking cancelled — the client has been emailed.",
-      "doneEmailFailed": "Booking cancelled — but the email to the client failed. Contact them directly."
+      "doneEmailFailed": "Booking cancelled — but the email to the client failed. Contact them directly.",
+      "refund": "Refund {amount}",
+      "refundFailed": "The refund failed — refund it in Stripe."
+    },
+    "hold": {
+      "until": "Reserved until {time}",
+      "lapsed": "The payment window has passed — the next sweep releases this time.",
+      "paid": "Paid {paid}",
+      "paidBalance": "Paid {paid} · {balance} due at the venue",
+      "refunded": "Refunded {amount}"
+    },
+    "markPaid": {
+      "button": "Mark as paid",
+      "done": "Marked as paid — the client has been emailed."
     },
     "resend": {
       "sent": "A fresh link is on its way to the client.",

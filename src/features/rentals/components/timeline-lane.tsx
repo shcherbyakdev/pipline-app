@@ -24,6 +24,7 @@ import { serviceAccent, zonedParts, minToTime } from "@/features/scheduling/cale
 import { dateInZone } from "@/features/scheduling/slots";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { initials } from "@/features/scheduling/staff-slug";
+import { ghostWord } from "@/features/scheduling/hold-label";
 import { INTL_LOCALES } from "@/i18n/config";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -425,8 +426,10 @@ function StayBar({
   const flagged = conflicts.length > 0;
   const hard = isHard(conflicts);
   // Lapsed requests never reach a lane (timeline.tsx filters them), so a
-  // pending row here is always one the owner can still answer.
-  const pendingRequest = b.status === "pending";
+  // pending row here is always one the owner can still answer. An unpaid
+  // hold (S2, 0079) reserves its dates the same way and wears the same ghost.
+  const pendingRequest = b.status === "pending" || b.status === "pending_payment";
+  const ghost = ghostWord(b.status, t);
   const when = whenLineFor({ startsAt, endsAt, isRental: true, rangeMode: mode }, timeZone, intlLocale);
   const time = mode === "hours" ? minToTime(zonedParts(startsAt, timeZone).minutes) : null;
   const note = b.note ? `“${b.note}”` : null;
@@ -445,7 +448,7 @@ function StayBar({
             type="button"
             id={`tl-stay-${b.id}`}
             onClick={() => onSelect(b)}
-            aria-label={`${b.clientName}, ${when}${pendingRequest ? `. ${t("status.pending")}` : ""}${flagged ? `. ${conflicts.map((c) => conflictText(t, intlLocale, c)).join(". ")}` : ""}`}
+            aria-label={`${b.clientName}, ${when}${ghost ? `. ${ghost}` : ""}${flagged ? `. ${conflicts.map((c) => conflictText(t, intlLocale, c)).join(". ")}` : ""}`}
             className={cn(
               "absolute z-10 flex overflow-hidden rounded-md border text-left shadow-sm outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring",
               chip ? "items-center gap-1 px-1 text-[11px]" : "flex-col justify-center px-1.5 text-xs",
@@ -519,7 +522,7 @@ function StayBar({
         </span>
         {b.clientEmail ? <span className="opacity-70">{b.clientEmail}</span> : null}
         {note ? <span className="opacity-70">{note}</span> : null}
-        {pendingRequest ? <span>{t("status.pending")}</span> : null}
+        {ghost ? <span>{ghost}</span> : null}
         {phase === "current" ? <span>{t("timeline.inHouseNow")}</span> : phase === "past" ? <span className="opacity-70">{t("timeline.ended")}</span> : null}
         {conflicts.map((c, i) => (
           <span key={i} className={cn("flex items-start gap-1", c.kind === "turnover" ? "text-amber-500" : "text-destructive")}>

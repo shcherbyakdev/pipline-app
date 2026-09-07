@@ -7,18 +7,22 @@ import { whenLineFor } from "@/features/scheduling/templates";
 import {
   acceptBookingRequest,
   cancelBookingAdmin,
+  markBookingPaid,
   resendManageLink,
 } from "@/features/scheduling/booking-actions";
 import { isExpiredRequest } from "@/features/scheduling/requests";
+import { holdLabel, isLiveHold } from "@/features/scheduling/hold-label";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { StaffRow } from "@/features/scheduling/staff-queries";
 import { INTL_LOCALES } from "@/i18n/config";
+import { formatMoney } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { DeclineRequestDialog } from "./requests-inbox";
 import { MoveRentalDialog } from "@/features/rentals/components/move-rental-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogBreadcrumbHeader,
@@ -99,6 +103,31 @@ function DetailBody({
   // RPCs draw the same line (0063), so nothing offers a click they'd refuse.
   const expiredRequest = isExpiredRequest(booking, new Date(now));
   const liveRequest = booking.status === "pending" && !expiredRequest;
+  // S2: a hold reserves the slot until it is paid for. Live means the
+  // deadline is still ahead — only then can it be marked paid; a lapsed one
+  // is waiting on the drain and can still be cancelled by hand.
+  const hold = booking.status === "pending_payment";
+  const liveHold = isLiveHold(booking, new Date(now));
+  const paidLine =
+    booking.paidCents > 0 && booking.currency
+      ? booking.priceCents !== null && booking.priceCents > booking.paidCents
+        ? t("hold.paidBalance", {
+            paid: formatMoney(booking.paidCents, booking.currency),
+            balance: formatMoney(booking.priceCents - booking.paidCents, booking.currency),
+          })
+        : t("hold.paid", { paid: formatMoney(booking.paidCents, booking.currency) })
+      : null;
+  const refundLine =
+    booking.refundedCents > 0 && booking.currency
+      ? t("hold.refunded", { amount: formatMoney(booking.refundedCents, booking.currency) })
+      : null;
+  // What a cancel would send back. Offered pre-ticked (S2 ruling 3: the
+  // default is a full refund) and only when there is money left to return.
+  const refundable =
+    booking.paidCents > booking.refundedCents && booking.currency
+      ? formatMoney(booking.paidCents - booking.refundedCents, booking.currency)
+      : null;
+  const [refund, setRefund] = React.useState(true);
 
   const accept = () =>
     startTransition(async () => {
@@ -113,11 +142,22 @@ function DetailBody({
 
   const cancel = () =>
     startTransition(async () => {
-      const result = await cancelBookingAdmin({ id: booking.id });
+      const result = await cancelBookingAdmin({ id: booking.id, refund });
       if (!result.ok) toast.error(result.error);
       else if (result.noEmail) toast.success(t("cancel.doneNoEmail"));
       else if (result.emailed) toast.success(t("cancel.doneEmailed"));
       else toast.warning(t("cancel.doneEmailFailed"));
+      // The cancel itself succeeded either way — a refund that didn't go
+      // through is finished by hand in Stripe.
+      if (result.ok && result.refundFailed) toast.warning(t("cancel.refundFailed"));
+      onClose();
+    });
+
+  const markPaid = () =>
+    startTransition(async () => {
+      const result = await markBookingPaid({ id: booking.id });
+      if (!result.ok) toast.error(result.error);
+      else toast.success(t("markPaid.done"));
       onClose();
     });
 
@@ -178,7 +218,18 @@ function DetailBody({
           </p>
         ) : null}
         <p className="text-sm text-muted-foreground">{contact}</p>
-        {liveRequest ? (
+        {paidLine ? <p className="text-sm">{paidLine}</p> : null}
+        {refundLine ? <p className="text-sm">{refundLine}</p> : null}
+        {hold ? (
+          <>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">{t("status.pendingPayment")}</Badge>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              {liveHold ? holdLabel(booking, timeZone, intlLocale, t) : t("hold.lapsed")}
+            </p>
+          </>
+        ) : liveRequest ? (
           <div className="flex items-center gap-2">
             <Badge variant="secondary">{t("status.pending")}</Badge>
           </div>
@@ -195,7 +246,36 @@ function DetailBody({
       </div>
       {/* Only the actions branch on status — everything above is the same
           booking whatever state it is in. */}
-      {liveRequest ? (
+      {hold ? (
+        <DialogFooterBar className="sm:justify-start">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={resend}
+            disabled={pending || resendBlocked}
+            focusableWhenDisabled={resendBlocked}
+            title={resendHint}
+          >
+            {t("resendLink")}
+          </Button>
+          {/* Only a LIVE hold can be marked paid — past the deadline the RPC
+              refuses it, and the drain is about to release the slot. */}
+          {liveHold ? (
+            <Button variant="outline" size="sm" onClick={markPaid} disabled={pending}>
+              {t("markPaid.button")}
+            </Button>
+          ) : null}
+          <Button
+            variant="destructive"
+            size="sm"
+            className="sm:ml-auto"
+            onClick={cancel}
+            disabled={pending}
+          >
+            {t("cancel.button")}
+          </Button>
+        </DialogFooterBar>
+      ) : liveRequest ? (
         <DialogFooterBar>
           <Button
             variant="ghost"
@@ -259,6 +339,16 @@ function DetailBody({
               when the confirm opens. */}
           {confirming ? (
             <span className="flex items-center gap-2 sm:ml-auto">
+              {refundable === null ? null : (
+                <label className="flex items-center gap-1.5 text-xs">
+                  <Checkbox
+                    checked={refund}
+                    onCheckedChange={(checked) => setRefund(checked === true)}
+                    disabled={pending}
+                  />
+                  {t("cancel.refund", { amount: refundable })}
+                </label>
+              )}
               <Button
                 variant="destructive"
                 size="sm"

@@ -39,7 +39,7 @@ export async function listDetailBookings(
       .from("bookings")
       .select(COLS)
       .eq(column, id)
-      .or(`status.eq.confirmed,and(status.eq.pending,starts_at.gt.${iso})`)
+      .or(`status.eq.confirmed,status.eq.pending_payment,and(status.eq.pending,starts_at.gt.${iso})`)
       .gte("ends_at", iso)
       .order("starts_at")
       .limit(LIMIT),
@@ -48,7 +48,7 @@ export async function listDetailBookings(
       .select(COLS)
       .eq(column, id)
       .or(
-        `status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined),` +
+        `status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined,expired),` +
           `and(status.eq.confirmed,ends_at.lt.${iso}),` +
           `and(status.eq.pending,starts_at.lte.${iso})`,
       )

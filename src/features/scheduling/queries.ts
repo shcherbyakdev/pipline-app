@@ -242,10 +242,17 @@ export type AdminBooking = {
   // shows it so "accept" is a decision made with the amount in view.
   priceCents: number | null;
   currency: string | null;
+  // S2 money (0079): what the hold asks for, when it lapses, and the ledger
+  // totals the row carries. `holdExpiresAt` is set only while the status is
+  // pending_payment; paid/refunded are 0 until a payment lands.
+  depositCents: number | null;
+  holdExpiresAt: string | null;
+  paidCents: number;
+  refundedCents: number;
 };
 
 export const BOOKING_COLUMNS =
-  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, price_cents, currency, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
+  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, price_cents, currency, deposit_cents, hold_expires_at, paid_cents, refunded_cents, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
 
 export type BookingRow = {
   id: string;
@@ -262,6 +269,10 @@ export type BookingRow = {
   staff_id: string | null;
   price_cents: number | null;
   currency: string | null;
+  deposit_cents: number | null;
+  hold_expires_at: string | null;
+  paid_cents: number;
+  refunded_cents: number;
   staff: { name: string; color: string } | null;
   services: { name: string } | null;
   rental_offerings: { name: string; range_mode: RangeMode } | null;
@@ -288,6 +299,10 @@ export function toAdminBooking(b: BookingRow, fallbackTitle: string): AdminBooki
     staffColor: b.staff?.color ?? null,
     priceCents: b.price_cents,
     currency: b.currency,
+    depositCents: b.deposit_cents,
+    holdExpiresAt: b.hold_expires_at,
+    paidCents: b.paid_cents,
+    refundedCents: b.refunded_cents,
   };
 }
 
@@ -306,9 +321,10 @@ export async function listCalendarBookingsBetween(
   const base = supabase
     .from("bookings")
     .select(BOOKING_COLUMNS)
-    // Confirmed, plus live pending requests — they hold slots (0062), so the
-    // grid must show why a time is blocked. A lapsed pending is history.
-    .or(`status.eq.confirmed,and(status.eq.pending,starts_at.gt.${new Date().toISOString()})`)
+    // Confirmed, plus live pending requests and unpaid holds — all three
+    // hold slots (0062, 0079), so the grid must show why a time is blocked.
+    // A lapsed pending is history; a lapsed hold is 'expired' by the drain.
+    .or(`status.eq.confirmed,status.eq.pending_payment,and(status.eq.pending,starts_at.gt.${new Date().toISOString()})`)
     // Overlap, not containment (Rentals R1): a multi-night stay that began
     // before the visible week still belongs on it.
     .lt("starts_at", toIso)

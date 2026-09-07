@@ -17,6 +17,7 @@ import { env } from "@/env";
 import { computeSlots, dateInZone } from "./slots";
 import { moneyInfoLines } from "@/features/rentals/pricing";
 import { refundBooking } from "@/features/payments/refund";
+import { sendPaymentReceived } from "@/features/payments/confirm-effects";
 import type { Line } from "@/features/rentals/pricing-rules";
 import type { RangeMode } from "@/features/rentals/range";
 import { formatMoney } from "@/lib/money";
@@ -204,6 +205,37 @@ export async function cancelBookingAdmin(
     return { ok: true, emailed, noEmail, refundedCents: refund.refundedCents, refundFailed: refund.failed };
   } catch (error) {
     return fail("cancelBookingAdmin", error);
+  }
+}
+
+/** S2: the money arrived off-platform (a transfer, cash at the desk) — the
+    admin says so and the hold becomes a booking. The RPC does the ledger
+    write and the flip in one transaction (0079); the tail here is the same
+    one a webhook confirmation runs, so the client is told either way. */
+export async function markBookingPaid(
+  input: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const t = await getTranslations("errors");
+  const parsed = bookingIdInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: t("generic") };
+  try {
+    const org = await currentOrg();
+    if (!org) return { ok: false, error: t("generic") };
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("mark_booking_paid", { p_booking_id: parsed.data.id });
+    if (error) {
+      return isRpcSentinel(error, "not found")
+        ? { ok: false, error: t("bookings.notHeld") }
+        : fail("markBookingPaid", error);
+    }
+    // The same tail a webhook confirmation runs (client mail, member notice,
+    // Google) — it swallows its own errors, and the flip is already applied.
+    await sendPaymentReceived(parsed.data.id);
+    revalidatePath("/bookings");
+    revalidatePath("/overview");
+    return { ok: true };
+  } catch (error) {
+    return fail("markBookingPaid", error);
   }
 }
 
@@ -440,9 +472,10 @@ export async function resendManageLink(
       )
       .eq("id", parsed.data.id)
       .eq("org_id", org.id)
-      // A pending request's link is the client's only handle on it, so it
-      // reissues like a confirmed booking's (rotate_booking_token, 0064).
-      .in("status", ["confirmed", "pending"])
+      // A pending request's or unpaid hold's link is the client's only
+      // handle on it — including the pay link — so it reissues like a
+      // confirmed booking's (rotate_booking_token, 0064).
+      .in("status", ["confirmed", "pending", "pending_payment"])
       .maybeSingle();
     if (readError) return fail("resendManageLink", readError);
     if (!booking) return { ok: false, error: t("bookings.noManageLink") };
