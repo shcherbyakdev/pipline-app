@@ -247,7 +247,7 @@ describe("rental flow e2e (action layer)", () => {
     expect(fresh.booking.priceCents).toBeNull();
     expect(fresh.booking.currency).toBeNull();
     expect(fresh.booking.depositCents).toBeNull();
-    expect(fresh.booking.cancelWindowMin).toBe(0);
+    expect(fresh.booking.cancelPolicy).toEqual([]);
 
     // …and the old one is dead: it still resolves (the manage page says so)
     // but only as a rescheduled row.

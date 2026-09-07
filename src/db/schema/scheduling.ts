@@ -219,6 +219,10 @@ export const bookings = pgTable(
     holdExpiresAt: timestamp("hold_expires_at", { withTimezone: true }),
     paidCents: integer("paid_cents").default(0).notNull(),
     refundedCents: integer("refunded_cents").default(0).notNull(),
+    // S3: the policy the client accepted (snapshot, filled by the carry
+    // trigger) and the consequence incurred — never TS-computed for display.
+    cancelPolicy: jsonb("cancel_policy"),
+    feeCents: integer("fee_cents").default(0).notNull(),
     // Stamped by the public create RPCs iff the offering had terms_text;
     // carried forward across reschedules.
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
