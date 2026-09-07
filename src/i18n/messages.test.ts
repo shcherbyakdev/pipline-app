@@ -68,6 +68,13 @@ const SAME_IN_EVERY_LOCALE = new Set([
   "billing.planTag.srPrefix",
   "studio.sections.faq.label",
   "studio.branding.logo",
+  // NIP is the Polish tax ID abbreviation, same across all languages.
+  "public.legal.taxId",
+  "payments.legal.taxId",
+  // Brand names and payment methods
+  "payments.stripe.title",
+  "payments.stripe.capability.p24_payments",
+  "payments.stripe.capability.blik_payments",
 ]);
 
 // The studio never offers to "skip" or do something "later" (widget
