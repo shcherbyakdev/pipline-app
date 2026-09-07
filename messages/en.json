@@ -678,6 +678,51 @@
       "unitSelection": "Unit selection",
       "unitAuto": "Assign a unit automatically",
       "unitClientPicks": "Let the client pick a unit",
+      "pricing": {
+        "useRules": "Rates by length, surcharges and extras",
+        "useRulesHint": "Instead of one price per hour. The price is worked out for each booking and shown before the client confirms.",
+        "bands": {
+          "title": "Rates by length",
+          "from": "from",
+          "fromAria": "Rate {n} applies from (hours)",
+          "kindAria": "Rate {n} kind",
+          "amountAria": "Rate {n} amount",
+          "perHour": "{currency} per hour",
+          "total": "{currency} total",
+          "add": "Add a rate",
+          "remove": "Remove rate {n}"
+        },
+        "surcharges": {
+          "title": "Surcharges",
+          "labelAria": "Surcharge {n} name",
+          "labelPlaceholder": "Night",
+          "pctAria": "Surcharge {n} percent",
+          "pctSuffix": "%",
+          "days": "Days",
+          "from": "From",
+          "to": "To",
+          "add": "Add a surcharge",
+          "remove": "Remove surcharge {n}"
+        },
+        "people": {
+          "title": "People",
+          "included": "Included",
+          "extra": "Per extra person ({currency})",
+          "max": "Maximum"
+        },
+        "extras": {
+          "title": "Extras",
+          "labelAria": "Extra {n} name",
+          "labelPlaceholder": "ARRI 2 kW",
+          "unitAria": "Extra {n} unit",
+          "perHour": "per hour",
+          "perPiece": "per piece",
+          "priceAria": "Extra {n} price",
+          "maxAria": "Extra {n} maximum",
+          "add": "Add an extra",
+          "remove": "Remove extra {n}"
+        }
+      },
       "create": "Create space",
       "created": "Space created"
     },
