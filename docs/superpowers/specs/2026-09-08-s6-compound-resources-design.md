@@ -28,7 +28,7 @@ Today `bookings.rental_unit_id` is one unit and the EXCLUDE on it is the only gu
 10. **Race handling is the EXCLUDE, as today.** No extra advisory locks for equipment (it has no turnover, so the per-offering lock's reason does not apply). A lost race raises 23P01, which every rentals action already maps to the client's "just taken" message.
 11. **Reschedule carries the equipment and may refuse.** S1's degrade-never-refuse rule covers *money*: a deleted or inactive equipment space drops out of the lines. Occupancy is physical: if no unit of an attached equipment space is free at the new time the move fails with `taken`, like a room would. The reschedule panels compute slots with the attached equipment's busy time folded in, so the client rarely reaches that refusal.
 12. **Turnover is the checking offering's.** The free-check applies the offering-under-test's turnover to every unit in scope, including component units of other rooms (today's rule, widened). Equipment has `turnover_min = 0`.
-13. **Space cap unchanged.** Composites and equipment count toward the Free/Pro shared-resource budget like any space; no gate change.
+13. **Space cap unchanged.** Composites and equipment count toward the Free/Pro shared-resource budget like any space. *Amended 2026-09-09 (final review):* the gate weighs an equipment create by its item count up front (`assertCanAddUnit(..., count)`), and the public budget slice ranks equipment units after every room so a lamp can never evict a room from the page.
 14. **One-window deploy.** The two hours create RPCs change signature (old ones dropped), as in S1 (`2026-09-07-s1-pricing-rules-design.md`). CD already runs migrate → promote in one pass.
 
 ## What exists and is reused
@@ -185,6 +185,7 @@ The dates RPCs (`create_rental_booking`, `reschedule_rental_apply`) get **no** s
 - Per-room equipment allowlist; equipment bookable on its own; equipment in the appointments channel.
 - Dates-mode composites and equipment.
 - Retro-blocking a unit added to an included room after a whole-studio booking exists (ruling 7); a `createUnit` hook could write component rows for future composite bookings.
+- Deactivating a linked room (`setOfferingActive`) leaves the composite including an inactive room; only mode/kind changes are guarded (`check_component_still_hourly`, 0084).
 - Ad-hoc multi-room picks in the widget.
 - Equipment turnover / prep time; equipment blackouts UI (the table supports them via the unit).
 - Composite-specific "blocked by whole studio" visuals beyond the muted lane block; per-lane filter on the timeline (already deferred from PR #67).
