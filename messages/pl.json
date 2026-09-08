@@ -2035,7 +2035,7 @@
       "newRequest": "Nowa prośba o rezerwację",
       "cancelled": "Anulowanie przez klienta",
       "rescheduled": "Przełożenie przez klienta",
-      "dailyDigest": "Poranna lista — raz dziennie, dopóki coś czeka",
+      "dailyDigest": "Poranna lista — raz dziennie o 08:00, dopóki coś czeka",
       "switchLabel": "{event}, przez {channel}"
     },
     "reminders": {

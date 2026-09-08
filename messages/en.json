@@ -2067,7 +2067,7 @@
       "newRequest": "New booking request",
       "cancelled": "Cancellation by a client",
       "rescheduled": "Reschedule by a client",
-      "dailyDigest": "Morning list — once a day while something is waiting",
+      "dailyDigest": "Morning list — once a day at 08:00 while something is waiting",
       "switchLabel": "{event}, by {channel}"
     },
     "reminders": {

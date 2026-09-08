@@ -38,7 +38,7 @@ Every morning the studio sees **one list of what still needs a human**: requests
 
 ### `orgs`
 
-- `digest_sent_on date null` — the org-local date of the last digest claim. Written by the drain (admin) through the claim update; null on every existing row, which means "never sent" and makes every org due at its next 08:00. A member can technically write it through the orgs UPDATE policy; the worst case is suppressing their own org's digest for one day — accepted.
+- `digest_sent_on date null` — the org-local date of the last digest claim. Written by the drain (admin) through the claim update; null on every existing row, which means "never sent": an existing org becomes due at the first tick past 08:00 local after deploy (so on deploy day an org with actionable rows gets its first digest that afternoon, once). Only the service role can write it: `orgs` has no UPDATE grant for `authenticated` (0004).
 
 ### `list_balances_due(p_org_id uuid, p_since timestamptz, p_limit int default 50)`
 
@@ -190,7 +190,7 @@ return Response.json({ ...summary, calendar, inbound, holds, digest });
 ## Security
 
 - `list_balances_due` gates on `user_orgs()` or `service_role`; it exposes nothing `booking_balance_cents` would not for the org's own rows, and the balance function stays service-role only.
-- `digest_due_orgs` is service-role only; `digest_sent_on` is a date, not a secret.
+- `digest_due_orgs` is service-role only; `digest_sent_on` is written only by the drain (no member UPDATE path on `orgs`).
 - Row actions call the existing org-gated server actions / definer RPCs (`mark_booking_paid`, `write_off_booking`, `rotate_booking_token`); no new write path.
 - The drain phase runs under the same Bearer secret; no new endpoint.
 

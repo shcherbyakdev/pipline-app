@@ -205,7 +205,7 @@ function BalanceRow({
         {/* Two clicks, as the charges block does: the first arms, the second
             records the whole balance as cash (S7 decision 4). */}
         {confirmPaid ? (
-          <Button variant="brand" size="sm" onClick={markPaid} disabled={pending} aria-label={t("markPaidFor", { name: booking.clientName })}>
+          <Button variant="brand" size="sm" onClick={markPaid} disabled={pending}>
             {tc("markPaidConfirm")}
           </Button>
         ) : (
