@@ -114,7 +114,10 @@ export default async function BookingsPage({
     eff.offersAppointments ? listServices() : Promise.resolve([]),
     listActiveStaff(),
   ]);
-  const spaces = orgOfferings.filter((o) => o.active);
+  // S6: equipment is never booked on its own — it rides a room booking as an
+  // add-on — so it is not one of the things this page offers to book, scope
+  // or count. (Its units still draw lanes on the timeline, from its own read.)
+  const spaces = orgOfferings.filter((o) => o.active && o.kind !== "equipment");
   const activeServices = services.filter((s) => s.active);
   const hasHourly = spaces.some((o) => o.rangeMode === "hours");
   const view = asView(params.view, rentals ? defaultBookingsView(eff, hasHourly) : "week");

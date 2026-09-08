@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { isBookableOffering, toPreviewCatalog } from "./preview-catalog";
 import type { OfferingRow } from "@/features/rentals/queries";
+import type { OfferingKind } from "@/features/rentals/pricing-rules";
 import type { PublicService } from "@/lib/booking/public";
 
 const APPTS_ONLY = { offersAppointments: true, offersRentals: false };
@@ -14,9 +15,9 @@ function service(id: string, active = true): ServiceRow {
     requiresApproval: false,
   };
 }
-function offering(id: string, active = true, activeUnitCount = 1): OfferingRow {
+function offering(id: string, active = true, activeUnitCount = 1, kind: OfferingKind = "space"): OfferingRow {
   return {
-    id, name: id, description: null, rangeMode: "nights", startTime: "15:00", endTime: "11:00",
+    id, name: id, description: null, kind, componentIds: [], rangeMode: "nights", startTime: "15:00", endTime: "11:00",
     minStay: 1, maxStay: null, turnoverDays: 0, minNoticeDays: 0, bookingWindowDays: 180,
     unitSelection: "auto", slotIncrementMin: null, minDurationMin: null, maxDurationMin: null,
     turnoverMin: 0, minNoticeMin: 0, active, requiresApproval: false, sortOrder: 0, unitCount: 1, activeUnitCount,
@@ -65,6 +66,28 @@ describe("toPreviewCatalog", () => {
     expect(isBookableOffering(offering("room"))).toBe(true);
     expect(isBookableOffering(offering("shell", true, 0))).toBe(false);
     expect(isBookableOffering(offering("retired", false))).toBe(false);
+  });
+
+  // S6: equipment rides a room booking; it is never a card of its own, on the
+  // public page (listPublicOfferings' .neq) or in the admin's preview of it.
+  it("equipment never reaches the preview, however bookable its units are", () => {
+    const out = toPreviewCatalog({
+      mode: RENTALS_ONLY,
+      services: [],
+      offerings: [offering("room"), offering("softbox", true, 3, "equipment")],
+    });
+    expect(ids(out.offerings)).toEqual(["room"]);
+  });
+
+  it("an org whose only spaces are equipment sees the canned stand-in, not its items", () => {
+    const out = toPreviewCatalog({ mode: RENTALS_ONLY, services: [], offerings: [offering("softbox", true, 3, "equipment")] });
+    expect(ids(out.offerings)).toEqual(["preview-offering"]);
+  });
+
+  it("a composite is a card like any other, and carries its kind through", () => {
+    const out = toPreviewCatalog({ mode: RENTALS_ONLY, services: [], offerings: [offering("studio", true, 1, "composite")] });
+    expect(ids(out.offerings)).toEqual(["studio"]);
+    expect(out.offerings[0].kind).toBe("composite");
   });
 
   it("the projection keeps the public shape only — no admin-only fields leak into the preview", () => {

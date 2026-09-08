@@ -176,7 +176,8 @@
       "hasBookings": "It has bookings — deactivate it instead.",
       "blackoutOrder": "End date must not precede the start date.",
       "blackoutSpan": "Unavailable dates can span at most 2 years.",
-      "lastUnit": "That's the space's last unit — to remove it, delete the space."
+      "lastUnit": "That's the space's last unit — to remove it, delete the space.",
+      "compositeHasOneUnit": "A whole studio is one unit — split its rooms instead."
     },
     "clients": {
       "createdNotAssigned": "Client created, but assigning failed. Pick them from the list.",
@@ -677,6 +678,10 @@
     "unitsEmpty": "No units yet — the space won't appear on your booking page until it has an active unit.",
     "blackoutsHint": "Dates this space can't be booked — maintenance, your own stay, a closed week.",
     "splitIntoUnits": "Several identical rooms or items? Split this space into units →",
+    "chip": {
+      "includes": "Includes {count, plural, one {# room} other {# rooms}}",
+      "addon": "Add-on"
+    },
     "field": "Space",
     "badge": "Space",
     "settings": {
@@ -739,6 +744,20 @@
         "stay": "Stay",
         "pricing": "Pricing"
       },
+      "kind": {
+        "label": "What is it?",
+        "space": "Room",
+        "spaceHint": "A room or item clients book on its own",
+        "composite": "Whole studio",
+        "compositeHint": "Books several rooms at once and blocks them all",
+        "equipment": "Equipment",
+        "equipmentHint": "Added to a room booking; one item can't be in two rooms"
+      },
+      "includes": "Includes",
+      "includesEmpty": "Create at least one hourly room first.",
+      "includesRequired": "Pick at least one room to include.",
+      "itemCount": "How many items",
+      "perBooking": "Per booking",
       "bookedBy": "Booked by",
       "mode": {
         "nights": "Nightly (check-in → check-out)",

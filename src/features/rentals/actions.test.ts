@@ -187,6 +187,57 @@ describe("createOffering — an hourly space starts with the default week", () =
   });
 });
 
+/* S6: the kind is a create-only fact. An equipment space's units ARE its
+   physical items (and it is never booked on its own, so it gets no week of
+   its own); a composite is the rooms it includes. */
+describe("createOffering — S6 kinds", () => {
+  const equipment = { ...hourlySpace, name: "Softbox", kind: "equipment", itemCount: 3 };
+  const rooms = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];
+
+  it("writes the kind once, on create", async () => {
+    expect(await createOffering(equipment)).toEqual({ ok: true });
+    expect(state.inserts.find((i) => i.table === "rental_offerings")?.row).toMatchObject({
+      kind: "equipment",
+    });
+  });
+
+  it("an equipment space's items are its units, numbered after the first", async () => {
+    await createOffering(equipment);
+    const rows = state.inserts.find((i) => i.table === "rental_units")!.row as unknown as Row[];
+    expect(rows.map((r) => r.name)).toEqual(["Softbox", "Softbox 2", "Softbox 3"]);
+    expect(rows.map((r) => r.sort_order)).toEqual([undefined, 1, 2]);
+    // One plan gate for the lot — the cap applies publicly (allowedUnitIds).
+    expect(assertCanAddUnit).toHaveBeenCalledTimes(1);
+  });
+
+  it("equipment gets no week of its own — it rides a room booking", async () => {
+    await createOffering(equipment);
+    expect(state.inserts.map((i) => i.table)).not.toContain("availability_rules");
+  });
+
+  it("a composite links the rooms it includes, and still gets its own week", async () => {
+    expect(await createOffering({ ...hourlySpace, kind: "composite", componentIds: rooms })).toEqual({ ok: true });
+    const links = state.inserts.find((i) => i.table === "rental_offering_components")!
+      .row as unknown as Row[];
+    expect(links).toEqual(
+      rooms.map((component_id) => ({ composite_id: "off-1", component_id, org_id: "org-1" })),
+    );
+    expect(state.inserts.map((i) => i.table)).toContain("availability_rules");
+  });
+
+  it("a plain hourly space stays exactly as it was — one unit, no links", async () => {
+    expect(await createOffering(hourlySpace)).toEqual({ ok: true });
+    expect(state.inserts.find((i) => i.table === "rental_units")?.row).toEqual({
+      org_id: "org-1",
+      offering_id: "off-1",
+      name: "Studio B",
+      description: null,
+      active: true,
+    });
+    expect(state.inserts.map((i) => i.table)).not.toContain("rental_offering_components");
+  });
+});
+
 /* A single-unit space never shows its unit (the space IS the unit), so the
    unit's name must follow the space's — otherwise a rename leaves mail
    reading "Apartment · Flat". A multi-unit space's units are the owner's. */

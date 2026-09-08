@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import type { RangeMode } from "./range";
-import type { PricingRules } from "./pricing-rules";
+import type { PricingRules, OfferingKind } from "./pricing-rules";
 import type { CancelPolicy } from "./cancel-policy";
 import { bookingTitle } from "@/features/scheduling/booking-label";
 import { addDaysISO, wallTimeToUtc } from "@/features/scheduling/slots";
@@ -17,6 +17,11 @@ export type OfferingRow = {
   id: string;
   name: string;
   description: string | null;
+  // S6: space | composite | equipment (rental_offerings.kind, 0084). Set at
+  // create and never edited; non-space kinds are always hourly + auto.
+  kind: OfferingKind;
+  // S6: for a composite, the hourly rooms it includes; empty everywhere else.
+  componentIds: string[];
   rangeMode: RangeMode;
   // H2: nights/days always set these (0056 CHECK); hours reads opening
   // hours from availability_rules instead, so both are null there
@@ -61,13 +66,16 @@ export type OfferingRow = {
 // table embedded a second time under an alias; every query that selects
 // these columns must add `.eq("active_units.active", true)` (the filter
 // lives on the query, not in the select string) — see offeringsQuery.
+// S6's `components` embed names its FK explicitly: rental_offering_components
+// points at rental_offerings twice, so PostgREST cannot pick a side on its own.
 export const OFFERING_COLUMNS =
-  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, requires_approval, sort_order, price_cents, pricing_mode, deposit_type, deposit_value, cancel_policy, terms_text, pricing, rental_units(count), active_units:rental_units(count)";
+  "id, name, description, kind, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, requires_approval, sort_order, price_cents, pricing_mode, deposit_type, deposit_value, cancel_policy, terms_text, pricing, rental_units(count), active_units:rental_units(count), components:rental_offering_components!rental_offering_components_composite_id_fkey(component_id)";
 
 type OfferingDb = {
   id: string;
   name: string;
   description: string | null;
+  kind: OfferingKind;
   range_mode: RangeMode;
   start_time: string | null;
   end_time: string | null;
@@ -94,6 +102,7 @@ type OfferingDb = {
   pricing: PricingRules | null;
   rental_units: Array<{ count: number }> | null;
   active_units: Array<{ count: number }> | null;
+  components: Array<{ component_id: string }> | null;
 };
 
 function toOffering(o: OfferingDb): OfferingRow {
@@ -101,6 +110,8 @@ function toOffering(o: OfferingDb): OfferingRow {
     id: o.id,
     name: o.name,
     description: o.description,
+    kind: o.kind,
+    componentIds: (o.components ?? []).map((c) => c.component_id),
     rangeMode: o.range_mode,
     startTime: o.start_time,
     endTime: o.end_time,

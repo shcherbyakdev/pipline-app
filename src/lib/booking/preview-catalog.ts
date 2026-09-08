@@ -58,10 +58,7 @@ function toPublicOffering(o: OfferingRow): PublicOffering {
     id: o.id,
     name: o.name,
     description: o.description,
-    // S6: OfferingRow (admin queries.ts) doesn't carry kind yet — every row
-    // this preview sees today is a space (a real equipment/composite row
-    // would need its own preview treatment, out of scope here).
-    kind: "space",
+    kind: o.kind,
     rangeMode: o.rangeMode,
     startTime: o.startTime,
     endTime: o.endTime,
@@ -94,7 +91,11 @@ export function isBookableOffering(o: Pick<OfferingRow, "active" | "activeUnitCo
 }
 
 function toPreviewOfferings(offerings: OfferingRow[]): PublicOffering[] {
-  const bookable = offerings.filter(isBookableOffering).map(toPublicOffering);
+  // S6: equipment is never listed on its own — it rides a room booking, and
+  // the public catalogue drops it too (listPublicOfferings' .neq on kind).
+  const bookable = offerings
+    .filter((o) => o.kind !== "equipment" && isBookableOffering(o))
+    .map(toPublicOffering);
   return bookable.length > 0 ? bookable : [CANNED_PREVIEW_OFFERING];
 }
 

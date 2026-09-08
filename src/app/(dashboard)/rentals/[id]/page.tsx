@@ -6,6 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Calendar03Icon, SourceCodeIcon } from "@hugeicons/core-free-icons";
 import {
   getOffering,
+  listOfferings,
   listOfferingBookings,
   listUnitsWithBlackouts,
   type OfferingBookingRow,
@@ -41,9 +42,12 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
 
   // One round of reads; only the hours summary waits on the space itself.
   const offeringP = getOffering(id);
-  const [offering, units, settings, bookings, availability, locale, t, tc, tu, tb, tAvailability] =
+  const [offering, offerings, units, settings, bookings, availability, locale, t, tc, tu, tb, tAvailability] =
     await Promise.all([
       offeringP,
+      // S6: the rooms a composite can include — hourly plain spaces, never
+      // this one (no nesting, and a studio can't include itself).
+      listOfferings(),
       listUnitsWithBlackouts(id),
       getSchedulingSettings(),
       listOfferingBookings(id),
@@ -134,6 +138,12 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
                 {offering.active && offering.activeUnitCount === 0 ? (
                   <Badge variant="outline">{t("notBookable")}</Badge>
                 ) : null}
+                {offering.kind === "composite" ? (
+                  <Badge variant="outline">
+                    {t("chip.includes", { count: offering.componentIds.length })}
+                  </Badge>
+                ) : null}
+                {offering.kind === "equipment" ? <Badge variant="outline">{t("chip.addon")}</Badge> : null}
               </>
             }
           >
@@ -141,13 +151,23 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
           </SpaceHeader>
         </div>
 
-        <UnitsEditor offeringId={offering.id} units={units} />
+        {/* S6: a composite IS one unit — it holds every room it includes, so
+            there is nothing here to split or black out on its own. */}
+        {offering.kind === "composite" ? null : (
+          <UnitsEditor offeringId={offering.id} units={units} />
+        )}
 
         <section aria-labelledby="space-settings" className="flex flex-col gap-4">
           <h2 id="space-settings" className="text-sm font-medium">
             {t("detail.settings")}
           </h2>
-          <OfferingForm offering={offering} currency={currency} />
+          <OfferingForm
+            offering={offering}
+            currency={currency}
+            rooms={offerings
+              .filter((o) => o.id !== offering.id && o.rangeMode === "hours" && o.kind === "space")
+              .map(({ id: roomId, name }) => ({ id: roomId, name }))}
+          />
         </section>
 
         <section aria-labelledby="space-bookings" className="flex flex-col gap-4">

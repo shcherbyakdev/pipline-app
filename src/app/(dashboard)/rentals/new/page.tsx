@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getOrgCurrency } from "@/features/rentals/queries";
+import { getOrgCurrency, listOfferings } from "@/features/rentals/queries";
 import { OfferingForm } from "@/features/rentals/components/offering-form";
 import { requireOrg } from "@/lib/auth/session";
 import { gateHref } from "@/lib/billing/gate-href";
@@ -10,8 +10,10 @@ import { evaluateResourceGate } from "@/lib/billing/gates";
 /* A new space, on a page of its own (no dialog on the list). */
 export default async function NewRentalPage() {
   const { org } = await requireOrg();
-  const [currency, doorHref, t] = await Promise.all([
+  const [currency, offerings, doorHref, t] = await Promise.all([
     getOrgCurrency(),
+    // S6: what a "whole studio" can be built out of — the org's hourly rooms.
+    listOfferings(),
     gateHref(org.id, evaluateResourceGate),
     getTranslations("spaces"),
   ]);
@@ -27,7 +29,12 @@ export default async function NewRentalPage() {
         </Link>
         <h1 className="text-lg font-semibold">{t("newButton")}</h1>
       </div>
-      <OfferingForm currency={currency} />
+      <OfferingForm
+        currency={currency}
+        rooms={offerings
+          .filter((o) => o.rangeMode === "hours" && o.kind === "space")
+          .map(({ id, name }) => ({ id, name }))}
+      />
     </div>
   );
 }

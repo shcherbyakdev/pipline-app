@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TIME_RE, HANDLE_RE } from "@/features/scheduling/schema";
 import { daysBetween } from "./range";
-import { pricingRulesSchema, pricingRulesFor, extraPicksSchema, equipmentPicksSchema } from "./pricing-rules";
+import { pricingRulesSchema, pricingRulesFor, extraPicksSchema, equipmentPicksSchema, OFFERING_KINDS } from "./pricing-rules";
 import { cancelPolicySchema } from "./cancel-policy";
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 
@@ -53,6 +53,19 @@ const hoursFields = z.object({
   // S1: NULL = the flat price above applies; rules make price_cents inert.
   pricing: pricingRulesSchema.nullable().default(null),
 });
+// S6: create-only. The kind is chosen once and never edited, so these three
+// live on the create branch alone — updateOfferingInput below is `strict()`
+// and refuses a stray `kind` or `itemCount` rather than quietly dropping it.
+// 0084's CHECK ties every non-space kind to hours + auto assignment, which is
+// why they hang off hoursFields and not offeringCommon.
+const hoursCreateFields = hoursFields.extend({
+  kind: z.enum(OFFERING_KINDS).default("space"),
+  // composite: the hourly rooms it includes (>= 1). Ignored otherwise.
+  componentIds: z.array(z.uuid()).max(50).default([]),
+  // equipment: how many physical items (units) to create. Ignored otherwise.
+  itemCount: z.number().int().min(1).max(99).default(1),
+});
+
 const stayOrder = (o: { minStay: number; maxStay: number | null }) =>
   o.maxStay === null || o.maxStay >= o.minStay;
 export const HOURS_GRID_MSG = "durations must be multiples of the increment, max ≥ min";
@@ -95,12 +108,21 @@ const rangeOffering = offeringCommon.extend(rangeFields.shape).strict()
   .refine(stayOrder, { message: "max stay must be ≥ min stay" })
   .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
   .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG });
-const hoursOffering = offeringCommon.extend(hoursFields.shape).strict()
+const hoursOffering = offeringCommon.extend(hoursCreateFields.shape).strict()
   .refine(hoursGrid, { message: HOURS_GRID_MSG })
   .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
   .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG })
   .refine((o) => o.pricing === null || pricingRulesFor(o.minDurationMin).safeParse(o.pricing).success, {
     message: "the first rate band must start at or below the minimum duration", path: ["pricing", "bands", 0, "fromMin"],
+  })
+  .refine((o) => o.kind !== "composite" || o.componentIds.length >= 1, {
+    message: "a whole studio includes at least one room", path: ["componentIds"],
+  })
+  .refine((o) => o.kind === "space" || o.unitSelection === "auto", {
+    message: "composites and equipment are auto-assigned", path: ["unitSelection"],
+  })
+  .refine((o) => o.kind !== "equipment" || o.pricing === null, {
+    message: "equipment is priced by its flat price", path: ["pricing"],
   });
 export const offeringInput = z.union([rangeOffering, hoursOffering]);
 // The settings form: everything but the name and description, which the
@@ -113,7 +135,10 @@ export const updateOfferingInput = z.union([
     .refine(stayOrder, { message: "max stay must be ≥ min stay" })
     .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
     .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG }),
-  settingsCommon.extend(hoursFields.shape).extend({ id: z.uuid() }).strict()
+  // S6: a composite's settings save replaces the rooms it includes; every
+  // other hours offering omits the key. The kind itself is never here.
+  settingsCommon.extend(hoursFields.shape)
+    .extend({ id: z.uuid(), componentIds: z.array(z.uuid()).min(1).max(50).optional() }).strict()
     .refine(hoursGrid, { message: HOURS_GRID_MSG })
     .refine(depositRules, { message: DEPOSIT_VALUE_MSG })
     .refine(depositNeedsPrice, { message: DEPOSIT_NEEDS_PRICE_MSG })
