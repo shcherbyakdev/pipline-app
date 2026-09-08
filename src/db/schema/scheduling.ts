@@ -223,6 +223,10 @@ export const bookings = pgTable(
     // trigger) and the consequence incurred — never TS-computed for display.
     cancelPolicy: jsonb("cancel_policy"),
     feeCents: integer("fee_cents").default(0).notNull(),
+    // S7: the balance the studio forgave, and why — written only by
+    // write_off_booking (no column grant to authenticated).
+    writtenOffCents: integer("written_off_cents").default(0).notNull(),
+    writtenOffNote: text("written_off_note"),
     // Stamped by the public create RPCs iff the offering had terms_text;
     // carried forward across reschedules.
     termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
