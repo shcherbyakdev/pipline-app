@@ -18,7 +18,7 @@ import { computeSlots, dateInZone } from "./slots";
 import { moneyInfoLines } from "@/features/rentals/pricing";
 import { refundBooking } from "@/features/payments/refund";
 import { expireOpenCheckouts } from "@/features/payments/checkout";
-import { sendPaymentReceived } from "@/features/payments/confirm-effects";
+import { sendBalanceReceived, sendPaymentReceived } from "@/features/payments/confirm-effects";
 import type { Line } from "@/features/rentals/pricing-rules";
 import { adminCancelMoney, type CancelPolicy } from "@/features/rentals/cancel-policy";
 import type { RangeMode } from "@/features/rentals/range";
@@ -253,8 +253,20 @@ export async function markBookingPaid(
     const org = await currentOrg();
     if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
+    // S7: the same RPC settles two different things — a hold's deposit and a
+    // confirmed booking's balance — and the tail differs (a different mail,
+    // and nothing to expire on a booking that was never holding). Read which
+    // one this is BEFORE the RPC: afterwards the status has already flipped.
+    const { data: before } = await supabase
+      .from("bookings")
+      .select("status")
+      .eq("id", parsed.data.id)
+      .eq("org_id", org.id)
+      .maybeSingle();
+    const wasConfirmed = before?.status === "confirmed";
     const { error } = await supabase.rpc("mark_booking_paid", { p_booking_id: parsed.data.id });
     if (error) {
+      if (isRpcSentinel(error, "nothing_due")) return { ok: false, error: t("nothingDue") };
       return isRpcSentinel(error, "not found")
         ? { ok: false, error: t("bookings.notHeld") }
         : fail("markBookingPaid", error);
@@ -266,7 +278,10 @@ export async function markBookingPaid(
     );
     // The same tail a webhook confirmation runs (client mail, member notice,
     // Google) — it swallows its own errors, and the flip is already applied.
-    await sendPaymentReceived(parsed.data.id);
+    // A confirmed booking did not move: only its balance was settled, so the
+    // client gets the balance receipt, not a "your booking is confirmed".
+    if (wasConfirmed) await sendBalanceReceived(parsed.data.id);
+    else await sendPaymentReceived(parsed.data.id);
     revalidatePath("/bookings");
     revalidatePath("/overview");
     return { ok: true };

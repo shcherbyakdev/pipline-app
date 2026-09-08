@@ -10,7 +10,13 @@ import { withUnit } from "@/features/rentals/unit-label";
 import { moneyInfoLines } from "@/features/rentals/pricing";
 import type { Line } from "@/features/rentals/pricing-rules";
 import type { CancelPolicy } from "@/features/rentals/cancel-policy";
-import { bookingLifecycleKey, paymentReceivedEmail, whenLineFor } from "@/features/scheduling/templates";
+import {
+  balanceReceivedEmail,
+  bookingLifecycleKey,
+  paymentReceivedEmail,
+  whenLineFor,
+} from "@/features/scheduling/templates";
+import { getBookingSettlement } from "./queries";
 import type { RangeMode } from "@/features/rentals/range";
 
 const COLS =
@@ -39,6 +45,38 @@ type Row = {
   orgs: { name: string; timezone: string; locale: string } | null;
 };
 
+/** The one row read both mails below need, plus the shapes they hand to the
+    when-line and the money lines. `null` means "nothing to send" — logged. */
+async function readBookingForMail(db: SupabaseClient, bookingId: string) {
+  const { data, error } = await db.from("bookings").select(COLS).eq("id", bookingId).maybeSingle();
+  if (error || !data) {
+    console.error("[payments] booking read for mail:", error);
+    return null;
+  }
+  const row = data as unknown as Row;
+  return {
+    row,
+    org: row.orgs!,
+    serviceName: withUnit(row.rental_offerings?.name ?? "", row.rental_units?.name ?? null),
+    b: {
+      startsAt: new Date(row.starts_at),
+      endsAt: new Date(row.ends_at),
+      isRental: row.rental_unit_id !== null,
+      rangeMode: row.rental_offerings?.range_mode ?? null,
+    },
+    money: {
+      totalCents: row.price_cents,
+      depositCents: row.deposit_cents,
+      currency: row.currency,
+      cancelPolicy: row.cancel_policy,
+      feeCents: row.fee_cents,
+      lines: (row.lines as Line[] | null) ?? null,
+      paidCents: row.paid_cents,
+      refundedCents: row.refunded_cents,
+    },
+  };
+}
+
 /** Everything a confirmation-by-payment triggers (spec §Flows, "one helper"):
     the client's payment-received mail (no manage link — the raw token is
     never stored), the provider's newBooking notice, the Google mirror.
@@ -49,32 +87,11 @@ export async function sendPaymentReceived(
 ): Promise<void> {
   const db = deps.db ?? createAdminClient();
   try {
-    const { data, error } = await db.from("bookings").select(COLS).eq("id", bookingId).maybeSingle();
-    if (error || !data) {
-      console.error("[payments] sendPaymentReceived read:", error);
-      return;
-    }
-    const row = data as unknown as Row;
-    const org = row.orgs!;
-    const serviceName = withUnit(row.rental_offerings?.name ?? "", row.rental_units?.name ?? null);
+    const ctx = await readBookingForMail(db, bookingId);
+    if (!ctx) return;
+    const { row, org, serviceName, b, money } = ctx;
     const client = await emailTranslators(row.locale ?? org.locale);
     const mail = await emailTranslators(org.locale);
-    const b = {
-      startsAt: new Date(row.starts_at),
-      endsAt: new Date(row.ends_at),
-      isRental: row.rental_unit_id !== null,
-      rangeMode: row.rental_offerings?.range_mode ?? null,
-    };
-    const money = {
-      totalCents: row.price_cents,
-      depositCents: row.deposit_cents,
-      currency: row.currency,
-      cancelPolicy: row.cancel_policy,
-      feeCents: row.fee_cents,
-      lines: (row.lines as Line[] | null) ?? null,
-      paidCents: row.paid_cents,
-      refundedCents: row.refunded_cents,
-    };
     kickCalendarSync(row.org_id);
     if (row.client_email) {
       try {
@@ -112,5 +129,40 @@ export async function sendPaymentReceived(
     );
   } catch (e) {
     console.error("[payments] sendPaymentReceived:", e);
+  }
+}
+
+/** S7: the client's receipt for a balance paid online. Nothing about the
+    booking moved — no provider notice, no calendar kick — so this is the
+    client mail and nothing else. Best effort: logs, never throws (the
+    webhook write is already committed by the time it runs). */
+export async function sendBalanceReceived(
+  bookingId: string,
+  deps: { db?: SupabaseClient; transport?: EmailTransport } = {},
+): Promise<void> {
+  const db = deps.db ?? createAdminClient();
+  try {
+    const ctx = await readBookingForMail(db, bookingId);
+    if (!ctx) return;
+    const { row, org, serviceName, b, money } = ctx;
+    if (!row.client_email) return;
+    const { charges, writtenOffCents } = await getBookingSettlement(row.id, db);
+    const client = await emailTranslators(row.locale ?? org.locale);
+    const msg = balanceReceivedEmail(client.t, {
+      orgName: org.name,
+      serviceName,
+      whenLine: whenLineFor(b, org.timezone, client.intlLocale),
+      badgeUrl: await emailBadgeUrl(row.org_id),
+      infoLines: moneyInfoLines({ ...money, charges, writtenOffCents, onlinePay: true }, client.tUnits),
+    });
+    await (deps.transport ?? selectTransport()).send({
+      to: row.client_email,
+      subject: msg.subject,
+      html: msg.html,
+      text: msg.text,
+      idempotencyKey: bookingLifecycleKey(row.id, "balance-received"),
+    });
+  } catch (e) {
+    console.error("[payments] sendBalanceReceived:", e);
   }
 }

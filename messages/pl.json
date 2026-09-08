@@ -230,6 +230,8 @@
       "spaceInactive": "Ta przestrzeń jest nieaktywna — aktywuj ją ponownie, aby przenosić jej rezerwacje.",
       "notHeld": "Ta rezerwacja nie oczekuje już na płatność."
     },
+    "nothingDue": "Do tej rezerwacji nie ma nic do zapłaty.",
+    "noPaymentAccount": "Najpierw połącz konto płatności.",
     "studio": {
       "pageTooLarge": "Ta strona jest zbyt duża, aby ją zapisać — usuń część treści lub zdjęć.",
       "imageRejected": "Użyj obrazu PNG, JPEG lub WebP do 4 MB.",
@@ -376,7 +378,8 @@
       "paymentReceived": "Płatność otrzymana — dziękujemy.",
       "paymentProcessing": "Potwierdzamy Twoją płatność — ta strona zaktualizuje się, gdy bank ją rozliczy.",
       "paymentFailed": "Płatność jest chwilowo niedostępna — spróbuj ponownie za chwilę.",
-      "expiredBody": "Rezerwacja została zwolniona, ponieważ zaliczka nie została opłacona w terminie. Możesz zarezerwować ponownie na stronie studia."
+      "expiredBody": "Rezerwacja została zwolniona, ponieważ zaliczka nie została opłacona w terminie. Możesz zarezerwować ponownie na stronie studia.",
+      "payBalance": "Zapłać {amount}"
     },
     "stay": {
       "howLong": "Jak długo?",
@@ -447,7 +450,11 @@
       "payNow": "Zapłać {amount} teraz, aby potwierdzić",
       "paid": "Zapłacono: {amount}",
       "balanceAtVenue": "{amount} do zapłaty na miejscu",
-      "refund": "Zwrócono: {amount} — zwrot na konto trwa do 3 dni roboczych"
+      "refund": "Zwrócono: {amount} — zwrot na konto trwa do 3 dni roboczych",
+      "chargeLine": "{label} — {amount}",
+      "chargeLineQty": "{label} × {qty} — {amount}",
+      "balanceDue": "{amount} do zapłaty — online lub na miejscu",
+      "writtenOff": "Umorzono: {amount}"
     },
     "legal": {
       "taxId": "NIP {id}",
@@ -573,6 +580,16 @@
       "subject": "Płatność otrzymana — {service}, {when}",
       "lead": "Dziękujemy — otrzymaliśmy Twoją płatność, rezerwacja jest potwierdzona.",
       "manageHint": "Aby ją zobaczyć lub zmienić, użyj linku z wiadomości o rezerwacji."
+    },
+    "balanceDue": {
+      "subject": "Do zapłaty — {service}, {when}",
+      "lead": "Poniżej opłaty za sesję i kwota do zapłaty.",
+      "pay": "Zapłać {amount}",
+      "payText": "Zapłać {amount}: {url}"
+    },
+    "balanceReceived": {
+      "subject": "Płatność otrzymana — {service}, {when}",
+      "lead": "Dziękujemy — rachunek został rozliczony."
     },
     "holdExpired": {
       "subject": "Rezerwacja zwolniona — {service}, {when}",
@@ -842,6 +859,40 @@
     }
   },
   "bookings": {
+    "charges": {
+      "title": "Dodatkowe opłaty",
+      "kindLabel": "Rodzaj",
+      "kind": {
+        "overtime": "Nadgodziny",
+        "people": "Dodatkowe osoby",
+        "cleaning": "Sprzątanie",
+        "damage": "Uszkodzenia",
+        "other": "Inne"
+      },
+      "label": "Nazwa",
+      "qty": "Ilość",
+      "amount": "Kwota ({currency})",
+      "note": "Notatka (wewnętrzna)",
+      "add": "Dodaj dopłatę",
+      "remove": "Usuń {label}",
+      "minutes": "Minuty nadgodzin",
+      "addOvertime": "Dodaj nadgodziny",
+      "balanceDue": "{amount} do zapłaty",
+      "overpaid": "Nadpłata {amount}",
+      "settled": "Rozliczone",
+      "nothingDue": "Nic do zapłaty",
+      "writtenOff": "Umorzono {amount}",
+      "writtenOffNote": "Umorzono {amount} — {note}",
+      "markPaid": "Oznacz saldo jako zapłacone",
+      "markPaidConfirm": "Potwierdź płatność gotówką",
+      "paid": "Saldo oznaczone jako zapłacone.",
+      "sendLink": "Wyślij link do zapłaty",
+      "linkSent": "Link do zapłaty wysłany.",
+      "noEmailOrAccount": "Wymaga adresu e-mail klienta i aktywnego konta płatności.",
+      "writeOff": "Umórz",
+      "writeOffConfirm": "Potwierdź umorzenie",
+      "writtenOffDone": "Saldo umorzone."
+    },
     "checklist": {
       "addSpace": "Dodaj przestrzeń",
       "addUnit": "Dodaj jednostkę do przestrzeni",

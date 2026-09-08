@@ -248,7 +248,12 @@ export function bookingLifecycleKey(
     | "payment-due"
     | "payment-received"
     | "hold-expired"
-    | "slot-lost",
+    | "slot-lost"
+    // S7 (0082): the balance ask is keyed per ROTATION, like manage- above —
+    // sending again rotates the token, so the previous mail's pay link is
+    // already dead and the new one must never be deduped against it.
+    | `balance-due-${string}`
+    | "balance-received",
 ): string {
   return `booking/${bookingId}/${kind}`;
 }
@@ -302,6 +307,53 @@ export function paymentReceivedEmail(t: EmailsT, input: {
   const text = [
     input.orgName, "", t("paymentReceived.lead"), input.serviceName, input.whenLine, ...(input.infoLines ?? []), "",
     t("paymentReceived.manageHint"), ...badgeTextLines(t, input.badgeUrl),
+  ].join("\n");
+  return { subject, html, text };
+}
+
+/** S7: the after-session ask. Same shape as paymentDueEmail minus the hold
+    deadline — nothing lapses here, the charges and the balance are simply
+    listed (infoLines) and the button takes the money. */
+export function balanceDueEmail(t: EmailsT, input: {
+  orgName: string; serviceName: string; whenLine: string; amount: string;
+  payUrl: string; manageUrl: string; badgeUrl?: string | null; infoLines?: string[];
+}): { subject: string; html: string; text: string } {
+  const subject = t("balanceDue.subject", { service: input.serviceName, when: input.whenLine });
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
+  <p style="margin: 0 0 8px;">${esc(t("balanceDue.lead"))}</p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${infoHtml(input.infoLines)}
+  <p style="margin: 16px 0 8px;">
+    <a href="${esc(input.payUrl)}" style="display: inline-block; padding: 10px 16px; background: #111; color: #fff; text-decoration: none; border-radius: 6px;">${esc(t("balanceDue.pay", { amount: input.amount }))}</a>
+  </p>
+  <p style="margin: 0 0 8px;"><a href="${esc(input.manageUrl)}">${esc(t("viewOrManage"))}</a></p>${badgeHtmlLine(t, input.badgeUrl)}
+</div>`.trim();
+  const text = [
+    input.orgName, "", t("balanceDue.lead"), input.serviceName, input.whenLine,
+    ...(input.infoLines ?? []), "", t("balanceDue.payText", { amount: input.amount, url: input.payUrl }),
+    t("viewOrManageText", { url: input.manageUrl }), ...badgeTextLines(t, input.badgeUrl),
+  ].join("\n");
+  return { subject, html, text };
+}
+
+/** S7: the receipt for that balance — the settled breakdown, no links (the
+    booking is over and the raw token is never stored). */
+export function balanceReceivedEmail(t: EmailsT, input: {
+  orgName: string; serviceName: string; whenLine: string; badgeUrl?: string | null; infoLines?: string[];
+}): { subject: string; html: string; text: string } {
+  const subject = t("balanceReceived.subject", { service: input.serviceName, when: input.whenLine });
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="font-size: 18px; margin: 0 0 16px;">${esc(input.orgName)}</h2>
+  <p style="margin: 0 0 8px;">${esc(t("balanceReceived.lead"))}</p>
+  <p style="margin: 0 0 4px;"><strong>${esc(input.serviceName)}</strong></p>
+  <p style="margin: 0 0 16px;">${esc(input.whenLine)}</p>${infoHtml(input.infoLines)}${badgeHtmlLine(t, input.badgeUrl)}
+</div>`.trim();
+  const text = [
+    input.orgName, "", t("balanceReceived.lead"), input.serviceName, input.whenLine,
+    ...(input.infoLines ?? []), ...badgeTextLines(t, input.badgeUrl),
   ].join("\n");
   return { subject, html, text };
 }

@@ -40,6 +40,9 @@ const SAME_IN_EVERY_LOCALE = new Set([
   "public.units.line.base",
   "public.units.line.surcharge",
   "public.units.line.extra",
+  // Label + amount only, like public.units.line.* above.
+  "public.units.chargeLine",
+  "public.units.chargeLineQty",
   // Percent sign, the same in every language.
   "spaces.form.pricing.surcharges.pctSuffix",
   // An equipment model name (example placeholder text), not a translatable phrase.

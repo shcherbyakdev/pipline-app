@@ -230,6 +230,8 @@
       "spaceInactive": "This space is inactive — reactivate it to move its bookings.",
       "notHeld": "This booking is no longer awaiting payment."
     },
+    "nothingDue": "Nothing is due on this booking.",
+    "noPaymentAccount": "Connect a payments account first.",
     "studio": {
       "pageTooLarge": "This page is too large to save — remove some content or images.",
       "imageRejected": "Use a PNG, JPEG or WebP image under 4 MB.",
@@ -376,7 +378,8 @@
       "unitAuto": "Auto",
       "unitAutoKeep": "Auto — keep {name} if free",
       "unitInactive": "{name} (inactive)",
-      "quotedNote": "“{note}”"
+      "quotedNote": "“{note}”",
+      "payBalance": "Pay {amount} now"
     },
     "stay": {
       "howLong": "How long?",
@@ -428,6 +431,10 @@
       "paid": "Paid: {amount}",
       "balanceAtVenue": "{amount} due at the venue",
       "refund": "Refunded: {amount} — bank refunds take up to 3 business days",
+      "chargeLine": "{label} — {amount}",
+      "chargeLineQty": "{label} × {qty} — {amount}",
+      "balanceDue": "{amount} due — pay online or at the venue",
+      "writtenOff": "Written off: {amount}",
       "cancellationFee": "Cancellation fee: {amount}",
       "changeFee": "Late change fee: {amount}",
       "changeFeePct": "Late change fee: {amount} ({pct}%)",
@@ -509,6 +516,16 @@
       "subject": "Payment received — {service}, {when}",
       "lead": "Thank you — your payment was received and your booking is confirmed.",
       "manageHint": "To view or change it, use the link in your reservation email."
+    },
+    "balanceDue": {
+      "subject": "Balance due — {service}, {when}",
+      "lead": "Your session's charges and balance are below.",
+      "pay": "Pay {amount}",
+      "payText": "Pay {amount}: {url}"
+    },
+    "balanceReceived": {
+      "subject": "Payment received — {service}, {when}",
+      "lead": "Thank you — your balance is settled."
     },
     "holdExpired": {
       "subject": "Reservation released — {service}, {when}",
@@ -842,6 +859,40 @@
     }
   },
   "bookings": {
+    "charges": {
+      "title": "Charges",
+      "kindLabel": "Kind",
+      "kind": {
+        "overtime": "Overtime",
+        "people": "Extra people",
+        "cleaning": "Cleaning",
+        "damage": "Damage",
+        "other": "Other"
+      },
+      "label": "Label",
+      "qty": "Qty",
+      "amount": "Amount ({currency})",
+      "note": "Note (internal)",
+      "add": "Add charge",
+      "remove": "Remove {label}",
+      "minutes": "Overtime minutes",
+      "addOvertime": "Add overtime",
+      "balanceDue": "{amount} due",
+      "overpaid": "Overpaid {amount}",
+      "settled": "Settled",
+      "nothingDue": "Nothing due",
+      "writtenOff": "Written off {amount}",
+      "writtenOffNote": "Written off {amount} — {note}",
+      "markPaid": "Mark balance paid",
+      "markPaidConfirm": "Confirm cash payment",
+      "paid": "Balance marked as paid.",
+      "sendLink": "Send balance link",
+      "linkSent": "Balance link sent.",
+      "noEmailOrAccount": "Needs a client email and an active payments account.",
+      "writeOff": "Write off",
+      "writeOffConfirm": "Confirm write-off",
+      "writtenOffDone": "Balance written off."
+    },
     "checklist": {
       "addSpace": "Add a space",
       "addUnit": "Add a unit to your space",

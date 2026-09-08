@@ -47,3 +47,29 @@ export const bookingPayments = pgTable(
   },
   (t) => [index("booking_payments_booking_id_idx").on(t.bookingId, t.createdAt)],
 );
+
+// S7: after-session charges — overtime, extra heads, cleaning, damage. Own
+// table, own RLS (spec ruling 8): the booking's price snapshot stays the
+// record of what was agreed; a charge is what happened afterwards.
+// booking_balance_cents (0082) sums them.
+export const bookingCharges = pgTable(
+  "booking_charges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    label: text("label").notNull(),
+    qty: integer("qty").default(1).notNull(),
+    unitCents: integer("unit_cents").notNull(),
+    cents: integer("cents").notNull(),
+    note: text("note"),
+    createdBy: uuid("created_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("booking_charges_booking_id_idx").on(t.bookingId)],
+);

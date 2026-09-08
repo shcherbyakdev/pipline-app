@@ -17,7 +17,10 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/booking/[tok
   const result = await resolveBookingToken(token, clientKeyFrom(request.headers));
   if (result.status !== "ok") return NextResponse.redirect(manage, 303);
   const b = result.booking;
-  if (b.status !== "pending_payment" || !b.holdExpiresAt || b.holdExpiresAt.getTime() <= Date.now()) {
+  // Holds pay their deposit, confirmed bookings their balance (S7); whether
+  // either is actually payable — a lapsed hold, a settled booking — is
+  // startCheckout's call, and every error below lands on the manage page.
+  if (b.status !== "pending_payment" && b.status !== "confirmed") {
     return NextResponse.redirect(manage, 303);
   }
   const success = new URL(manage);
@@ -28,7 +31,9 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/booking/[tok
     locale: lang ?? (await getBookingLocale(b.id)),
   });
   if ("error" in started) {
-    manage.searchParams.set("pay", "failed");
+    // A lapsed hold is not a failed payment: the manage page's own status
+    // line already explains it, so that case gets no `pay=failed` banner.
+    if (started.error !== "expired") manage.searchParams.set("pay", "failed");
     return NextResponse.redirect(manage, 303);
   }
   return NextResponse.redirect(started.url, 303);

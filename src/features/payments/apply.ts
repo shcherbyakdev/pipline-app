@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { EmailTransport } from "@/lib/email/transport";
 import type { PaymentEvent, PaymentsProvider } from "@/lib/payments/provider";
-import { sendPaymentReceived } from "./confirm-effects";
+import { sendBalanceReceived, sendPaymentReceived } from "./confirm-effects";
 import { sendSlotLost } from "./refund";
 
 export type ApplySummary = { processed: number; outcomes: string[] };
@@ -47,6 +47,12 @@ export async function applyPaymentEvents(
       outcomes.push(result as string);
       if (result === "confirmed") {
         await sendPaymentReceived(ledger.booking_id, { db: deps.db, transport: deps.transport });
+      }
+      if (result === "balance") {
+        // S7: the money landed on a booking that was already confirmed —
+        // nothing moved but the ledger, so the client gets a receipt and
+        // nobody else is told.
+        await sendBalanceReceived(ledger.booking_id, { db: deps.db, transport: deps.transport });
       }
       if (result === "slot_lost") {
         await sendSlotLost(ledger.id, { db: deps.db, provider: deps.provider, transport: deps.transport });

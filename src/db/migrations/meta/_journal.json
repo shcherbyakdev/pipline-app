@@ -575,6 +575,13 @@
       "when": 1788900000000,
       "tag": "0081_change_consequences",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1789000000000,
+      "tag": "0082_after_session_charges",
+      "breakpoints": true
     }
   ]
 }

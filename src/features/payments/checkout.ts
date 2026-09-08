@@ -12,7 +12,7 @@ import { whenLineFor } from "@/features/scheduling/templates";
 import { INTL_LOCALES, isLocale, DEFAULT_LOCALE } from "@/i18n/config";
 import type { RangeMode } from "@/features/rentals/range";
 
-export type StartCheckoutResult = { url: string } | { error: "not_held" | "expired" | "no_account" | "provider" };
+export type StartCheckoutResult = { url: string } | { error: "nothing_due" | "expired" | "no_account" | "provider" };
 
 type BookingRow = {
   id: string;
@@ -30,9 +30,11 @@ type BookingRow = {
   orgs: { timezone: string } | null;
 };
 
-/** Create-or-reuse the Checkout session for a held booking (spec ruling 8).
-    Reuses the newest open ledger row; otherwise inserts one (its id is the
-    provider idempotency key), asks the provider, and stores the session. */
+/** Create-or-reuse the Checkout session a booking owes right now (S2 ruling 8,
+    widened by S7): a live hold pays its deposit, a confirmed booking pays the
+    balance the SQL helper reports. Reuses the newest open ledger row OF THAT
+    KIND; otherwise inserts one (its id is the provider idempotency key), asks
+    the provider, and stores the session. */
 export async function startCheckout(
   bookingId: string,
   opts: { successUrl: string; cancelUrl: string; locale: string | null },
@@ -47,13 +49,29 @@ export async function startCheckout(
     )
     .eq("id", bookingId)
     .maybeSingle();
-  if (error || !b) return { error: "not_held" };
+  if (error || !b) return { error: "nothing_due" };
   const row = b as unknown as BookingRow;
-  if (row.status !== "pending_payment" || !row.hold_expires_at || !row.deposit_cents || !row.currency) {
-    return { error: "not_held" };
+  let kind: "deposit" | "balance";
+  let amount: number;
+  let expiresAt: number;
+  if (row.status === "pending_payment") {
+    if (!row.hold_expires_at || !row.deposit_cents || !row.currency) return { error: "nothing_due" };
+    const hold = new Date(row.hold_expires_at);
+    if (hold.getTime() <= now.getTime()) return { error: "expired" };
+    kind = "deposit";
+    amount = row.deposit_cents;
+    expiresAt = checkoutExpiresAt(hold, now);
+  } else if (row.status === "confirmed" && row.currency) {
+    // S7: a confirmed booking pays its balance — the SQL helper is the
+    // amount's only source (spec ruling 5). The link lives a day.
+    const { data: due, error: dueErr } = await db.rpc("booking_balance_cents", { p_booking_id: row.id });
+    if (dueErr || typeof due !== "number" || due <= 0) return { error: "nothing_due" };
+    kind = "balance";
+    amount = due;
+    expiresAt = Math.floor(now.getTime() / 1000) + 24 * 3600;
+  } else {
+    return { error: "nothing_due" };
   }
-  const hold = new Date(row.hold_expires_at);
-  if (hold.getTime() <= now.getTime()) return { error: "expired" };
   const { data: acct } = await db
     .from("payment_accounts")
     .select("stripe_account_id")
@@ -63,11 +81,16 @@ export async function startCheckout(
   if (!acct) return { error: "no_account" };
 
   // A session already open (and not about to lapse) is the one to hand back —
-  // a refresh must never mint a second one.
+  // a refresh must never mint a second one. Keyed by kind AND amount (S7): a
+  // deposit request must never be handed the balance session's URL, and a
+  // re-ask after a new charge must mint a session for the NEW balance rather
+  // than reuse one that would take too little.
   const { data: open } = await db
     .from("booking_payments")
     .select("checkout_url")
     .eq("booking_id", row.id)
+    .eq("kind", kind)
+    .eq("amount_cents", amount)
     .eq("status", "pending")
     .not("checkout_url", "is", null)
     .gt("checkout_expires_at", new Date(now.getTime() + 60_000).toISOString())
@@ -82,9 +105,9 @@ export async function startCheckout(
     .insert({
       org_id: row.org_id,
       booking_id: row.id,
-      kind: "deposit",
+      kind,
       provider: provider.name,
-      amount_cents: row.deposit_cents,
+      amount_cents: amount,
       currency: row.currency,
       status: "pending",
       stripe_account_id: acct.stripe_account_id,
@@ -107,13 +130,13 @@ export async function startCheckout(
     row.orgs?.timezone ?? "UTC",
     INTL_LOCALES[locale],
   );
-  const expiresAt = checkoutExpiresAt(hold, now);
   try {
     const { sessionId, url } = await provider.createCheckout({
       accountId: acct.stripe_account_id,
-      amountCents: row.deposit_cents,
+      amountCents: amount,
       currency: row.currency,
-      productName: `${withUnit(row.rental_offerings?.name ?? "", row.rental_units?.name ?? null)} — ${when}`,
+      // Product names are not translated today — the balance suffix stays English.
+      productName: `${withUnit(row.rental_offerings?.name ?? "", row.rental_units?.name ?? null)} — ${when}${kind === "balance" ? " · balance" : ""}`,
       customerEmail: row.client_email,
       successUrl: opts.successUrl,
       cancelUrl: opts.cancelUrl,

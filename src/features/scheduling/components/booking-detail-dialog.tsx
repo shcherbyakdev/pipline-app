@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { DeclineRequestDialog } from "./requests-inbox";
 import { MoveRentalDialog } from "@/features/rentals/components/move-rental-dialog";
+import { BookingCharges } from "@/features/payments/components/booking-charges";
 import { adminCancelMoney, type AdminRefundMode } from "@/features/rentals/cancel-policy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,11 @@ function DetailBody({
   // is waiting on the drain and can still be cancelled by hand.
   const hold = booking.status === "pending_payment";
   const liveHold = isLiveHold(booking, new Date(now));
+  const isRental = booking.rentalUnitId !== null;
+  // S7: an hourly space's confirmed booking gets the charges block, which
+  // owns the balance from there on (live or ended) — so the summary line
+  // above it says only what was paid.
+  const showCharges = isRental && booking.status === "confirmed";
   // S3: what is still to collect counts the fee and only the money the studio
   // still holds (paid − refunded); no balance → the plain "paid" line.
   const balance =
@@ -117,7 +123,7 @@ function DetailBody({
       : booking.priceCents + booking.feeCents - (booking.paidCents - booking.refundedCents);
   const paidLine =
     booking.paidCents > 0 && booking.currency
-      ? balance > 0
+      ? balance > 0 && !showCharges
         ? t("hold.paidBalance", {
             paid: formatMoney(booking.paidCents, booking.currency),
             balance: formatMoney(balance, booking.currency),
@@ -131,7 +137,9 @@ function DetailBody({
   // S3: the consequence the row carries, and what the studio is still owed.
   const feeLine = booking.feeCents > 0 && booking.currency ? t("hold.fee", { amount: formatMoney(booking.feeCents, booking.currency) }) : null;
   const outstanding = booking.feeCents - (booking.paidCents - booking.refundedCents);
-  const outstandingLine = booking.feeCents > 0 && outstanding > 0 && booking.currency ? t("hold.feeOutstanding", { amount: formatMoney(outstanding, booking.currency) }) : null;
+  // Not when the charges block is up: its balance already counts the fee,
+  // and two lines for one debt read as two debts.
+  const outstandingLine = !showCharges && booking.feeCents > 0 && outstanding > 0 && booking.currency ? t("hold.feeOutstanding", { amount: formatMoney(outstanding, booking.currency) }) : null;
   // S3 (decision 3): per policy / everything / nothing. Both labels are
   // computed here off the same booking arg the action itself reads — the
   // action recomputes them, but the label must never promise a different
@@ -252,7 +260,6 @@ function DetailBody({
     </Button>
   );
 
-  const isRental = booking.rentalUnitId !== null;
   const contact = [booking.clientName, booking.clientEmail ?? t("noEmailShort"), booking.note ? `“${booking.note}”` : null]
     .filter(Boolean)
     .join(" · ");
@@ -297,6 +304,14 @@ function DetailBody({
         {refundLine ? <p className="text-sm">{refundLine}</p> : null}
         {feeLine ? <p className="text-sm">{feeLine}</p> : null}
         {outstandingLine ? <p className="text-sm">{outstandingLine}</p> : null}
+        {showCharges ? (
+          <BookingCharges
+            bookingId={booking.id}
+            currency={booking.currency}
+            rangeMode={booking.rangeMode}
+            ended={ended}
+          />
+        ) : null}
         {hold ? (
           <>
             <div className="flex items-center gap-2">
