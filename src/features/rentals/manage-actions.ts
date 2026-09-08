@@ -20,6 +20,7 @@ import {
 } from "@/lib/booking/public";
 import { notifyMembers } from "@/features/notifications/notify";
 import { kickCalendarSync } from "@/features/calendar-sync/run";
+import { refundBooking } from "@/features/payments/refund";
 import { selectTransport } from "@/lib/email/transport";
 import { env } from "@/env";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
@@ -40,6 +41,8 @@ import {
 } from "./range";
 import { hourlySlotService, isHourlyOffering, unionUnitSlots } from "./hourly";
 import { moneyInfoLines } from "./pricing";
+import type { CancelPolicy } from "./cancel-policy";
+import type { ExtraPick, Line } from "./pricing-rules";
 import {
   manageRangeAvailabilityInput,
   manageHourlySlotsInput,
@@ -86,6 +89,46 @@ function isStarted(error: { message?: string }): boolean {
   return isRpcSentinel(error, "started");
 }
 
+// S3: what the reschedule preview needs on both availability responses —
+// the row's own money/policy (resolveBookingToken already read them) plus
+// the picks the re-quote uses, so a panel can price the candidate
+// client-side the way the widget does.
+type ManageBookingMoney = {
+  startsAt: string;
+  priceCents: number | null;
+  currency: string | null;
+  paidCents: number;
+  refundedCents: number;
+  feeCents: number;
+  cancelPolicy: CancelPolicy | null;
+  people: number | null;
+  extras: ExtraPick[];
+};
+
+function toManageBookingMoney(booking: {
+  startsAt: Date;
+  priceCents: number | null;
+  currency: string | null;
+  paidCents: number;
+  refundedCents: number;
+  feeCents: number;
+  cancelPolicy: CancelPolicy | null;
+  people: number | null;
+  lines: Line[] | null;
+}): ManageBookingMoney {
+  return {
+    startsAt: booking.startsAt.toISOString(),
+    priceCents: booking.priceCents,
+    currency: booking.currency,
+    paidCents: booking.paidCents,
+    refundedCents: booking.refundedCents,
+    feeCents: booking.feeCents,
+    cancelPolicy: booking.cancelPolicy,
+    people: booking.people,
+    extras: (booking.lines ?? []).flatMap((l) => (l.kind === "extra" ? [{ id: l.extraId, qty: l.qty }] : [])),
+  };
+}
+
 export async function getManageRangeAvailability(input: unknown): Promise<
   | {
       ok: true;
@@ -96,6 +139,7 @@ export async function getManageRangeAvailability(input: unknown): Promise<
       // The stay's own check-in date, org-local: the panel opens on that
       // month rather than on today's.
       startDate: string;
+      booking: ManageBookingMoney;
     }
   | { ok: false; error: string }
 > {
@@ -139,6 +183,11 @@ export async function getManageRangeAvailability(input: unknown): Promise<
       offering: ctx.offering,
       currentUnitId: booking.rentalUnitId,
       startDate: dateInZone(booking.startsAt, booking.orgTimezone),
+      // S3: what the reschedule preview needs — the row's own money and
+      // policy (resolveBookingToken already read them) plus the picks the
+      // re-quote uses, so the panel can price the candidate client-side the
+      // way the widget does.
+      booking: toManageBookingMoney(booking),
     };
   } catch (error) {
     return fail("getManageRangeAvailability", error, orgLocale);
@@ -254,6 +303,22 @@ export async function rescheduleRentalBooking(
     if (!moved) return publicError(orgLocale, "notChangeable");
     kickCalendarSync(moved.org_id); // Google mirror (spec 2026-09-05 §2.2)
 
+    // S3: the new row carries paid money and (maybe) a late-change fee; what
+    // the studio now holds above the new total plus fee goes back. Read the
+    // committed row (never recompute), refund the excess, and let the mail
+    // below print the same numbers. Best effort — the move is committed.
+    const money = await getBookingMoney(moved.new_booking_id);
+    const excess = money.totalCents === null
+      ? 0
+      : Math.max(0, money.paidCents - money.refundedCents - (money.totalCents + money.feeCents));
+    const refund = excess > 0
+      ? await refundBooking(moved.new_booking_id, "reschedule", {}, { amountCents: excess }).catch((e) => {
+          console.error("[payments] reschedule refund:", e);
+          return { refundedCents: 0, failed: true };
+        })
+      : { refundedCents: 0, failed: false };
+    const moneyAfter = { ...money, refundedCents: money.refundedCents + refund.refundedCents };
+
     // Best-effort notifications — the move is already committed. The client
     // always gets one when they have an address on file, even if nothing
     // moved: the old link is dead, and this email carries the new one.
@@ -284,6 +349,7 @@ export async function rescheduleRentalBooking(
           whenLine: clientWhenLine,
           manageUrl: buildBookingManageUrl(fresh.token),
           icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${fresh.token}/calendar.ics`,
+          infoLines: moneyInfoLines(moneyAfter, client.tUnits),
         });
         await selectTransport().send({
           to: moved.client_email,
@@ -335,6 +401,7 @@ export async function getManageHourlySlots(input: unknown): Promise<
       offering: PublicOffering;
       units: PublicUnit[];
       currentUnitId: string;
+      booking: ManageBookingMoney;
     }
   | { ok: false; error: string }
 > {
@@ -391,6 +458,8 @@ export async function getManageHourlySlots(input: unknown): Promise<
       offering: ctx.offering,
       units: ctx.units,
       currentUnitId: booking.rentalUnitId,
+      // S3: same as getManageRangeAvailability — the preview's inputs.
+      booking: toManageBookingMoney(booking),
     };
   } catch (error) {
     return fail("getManageHourlySlots", error, orgLocale);
@@ -495,6 +564,22 @@ export async function rescheduleRentalBookingHours(
     if (!moved) return publicError(orgLocale, "notChangeable");
     kickCalendarSync(moved.org_id); // Google mirror (spec 2026-09-05 §2.2)
 
+    // S3: the new row carries paid money and (maybe) a late-change fee; what
+    // the studio now holds above the new total plus fee goes back. Read the
+    // committed row (never recompute), refund the excess, and let the mail
+    // below print the same numbers. Best effort — the move is committed.
+    const money = await getBookingMoney(moved.new_booking_id);
+    const excess = money.totalCents === null
+      ? 0
+      : Math.max(0, money.paidCents - money.refundedCents - (money.totalCents + money.feeCents));
+    const refund = excess > 0
+      ? await refundBooking(moved.new_booking_id, "reschedule", {}, { amountCents: excess }).catch((e) => {
+          console.error("[payments] reschedule refund:", e);
+          return { refundedCents: 0, failed: true };
+        })
+      : { refundedCents: 0, failed: false };
+    const moneyAfter = { ...money, refundedCents: money.refundedCents + refund.refundedCents };
+
     // Best-effort notifications, copied wholesale from rescheduleRentalBooking
     // (provider notice IS sent on client reschedules — R2's admin-only-silence
     // ruling does not apply here) — only formatRangeWhenLine swapped for
@@ -525,10 +610,8 @@ export async function rescheduleRentalBookingHours(
         // earned by the hours actually booked, and a menu edit can have
         // degraded the picks), so the mail prints the NEW row's own
         // snapshot — read from the committed booking, never recomputed.
-        const clientInfoLines = moneyInfoLines(
-          await getBookingMoney(moved.new_booking_id),
-          client.tUnits,
-        );
+        // S3: `moneyAfter` folds in this reschedule's own settlement refund.
+        const clientInfoLines = moneyInfoLines(moneyAfter, client.tUnits);
         const msg = bookingRescheduledEmail(client.t, {
           orgName: moved.org_name,
           serviceName: moved.service_name,
