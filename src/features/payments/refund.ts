@@ -12,7 +12,10 @@ import type { RangeMode } from "@/features/rentals/range";
 
 export type Deps = { db?: SupabaseClient; provider?: PaymentsProvider; transport?: EmailTransport };
 
-/** Refund one PAID ledger row in full; records the outcome on the row.
+/** Refund a PAID ledger row — in full, or at most `amountCents` of what
+    remains (S3). The row flips to `refunded` only once `refunded_cents`
+    reaches `amount_cents`; short of that it stays `paid` with
+    `refunded_cents` bumped, so a second partial refund can follow later.
     Returns false when the provider refused (row → refund_failed + error).
     `bumpBooking: false` refunds money the BOOKING never counted (slot_lost):
     the ledger row still records refunded/refund_id/refunded_cents, but
@@ -21,7 +24,7 @@ export async function refundLedgerRow(
   ledgerId: string,
   reason: string,
   deps: Deps = {},
-  opts: { bumpBooking?: boolean } = {},
+  opts: { bumpBooking?: boolean; amountCents?: number } = {},
 ): Promise<boolean> {
   const db = deps.db ?? createAdminClient();
   const provider = deps.provider ?? selectPaymentsProvider();
@@ -38,21 +41,28 @@ export async function refundLedgerRow(
     return false;
   }
   if (!row || row.status !== "paid" || !row.payment_intent_id || !row.stripe_account_id) return false;
-  const amount = row.amount_cents - row.refunded_cents;
+  const remaining = row.amount_cents - row.refunded_cents;
+  // S3: a capped refund takes at most what the caller asked for; the row
+  // stays `paid` until it is empty (ruling 11).
+  const amount = Math.min(remaining, opts.amountCents ?? remaining);
   if (amount <= 0) return true;
   try {
     const { refundId } = await provider.refund(
       row.stripe_account_id,
       row.payment_intent_id,
       amount,
-      `${row.id}:${reason}`,
+      // One key per successive refund of the same row: what was already
+      // refunded before this call makes a second partial refund a new
+      // provider call, while a retry of the same step stays idempotent.
+      `${row.id}:${reason}:${row.refunded_cents}`,
     );
+    const refundedAfter = row.refunded_cents + amount;
     const { error: markError } = await db
       .from("booking_payments")
       .update({
-        status: "refunded",
+        status: refundedAfter >= row.amount_cents ? "refunded" : "paid",
         refund_id: refundId,
-        refunded_cents: row.refunded_cents + amount,
+        refunded_cents: refundedAfter,
         updated_at: new Date().toISOString(),
       })
       .eq("id", row.id);
@@ -175,10 +185,11 @@ export async function sendSlotLost(ledgerId: string, deps: Deps = {}): Promise<v
   }
 }
 
-/** Refund everything paid ONLINE on a booking (spec ruling 3: full refunds in
-    S2). Never throws: each row's outcome is recorded on the row itself, and
-    `failed` means exactly "the provider refused, or the write after its
-    refund failed" — a row needing a human in Stripe.
+/** Refund everything paid ONLINE on a booking, or at most `amountCents` of it
+    (S3: what the policy does not keep). Never throws: each row's outcome is
+    recorded on the row itself, and `failed` means exactly "the provider
+    refused, or the write after its refund failed" — a row needing a human
+    in Stripe.
     A row with no payment intent is money the provider never took (a cash or
     transfer payment recorded by mark_booking_paid): it is skipped, stays
     `paid`, and is the studio's to hand back — never a failure here. */
@@ -186,7 +197,9 @@ export async function refundBooking(
   bookingId: string,
   reason: string,
   deps: Deps = {},
+  opts: { amountCents?: number } = {},
 ): Promise<{ refundedCents: number; failed: boolean }> {
+  if (opts.amountCents !== undefined && opts.amountCents <= 0) return { refundedCents: 0, failed: false };
   const db = deps.db ?? createAdminClient();
   const { data: rows, error } = await db
     .from("booking_payments")
@@ -195,16 +208,25 @@ export async function refundBooking(
     .eq("status", "paid")
     // refundLedgerRow's own precondition, hoisted into the query: no intent,
     // nothing for the provider to give back.
-    .not("payment_intent_id", "is", null);
+    .not("payment_intent_id", "is", null)
+    // Oldest first: a partial refund empties the deposit before a later top-up.
+    .order("created_at", { ascending: true });
   if (error) {
     console.error("[payments] refundBooking: ledger read failed:", error);
     return { refundedCents: 0, failed: true };
   }
   let refundedCents = 0;
   let failed = false;
+  let left = opts.amountCents ?? Number.POSITIVE_INFINITY;
   for (const row of rows ?? []) {
-    if (await refundLedgerRow(row.id, reason, deps)) refundedCents += row.amount_cents - row.refunded_cents;
-    else failed = true;
+    if (left <= 0) break;
+    const remaining = row.amount_cents - row.refunded_cents;
+    const take = Math.min(remaining, left);
+    if (take <= 0) continue;
+    if (await refundLedgerRow(row.id, reason, deps, { amountCents: take })) {
+      refundedCents += take;
+      left -= take;
+    } else failed = true;
   }
   return { refundedCents, failed };
 }

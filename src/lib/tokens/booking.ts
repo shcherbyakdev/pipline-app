@@ -4,6 +4,7 @@ import { createAnonServerClient } from "@/lib/supabase/anon-server";
 import { env } from "@/env";
 import { tokenLimiter } from "./rate-limit";
 import type { Line } from "@/features/rentals/pricing-rules";
+import type { CancelPolicy } from "@/features/rentals/cancel-policy";
 
 export type ResolveBookingResult =
   | { status: "not_found" }
@@ -29,13 +30,17 @@ export type ResolveBookingResult =
         // lives in resolveClientStaffName, applied per surface.
         staffId: string | null;
         staffName: string | null;
-        // H3: pricing/deposit/cancel-window info for the money lines and the
-        // cancel-window gate on the manage page. Null across the board for
-        // an offering with no price set.
+        // H3: pricing/deposit info for the money lines. Null across the
+        // board for an offering with no price set.
         priceCents: number | null;
         currency: string | null;
         depositCents: number | null;
-        cancelWindowMin: number | null;
+        // S3: the policy the client accepted (the booking's own snapshot;
+        // null for appointments and pre-S3 rows) and the consequence the row
+        // carries — a cancellation fee on a dead row, a late-change fee on a
+        // live one.
+        cancelPolicy: CancelPolicy | null;
+        feeCents: number;
         // Approval: the provider's reason for turning a request down (0064).
         // Null for everything that was never declined.
         declineNote: string | null;
@@ -90,13 +95,14 @@ export async function resolveBookingToken(
     price_cents: number | null;
     currency: string | null;
     deposit_cents: number | null;
-    cancel_window_min: number | null;
+    cancel_policy: CancelPolicy | null;
     decline_note: string | null;
     lines: unknown;
     people: number | null;
     hold_expires_at: string | null;
     paid_cents: number;
     refunded_cents: number;
+    fee_cents: number;
   }> | null)?.[0];
   if (!row) return { status: "not_found" };
   return {
@@ -118,7 +124,8 @@ export async function resolveBookingToken(
       priceCents: row.price_cents,
       currency: row.currency,
       depositCents: row.deposit_cents,
-      cancelWindowMin: row.cancel_window_min,
+      cancelPolicy: row.cancel_policy ?? null,
+      feeCents: row.fee_cents ?? 0,
       declineNote: row.decline_note,
       lines: (row.lines as Line[] | null) ?? null,
       people: row.people ?? null,

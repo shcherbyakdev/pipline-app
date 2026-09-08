@@ -296,7 +296,7 @@ export async function createRentalBooking(
         totalCents: total,
         depositCents: depositCents(ctx.offering, total),
         currency: org.currency,
-        cancelWindowMin: ctx.offering.cancelWindowMin,
+        cancelPolicy: ctx.offering.cancelPolicy,
         holding: isHeld,
       };
       const infoLines = moneyInfoLines(money, mail.tUnits);

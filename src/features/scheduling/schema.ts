@@ -220,8 +220,12 @@ export const rescheduleBookingInput = z.object({
 
 export const bookingIdInput = z.object({ id: z.uuid() });
 
-// S2: admin cancel may skip the refund the dialog offers by default.
-export const bookingCancelInput = z.object({ id: z.uuid(), refund: z.boolean().optional() });
+// S3: the dialog's three-way choice — per policy (default), refund
+// everything, or refund nothing (spec decision 3, Task 7).
+export const bookingCancelInput = z.object({
+  id: z.uuid(),
+  refund: z.enum(["policy", "all", "none"]).default("policy"),
+});
 
 // Approval: declining a request may carry a short reason for the client's
 // mail. 500 is the DB's own ceiling (bookings_decline_note_check, 0062) —

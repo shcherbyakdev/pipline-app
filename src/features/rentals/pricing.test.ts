@@ -5,7 +5,7 @@ import { enTranslator } from "@/i18n/test-translator";
 const t = enTranslator("public.units");
 import {
   stayUnits, totalCents, depositCents, formatOfferingPrice,
-  formatCancelWindow, moneyInfoLines, stayHint,
+  formatCancelWindow, moneyInfoLines, changeLines, stayHint,
   quoteHours, sumLines, formatLine, headlinePrice,
   type MoneyFields,
 } from "./pricing";
@@ -68,53 +68,64 @@ describe("formatCancelWindow", () => {
 
 describe("moneyInfoLines", () => {
   it("emits total, deposit, venue note and policy", () => {
-    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 1440 }, t)).toEqual([
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelPolicy: [{ beforeMin: 1440, feePct: 0 }] }, t)).toEqual([
       "Total: 300 zł",
       "Deposit due: 60 zł",
       "Payment: pay at the venue",
-      "Free cancellation until 1 day before start",
+      "Free cancellation until 1 day before start · 100% after that",
     ]);
   });
   it("no money → only the policy line when a window is set", () =>
-    expect(moneyInfoLines({ totalCents: null, depositCents: null, currency: null, cancelWindowMin: 120 }, t))
-      .toEqual(["Free cancellation until 2 hours before start"]));
+    expect(moneyInfoLines({ totalCents: null, depositCents: null, currency: null, cancelPolicy: [{ beforeMin: 120, feePct: 0 }] }, t))
+      .toEqual(["Free cancellation until 2 hours before start · 100% after that"]));
   it("nothing set → empty", () =>
-    expect(moneyInfoLines({ totalCents: null, depositCents: null, currency: null, cancelWindowMin: 0 }, t)).toEqual([]));
+    expect(moneyInfoLines({ totalCents: null, depositCents: null, currency: null, cancelPolicy: null }, t)).toEqual([]));
     it("a hold: deposit + pay-now, no venue note", () =>
-    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 0, holding: true }, t)).toEqual([
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelPolicy: null, holding: true }, t)).toEqual([
       "Total: 300 zł",
       "Deposit due: 60 zł",
       "Pay 60 zł now to confirm",
     ]));
   it("paid: paid line + balance at the venue", () =>
-    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 1440, paidCents: 6000 }, t)).toEqual([
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelPolicy: [{ beforeMin: 1440, feePct: 0 }], paidCents: 6000 }, t)).toEqual([
       "Total: 300 zł",
       "Paid: 60 zł",
       "240 zł due at the venue",
-      "Free cancellation until 1 day before start",
+      "Free cancellation until 1 day before start · 100% after that",
     ]));
   it("paid in full: no balance line", () =>
-    expect(moneyInfoLines({ totalCents: 6000, depositCents: 6000, currency: "PLN", cancelWindowMin: 0, paidCents: 6000 }, t)).toEqual([
+    expect(moneyInfoLines({ totalCents: 6000, depositCents: 6000, currency: "PLN", cancelPolicy: null, paidCents: 6000 }, t)).toEqual([
       "Total: 60 zł",
       "Paid: 60 zł",
     ]));
-  it("an expired hold: no pay-at-the-venue line", () =>
-    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 0, settled: true }, t)).toEqual([
+  it("an expired hold with nothing paid: only the total line", () =>
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelPolicy: null, settled: true }, t)).toEqual([
       "Total: 300 zł",
-      "Deposit due: 60 zł",
     ]));
   it("cancelled and refunded: no due-at-the-venue line", () =>
-    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 0, paidCents: 6000, refundedCents: 6000, settled: true }, t)).toEqual([
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelPolicy: null, paidCents: 6000, refundedCents: 6000, settled: true }, t)).toEqual([
       "Total: 300 zł",
       "Paid: 60 zł",
       "Refunded: 60 zł — bank refunds take up to 3 business days",
     ]));
-  it("refunded: the refund line after the money", () =>
-    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelWindowMin: 0, paidCents: 6000, refundedCents: 6000 }, t)).toEqual([
+  it("refunded: the refund line after the money; the venue is owed what is no longer held", () =>
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelPolicy: null, paidCents: 6000, refundedCents: 6000 }, t)).toEqual([
       "Total: 300 zł",
       "Paid: 60 zł",
-      "240 zł due at the venue",
+      "300 zł due at the venue",
       "Refunded: 60 zł — bank refunds take up to 3 business days",
+    ]));
+  // Two moves: 300 paid, 200 already handed back on the first move — the
+  // venue is owed against the 100 still held, not the 300 gross.
+  it("a second move: the balance counts only the money still held", () =>
+    expect(moneyInfoLines({ totalCents: 25000, depositCents: 6000, currency: "PLN", cancelPolicy: null, feeCents: 0, paidCents: 30000, refundedCents: 20000 }, t))
+      .toContain("150 zł due at the venue"));
+  it("a fee on a live row with nothing paid: total, fee, deposit due, venue note", () =>
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 9000, currency: "PLN", cancelPolicy: null, feeCents: 15000, paidCents: 0 }, t)).toEqual([
+      "Total: 300 zł",
+      "Late change fee: 150 zł",
+      "Deposit due: 90 zł",
+      "Payment: pay at the venue",
     ]));
 });
 
@@ -182,10 +193,65 @@ describe("formatting", () => {
   });
   it("moneyInfoLines prints the lines before the total", () => {
     const lines = moneyInfoLines(
-      { totalCents: 26000, depositCents: null, currency: "PLN", cancelWindowMin: 0,
+      { totalCents: 26000, depositCents: null, currency: "PLN", cancelPolicy: null,
         lines: [{ kind: "base", qty: 2, unitCents: 12000, cents: 24000 }, { kind: "people", qty: 2, unitCents: 1000, cents: 2000 }] },
       t,
     );
     expect(lines).toEqual(["2 h × 120 zł — 240 zł", "2 extra people × 10 zł — 20 zł", "Total: 260 zł", "Payment: pay at the venue"]);
+  });
+});
+
+describe("moneyInfoLines — S3 fee", () => {
+  const P = [{ beforeMin: 4320, feePct: 0 }, { beforeMin: 2880, feePct: 50 }];
+  it("a live row with a change fee: fee after the total, balance counts it", () => {
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 9000, currency: "PLN", cancelPolicy: P, feeCents: 15000, paidCents: 9000 }, t)).toEqual([
+      "Total: 300 zł",
+      "Late change fee: 150 zł",
+      "Paid: 90 zł",
+      "360 zł due at the venue",
+      "Free cancellation until 3 days before start · 50% fee until 2 days before · 100% after that",
+    ]);
+  });
+  it("a cancelled row: cancellation fee, refund, no venue line, no policy line", () => {
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 9000, currency: "PLN", cancelPolicy: P, feeCents: 15000, paidCents: 9000, refundedCents: 0, settled: true }, t)).toEqual([
+      "Total: 300 zł",
+      "Cancellation fee: 150 zł",
+      "Paid: 90 zł",
+    ]);
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 9000, currency: "PLN", cancelPolicy: P, feeCents: 3000, paidCents: 9000, refundedCents: 6000, settled: true }, t)).toEqual([
+      "Total: 300 zł",
+      "Cancellation fee: 30 zł",
+      "Paid: 90 zł",
+      "Refunded: 60 zł — bank refunds take up to 3 business days",
+    ]);
+  });
+  it("fee 0 renders byte-identical to S2", () => {
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelPolicy: null, feeCents: 0, paidCents: 6000 }, t)).toEqual([
+      "Total: 300 zł",
+      "Paid: 60 zł",
+      "240 zł due at the venue",
+    ]);
+  });
+});
+
+describe("changeLines", () => {
+  const base = { currency: "PLN", priorFeeCents: 0, paidCents: 9000, refundedCents: 0 };
+  it("cheaper slot inside a tier: new total, fee, refund of the excess", () => {
+    expect(changeLines({ ...base, newTotalCents: 2000, feeCents: 5000, feePct: 50 }, t)).toEqual([
+      "New total: 20 zł",
+      "Late change fee: 50 zł (50%)",
+      "20 zł will be refunded",
+    ]);
+  });
+  it("dearer slot in the free tier: new total and the balance", () => {
+    expect(changeLines({ ...base, newTotalCents: 40000, feeCents: 0, feePct: 0 }, t)).toEqual([
+      "New total: 400 zł",
+      "310 zł due at the venue",
+    ]);
+  });
+  it("exactly settled says nothing beyond the total; a prior fee counts; unpriced says nothing", () => {
+    expect(changeLines({ ...base, newTotalCents: 9000, feeCents: 0, feePct: 0 }, t)).toEqual(["New total: 90 zł"]);
+    expect(changeLines({ ...base, newTotalCents: 5000, priorFeeCents: 4000, feeCents: 0, feePct: 0 }, t)).toEqual(["New total: 50 zł"]);
+    expect(changeLines({ ...base, newTotalCents: null, feeCents: 0, feePct: 0 }, t)).toEqual([]);
   });
 });

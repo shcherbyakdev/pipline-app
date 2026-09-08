@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { moneyInfoLines, depositCents, type MoneyFields } from "@/features/rentals/pricing";
 import type { Line } from "@/features/rentals/pricing-rules";
+import type { CancelPolicy } from "@/features/rentals/cancel-policy";
 import { cn } from "@/lib/utils";
 
 
@@ -24,7 +25,7 @@ export function BookingMoneySummary({
   onTermsChange,
   idPrefix = "",
 }: {
-  offering: MoneyFields & { cancelWindowMin: number; termsText: string | null };
+  offering: MoneyFields & { cancelPolicy: CancelPolicy; termsText: string | null };
   currency: string;
   /** The quote (S1) — null while the picker hasn't settled; [] for an unpriced offering. */
   lines: Line[] | null;
@@ -37,7 +38,7 @@ export function BookingMoneySummary({
   const tu = useTranslations("public.units");
   const deposit = depositCents(offering, totalCents);
   const info = moneyInfoLines(
-    { totalCents, depositCents: deposit, currency, cancelWindowMin: offering.cancelWindowMin, lines },
+    { totalCents, depositCents: deposit, currency, cancelPolicy: offering.cancelPolicy, lines },
     tu,
   );
   if (info.length === 0 && offering.termsText === null) return null;

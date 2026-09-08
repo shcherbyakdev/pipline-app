@@ -36,7 +36,7 @@ export function ManageBooking({
   token,
   timeZone,
   canReschedule,
-  canCancel,
+  cancelLines,
   kind,
   rangeMode,
   request,
@@ -45,11 +45,9 @@ export function ManageBooking({
   timeZone: string;
   // Whether self-serve rescheduling is offered at all (cancel is always).
   canReschedule: boolean;
-  // H3: false once a rental's free-cancellation window has elapsed — hides
-  // the cancel button and shows errors.cancelWindowPassed instead. Always true for
-  // appointments and rentals with no cancel window (page.tsx computes it).
-  // Reschedule is unaffected either way.
-  canCancel: boolean;
+  // S3: what cancelling right now costs and returns (public.units lines,
+  // built by page.tsx). Empty = nothing to say — a plain confirm.
+  cancelLines?: string[];
   // Rentals R2: a stay picks a date RANGE, not a slot — the same
   // Reschedule button opens a range picker instead of the slot grid.
   kind: "appointment" | "rental";
@@ -66,7 +64,6 @@ export function ManageBooking({
   const t = useTranslations("public.manage");
   const ts = useTranslations("public.slots");
   const tc = useTranslations("common");
-  const tErrors = useTranslations("errors");
   const intl = INTL_LOCALES[useLocale()];
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
@@ -194,16 +191,23 @@ export function ManageBooking({
           <p className="text-muted-foreground text-xs">{ts("localTzProviderIn", { tz: timeZone })}</p>
         </div>
       )}
-      {!canCancel ? (
-        <p className="text-muted-foreground text-xs">{tErrors("cancelWindowPassed")}</p>
-      ) : confirmingCancel ? (
-        <div className="flex items-center gap-2">
-          <Button variant="destructive" onClick={doCancel} disabled={pending}>
-            {request ? t("withdrawConfirm") : t("cancelConfirm")}
-          </Button>
-          <Button variant="ghost" onClick={() => setConfirmingCancel(false)} disabled={pending}>
-            {t("keepIt")}
-          </Button>
+      {confirmingCancel ? (
+        <div className="flex flex-col gap-2">
+          {cancelLines && cancelLines.length > 0 ? (
+            <ul className="text-sm">
+              {cancelLines.map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="flex items-center gap-2">
+            <Button variant="destructive" onClick={doCancel} disabled={pending}>
+              {request ? t("withdrawConfirm") : t("cancelConfirm")}
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirmingCancel(false)} disabled={pending}>
+              {t("keepIt")}
+            </Button>
+          </div>
         </div>
       ) : (
         <Button variant="ghost" onClick={() => setConfirmingCancel(true)} disabled={pending}>

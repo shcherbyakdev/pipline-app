@@ -12,6 +12,7 @@ import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
 import type { RangeMode } from "@/features/rentals/range";
 import type { DepositType } from "@/features/rentals/pricing";
 import { pricingRulesFor, type PricingRules } from "@/features/rentals/pricing-rules";
+import { cancelPolicySchema, type CancelPolicy } from "@/features/rentals/cancel-policy";
 import { Button } from "@/components/ui/button";
 import { Input, nativeSelectClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { TIME_OPTIONS } from "@/features/scheduling/time-options";
 import { TimeCombobox } from "@/features/scheduling/components/time-combobox";
 import { PricingRulesEditor } from "./pricing-rules-editor";
+import { CancelPolicyEditor } from "./cancel-policy-editor";
 
 const selectClass = nativeSelectClass;
 
@@ -100,6 +102,11 @@ export function OfferingForm({
   const [pricing, setPricing] = React.useState<PricingRules | null>(
     offering?.pricing ?? null,
   );
+  // S3: the tiered editor is controlled the same way — the form owns the
+  // value and posts it as one `cancelPolicy` array (Task 7).
+  const [cancelPolicy, setCancelPolicy] = React.useState<CancelPolicy>(
+    offering?.cancelPolicy ?? [],
+  );
   // Controlled so the deposit-value input's semantics (amount vs. percent)
   // and its very presence (none/full take no value) track the select live.
   const [depositType, setDepositType] = React.useState<DepositType>(
@@ -135,13 +142,6 @@ export function OfferingForm({
             ? Math.round(Number(depositValueRaw) * 100)
             : Math.round(Number(depositValueRaw))
         : null;
-    const cancelWindowRaw = String(fd.get("cancelWindow") ?? "").trim();
-    const cancelWindowMin =
-      cancelWindowRaw === ""
-        ? 0
-        : Math.round(
-            Number(cancelWindowRaw) * (rangeMode === "hours" ? 60 : 1440),
-          );
     const common = {
       ...identity,
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
@@ -152,7 +152,7 @@ export function OfferingForm({
       pricingMode: String(fd.get("pricingMode") ?? "per_unit"),
       depositType,
       depositValue,
-      cancelWindowMin,
+      cancelPolicy,
       termsText: termsText === "" ? undefined : termsText,
     };
     // The hours Zod branch is `.strict()` — only that mode's own fields go
@@ -203,6 +203,12 @@ export function OfferingForm({
         );
         return;
       }
+    }
+    // Same story as the pricing rules above: a duplicate lead is the one
+    // thing the server can only refuse generically — caught here first.
+    if (!cancelPolicySchema.safeParse(cancelPolicy).success) {
+      toast.error(t("form.cancelPolicyInvalid"));
+      return;
     }
     startTransition(async () => {
       const result = isEdit
@@ -570,25 +576,7 @@ export function OfferingForm({
                   </div>
                 ) : null}
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="offering-cancel-window">
-                  {rangeMode === "hours" ? t("form.cancelWindowHours") : t("form.cancelWindowDays")}
-                </Label>
-                <Input
-                  id="offering-cancel-window"
-                  name="cancelWindow"
-                  type="number"
-                  min={0}
-                  placeholder={t("form.noWindow")}
-                  defaultValue={
-                    seed && seed.cancelWindowMin > 0
-                      ? seed.rangeMode === "hours"
-                        ? seed.cancelWindowMin / 60
-                        : seed.cancelWindowMin / 1440
-                      : ""
-                  }
-                />
-              </div>
+              <CancelPolicyEditor value={cancelPolicy} onChange={setCancelPolicy} rangeMode={rangeMode} />
               <div className="flex flex-col gap-2">
                 <Label htmlFor="offering-terms">{t("form.terms")}</Label>
                 <Textarea

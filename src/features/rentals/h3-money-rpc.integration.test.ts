@@ -5,11 +5,12 @@
  * public create paths stamp terms_accepted_at when the offering has
  * terms_text (admin walk-ins never do), reschedule recomputes at the LIVE
  * offering price while carrying terms_accepted_at forward, cancel_booking
- * gates a self-cancel inside the offering's free-cancellation window
- * ('cancel_window' sentinel) and leaves appointments untouched,
- * update_org_scheduling persists currency without touching existing
- * snapshots, resolve_booking_token exposes the same four money columns, and
- * the 0058 part A CHECKs reject invalid deposit configurations.
+ * always lets a confirmed rental self-cancel and charges the tier's fee
+ * instead of blocking it (S3 ruling 5 — the old cancel-window gate and its
+ * sentinel are gone) and leaves appointments untouched, update_org_scheduling
+ * persists currency without touching existing snapshots, resolve_booking_token
+ * exposes the money columns plus the cancel policy snapshot, and the 0058
+ * part A CHECKs reject invalid deposit configurations.
  * Requires the local Supabase stack (npm run setup).
  *
  * Each case gets its own signed-in owner + org (+ offering/unit), rather
@@ -214,7 +215,7 @@ const bookingRow = async (id: string): Promise<Row> => {
   return data as unknown as Row;
 };
 
-describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", () => {
+describe("H3 money RPC snapshot, terms, cancellation policy, resolver (0058 part B)", () => {
   it("case 1: hours create snapshots money + terms", async () => {
     const { client, orgId, handle } = await newOrg("h3_c1", "MoneyHoursCo");
     const { offeringId } = await hoursFixture(client, orgId, {
@@ -483,10 +484,11 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
     ).toBe(90 * 60_000);
   });
 
-  it("case 10: cancel_booking raises 'cancel_window' inside the offering's free-cancellation window", async () => {
+  it("case 10: cancel_booking inside the free window now cancels at 100% (S3 ruling 5)", async () => {
     const { client, orgId, handle } = await newOrg("h3_c10", "CancelWindowInCo");
     const { offeringId } = await rangeFixture(client, orgId, "nights", {
-      cancel_window_min: 2880, // 2 days — well past a d(1) check-in
+      price_cents: 10000,
+      cancel_policy: [{ beforeMin: 2880, feePct: 0 }], // 2 days — well past a d(1) check-in
     });
     const t = generateAccessToken();
     const created = await admin.rpc("create_rental_booking", {
@@ -503,17 +505,17 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
     expect(created.error).toBeNull();
 
     const { error } = await admin.rpc("cancel_booking", { p_token: t.token });
-    expect(error).not.toBeNull();
-    expect(error!.message).toContain("cancel_window");
+    expect(error).toBeNull();
 
     const row = await bookingRow(created.data as string);
-    expect(row.status).toBe("confirmed");
+    expect(row.status).toBe("cancelled_by_client");
+    expect(row.fee_cents).toBe(row.price_cents);
   });
 
   it("case 11: cancel_booking succeeds once the free-cancellation window has passed", async () => {
     const { client, orgId, handle } = await newOrg("h3_c11", "CancelWindowOutCo");
     const { offeringId } = await rangeFixture(client, orgId, "nights", {
-      cancel_window_min: 60, // 1 hour — far short of a d(2) check-in
+      cancel_policy: [{ beforeMin: 60, feePct: 0 }], // 1 hour — far short of a d(2) check-in
     });
     const t = generateAccessToken();
     const created = await admin.rpc("create_rental_booking", {
@@ -534,9 +536,10 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
 
     const row = await bookingRow(created.data as string);
     expect(row.status).toBe("cancelled_by_client");
+    expect(row.fee_cents).toBe(0);
   });
 
-  it("case 12: appointments are unaffected by the rental cancel-window gate", async () => {
+  it("case 12: appointments are unaffected by the rental cancellation policy", async () => {
     const { client, orgId, handle } = await newOrg("h3_c12", "CancelWindowApptCo", "appointments");
     const { serviceId } = await serviceFixture(client, orgId);
 
@@ -605,13 +608,13 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
     expect(badErr?.message).toMatch(/invalid currency/);
   });
 
-  it("case 14: resolve_booking_token returns money + cancel window for a rental, nulls for an appointment", async () => {
+  it("case 14: resolve_booking_token returns money + cancellation policy for a rental, nulls for an appointment", async () => {
     const { client, orgId, handle } = await newOrg("h3_c14", "ResolverMoneyCo");
     const { offeringId } = await hoursFixture(client, orgId, {
       price_cents: 8000,
       deposit_type: "percent",
       deposit_value: 10,
-      cancel_window_min: 120,
+      cancel_policy: [{ beforeMin: 120, feePct: 0 }],
     });
     const t = generateAccessToken();
     const created = await admin.rpc("create_rental_booking_hours", {
@@ -637,7 +640,8 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
     expect(row.price_cents).toBe(8000);
     expect(row.currency).toBe("PLN");
     expect(row.deposit_cents).toBe(800); // 10% of 8000
-    expect(row.cancel_window_min).toBe(120);
+    expect(row.cancel_policy).toEqual([{ beforeMin: 120, feePct: 0 }]);
+    expect(row.fee_cents).toBe(0);
 
     // Appointment side: its own org (one channel per org since 0073, and a
     // live space forbids switching) — the resolver resolves by token, whatever
@@ -663,7 +667,7 @@ describe("H3 money RPC snapshot, terms, cancel-window, resolver (0058 part B)", 
     expect(apptRow.price_cents).toBeNull();
     expect(apptRow.currency).toBeNull();
     expect(apptRow.deposit_cents).toBeNull();
-    expect(apptRow.cancel_window_min).toBeNull();
+    expect(apptRow.cancel_policy).toBeNull();
   });
 
   it("case 15: CHECK guards reject invalid deposit configurations", async () => {

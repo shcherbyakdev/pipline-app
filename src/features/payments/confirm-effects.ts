@@ -9,11 +9,12 @@ import { kickCalendarSync } from "@/features/calendar-sync/run";
 import { withUnit } from "@/features/rentals/unit-label";
 import { moneyInfoLines } from "@/features/rentals/pricing";
 import type { Line } from "@/features/rentals/pricing-rules";
+import type { CancelPolicy } from "@/features/rentals/cancel-policy";
 import { bookingLifecycleKey, paymentReceivedEmail, whenLineFor } from "@/features/scheduling/templates";
 import type { RangeMode } from "@/features/rentals/range";
 
 const COLS =
-  "id, org_id, client_name, client_email, starts_at, ends_at, rental_unit_id, locale, note, price_cents, currency, deposit_cents, paid_cents, refunded_cents, lines, rental_offerings(name, range_mode, cancel_window_min), rental_units(name), orgs(name, timezone, locale)";
+  "id, org_id, client_name, client_email, starts_at, ends_at, rental_unit_id, locale, note, price_cents, currency, deposit_cents, cancel_policy, fee_cents, paid_cents, refunded_cents, lines, rental_offerings(name, range_mode), rental_units(name), orgs(name, timezone, locale)";
 
 type Row = {
   id: string;
@@ -28,10 +29,12 @@ type Row = {
   price_cents: number | null;
   currency: string | null;
   deposit_cents: number | null;
+  cancel_policy: CancelPolicy | null;
+  fee_cents: number;
   paid_cents: number;
   refunded_cents: number;
   lines: unknown;
-  rental_offerings: { name: string; range_mode: RangeMode; cancel_window_min: number } | null;
+  rental_offerings: { name: string; range_mode: RangeMode } | null;
   rental_units: { name: string } | null;
   orgs: { name: string; timezone: string; locale: string } | null;
 };
@@ -66,7 +69,8 @@ export async function sendPaymentReceived(
       totalCents: row.price_cents,
       depositCents: row.deposit_cents,
       currency: row.currency,
-      cancelWindowMin: row.rental_offerings?.cancel_window_min ?? 0,
+      cancelPolicy: row.cancel_policy,
+      feeCents: row.fee_cents,
       lines: (row.lines as Line[] | null) ?? null,
       paidCents: row.paid_cents,
       refundedCents: row.refunded_cents,

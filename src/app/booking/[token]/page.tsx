@@ -7,6 +7,7 @@ import { getBookingLocale, getOrgLegal, getOrgLocale, resolveClientStaffName } f
 import { formatUntil, whenLineFor } from "@/features/scheduling/templates";
 import { ManageBooking } from "@/features/scheduling/components/manage-booking";
 import { moneyInfoLines } from "@/features/rentals/pricing";
+import { cancelFeePct } from "@/features/rentals/cancel-policy";
 import { formatMoney } from "@/lib/money";
 import { INTL_LOCALES } from "@/i18n/config";
 import { publicLocale } from "@/i18n/public";
@@ -41,7 +42,7 @@ const STATUS_KEY = {
 
 // Nobody is turning up for these: the money lines drop their "at the venue"
 // half (moneyInfoLines' `settled`).
-const DEAD_STATUSES = new Set(["expired", "cancelled_by_client", "cancelled_by_provider", "declined"]);
+const DEAD_STATUSES = new Set(["expired", "cancelled_by_client", "cancelled_by_provider", "declined", "rescheduled"]);
 
 export default async function BookingManagePage({ params, searchParams }: PageProps<"/booking/[token]">) {
   const { token } = await params;
@@ -76,7 +77,7 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
   // Team: name the staff member the booking belongs to. Solo orgs collapse to
   // null, so the card reads exactly as it did before the team slice.
   const staffName = await resolveClientStaffName(b.orgId, b.staffName);
-  // H3: money lines (total/deposit/cancel-window) for the booking card.
+  // H3: money lines (total/deposit/fee/policy) for the booking card.
   // S1: `lines` is the quote the RPC snapshotted — the breakdown the client
   // saw at checkout, printed above the total.
   const infoLines = moneyInfoLines(
@@ -84,7 +85,8 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
       totalCents: b.priceCents,
       depositCents: b.depositCents,
       currency: b.currency,
-      cancelWindowMin: b.cancelWindowMin ?? 0,
+      cancelPolicy: b.cancelPolicy,
+      feeCents: b.feeCents,
       lines: b.lines,
       paidCents: b.paidCents,
       refundedCents: b.refundedCents,
@@ -98,13 +100,17 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const isInFuture = b.startsAt.getTime() > now;
-  // H3: appointments (rentalUnitId null) and offerings with no cancel window
-  // are always cancellable — the gate only bites a rental past its
-  // free-cancellation deadline (the RPC's cancel_booking is the backstop).
-  const canCancel =
-    b.rentalUnitId === null ||
-    !b.cancelWindowMin ||
-    now <= b.startsAt.getTime() - b.cancelWindowMin * 60_000;
+  // S3: the consequence of cancelling right now, for the confirm step. Only
+  // a confirmed, priced rental has one; the RPC recomputes it on the write.
+  // `b.feeCents` is whatever an earlier reschedule already cost — money the
+  // studio keeps regardless — so this tier's fee is on top of it, and the
+  // refund estimate subtracts both.
+  const feePct = b.rentalUnitId !== null && b.status === "confirmed" ? cancelFeePct(b.cancelPolicy, b.startsAt, new Date(now)) : 0;
+  const tierFeeCents = b.priceCents !== null ? Math.round((b.priceCents * feePct) / 100) : 0;
+  const refundCents = Math.max(0, b.paidCents - b.refundedCents - b.feeCents - tierFeeCents);
+  const cancelLines: string[] = [];
+  if (b.currency && tierFeeCents > 0) cancelLines.push(tUnits("cancelFeeNow", { amount: formatMoney(tierFeeCents, b.currency), pct: feePct }));
+  if (b.currency && refundCents > 0 && b.status === "confirmed") cancelLines.push(tUnits("willRefund", { amount: formatMoney(refundCents, b.currency) }));
   const statusKey = (STATUS_KEY as Partial<Record<string, (typeof STATUS_KEY)[keyof typeof STATUS_KEY]>>)[b.status];
   // Checkout redirects back with `?paid=`/`?pay=` (the pay route) — first
   // value if Next hands back an array for a repeated key.
@@ -165,7 +171,7 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
               // (reschedule_rental_booking), an appointment through the slot
               // grid — both are self-serve.
               canReschedule={true}
-              canCancel={canCancel}
+              cancelLines={cancelLines}
               kind={b.rentalUnitId === null ? "appointment" : "rental"}
               rangeMode={b.rangeMode}
             />
@@ -181,7 +187,6 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
             token={token}
             timeZone={b.orgTimezone}
             canReschedule={false}
-            canCancel={true}
             kind={b.rentalUnitId === null ? "appointment" : "rental"}
             rangeMode={b.rangeMode}
             request
@@ -200,7 +205,7 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
               {b.depositCents !== null && b.currency ? tConfirmed("pay", { amount: formatMoney(b.depositCents, b.currency) }) : tConfirmed("pay", { amount: "" })}
             </a>
           ) : null}
-          <ManageBooking token={token} timeZone={b.orgTimezone} canReschedule={false} canCancel={true} kind="rental" rangeMode={b.rangeMode} request />
+          <ManageBooking token={token} timeZone={b.orgTimezone} canReschedule={false} kind="rental" rangeMode={b.rangeMode} request />
         </>
       ) : null}
       {b.status === "expired" ? <p className="text-muted-foreground text-sm">{t("expiredBody")}</p> : null}

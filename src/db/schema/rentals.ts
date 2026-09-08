@@ -34,8 +34,9 @@ export const rentalOfferings = pgTable(
     depositType: text("deposit_type").default("none").notNull(),
     // Cents (fixed) or whole percent 1–100 (percent); NULL otherwise.
     depositValue: integer("deposit_value"),
-    // 0 = self-cancel until start. Stored minutes (min_notice_min idiom).
-    cancelWindowMin: integer("cancel_window_min").default(0).notNull(),
+    // S3: tiered cancellation policy [{beforeMin, feePct}] (cancel-policy.ts);
+    // [] = always free. Replaced cancel_window_min in 0081.
+    cancelPolicy: jsonb("cancel_policy").default([]).notNull(),
     // House rules; public flows require a checkbox iff set.
     termsText: text("terms_text"),
     // S1: hourly pricing rules (spec 2026-09-07). NULL = the H3 flat rate.

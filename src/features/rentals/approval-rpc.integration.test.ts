@@ -163,7 +163,8 @@ describe("booking approval — rentals", () => {
         turnover_days: 0,
         booking_window_days: 365,
         requires_approval: true,
-        cancel_window_min: 10_080, // 7 days — every date below sits inside it
+        price_cents: 10000,
+        cancel_policy: [{ beforeMin: 10_080, feePct: 0 }], // 7 days — every date below sits inside it
       })
       .select("id")
       .single();
@@ -289,7 +290,7 @@ describe("booking approval — rentals", () => {
     expect((await bookingRow(id as string)).status).toBe("cancelled_by_client");
   });
 
-  it("a confirmed stay inside the cancel window raises the cancel_window sentinel", async () => {
+  it("a confirmed stay inside the window cancels at 100% (S3)", async () => {
     const { data: id, error, token } = await createWindowStay(d(4), d(6), "win-c@example.com");
     expect(error).toBeNull();
     // Service role: the accept write path is authenticated-seam-restricted
@@ -300,7 +301,9 @@ describe("booking approval — rentals", () => {
       .eq("id", id as string);
     expect(acceptErr).toBeNull();
     const { error: cancelErr } = await admin.rpc("cancel_booking", { p_token: token });
-    expect(cancelErr?.message).toMatch(/cancel_window/);
-    expect((await bookingRow(id as string)).status).toBe("confirmed");
+    expect(cancelErr).toBeNull();
+    const row = await bookingRow(id as string);
+    expect(row.status).toBe("cancelled_by_client");
+    expect(row.fee_cents).toBe(row.price_cents);
   });
 });

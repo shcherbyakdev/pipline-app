@@ -12,6 +12,9 @@ import {
   getManageRangeAvailability,
   rescheduleRentalBooking,
 } from "@/features/rentals/manage-actions";
+import { cancelFeeCents, cancelFeePct } from "@/features/rentals/cancel-policy";
+import { changeLines, stayUnits, totalCents } from "@/features/rentals/pricing";
+import type { UnitsT } from "@/i18n/translator";
 import { RangePicker, type RangeValue } from "./range-picker";
 import { UnitSelect } from "./unit-select";
 import { Button } from "@/components/ui/button";
@@ -22,6 +25,10 @@ import { Button } from "@/components/ui/button";
 // covers every offering and the window never has to be refetched when the
 // offering's turnover arrives with the first response (move-rental-dialog).
 const WINDOW_DAYS = 93;
+
+// S3: what the confirm-step preview prices against — the booking's own
+// money/policy, straight off getManageRangeAvailability.
+type BookingMoney = Extract<Awaited<ReturnType<typeof getManageRangeAvailability>>, { ok: true }>["booking"];
 
 // The rental counterpart of ManageBooking's slot grid: a client picking new
 // dates for their own stay from the tokenized manage page. Unthemed —
@@ -39,11 +46,13 @@ export function RentalReschedulePanel({
   const router = useRouter();
   const t = useTranslations("public.manage");
   const tSlots = useTranslations("public.slots");
+  const tUnits = useTranslations("public.units");
   const [month, setMonth] = React.useState(() => monthOf(dateInZone(new Date(), timeZone)));
   const [availability, setAvailability] = React.useState<RangeAvailability | null>(null);
   const [offering, setOffering] = React.useState<PublicOffering | null>(null);
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
   const [currentUnitId, setCurrentUnitId] = React.useState<string | null>(null);
+  const [booking, setBooking] = React.useState<BookingMoney | null>(null);
   const [range, setRange] = React.useState<RangeValue>({ start: null, end: null });
   const [unitId, setUnitId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -74,6 +83,7 @@ export function RentalReschedulePanel({
           setOffering(result.offering);
           setUnits(result.units);
           setCurrentUnitId(result.currentUnitId);
+          setBooking(result.booking);
           // Functional update so this does not have to depend on `month`;
           // the effect below refetches when it actually changes.
           setMonth((current) =>
@@ -173,6 +183,9 @@ export function RentalReschedulePanel({
           />
           {range.start && range.end ? (
             <>
+              {stay?.ok && booking && offering ? (
+                <ChangePreviewStay booking={booking} offering={offering} start={range.start} end={range.end} t={tUnits} />
+              ) : null}
               {picksUnit ? (
                 <UnitSelect
                   id="rental-reschedule-unit"
@@ -195,5 +208,30 @@ export function RentalReschedulePanel({
       )}
       <p className="text-muted-foreground text-xs">{tSlots("providerTz", { tz: timeZone })}</p>
     </div>
+  );
+}
+
+/* S3: what this move would mean, priced the way the flat/per-unit total is
+   (totalCents on the offering's own rate) plus the tier fee the OLD start
+   incurs right now. Preview only — the RPC writes the numbers. */
+function ChangePreviewStay({
+  booking, offering, start, end, t,
+}: {
+  booking: BookingMoney; offering: PublicOffering; start: string; end: string; t: UnitsT;
+}) {
+  const now = new Date();
+  const startsAt = new Date(booking.startsAt);
+  const feePct = cancelFeePct(booking.cancelPolicy, startsAt, now);
+  const feeCents = cancelFeeCents(booking.cancelPolicy, booking.priceCents, startsAt, now);
+  const newTotalCents = totalCents(offering, stayUnits(offering.rangeMode as "nights" | "days", start, end));
+  const out = changeLines(
+    { newTotalCents, currency: booking.currency, feeCents, feePct, priorFeeCents: booking.feeCents, paidCents: booking.paidCents, refundedCents: booking.refundedCents },
+    t,
+  );
+  if (out.length === 0) return null;
+  return (
+    <ul className="text-sm">
+      {out.map((l) => <li key={l}>{l}</li>)}
+    </ul>
   );
 }

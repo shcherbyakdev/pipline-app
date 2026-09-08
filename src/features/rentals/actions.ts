@@ -67,7 +67,7 @@ function toOfferingSettingsRow(d: OfferingSettings) {
     pricing_mode: d.pricingMode,
     deposit_type: d.depositType,
     deposit_value: d.depositValue,
-    cancel_window_min: d.cancelWindowMin,
+    cancel_policy: d.cancelPolicy,
     terms_text: d.termsText ?? null,
   };
   if (d.rangeMode === "hours") {

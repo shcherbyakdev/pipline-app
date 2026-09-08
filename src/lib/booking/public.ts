@@ -18,6 +18,7 @@ import { blackoutBusy } from "@/features/rentals/hourly";
 import { externalBusy } from "@/features/calendar-sync/busy";
 import type { OrgMode } from "@/features/orgs/mode";
 import type { Line, PricingRules } from "@/features/rentals/pricing-rules";
+import type { CancelPolicy } from "@/features/rentals/cancel-policy";
 import { parseLegal, type Legal } from "@/features/payments/legal";
 import type { UnitRef } from "./bookable";
 
@@ -455,7 +456,7 @@ export type PublicOffering = {
   pricingMode: "per_unit" | "flat";
   depositType: "none" | "fixed" | "percent" | "full";
   depositValue: number | null;
-  cancelWindowMin: number;
+  cancelPolicy: CancelPolicy;
   termsText: string | null;
   requiresApproval: boolean;
   // S1: an hours offering's rate bands/surcharges/extras; null everywhere
@@ -465,7 +466,7 @@ export type PublicOffering = {
 export type PublicUnit = { id: string; name: string; description: string | null; active: boolean };
 
 const PUBLIC_OFFERING_COLUMNS =
-  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, price_cents, pricing_mode, deposit_type, deposit_value, cancel_window_min, terms_text, requires_approval, pricing";
+  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, price_cents, pricing_mode, deposit_type, deposit_value, cancel_policy, terms_text, requires_approval, pricing";
 
 type PublicOfferingDb = {
   id: string;
@@ -489,7 +490,7 @@ type PublicOfferingDb = {
   pricing_mode: "per_unit" | "flat";
   deposit_type: "none" | "fixed" | "percent" | "full";
   deposit_value: number | null;
-  cancel_window_min: number;
+  cancel_policy: CancelPolicy;
   terms_text: string | null;
   requires_approval: boolean;
   pricing: PricingRules | null;
@@ -518,7 +519,7 @@ function toPublicOffering(o: PublicOfferingDb): PublicOffering {
     pricingMode: o.pricing_mode,
     depositType: o.deposit_type,
     depositValue: o.deposit_value,
-    cancelWindowMin: o.cancel_window_min,
+    cancelPolicy: o.cancel_policy,
     termsText: o.terms_text,
     requiresApproval: o.requires_approval,
     pricing: o.pricing,
@@ -867,25 +868,27 @@ export async function getBookingOfferingId(bookingId: string): Promise<string | 
   return data.rental_offering_id;
 }
 
-/** S1: the money a committed booking actually carries — the RPC's own
+/** S1/S3: the money a committed booking actually carries — the RPC's own
     snapshot on the row, never a recomputation (a rules-priced offering has
     no single totalCents formula to re-derive, and the studio may have edited
-    its rules since). Shaped for moneyInfoLines; the currency is the one the
-    RPC stamped alongside the total. */
-export async function getBookingMoney(
-  bookingId: string,
-  cancelWindowMin: number,
-): Promise<{
+    its rules or its policy since). Shaped for moneyInfoLines; the currency
+    is the one the RPC stamped alongside the total. `paidCents` / `feeCents`
+    / `startsAt` are here for the reschedule settlement (manage-actions). */
+export async function getBookingMoney(bookingId: string): Promise<{
   totalCents: number | null;
   depositCents: number | null;
   currency: string | null;
-  cancelWindowMin: number;
+  cancelPolicy: CancelPolicy | null;
+  feeCents: number;
+  paidCents: number;
+  refundedCents: number;
+  startsAt: Date | null;
   lines: Line[] | null;
 }> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("bookings")
-    .select("lines, price_cents, deposit_cents, currency")
+    .select("lines, price_cents, deposit_cents, currency, cancel_policy, fee_cents, paid_cents, refunded_cents, starts_at")
     .eq("id", bookingId)
     .maybeSingle();
   if (error) console.error("[booking] getBookingMoney:", error);
@@ -894,12 +897,21 @@ export async function getBookingMoney(
     price_cents: number | null;
     deposit_cents: number | null;
     currency: string | null;
+    cancel_policy: CancelPolicy | null;
+    fee_cents: number;
+    paid_cents: number;
+    refunded_cents: number;
+    starts_at: string;
   } | null;
   return {
     totalCents: row?.price_cents ?? null,
     depositCents: row?.deposit_cents ?? null,
     currency: row?.currency ?? null,
-    cancelWindowMin,
+    cancelPolicy: row?.cancel_policy ?? null,
+    feeCents: row?.fee_cents ?? 0,
+    paidCents: row?.paid_cents ?? 0,
+    refundedCents: row?.refunded_cents ?? 0,
+    startsAt: row ? new Date(row.starts_at) : null,
     lines: (row?.lines as Line[] | null) ?? null,
   };
 }

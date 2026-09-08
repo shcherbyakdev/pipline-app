@@ -51,6 +51,13 @@ try {
 } catch {
   // CI exports env directly.
 }
+// S3: the reschedule action refunds with DEFAULT deps, so its provider comes
+// from env at call time — set here (after loadEnvFile, which never overwrites
+// an existing value, and before the dynamic imports below parse src/env.ts).
+// The secret is only read by the fake webhook parser, but env-schema demands
+// 16 characters of it.
+process.env.PAYMENTS_PROVIDER = "fake";
+process.env.PAYMENTS_FAKE_SECRET = "test-fake-payments-secret";
 
 // Dynamic imports so env is loaded before src/env.ts parses it.
 const hourlyActions = await import("./hourly-actions");
@@ -782,5 +789,171 @@ describe("terms acceptance gate (hourly action layer)", () => {
       email,
     });
     expect(result.ok).toBe(true);
+  });
+});
+
+// S3 (final review): the client reschedule path MOVES MONEY. A full deposit
+// is paid, the studio then lowers the space's price, and the move — still in
+// the free tier, so no fee — hands the difference back through the fake
+// provider: the booking's refunded_cents and the ledger row both say 40 zł,
+// and the row stays `paid` because only part of it went back.
+describe("S3: a client reschedule refunds what the cheaper new price no longer needs", () => {
+  const REFUND_HANDLE = `h2flow-refund-${Date.now()}`;
+  const H = 60;
+  let refundOrgId: string;
+  let refundOfferingId: string;
+
+  beforeAll(async () => {
+    const owner = await signedInUser("h2flow_refund_owner");
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "H2FlowRefundCo", p_offers_appointments: false, p_offers_rentals: true });
+    if (e1) throw e1;
+    refundOrgId = (org as { id: string }).id;
+    const { error: eFlag } = await admin
+      .from("org_feature_flags")
+      .insert([
+        { org_id: refundOrgId, flag: "rentals", enabled: true, updated_by: "h2-flow-test" },
+        { org_id: refundOrgId, flag: "premium_waitlist", enabled: false, updated_by: "h2-flow-test" },
+      ]);
+    if (eFlag) throw eFlag;
+    const { error: e2 } = await owner.rpc("update_org_scheduling", {
+      p_org_id: refundOrgId,
+      p_handle: REFUND_HANDLE,
+      p_timezone: TZ,
+      p_currency: "PLN",
+    });
+    if (e2) throw e2;
+    // 100 zł/h, deposit = the whole thing, two tiers (72 h free / 48 h 50 %):
+    // every booking below sits well outside 72 h, so nothing charges a fee
+    // and the only money that moves is the refund.
+    const { data: off, error: e3 } = await owner
+      .from("rental_offerings")
+      .insert({
+        org_id: refundOrgId,
+        name: "Refund Studio",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+        turnover_min: 0,
+        min_notice_min: 0,
+        booking_window_days: 730,
+        unit_selection: "auto",
+        price_cents: 10000,
+        pricing_mode: "per_unit",
+        deposit_type: "full",
+        cancel_policy: [{ beforeMin: 72 * H, feePct: 0 }, { beforeMin: 48 * H, feePct: 50 }],
+      })
+      .select("id")
+      .single();
+    if (e3) throw e3;
+    refundOfferingId = off!.id as string;
+    const { error: e4 } = await owner
+      .from("rental_units")
+      .insert({ org_id: refundOrgId, offering_id: refundOfferingId, name: "Room", sort_order: 0 });
+    if (e4) throw e4;
+    const { error: e5 } = await owner.from("availability_rules").insert(
+      Array.from({ length: 7 }, (_, weekday) => ({
+        org_id: refundOrgId,
+        rental_offering_id: refundOfferingId,
+        weekday,
+        start_time: "09:00",
+        end_time: "21:00",
+      })),
+    );
+    if (e5) throw e5;
+    // An active connected account is what makes a deposit a HOLD.
+    const { error: e6 } = await admin.from("payment_accounts").insert({
+      org_id: refundOrgId,
+      stripe_account_id: `acct_refund_${refundOrgId.slice(0, 8)}`,
+      status: "active",
+    });
+    if (e6) throw e6;
+  });
+
+  it("pays a full deposit, the studio drops the price, and the move refunds the difference", async () => {
+    net.clientIp = "203.0.113.71";
+    const created = await hourlyActions.createRentalBookingHours({
+      handle: REFUND_HANDLE,
+      offeringId: refundOfferingId,
+      unitId: null,
+      startsAt: iso(`${d(5)}T10:00`), // > 72 h out: the free tier
+      durationMin: 60,
+      name: "Refund Client",
+      email: `h2-refund-${Date.now()}@example.com`,
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const { data: held } = await admin
+      .from("bookings")
+      .select("id, status, deposit_cents")
+      .eq("cancel_token_hash", hashOf(created.token))
+      .single();
+    expect(held!.status).toBe("pending_payment");
+    expect(held!.deposit_cents).toBe(10000);
+
+    // Pay the hold the way the webhook does (refund.integration.test.ts's
+    // ledger + apply_booking_payment pair) — confirmed, 100 zł paid.
+    const session = `cs_h2_refund_${held!.id}`;
+    const { error: eLedger } = await admin.from("booking_payments").insert({
+      org_id: refundOrgId,
+      booking_id: held!.id,
+      kind: "deposit",
+      provider: "fake",
+      amount_cents: 10000,
+      currency: "PLN",
+      status: "pending",
+      checkout_session_id: session,
+      stripe_account_id: "acct_fake_x",
+    });
+    if (eLedger) throw eLedger;
+    const { error: eApply } = await admin.rpc("apply_booking_payment", {
+      p_session_id: session,
+      p_payment_intent_id: `pi_${session}`,
+      p_amount_cents: 10000,
+    });
+    if (eApply) throw eApply;
+    const { data: paid } = await admin
+      .from("bookings")
+      .select("status, paid_cents")
+      .eq("id", held!.id)
+      .single();
+    expect(paid).toEqual({ status: "confirmed", paid_cents: 10000 });
+
+    // The studio drops the hourly rate to 60 zł — the move re-quotes at it.
+    const { error: ePrice } = await admin
+      .from("rental_offerings")
+      .update({ price_cents: 6000 })
+      .eq("id", refundOfferingId);
+    if (ePrice) throw ePrice;
+
+    const moved = await rentalManage.rescheduleRentalBookingHours({
+      token: created.token,
+      unitId: null,
+      startsAt: iso(`${d(6)}T11:00`), // still > 72 h out: no fee
+    });
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+
+    const { data: fresh } = await admin
+      .from("bookings")
+      .select("id, price_cents, fee_cents, paid_cents, refunded_cents")
+      .eq("cancel_token_hash", hashOf(moved.token))
+      .single();
+    expect(fresh).toMatchObject({
+      price_cents: 6000,
+      fee_cents: 0,
+      paid_cents: 10000,
+      refunded_cents: 4000,
+    });
+
+    // The ledger row followed the new booking and is PARTLY refunded: 40 of
+    // its 100 zł went back, so it stays `paid` and can give back more later.
+    const { data: ledger } = await admin
+      .from("booking_payments")
+      .select("amount_cents, refunded_cents, status")
+      .eq("booking_id", fresh!.id)
+      .single();
+    expect(ledger).toEqual({ amount_cents: 10000, refunded_cents: 4000, status: "paid" });
   });
 });

@@ -9,6 +9,9 @@ import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { getManageHourlySlots, rescheduleRentalBookingHours } from "@/features/rentals/manage-actions";
 import { formatHourlyWhenLine } from "@/features/scheduling/templates";
 import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
+import { cancelFeeCents, cancelFeePct } from "@/features/rentals/cancel-policy";
+import { changeLines, quoteHours, sumLines } from "@/features/rentals/pricing";
+import type { UnitsT } from "@/i18n/translator";
 import { UnitSelect } from "./unit-select";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +22,9 @@ function todayISO(): string {
 }
 
 type HourlySlot = { startsAt: string; unitIds: string[] };
+// S3: what the confirm-step preview prices against — the booking's own
+// money/policy/picks, straight off getManageHourlySlots.
+type BookingMoney = Extract<Awaited<ReturnType<typeof getManageHourlySlots>>, { ok: true }>["booking"];
 
 // The hourly counterpart of RentalReschedulePanel: a client picking a new
 // TIME for their own booking from the tokenized manage page —
@@ -40,12 +46,14 @@ export function HourlyReschedulePanel({
   const t = useTranslations("public.manage");
   const tWidget = useTranslations("public.widget");
   const tSlots = useTranslations("public.slots");
+  const tUnits = useTranslations("public.units");
   const [fromDate, setFromDate] = React.useState(todayISO);
   const [slots, setSlots] = React.useState<HourlySlot[]>([]);
   const [durationMin, setDurationMin] = React.useState<number | null>(null);
   const [offering, setOffering] = React.useState<PublicOffering | null>(null);
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
   const [currentUnitId, setCurrentUnitId] = React.useState<string | null>(null);
+  const [booking, setBooking] = React.useState<BookingMoney | null>(null);
   const [slot, setSlot] = React.useState<string | null>(null);
   const [unitId, setUnitId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -71,6 +79,7 @@ export function HourlyReschedulePanel({
           setOffering(result.offering);
           setUnits(result.units);
           setCurrentUnitId(result.currentUnitId);
+          setBooking(result.booking);
         } else {
           setSlots([]);
           setError(result.error);
@@ -169,6 +178,9 @@ export function HourlyReschedulePanel({
               {tWidget("change")}
             </button>
           </p>
+          {booking && offering && durationMin ? (
+            <ChangePreview booking={booking} offering={offering} slot={slot} durationMin={durationMin} timeZone={timeZone} t={tUnits} />
+          ) : null}
           {picksUnit ? (
             <UnitSelect
               id="hourly-reschedule-unit"
@@ -189,5 +201,45 @@ export function HourlyReschedulePanel({
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
       <p className="text-muted-foreground text-xs">{tSlots("providerTz", { tz: timeZone })}</p>
     </div>
+  );
+}
+
+/* S3: what this move would mean, priced the way the widget prices a slot
+   (quoteHours on the offering's live rules with the booking's own picks)
+   plus the tier fee the OLD start incurs right now. Preview only — the RPC
+   writes the numbers. */
+function ChangePreview({
+  booking, offering, slot, durationMin, timeZone, t,
+}: {
+  booking: BookingMoney; offering: PublicOffering; slot: string; durationMin: number; timeZone: string; t: UnitsT;
+}) {
+  const now = new Date();
+  const startsAt = new Date(booking.startsAt);
+  const feePct = cancelFeePct(booking.cancelPolicy, startsAt, now);
+  const feeCents = cancelFeeCents(booking.cancelPolicy, booking.priceCents, startsAt, now);
+  // JSX must stay out of the try (React defers rendering, so a throw there
+  // never reaches this catch) — only the quote itself is guarded.
+  let out: string[];
+  try {
+    const lines = quoteHours(
+      { pricing: offering.pricing, priceCents: offering.priceCents, pricingMode: offering.pricingMode },
+      new Date(slot), durationMin, booking.people, booking.extras, timeZone,
+    );
+    const newTotalCents = lines.length === 0 ? null : sumLines(lines);
+    out = changeLines(
+      { newTotalCents, currency: booking.currency, feeCents, feePct, priorFeeCents: booking.feeCents, paidCents: booking.paidCents, refundedCents: booking.refundedCents },
+      t,
+    );
+  } catch {
+    // A slot the live rules refuse (quote_band/quote_people/quote_extra) —
+    // the RPC still carries the old snapshot, so say nothing rather than
+    // show a broken preview.
+    return null;
+  }
+  if (out.length === 0) return null;
+  return (
+    <ul className="text-sm">
+      {out.map((l) => <li key={l}>{l}</li>)}
+    </ul>
   );
 }

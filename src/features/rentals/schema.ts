@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TIME_RE, HANDLE_RE } from "@/features/scheduling/schema";
 import { daysBetween } from "./range";
 import { pricingRulesSchema, pricingRulesFor, extraPicksSchema } from "./pricing-rules";
+import { cancelPolicySchema } from "./cancel-policy";
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -30,7 +31,7 @@ const offeringCommon = z.object({
   pricingMode: z.enum(PRICING_MODES).default("per_unit"),
   depositType: z.enum(DEPOSIT_TYPES).default("none"),
   depositValue: z.number().int().min(0).max(100_000_000).nullable().default(null),
-  cancelWindowMin: z.number().int().min(0).max(527040).default(0),
+  cancelPolicy: cancelPolicySchema.default([]),
   termsText: z.string().trim().max(10000).optional(),
 });
 const rangeFields = z.object({

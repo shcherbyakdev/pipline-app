@@ -20,6 +20,7 @@ import { refundBooking } from "@/features/payments/refund";
 import { expireOpenCheckouts } from "@/features/payments/checkout";
 import { sendPaymentReceived } from "@/features/payments/confirm-effects";
 import type { Line } from "@/features/rentals/pricing-rules";
+import { adminCancelMoney, type CancelPolicy } from "@/features/rentals/cancel-policy";
 import type { RangeMode } from "@/features/rentals/range";
 import { formatMoney } from "@/lib/money";
 import {
@@ -65,7 +66,7 @@ async function currentOrg(): Promise<{ id: string; name: string; timezone: strin
 export async function cancelBookingAdmin(
   input: unknown,
 ): Promise<
-  | { ok: true; emailed: boolean; noEmail?: boolean; refundedCents: number; refundFailed: boolean }
+  | { ok: true; emailed: boolean; noEmail?: boolean; refundedCents: number; refundFailed: boolean; feeCents: number }
   | { ok: false; error: string }
 > {
   const t = await getTranslations("errors");
@@ -75,6 +76,29 @@ export async function cancelBookingAdmin(
     const org = await currentOrg();
     if (!org) return { ok: false, error: t("generic") };
     const supabase = await createClient();
+
+    // S3: the dialog's choice decides what the fee is and what goes back;
+    // the numbers come from the row, the mode from the input (spec decision 3).
+    const { data: before } = await supabase
+      .from("bookings")
+      .select("price_cents, cancel_policy, starts_at, paid_cents, refunded_cents, fee_cents")
+      .eq("id", parsed.data.id)
+      .eq("org_id", org.id)
+      .maybeSingle();
+    if (!before) return { ok: false, error: t("bookings.notCancellable") };
+    const { feeCents, refundCents } = adminCancelMoney(
+      parsed.data.refund,
+      {
+        cancelPolicy: before.cancel_policy as CancelPolicy | null,
+        priceCents: before.price_cents,
+        startsAt: new Date(before.starts_at),
+        paidCents: before.paid_cents,
+        refundedCents: before.refunded_cents,
+        feeCents: before.fee_cents,
+      },
+      new Date(),
+    );
+
     // Column-scoped seam from 0028: only confirmed | pending_payment →
     // cancelled_by_provider can succeed (S2 widened the policy to holds —
     // the studio can drop one before the client pays); the org filter is
@@ -84,7 +108,7 @@ export async function cancelBookingAdmin(
     // reschedule/resend already refuse the past).
     const { data, error } = await supabase
       .from("bookings")
-      .update({ status: "cancelled_by_provider" })
+      .update({ status: "cancelled_by_provider", fee_cents: feeCents })
       .eq("id", parsed.data.id)
       .eq("org_id", org.id)
       .in("status", ["confirmed", "pending_payment"])
@@ -111,16 +135,13 @@ export async function cancelBookingAdmin(
     if (!row) return { ok: false, error: t("bookings.notCancellable") };
     kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
 
-    // S2 (ruling 3): the cancel refunds in full unless the dialog said not
-    // to. Best effort and recorded on the ledger — a failure is finished by
-    // hand in Stripe and never fails the cancel, which is already applied.
-    const refund =
-      parsed.data.refund === false
-        ? { refundedCents: 0, failed: false }
-        : await refundBooking(row.id, "admin-cancel").catch((e) => {
-            console.error("[payments] admin cancel refund:", e);
-            return { refundedCents: 0, failed: true };
-          });
+    // S3: what the dialog's mode did not keep comes back. Best effort and
+    // recorded on the ledger — a failure is finished by hand in Stripe and
+    // never fails the cancel, which is already applied.
+    const refund = await refundBooking(row.id, "admin-cancel", {}, { amountCents: refundCents }).catch((e) => {
+      console.error("[payments] admin cancel refund:", e);
+      return { refundedCents: 0, failed: true };
+    });
     // A hold's client may still have the Checkout tab open: close the session
     // so no money arrives for a slot the studio just gave away. No-ops when
     // nothing is open, and never fails the cancel (already applied).
@@ -150,6 +171,18 @@ export async function cancelBookingAdmin(
       const forClient = await clientMailCopy(row, org);
       const idempotencyKey = bookingLifecycleKey(row.id, "cancelled");
 
+      // S3: the fee the tier kept, then what came back — in the client's own
+      // language. Built here, inside the mail's own try — the cancel is
+      // already applied.
+      const infoLines = [
+        ...(feeCents > 0 && row.currency
+          ? [forClient.tUnits("cancellationFee", { amount: formatMoney(feeCents, row.currency) })]
+          : []),
+        ...(refund.refundedCents > 0 && row.currency
+          ? [forClient.tUnits("refund", { amount: formatMoney(refund.refundedCents, row.currency) })]
+          : []),
+      ];
+
       if (!row.client_email) {
         noEmail = true;
       } else {
@@ -160,16 +193,7 @@ export async function cancelBookingAdmin(
             serviceName: forClient.serviceName,
             whenLine: forClient.whenLine,
             cancelledBy: "provider",
-            // S2: what came back, in the client's own language. Built here,
-            // inside the mail's own try — the cancel is already applied.
-            infoLines:
-              refund.refundedCents > 0 && row.currency
-                ? [
-                    forClient.tUnits("refund", {
-                      amount: formatMoney(refund.refundedCents, row.currency),
-                    }),
-                  ]
-                : undefined,
+            infoLines: infoLines.length > 0 ? infoLines : undefined,
             // Solo orgs never name a staff member — resolveClientStaffName is
             // the one place that rule lives (and swallows its own errors).
             staffName: await resolveClientStaffName(org.id, row.staff?.name ?? null),
@@ -209,7 +233,7 @@ export async function cancelBookingAdmin(
     }
 
     revalidatePath("/bookings");
-    return { ok: true, emailed, noEmail, refundedCents: refund.refundedCents, refundFailed: refund.failed };
+    return { ok: true, emailed, noEmail, refundedCents: refund.refundedCents, refundFailed: refund.failed, feeCents };
   } catch (error) {
     return fail("cancelBookingAdmin", error);
   }
@@ -699,7 +723,7 @@ export async function acceptBookingRequest(
       const { data: rows, error: readError } = await supabase
         .from("bookings")
         .select(
-          "id, status, hold_expires_at, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, locale, price_cents, currency, deposit_cents, lines, staff(name), services(name), rental_offerings(name, range_mode, cancel_window_min), rental_units(name)",
+          "id, status, hold_expires_at, client_name, client_email, staff_id, starts_at, ends_at, rental_unit_id, locale, price_cents, currency, deposit_cents, lines, staff(name), services(name), rental_offerings(name, range_mode, cancel_policy), rental_units(name)",
         )
         .eq("id", parsed.data.id)
         .eq("org_id", org.id);
@@ -721,7 +745,7 @@ export async function acceptBookingRequest(
         lines: unknown;
         staff: { name: string } | null;
         services: { name: string } | null;
-        rental_offerings: { name: string; range_mode: RangeMode; cancel_window_min: number } | null;
+        rental_offerings: { name: string; range_mode: RangeMode; cancel_policy: CancelPolicy } | null;
         rental_units: { name: string } | null;
       }> | null)?.[0];
       // No row = the read failed after a committed accept: no mail can go
@@ -773,7 +797,7 @@ export async function acceptBookingRequest(
                         totalCents: row.price_cents,
                         depositCents: row.deposit_cents,
                         currency: row.currency,
-                        cancelWindowMin: row.rental_offerings?.cancel_window_min ?? 0,
+                        cancelPolicy: row.rental_offerings?.cancel_policy ?? [],
                         // S1: the row's own quote breakdown; S2: "pay now"
                         // rather than "pay at the venue" while it is held.
                         lines: (row.lines as Line[] | null) ?? null,
