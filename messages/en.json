@@ -560,6 +560,20 @@
       "footer": "It's on your calendar; the client got their confirmation.",
       "footerRequest": "Accept or decline it from your Overview page — the slot is held until you do."
     },
+    "digest": {
+      "subject": "{count, plural, one {# thing needs} other {# things need}} you today",
+      "lead": "Your morning list.",
+      "requests": "Requests waiting ({count})",
+      "holds": "Holds expiring soon ({count})",
+      "balances": "Balances due ({count})",
+      "deposit": "{amount} deposit, until {time}",
+      "lapsed": "{amount} deposit, payment window passed",
+      "due": "{amount} due",
+      "fallbackTitle": "Booking",
+      "open": "Open your list",
+      "openText": "Open your list: {url}",
+      "footer": "You get this once a day while something is waiting. Turn it off under Notifications."
+    },
     "providerCancelled": {
       "subject": "Cancelled by client — {service}, {when}",
       "lead": "<b>{client}</b> cancelled their booking.",
@@ -585,6 +599,10 @@
       "rescheduled": {
         "title": "Rescheduled by client",
         "body": "{client} · {service} · now {when}"
+      },
+      "dailyDigest": {
+        "title": "Your morning list",
+        "body": "{count, plural, one {# thing needs} other {# things need}} you today"
       },
       "test": {
         "title": "Booklo notifications are on",
@@ -2036,6 +2054,7 @@
       "newRequest": "New booking request",
       "cancelled": "Cancellation by a client",
       "rescheduled": "Reschedule by a client",
+      "dailyDigest": "Morning list — once a day while something is waiting",
       "switchLabel": "{event}, by {channel}"
     },
     "reminders": {

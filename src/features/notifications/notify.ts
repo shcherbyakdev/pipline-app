@@ -1,13 +1,16 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { env } from "@/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { selectTransport, type EmailTransport } from "@/lib/email/transport";
 import { emailTranslators } from "@/i18n/emails";
 import {
+  dailyDigestEmail,
   providerCancelledEmail,
   providerNewBookingEmail,
   providerRescheduledEmail,
+  type DigestRow,
 } from "@/features/scheduling/templates";
 import { parseMemberPrefs, type MemberEvent } from "./prefs";
 import { sendPush, type PushPayload } from "./push";
@@ -43,6 +46,12 @@ export type MemberNotice =
       clientEmail?: string | null;
       whenLine: string;
       oldWhenLine: string;
+    }
+  | {
+      event: "dailyDigest";
+      requests: DigestRow[];
+      holds: DigestRow[];
+      balances: DigestRow[];
     };
 
 export type NotifyInput = MemberNotice & {
@@ -63,7 +72,7 @@ type MemberRow = { user_id: string; notification_prefs: unknown };
 /** Where a tap on the push lands: a request waits in the Overview inbox,
     everything else is on the calendar. */
 export function pushUrlFor(event: MemberEvent): string {
-  return event === "newRequest" ? "/overview" : "/bookings";
+  return event === "newRequest" || event === "dailyDigest" ? "/overview" : "/bookings";
 }
 
 export async function notifyMembers(input: NotifyInput, deps: NotifyDeps = {}): Promise<void> {
@@ -84,7 +93,14 @@ export async function notifyMembers(input: NotifyInput, deps: NotifyDeps = {}): 
     let email: { subject: string; html: string; text: string } | null = null;
     const emailFor = () => {
       if (email) return email;
-      if (input.event === "cancelled") {
+      if (input.event === "dailyDigest") {
+        email = dailyDigestEmail(mail.t, {
+          requests: input.requests,
+          holds: input.holds,
+          balances: input.balances,
+          overviewUrl: `${env.NEXT_PUBLIC_APP_URL ?? ""}/overview`,
+        });
+      } else if (input.event === "cancelled") {
         email = providerCancelledEmail(mail.t, { serviceName: input.serviceName, whenLine: input.whenLine, clientName: input.clientName });
       } else if (input.event === "rescheduled") {
         email = providerRescheduledEmail(mail.t, {
@@ -109,7 +125,10 @@ export async function notifyMembers(input: NotifyInput, deps: NotifyDeps = {}): 
     };
     const pushPayload: PushPayload = {
       title: mail.t(`push.${input.event}.title`),
-      body: mail.t(`push.${input.event}.body`, { client: input.clientName, service: input.serviceName, when: input.whenLine }),
+      body:
+        input.event === "dailyDigest"
+          ? mail.t("push.dailyDigest.body", { count: input.requests.length + input.holds.length + input.balances.length })
+          : mail.t(`push.${input.event}.body`, { client: input.clientName, service: input.serviceName, when: input.whenLine }),
       url: pushUrlFor(input.event),
       tag: input.idempotencyKey,
     };
@@ -130,7 +149,8 @@ export async function notifyMembers(input: NotifyInput, deps: NotifyDeps = {}): 
               html: msg.html,
               text: msg.text,
               // Replies go to the client, not the platform's no-reply sender.
-              replyTo: input.clientEmail ?? undefined,
+              // The digest has no single client to answer.
+              replyTo: "clientEmail" in input ? (input.clientEmail ?? undefined) : undefined,
               // One key per member: the transport dedupes per recipient.
               idempotencyKey: members.length === 1 ? input.idempotencyKey : `${input.idempotencyKey}:${member.user_id}`,
             });
