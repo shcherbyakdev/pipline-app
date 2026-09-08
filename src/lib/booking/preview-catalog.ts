@@ -25,6 +25,7 @@ const CANNED_PREVIEW_OFFERING: PublicOffering = {
   id: PREVIEW_OFFERING_ID,
   name: "Studio A",
   description: null,
+  kind: "space",
   rangeMode: "nights",
   startTime: "15:00",
   endTime: "11:00",
@@ -57,6 +58,10 @@ function toPublicOffering(o: OfferingRow): PublicOffering {
     id: o.id,
     name: o.name,
     description: o.description,
+    // S6: OfferingRow (admin queries.ts) doesn't carry kind yet — every row
+    // this preview sees today is a space (a real equipment/composite row
+    // would need its own preview treatment, out of scope here).
+    kind: "space",
     rangeMode: o.rangeMode,
     startTime: o.startTime,
     endTime: o.endTime,

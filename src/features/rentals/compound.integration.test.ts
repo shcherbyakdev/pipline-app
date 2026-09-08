@@ -315,3 +315,42 @@ describe("S6 — equipment add-ons + reschedule (0084 part B)", () => {
     expect((await units(newId)).some((r) => r.kind === "equipment")).toBe(false);
   });
 });
+
+const publicLib = await import("@/lib/booking/public");
+
+describe("S6 — availability reads", () => {
+  let s: Studio;
+  beforeAll(async () => { s = await newStudio("r"); }, 60_000);
+
+  it("a whole-studio booking makes the room busy, and a room booking makes the whole studio busy", async () => {
+    const w = await book(s, s.whole.id, `${d(12)}T10:00`, 60);
+    expect(w.error).toBeNull();
+    const roomCtx = await publicLib.loadOrgHourlyContext(s.orgId, s.roomA.id, TZ, d(12), 1);
+    expect(roomCtx!.perUnit[0].busy.some((b) => b.startsAt.toISOString() === iso(`${d(12)}T10:00`))).toBe(true);
+    const r = await book(s, s.roomB.id, `${d(12)}T13:00`, 60);
+    expect(r.error).toBeNull();
+    const wholeCtx = await publicLib.loadOrgHourlyContext(s.orgId, s.whole.id, TZ, d(12), 1);
+    expect(wholeCtx!.perUnit).toHaveLength(1);
+    expect(wholeCtx!.perUnit[0].busy.some((b) => b.startsAt.toISOString() === iso(`${d(12)}T13:00`))).toBe(true);
+  });
+
+  it("alsoBusyUnitIds folds a lamp's busy time into every room unit", async () => {
+    const a = await book(s, s.roomA.id, `${d(13)}T10:00`, 60, { p_equipment: [{ offeringId: s.lamp.id, qty: 1 }] });
+    expect(a.error).toBeNull();
+    const lampUnit = (await units(a.data as string)).find((r) => r.kind === "equipment")!.rental_unit_id as string;
+    const ctx = await publicLib.loadOrgHourlyContext(s.orgId, s.roomB.id, TZ, d(13), 1, { alsoBusyUnitIds: [lampUnit] });
+    expect(ctx!.perUnit[0].busy.some((b) => b.startsAt.toISOString() === iso(`${d(13)}T10:00`))).toBe(true);
+    const plain = await publicLib.loadOrgHourlyContext(s.orgId, s.roomB.id, TZ, d(13), 1);
+    expect(plain!.perUnit[0].busy.some((b) => b.startsAt.toISOString() === iso(`${d(13)}T10:00`))).toBe(false);
+  });
+
+  it("listEquipmentAvailability lists equipment spaces with per-unit busy; listPublicOfferings hides them", async () => {
+    const eq = await publicLib.listEquipmentAvailability(s.orgId, iso(`${d(13)}T00:00`), iso(`${d(14)}T00:00`));
+    expect(eq.map((e) => e.id)).toEqual([s.lamp.id]);
+    expect(eq[0].unitCount).toBe(2);
+    expect(eq[0].units.flatMap((u) => u.busy)).toHaveLength(1);
+    const offerings = await publicLib.listPublicOfferings(s.orgId);
+    expect(offerings.map((o) => o.id).sort()).toEqual([s.roomA.id, s.roomB.id, s.whole.id].sort());
+    expect(offerings.find((o) => o.id === s.whole.id)!.kind).toBe("composite");
+  });
+});

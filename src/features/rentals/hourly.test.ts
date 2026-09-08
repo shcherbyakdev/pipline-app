@@ -19,6 +19,7 @@ function offering(over: Partial<PublicOffering> = {}): PublicOffering {
     id: "off-1",
     name: "Tennis court",
     description: null,
+    kind: "space",
     rangeMode: "hours",
     startTime: null,
     endTime: null,

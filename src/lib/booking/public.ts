@@ -17,8 +17,9 @@ import type {
 import { blackoutBusy } from "@/features/rentals/hourly";
 import { externalBusy } from "@/features/calendar-sync/busy";
 import type { OrgMode } from "@/features/orgs/mode";
-import type { Line, PricingRules } from "@/features/rentals/pricing-rules";
+import type { Line, PricingRules, OfferingKind } from "@/features/rentals/pricing-rules";
 import type { CancelPolicy } from "@/features/rentals/cancel-policy";
+import type { EquipmentOffering } from "@/features/rentals/pricing";
 import { parseLegal, type Legal } from "@/features/payments/legal";
 import type { UnitRef } from "./bookable";
 
@@ -434,6 +435,8 @@ export type PublicOffering = {
   id: string;
   name: string;
   description: string | null;
+  // S6: space | composite | equipment (rental_offerings.kind, 0084).
+  kind: OfferingKind;
   rangeMode: RangeMode;
   // H2: nights/days always set these (0056 CHECK); hours reads opening
   // hours from availability_rules instead, so both are null there.
@@ -466,12 +469,13 @@ export type PublicOffering = {
 export type PublicUnit = { id: string; name: string; description: string | null; active: boolean };
 
 const PUBLIC_OFFERING_COLUMNS =
-  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, price_cents, pricing_mode, deposit_type, deposit_value, cancel_policy, terms_text, requires_approval, pricing";
+  "id, name, description, kind, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, price_cents, pricing_mode, deposit_type, deposit_value, cancel_policy, terms_text, requires_approval, pricing";
 
 type PublicOfferingDb = {
   id: string;
   name: string;
   description: string | null;
+  kind: OfferingKind;
   range_mode: RangeMode;
   start_time: string | null;
   end_time: string | null;
@@ -501,6 +505,7 @@ function toPublicOffering(o: PublicOfferingDb): PublicOffering {
     id: o.id,
     name: o.name,
     description: o.description,
+    kind: o.kind,
     rangeMode: o.range_mode,
     startTime: o.start_time,
     endTime: o.end_time,
@@ -537,6 +542,8 @@ export async function listPublicOfferings(orgId: string): Promise<PublicOffering
     .select(PUBLIC_OFFERING_COLUMNS)
     .eq("org_id", orgId)
     .eq("active", true)
+    // S6: equipment is an add-on, never a bookable catalogue entry on its own.
+    .neq("kind", "equipment")
     .order("sort_order")
     .order("name");
   if (error) throw error;
@@ -556,6 +563,10 @@ export async function listPublicOfferings(orgId: string): Promise<PublicOffering
   return offerings.filter((o) => bookable.has(o.id));
 }
 
+// S6: every caller resolves "the offering being booked" (public-actions'
+// createRentalBooking, manage-actions' rescheduleRentalBooking, and this
+// module's own range/hourly loaders) — equipment is never one of those, it
+// only attaches as an add-on via listEquipmentAvailability.
 export async function getPublicOfferingById(
   orgId: string,
   offeringId: string,
@@ -567,6 +578,7 @@ export async function getPublicOfferingById(
     .eq("id", offeringId)
     .eq("org_id", orgId)
     .eq("active", true)
+    .neq("kind", "equipment")
     .maybeSingle();
   if (error) throw error;
   return data ? toPublicOffering(data as unknown as PublicOfferingDb) : null;
@@ -632,6 +644,48 @@ export const getOrgModeAdmin = cache(async (orgId: string): Promise<OrgMode | nu
   return data ? { offersAppointments: data.offers_appointments, offersRentals: data.offers_rentals } : null;
 });
 
+// S6: a composite's own unit stands for every unit of its included rooms —
+// their occupancy is folded onto it (rental_unit_scope's TS twin).
+export async function scopeUnitIds(orgId: string, offeringId: string, kind: OfferingKind): Promise<string[]> {
+  if (kind !== "composite") return [];
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("rental_offering_components")
+    .select("component_id")
+    .eq("composite_id", offeringId)
+    .eq("org_id", orgId);
+  if (error) throw error;
+  const componentIds = (data ?? []).map((c) => c.component_id as string);
+  if (componentIds.length === 0) return [];
+  const { data: units, error: unitsError } = await admin
+    .from("rental_units")
+    .select("id")
+    .in("offering_id", componentIds)
+    .eq("org_id", orgId);
+  if (unitsError) throw unitsError;
+  return (units ?? []).map((u) => u.id as string);
+}
+
+type OccupancyRow = { booking_id: string; rental_unit_id: string; starts_at: string; ends_at: string };
+
+// S6: the one occupancy read. Reserving rows of these units in the window;
+// `excludeBookingId` drops the booking being moved.
+async function listOccupancy(unitIds: string[], fromIso: string, toIso: string, excludeBookingId?: string): Promise<OccupancyRow[]> {
+  if (unitIds.length === 0) return [];
+  const admin = createAdminClient();
+  let q = admin
+    .from("booking_units")
+    .select("booking_id, rental_unit_id, starts_at, ends_at")
+    .in("rental_unit_id", unitIds)
+    .eq("reserving", true)
+    .gte("ends_at", fromIso)
+    .lte("starts_at", toIso);
+  if (excludeBookingId) q = q.neq("booking_id", excludeBookingId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data ?? []) as OccupancyRow[];
+}
+
 // Everything the range engine needs for one org+offering. The window is
 // padded by turnover (+1 day) on both edges: a stay just outside the
 // requested span still occupies days inside it once turnover is added.
@@ -694,31 +748,24 @@ export async function loadOrgRangeContext(
   const windowStart = addDaysISO(fromDate, -pad);
   const windowEnd = addDaysISO(fromDate, days + pad);
   const unitIds = units.map((u) => u.id);
-  const [blackoutRes, bookingRes] = await Promise.all([
+  const [blackoutRes, occupancy] = await Promise.all([
     admin
       .from("rental_unit_blackouts")
       .select("rental_unit_id, start_date, end_date")
       .in("rental_unit_id", unitIds)
       .gte("end_date", windowStart)
       .lte("start_date", windowEnd),
-    admin
-      .from("bookings")
-      .select("id, rental_unit_id, starts_at, ends_at")
-      .in("rental_unit_id", unitIds)
-      .in("status", ["confirmed", "pending", "pending_payment"])
-      .gte("ends_at", `${windowStart}T00:00:00Z`)
-      .lte("starts_at", `${windowEnd}T23:59:59Z`),
+    listOccupancy(unitIds, `${windowStart}T00:00:00Z`, `${windowEnd}T23:59:59Z`),
   ]);
   if (blackoutRes.error) throw blackoutRes.error;
-  if (bookingRes.error) throw bookingRes.error;
 
   const blackouts: RangeBlackout[] = (blackoutRes.data ?? []).map((b) => ({
     unitId: b.rental_unit_id,
     startDate: b.start_date,
     endDate: b.end_date,
   }));
-  const bookings: RangeBooking[] = (bookingRes.data ?? []).map((b) => ({
-    id: b.id,
+  const bookings: RangeBooking[] = occupancy.map((b) => ({
+    id: b.booking_id,
     unitId: b.rental_unit_id,
     startsAt: new Date(b.starts_at),
     endsAt: new Date(b.ends_at),
@@ -774,6 +821,10 @@ export async function loadOrgHourlyContext(
     includeInactiveUnits?: boolean;
     // See loadOrgSlotContext.freshExternal.
     freshExternal?: boolean;
+    // S6: extra units whose busy time folds onto every unit here (an
+    // equipment add-on the caller already knows is riding along) — never
+    // itself queried for blackouts, only occupancy.
+    alsoBusyUnitIds?: string[];
   },
 ): Promise<{
   offering: PublicOffering;
@@ -782,6 +833,8 @@ export async function loadOrgHourlyContext(
   exceptions: SlotException[];
   perUnit: { unitId: string; busy: BusyInterval[] }[];
 } | null> {
+  // getPublicOfferingById already excludes kind = 'equipment' — an equipment
+  // space is never the primary offering an hourly context resolves for.
   const offering = await getPublicOfferingById(orgId, offeringId);
   if (!offering || offering.rangeMode !== "hours") return null;
   const admin = createAdminClient();
@@ -803,32 +856,26 @@ export async function loadOrgHourlyContext(
   const fromIso = `${addDaysISO(fromDate, -1)}T00:00:00Z`;
   const toIso = `${addDaysISO(fromDate, days + 1)}T23:59:59Z`;
   const unitIds = units.map((u) => u.id);
+  // S6: a composite's own unit also carries every included room's occupancy
+  // and blackouts (ruling 7); alsoBusyUnitIds folds in occupancy only.
+  const scope = await scopeUnitIds(orgId, offeringId, offering.kind);
   // A shared Google calendar's Busy time blocks every unit (spec
   // 2026-09-05 §2.5); a person's calendar never applies to a unit.
   const externalPromise = unitIds.length
     ? externalBusy(orgId, null, fromIso, toIso, { timeZone, fresh: opts?.freshExternal })
     : Promise.resolve([] as BusyInterval[]);
-  const [bookingRes, blackoutRes, external] = await Promise.all([
-    unitIds.length
-      ? admin
-          .from("bookings")
-          .select("id, rental_unit_id, starts_at, ends_at")
-          .in("rental_unit_id", unitIds)
-          .in("status", ["confirmed", "pending", "pending_payment"])
-          .gte("ends_at", fromIso)
-          .lte("starts_at", toIso)
-      : Promise.resolve({ data: [], error: null }),
+  const [occupancy, blackoutRes, external] = await Promise.all([
+    listOccupancy([...unitIds, ...scope, ...(opts?.alsoBusyUnitIds ?? [])], fromIso, toIso, opts?.excludeBookingId),
     unitIds.length
       ? admin
           .from("rental_unit_blackouts")
           .select("rental_unit_id, start_date, end_date")
-          .in("rental_unit_id", unitIds)
+          .in("rental_unit_id", [...unitIds, ...scope])
           .gte("end_date", addDaysISO(fromDate, -1))
           .lte("start_date", addDaysISO(fromDate, days + 1))
       : Promise.resolve({ data: [], error: null }),
     externalPromise,
   ]);
-  if (bookingRes.error) throw bookingRes.error;
   if (blackoutRes.error) throw blackoutRes.error;
   const blackoutMap = blackoutBusy(
     (blackoutRes.data ?? []).map((b) => ({
@@ -838,21 +885,66 @@ export async function loadOrgHourlyContext(
     })),
     timeZone,
   );
+  const extraUnitIds = new Set([...scope, ...(opts?.alsoBusyUnitIds ?? [])]);
+  const toBusy = (b: OccupancyRow): BusyInterval => ({
+    startsAt: new Date(b.starts_at), endsAt: new Date(b.ends_at), bufferAfterMin: offering.turnoverMin,
+  });
   const perUnit = units.map((u) => ({
     unitId: u.id,
     busy: [
-      ...(bookingRes.data ?? [])
-        .filter((b) => b.rental_unit_id === u.id && b.id !== opts?.excludeBookingId)
-        .map((b) => ({
-          startsAt: new Date(b.starts_at),
-          endsAt: new Date(b.ends_at),
-          bufferAfterMin: offering.turnoverMin,
-        })),
+      ...occupancy.filter((b) => b.rental_unit_id === u.id || extraUnitIds.has(b.rental_unit_id)).map(toBusy),
       ...(blackoutMap.get(u.id) ?? []),
+      // A blackout on an included room blocks the whole studio (ruling 7).
+      ...scope.flatMap((id) => blackoutMap.get(id) ?? []),
       ...external,
     ],
   }));
   return { offering, units, rules, exceptions, perUnit };
+}
+
+export type PublicEquipment = EquipmentOffering & { units: { id: string; busy: { startsAt: Date; endsAt: Date }[] }[] };
+
+// S6: the org's active equipment spaces with what is busy in the window —
+// the add-on step's "N available" and the reschedule panels' fold-in.
+export async function listEquipmentAvailability(
+  orgId: string,
+  fromIso: string,
+  toIso: string,
+  opts?: { excludeBookingId?: string; allowedUnitIds?: Set<string> | null },
+): Promise<PublicEquipment[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("rental_offerings")
+    .select("id, name, price_cents, pricing_mode, rental_units(id, active)")
+    .eq("org_id", orgId)
+    .eq("kind", "equipment")
+    .eq("active", true)
+    .order("sort_order")
+    .order("name");
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as { id: string; name: string; price_cents: number | null; pricing_mode: "per_unit" | "flat"; rental_units: { id: string; active: boolean }[] | null }[];
+  const equipment = rows
+    .map((r) => ({
+      id: r.id, name: r.name, priceCents: r.price_cents, pricingMode: r.pricing_mode,
+      unitIds: (r.rental_units ?? []).filter((u) => u.active && (!opts?.allowedUnitIds || opts.allowedUnitIds.has(u.id))).map((u) => u.id),
+    }))
+    .filter((r) => r.unitIds.length > 0 && r.priceCents !== null);
+  const occupancy = await listOccupancy(equipment.flatMap((e) => e.unitIds), fromIso, toIso, opts?.excludeBookingId);
+  return equipment.map((e) => ({
+    id: e.id, name: e.name, priceCents: e.priceCents, pricingMode: e.pricingMode, unitCount: e.unitIds.length,
+    units: e.unitIds.map((id) => ({
+      id,
+      busy: occupancy.filter((b) => b.rental_unit_id === id).map((b) => ({ startsAt: new Date(b.starts_at), endsAt: new Date(b.ends_at) })),
+    })),
+  }));
+}
+
+// S6: the equipment units a booking holds (for the reschedule fold-in).
+export async function listBookingEquipmentUnitIds(bookingId: string): Promise<string[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("booking_units").select("rental_unit_id").eq("booking_id", bookingId).eq("kind", "equipment");
+  if (error) throw error;
+  return (data ?? []).map((r) => r.rental_unit_id as string);
 }
 
 // The tokenized manage page knows a stay by its token; the resolver hands
