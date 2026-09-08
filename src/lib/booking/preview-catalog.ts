@@ -84,18 +84,17 @@ function toPublicOffering(o: OfferingRow): PublicOffering {
   };
 }
 
-/** Listed on the public page: active, with at least one active unit
-    (listPublicOfferings; the setup checklist's "bookable" count). */
-export function isBookableOffering(o: Pick<OfferingRow, "active" | "activeUnitCount">): boolean {
-  return o.active && o.activeUnitCount > 0;
+/** Listed on the public page: active, with at least one active unit, and not
+    equipment (listPublicOfferings' .neq — equipment rides a room booking and
+    is never a card of its own). The setup checklist's "bookable" count and the
+    studio's channelReach both ask this, so a page that says it is live can't
+    disagree with a live page that 404s. */
+export function isBookableOffering(o: Pick<OfferingRow, "kind" | "active" | "activeUnitCount">): boolean {
+  return o.kind !== "equipment" && o.active && o.activeUnitCount > 0;
 }
 
 function toPreviewOfferings(offerings: OfferingRow[]): PublicOffering[] {
-  // S6: equipment is never listed on its own — it rides a room booking, and
-  // the public catalogue drops it too (listPublicOfferings' .neq on kind).
-  const bookable = offerings
-    .filter((o) => o.kind !== "equipment" && isBookableOffering(o))
-    .map(toPublicOffering);
+  const bookable = offerings.filter(isBookableOffering).map(toPublicOffering);
   return bookable.length > 0 ? bookable : [CANNED_PREVIEW_OFFERING];
 }
 

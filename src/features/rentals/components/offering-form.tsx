@@ -61,13 +61,13 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 export function OfferingForm({
   offering,
   currency,
-  rooms = [],
+  rooms,
 }: {
   offering?: OfferingRow;
   currency: string;
   /** S6: the org's hourly rooms a composite can include — plain spaces
       only (no nesting), never the composite itself. */
-  rooms?: { id: string; name: string }[];
+  rooms: { id: string; name: string }[];
 }) {
   const t = useTranslations("spaces");
   const tc = useTranslations("common");
@@ -129,6 +129,24 @@ export function OfferingForm({
   const [requiresApproval, setRequiresApproval] = React.useState(
     offering?.requiresApproval ?? false,
   );
+
+  // The radiogroup contract: the group is ONE tab stop (the checked option),
+  // and the arrows move the choice, wrapping — three tabbable buttons is a
+  // toolbar, not a radio group.
+  const onKindKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? 1
+        : e.key === "ArrowLeft" || e.key === "ArrowUp"
+          ? -1
+          : 0;
+    if (step === 0) return;
+    e.preventDefault();
+    const at = OFFERING_KINDS.indexOf(kind);
+    const next = OFFERING_KINDS[(at + step + OFFERING_KINDS.length) % OFFERING_KINDS.length];
+    setKind(next);
+    e.currentTarget.querySelector<HTMLElement>(`[data-kind="${next}"]`)?.focus();
+  };
 
   const isEquipment = kind === "equipment";
   const effectiveRangeMode: RangeMode = kind === "space" ? rangeMode : "hours";
@@ -311,6 +329,7 @@ export function OfferingForm({
                   <div
                     role="radiogroup"
                     aria-labelledby="offering-kind-label"
+                    onKeyDown={onKindKey}
                     className="grid grid-cols-3 gap-2"
                   >
                     {OFFERING_KINDS.map((k) => (
@@ -318,7 +337,9 @@ export function OfferingForm({
                         key={k}
                         type="button"
                         role="radio"
+                        data-kind={k}
                         aria-checked={kind === k}
+                        tabIndex={kind === k ? 0 : -1}
                         onClick={() => setKind(k)}
                         className={cn(
                           "flex flex-col items-start gap-0.5 rounded-md border px-3 py-2 text-left text-sm",

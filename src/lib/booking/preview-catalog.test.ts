@@ -62,10 +62,13 @@ describe("toPreviewCatalog", () => {
     expect(ids(out.offerings)).toEqual(["preview-offering"]);
   });
 
-  it("isBookableOffering: active with an active unit — the one rule the pages use to decide what a preview shows", () => {
+  it("isBookableOffering: active, with an active unit, and not equipment — the one rule the pages use", () => {
     expect(isBookableOffering(offering("room"))).toBe(true);
     expect(isBookableOffering(offering("shell", true, 0))).toBe(false);
     expect(isBookableOffering(offering("retired", false))).toBe(false);
+    // S6: the studio's "is this page live?" asks this too, and the live page
+    // 404s on an org whose only spaces are equipment.
+    expect(isBookableOffering(offering("softbox", true, 3, "equipment"))).toBe(false);
   });
 
   // S6: equipment rides a room booking; it is never a card of its own, on the

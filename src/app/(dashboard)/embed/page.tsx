@@ -67,7 +67,11 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
     mode,
     staff: activeStaff.length > 1 ? activeStaff.map((s) => ({ slug: s.slug, name: s.name })) : [],
     services: bookableAdminServices(services, staff).map((s) => ({ id: s.id, name: s.name })),
-    spaces: offerings.filter((o) => o.active).map((o) => ({ id: o.id, name: o.name })),
+    // S6: equipment is booked as an add-on inside a room's flow, never on a
+    // link of its own (bookings/page.tsx applies the same filter).
+    spaces: offerings
+      .filter((o) => o.active && o.kind !== "equipment")
+      .map((o) => ({ id: o.id, name: o.name })),
   });
   const initialKey = initialRowKey(rows, await searchParams);
 
