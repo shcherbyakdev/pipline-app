@@ -58,12 +58,12 @@ async function loadBalances(db: SupabaseClient, orgId: string, fallbackTitle: st
   const { data, error: rowsError } = await db
     .from("bookings")
     .select(BOOKING_COLUMNS)
-    .in(
-      "id",
-      order.map((r) => r.id),
-    );
+    .eq("org_id", orgId)
+    .in("id", order.map((r) => r.id));
   if (rowsError) throw rowsError;
   const byId = new Map(((data ?? []) as unknown as BookingRow[]).map((b) => [b.id, toAdminBooking(b, fallbackTitle)]));
+  // An id the RPC named but the select didn't return (row deleted between
+  // the two calls) is skipped, not an error.
   return order.flatMap((r) => {
     const booking = byId.get(r.id);
     return booking ? [{ ...booking, balanceCents: r.balance_cents }] : [];
