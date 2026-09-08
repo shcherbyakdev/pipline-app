@@ -20,9 +20,10 @@ import { cn } from "@/lib/utils";
 import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { DeclineRequestDialog } from "./requests-inbox";
 import { MoveRentalDialog } from "@/features/rentals/components/move-rental-dialog";
+import { adminCancelMoney, type AdminRefundMode } from "@/features/rentals/cancel-policy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import {
   Dialog,
   DialogBreadcrumbHeader,
@@ -121,13 +122,19 @@ function DetailBody({
     booking.refundedCents > 0 && booking.currency
       ? t("hold.refunded", { amount: formatMoney(booking.refundedCents, booking.currency) })
       : null;
-  // What a cancel would send back. Offered pre-ticked (S2 ruling 3: the
-  // default is a full refund) and only when there is money left to return.
-  const refundable =
-    booking.paidCents > booking.refundedCents && booking.currency
-      ? formatMoney(booking.paidCents - booking.refundedCents, booking.currency)
-      : null;
-  const [refund, setRefund] = React.useState(true);
+  // S3: the consequence the row carries, and what the studio is still owed.
+  const feeLine = booking.feeCents > 0 && booking.currency ? t("hold.fee", { amount: formatMoney(booking.feeCents, booking.currency) }) : null;
+  const outstanding = booking.feeCents - (booking.paidCents - booking.refundedCents);
+  const outstandingLine = booking.feeCents > 0 && outstanding > 0 && booking.currency ? t("hold.feeOutstanding", { amount: formatMoney(outstanding, booking.currency) }) : null;
+  // S3 (decision 3): per policy / everything / nothing. The policy default
+  // is computed here for the label only — the action recomputes it.
+  const [refund, setRefund] = React.useState<AdminRefundMode>("policy");
+  const policyMoney = adminCancelMoney("policy", {
+    cancelPolicy: booking.cancelPolicy, priceCents: booking.priceCents, startsAt: new Date(booking.startsAt),
+    paidCents: booking.paidCents, refundedCents: booking.refundedCents, feeCents: booking.feeCents,
+  }, new Date(now));
+  const held = booking.paidCents - booking.refundedCents;
+  const hasChoice = held > 0 || policyMoney.feeCents > 0;
 
   const accept = () =>
     startTransition(async () => {
@@ -194,16 +201,27 @@ function DetailBody({
   // just like a booking's, so it asks the same second time.
   const cancelControl = confirming ? (
     <span className="flex items-center gap-2 sm:ml-auto">
-      {refundable === null ? null : (
-        <label className="flex items-center gap-1.5 text-xs">
-          <Checkbox
-            checked={refund}
-            onCheckedChange={(checked) => setRefund(checked === true)}
-            disabled={pending}
+      {hasChoice && booking.currency ? (
+        <span className="flex flex-col gap-1">
+          <SegmentedTabs
+            label={t("cancel.button")}
+            value={refund}
+            onChange={setRefund}
+            items={[
+              { value: "policy", label: t("cancel.refundPolicy") },
+              { value: "all", label: t("cancel.refundAll") },
+              { value: "none", label: t("cancel.refundNone") },
+            ]}
           />
-          {t("cancel.refund", { amount: refundable })}
-        </label>
-      )}
+          <span className="text-muted-foreground text-xs">
+            {refund === "policy"
+              ? t("cancel.policyLine", { kept: formatMoney(policyMoney.feeCents, booking.currency), refund: formatMoney(policyMoney.refundCents, booking.currency) })
+              : refund === "all"
+                ? t("cancel.refund", { amount: formatMoney(held, booking.currency) })
+                : t("cancel.feeLine", { fee: formatMoney(held, booking.currency) })}
+          </span>
+        </span>
+      ) : null}
       <Button variant="destructive" size="sm" onClick={cancel} disabled={pending}>
         {t("cancel.confirm")}
       </Button>
@@ -266,6 +284,8 @@ function DetailBody({
         <p className="text-sm text-muted-foreground">{contact}</p>
         {paidLine ? <p className="text-sm">{paidLine}</p> : null}
         {refundLine ? <p className="text-sm">{refundLine}</p> : null}
+        {feeLine ? <p className="text-sm">{feeLine}</p> : null}
+        {outstandingLine ? <p className="text-sm">{outstandingLine}</p> : null}
         {hold ? (
           <>
             <div className="flex items-center gap-2">

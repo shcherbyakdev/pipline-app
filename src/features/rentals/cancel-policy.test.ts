@@ -97,7 +97,7 @@ describe("formatCancelPolicy", () => {
 });
 
 describe("adminCancelMoney", () => {
-  const b = { cancelPolicy: TWO, priceCents: 30000, startsAt: start, paidCents: 9000, refundedCents: 0 };
+  const b = { cancelPolicy: TWO, priceCents: 30000, startsAt: start, paidCents: 9000, refundedCents: 0, feeCents: 0 };
   it("policy: fee from the tier, refund what is left", () => {
     expect(adminCancelMoney("policy", b, before(60 * H))).toEqual({ feeCents: 15000, refundCents: 0 });
     expect(adminCancelMoney("policy", b, before(80 * H))).toEqual({ feeCents: 0, refundCents: 9000 });
@@ -110,5 +110,13 @@ describe("adminCancelMoney", () => {
   it("already-refunded money is never counted twice", () => {
     expect(adminCancelMoney("all", { ...b, refundedCents: 4000 }, before(1))).toEqual({ feeCents: 0, refundCents: 5000 });
     expect(adminCancelMoney("none", { ...b, refundedCents: 4000 }, before(1))).toEqual({ feeCents: 5000, refundCents: 0 });
+  });
+  it("a prior fee (late-change) accumulates rather than being replaced (ruling 1)", () => {
+    const withPrior = { ...b, feeCents: 2000 };
+    expect(adminCancelMoney("policy", withPrior, before(60 * H))).toEqual({ feeCents: 17000, refundCents: 0 });
+    expect(adminCancelMoney("policy", withPrior, before(80 * H))).toEqual({ feeCents: 2000, refundCents: 7000 });
+    expect(adminCancelMoney("all", withPrior, before(1))).toEqual({ feeCents: 0, refundCents: 9000 });
+    expect(adminCancelMoney("none", withPrior, before(1))).toEqual({ feeCents: 9000, refundCents: 0 });
+    expect(adminCancelMoney("none", { ...b, feeCents: 12000 }, before(1))).toEqual({ feeCents: 12000, refundCents: 0 });
   });
 });

@@ -733,9 +733,17 @@
       "depositFull": "Pełna kwota",
       "depositAmount": "Kwota zaliczki ({currency})",
       "depositPercentLabel": "Zaliczka (%)",
-      "cancelWindowHours": "Bezpłatne odwołanie do (godzin przed rozpoczęciem)",
-      "cancelWindowDays": "Bezpłatne odwołanie do (dni przed rozpoczęciem)",
-      "noWindow": "Bez okresu",
+      "cancelPolicy": "Zasady odwołania",
+      "cancelPolicyHint": "Bezpłatnie do pierwszego progu, potem opłata każdego poziomu od sumy rezerwacji. Poniżej ostatniego progu: 100%.",
+      "tierBeforeHours": "godz. przed rozpoczęciem",
+      "tierBeforeDays": "dni przed rozpoczęciem",
+      "tierFee": "opłata %",
+      "tierLeadAria": "Poziom {n}: próg",
+      "tierFeeAria": "Poziom {n}: opłata",
+      "tierRemove": "Usuń poziom {n}",
+      "tierAdd": "Dodaj poziom",
+      "tierAfter": "Mniej niż {lead}: 100%",
+      "tierUpToStart": "aż do rozpoczęcia",
       "terms": "Regulamin",
       "minNoticeMinutes": "Min. wyprzedzenie (minuty)",
       "minNoticeDays": "Min. wyprzedzenie (dni)",
@@ -901,7 +909,12 @@
       "doneEmailed": "Rezerwacja anulowana — klient dostał e-mail.",
       "doneEmailFailed": "Rezerwacja anulowana — ale e-mail do klienta nie doszedł. Skontaktuj się z nim bezpośrednio.",
       "refund": "Zwróć {amount}",
-      "refundFailed": "Zwrot się nie powiódł — wykonaj go w Stripe."
+      "refundFailed": "Zwrot się nie powiódł — wykonaj go w Stripe.",
+      "refundPolicy": "Według zasad",
+      "refundAll": "Zwróć wszystko",
+      "refundNone": "Nie zwracaj",
+      "policyLine": "Zasady zatrzymują {kept} · zwrot {refund}",
+      "feeLine": "Opłata {fee}"
     },
     "resend": {
       "sent": "Nowy link jest w drodze do klienta.",
@@ -1050,7 +1063,9 @@
       "lapsed": "Czas na płatność minął — najbliższy przebieg zwolni ten termin.",
       "paid": "Zapłacono {paid}",
       "paidBalance": "Zapłacono {paid} · {balance} do zapłaty na miejscu",
-      "refunded": "Zwrócono {amount}"
+      "refunded": "Zwrócono {amount}",
+      "fee": "Opłata {amount}",
+      "feeOutstanding": "{amount} do zapłaty"
     },
     "markPaid": {
       "button": "Oznacz jako opłacone",

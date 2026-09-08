@@ -12,6 +12,7 @@ import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
 import type { RangeMode } from "@/features/rentals/range";
 import type { DepositType } from "@/features/rentals/pricing";
 import { pricingRulesFor, type PricingRules } from "@/features/rentals/pricing-rules";
+import type { CancelPolicy } from "@/features/rentals/cancel-policy";
 import { Button } from "@/components/ui/button";
 import { Input, nativeSelectClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { TIME_OPTIONS } from "@/features/scheduling/time-options";
 import { TimeCombobox } from "@/features/scheduling/components/time-combobox";
 import { PricingRulesEditor } from "./pricing-rules-editor";
+import { CancelPolicyEditor } from "./cancel-policy-editor";
 
 const selectClass = nativeSelectClass;
 
@@ -100,6 +102,11 @@ export function OfferingForm({
   const [pricing, setPricing] = React.useState<PricingRules | null>(
     offering?.pricing ?? null,
   );
+  // S3: the tiered editor is controlled the same way — the form owns the
+  // value and posts it as one `cancelPolicy` array (Task 7).
+  const [cancelPolicy, setCancelPolicy] = React.useState<CancelPolicy>(
+    offering?.cancelPolicy ?? [],
+  );
   // Controlled so the deposit-value input's semantics (amount vs. percent)
   // and its very presence (none/full take no value) track the select live.
   const [depositType, setDepositType] = React.useState<DepositType>(
@@ -135,10 +142,6 @@ export function OfferingForm({
             ? Math.round(Number(depositValueRaw) * 100)
             : Math.round(Number(depositValueRaw))
         : null;
-    // S3: the tiered editor is Task 7's; until then, round-trip whatever
-    // policy the offering already carries (a new offering gets the schema's
-    // `[]` default).
-    const cancelPolicy = offering?.cancelPolicy ?? [];
     const common = {
       ...identity,
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
@@ -567,8 +570,7 @@ export function OfferingForm({
                   </div>
                 ) : null}
               </div>
-              {/* S3: the tiered cancel-policy editor is Task 7's; this form
-                  round-trips whatever policy the offering already carries. */}
+              <CancelPolicyEditor value={cancelPolicy} onChange={setCancelPolicy} rangeMode={rangeMode} />
               <div className="flex flex-col gap-2">
                 <Label htmlFor="offering-terms">{t("form.terms")}</Label>
                 <Textarea

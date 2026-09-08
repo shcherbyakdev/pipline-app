@@ -733,9 +733,17 @@
       "depositFull": "Повна сума",
       "depositAmount": "Сума завдатку ({currency})",
       "depositPercentLabel": "Завдаток (%)",
-      "cancelWindowHours": "Безкоштовне скасування (за скільки годин до початку)",
-      "cancelWindowDays": "Безкоштовне скасування (за скільки днів до початку)",
-      "noWindow": "Немає",
+      "cancelPolicy": "Умови скасування",
+      "cancelPolicyHint": "Безкоштовно до першого порогу, далі плата кожного рівня від суми бронювання. Нижче останнього порогу: 100%.",
+      "tierBeforeHours": "год до початку",
+      "tierBeforeDays": "дн. до початку",
+      "tierFee": "плата %",
+      "tierLeadAria": "Рівень {n}: поріг",
+      "tierFeeAria": "Рівень {n}: плата",
+      "tierRemove": "Прибрати рівень {n}",
+      "tierAdd": "Додати рівень",
+      "tierAfter": "Менше ніж {lead}: 100%",
+      "tierUpToStart": "до самого початку",
       "terms": "Умови",
       "minNoticeMinutes": "Мінімальний час до початку (хв)",
       "minNoticeDays": "Мінімальний час до початку (днів)",
@@ -901,7 +909,12 @@
       "doneEmailed": "Бронювання скасовано — клієнту надіслано лист.",
       "doneEmailFailed": "Бронювання скасовано, але лист клієнту не надіслано. Зв’яжіться з ним напряму.",
       "refund": "Повернути {amount}",
-      "refundFailed": "Повернення не вдалося — виконайте його у Stripe."
+      "refundFailed": "Повернення не вдалося — виконайте його у Stripe.",
+      "refundPolicy": "За умовами",
+      "refundAll": "Повернути все",
+      "refundNone": "Нічого не повертати",
+      "policyLine": "За умовами утримується {kept} · повертається {refund}",
+      "feeLine": "Плата {fee}"
     },
     "resend": {
       "sent": "Нове посилання вже прямує до клієнта.",
@@ -1050,7 +1063,9 @@
       "lapsed": "Час на оплату минув — наступний прохід звільнить цей час.",
       "paid": "Сплачено {paid}",
       "paidBalance": "Сплачено {paid} · {balance} до сплати на місці",
-      "refunded": "Повернено {amount}"
+      "refunded": "Повернено {amount}",
+      "fee": "Плата {amount}",
+      "feeOutstanding": "{amount} не сплачено"
     },
     "markPaid": {
       "button": "Позначити як оплачене",

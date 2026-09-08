@@ -77,8 +77,11 @@ export function formatCancelPolicy(policy: CancelPolicy | null, t: UnitsT): stri
 export type AdminRefundMode = "policy" | "all" | "none";
 
 /** The admin cancel dialog's three choices (spec decision 3), on what the
-    row says was paid and already refunded. `none` keeps what was paid as
-    the fee; `all` waives it; `policy` applies the tier. */
+    row says was paid and already refunded. `b.feeCents` is any fee the row
+    already carries (a late-change fee levied before this cancel — ruling 8,
+    amended) — cancelling never erases it. `none` keeps what was paid, or the
+    prior fee if that is bigger; `all` waives everything, prior fee included;
+    `policy` adds the tier's fee on top of the prior one. */
 export function adminCancelMoney(
   mode: AdminRefundMode,
   b: {
@@ -87,6 +90,7 @@ export function adminCancelMoney(
     startsAt: Date;
     paidCents: number;
     refundedCents: number;
+    feeCents: number;
   },
   at: Date,
 ): { feeCents: number; refundCents: number } {
@@ -95,9 +99,9 @@ export function adminCancelMoney(
     case "all":
       return { feeCents: 0, refundCents: held };
     case "none":
-      return { feeCents: held, refundCents: 0 };
+      return { feeCents: Math.max(b.feeCents, held), refundCents: 0 };
     case "policy": {
-      const feeCents = cancelFeeCents(b.cancelPolicy, b.priceCents, b.startsAt, at);
+      const feeCents = b.feeCents + cancelFeeCents(b.cancelPolicy, b.priceCents, b.startsAt, at);
       return { feeCents, refundCents: Math.max(0, held - feeCents) };
     }
   }
