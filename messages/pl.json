@@ -289,6 +289,9 @@
       "fewer": "Mniej osób",
       "more": "Więcej osób",
       "extras": "Dodatki",
+      "equipment": "Sprzęt",
+      "available": "{count} dostępne",
+      "noneLeft": "brak wolnych o tej godzinie",
       "fewerOf": "Mniej: {label}",
       "moreOf": "Więcej: {label}"
     },
@@ -441,6 +444,7 @@
       "from": "od {amount}",
       "perHourShort": "za godzinę",
       "perPiece": "za sztukę",
+      "perBooking": "za rezerwację",
       "line": {
         "base": "{hours} × {rate}",
         "surcharge": "{label} +{pct}%",

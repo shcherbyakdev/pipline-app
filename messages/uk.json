@@ -289,6 +289,9 @@
       "fewer": "Менше осіб",
       "more": "Більше осіб",
       "extras": "Додатки",
+      "equipment": "Обладнання",
+      "available": "{count} доступно",
+      "noneLeft": "немає вільних на цей час",
       "fewerOf": "Менше: {label}",
       "moreOf": "Більше: {label}"
     },
@@ -441,6 +444,7 @@
       "from": "від {amount}",
       "perHourShort": "за годину",
       "perPiece": "за штуку",
+      "perBooking": "за бронювання",
       "line": {
         "base": "{hours} × {rate}",
         "surcharge": "{label} +{pct}%",

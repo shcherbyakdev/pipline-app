@@ -9,6 +9,7 @@ import { buildBookingManageUrl } from "@/lib/tokens/booking";
 import {
   getBookingMoney,
   getBookingUnitName,
+  listBookingEquipmentUnitIds,
   loadOrgRangeContext,
   loadOrgHourlyContext,
   type PublicOffering,
@@ -451,6 +452,9 @@ export async function getAdminHourlySlots(input: unknown): Promise<
       unitId: unitId ?? undefined,
       excludeBookingId: excludeBookingId ?? undefined,
       includeInactiveUnits: true,
+      // S6: the equipment the booking being moved carries follows it, so the
+      // times its own lamps are busy elsewhere are not free for this move.
+      alsoBusyUnitIds: excludeBookingId ? await listBookingEquipmentUnitIds(excludeBookingId) : undefined,
     });
     if (!ctx || !isHourlyOffering(ctx.offering)) {
       return (await offeringIsInactive(org.id, offeringId))

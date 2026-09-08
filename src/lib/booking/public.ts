@@ -910,7 +910,7 @@ export async function listEquipmentAvailability(
   orgId: string,
   fromIso: string,
   toIso: string,
-  opts?: { excludeBookingId?: string; allowedUnitIds?: Set<string> | null },
+  opts?: { excludeBookingId?: string; allowedUnitIds?: ReadonlySet<string> | null },
 ): Promise<PublicEquipment[]> {
   const admin = createAdminClient();
   const { data, error } = await admin

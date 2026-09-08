@@ -289,6 +289,9 @@
       "fewer": "Fewer people",
       "more": "More people",
       "extras": "Extras",
+      "equipment": "Equipment",
+      "available": "{count} available",
+      "noneLeft": "none left at this time",
       "fewerOf": "Fewer: {label}",
       "moreOf": "More: {label}"
     },
@@ -449,6 +452,7 @@
       "from": "from {amount}",
       "perHourShort": "per hour",
       "perPiece": "per piece",
+      "perBooking": "per booking",
       "line": {
         "base": "{hours} × {rate}",
         "surcharge": "{label} +{pct}%",

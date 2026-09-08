@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TIME_RE, HANDLE_RE } from "@/features/scheduling/schema";
 import { daysBetween } from "./range";
-import { pricingRulesSchema, pricingRulesFor, extraPicksSchema } from "./pricing-rules";
+import { pricingRulesSchema, pricingRulesFor, extraPicksSchema, equipmentPicksSchema } from "./pricing-rules";
 import { cancelPolicySchema } from "./cancel-policy";
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";
 
@@ -276,6 +276,9 @@ export const createRentalBookingHoursInput = z.object({
   // S1: the client's people count (null = the offering's included count) and extras.
   people: z.number().int().min(0).max(500).nullable().default(null),
   extras: extraPicksSchema.default([]),
+  // S6: equipment spaces attached to the booking — the RPC prices them into
+  // the same quote and holds a unit of each (rental_equipment_lines, 0084).
+  equipment: equipmentPicksSchema.default([]),
 });
 
 // ---------- Hourly mode (H2), admin (Task 10). Same shapes as the admin

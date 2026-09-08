@@ -10,7 +10,7 @@ import { getManageHourlySlots, rescheduleRentalBookingHours } from "@/features/r
 import { formatHourlyWhenLine } from "@/features/scheduling/templates";
 import { TimeSlotGrid } from "@/features/scheduling/components/time-slot-grid";
 import { cancelFeeCents, cancelFeePct } from "@/features/rentals/cancel-policy";
-import { changeLines, quoteHours, sumLines } from "@/features/rentals/pricing";
+import { changeLines, equipmentLines, quoteHours, sumLines, type EquipmentOffering } from "@/features/rentals/pricing";
 import type { UnitsT } from "@/i18n/translator";
 import { UnitSelect } from "./unit-select";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,8 @@ export function HourlyReschedulePanel({
   const [units, setUnits] = React.useState<PublicUnit[]>([]);
   const [currentUnitId, setCurrentUnitId] = React.useState<string | null>(null);
   const [booking, setBooking] = React.useState<BookingMoney | null>(null);
+  // S6: the definitions the preview re-prices the booking's own picks with.
+  const [equipment, setEquipment] = React.useState<EquipmentOffering[]>([]);
   const [slot, setSlot] = React.useState<string | null>(null);
   const [unitId, setUnitId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -80,6 +82,7 @@ export function HourlyReschedulePanel({
           setUnits(result.units);
           setCurrentUnitId(result.currentUnitId);
           setBooking(result.booking);
+          setEquipment(result.equipment);
         } else {
           setSlots([]);
           setError(result.error);
@@ -179,7 +182,7 @@ export function HourlyReschedulePanel({
             </button>
           </p>
           {booking && offering && durationMin ? (
-            <ChangePreview booking={booking} offering={offering} slot={slot} durationMin={durationMin} timeZone={timeZone} t={tUnits} />
+            <ChangePreview booking={booking} offering={offering} equipment={equipment} slot={slot} durationMin={durationMin} timeZone={timeZone} t={tUnits} />
           ) : null}
           {picksUnit ? (
             <UnitSelect
@@ -209,9 +212,10 @@ export function HourlyReschedulePanel({
    plus the tier fee the OLD start incurs right now. Preview only — the RPC
    writes the numbers. */
 function ChangePreview({
-  booking, offering, slot, durationMin, timeZone, t,
+  booking, offering, equipment, slot, durationMin, timeZone, t,
 }: {
-  booking: BookingMoney; offering: PublicOffering; slot: string; durationMin: number; timeZone: string; t: UnitsT;
+  booking: BookingMoney; offering: PublicOffering; equipment: EquipmentOffering[];
+  slot: string; durationMin: number; timeZone: string; t: UnitsT;
 }) {
   const now = new Date();
   const startsAt = new Date(booking.startsAt);
@@ -221,19 +225,24 @@ function ChangePreview({
   // never reaches this catch) — only the quote itself is guarded.
   let out: string[];
   try {
-    const lines = quoteHours(
-      { pricing: offering.pricing, priceCents: offering.priceCents, pricingMode: offering.pricingMode },
-      new Date(slot), durationMin, booking.people, booking.extras, timeZone,
-    );
+    const lines = [
+      ...quoteHours(
+        { pricing: offering.pricing, priceCents: offering.priceCents, pricingMode: offering.pricingMode },
+        new Date(slot), durationMin, booking.people, booking.extras, timeZone,
+      ),
+      // S6: the equipment moves with the booking (the RPC re-attaches it),
+      // so the new total carries it too.
+      ...equipmentLines(equipment, booking.equipment, durationMin),
+    ];
     const newTotalCents = lines.length === 0 ? null : sumLines(lines);
     out = changeLines(
       { newTotalCents, currency: booking.currency, feeCents, feePct, priorFeeCents: booking.feeCents, paidCents: booking.paidCents, refundedCents: booking.refundedCents },
       t,
     );
   } catch {
-    // A slot the live rules refuse (quote_band/quote_people/quote_extra) —
-    // the RPC still carries the old snapshot, so say nothing rather than
-    // show a broken preview.
+    // A slot (or a pick) the live rules refuse — quote_band/quote_people/
+    // quote_extra/quote_equipment. The RPC still carries the old snapshot,
+    // so say nothing rather than show a broken preview.
     return null;
   }
   if (out.length === 0) return null;

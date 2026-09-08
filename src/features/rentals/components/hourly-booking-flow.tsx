@@ -7,9 +7,9 @@ import { Minus, Plus } from "lucide-react";
 import { INTL_LOCALES } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
 import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
-import { durationOptions, formatDurationLabel, type HourlyOffering } from "@/features/rentals/hourly";
-import { quoteHours, sumLines, headlinePrice } from "@/features/rentals/pricing";
-import type { ExtraPick } from "@/features/rentals/pricing-rules";
+import { durationOptions, formatDurationLabel, freeUnitsAt, type HourlyOffering } from "@/features/rentals/hourly";
+import { equipmentLines, quoteHours, sumLines, headlinePrice } from "@/features/rentals/pricing";
+import type { EquipmentPick, ExtraPick } from "@/features/rentals/pricing-rules";
 import { formatMoney } from "@/lib/money";
 import { getHourlySlots, createRentalBookingHours } from "@/features/rentals/hourly-actions";
 import { formatHourlyWhenLine } from "@/features/scheduling/templates";
@@ -37,6 +37,20 @@ function todayISO(): string {
 }
 
 type HourlySlot = { startsAt: string; unitIds: string[] };
+// S6: what getHourlySlots offers as add-ons. `busy` crosses the wire as ISO
+// (a server action hands a Date over as a string) — `load` re-hydrates it,
+// because freeUnitsAt compares instants.
+type WireEquipment = Extract<Awaited<ReturnType<typeof getHourlySlots>>, { ok: true }>["equipment"][number];
+type Equipment = Omit<WireEquipment, "units"> & {
+  units: { id: string; busy: { startsAt: Date; endsAt: Date }[] }[];
+};
+const hydrate = (e: WireEquipment): Equipment => ({
+  ...e,
+  units: e.units.map((u) => ({
+    id: u.id,
+    busy: u.busy.map((b) => ({ startsAt: new Date(b.startsAt), endsAt: new Date(b.endsAt) })),
+  })),
+});
 
 export function HourlyBookingFlow({
   handle,
@@ -92,6 +106,10 @@ export function HourlyBookingFlow({
   // S1: null people = the offering's included count; [] extras = none picked.
   const [people, setPeople] = React.useState<number | null>(null);
   const [extras, setExtras] = React.useState<ExtraPick[]>([]);
+  // S6: equipment add-ons — the picks, and what the org offers with its
+  // busy time (so a row can say how many are free at the chosen slot).
+  const [equipment, setEquipment] = React.useState<EquipmentPick[]>([]);
+  const [equipmentDefs, setEquipmentDefs] = React.useState<Equipment[]>([]);
   const [termsAccepted, setTermsAccepted] = React.useState(false);
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
   // Whether the RPC left it pending (the space requires approval) — the done
@@ -127,6 +145,7 @@ export function HourlyBookingFlow({
       if (res.ok) {
         setSlots(res.slots);
         setUnits(res.units);
+        setEquipmentDefs(res.equipment.map(hydrate));
         // Booked out here? Open on the window holding the first free time —
         // one round trip instead of a "try the next" click per empty page.
         if (firstLook) {
@@ -172,6 +191,7 @@ export function HourlyBookingFlow({
       setTermsAccepted(false);
       setPeople(null);
       setExtras([]);
+      setEquipment([]);
       return;
     }
     flushSync(() => {
@@ -199,6 +219,14 @@ export function HourlyBookingFlow({
     setTermsAccepted(false);
     setPeople(null);
     setExtras([]);
+    setEquipment([]);
+  }
+
+  // S6: a fresh time has its own free counts — the picks start over rather
+  // than being silently re-capped against it.
+  function pickSlot(iso: string) {
+    setSlot(iso);
+    setEquipment([]);
   }
 
   const matchingSlot = slot ? slots.find((s) => s.startsAt === slot) : undefined;
@@ -226,6 +254,7 @@ export function HourlyBookingFlow({
         termsAccepted,
         people,
         extras,
+        equipment,
       });
       if (result.ok) {
         setDoneToken(result.token);
@@ -240,6 +269,7 @@ export function HourlyBookingFlow({
       if (result.quote) {
         setPeople(null);
         setExtras([]);
+        setEquipment([]);
       }
       if (result.slotTaken) {
         setSlot(null);
@@ -287,11 +317,16 @@ export function HourlyBookingFlow({
   const quote = React.useMemo(() => {
     if (!slot || !durationMin) return null;
     try {
-      return quoteHours(hourly, new Date(slot), durationMin, people, extras, orgTimeZone);
+      return [
+        ...quoteHours(hourly, new Date(slot), durationMin, people, extras, orgTimeZone),
+        // S6: same try — a quote_equipment throw is the live rules refusing
+        // this pick, exactly like the S1 sentinels.
+        ...equipmentLines(equipmentDefs, equipment, durationMin),
+      ];
     } catch {
       return null;
     }
-  }, [hourly, slot, durationMin, people, extras, orgTimeZone]);
+  }, [hourly, slot, durationMin, people, extras, equipment, equipmentDefs, orgTimeZone]);
 
   if (doneToken) {
     const summary =
@@ -379,7 +414,7 @@ export function HourlyBookingFlow({
           pending={pending}
           orgTimeZone={orgTimeZone}
           onNavigate={navigate}
-          onPick={setSlot}
+          onPick={pickSlot}
           regionRef={slotsRegionRef}
           headerSlot={
             <p className={cn(STEP_LABEL, "min-w-0")}>
@@ -515,6 +550,58 @@ export function HourlyBookingFlow({
                         size="sm"
                         aria-label={t("moreOf", { label: x.label })}
                         disabled={qty >= x.maxQty}
+                        onClick={() => setQty(qty + 1)}
+                      >
+                        <Plus />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          {/* S6: the org's equipment, capped by what is actually free at this
+              time — a row at zero free still shows, saying so. */}
+          {equipmentDefs.length > 0 && slot && durationMin ? (
+            <ul className={ROW_LIST} aria-label={t("equipment")}>
+              {equipmentDefs.map((eq) => {
+                const free = freeUnitsAt(eq.units, new Date(slot), new Date(new Date(slot).getTime() + durationMin * 60_000));
+                const qty = equipment.find((e) => e.offeringId === eq.id)?.qty ?? 0;
+                const setQty = (q: number) =>
+                  setEquipment(
+                    q <= 0
+                      ? equipment.filter((e) => e.offeringId !== eq.id)
+                      : [...equipment.filter((e) => e.offeringId !== eq.id), { offeringId: eq.id, qty: q }],
+                  );
+                return (
+                  <li key={eq.id} className="flex items-center justify-between gap-3 py-2">
+                    <span className="min-w-0">
+                      <span className="block">{eq.name}</span>
+                      <span className="text-muted-foreground block text-xs">
+                        {formatMoney(eq.priceCents ?? 0, currency)} ·{" "}
+                        {eq.pricingMode === "flat" ? tu("perBooking") : tu("perHourShort")}
+                        {" · "}
+                        {free === 0 ? t("noneLeft") : t("available", { count: free })}
+                      </span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={t("fewerOf", { label: eq.name })}
+                        disabled={qty === 0}
+                        onClick={() => setQty(qty - 1)}
+                      >
+                        <Minus />
+                      </Button>
+                      <span className="w-6 text-center tabular-nums">{qty}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-label={t("moreOf", { label: eq.name })}
+                        disabled={qty >= free}
                         onClick={() => setQty(qty + 1)}
                       >
                         <Plus />

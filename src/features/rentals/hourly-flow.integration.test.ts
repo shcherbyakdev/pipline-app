@@ -469,6 +469,103 @@ describe("hourly public booking flow (action layer)", () => {
     // A hold is not a booking: the provider hears nothing until the money lands.
     expect(mail.sent.some((m) => /new booking/i.test(String(m.subject)))).toBe(false);
   });
+
+  // S6: equipment is an add-on, never a room — priced into the same quote,
+  // held on its own booking_units row, and offered by getHourlySlots. Own
+  // room (100 zł/h, no deposit) so the total is a plain sum.
+  it("S6: a booking with an equipment pick prices it, holds a lamp, and getHourlySlots lists the equipment", async () => {
+    net.clientIp = "203.0.113.64";
+    const space = async (name: string, kind: "space" | "equipment", priceCents: number) => {
+      const { data, error } = await owner
+        .from("rental_offerings")
+        .insert({
+          org_id: orgId,
+          name,
+          kind,
+          range_mode: "hours",
+          unit_selection: "auto",
+          slot_increment_min: 30,
+          min_duration_min: 60,
+          max_duration_min: 240,
+          turnover_min: 0,
+          min_notice_min: 0,
+          booking_window_days: 730,
+          price_cents: priceCents,
+          pricing_mode: "per_unit",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      const id = data!.id as string;
+      const { error: eUnit } = await owner
+        .from("rental_units")
+        .insert({ org_id: orgId, offering_id: id, name: `${name} 1`, sort_order: 0 });
+      if (eUnit) throw eUnit;
+      return id;
+    };
+    const roomId = await space("Equipment Studio", "space", 10000);
+    const lampId = await space("ARRI lamp", "equipment", 5000);
+    // Only the room needs opening hours: the lamp rides the room's slot
+    // (attach_booking_equipment reads occupancy, never availability).
+    const { error: eRules } = await owner.from("availability_rules").insert(
+      Array.from({ length: 7 }, (_, weekday) => ({
+        org_id: orgId,
+        rental_offering_id: roomId,
+        weekday,
+        start_time: "09:00",
+        end_time: "21:00",
+      })),
+    );
+    if (eRules) throw eRules;
+
+    const slots = await hourlyActions.getHourlySlots({
+      handle: HANDLE,
+      offeringId: roomId,
+      durationMin: 60,
+      fromDate: d(3),
+      days: 7,
+    });
+    expect(slots.ok && slots.equipment.map((e) => e.id)).toEqual([lampId]);
+
+    const email = `eq-${Date.now()}@example.com`;
+    const result = await hourlyActions.createRentalBookingHours({
+      handle: HANDLE,
+      offeringId: roomId,
+      unitId: null,
+      startsAt: iso(`${d(3)}T10:00`),
+      durationMin: 60,
+      name: "Eq Client",
+      email,
+      termsAccepted: false,
+      people: null,
+      extras: [],
+      equipment: [{ offeringId: lampId, qty: 1 }],
+    });
+    expect(result.ok).toBe(true);
+    // 100 zł for the hour + 50 zł for the lamp, in one quote.
+    const { data } = await admin.from("bookings").select("id, price_cents").eq("client_email", email).single();
+    expect(data!.price_cents).toBe(10000 + 5000);
+    const { data: rows } = await admin.from("booking_units").select("kind").eq("booking_id", data!.id);
+    expect(rows!.map((r) => r.kind).sort()).toEqual(["equipment", "primary"]);
+
+    // One lamp exists: asking for two is a quote refusal, not a lost slot —
+    // a free 14:00 so nothing here is about the room.
+    const over = await hourlyActions.createRentalBookingHours({
+      handle: HANDLE,
+      offeringId: roomId,
+      unitId: null,
+      startsAt: iso(`${d(3)}T14:00`),
+      durationMin: 60,
+      name: "Eq Client",
+      email,
+      termsAccepted: false,
+      people: null,
+      extras: [],
+      equipment: [{ offeringId: lampId, qty: 2 }],
+    });
+    expect(over.ok).toBe(false);
+    expect(!over.ok && over.quote).toBe(true);
+  });
 });
 
 // Own offering (2 units, unit_selection: client_picks) so these tests can't
