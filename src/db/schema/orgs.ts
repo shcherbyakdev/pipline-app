@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, index, jsonb, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index, jsonb, boolean, integer, date } from "drizzle-orm/pg-core";
 
 // Tenant root. Every domain row carries `org_id` and is guarded by an RLS
 // policy keyed on the caller's org membership (read from a JWT claim).
@@ -46,6 +46,9 @@ export const orgs = pgTable("orgs", {
   // defaults (features/notifications/prefs.ts). Written ONLY via
   // update_org_notification_prefs.
   notificationPrefs: jsonb("notification_prefs"),
+  // S4: org-local date of the last morning-digest claim (digest_due_orgs /
+  // runDailyDigest). Null = never sent. Written by the drain only.
+  digestSentOn: date("digest_sent_on"),
   // S2: how long a held booking waits for its deposit (30/60/180/1440 min)
   // and the legal identity the public footer prints. Written ONLY via
   // update_org_payments.

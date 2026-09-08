@@ -582,6 +582,13 @@
       "when": 1789000000000,
       "tag": "0082_after_session_charges",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1789100000000,
+      "tag": "0083_daily_list",
+      "breakpoints": true
     }
   ]
 }
