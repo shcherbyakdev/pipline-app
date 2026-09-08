@@ -12,7 +12,7 @@ import { OFFERING_DEFAULTS } from "@/features/rentals/schema";
 import type { RangeMode } from "@/features/rentals/range";
 import type { DepositType } from "@/features/rentals/pricing";
 import { pricingRulesFor, type PricingRules } from "@/features/rentals/pricing-rules";
-import type { CancelPolicy } from "@/features/rentals/cancel-policy";
+import { cancelPolicySchema, type CancelPolicy } from "@/features/rentals/cancel-policy";
 import { Button } from "@/components/ui/button";
 import { Input, nativeSelectClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -203,6 +203,12 @@ export function OfferingForm({
         );
         return;
       }
+    }
+    // Same story as the pricing rules above: a duplicate lead is the one
+    // thing the server can only refuse generically — caught here first.
+    if (!cancelPolicySchema.safeParse(cancelPolicy).success) {
+      toast.error(t("form.cancelPolicyInvalid"));
+      return;
     }
     startTransition(async () => {
       const result = isEdit

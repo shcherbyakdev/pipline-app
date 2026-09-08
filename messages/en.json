@@ -744,6 +744,7 @@
       "tierAdd": "Add a tier",
       "tierAfter": "Less than {lead}: 100%",
       "tierUpToStart": "up to the start",
+      "cancelPolicyInvalid": "Check the cancellation tiers: each lead must be unique and at most 366 days.",
       "terms": "Terms",
       "minNoticeMinutes": "Min notice (minutes)",
       "minNoticeDays": "Min notice (days)",

@@ -126,13 +126,18 @@ function DetailBody({
   const feeLine = booking.feeCents > 0 && booking.currency ? t("hold.fee", { amount: formatMoney(booking.feeCents, booking.currency) }) : null;
   const outstanding = booking.feeCents - (booking.paidCents - booking.refundedCents);
   const outstandingLine = booking.feeCents > 0 && outstanding > 0 && booking.currency ? t("hold.feeOutstanding", { amount: formatMoney(outstanding, booking.currency) }) : null;
-  // S3 (decision 3): per policy / everything / nothing. The policy default
-  // is computed here for the label only — the action recomputes it.
+  // S3 (decision 3): per policy / everything / nothing. Both labels are
+  // computed here off the same booking arg the action itself reads — the
+  // action recomputes them, but the label must never promise a different
+  // number than what gets written (review: "none" keeps max(prior fee,
+  // held), not just held).
   const [refund, setRefund] = React.useState<AdminRefundMode>("policy");
-  const policyMoney = adminCancelMoney("policy", {
+  const cancelMoneyInput = {
     cancelPolicy: booking.cancelPolicy, priceCents: booking.priceCents, startsAt: new Date(booking.startsAt),
     paidCents: booking.paidCents, refundedCents: booking.refundedCents, feeCents: booking.feeCents,
-  }, new Date(now));
+  };
+  const policyMoney = adminCancelMoney("policy", cancelMoneyInput, new Date(now));
+  const noneMoney = adminCancelMoney("none", cancelMoneyInput, new Date(now));
   const held = booking.paidCents - booking.refundedCents;
   const hasChoice = held > 0 || policyMoney.feeCents > 0;
 
@@ -218,7 +223,7 @@ function DetailBody({
               ? t("cancel.policyLine", { kept: formatMoney(policyMoney.feeCents, booking.currency), refund: formatMoney(policyMoney.refundCents, booking.currency) })
               : refund === "all"
                 ? t("cancel.refund", { amount: formatMoney(held, booking.currency) })
-                : t("cancel.feeLine", { fee: formatMoney(held, booking.currency) })}
+                : t("cancel.feeLine", { fee: formatMoney(noneMoney.feeCents, booking.currency) })}
           </span>
         </span>
       ) : null}

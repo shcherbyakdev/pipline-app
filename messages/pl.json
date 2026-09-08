@@ -744,6 +744,7 @@
       "tierAdd": "Dodaj poziom",
       "tierAfter": "Mniej niż {lead}: 100%",
       "tierUpToStart": "aż do rozpoczęcia",
+      "cancelPolicyInvalid": "Sprawdź poziomy odwołania: każdy próg musi być unikalny i nie dłuższy niż 366 dni.",
       "terms": "Regulamin",
       "minNoticeMinutes": "Min. wyprzedzenie (minuty)",
       "minNoticeDays": "Min. wyprzedzenie (dni)",
