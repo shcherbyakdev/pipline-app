@@ -351,6 +351,7 @@
         "requestExpired": "Prośba wygasła"
       },
       "tooManyRequests": "Zbyt wiele żądań — spróbuj ponownie za chwilę.",
+      "alsoReserved": "Zarezerwowano również: {names}",
       "alreadyStarted": "Ta rezerwacja już się rozpoczęła.",
       "awaiting": "{orgName} nie potwierdził jeszcze tej prośby — dostaniesz e-mail, gdy to zrobi.",
       "reschedule": "Przełóż",
@@ -951,6 +952,7 @@
       "expired": "Zwolniono — nieopłacone"
     },
     "fallbackTitle": "Wizyta",
+    "alsoReserved": "Zarezerwowano również: {names}",
     "weekdays": "Pn Wt Śr Cz Pt So Nd",
     "prevWeek": "Poprzedni tydzień",
     "nextWeek": "Następny tydzień",

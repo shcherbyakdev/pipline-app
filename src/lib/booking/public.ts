@@ -1010,6 +1010,24 @@ export async function getBookingMoney(bookingId: string): Promise<{
 
 // The confirmation email names the unit the RPC picked; only the booking id
 // comes back from it.
+/** S6: the OTHER units a booking holds (booking_units, 0084) — the rooms a
+    whole-studio stay swallows, the lamps an add-on reserves. Named for the
+    client on the manage page; sorted, since PostgREST's order is arbitrary
+    and the line must not reshuffle between two loads. */
+export async function listBookingAlsoReserved(bookingId: string): Promise<string[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("booking_units")
+    .select("rental_units(name)")
+    .eq("booking_id", bookingId)
+    .neq("kind", "primary");
+  if (error || !data) return [];
+  return (data as unknown as Array<{ rental_units: { name: string } | null }>)
+    .map((r) => r.rental_units?.name)
+    .filter((n): n is string => !!n)
+    .sort();
+}
+
 export async function getBookingUnitName(bookingId: string): Promise<string | null> {
   const admin = createAdminClient();
   const { data, error } = await admin

@@ -102,6 +102,7 @@ export function TimelineLane({
   today,
   now,
   stays,
+  ghostIds,
   blackouts,
   conflicts,
   spotlightId,
@@ -125,6 +126,10 @@ export function TimelineLane({
   today: string | null;
   now: Date | null;
   stays: AdminBooking[];
+  /** S6: which of `stays` this lane only HOSTS — a whole-studio booking on
+      one of its rooms, an add-on on a lamp. Drawn as a ghost of the bar the
+      booking's own lane carries; the click is the same booking. */
+  ghostIds?: Set<string>;
   blackouts: TimelineBlackout[];
   conflicts: ReadonlyMap<string, Conflict[]>;
   /** The booking whose card the banner's Show opened, if any. */
@@ -305,6 +310,7 @@ export function TimelineLane({
                       clippedRight={bar.clippedRight}
                       spotlight={spotlightId === b.id}
                       onSpotlightEnd={onSpotlightEnd}
+                      placement={ghostIds?.has(b.id) ?? false}
                       style={{
                         top: `calc(${rowMid} - ${ROW_PX / 2 - 4}px)`,
                         height: ROW_PX - 8,
@@ -347,6 +353,7 @@ export function TimelineLane({
                     clippedRight={false}
                     spotlight={spotlightId === b.id}
                     onSpotlightEnd={onSpotlightEnd}
+                    placement={ghostIds?.has(b.id) ?? false}
                     chip
                     // the day's stack sits centred in the lane, however tall
                     // the lane is stretched
@@ -383,6 +390,7 @@ function StayBar({
   clippedRight,
   spotlight,
   onSpotlightEnd,
+  placement = false,
   chip = false,
   style,
   onSelect,
@@ -401,6 +409,8 @@ function StayBar({
   /** Mount with the card open (the banner's Show); reports when it closes. */
   spotlight: boolean;
   onSpotlightEnd: () => void;
+  /** S6: this lane only hosts the booking (its own lane is elsewhere). */
+  placement?: boolean;
   chip?: boolean;
   style: React.CSSProperties;
   onSelect: (b: AdminBooking) => void;
@@ -433,22 +443,29 @@ function StayBar({
   const when = whenLineFor({ startsAt, endsAt, isRental: true, rangeMode: mode }, timeZone, intlLocale);
   const time = mode === "hours" ? minToTime(zonedParts(startsAt, timeZone).minutes) : null;
   const note = b.note ? `“${b.note}”` : null;
+  // On a lane that only hosts the booking, the client's name alone says
+  // nothing about WHY the room is gone — the space that took it leads.
+  const name = placement ? `${b.serviceName} · ${b.clientName}` : b.clientName;
+  // The booking's own bar owns its id and its spotlight; a ghost is a second
+  // drawing of the same booking, so it must not duplicate either (the
+  // banner's Show scrolls to one element, and one card opens, not three).
+  const spot = spotlight && !placement;
 
   return (
     <Tooltip
-      key={spotlight ? "spotlight" : "idle"}
-      defaultOpen={spotlight}
+      key={spot ? "spotlight" : "idle"}
+      defaultOpen={spot}
       onOpenChange={(open) => {
-        if (!open && spotlight) onSpotlightEnd();
+        if (!open && spot) onSpotlightEnd();
       }}
     >
       <TooltipTrigger
         render={
           <button
             type="button"
-            id={`tl-stay-${b.id}`}
+            id={placement ? undefined : `tl-stay-${b.id}`}
             onClick={() => onSelect(b)}
-            aria-label={`${b.clientName}, ${when}${ghost ? `. ${ghost}` : ""}${flagged ? `. ${conflicts.map((c) => conflictText(t, intlLocale, c)).join(". ")}` : ""}`}
+            aria-label={`${name}, ${when}${ghost ? `. ${ghost}` : ""}${flagged ? `. ${conflicts.map((c) => conflictText(t, intlLocale, c)).join(". ")}` : ""}`}
             className={cn(
               "absolute z-10 flex overflow-hidden rounded-md border text-left shadow-sm outline-none transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring",
               chip ? "items-center gap-1 px-1 text-[11px]" : "flex-col justify-center px-1.5 text-xs",
@@ -458,6 +475,8 @@ function StayBar({
               // A request holds the dates without being confirmed — a ghost
               // of the bar it becomes when the owner accepts.
               pendingRequest && "border-dashed",
+              // A ghost: the booking's real bar is on its own lane.
+              placement && "border-dashed opacity-70",
               flagged && (hard ? "ring-2 ring-destructive" : "ring-2 ring-amber-500"),
             )}
             style={{
@@ -477,7 +496,7 @@ function StayBar({
                 {widthPx >= 96 ? (
                   <>
                     <span className="tabular-nums opacity-80">{time}</span>
-                    <span className="truncate font-medium">{b.clientName}</span>
+                    <span className="truncate font-medium">{name}</span>
                   </>
                 ) : (
                   <span className="truncate font-medium tabular-nums">{widthPx >= 56 ? time : time?.slice(0, 2)}</span>
@@ -493,7 +512,7 @@ function StayBar({
                       <span className="sr-only">{contLeft}</span>
                     </span>
                   ) : null}
-                  <span className="truncate font-medium">{density === "initials" ? initials(b.clientName) : b.clientName}</span>
+                  <span className="truncate font-medium">{density === "initials" ? initials(b.clientName) : name}</span>
                   {phase === "current" && density === "full" ? (
                     <span className="bg-primary text-primary-foreground shrink-0 rounded px-1 text-[10px] leading-4">{t("timeline.inHouse")}</span>
                   ) : null}
@@ -515,7 +534,7 @@ function StayBar({
         }
       />
       <TooltipContent className="flex-col items-start gap-0.5 py-2 text-left">
-        <span className="font-medium">{b.clientName}</span>
+        <span className="font-medium">{name}</span>
         <span>{when}</span>
         <span className="opacity-70">
           {length} · {withUnit(offering.name, unitName)}

@@ -265,7 +265,13 @@ export default async function BookingsPage({
         : data.offerings;
     const unitIds = new Set(offerings.flatMap((o) => o.units.map((u) => u.id)));
     const blackouts = data.blackouts.filter((b) => unitIds.has(b.unitId));
-    const bookings = data.bookings.filter((b) => b.rentalUnitId !== null && unitIds.has(b.rentalUnitId));
+    // S6: a booking whose own space is scoped away still blocks the rooms it
+    // swallowed — it rides along so those lanes can draw their ghost.
+    const placements = data.placements.filter((p) => unitIds.has(p.unitId));
+    const placed = new Set(placements.map((p) => p.bookingId));
+    const bookings = data.bookings.filter(
+      (b) => (b.rentalUnitId !== null && unitIds.has(b.rentalUnitId)) || placed.has(b.id),
+    );
     // The default zoom writes no param, so the plain Timeline link stays clean.
     const zoomQs = (d: number) => (d === 28 ? "" : `&days=${d}`);
     const base = `/bookings?view=timeline${zoomQs(days)}${scopeSuffix}`;
@@ -304,6 +310,7 @@ export default async function BookingsPage({
           offerings={offerings}
           blackouts={blackouts}
           bookings={bookings}
+          placements={placements}
           scopeSuffix={scopeSuffix}
           hrefBase={base}
         />

@@ -99,6 +99,9 @@ export async function loadBookingSettlement(
       balanceCents: number;
       hourlyRateCents: number | null;
       canCollect: boolean;
+      /** S6: the names of the other units this booking holds — the rooms a
+          whole-studio stay swallows, the lamps an add-on reserves. */
+      alsoReserved: string[];
     }
   | { ok: false; error: string }
 > {
@@ -116,10 +119,13 @@ export async function loadBookingSettlement(
       .maybeSingle();
     if (error) { console.error("[payments] loadBookingSettlement:", error); return { ok: false, error: t("generic") }; }
     if (!b) return { ok: false, error: t("generic") };
-    const [settlement, { data: due }, active] = await Promise.all([
+    const [settlement, { data: due }, active, { data: also }] = await Promise.all([
       getBookingSettlement(b.id),
       createAdminClient().rpc("booking_balance_cents", { p_booking_id: b.id }),
       hasActivePaymentAccount(org.id),
+      // The booking is already proven to be the org's; booking_units is
+      // readable by any member of it (0084).
+      supabase.from("booking_units").select("kind, rental_units(name)").eq("booking_id", b.id).neq("kind", "primary"),
     ]);
     return {
       ok: true,
@@ -134,6 +140,12 @@ export async function loadBookingSettlement(
       // Online collection needs both halves: somewhere to send the link and
       // an account that can take the money.
       canCollect: active && Boolean(b.client_email),
+      // Sorted: PostgREST's order is arbitrary, and the line must not
+      // reshuffle itself between two loads of the same booking.
+      alsoReserved: (also ?? [])
+        .map((r) => (r.rental_units as unknown as { name: string } | null)?.name)
+        .filter((n): n is string => !!n)
+        .sort(),
     };
   } catch (e) {
     console.error("[payments] loadBookingSettlement:", e);

@@ -26,6 +26,7 @@ type Settlement = {
   balanceCents: number;
   hourlyRateCents: number | null;
   canCollect: boolean;
+  alsoReserved: string[];
 };
 
 /* S7: what the session actually cost, once it is over. The block never does
@@ -50,6 +51,8 @@ export function BookingCharges({
   ended: boolean;
 }) {
   const t = useTranslations("bookings.charges");
+  // S6: the "Also reserved" line belongs to the booking, not to the bill.
+  const tBookings = useTranslations("bookings");
   // The client-facing money vocabulary, already translated and already
   // carrying the "label × qty — amount" shape (public.units).
   const tUnits = useTranslations("public.units");
@@ -186,6 +189,9 @@ export function BookingCharges({
   return (
     <section className="flex flex-col gap-2 rounded-lg border border-input p-3">
       <h3 className="text-sm font-medium">{t("title")}</h3>
+      {data.alsoReserved.length > 0 ? (
+        <p className="text-muted-foreground text-xs">{tBookings("alsoReserved", { names: data.alsoReserved.join(", ") })}</p>
+      ) : null}
 
       {data.charges.length > 0 ? (
         <ul className="flex flex-col gap-1">

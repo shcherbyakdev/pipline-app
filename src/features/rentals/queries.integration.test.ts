@@ -393,3 +393,79 @@ describe("listTimelineData turnover padding", () => {
     expect(offerings.find((o) => o.id === offeringId)).toMatchObject({ slotIncrementMin: null, minDurationMin: null, maxDurationMin: null });
   });
 });
+
+// S6: a whole-studio booking occupies its own unit AND every room the
+// composite includes (0084's sync_booking_units trigger). The tape chart has
+// to hear about those rooms — `placements` is what puts the ghost bar on
+// their lanes — and the primary row must NOT come back, since the booking's
+// own lane is already drawn from the bookings feed.
+describe("listTimelineData placements", () => {
+  const TZ = "Europe/Berlin";
+  const FROM_DATE = "2027-06-14";
+
+  let owner: SupabaseClient;
+  let orgId: string;
+  let wholeUnitId: string;
+  let roomUnitIds: string[];
+  let bookingId: string;
+
+  beforeAll(async () => {
+    owner = await signedInUser("rentq_placements");
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentQPlacements", p_offers_appointments: false, p_offers_rentals: true });
+    if (e1) throw e1;
+    orgId = (org as { id: string }).id;
+    actingClient.current = owner;
+
+    const hourly = async (name: string, kind: "space" | "composite") => {
+      const { data: off, error } = await owner
+        .from("rental_offerings")
+        .insert({ org_id: orgId, name, kind, range_mode: "hours", slot_increment_min: 30, min_duration_min: 60, max_duration_min: 240 })
+        .select("id")
+        .single();
+      if (error) throw error;
+      const { data: unit, error: uErr } = await owner
+        .from("rental_units")
+        .insert({ org_id: orgId, offering_id: off!.id, name: `${name} unit` })
+        .select("id")
+        .single();
+      if (uErr) throw uErr;
+      return { id: off!.id as string, unitId: unit!.id as string };
+    };
+    const [roomA, roomB, whole] = [await hourly("Room A", "space"), await hourly("Room B", "space"), await hourly("Whole studio", "composite")];
+    wholeUnitId = whole.unitId;
+    roomUnitIds = [roomA.unitId, roomB.unitId];
+    const { error: linkError } = await owner.from("rental_offering_components").insert([
+      { composite_id: whole.id, component_id: roomA.id, org_id: orgId },
+      { composite_id: whole.id, component_id: roomB.id, org_id: orgId },
+    ]);
+    if (linkError) throw linkError;
+
+    // The trigger writes the occupancy rows on any insert, RPC or not.
+    const { data: booking, error: bErr } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        rental_offering_id: whole.id,
+        rental_unit_id: whole.unitId,
+        client_name: "Wes Whole",
+        client_email: "wes@example.com",
+        starts_at: wallTimeToUtc(addDaysISO(FROM_DATE, 1), "10:00", TZ).toISOString(),
+        ends_at: wallTimeToUtc(addDaysISO(FROM_DATE, 1), "14:00", TZ).toISOString(),
+        status: "confirmed",
+        cancel_token_hash: generateAccessToken().tokenHash,
+      })
+      .select("id")
+      .single();
+    if (bErr) throw bErr;
+    bookingId = booking!.id as string;
+  });
+
+  it("returns one component placement per room the whole studio blocks, and no primary row", async () => {
+    const { bookings, placements } = await listTimelineData(FROM_DATE, TZ);
+    expect(bookings.some((b) => b.id === bookingId)).toBe(true);
+    const mine = placements.filter((p) => p.bookingId === bookingId);
+    expect(mine.map((p) => p.unitId).sort()).toEqual([...roomUnitIds].sort());
+    expect(mine.every((p) => p.kind === "component")).toBe(true);
+    expect(mine.some((p) => p.unitId === wholeUnitId)).toBe(false);
+  });
+});

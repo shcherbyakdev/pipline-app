@@ -351,6 +351,7 @@
         "expired": "Released — the deposit wasn't paid in time"
       },
       "tooManyRequests": "Too many requests — try again shortly.",
+      "alsoReserved": "Also reserved: {names}",
       "alreadyStarted": "This booking has already started.",
       "awaiting": "{orgName} hasn't confirmed this request yet — you'll get an email when they do.",
       "reservedUntil": "Reserved until {until}. Pay the deposit to confirm.",
@@ -951,6 +952,7 @@
       "expired": "Released — unpaid"
     },
     "fallbackTitle": "Appointment",
+    "alsoReserved": "Also reserved: {names}",
     "weekdays": "Mo Tu We Th Fr Sa Su",
     "prevWeek": "Previous week",
     "nextWeek": "Next week",

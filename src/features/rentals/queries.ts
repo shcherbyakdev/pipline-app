@@ -249,6 +249,14 @@ export type TimelineBlackout = {
   endDate: string;
   reason: string | null;
 };
+/** S6: a unit a booking occupies that is NOT its own (booking_units, 0084) —
+    every room of a whole-studio composite, every lamp of an equipment
+    add-on. The lane it names draws the booking as a ghost. */
+export type TimelinePlacement = {
+  bookingId: string;
+  unitId: string;
+  kind: "component" | "equipment";
+};
 
 type TimelineOfferingDb = {
   id: string;
@@ -278,7 +286,12 @@ export async function listTimelineData(
   fromDate: string,
   timeZone: string,
   days: number = TIMELINE_DAYS,
-): Promise<{ offerings: TimelineOffering[]; blackouts: TimelineBlackout[]; bookings: AdminBooking[] }> {
+): Promise<{
+  offerings: TimelineOffering[];
+  blackouts: TimelineBlackout[];
+  bookings: AdminBooking[];
+  placements: TimelinePlacement[];
+}> {
   // A deleted service leaves no name; the word is the admin's (bookings.fallbackTitle).
   const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
   const supabase = await createClient();
@@ -310,7 +323,7 @@ export async function listTimelineData(
 
   const allUnitIds = offeringDb.flatMap((o) => (o.rental_units ?? []).map((u) => u.id));
 
-  const [blackoutsRes, bookingsRes] = await Promise.all([
+  const [blackoutsRes, bookingsRes, placementsRes] = await Promise.all([
     allUnitIds.length > 0
       ? supabase
           .from("rental_unit_blackouts")
@@ -329,12 +342,34 @@ export async function listTimelineData(
       .lt("starts_at", toIso)
       .gt("ends_at", fromIso)
       .order("starts_at", { ascending: true }),
+    // S6: the units a booking occupies that are not its own — the rooms a
+    // whole-studio composite swallows, the lamps an add-on holds (0084).
+    // Only reserving rows block anything, and the primary one is the
+    // booking's own lane, already drawn by the feed above.
+    supabase
+      .from("booking_units")
+      .select("booking_id, rental_unit_id, kind")
+      .eq("reserving", true)
+      .neq("kind", "primary")
+      .lt("starts_at", toIso)
+      .gt("ends_at", fromIso),
   ]);
   if (blackoutsRes.error) throw blackoutsRes.error;
   if (bookingsRes.error) throw bookingsRes.error;
+  if (placementsRes.error) throw placementsRes.error;
 
   const bookings = ((bookingsRes.data ?? []) as unknown as BookingRow[]).map((b) => toAdminBooking(b, fallbackTitle));
-  const bookedUnitIds = new Set(bookings.map((b) => b.rentalUnitId).filter((id): id is string => id !== null));
+  const placementRows = (placementsRes.data ?? []) as unknown as Array<{
+    booking_id: string;
+    rental_unit_id: string;
+    kind: TimelinePlacement["kind"];
+  }>;
+  // An inactive unit stays on the chart while something still holds it —
+  // being held by somebody ELSE'S booking counts just the same.
+  const bookedUnitIds = new Set([
+    ...bookings.map((b) => b.rentalUnitId).filter((id): id is string => id !== null),
+    ...placementRows.map((p) => p.rental_unit_id),
+  ]);
   const bookedOfferingIds = new Set(
     bookings.map((b) => b.rentalOfferingId).filter((id): id is string => id !== null),
   );
@@ -366,8 +401,11 @@ export async function listTimelineData(
       endDate: b.end_date,
       reason: b.reason,
     }));
+  const placements: TimelinePlacement[] = placementRows
+    .filter((p) => keptUnitIds.has(p.rental_unit_id))
+    .map((p) => ({ bookingId: p.booking_id, unitId: p.rental_unit_id, kind: p.kind }));
 
-  return { offerings, blackouts, bookings };
+  return { offerings, blackouts, bookings, placements };
 }
 
 // The org's settlement currency for money display (single-org session).
