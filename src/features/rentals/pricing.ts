@@ -92,7 +92,11 @@ export type MoneyInfo = {
 // was paid and what is left for the venue; a refund prints last, before the
 // policy line. A `settled` booking drops every "at the venue" / "deposit
 // due" line and the policy line — nobody is coming, nothing is owed at the
-// door, and the terms no longer apply.
+// door, and the terms no longer apply. S7: every after-session charge prints
+// its own line (with the qty when there is more than one) between the fee and
+// the paid line, a write-off prints its own line after them, and the balance
+// reads "pay online or at the venue" when `onlinePay` says the org can take
+// card money — plain "due at the venue" when it cannot.
 export function moneyInfoLines(i: MoneyInfo, t: UnitsT): string[] {
   const lines: string[] = [];
   const paid = i.paidCents ?? 0;

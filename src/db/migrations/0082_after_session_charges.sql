@@ -210,10 +210,56 @@ revoke all on function public.rotate_booking_token(uuid, text)
   from public, anon, authenticated, service_role;
 --> statement-breakpoint
 grant execute on function public.rotate_booking_token(uuid, text) to authenticated;
+--> statement-breakpoint
+
+-- ---------- the carry triggers (base: 0081, bodies copied verbatim except
+-- the S7 edits marked below). A reschedule inserts a NEW row and moves the
+-- money onto it; after S7 the charges and the write-off are money too, so
+-- they must travel with it — otherwise the client reschedules and the
+-- studio's overtime charge stays behind on a dead row.
+create or replace function public.carry_booking_locale()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if new.rescheduled_from_id is not null then
+    if new.locale is null then
+      select b.locale into new.locale from public.bookings b where b.id = new.rescheduled_from_id;
+    end if;
+    -- S2: money carries (spec §Flows "Reschedule": paid_cents carries).
+    -- S3: so does the policy the client accepted.
+    -- S7 (edit 1): and the write-off the studio already granted.
+    select b.paid_cents, b.refunded_cents, b.cancel_policy, b.written_off_cents, b.written_off_note
+      into new.paid_cents, new.refunded_cents, new.cancel_policy, new.written_off_cents, new.written_off_note
+      from public.bookings b where b.id = new.rescheduled_from_id;
+  elsif new.cancel_policy is null and new.rental_offering_id is not null then
+    select ro.cancel_policy into new.cancel_policy
+      from public.rental_offerings ro where ro.id = new.rental_offering_id;
+  end if;
+  return new;
+end; $$;
+--> statement-breakpoint
+-- AFTER INSERT: the ledger follows the live row (S2) and the old row is
+-- zeroed (S3 ruling 10) — money lives on one row, every SUM is right.
+create or replace function public.carry_booking_payments()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.rescheduled_from_id is not null then
+    update public.booking_payments set booking_id = new.id, updated_at = now()
+      where booking_id = new.rescheduled_from_id;
+    -- S7 (edit 2): the charges follow the live row too, and the old row's
+    -- write-off is zeroed with the rest of its money.
+    update public.booking_charges set booking_id = new.id
+      where booking_id = new.rescheduled_from_id;
+    update public.bookings set paid_cents = 0, refunded_cents = 0, fee_cents = 0,
+        written_off_cents = 0, written_off_note = null
+      where id = new.rescheduled_from_id;
+  end if;
+  return new;
+end; $$;
 
 -- Rollback: drop function write_off_booking, booking_balance_cents; recreate
 -- apply_booking_payment (drop + create), mark_booking_paid and
--- rotate_booking_token from 0079; delete booking_payments rows with kind =
+-- rotate_booking_token from 0079; `create or replace` carry_booking_locale
+-- and carry_booking_payments from 0081; delete booking_payments rows with kind =
 -- 'balance' then restore the kind CHECK to ('deposit'); alter table bookings
 -- drop column written_off_cents, drop column written_off_note; drop table
 -- booking_charges.

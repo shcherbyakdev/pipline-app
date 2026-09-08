@@ -454,9 +454,7 @@
       "chargeLine": "{label} — {amount}",
       "chargeLineQty": "{label} × {qty} — {amount}",
       "balanceDue": "{amount} до сплати — онлайн або на місці",
-      "writtenOff": "Списано: {amount}",
-      "overpaid": "Переплата: {amount}",
-      "settled": "Розраховано"
+      "writtenOff": "Списано: {amount}"
     },
     "legal": {
       "taxId": "NIP {id}",

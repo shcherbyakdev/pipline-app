@@ -189,7 +189,7 @@ describe("startCheckout", () => {
   });
 
   it("a confirmed booking pays its balance, and the two kinds never share a session", async () => {
-    const { id } = await held("balance");
+    const { orgId, id } = await held("balance");
     // 100 zł booked, 30 zł taken → 70 zł outstanding (the fixture's price is 10000).
     await admin
       .from("bookings")
@@ -210,6 +210,24 @@ describe("startCheckout", () => {
       Date.now() + 23 * 3_600_000,
     );
 
+    // A charge added after the link was sent changes what is owed: the open
+    // session is for the OLD amount, so the next ask mints a fresh one.
+    const { error: chargeError } = await admin.from("booking_charges").insert({
+      org_id: orgId, booking_id: id, kind: "overtime", label: "Overtime", qty: 1, unit_cents: 2500, cents: 2500,
+    });
+    expect(chargeError).toBeNull();
+    const bigger = await startCheckout(id, URLS, { db: admin, provider });
+    expect(bigger).toHaveProperty("url");
+    expect(bigger).not.toEqual(balance);
+    const { data: balanceRows } = await admin
+      .from("booking_payments")
+      .select("amount_cents")
+      .eq("booking_id", id)
+      .eq("kind", "balance")
+      .eq("status", "pending")
+      .order("amount_cents");
+    expect(balanceRows!.map((r) => r.amount_cents)).toEqual([7000, 9500]);
+
     // Back to a live hold: the open balance session is NOT this deposit's.
     await admin
       .from("bookings")
@@ -223,10 +241,11 @@ describe("startCheckout", () => {
       .select("kind")
       .eq("booking_id", id)
       .eq("status", "pending");
-    expect(kinds!.map((r) => r.kind).sort()).toEqual(["balance", "deposit"]);
+    expect(kinds!.map((r) => r.kind).sort()).toEqual(["balance", "balance", "deposit"]);
 
-    // Settled in full: nothing left to open a session for.
-    await admin.from("bookings").update({ status: "confirmed", hold_expires_at: null, paid_cents: 10000 }).eq("id", id);
+    // Settled in full: nothing left to open a session for (12500 = the
+    // 10000 booking plus the 2500 charge).
+    await admin.from("bookings").update({ status: "confirmed", hold_expires_at: null, paid_cents: 12500 }).eq("id", id);
     await admin.from("booking_payments").update({ status: "expired" }).eq("booking_id", id);
     expect(await startCheckout(id, URLS, { db: admin, provider })).toEqual({ error: "nothing_due" });
   });

@@ -81,13 +81,16 @@ export async function startCheckout(
   if (!acct) return { error: "no_account" };
 
   // A session already open (and not about to lapse) is the one to hand back —
-  // a refresh must never mint a second one. Keyed by kind too (S7): a deposit
-  // request must never be handed the balance session's URL, or the reverse.
+  // a refresh must never mint a second one. Keyed by kind AND amount (S7): a
+  // deposit request must never be handed the balance session's URL, and a
+  // re-ask after a new charge must mint a session for the NEW balance rather
+  // than reuse one that would take too little.
   const { data: open } = await db
     .from("booking_payments")
     .select("checkout_url")
     .eq("booking_id", row.id)
     .eq("kind", kind)
+    .eq("amount_cents", amount)
     .eq("status", "pending")
     .not("checkout_url", "is", null)
     .gt("checkout_expires_at", new Date(now.getTime() + 60_000).toISOString())

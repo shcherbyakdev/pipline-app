@@ -42,7 +42,7 @@ export async function getBookingSettlement(
   db?: SupabaseClient,
 ): Promise<{ charges: Charge[]; writtenOffCents: number; writtenOffNote: string | null }> {
   const admin = db ?? createAdminClient();
-  const [{ data: rows }, { data: b }] = await Promise.all([
+  const [{ data: rows, error: chargesError }, { data: b, error: bookingError }] = await Promise.all([
     admin
       .from("booking_charges")
       .select("id, kind, label, qty, unit_cents, cents, note")
@@ -50,6 +50,10 @@ export async function getBookingSettlement(
       .order("created_at"),
     admin.from("bookings").select("written_off_cents, written_off_note").eq("id", bookingId).maybeSingle(),
   ]);
+  // A failed read is not "no charges": the fallbacks keep the page up, but
+  // the failure must not be silent.
+  if (chargesError) console.error("[payments] settlement charges read:", chargesError);
+  if (bookingError) console.error("[payments] settlement write-off read:", bookingError);
   return {
     charges: (rows ?? []).map((r) => ({
       id: r.id,
@@ -69,11 +73,12 @@ export async function getBookingSettlement(
     "pay online" or "settle at the venue".) */
 export async function hasActivePaymentAccount(orgId: string): Promise<boolean> {
   const admin = createAdminClient();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("payment_accounts")
     .select("org_id")
     .eq("org_id", orgId)
     .eq("status", "active")
     .maybeSingle();
+  if (error) console.error("[payments] account lookup:", error);
   return Boolean(data);
 }

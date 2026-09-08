@@ -435,8 +435,6 @@
       "chargeLineQty": "{label} × {qty} — {amount}",
       "balanceDue": "{amount} due — pay online or at the venue",
       "writtenOff": "Written off: {amount}",
-      "overpaid": "Overpaid: {amount}",
-      "settled": "Settled",
       "cancellationFee": "Cancellation fee: {amount}",
       "changeFee": "Late change fee: {amount}",
       "changeFeePct": "Late change fee: {amount} ({pct}%)",

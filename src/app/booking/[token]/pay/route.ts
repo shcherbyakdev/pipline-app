@@ -31,7 +31,9 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/booking/[tok
     locale: lang ?? (await getBookingLocale(b.id)),
   });
   if ("error" in started) {
-    manage.searchParams.set("pay", "failed");
+    // A lapsed hold is not a failed payment: the manage page's own status
+    // line already explains it, so that case gets no `pay=failed` banner.
+    if (started.error !== "expired") manage.searchParams.set("pay", "failed");
     return NextResponse.redirect(manage, 303);
   }
   return NextResponse.redirect(started.url, 303);

@@ -255,13 +255,10 @@ export type AdminBooking = {
   // display is always the row's own feeCents, never recomputed client-side.
   cancelPolicy: CancelPolicy | null;
   feeCents: number;
-  // S7 (0082): what the studio forgave on this booking. Display only — the
-  // balance itself comes from booking_balance_cents, never from here.
-  writtenOffCents: number;
 };
 
 export const BOOKING_COLUMNS =
-  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, price_cents, currency, deposit_cents, hold_expires_at, paid_cents, refunded_cents, cancel_policy, fee_cents, written_off_cents, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
+  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, price_cents, currency, deposit_cents, hold_expires_at, paid_cents, refunded_cents, cancel_policy, fee_cents, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
 
 export type BookingRow = {
   id: string;
@@ -284,7 +281,6 @@ export type BookingRow = {
   refunded_cents: number;
   cancel_policy: CancelPolicy | null;
   fee_cents: number;
-  written_off_cents: number;
   staff: { name: string; color: string } | null;
   services: { name: string } | null;
   rental_offerings: { name: string; range_mode: RangeMode } | null;
@@ -317,7 +313,6 @@ export function toAdminBooking(b: BookingRow, fallbackTitle: string): AdminBooki
     refundedCents: b.refunded_cents,
     cancelPolicy: b.cancel_policy,
     feeCents: b.fee_cents,
-    writtenOffCents: b.written_off_cents ?? 0,
   };
 }
 

@@ -278,6 +278,39 @@ describe("booking_charges RLS", () => {
     expect(del.data).toHaveLength(1);
   });
 
+  it("a member cannot call booking_balance_cents, nor edit a charge", async () => {
+    const { client, orgId, handle } = await newOrg("guard");
+    const { offeringId } = await hoursFixture(client, orgId);
+    const { id } = await createHours(handle, offeringId, startIn(100));
+    const { data: charge, error: insErr } = await client
+      .from("booking_charges")
+      .insert({ org_id: orgId, booking_id: id, kind: "other", label: "Props", qty: 1, unit_cents: 700, cents: 700 })
+      .select("id")
+      .single();
+    expect(insErr).toBeNull();
+
+    // The balance helper is security definer with no org gate: only the
+    // server (service_role) may ask it, never a signed-in browser.
+    const bal = await client.rpc("booking_balance_cents", { p_booking_id: id });
+    expect(bal.error).not.toBeNull();
+    expect(bal.error!.code === "42501" || /permission denied/.test(bal.error!.message)).toBe(true);
+
+    // A charge is added or removed, never edited: no UPDATE policy and no
+    // UPDATE privilege, so the write is refused or filtered to nothing.
+    const upd = await client
+      .from("booking_charges")
+      .update({ label: "x" })
+      .eq("id", charge!.id)
+      .select("id");
+    expect(upd.error !== null || (upd.data ?? []).length === 0).toBe(true);
+    const { data: after } = await admin
+      .from("booking_charges")
+      .select("label")
+      .eq("id", charge!.id)
+      .single();
+    expect(after!.label).toBe("Props");
+  });
+
   it("cents must equal qty × unit_cents", async () => {
     const { client, orgId, handle } = await newOrg("cents");
     const { offeringId } = await hoursFixture(client, orgId);
@@ -435,5 +468,49 @@ describe("rotate_booking_token after the session", () => {
       p_token_hash: generateAccessToken().tokenHash,
     });
     expect(pending.error?.message).toMatch(/not found/);
+  });
+});
+
+describe("a reschedule carries the charges and the write-off", () => {
+  it("moves booking_charges onto the new row, carries written_off_cents and zeroes the old one", async () => {
+    const { client, orgId, handle } = await newOrg("carry");
+    const { offeringId } = await hoursFixture(client, orgId); // no deposit → confirmed, unpaid
+    const { id, token } = await createHours(handle, offeringId, startIn(100));
+    expect((await bookingRow(id)).status).toBe("confirmed");
+
+    const charge = async (cents: number, label: string) => {
+      const { error } = await client.from("booking_charges").insert({
+        org_id: orgId, booking_id: id, kind: "other", label, qty: 1, unit_cents: cents, cents,
+      });
+      expect(error).toBeNull();
+    };
+    // 10000 price + 2000 charge, all forgiven → balance 0; then one more
+    // charge the client still owes.
+    await charge(2000, "Props");
+    const wo = await client.rpc("write_off_booking", { p_booking_id: id, p_note: "goodwill" });
+    expect(wo.error).toBeNull();
+    expect((await bookingRow(id)).written_off_cents).toBe(12000);
+    await charge(3000, "Overtime");
+    expect((await admin.rpc("booking_balance_cents", { p_booking_id: id })).data).toBe(3000);
+
+    // The client moves it: a NEW row, and every money fact must follow.
+    const { data, error } = await admin.rpc("reschedule_rental_booking_hours", {
+      p_token: token, p_unit_id: null, p_starts_at: startIn(110),
+      p_new_token_hash: generateAccessToken().tokenHash,
+    });
+    expect(error).toBeNull();
+    const newId = (data as Row[])[0]!.new_booking_id as string;
+
+    const fresh = await bookingRow(newId);
+    expect(fresh.written_off_cents).toBe(12000);
+    expect(fresh.written_off_note).toBe("goodwill");
+    expect((await admin.from("booking_charges").select("id").eq("booking_id", newId)).data).toHaveLength(2);
+    expect((await admin.rpc("booking_balance_cents", { p_booking_id: newId })).data).toBe(3000);
+
+    const old = await bookingRow(id);
+    expect(old.status).toBe("rescheduled");
+    expect(old.written_off_cents).toBe(0);
+    expect(old.written_off_note).toBeNull();
+    expect((await admin.from("booking_charges").select("id").eq("booking_id", id)).data).toEqual([]);
   });
 });
