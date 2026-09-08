@@ -378,7 +378,8 @@
       "unitAuto": "Auto",
       "unitAutoKeep": "Auto — keep {name} if free",
       "unitInactive": "{name} (inactive)",
-      "quotedNote": "“{note}”"
+      "quotedNote": "“{note}”",
+      "payBalance": "Pay {amount} now"
     },
     "stay": {
       "howLong": "How long?",

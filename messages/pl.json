@@ -378,7 +378,8 @@
       "paymentReceived": "Płatność otrzymana — dziękujemy.",
       "paymentProcessing": "Potwierdzamy Twoją płatność — ta strona zaktualizuje się, gdy bank ją rozliczy.",
       "paymentFailed": "Płatność jest chwilowo niedostępna — spróbuj ponownie za chwilę.",
-      "expiredBody": "Rezerwacja została zwolniona, ponieważ zaliczka nie została opłacona w terminie. Możesz zarezerwować ponownie na stronie studia."
+      "expiredBody": "Rezerwacja została zwolniona, ponieważ zaliczka nie została opłacona w terminie. Możesz zarezerwować ponownie na stronie studia.",
+      "payBalance": "Zapłać {amount}"
     },
     "stay": {
       "howLong": "Jak długo?",

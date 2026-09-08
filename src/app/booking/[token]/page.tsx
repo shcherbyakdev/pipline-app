@@ -8,6 +8,8 @@ import { formatUntil, whenLineFor } from "@/features/scheduling/templates";
 import { ManageBooking } from "@/features/scheduling/components/manage-booking";
 import { moneyInfoLines } from "@/features/rentals/pricing";
 import { cancelFeePct } from "@/features/rentals/cancel-policy";
+import { getBookingSettlement, hasActivePaymentAccount } from "@/features/payments/queries";
+import { balanceCents } from "@/features/payments/settlement";
 import { formatMoney } from "@/lib/money";
 import { INTL_LOCALES } from "@/i18n/config";
 import { publicLocale } from "@/i18n/public";
@@ -77,6 +79,24 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
   // Team: name the staff member the booking belongs to. Solo orgs collapse to
   // null, so the card reads exactly as it did before the team slice.
   const staffName = await resolveClientStaffName(b.orgId, b.staffName);
+  // S7: after-session charges and the write-off — rentals only (appointments
+  // render byte-identical to before this slice, so nothing is fetched for
+  // them and the empty defaults below reproduce the old output exactly).
+  const [settlement, canCollect] =
+    b.rentalUnitId !== null
+      ? await Promise.all([getBookingSettlement(b.id), hasActivePaymentAccount(b.orgId)])
+      : [{ charges: [], writtenOffCents: 0, writtenOffNote: null }, false];
+  const chargesCents = settlement.charges.reduce((s, c) => s + c.cents, 0);
+  // What the client still owes, for the "Pay now" button only — the RPC
+  // recomputes the real amount when they click.
+  const due = balanceCents({
+    priceCents: b.priceCents,
+    feeCents: b.feeCents,
+    chargesCents,
+    writtenOffCents: settlement.writtenOffCents,
+    paidCents: b.paidCents,
+    refundedCents: b.refundedCents,
+  });
   // H3: money lines (total/deposit/fee/policy) for the booking card.
   // S1: `lines` is the quote the RPC snapshotted — the breakdown the client
   // saw at checkout, printed above the total.
@@ -94,6 +114,11 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
       // S2: a dead row (a lapsed hold, a cancel, a decline) still shows what
       // was paid and refunded, but never asks for money at the venue.
       settled: DEAD_STATUSES.has(b.status),
+      // S7: after-session charges, the write-off, and whether they can be
+      // settled online.
+      charges: settlement.charges.map((c) => ({ label: c.label, qty: c.qty, cents: c.cents })),
+      writtenOffCents: settlement.writtenOffCents,
+      onlinePay: canCollect,
     },
     tUnits,
   );
@@ -118,6 +143,15 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
   const payParam = Array.isArray(sp.pay) ? sp.pay[0] : sp.pay;
   // The org's page theme (light / dark / auto), as the hosted page reads it.
   const theme = parseWidgetTheme((await getOrgBranding(b.orgId)).pageThemeRaw);
+  // S7: a confirmed booking with a real balance the org can take online gets
+  // a "Pay now" link straight to checkout, whether the session is still
+  // ahead or already behind them.
+  const payNowButton =
+    b.status === "confirmed" && due > 0 && canCollect && b.currency ? (
+      <a className={cn(buttonVariants({ variant: "brand" }), "h-9 self-start px-3.5")} href={`/booking/${token}/pay?lang=${locale}`}>
+        {t("payBalance", { amount: formatMoney(due, b.currency) })}
+      </a>
+    ) : null;
   return (
     <PublicIntl locale={locale} timeZone={b.orgTimezone}>
     <div className={bookShellClass(theme.theme)}>
@@ -164,19 +198,25 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
             {tConfirmed("addToCalendar")}
           </a>
           {isInFuture ? (
-            <ManageBooking
-              token={token}
-              timeZone={b.orgTimezone}
-              // Rentals R2: a stay reschedules through its own range picker
-              // (reschedule_rental_booking), an appointment through the slot
-              // grid — both are self-serve.
-              canReschedule={true}
-              cancelLines={cancelLines}
-              kind={b.rentalUnitId === null ? "appointment" : "rental"}
-              rangeMode={b.rangeMode}
-            />
+            <>
+              {payNowButton}
+              <ManageBooking
+                token={token}
+                timeZone={b.orgTimezone}
+                // Rentals R2: a stay reschedules through its own range picker
+                // (reschedule_rental_booking), an appointment through the slot
+                // grid — both are self-serve.
+                canReschedule={true}
+                cancelLines={cancelLines}
+                kind={b.rentalUnitId === null ? "appointment" : "rental"}
+                rangeMode={b.rangeMode}
+              />
+            </>
           ) : (
-            <p className="text-muted-foreground text-xs">{t("alreadyStarted")}</p>
+            <>
+              <p className="text-muted-foreground text-xs">{t("alreadyStarted")}</p>
+              {payNowButton}
+            </>
           )}
         </>
       ) : null}
