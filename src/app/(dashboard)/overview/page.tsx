@@ -11,12 +11,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { listStatsBookings } from "@/features/scheduling/queries";
 import { loadDailyList } from "@/features/scheduling/daily-list";
+import { DailyList } from "@/features/scheduling/components/daily-list";
+import { hasActivePaymentAccount } from "@/features/payments/queries";
 import { createClient } from "@/lib/supabase/server";
 import { listActiveStaff } from "@/features/scheduling/staff-queries";
 import { buildYearHeatmap } from "@/features/scheduling/stats";
 import { CELL, HEAT_LEVELS, PENDING_FILL, PENDING_RING, TODAY_OUTLINE } from "./heatmap-cells";
 import { YearGrid } from "./year-grid";
-import { RequestsInbox } from "@/features/scheduling/components/requests-inbox";
 import { getSchedulingSettings } from "@/features/orgs/queries";
 import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 import { INTL_LOCALES } from "@/i18n/config";
@@ -58,11 +59,13 @@ export default async function OverviewPage({
     ? Math.min(Math.max(requested, minYear), maxYear)
     : currentYear;
 
-  const orgId = settings?.orgId;
+  const orgId = settings?.orgId ?? null;
   const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
-
-  const [requests, rows, staff] = await Promise.all([
-    orgId ? loadDailyList(await createClient(), orgId, fallbackTitle, now).then((l) => l.requests) : Promise.resolve([]),
+  const [list, canCollectOnline, rows, staff] = await Promise.all([
+    orgId
+      ? loadDailyList(await createClient(), orgId, fallbackTitle, now)
+      : Promise.resolve({ requests: [], holds: [], balances: [] }),
+    orgId ? hasActivePaymentAccount(orgId) : Promise.resolve(false),
     listStatsBookings(
       wallTimeToUtc(`${year}-01-01`, "00:00", timeZone).toISOString(),
       wallTimeToUtc(`${year + 1}-01-01`, "00:00", timeZone).toISOString(),
@@ -77,6 +80,11 @@ export default async function OverviewPage({
   return (
     <div className="mx-auto flex w-full max-w-6xl gap-12 p-6">
       <div className="flex min-w-0 flex-1 flex-col gap-10">
+        {/* S4 (spec 2026-09-08 ruling 4): the action list leads the page —
+            requests, holds expiring, balances due. Nothing at all when every
+            section is empty, so the year glance is first on a quiet day. */}
+        <DailyList list={list} timeZone={timeZone} canCollectOnline={canCollectOnline} />
+
         <section className="flex flex-col">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -145,10 +153,6 @@ export default async function OverviewPage({
             </span>
           </div>
         </section>
-
-        {/* User ruling 2026-09-01: the year glance leads the page; requests
-            follow. Renders nothing when there are none. */}
-        <RequestsInbox requests={requests} timeZone={timeZone} />
       </div>
 
       <aside className="hidden w-44 shrink-0 flex-col gap-8 pt-1 lg:flex">

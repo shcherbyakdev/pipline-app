@@ -112,6 +112,31 @@ export function DeclineRequestDialog({
   );
 }
 
+/* The row shell every Overview list shares (spec 2026-09-08 S4): title line,
+   one truncated detail line reachable on hover, actions inline on desktop
+   and wrapped below on phones. */
+export function ActionRow({
+  title,
+  detail,
+  children,
+}: {
+  title: string;
+  detail: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className="flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-medium">{title}</p>
+        <p className="text-muted-foreground truncate text-xs" title={detail}>
+          {detail}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">{children}</div>
+    </li>
+  );
+}
+
 function RequestRow({
   booking,
   timeZone,
@@ -162,20 +187,11 @@ function RequestRow({
     .join(" · ");
 
   return (
-    // Actions sit inline beside the text on desktop and wrap below it on
-    // phones — same stacking rule the other admin list rows follow.
-    <li className="flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium">{booking.clientName}</p>
-        {/* One truncated line; `title` keeps a long note reachable on hover. */}
-        <p className="text-muted-foreground truncate text-xs" title={detail}>
-          {detail}
-        </p>
-      </div>
+    <>
       {/* The list repeats these two buttons per request, so the visible word
           alone is an ambiguous accessible name — same disambiguation the
           services and staff lists use (`Delete ${service.name}`). */}
-      <div className="flex shrink-0 items-center gap-2">
+      <ActionRow title={booking.clientName} detail={detail}>
         <Button
           size="sm"
           onClick={accept}
@@ -193,13 +209,9 @@ function RequestRow({
         >
           {t("requests.decline")}
         </Button>
-      </div>
-      <DeclineRequestDialog
-        bookingId={booking.id}
-        open={declining}
-        onOpenChange={setDeclining}
-      />
-    </li>
+      </ActionRow>
+      <DeclineRequestDialog bookingId={booking.id} open={declining} onOpenChange={setDeclining} />
+    </>
   );
 }
 

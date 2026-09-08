@@ -1539,7 +1539,20 @@
     "legendToday": "today",
     "members": "Members",
     "teamMembers": "Team members ({count})",
-    "goTo": "Go to"
+    "goTo": "Go to",
+    "holds": "Holds expiring soon",
+    "balances": "Balances due",
+    "deposit": "{amount} deposit",
+    "open": "Open",
+    "openFor": "Open the booking for {name}",
+    "markPaid": "Mark paid",
+    "markPaidFor": "Mark paid for {name}",
+    "sendLinkFor": "Send a balance link to {name}",
+    "writeOffFor": "Write off the balance for {name}",
+    "writeOffTitle": "Write off the balance",
+    "writeOffBody": "The balance drops to zero and the booking counts as settled. Nothing is sent to the client.",
+    "writeOffNote": "Note (optional)",
+    "writeOffNotePlaceholder": "Why — e.g. goodwill after a late start."
   },
   "studio": {
     "layouts": {

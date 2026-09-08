@@ -1539,7 +1539,20 @@
     "legendToday": "dziś",
     "members": "Członkowie",
     "teamMembers": "Członkowie zespołu ({count})",
-    "goTo": "Przejdź do"
+    "goTo": "Przejdź do",
+    "holds": "Rezerwacje wstrzymane wkrótce wygasną",
+    "balances": "Salda do zapłaty",
+    "deposit": "zaliczka {amount}",
+    "open": "Otwórz",
+    "openFor": "Otwórz rezerwację — {name}",
+    "markPaid": "Oznacz jako zapłacone",
+    "markPaidFor": "Oznacz jako zapłacone — {name}",
+    "sendLinkFor": "Wyślij link do zapłaty — {name}",
+    "writeOffFor": "Umórz saldo — {name}",
+    "writeOffTitle": "Umórz saldo",
+    "writeOffBody": "Saldo spada do zera, a rezerwacja liczy się jako rozliczona. Klient nic nie dostaje.",
+    "writeOffNote": "Notatka (opcjonalnie)",
+    "writeOffNotePlaceholder": "Powód — np. gest po spóźnionym starcie."
   },
   "studio": {
     "layouts": {
