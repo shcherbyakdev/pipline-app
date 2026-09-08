@@ -137,7 +137,9 @@ function DetailBody({
   // S3: the consequence the row carries, and what the studio is still owed.
   const feeLine = booking.feeCents > 0 && booking.currency ? t("hold.fee", { amount: formatMoney(booking.feeCents, booking.currency) }) : null;
   const outstanding = booking.feeCents - (booking.paidCents - booking.refundedCents);
-  const outstandingLine = booking.feeCents > 0 && outstanding > 0 && booking.currency ? t("hold.feeOutstanding", { amount: formatMoney(outstanding, booking.currency) }) : null;
+  // Not when the charges block is up: its balance already counts the fee,
+  // and two lines for one debt read as two debts.
+  const outstandingLine = !showCharges && booking.feeCents > 0 && outstanding > 0 && booking.currency ? t("hold.feeOutstanding", { amount: formatMoney(outstanding, booking.currency) }) : null;
   // S3 (decision 3): per policy / everything / nothing. Both labels are
   // computed here off the same booking arg the action itself reads — the
   // action recomputes them, but the label must never promise a different
@@ -303,7 +305,12 @@ function DetailBody({
         {feeLine ? <p className="text-sm">{feeLine}</p> : null}
         {outstandingLine ? <p className="text-sm">{outstandingLine}</p> : null}
         {showCharges ? (
-          <BookingCharges bookingId={booking.id} currency={booking.currency} ended={ended} />
+          <BookingCharges
+            bookingId={booking.id}
+            currency={booking.currency}
+            rangeMode={booking.rangeMode}
+            ended={ended}
+          />
         ) : null}
         {hold ? (
           <>

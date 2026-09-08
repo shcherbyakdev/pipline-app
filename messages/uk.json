@@ -862,6 +862,7 @@
   "bookings": {
     "charges": {
       "title": "Додаткові нарахування",
+      "kindLabel": "Тип",
       "kind": {
         "overtime": "Понаднормовий час",
         "people": "Додаткові люди",

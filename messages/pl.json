@@ -861,7 +861,8 @@
   },
   "bookings": {
     "charges": {
-      "title": "Dopłaty",
+      "title": "Dodatkowe opłaty",
+      "kindLabel": "Rodzaj",
       "kind": {
         "overtime": "Nadgodziny",
         "people": "Dodatkowe osoby",

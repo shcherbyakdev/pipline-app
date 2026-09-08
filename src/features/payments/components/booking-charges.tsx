@@ -17,6 +17,7 @@ import {
   writeOffBooking,
 } from "@/features/payments/actions";
 import { CHARGE_KINDS, overtimeCharge, type Charge, type ChargeKind } from "@/features/payments/settlement";
+import type { RangeMode } from "@/features/rentals/range";
 
 type Settlement = {
   charges: Charge[];
@@ -36,10 +37,14 @@ type Settlement = {
 export function BookingCharges({
   bookingId,
   currency,
+  rangeMode,
   ended,
 }: {
   bookingId: string;
   currency: string | null;
+  // Only an hourly space has overtime; on a nights/days stay an "hourly
+  // rate" is a number with no meaning, so the helper stays away.
+  rangeMode: RangeMode | null;
   // Past its end time: a zero balance then means "settled", not "nothing
   // has happened yet".
   ended: boolean;
@@ -209,7 +214,7 @@ export function BookingCharges({
 
       {/* The overtime helper: minutes in, a pre-filled (still editable) add
           row out. Only offered when the booking's own hourly rate is known. */}
-      {data.hourlyRateCents !== null ? (
+      {rangeMode === "hours" && data.hourlyRateCents !== null ? (
         <div className="flex items-end gap-2">
           <Input
             type="number"
@@ -227,7 +232,7 @@ export function BookingCharges({
       ) : null}
 
       <div className="grid grid-cols-2 items-center gap-2 sm:grid-cols-[8rem_1fr_4rem_6rem]">
-        <select aria-label={t("title")} className={nativeSelectClass} value={kind} onChange={(e) => pickKind(e.target.value as ChargeKind)}>
+        <select aria-label={t("kindLabel")} className={nativeSelectClass} value={kind} onChange={(e) => pickKind(e.target.value as ChargeKind)}>
           {CHARGE_KINDS.map((k) => (
             <option key={k} value={k}>
               {kindLabel(k)}
@@ -249,7 +254,13 @@ export function BookingCharges({
           max={99}
           aria-label={t("qty")}
           value={qty}
-          onChange={(e) => setQty(Number(e.target.value))}
+          // The attribute stops the spinner, not typing — clamp to what the
+          // schema and the CHECK accept, so "100" can never reach a generic
+          // "couldn't save".
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            setQty(Number.isFinite(n) ? Math.min(99, Math.max(1, Math.trunc(n))) : 1);
+          }}
         />
         <DecimalInput aria-label={t("amount", { currency: cur })} value={unitMajor} onCommit={setUnitMajor} />
       </div>

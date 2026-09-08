@@ -110,7 +110,7 @@ export async function loadBookingSettlement(
     const supabase = await createClient();
     const { data: b, error } = await supabase
       .from("bookings")
-      .select("id, status, price_cents, lines, starts_at, ends_at, client_email")
+      .select("id, price_cents, lines, starts_at, ends_at, client_email")
       .eq("id", parsed.data.bookingId)
       .eq("org_id", org.id)
       .maybeSingle();
@@ -198,6 +198,9 @@ export async function writeOffBooking(input: unknown): Promise<ActionResult> {
   const parsed = z.object({ id: z.uuid(), note: z.string().trim().max(500).optional() }).safeParse(input);
   if (!parsed.success) return { ok: false, error: t("generic") };
   try {
+    // The RPC gates on user_orgs() itself; requireOrg is the same front door
+    // the sibling actions use, so a signed-out caller lands on /login.
+    await requireOrg();
     const supabase = await createClient();
     const { error } = await supabase.rpc("write_off_booking", {
       p_booking_id: parsed.data.id,
@@ -285,9 +288,10 @@ export async function sendBalanceLink(input: unknown): Promise<ActionResult> {
       subject: msg.subject,
       html: msg.html,
       text: msg.text,
-      // Keyed on the amount: adding a charge and sending again is a new mail,
-      // resending the same balance twice is not.
-      idempotencyKey: bookingLifecycleKey(booking.id, `balance-due:${balance}`),
+      // Keyed per rotation (hash prefix), like resendManageLink: the send
+      // above already killed the previous mail's pay link, so a second ask at
+      // the same balance must not be deduped into nothing.
+      idempotencyKey: bookingLifecycleKey(booking.id, `balance-due-${fresh.tokenHash.slice(0, 8)}`),
     });
     return { ok: true };
   } catch (e) {

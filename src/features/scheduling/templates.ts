@@ -249,9 +249,10 @@ export function bookingLifecycleKey(
     | "payment-received"
     | "hold-expired"
     | "slot-lost"
-    // S7 (0082): the balance ask is keyed by its amount — a second ask after
-    // another charge is a different mail, not a duplicate of the first.
-    | `balance-due:${number}`
+    // S7 (0082): the balance ask is keyed per ROTATION, like manage- above —
+    // sending again rotates the token, so the previous mail's pay link is
+    // already dead and the new one must never be deduped against it.
+    | `balance-due-${string}`
     | "balance-received",
 ): string {
   return `booking/${bookingId}/${kind}`;
