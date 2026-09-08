@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Minus, Plus } from "lucide-react";
 import { INTL_LOCALES } from "@/i18n/config";
 import { Button } from "@/components/ui/button";
-import type { PublicOffering, PublicUnit } from "@/lib/booking/public";
+import type { PublicEquipment, PublicOffering, PublicUnit } from "@/lib/booking/public";
 import { durationOptions, formatDurationLabel, freeUnitsAt, type HourlyOffering } from "@/features/rentals/hourly";
 import { equipmentLines, quoteHours, sumLines, headlinePrice } from "@/features/rentals/pricing";
 import type { EquipmentPick, ExtraPick } from "@/features/rentals/pricing-rules";
@@ -37,20 +37,6 @@ function todayISO(): string {
 }
 
 type HourlySlot = { startsAt: string; unitIds: string[] };
-// S6: what getHourlySlots offers as add-ons. `busy` crosses the wire as ISO
-// (a server action hands a Date over as a string) — `load` re-hydrates it,
-// because freeUnitsAt compares instants.
-type WireEquipment = Extract<Awaited<ReturnType<typeof getHourlySlots>>, { ok: true }>["equipment"][number];
-type Equipment = Omit<WireEquipment, "units"> & {
-  units: { id: string; busy: { startsAt: Date; endsAt: Date }[] }[];
-};
-const hydrate = (e: WireEquipment): Equipment => ({
-  ...e,
-  units: e.units.map((u) => ({
-    id: u.id,
-    busy: u.busy.map((b) => ({ startsAt: new Date(b.startsAt), endsAt: new Date(b.endsAt) })),
-  })),
-});
 
 export function HourlyBookingFlow({
   handle,
@@ -109,7 +95,7 @@ export function HourlyBookingFlow({
   // S6: equipment add-ons — the picks, and what the org offers with its
   // busy time (so a row can say how many are free at the chosen slot).
   const [equipment, setEquipment] = React.useState<EquipmentPick[]>([]);
-  const [equipmentDefs, setEquipmentDefs] = React.useState<Equipment[]>([]);
+  const [equipmentDefs, setEquipmentDefs] = React.useState<PublicEquipment[]>([]);
   const [termsAccepted, setTermsAccepted] = React.useState(false);
   const [doneToken, setDoneToken] = React.useState<string | null>(null);
   // Whether the RPC left it pending (the space requires approval) — the done
@@ -145,7 +131,7 @@ export function HourlyBookingFlow({
       if (res.ok) {
         setSlots(res.slots);
         setUnits(res.units);
-        setEquipmentDefs(res.equipment.map(hydrate));
+        setEquipmentDefs(res.equipment);
         // Booked out here? Open on the window holding the first free time —
         // one round trip instead of a "try the next" click per empty page.
         if (firstLook) {

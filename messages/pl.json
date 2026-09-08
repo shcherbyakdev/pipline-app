@@ -290,7 +290,7 @@
       "more": "Więcej osób",
       "extras": "Dodatki",
       "equipment": "Sprzęt",
-      "available": "{count} dostępne",
+      "available": "{count, plural, one {# dostępny} few {# dostępne} many {# dostępnych} other {# dostępnego}}",
       "noneLeft": "brak wolnych o tej godzinie",
       "fewerOf": "Mniej: {label}",
       "moreOf": "Więcej: {label}"

@@ -290,7 +290,7 @@
       "more": "Більше осіб",
       "extras": "Додатки",
       "equipment": "Обладнання",
-      "available": "{count} доступно",
+      "available": "{count, plural, one {# доступний} few {# доступні} many {# доступних} other {# доступного}}",
       "noneLeft": "немає вільних на цей час",
       "fewerOf": "Менше: {label}",
       "moreOf": "Більше: {label}"

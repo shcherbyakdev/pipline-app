@@ -130,12 +130,9 @@ export async function getHourlySlots(
       // `unitIds` carries, not just the ids themselves.
       units: PublicUnit[];
       // S6: the equipment on offer with what is busy in the window — the
-      // add-on step caps each row with freeUnitsAt. A server action hands a
-      // Date to the client as a string, so `busy` crosses the wire as ISO
-      // (the same discipline as `slots.startsAt`) and the widget re-hydrates.
-      equipment: (Omit<PublicEquipment, "units"> & {
-        units: { id: string; busy: { startsAt: string; endsAt: string }[] }[];
-      })[];
+      // add-on step caps each row with freeUnitsAt. Flight encodes a Date as
+      // "$D<iso>" and revives it client-side, so `busy` arrives as Dates.
+      equipment: PublicEquipment[];
     }
   | { ok: false; error: string }
 > {
@@ -172,13 +169,7 @@ export async function getHourlySlots(
       ok: true,
       slots: slots.map((s) => ({ startsAt: s.startsAt.toISOString(), unitIds: s.unitIds })),
       units: ctx.units,
-      equipment: equipment.map((e) => ({
-        ...e,
-        units: e.units.map((u) => ({
-          id: u.id,
-          busy: u.busy.map((b) => ({ startsAt: b.startsAt.toISOString(), endsAt: b.endsAt.toISOString() })),
-        })),
-      })),
+      equipment,
     };
   } catch (error) {
     console.error("[rentals] getHourlySlots:", error);
