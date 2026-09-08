@@ -206,3 +206,92 @@ describe("S6 — booking_units + composites (0084 part A)", () => {
     expect(primaries).toBe(bookings);
   });
 });
+
+describe("S6 — equipment add-ons + reschedule (0084 part B)", () => {
+  let s: Studio;
+  beforeAll(async () => { s = await newStudio("c"); }, 60_000);
+
+  const lampPick = (qty: number) => ({ p_equipment: [{ offeringId: s.lamp.id, qty }] });
+
+  it("attaches equipment rows, prices them, and the same lamp cannot serve two rooms at once", async () => {
+    const a = await book(s, s.roomA.id, `${d(3)}T10:00`, 60, lampPick(2));
+    expect(a.error).toBeNull();
+    const rows = await units(a.data as string);
+    expect(rows.filter((r) => r.kind === "equipment").map((r) => r.rental_unit_id).sort()).toEqual([...s.lamp.unitIds].sort());
+    const { data: b } = await admin.from("bookings").select("price_cents, lines").eq("id", a.data as string).single();
+    expect(b!.price_cents).toBe(10000 + 2 * 5000);
+    expect((b!.lines as Row[]).some((l) => l.kind === "equipment" && l.qty === 2)).toBe(true);
+    // Both lamps are gone for that hour: Room B with one lamp fails, without a lamp passes.
+    const taken = await book(s, s.roomB.id, `${d(3)}T10:30`, 60, lampPick(1));
+    expect(isTaken(taken.error)).toBe(true);
+    const free = await book(s, s.roomB.id, `${d(3)}T10:30`, 60);
+    expect(free.error).toBeNull();
+  });
+
+  it("two rooms, one lamp each, same hour: both pass", async () => {
+    const a = await book(s, s.roomA.id, `${d(8)}T10:00`, 60, lampPick(1));
+    const b = await book(s, s.roomB.id, `${d(8)}T10:00`, 60, lampPick(1));
+    expect(a.error).toBeNull();
+    expect(b.error).toBeNull();
+    const ua = await units(a.data as string); const ub = await units(b.data as string);
+    const lampA = ua.find((r) => r.kind === "equipment")!.rental_unit_id;
+    const lampB = ub.find((r) => r.kind === "equipment")!.rental_unit_id;
+    expect(lampA).not.toBe(lampB);
+  });
+
+  it("refuses a pick over the unit count and equipment as the primary offering", async () => {
+    const over = await book(s, s.roomA.id, `${d(9)}T10:00`, 60, lampPick(3));
+    expect(over.error?.message).toMatch(/quote_equipment/);
+    const primary = await book(s, s.lamp.id, `${d(9)}T10:00`, 60);
+    expect(primary.error?.message).toMatch(/not found/);
+  });
+
+  it("reschedule carries the lamp, prefers the same unit, refuses when none is free", async () => {
+    const a = await book(s, s.roomA.id, `${d(10)}T10:00`, 60, lampPick(1));
+    expect(a.error).toBeNull();
+    const lampBefore = (await units(a.data as string)).find((r) => r.kind === "equipment")!.rental_unit_id;
+    // Someone else takes the OTHER lamp at 14:00; the move to 14:00 must keep ours.
+    const otherLamp = s.lamp.unitIds.find((u) => u !== lampBefore)!;
+    const other = await book(s, s.roomB.id, `${d(10)}T14:00`, 60, lampPick(1));
+    expect(other.error).toBeNull();
+    const otherRows = await units(other.data as string);
+    // Auto-pick is by sort_order, so make the assertion independent of which lamp `other` got:
+    const otherLampGot = otherRows.find((r) => r.kind === "equipment")!.rental_unit_id;
+    const moved = await admin.rpc("reschedule_rental_hours_apply", {
+      p_old_id: a.data, p_unit_id: null, p_starts_at: iso(`${d(10)}T14:00`), p_new_token_hash: hash(), p_enforce_limits: false,
+    });
+    expect(moved.error).toBeNull();
+    const newId = (moved.data as Row[])[0].new_booking_id as string;
+    const after = await units(newId);
+    const lampAfter = after.find((r) => r.kind === "equipment")!.rental_unit_id;
+    expect(lampAfter).not.toBe(otherLampGot);
+    expect([lampBefore, otherLamp]).toContain(lampAfter);
+    const { data: nb } = await admin.from("bookings").select("lines").eq("id", newId).single();
+    expect((nb!.lines as Row[]).some((l) => l.kind === "equipment")).toBe(true);
+    // Old rows released.
+    expect((await units(a.data as string)).every((r) => r.reserving === false)).toBe(true);
+    // Now both lamps are taken at 16:00 → a move there must refuse.
+    const x = await book(s, s.roomB.id, `${d(10)}T16:00`, 60, lampPick(2));
+    expect(x.error).toBeNull();
+    const refused = await admin.rpc("reschedule_rental_hours_apply", {
+      p_old_id: newId, p_unit_id: null, p_starts_at: iso(`${d(10)}T16:00`), p_new_token_hash: hash(), p_enforce_limits: false,
+    });
+    expect(isTaken(refused.error)).toBe(true);
+  });
+
+  it("reschedule drops the equipment line when the equipment space is inactive", async () => {
+    const t = await newStudio("dgr");
+    const a = await book(t, t.roomA.id, `${d(11)}T10:00`, 60, { p_equipment: [{ offeringId: t.lamp.id, qty: 1 }] });
+    expect(a.error).toBeNull();
+    const { error } = await t.owner.from("rental_offerings").update({ active: false }).eq("id", t.lamp.id);
+    expect(error).toBeNull();
+    const moved = await admin.rpc("reschedule_rental_hours_apply", {
+      p_old_id: a.data, p_unit_id: null, p_starts_at: iso(`${d(11)}T12:00`), p_new_token_hash: hash(), p_enforce_limits: false,
+    });
+    expect(moved.error).toBeNull();
+    const newId = (moved.data as Row[])[0].new_booking_id as string;
+    const { data: nb } = await admin.from("bookings").select("price_cents, lines").eq("id", newId).single();
+    expect(nb!.price_cents).toBe(10000);
+    expect((await units(newId)).some((r) => r.kind === "equipment")).toBe(false);
+  });
+});

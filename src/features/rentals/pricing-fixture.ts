@@ -75,3 +75,16 @@ export const FALLBACK_CASES = [
   { name: "flat 300 zł regardless of length", priceCents: 30000, pricingMode: "flat" as const, durationMin: 90, expect: [base(1.5, null, 30000)] },
   { name: "unpriced: no lines", priceCents: null, pricingMode: "per_unit" as const, durationMin: 90, expect: [] as Line[] },
 ];
+
+/** S6: equipment picks × duration → expected lines. `priceCents`/`pricingMode`
+    are the equipment spaces the parity test creates; ids are filled in at
+    runtime (the test maps `lamp`/`smoke` to the inserted offering ids). */
+export const EQUIPMENT_FIXTURES = {
+  lamp: { name: "ARRI 2 kW", priceCents: 5000, pricingMode: "per_unit" as const, units: 2 },
+  smoke: { name: "Smoke machine", priceCents: 8000, pricingMode: "flat" as const, units: 1 },
+};
+export const EQUIPMENT_CASES: { name: string; picks: { key: "lamp" | "smoke"; qty: number }[]; durationMin: number }[] = [
+  { name: "one lamp, 90 min", picks: [{ key: "lamp", qty: 1 }], durationMin: 90 },
+  { name: "two lamps + smoke, 4 h", picks: [{ key: "lamp", qty: 2 }, { key: "smoke", qty: 1 }], durationMin: 240 },
+  { name: "smoke only, 1 h", picks: [{ key: "smoke", qty: 1 }], durationMin: 60 },
+];
