@@ -6,7 +6,7 @@ import type { UnitsT } from "@/i18n/translator";
 import { stayLength, type RangeMode } from "./range";
 import { formatDurationLabel } from "./hourly";
 import { dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
-import type { ExtraPick, Line, PricingRules } from "./pricing-rules";
+import type { EquipmentPick, ExtraPick, Line, PricingRules } from "./pricing-rules";
 import { formatCancelPolicy, formatCancelWindow, type CancelPolicy } from "./cancel-policy";
 // H3 callers still import the window formatter from here.
 export { formatCancelWindow };
@@ -258,6 +258,39 @@ export function quoteHours(
   return lines;
 }
 
+// S6: the equipment spaces an hours booking may attach. The SQL twin is
+// rental_equipment_lines (0084) — same refusals, same rounding
+// (round(price × qty × hours), the S1 per-hour rule).
+export type EquipmentOffering = {
+  id: string;
+  name: string;
+  priceCents: number | null;
+  pricingMode: "per_unit" | "flat";
+  unitCount: number;
+};
+
+export function equipmentLines(equipment: EquipmentOffering[], picks: EquipmentPick[], durationMin: number): Line[] {
+  const seen = new Set<string>();
+  const hours = durationMin / 60;
+  return picks.map((pick) => {
+    const def = equipment.find((e) => e.id === pick.offeringId);
+    if (!def || def.priceCents === null || seen.has(pick.offeringId) || pick.qty < 1 || pick.qty > def.unitCount) {
+      throw new Error("quote_equipment");
+    }
+    seen.add(pick.offeringId);
+    const flat = def.pricingMode === "flat";
+    return {
+      kind: "equipment",
+      offeringId: def.id,
+      label: def.name,
+      unit: flat ? "flat" : "hour",
+      qty: pick.qty,
+      unitCents: def.priceCents,
+      cents: flat ? def.priceCents * pick.qty : Math.round(def.priceCents * pick.qty * hours),
+    };
+  });
+}
+
 function nextDay(isoDate: string): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + 1);
@@ -281,6 +314,8 @@ export function formatLine(l: Line, currency: string, t: UnitsT): string {
     case "people":
       return t("line.people", { count: l.qty, each: formatMoney(l.unitCents, currency) });
     case "extra":
+      return t("line.extra", { label: l.label, qty: l.qty });
+    case "equipment":
       return t("line.extra", { label: l.label, qty: l.qty });
   }
 }

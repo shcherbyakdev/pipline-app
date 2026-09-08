@@ -9,6 +9,9 @@ const CENTS_MAX = 100_000_000;
 const cents = z.number().int().min(0).max(CENTS_MAX);
 export const EXTRA_ID_RE = /^[a-z0-9-]{1,32}$/;
 
+export const OFFERING_KINDS = ["space", "composite", "equipment"] as const;
+export type OfferingKind = (typeof OFFERING_KINDS)[number];
+
 export type Band = { fromMin: number; perHourCents?: number; totalCents?: number };
 export type Surcharge = { label: string; pct: number; days: number[]; from: string; to: string };
 export type People = { included: number; extraCents: number; max: number };
@@ -19,7 +22,10 @@ export type Line =
   | { kind: "base"; qty: number; unitCents: number | null; cents: number }
   | { kind: "surcharge"; qty: number; unitCents: null; cents: number; label: string; pct: number }
   | { kind: "people"; qty: number; unitCents: number; cents: number }
-  | { kind: "extra"; qty: number; unitCents: number; cents: number; extraId: string; label: string; unit: "hour" | "piece" };
+  | { kind: "extra"; qty: number; unitCents: number; cents: number; extraId: string; label: string; unit: "hour" | "piece" }
+  // S6: an equipment space attached to the booking — qty items of one space,
+  // priced by that space's own price (per hour or flat per booking).
+  | { kind: "equipment"; qty: number; unitCents: number; cents: number; offeringId: string; label: string; unit: "hour" | "flat" };
 
 export type ExtraPick = { id: string; qty: number };
 
@@ -87,6 +93,12 @@ export const extraPicksSchema: z.ZodType<ExtraPick[]> = z
   .array(z.object({ id: z.string().regex(EXTRA_ID_RE), qty: z.number().int().min(1).max(99) }).strict())
   .max(12)
   .refine((p) => new Set(p.map((x) => x.id)).size === p.length, { message: "extra ids repeat" });
+
+export type EquipmentPick = { offeringId: string; qty: number };
+export const equipmentPicksSchema: z.ZodType<EquipmentPick[]> = z
+  .array(z.object({ offeringId: z.uuid(), qty: z.number().int().min(1).max(99) }).strict())
+  .max(12)
+  .refine((p) => new Set(p.map((x) => x.offeringId)).size === p.length, { message: "equipment repeats" });
 
 /** Label → id. Never shown; stable across renames only if the studio keeps
     the id (the editor generates it once and keeps it). */

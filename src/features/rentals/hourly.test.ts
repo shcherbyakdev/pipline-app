@@ -140,3 +140,20 @@ describe("formatDurationLabel", () => {
   it("60 -> '1 h'", () => expect(formatDurationLabel(60, enTranslator("public.units"))).toBe("1 h"));
   it("45 -> '45 min'", () => expect(formatDurationLabel(45, enTranslator("public.units"))).toBe("45 min"));
 });
+
+import { freeUnitsAt } from "./hourly";
+
+describe("freeUnitsAt (S6)", () => {
+  const T = (h: number) => new Date(Date.UTC(2026, 8, 10, h));
+  const units = [
+    { id: "u1", busy: [{ startsAt: T(10), endsAt: T(12) }] },
+    { id: "u2", busy: [] },
+    { id: "u3", busy: [{ startsAt: T(12), endsAt: T(13) }] },
+  ];
+  it("counts units with no overlapping busy interval (touching edges are free)", () => {
+    expect(freeUnitsAt(units, T(11), T(12))).toBe(2);   // u1 busy
+    expect(freeUnitsAt(units, T(12), T(13))).toBe(2);   // u3 busy; u1 ends at 12 → free
+    expect(freeUnitsAt(units, T(14), T(15))).toBe(3);
+    expect(freeUnitsAt([], T(14), T(15))).toBe(0);
+  });
+});
