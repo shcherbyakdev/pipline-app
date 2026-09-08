@@ -101,9 +101,13 @@ export function moneyInfoLines(i: MoneyInfo, t: UnitsT): string[] {
     lines.push(t(i.settled ? "cancellationFee" : "changeFee", { amount: formatMoney(fee, i.currency) }));
   }
   if (i.currency && paid > 0) {
+    // "Paid" stays gross — the refund line below explains the difference —
+    // but the venue is only owed against what the studio still HOLDS
+    // (changeLines uses the same `held`).
+    const held = Math.max(0, paid - refunded);
     lines.push(t("paid", { amount: formatMoney(paid, i.currency) }));
-    if (!i.settled && i.totalCents !== null && i.totalCents + fee > paid) {
-      lines.push(t("balanceAtVenue", { amount: formatMoney(i.totalCents + fee - paid, i.currency) }));
+    if (!i.settled && i.totalCents !== null && i.totalCents + fee > held) {
+      lines.push(t("balanceAtVenue", { amount: formatMoney(i.totalCents + fee - held, i.currency) }));
     }
   } else if (!i.settled) {
     if (i.depositCents !== null && i.currency) lines.push(t("depositDue", { amount: formatMoney(i.depositCents, i.currency) }));

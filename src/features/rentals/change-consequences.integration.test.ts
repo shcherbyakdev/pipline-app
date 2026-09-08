@@ -164,11 +164,11 @@ describe("cancel_fee_pct ≡ cancelFeePct", () => {
 });
 
 describe("policy snapshot + cancel_booking", () => {
-  let handle: string; let offeringId: string; let orgId: string;
+  let client: SupabaseClient; let handle: string; let offeringId: string; let orgId: string;
   beforeAll(async () => {
     const org = await newOrg("cancel");
-    ({ handle, orgId } = org);
-    ({ offeringId } = await hoursFixture(org.client, orgId));
+    ({ client, handle, orgId } = org);
+    ({ offeringId } = await hoursFixture(client, orgId));
   });
 
   it("a new booking carries the offering's policy and fee 0", async () => {
@@ -242,6 +242,31 @@ describe("policy snapshot + cancel_booking", () => {
     expect(row.cancel_policy).toEqual(TWO);
     expect(row.fee_cents).toBe(5000);
     expect(row).not.toHaveProperty("cancel_window_min");
+  });
+
+  // The 0028 admin-cancel seam is column-scoped, so cancelBookingAdmin's
+  // one-statement `status + fee_cents` write needs BOTH columns granted
+  // (0081) — without the grant it is 42501, with it the RLS policy still
+  // pins the org and the transition.
+  it("an org member can write the fee together with the cancel; another org cannot", async () => {
+    const { id } = await createHours(handle, offeringId, startIn(150));
+    const outsider = (await newOrg("other")).client;
+    const { data: blocked, error: blockedError } = await outsider
+      .from("bookings")
+      .update({ status: "cancelled_by_provider", fee_cents: 1234 })
+      .eq("id", id)
+      .select();
+    expect(blockedError).toBeNull();
+    expect(blocked).toEqual([]);
+
+    const { error } = await client
+      .from("bookings")
+      .update({ status: "cancelled_by_provider", fee_cents: 1234 })
+      .eq("id", id);
+    expect(error).toBeNull();
+    const row = await bookingRow(id);
+    expect(row.status).toBe("cancelled_by_provider");
+    expect(row.fee_cents).toBe(1234);
   });
 
   it("rounds the fee like the twin (half up)", async () => {

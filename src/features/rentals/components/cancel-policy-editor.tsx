@@ -8,16 +8,14 @@ import { Input } from "@/components/ui/input";
 import { CANCEL_POLICY_MAX_TIERS, formatCancelWindow, type CancelPolicy } from "@/features/rentals/cancel-policy";
 import type { RangeMode } from "@/features/rentals/range";
 
-/** A day closer than the smallest existing lead, skipping any lead already
-    taken (adding on top of a collision would make `cancelPolicySchema`
-    refuse the whole save — review finding 2). `null` = nothing free to add
-    (0 is already a tier, or 0 is the only free lead and it's taken too). */
-function nextTierLead(existingLeads: Set<number>, smallest: number | null, rangeMode: RangeMode): number | null {
+/** A day closer than the smallest existing lead — always strictly below every
+    lead already taken, so it can never collide (a collision would make
+    `cancelPolicySchema` refuse the whole save — review finding 2). `null` =
+    nothing free to add (0 is already a tier). */
+function nextTierLead(smallest: number | null, rangeMode: RangeMode): number | null {
   if (smallest === null) return rangeMode === "hours" ? 2880 : 4320;
   if (smallest === 0) return null; // nothing below "up to the start"
-  let lead = Math.max(0, smallest - 1440);
-  while (existingLeads.has(lead) && lead > 0) lead -= 1440;
-  return existingLeads.has(lead) ? null : lead;
+  return Math.max(0, smallest - 1440);
 }
 
 /* S3: the tiers of a space's cancellation policy (spec §Admin). Controlled:
@@ -40,7 +38,7 @@ export function CancelPolicyEditor({
   const set = (i: number, patch: Partial<CancelPolicy[number]>) =>
     onChange(value.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const smallest = value.length ? Math.min(...value.map((x) => x.beforeMin)) : null;
-  const nextLead = nextTierLead(new Set(value.map((x) => x.beforeMin)), smallest, rangeMode);
+  const nextLead = nextTierLead(smallest, rangeMode);
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="flex flex-col">

@@ -14,6 +14,14 @@ alter table public.bookings
   add constraint bookings_cancel_policy_ck check (cancel_policy is null or jsonb_typeof(cancel_policy) = 'array'),
   add constraint bookings_fee_cents_ck check (fee_cents >= 0);
 --> statement-breakpoint
+-- The admin cancel seam from 0028 is COLUMN-scoped (`grant update (status)`),
+-- so cancelBookingAdmin's single `set status = 'cancelled_by_provider',
+-- fee_cents = …` write is refused (42501) until fee_cents is granted too.
+-- Only the column list widens: policy bookings_update_member (0028,
+-- re-created in 0079) still pins the org and the confirmed|pending_payment →
+-- cancelled_by_provider transition.
+grant update (fee_cents) on table public.bookings to authenticated;
+--> statement-breakpoint
 
 -- ---------- backfills: "free until W" → one free tier (then 100%, ruling 5);
 -- live rental bookings keep the window their client accepted.
@@ -519,4 +527,5 @@ revoke all on function public.reschedule_rental_apply(uuid, uuid, date, date, te
 --     add constraint rental_offerings_cancel_window_ck check (cancel_window_min >= 0);
 --   update public.rental_offerings set cancel_window_min = coalesce((cancel_policy->0->>'beforeMin')::int, 0);
 --   alter table public.rental_offerings drop column cancel_policy;
+--   revoke update (fee_cents) on table public.bookings from authenticated;
 --   alter table public.bookings drop column cancel_policy, drop column fee_cents;

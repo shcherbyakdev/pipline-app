@@ -108,12 +108,24 @@ describe("moneyInfoLines", () => {
       "Paid: 60 zł",
       "Refunded: 60 zł — bank refunds take up to 3 business days",
     ]));
-  it("refunded: the refund line after the money", () =>
+  it("refunded: the refund line after the money; the venue is owed what is no longer held", () =>
     expect(moneyInfoLines({ totalCents: 30000, depositCents: 6000, currency: "PLN", cancelPolicy: null, paidCents: 6000, refundedCents: 6000 }, t)).toEqual([
       "Total: 300 zł",
       "Paid: 60 zł",
-      "240 zł due at the venue",
+      "300 zł due at the venue",
       "Refunded: 60 zł — bank refunds take up to 3 business days",
+    ]));
+  // Two moves: 300 paid, 200 already handed back on the first move — the
+  // venue is owed against the 100 still held, not the 300 gross.
+  it("a second move: the balance counts only the money still held", () =>
+    expect(moneyInfoLines({ totalCents: 25000, depositCents: 6000, currency: "PLN", cancelPolicy: null, feeCents: 0, paidCents: 30000, refundedCents: 20000 }, t))
+      .toContain("150 zł due at the venue"));
+  it("a fee on a live row with nothing paid: total, fee, deposit due, venue note", () =>
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 9000, currency: "PLN", cancelPolicy: null, feeCents: 15000, paidCents: 0 }, t)).toEqual([
+      "Total: 300 zł",
+      "Late change fee: 150 zł",
+      "Deposit due: 90 zł",
+      "Payment: pay at the venue",
     ]));
 });
 

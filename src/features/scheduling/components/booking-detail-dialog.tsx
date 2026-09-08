@@ -109,12 +109,18 @@ function DetailBody({
   // is waiting on the drain and can still be cancelled by hand.
   const hold = booking.status === "pending_payment";
   const liveHold = isLiveHold(booking, new Date(now));
+  // S3: what is still to collect counts the fee and only the money the studio
+  // still holds (paid − refunded); no balance → the plain "paid" line.
+  const balance =
+    booking.priceCents === null
+      ? 0
+      : booking.priceCents + booking.feeCents - (booking.paidCents - booking.refundedCents);
   const paidLine =
     booking.paidCents > 0 && booking.currency
-      ? booking.priceCents !== null && booking.priceCents > booking.paidCents
+      ? balance > 0
         ? t("hold.paidBalance", {
             paid: formatMoney(booking.paidCents, booking.currency),
-            balance: formatMoney(booking.priceCents - booking.paidCents, booking.currency),
+            balance: formatMoney(balance, booking.currency),
           })
         : t("hold.paid", { paid: formatMoney(booking.paidCents, booking.currency) })
       : null;
