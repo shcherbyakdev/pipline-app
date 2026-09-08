@@ -87,7 +87,7 @@ async function newStudio(tag: string): Promise<Studio> {
     whole: { id: wholeId, unitId: await unit(wholeId, "Whole studio", 0) },
     lamp: { id: lampId, unitIds: [await unit(lampId, "Lamp 1", 0), await unit(lampId, "Lamp 2", 1)] },
   };
-  await hours(roomAId); await hours(roomBId); await hours(wholeId);
+  await hours(roomAId); await hours(roomBId); await hours(wholeId); await hours(lampId);
   const { error: e3 } = await owner.from("rental_offering_components").insert([
     { composite_id: wholeId, component_id: roomAId, org_id: orgId },
     { composite_id: wholeId, component_id: roomBId, org_id: orgId },
@@ -250,31 +250,51 @@ describe("S6 — equipment add-ons + reschedule (0084 part B)", () => {
     const a = await book(s, s.roomA.id, `${d(10)}T10:00`, 60, lampPick(1));
     expect(a.error).toBeNull();
     const lampBefore = (await units(a.data as string)).find((r) => r.kind === "equipment")!.rental_unit_id;
-    // Someone else takes the OTHER lamp at 14:00; the move to 14:00 must keep ours.
     const otherLamp = s.lamp.unitIds.find((u) => u !== lampBefore)!;
+    // Nothing else is booked at 14:00 yet, so `other`'s auto-pick lands on the
+    // same lamp (lowest sort_order) `a` is holding at 10:00.
     const other = await book(s, s.roomB.id, `${d(10)}T14:00`, 60, lampPick(1));
     expect(other.error).toBeNull();
-    const otherRows = await units(other.data as string);
-    // Auto-pick is by sort_order, so make the assertion independent of which lamp `other` got:
-    const otherLampGot = otherRows.find((r) => r.kind === "equipment")!.rental_unit_id;
+    expect((await units(other.data as string)).find((r) => r.kind === "equipment")!.rental_unit_id).toBe(lampBefore);
+    // Move `a` to 14:00: its own lamp is now `other`'s, so it must fall back
+    // to the only free one — the lamp it did NOT hold before.
     const moved = await s.owner.rpc("reschedule_rental_booking_hours_admin", {
       p_booking_id: a.data, p_unit_id: null, p_starts_at: iso(`${d(10)}T14:00`), p_new_token_hash: hash(),
     });
     expect(moved.error).toBeNull();
     const newId = (moved.data as Row[])[0].new_booking_id as string;
-    const after = await units(newId);
-    const lampAfter = after.find((r) => r.kind === "equipment")!.rental_unit_id;
-    expect(lampAfter).not.toBe(otherLampGot);
-    expect([lampBefore, otherLamp]).toContain(lampAfter);
+    const lampAfter = (await units(newId)).find((r) => r.kind === "equipment")!.rental_unit_id;
+    expect(lampAfter).toBe(otherLamp);
     const { data: nb } = await admin.from("bookings").select("lines").eq("id", newId).single();
     expect((nb!.lines as Row[]).some((l) => l.kind === "equipment")).toBe(true);
     // Old rows released.
     expect((await units(a.data as string)).every((r) => r.reserving === false)).toBe(true);
-    // Now both lamps are taken at 16:00 → a move there must refuse.
-    const x = await book(s, s.roomB.id, `${d(10)}T16:00`, 60, lampPick(2));
+
+    // Preference actually bites: give `c` the low-sort-order lamp, let `dd`
+    // take the other slot, then flip sort_order so the plain fallback would
+    // now pick the OTHER lamp — a same-unit reschedule must still keep `c`'s
+    // own lamp over the new sort_order default.
+    const c = await book(s, s.roomA.id, `${d(10)}T18:00`, 60, lampPick(1));
+    expect(c.error).toBeNull();
+    const lampBeforeC = (await units(c.data as string)).find((r) => r.kind === "equipment")!.rental_unit_id;
+    const dd = await book(s, s.roomB.id, `${d(10)}T20:00`, 60, lampPick(1));
+    expect(dd.error).toBeNull();
+    const { error: sortErr } = await s.owner.from("rental_units").update({ sort_order: 5 }).eq("id", s.lamp.unitIds[0]);
+    expect(sortErr).toBeNull();
+    const movedC = await s.owner.rpc("reschedule_rental_booking_hours_admin", {
+      p_booking_id: c.data, p_unit_id: null, p_starts_at: iso(`${d(10)}T16:00`), p_new_token_hash: hash(),
+    });
+    expect(movedC.error).toBeNull();
+    const newIdC = (movedC.data as Row[])[0].new_booking_id as string;
+    const lampAfterC = (await units(newIdC)).find((r) => r.kind === "equipment")!.rental_unit_id;
+    expect(lampAfterC).toBe(lampBeforeC);
+
+    // Both lamps taken → a move there must refuse. 09:00 is the one hour on
+    // this day nothing above has touched (16:00 is now held by `c`'s move).
+    const x = await book(s, s.roomB.id, `${d(10)}T09:00`, 60, lampPick(2));
     expect(x.error).toBeNull();
     const refused = await s.owner.rpc("reschedule_rental_booking_hours_admin", {
-      p_booking_id: newId, p_unit_id: null, p_starts_at: iso(`${d(10)}T16:00`), p_new_token_hash: hash(),
+      p_booking_id: newId, p_unit_id: null, p_starts_at: iso(`${d(10)}T09:00`), p_new_token_hash: hash(),
     });
     expect(isTaken(refused.error)).toBe(true);
   });

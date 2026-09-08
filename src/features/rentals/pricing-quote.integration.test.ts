@@ -473,7 +473,7 @@ describe("hourly RPCs snapshot the quote", () => {
 
 describe("S6 lockstep: rental_equipment_lines ≡ equipmentLines", () => {
   it("every fixture case", async () => {
-    const { client, orgId } = await newOrg("s6eq");   // whatever newOrg returns in this file
+    const { client, orgId } = await newOrg("s6eq");
     const defs: Record<string, EquipmentOffering> = {};
     for (const [key, f] of Object.entries(EQUIPMENT_FIXTURES)) {
       const { data, error } = await client.from("rental_offerings").insert({
