@@ -5,9 +5,9 @@ import { z } from "zod";
    OrgPrefs = what the org's CLIENTS receive (orgs.notification_prefs). Both
    columns are nullable and null means "defaults", so every row written
    before this slice behaves exactly as it did. Pure: no I/O, no clock. The
-   two definer RPCs in 0075 validate the same keys and values in SQL. */
+   two definer RPCs in 0075/0083 validate the same keys and values in SQL. */
 
-export const MEMBER_EVENTS = ["newBooking", "newRequest", "cancelled", "rescheduled"] as const;
+export const MEMBER_EVENTS = ["newBooking", "newRequest", "cancelled", "rescheduled", "dailyDigest"] as const;
 export type MemberEvent = (typeof MEMBER_EVENTS)[number];
 export type Channel = "email" | "push";
 export type ChannelPrefs = Record<Channel, boolean>;
@@ -20,6 +20,8 @@ export const memberPrefsSchema = z.object({
   newRequest: channelPrefsSchema,
   cancelled: channelPrefsSchema,
   rescheduled: channelPrefsSchema,
+  // S4: the 08:00 morning list (requests, holds expiring, balances due).
+  dailyDigest: channelPrefsSchema,
 }) satisfies z.ZodType<MemberPrefs>;
 
 /** Email is today's behaviour; push is on so the first enabled device just
@@ -29,6 +31,7 @@ export const DEFAULT_MEMBER_PREFS: MemberPrefs = Object.freeze({
   newRequest: { email: true, push: true },
   cancelled: { email: true, push: true },
   rescheduled: { email: true, push: true },
+  dailyDigest: { email: true, push: true },
 }) as MemberPrefs;
 
 /** Tolerant on the way in: a partial or half-written object keeps defaults

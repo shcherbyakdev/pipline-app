@@ -560,6 +560,20 @@
       "footer": "It's on your calendar; the client got their confirmation.",
       "footerRequest": "Accept or decline it from your Overview page — the slot is held until you do."
     },
+    "digest": {
+      "subject": "{count, plural, one {# thing needs} other {# things need}} you today",
+      "lead": "Your morning list.",
+      "requests": "Requests waiting ({count})",
+      "holds": "Holds expiring soon ({count})",
+      "balances": "Balances due ({count})",
+      "deposit": "{amount} deposit, until {time}",
+      "lapsed": "{amount} deposit, payment window passed",
+      "due": "{amount} due",
+      "fallbackTitle": "Booking",
+      "open": "Open your list",
+      "openText": "Open your list: {url}",
+      "footer": "You get this once a day while something is waiting. Turn it off under Notifications."
+    },
     "providerCancelled": {
       "subject": "Cancelled by client — {service}, {when}",
       "lead": "<b>{client}</b> cancelled their booking.",
@@ -585,6 +599,10 @@
       "rescheduled": {
         "title": "Rescheduled by client",
         "body": "{client} · {service} · now {when}"
+      },
+      "dailyDigest": {
+        "title": "Your morning list",
+        "body": "{count, plural, one {# thing needs} other {# things need}} you today"
       },
       "test": {
         "title": "Booklo notifications are on",
@@ -1521,7 +1539,20 @@
     "legendToday": "today",
     "members": "Members",
     "teamMembers": "Team members ({count})",
-    "goTo": "Go to"
+    "goTo": "Go to",
+    "holds": "Holds expiring soon",
+    "balances": "Balances due",
+    "deposit": "{amount} deposit",
+    "open": "Open",
+    "openFor": "Open the booking for {name}",
+    "markPaid": "Mark paid",
+    "markPaidFor": "Mark paid for {name}",
+    "sendLinkFor": "Send a balance link to {name}",
+    "writeOffFor": "Write off the balance for {name}",
+    "writeOffTitle": "Write off the balance",
+    "writeOffBody": "The balance drops to zero and the booking counts as settled. Nothing is sent to the client.",
+    "writeOffNote": "Note (optional)",
+    "writeOffNotePlaceholder": "Why — e.g. goodwill after a late start."
   },
   "studio": {
     "layouts": {
@@ -2036,6 +2067,7 @@
       "newRequest": "New booking request",
       "cancelled": "Cancellation by a client",
       "rescheduled": "Reschedule by a client",
+      "dailyDigest": "Morning list — once a day at 08:00 while something is waiting",
       "switchLabel": "{event}, by {channel}"
     },
     "reminders": {

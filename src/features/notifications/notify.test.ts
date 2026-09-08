@@ -123,4 +123,47 @@ describe("notifyMembers", () => {
     expect(errors).toHaveBeenCalled();
     errors.mockRestore();
   });
+
+  const digest = {
+    orgId: "org1",
+    event: "dailyDigest" as const,
+    idempotencyKey: "digest:org1:2026-09-08",
+    requests: [{ clientName: "Anna", whenLine: "Mon 10:00–12:00", note: "Studio A" }],
+    holds: [{ clientName: "Ola", whenLine: "Tue 14:00–16:00", note: "50,00 zł deposit, until Mon, 16:00" }],
+    balances: [
+      { clientName: "Piotr", whenLine: "Sun 09:00–11:00", note: "120,00 zł due" },
+      { clientName: "Kasia", whenLine: "Sat 18:00–20:00", note: "30,00 zł due" },
+    ],
+  };
+
+  it("dailyDigest → one email with the three sections, no reply-to; push counts the rows and lands on /overview", async () => {
+    const h = harness([{ user_id: "u1", email: "owner@example.com", notification_prefs: null }]);
+    await notifyMembers(digest, h.deps);
+    expect(h.emails).toHaveLength(1);
+    expect(h.emails[0].subject).toBe("4 things need you today");
+    expect(h.emails[0].replyTo).toBeUndefined();
+    expect(h.emails[0].idempotencyKey).toBe("digest:org1:2026-09-08");
+    expect(h.emails[0].text).toContain("Requests waiting (1)");
+    expect(h.emails[0].text).toContain("Holds expiring soon (1)");
+    expect(h.emails[0].text).toContain("Balances due (2)");
+    expect(h.emails[0].text).toContain("Piotr — Sun 09:00–11:00 — 120,00 zł due");
+    expect(h.emails[0].html).toContain("<strong>Anna</strong>");
+    expect(h.pushes).toEqual([
+      { userId: "u1", payload: { title: "Your morning list", body: "4 things need you today", url: "/overview", tag: "digest:org1:2026-09-08" } },
+    ]);
+  });
+
+  it("dailyDigest respects the member's own row in the matrix", async () => {
+    const h = harness([{ user_id: "u1", email: "owner@example.com", notification_prefs: { dailyDigest: { email: false, push: true } } }]);
+    await notifyMembers(digest, h.deps);
+    expect(h.emails).toEqual([]);
+    expect(h.pushes).toHaveLength(1);
+  });
+
+  it("dailyDigest with one row uses the singular", async () => {
+    const h = harness([{ user_id: "u1", email: "owner@example.com", notification_prefs: null }]);
+    await notifyMembers({ ...digest, requests: [], holds: [], balances: [digest.balances[0]] }, h.deps);
+    expect(h.emails[0].subject).toBe("1 thing needs you today");
+    expect(h.emails[0].text).not.toContain("Requests waiting");
+  });
 });

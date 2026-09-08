@@ -527,6 +527,20 @@
       "footer": "Jest w Twoim kalendarzu; klient dostał potwierdzenie.",
       "footerRequest": "Zaakceptuj lub odrzuć na stronie Przegląd — termin jest wstrzymany, dopóki tego nie zrobisz."
     },
+    "digest": {
+      "subject": "{count, plural, one {# sprawa czeka} few {# sprawy czekają} many {# spraw czeka} other {# sprawy czeka}} dziś na Ciebie",
+      "lead": "Twoja poranna lista.",
+      "requests": "Prośby czekają ({count})",
+      "holds": "Rezerwacje wstrzymane wkrótce wygasną ({count})",
+      "balances": "Salda do zapłaty ({count})",
+      "deposit": "zaliczka {amount}, do {time}",
+      "lapsed": "zaliczka {amount}, czas na płatność minął",
+      "due": "{amount} do zapłaty",
+      "fallbackTitle": "Rezerwacja",
+      "open": "Otwórz listę",
+      "openText": "Otwórz listę: {url}",
+      "footer": "Ten e-mail przychodzi raz dziennie, dopóki coś czeka. Wyłączysz go w sekcji „Powiadomienia”."
+    },
     "providerCancelled": {
       "subject": "Anulowana przez klienta — {service}, {when}",
       "lead": "<b>{client}</b> anulował(a) swoją rezerwację.",
@@ -552,6 +566,10 @@
       "rescheduled": {
         "title": "Przełożona przez klienta",
         "body": "{client} · {service} · teraz {when}"
+      },
+      "dailyDigest": {
+        "title": "Twoja poranna lista",
+        "body": "{count, plural, one {# sprawa czeka} few {# sprawy czekają} many {# spraw czeka} other {# sprawy czeka}} dziś na Ciebie"
       },
       "test": {
         "title": "Powiadomienia Booklo są włączone",
@@ -1521,7 +1539,20 @@
     "legendToday": "dziś",
     "members": "Członkowie",
     "teamMembers": "Członkowie zespołu ({count})",
-    "goTo": "Przejdź do"
+    "goTo": "Przejdź do",
+    "holds": "Rezerwacje wstrzymane wkrótce wygasną",
+    "balances": "Salda do zapłaty",
+    "deposit": "zaliczka {amount}",
+    "open": "Otwórz",
+    "openFor": "Otwórz rezerwację — {name}",
+    "markPaid": "Oznacz jako zapłacone",
+    "markPaidFor": "Oznacz jako zapłacone — {name}",
+    "sendLinkFor": "Wyślij link do zapłaty — {name}",
+    "writeOffFor": "Umórz saldo — {name}",
+    "writeOffTitle": "Umórz saldo",
+    "writeOffBody": "Saldo spada do zera, a rezerwacja liczy się jako rozliczona. Klient nic nie dostaje.",
+    "writeOffNote": "Notatka (opcjonalnie)",
+    "writeOffNotePlaceholder": "Powód — np. gest po spóźnionym starcie."
   },
   "studio": {
     "layouts": {
@@ -2004,6 +2035,7 @@
       "newRequest": "Nowa prośba o rezerwację",
       "cancelled": "Anulowanie przez klienta",
       "rescheduled": "Przełożenie przez klienta",
+      "dailyDigest": "Poranna lista — raz dziennie o 08:00, dopóki coś czeka",
       "switchLabel": "{event}, przez {channel}"
     },
     "reminders": {

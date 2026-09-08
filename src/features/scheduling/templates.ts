@@ -730,3 +730,50 @@ export function providerRescheduledEmail(t: EmailsT, input: {
   ].join("\n");
   return { subject, html, text };
 }
+
+// ---------- S4 morning digest (members). Rows arrive pre-formatted in the
+// org's locale/timezone (features/notifications/digest.ts); this only lays
+// them out. A section with no rows is omitted, in html and text alike.
+export type DigestRow = { clientName: string; whenLine: string; note: string };
+
+export function dailyDigestEmail(t: EmailsT, input: {
+  requests: DigestRow[];
+  holds: DigestRow[];
+  balances: DigestRow[];
+  overviewUrl: string;
+}): { subject: string; html: string; text: string } {
+  const count = input.requests.length + input.holds.length + input.balances.length;
+  const subject = t("digest.subject", { count });
+  const sections: Array<[string, DigestRow[]]> = [
+    [t("digest.requests", { count: input.requests.length }), input.requests],
+    [t("digest.holds", { count: input.holds.length }), input.holds],
+    [t("digest.balances", { count: input.balances.length }), input.balances],
+  ].filter(([, rows]) => rows.length > 0) as Array<[string, DigestRow[]]>;
+  const sectionHtml = sections
+    .map(
+      ([heading, rows]) =>
+        `\n  <p style="margin: 16px 0 4px; font-weight: 600;">${esc(heading)}</p>` +
+        rows
+          .map(
+            (r) =>
+              `\n  <p style="margin: 0 0 4px;"><strong>${esc(r.clientName)}</strong> — ${esc(r.whenLine)} — <span style="color: #444;">${esc(r.note)}</span></p>`,
+          )
+          .join(""),
+    )
+    .join("");
+  const html = `
+<div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <p style="margin: 0 0 8px;">${esc(t("digest.lead"))}</p>${sectionHtml}
+  <p style="margin: 24px 0 0;"><a href="${esc(input.overviewUrl)}">${esc(t("digest.open"))}</a></p>
+  <p style="color: #666; font-size: 12px; margin: 16px 0 0;">${esc(t("digest.footer"))}</p>
+</div>`.trim();
+  const text = [
+    t("digest.lead"),
+    ...sections.flatMap(([heading, rows]) => ["", heading, ...rows.map((r) => `${r.clientName} — ${r.whenLine} — ${r.note}`)]),
+    "",
+    t("digest.openText", { url: input.overviewUrl }),
+    "",
+    t("digest.footer"),
+  ].join("\n");
+  return { subject, html, text };
+}

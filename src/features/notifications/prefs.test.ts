@@ -30,6 +30,11 @@ describe("member prefs", () => {
     expect(parseMemberPrefs({ newBooking: { email: false } }).newBooking).toEqual({ email: false, push: true });
   });
 
+  it("a four-key row written before S4 gets the dailyDigest default", () => {
+    const prefs = parseMemberPrefs({ newBooking: { email: false, push: false } });
+    expect(prefs.dailyDigest).toEqual({ email: true, push: true });
+  });
+
   it("setMemberChannel flips one switch and leaves the rest", () => {
     const next = setMemberChannel(parseMemberPrefs(null), "rescheduled", "push", false);
     expect(next.rescheduled).toEqual({ email: true, push: false });
@@ -67,5 +72,13 @@ describe("lead set parity with the migration", () => {
     expect(hit, "leadHours CHECK not found").not.toBeNull();
     const inSql = hit![1].split(",").map((n) => Number(n.trim())).sort((a, b) => a - b);
     expect(inSql).toEqual([...REMINDER_LEAD_HOURS].sort((a, b) => a - b));
+  });
+
+  it("MEMBER_EVENTS equals the key list inside update_member_notification_prefs (0083)", () => {
+    const sql = readFileSync(join(process.cwd(), "src/db/migrations/0083_daily_list.sql"), "utf8");
+    const hit = /if v_key not in \(([^)]+)\)/.exec(sql);
+    expect(hit, "member key CHECK not found").not.toBeNull();
+    const inSql = hit![1].split(",").map((k) => k.trim().replace(/^'|'$/g, "")).sort();
+    expect(inSql).toEqual([...MEMBER_EVENTS].sort());
   });
 });

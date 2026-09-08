@@ -11,6 +11,7 @@ import { runCalendarSync } from "@/features/calendar-sync/run";
 import { runInbound } from "@/features/calendar-sync/inbound-run";
 import { runHoldExpiry } from "@/features/payments/hold-expiry";
 import { paymentsConfigured, selectPaymentsProvider } from "@/lib/payments/provider";
+import { runDailyDigest } from "@/features/notifications/digest";
 
 // A tick is up to REMINDER_BATCH_LIMIT (25) sequential sends plus a handful
 // of reads per row; the platform default function budget is tighter than a
@@ -112,7 +113,16 @@ export async function POST(request: Request) {
       console.error("[payments] hold expiry tick failed:", error);
       holds = { error: "hold expiry failed" };
     }
-    return Response.json({ ...summary, calendar, inbound, holds });
+    // S4: the morning list, once per org per local day. Its own try — a
+    // digest problem must not hide the other four summaries.
+    let digest: Awaited<ReturnType<typeof runDailyDigest>> | { error: string };
+    try {
+      digest = await runDailyDigest({ db: admin, transport: selectTransport() });
+    } catch (error) {
+      console.error("[digest] drain tick failed:", error);
+      digest = { error: "digest failed" };
+    }
+    return Response.json({ ...summary, calendar, inbound, holds, digest });
   } catch (error) {
     console.error("[scheduling] drain tick failed:", error);
     return Response.json({ error: "drain failed" }, { status: 500 });
