@@ -406,6 +406,7 @@ describe("listTimelineData placements", () => {
   let owner: SupabaseClient;
   let orgId: string;
   let wholeUnitId: string;
+  let roomA: { id: string; unitId: string };
   let roomUnitIds: string[];
   let bookingId: string;
 
@@ -431,11 +432,12 @@ describe("listTimelineData placements", () => {
       if (uErr) throw uErr;
       return { id: off!.id as string, unitId: unit!.id as string };
     };
-    const [roomA, roomB, whole] = [await hourly("Room A", "space"), await hourly("Room B", "space"), await hourly("Whole studio", "composite")];
+    const [a, roomB, whole] = [await hourly("Room A", "space"), await hourly("Room B", "space"), await hourly("Whole studio", "composite")];
+    roomA = a;
     wholeUnitId = whole.unitId;
-    roomUnitIds = [roomA.unitId, roomB.unitId];
+    roomUnitIds = [a.unitId, roomB.unitId];
     const { error: linkError } = await owner.from("rental_offering_components").insert([
-      { composite_id: whole.id, component_id: roomA.id, org_id: orgId },
+      { composite_id: whole.id, component_id: a.id, org_id: orgId },
       { composite_id: whole.id, component_id: roomB.id, org_id: orgId },
     ]);
     if (linkError) throw linkError;
@@ -467,5 +469,18 @@ describe("listTimelineData placements", () => {
     expect(mine.map((p) => p.unitId).sort()).toEqual([...roomUnitIds].sort());
     expect(mine.every((p) => p.kind === "component")).toBe(true);
     expect(mine.some((p) => p.unitId === wholeUnitId)).toBe(false);
+  });
+
+  // Switching a space off writes rental_offerings.active — the offering is
+  // dropped before the unit-level "still booked?" guard ever runs, so a room
+  // parked while a whole-studio booking holds it must survive on the
+  // OFFERING filter or its lane (and its ghost) vanish.
+  it("keeps an inactive room's lane and its placement while a composite holds it", async () => {
+    const { error } = await owner.from("rental_offerings").update({ active: false }).eq("id", roomA.id);
+    if (error) throw error;
+
+    const { offerings, placements } = await listTimelineData(FROM_DATE, TZ);
+    expect(offerings.flatMap((o) => o.units.map((u) => u.id))).toContain(roomA.unitId);
+    expect(placements.some((p) => p.bookingId === bookingId && p.unitId === roomA.unitId)).toBe(true);
   });
 });

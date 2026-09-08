@@ -21,6 +21,7 @@ import { BookingRescheduleDialog } from "./booking-reschedule-dialog";
 import { DeclineRequestDialog } from "./requests-inbox";
 import { MoveRentalDialog } from "@/features/rentals/components/move-rental-dialog";
 import { BookingCharges } from "@/features/payments/components/booking-charges";
+import { loadBookingAlsoReserved } from "@/features/payments/actions";
 import { adminCancelMoney, type AdminRefundMode } from "@/features/rentals/cancel-policy";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,6 +116,22 @@ function DetailBody({
   // owns the balance from there on (live or ended) — so the summary line
   // above it says only what was paid.
   const showCharges = isRental && booking.status === "confirmed";
+  // S6: the other units this booking holds — the rooms a whole-studio stay
+  // swallows, the lamps an add-on reserves. Asked for at every rental status:
+  // the owner answering a REQUEST is exactly who needs to know which rooms it
+  // would take. The body is keyed on the booking id, so this runs once per
+  // opened booking; the flag only guards a close that beats the answer.
+  const [alsoReserved, setAlsoReserved] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    if (!isRental) return;
+    let live = true;
+    void loadBookingAlsoReserved({ id: booking.id }).then((names) => {
+      if (live) setAlsoReserved(names);
+    });
+    return () => {
+      live = false;
+    };
+  }, [isRental, booking.id]);
   // S3: what is still to collect counts the fee and only the money the studio
   // still holds (paid − refunded); no balance → the plain "paid" line.
   const balance =
@@ -287,6 +304,9 @@ function DetailBody({
             intlLocale,
           )}
         </DialogDescription>
+        {alsoReserved.length > 0 ? (
+          <p className="text-muted-foreground text-xs">{t("alsoReserved", { names: alsoReserved.join(", ") })}</p>
+        ) : null}
         {staff.length > 1 && booking.staffName ? (
           <p className="flex items-center gap-1.5 text-sm">
             <span

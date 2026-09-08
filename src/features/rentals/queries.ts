@@ -375,7 +375,16 @@ export async function listTimelineData(
   );
 
   const offerings: TimelineOffering[] = offeringDb
-    .filter((o) => o.active || bookedOfferingIds.has(o.id))
+    // A space switched off on /rentals writes rental_offerings.active, not
+    // the unit's — so the unit-level guard below never gets a say unless the
+    // space survives this filter first. Something still holding one of its
+    // units (its own booking or another space's) keeps it on the chart.
+    .filter(
+      (o) =>
+        o.active ||
+        bookedOfferingIds.has(o.id) ||
+        (o.rental_units ?? []).some((u) => bookedUnitIds.has(u.id)),
+    )
     .map((o) => ({
       id: o.id,
       name: o.name,

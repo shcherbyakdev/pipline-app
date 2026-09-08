@@ -188,6 +188,17 @@ export function Timeline({
   // S6: what a lane DRAWS — its own stays plus every booking placed on it
   // (a whole studio on each of its rooms, an add-on on its lamps).
   const lanes = React.useMemo(() => staysByLane(visibleStays, placements), [visibleStays, placements]);
+  // Which of a lane's bars are ghosts, built once rather than per lane per
+  // pan frame (blackoutsByUnit idiom).
+  const ghostsByUnit = React.useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const p of placements) {
+      const set = map.get(p.unitId);
+      if (set) set.add(p.bookingId);
+      else map.set(p.unitId, new Set([p.bookingId]));
+    }
+    return map;
+  }, [placements]);
 
   // Conflicts are a per-unit question, detected over every stay the fetch
   // returned (a turnover clash needs the earlier stay even when it checked
@@ -431,7 +442,7 @@ export function Timeline({
                         today={today}
                         now={now}
                         stays={lanes.get(unit.id) ?? []}
-                        ghostIds={new Set(placements.filter((p) => p.unitId === unit.id).map((p) => p.bookingId))}
+                        ghostIds={ghostsByUnit.get(unit.id)}
                         blackouts={blackoutsByUnit.get(unit.id) ?? []}
                         conflicts={conflicts}
                         spotlightId={spotlightId}

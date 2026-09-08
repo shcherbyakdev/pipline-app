@@ -99,9 +99,6 @@ export async function loadBookingSettlement(
       balanceCents: number;
       hourlyRateCents: number | null;
       canCollect: boolean;
-      /** S6: the names of the other units this booking holds — the rooms a
-          whole-studio stay swallows, the lamps an add-on reserves. */
-      alsoReserved: string[];
     }
   | { ok: false; error: string }
 > {
@@ -119,13 +116,10 @@ export async function loadBookingSettlement(
       .maybeSingle();
     if (error) { console.error("[payments] loadBookingSettlement:", error); return { ok: false, error: t("generic") }; }
     if (!b) return { ok: false, error: t("generic") };
-    const [settlement, { data: due }, active, { data: also }] = await Promise.all([
+    const [settlement, { data: due }, active] = await Promise.all([
       getBookingSettlement(b.id),
       createAdminClient().rpc("booking_balance_cents", { p_booking_id: b.id }),
       hasActivePaymentAccount(org.id),
-      // The booking is already proven to be the org's; booking_units is
-      // readable by any member of it (0084).
-      supabase.from("booking_units").select("kind, rental_units(name)").eq("booking_id", b.id).neq("kind", "primary"),
     ]);
     return {
       ok: true,
@@ -140,16 +134,39 @@ export async function loadBookingSettlement(
       // Online collection needs both halves: somewhere to send the link and
       // an account that can take the money.
       canCollect: active && Boolean(b.client_email),
-      // Sorted: PostgREST's order is arbitrary, and the line must not
-      // reshuffle itself between two loads of the same booking.
-      alsoReserved: (also ?? [])
-        .map((r) => (r.rental_units as unknown as { name: string } | null)?.name)
-        .filter((n): n is string => !!n)
-        .sort(),
     };
   } catch (e) {
     console.error("[payments] loadBookingSettlement:", e);
     return { ok: false, error: t("generic") };
+  }
+}
+
+/** S6: the OTHER units a booking holds (booking_units, 0084) — the rooms a
+    whole-studio booking swallows, the lamps an add-on reserves. The detail
+    dialog asks for every rental status, not just a settled one: the point of
+    the line is to say what a PENDING request would block. The RLS client is
+    the whole gate — booking_units is readable by the org's members only, so
+    a stranger's uuid comes back empty. Sorted, since PostgREST's order is
+    arbitrary and the line must not reshuffle between two opens. */
+export async function loadBookingAlsoReserved(input: unknown): Promise<string[]> {
+  const parsed = z.object({ id: z.uuid() }).safeParse(input);
+  if (!parsed.success) return [];
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("booking_units")
+      .select("rental_units(name)")
+      .eq("booking_id", parsed.data.id)
+      .eq("reserving", true)
+      .neq("kind", "primary");
+    if (error) { console.error("[payments] loadBookingAlsoReserved:", error); return []; }
+    return (data as unknown as Array<{ rental_units: { name: string } | null }>)
+      .map((r) => r.rental_units?.name)
+      .filter((n): n is string => !!n)
+      .sort();
+  } catch (e) {
+    console.error("[payments] loadBookingAlsoReserved:", e);
+    return [];
   }
 }
 
