@@ -159,7 +159,6 @@
     "termsRequired": "Aby zarezerwować, zaakceptuj regulamin.",
     "stayStarted": "Ten pobyt już się rozpoczął.",
     "checkInPassed": "Godzina zameldowania już minęła — wybierz późniejszą datę.",
-    "cancelWindowPassed": "Okres bezpłatnego odwołania minął — skontaktuj się z usługodawcą, aby anulować.",
     "notChangeable": "Tej rezerwacji nie można już zmienić online.",
     "planLimitServices": "Twój plan pozwala na {max} usług na stronie rezerwacji.",
     "planLimitResourceOne": "Free obejmuje 1 zasób do rezerwacji — jedną osobę lub jedną jednostkę.",

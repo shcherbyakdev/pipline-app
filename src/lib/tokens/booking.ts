@@ -30,9 +30,8 @@ export type ResolveBookingResult =
         // lives in resolveClientStaffName, applied per surface.
         staffId: string | null;
         staffName: string | null;
-        // H3: pricing/deposit/cancel-window info for the money lines and the
-        // cancel-window gate on the manage page. Null across the board for
-        // an offering with no price set.
+        // H3: pricing/deposit info for the money lines. Null across the
+        // board for an offering with no price set.
         priceCents: number | null;
         currency: string | null;
         depositCents: number | null;

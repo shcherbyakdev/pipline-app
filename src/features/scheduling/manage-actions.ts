@@ -19,6 +19,7 @@ import { selectTransport } from "@/lib/email/transport";
 import { refundBooking } from "@/features/payments/refund";
 import { expireOpenCheckouts } from "@/features/payments/checkout";
 import { formatMoney } from "@/lib/money";
+import type { UnitsT } from "@/i18n/translator";
 import { env } from "@/env";
 import { addDaysISO, computeSlots, dateInZone } from "./slots";
 import {
@@ -112,12 +113,6 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     const admin = createAdminClient();
     const { data, error } = await admin.rpc("cancel_booking", { p_token: parsed.data.token });
     if (error) {
-      if (isRpcSentinel(error, "cancel_window")) {
-        // Only a live, confirmed booking trips this — resolve it for its org's
-        // language (the error path alone pays for the second read).
-        const live = await resolveActionable(parsed.data.token);
-        return publicError(live ? () => getOrgLocale(live.orgId) : null, "cancelWindowPassed");
-      }
       console.error("[scheduling] cancelBooking:", error.code || "rpc error");
       return publicError(orgLocale, "generic");
     }
@@ -141,10 +136,19 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     if (!row) return publicError(orgLocale, "notChangeable");
     kickCalendarSync(row.org_id); // Google mirror (spec 2026-09-05 §2.2)
 
-    // S2 (ruling 3): whatever was paid comes back in full. Best effort and
-    // recorded on the ledger; a failure is the studio's to finish in Stripe
-    // (the booking detail shows it) — never the client's problem here.
-    const refund = await refundBooking(row.booking_id, "cancel").catch((e) => {
+    // S3: what the row says now that the RPC has written the consequence —
+    // the fee the tier kept, what was paid, what already went back.
+    const { data: moneyRow } = await admin
+      .from("bookings")
+      .select("price_cents, currency, paid_cents, refunded_cents, fee_cents")
+      .eq("id", row.booking_id)
+      .maybeSingle();
+    const money = moneyRow ?? { price_cents: null, currency: null, paid_cents: 0, refunded_cents: 0, fee_cents: 0 };
+    // Whatever the fee does not keep comes back. Best effort and recorded on
+    // the ledger; a failure is the studio's to finish in Stripe (the booking
+    // detail shows it) — never the client's problem here.
+    const refundDue = Math.max(0, money.paid_cents - money.refunded_cents - money.fee_cents);
+    const refund = await refundBooking(row.booking_id, "cancel", {}, { amountCents: refundDue }).catch((e) => {
       console.error("[payments] cancel refund:", e);
       return { refundedCents: 0, failed: true };
     });
@@ -154,13 +158,14 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
     await expireOpenCheckouts(row.booking_id).catch((e) =>
       console.error("[payments] cancel: expiring checkouts failed:", e),
     );
-    // cancel_booking doesn't return the currency, and only a real refund
-    // needs it — pay for the read on that path alone.
-    const currency: string | null =
-      refund.refundedCents > 0
-        ? ((await admin.from("bookings").select("currency").eq("id", row.booking_id).maybeSingle())
-            .data?.currency ?? null)
-        : null;
+    const currency = money.currency;
+    // The consequence, in whichever language a mail is built in.
+    const consequenceLines = (tUnits: UnitsT) => {
+      const lines: string[] = [];
+      if (currency && money.fee_cents > 0) lines.push(tUnits("cancellationFee", { amount: formatMoney(money.fee_cents, currency) }));
+      if (currency && refund.refundedCents > 0) lines.push(tUnits("refund", { amount: formatMoney(refund.refundedCents, currency) }));
+      return lines;
+    };
 
     // Everything below is post-RPC: the cancellation is already committed, so
     // nothing here may turn into a failed action. Both of these are safe by
@@ -198,10 +203,8 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
         whenLine: clientWhenLine,
         cancelledBy: "client",
         staffName,
-        // S2: what came back, in the client's own language.
-        infoLines: currency
-          ? [client.tUnits("refund", { amount: formatMoney(refund.refundedCents, currency) })]
-          : undefined,
+        // S3: the fee kept and what came back, in the client's own language.
+        infoLines: consequenceLines(client.tUnits),
         // Client-facing mail carries the badge unless the org's plan lets it
         // opt out and it did (emailBadgeUrl swallows its own errors).
         badgeUrl: await emailBadgeUrl(row.org_id),

@@ -159,7 +159,6 @@
     "termsRequired": "Please accept the terms to book.",
     "stayStarted": "This stay has already started.",
     "checkInPassed": "That check-in time has already passed — pick a later date.",
-    "cancelWindowPassed": "The free-cancellation window has passed — contact the venue to cancel.",
     "notChangeable": "This booking can no longer be changed online.",
     "planLimitServices": "Your plan allows {max} services on your booking page.",
     "planLimitResourceOne": "Free includes 1 bookable resource — one person or one unit.",
