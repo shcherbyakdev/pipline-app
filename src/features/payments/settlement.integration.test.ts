@@ -291,7 +291,7 @@ describe("booking_charges RLS", () => {
       unit_cents: 500,
       cents: 999,
     });
-    expect(bad.error?.message).toMatch(/booking_charges_cents_check|violates check constraint/);
+    expect(bad.error?.message).toMatch(/booking_charges_check/);
     expect(
       (await admin.from("booking_charges").select("id").eq("booking_id", id)).data,
     ).toEqual([]);
@@ -299,7 +299,7 @@ describe("booking_charges RLS", () => {
 });
 
 describe("mark_booking_paid on a confirmed booking", () => {
-  it("records a manual balance row and bumps paid_cents; refuses at balance 0", async () => {
+  it("records a manual balance row and bumps paid_cents; nothing_due at balance 0", async () => {
     const { client, orgId, handle } = await newOrg("cash");
     const { offeringId } = await hoursFixture(client, orgId);
     const { id } = await createHours(handle, offeringId, startIn(100)); // confirmed, unpaid, balance 10000
@@ -316,7 +316,7 @@ describe("mark_booking_paid on a confirmed booking", () => {
       { kind: "balance", provider: "manual", amount_cents: 10000, status: "paid" },
     ]);
     const again = await client.rpc("mark_booking_paid", { p_booking_id: id });
-    expect(again.error?.message).toMatch(/not found/);
+    expect(again.error?.message).toMatch(/nothing_due/);
   });
 });
 

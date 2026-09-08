@@ -30,10 +30,15 @@ create policy "booking_charges_insert_member" on public.booking_charges
 create policy "booking_charges_delete_member" on public.booking_charges
   for delete to authenticated using (org_id in (select public.user_orgs()));
 --> statement-breakpoint
--- Grants convention: newer images drop default ACLs.
+-- Grants convention: revoke first (some images hand `authenticated` the
+-- default ACLs, TRUNCATE among them — and TRUNCATE bypasses RLS), then grant
+-- exactly what the table needs. A charge is never edited, only added or
+-- removed, so no UPDATE for members.
+revoke all on table public.booking_charges from public, anon, authenticated, service_role;
+--> statement-breakpoint
 grant select, insert, delete on table public.booking_charges to authenticated;
 --> statement-breakpoint
-grant all on table public.booking_charges to service_role;
+grant select, insert, update, delete on table public.booking_charges to service_role;
 --> statement-breakpoint
 
 -- ---------- write-off on the booking; written only by write_off_booking.
@@ -61,7 +66,10 @@ $$;
 --> statement-breakpoint
 revoke all on function public.booking_balance_cents(uuid) from public, anon, authenticated, service_role;
 --> statement-breakpoint
-grant execute on function public.booking_balance_cents(uuid) to authenticated, service_role;
+-- service_role only: it is security definer with no org gate, so a signed-in
+-- user with a stranger's booking uuid must not be able to read its balance.
+-- The app reads it server-side (features/payments), never from the browser.
+grant execute on function public.booking_balance_cents(uuid) to service_role;
 --> statement-breakpoint
 
 -- ---------- write_off_booking: the balance becomes 0 (ruling 3).
@@ -105,7 +113,7 @@ begin
     update public.bookings set status = 'confirmed', paid_cents = paid_cents + v_b.deposit_cents where id = v_b.id;
   else
     v_due := public.booking_balance_cents(v_b.id);
-    if v_due <= 0 then raise exception 'not found'; end if;
+    if v_due <= 0 then raise exception 'nothing_due'; end if;
     insert into public.booking_payments (org_id, booking_id, kind, provider, amount_cents, currency, status, paid_at)
       values (v_b.org_id, v_b.id, 'balance', 'manual', v_due, coalesce(v_b.currency, 'PLN'), 'paid', now());
     update public.bookings set paid_cents = paid_cents + v_due where id = v_b.id;
