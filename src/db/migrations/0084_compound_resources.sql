@@ -693,5 +693,3 @@ $$;
 revoke all on function public.reschedule_rental_hours_apply(uuid, uuid, timestamptz, text, boolean)
   from public, anon, authenticated, service_role;
 --> statement-breakpoint
-grant execute on function public.reschedule_rental_hours_apply(uuid, uuid, timestamptz, text, boolean) to service_role;
---> statement-breakpoint

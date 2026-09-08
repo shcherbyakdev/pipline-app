@@ -257,8 +257,8 @@ describe("S6 — equipment add-ons + reschedule (0084 part B)", () => {
     const otherRows = await units(other.data as string);
     // Auto-pick is by sort_order, so make the assertion independent of which lamp `other` got:
     const otherLampGot = otherRows.find((r) => r.kind === "equipment")!.rental_unit_id;
-    const moved = await admin.rpc("reschedule_rental_hours_apply", {
-      p_old_id: a.data, p_unit_id: null, p_starts_at: iso(`${d(10)}T14:00`), p_new_token_hash: hash(), p_enforce_limits: false,
+    const moved = await s.owner.rpc("reschedule_rental_booking_hours_admin", {
+      p_booking_id: a.data, p_unit_id: null, p_starts_at: iso(`${d(10)}T14:00`), p_new_token_hash: hash(),
     });
     expect(moved.error).toBeNull();
     const newId = (moved.data as Row[])[0].new_booking_id as string;
@@ -273,8 +273,8 @@ describe("S6 — equipment add-ons + reschedule (0084 part B)", () => {
     // Now both lamps are taken at 16:00 → a move there must refuse.
     const x = await book(s, s.roomB.id, `${d(10)}T16:00`, 60, lampPick(2));
     expect(x.error).toBeNull();
-    const refused = await admin.rpc("reschedule_rental_hours_apply", {
-      p_old_id: newId, p_unit_id: null, p_starts_at: iso(`${d(10)}T16:00`), p_new_token_hash: hash(), p_enforce_limits: false,
+    const refused = await s.owner.rpc("reschedule_rental_booking_hours_admin", {
+      p_booking_id: newId, p_unit_id: null, p_starts_at: iso(`${d(10)}T16:00`), p_new_token_hash: hash(),
     });
     expect(isTaken(refused.error)).toBe(true);
   });
@@ -285,8 +285,8 @@ describe("S6 — equipment add-ons + reschedule (0084 part B)", () => {
     expect(a.error).toBeNull();
     const { error } = await t.owner.from("rental_offerings").update({ active: false }).eq("id", t.lamp.id);
     expect(error).toBeNull();
-    const moved = await admin.rpc("reschedule_rental_hours_apply", {
-      p_old_id: a.data, p_unit_id: null, p_starts_at: iso(`${d(11)}T12:00`), p_new_token_hash: hash(), p_enforce_limits: false,
+    const moved = await t.owner.rpc("reschedule_rental_booking_hours_admin", {
+      p_booking_id: a.data, p_unit_id: null, p_starts_at: iso(`${d(11)}T12:00`), p_new_token_hash: hash(),
     });
     expect(moved.error).toBeNull();
     const newId = (moved.data as Row[])[0].new_booking_id as string;
