@@ -181,6 +181,10 @@ export async function createOffering(input: unknown): Promise<ActionState> {
     name: parsed.data.name,
     description: null,
     active: true,
+    // Spelled out, not left to the column default: PostgREST unions a bulk
+    // insert's keys and sends NULL for a key a row omits, so one row without
+    // it would break the whole array on sort_order's NOT NULL.
+    sort_order: 0,
   };
   // Equipment: every item is a unit, numbered after the first — one
   // statement, so the undo below still covers the whole set. The plan gate

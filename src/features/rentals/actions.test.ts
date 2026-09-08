@@ -101,6 +101,7 @@ describe("createOffering — a space is bookable the moment it exists", () => {
       name: "Room A",
       description: null,
       active: true,
+      sort_order: 0,
     });
     expect(assertCanAddUnit).toHaveBeenCalledTimes(1);
   });
@@ -205,7 +206,7 @@ describe("createOffering — S6 kinds", () => {
     await createOffering(equipment);
     const rows = state.inserts.find((i) => i.table === "rental_units")!.row as unknown as Row[];
     expect(rows.map((r) => r.name)).toEqual(["Softbox", "Softbox 2", "Softbox 3"]);
-    expect(rows.map((r) => r.sort_order)).toEqual([undefined, 1, 2]);
+    expect(rows.map((r) => r.sort_order)).toEqual([0, 1, 2]);
     // One plan gate for the lot — the cap applies publicly (allowedUnitIds).
     expect(assertCanAddUnit).toHaveBeenCalledTimes(1);
   });
@@ -233,6 +234,7 @@ describe("createOffering — S6 kinds", () => {
       name: "Studio B",
       description: null,
       active: true,
+      sort_order: 0,
     });
     expect(state.inserts.map((i) => i.table)).not.toContain("rental_offering_components");
   });

@@ -175,16 +175,6 @@ async function findSpaceId(page, name) {
   return href.split("/").pop();
 }
 
-/** Adds one more unit (item) to a space through its own page. */
-async function addUnit(page, offeringId, name) {
-  await page.goto(`${BASE}/rentals/${offeringId}`, { waitUntil: "domcontentloaded" });
-  const split = page.getByRole("button", { name: /Split this space into units/ });
-  if ((await split.count()) > 0) await split.click();
-  await page.locator('[aria-label="New unit name"]').fill(name);
-  await page.getByRole("button", { name: "Add", exact: true }).click();
-  await page.getByText("Unit added").first().waitFor({ state: "visible", timeout: 30_000 });
-}
-
 /** The row of /rentals for one space, as text (badges included). */
 async function spaceRowText(page, name) {
   await page.goto(`${BASE}/rentals`, { waitUntil: "domcontentloaded" });
@@ -292,15 +282,7 @@ try {
   });
 
   await step(2, "an equipment space is an add-on, and never public", async () => {
-    // DEFECT (QA 2026-09-08, unfixed): createOffering's `itemCount > 1` branch
-    // bulk-inserts [firstUnit, ...extras] where only the extras carry
-    // `sort_order`. PostgREST unions a bulk insert's keys and sends NULL for a
-    // key a row omits, so the first unit trips rental_units.sort_order NOT NULL
-    // and the whole create is refused with "Couldn't save. Try again.".
-    // Until `firstUnit` carries `sort_order: 0`, the second item is added
-    // through the space page's units editor instead (createUnit, one row).
-    ids.lamp = await createSpace(page, { kind: "equipment", name: NAMES.lamp, price: LAMP_PRICE, itemCount: 1 });
-    await addUnit(page, ids.lamp, `${NAMES.lamp} 2`);
+    ids.lamp = await createSpace(page, { kind: "equipment", name: NAMES.lamp, price: LAMP_PRICE, itemCount: LAMP_ITEMS });
     const row = await spaceRowText(page, NAMES.lamp);
     assert(row.includes("Add-on"), `spaces list row reads:\n${row}`);
     await page.goto(`${BASE}/${HANDLE}?lang=en`, { waitUntil: "domcontentloaded" });
