@@ -29,10 +29,17 @@ let counter = 0;
 type Row = Record<string, unknown>;
 
 /** A start N hours from now, truncated down to the current :00 (the fixture's
-    grid is 30 min) — so the actual lead is between N and N-1 hours. */
+    grid is 30 min) — so the actual lead is between N and N-1 hours. Nudged
+    forward an hour when that truncated instant's Europe/Warsaw local hour is
+    23: the fixture's availability rule is 00:00–23:59, so a 23:00–00:00 slot
+    (the default 60 min duration) crosses midnight and gets refused. */
 function startIn(hours: number): string {
   const d = new Date(Date.now() + hours * 3_600_000);
   d.setUTCMinutes(0, 0, 0);
+  const localHour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", hour12: false }).format(d),
+  );
+  if (localHour === 23) d.setUTCHours(d.getUTCHours() + 1);
   return d.toISOString();
 }
 
