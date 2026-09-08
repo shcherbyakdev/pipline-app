@@ -10,6 +10,8 @@ import { generateAccessToken } from "@/lib/tokens/mint";
 import { addDaysISO, dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 
 try { loadEnvFile(".env.local"); } catch { /* CI exports env */ }
+// After the env is loaded: public.ts parses env at import time.
+const { listPublicUnitsForOrg } = await import("@/lib/booking/public");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -201,9 +203,51 @@ describe("S6 — booking_units + composites (0084 part A)", () => {
   });
 
   it("backfill: every rental booking has exactly one primary row", async () => {
-    const { count: bookings } = await admin.from("bookings").select("id", { count: "exact", head: true }).not("rental_unit_id", "is", null);
-    const { count: primaries } = await admin.from("booking_units").select("id", { count: "exact", head: true }).eq("kind", "primary");
+    // Scoped to this org: two global counts race every other test file.
+    const { count: bookings } = await admin.from("bookings").select("id", { count: "exact", head: true }).eq("org_id", s.orgId).not("rental_unit_id", "is", null);
+    const { count: primaries } = await admin.from("booking_units").select("id", { count: "exact", head: true }).eq("org_id", s.orgId).eq("kind", "primary");
     expect(primaries).toBe(bookings);
+  });
+
+  it("a room a composite includes cannot leave hours mode until it is unlinked", async () => {
+    const { data: room, error: roomError } = await s.owner.from("rental_offerings").insert({
+      org_id: s.orgId, name: "Room C", kind: "space", range_mode: "hours", unit_selection: "auto",
+      slot_increment_min: 30, min_duration_min: 60, max_duration_min: 240,
+    }).select("id").single();
+    expect(roomError).toBeNull();
+    const { data: combo, error: comboError } = await s.owner.from("rental_offerings").insert({
+      org_id: s.orgId, name: "Room C alone", kind: "composite", range_mode: "hours", unit_selection: "auto",
+      slot_increment_min: 30, min_duration_min: 60, max_duration_min: 240,
+    }).select("id").single();
+    expect(comboError).toBeNull();
+    const linked = await s.owner.from("rental_offering_components")
+      .insert({ composite_id: combo!.id, component_id: room!.id, org_id: s.orgId });
+    expect(linked.error).toBeNull();
+
+    const toNights = () => s.owner.from("rental_offerings")
+      .update({
+        range_mode: "nights", start_time: "15:00", end_time: "11:00",
+        slot_increment_min: null, min_duration_min: null, max_duration_min: null,
+      }).eq("id", room!.id);
+    const locked = await toNights();
+    expect(locked.error?.message).toContain("included in a whole studio");
+
+    await s.owner.from("rental_offering_components").delete()
+      .eq("composite_id", combo!.id).eq("component_id", room!.id);
+    const freed = await toNights();
+    expect(freed.error).toBeNull();
+    await s.owner.from("rental_offerings").delete().in("id", [room!.id, combo!.id]);
+  });
+
+  it("the public budget order puts equipment units after every room", async () => {
+    const order = await listPublicUnitsForOrg(s.orgId);
+    const ids = order.map((u) => u.id);
+    // "ARRI lamp" sorts first by name; equipment must still rank last, or a
+    // Free org's lamp evicts its only room from the public page.
+    for (const lampUnit of s.lamp.unitIds) {
+      expect(ids.indexOf(s.roomA.unitId)).toBeLessThan(ids.indexOf(lampUnit));
+      expect(ids.indexOf(s.whole.unitId)).toBeLessThan(ids.indexOf(lampUnit));
+    }
   });
 });
 

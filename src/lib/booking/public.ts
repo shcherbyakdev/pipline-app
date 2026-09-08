@@ -601,11 +601,15 @@ export async function listPublicUnits(offeringId: string): Promise<PublicUnit[]>
 // counts them (offering sort_order → name, then unit sort_order → created_at)
 // — the same order listPublicOfferings lists spaces and the RPCs auto-pick
 // units in, so "the first N resources" means one thing everywhere.
+// S6: equipment ranks after every room, whatever it is called. Equipment is
+// never bookable on its own and a space with several items is several units,
+// so alphabetical order alone let one "ARRI lamp" eat a Free org's whole
+// budget and drop its only room off the public page.
 export async function listPublicUnitsForOrg(orgId: string): Promise<UnitRef[]> {
   const admin = createAdminClient();
   const { data: offerings, error } = await admin
     .from("rental_offerings")
-    .select("id")
+    .select("id, kind")
     .eq("org_id", orgId)
     .eq("active", true)
     .order("sort_order")
@@ -624,7 +628,9 @@ export async function listPublicUnitsForOrg(orgId: string): Promise<UnitRef[]> {
     .order("sort_order")
     .order("created_at");
   if (unitsError) throw unitsError;
-  const rank = new Map(offerings.map((o, i) => [o.id as string, i]));
+  const rank = new Map(
+    offerings.map((o, i) => [o.id as string, o.kind === "equipment" ? offerings.length + i : i]),
+  );
   // Stable sort: units keep their own order inside each space.
   return (units ?? [])
     .map((u) => ({ id: u.id as string, offeringId: u.offering_id as string }))
@@ -1035,7 +1041,11 @@ export async function listBookingAlsoReserved(bookingId: string): Promise<string
     .eq("booking_id", bookingId)
     .eq("reserving", true)
     .neq("kind", "primary");
-  if (error || !data) return [];
+  if (error) {
+    console.error("[booking] listBookingAlsoReserved:", error);
+    return [];
+  }
+  if (!data) return [];
   return (data as unknown as Array<{ rental_units: { name: string } | null }>)
     .map((r) => r.rental_units?.name)
     .filter((n): n is string => !!n)

@@ -187,6 +187,11 @@ export function OfferingForm({
       cancelPolicy,
       termsText: termsText === "" ? undefined : termsText,
     };
+    // Only rooms the Includes list actually renders: seeded from the links,
+    // `componentIds` can hold a room that has since left hours mode, and
+    // re-posting it makes every save raise (check_offering_component). The
+    // DB refuses that flip now, so this only catches links made before it.
+    const includes = componentIds.filter((id) => rooms.some((r) => r.id === id));
     // The hours Zod branch is `.strict()` — only that mode's own fields go
     // in, or parsing fails (schema.ts). S6's kind and itemCount are
     // create-only: the settings schema refuses them outright.
@@ -222,7 +227,7 @@ export function OfferingForm({
             // A composite's save replaces the rooms it includes; every other
             // space omits the key (the settings schema wants >= 1 or nothing).
             ...(kind === "composite"
-              ? { componentIds, unitSelection: "auto" as const }
+              ? { componentIds: includes, unitSelection: "auto" as const }
               : {}),
             slotIncrementMin: Number(fd.get("slotIncrementMin")),
             minDurationMin: Number(fd.get("minDurationMin")),
@@ -252,7 +257,7 @@ export function OfferingForm({
           };
     // A composite that includes nothing blocks nothing — the server refuses
     // it too (schema.ts), but only generically.
-    if (kind === "composite" && componentIds.length === 0) {
+    if (kind === "composite" && includes.length === 0) {
       toast.error(t("form.includesRequired"));
       return;
     }

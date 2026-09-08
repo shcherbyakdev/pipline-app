@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { assertCanAddUnit } from "@/lib/billing/gates";
 import { seedDefaultHours } from "@/features/scheduling/default-hours";
+import { isRpcSentinel } from "@/lib/rpc-sentinel";
+import { numberedUnitName } from "./unit-label";
 import {
   offeringInput,
   updateOfferingInput,
@@ -167,7 +169,11 @@ export async function createOffering(input: unknown): Promise<ActionState> {
   // plan gate that would refuse the unit refuses the space — a saved space
   // that could not be booked pointed the owner at "add a unit", which the
   // same gate refused — and a failed unit insert takes the space back out.
-  const refused = await assertCanAddUnit(orgId, supabase);
+  // An equipment space is created with all its items at once, so it spends
+  // that many slots: gate on the whole set, not one (S6 — otherwise the
+  // items land over budget and evict a room from the public list).
+  const items = itemCountOf(parsed.data);
+  const refused = await assertCanAddUnit(orgId, supabase, items);
   if (refused) return refused;
   const { data, error } = await supabase
     .from("rental_offerings")
@@ -187,17 +193,14 @@ export async function createOffering(input: unknown): Promise<ActionState> {
     sort_order: 0,
   };
   // Equipment: every item is a unit, numbered after the first — one
-  // statement, so the undo below still covers the whole set. The plan gate
-  // above is spent once, on the first item; anything past the budget simply
-  // isn't offered publicly (allowedUnitIds, H5b), which is the honest cap.
-  const items = itemCountOf(parsed.data);
+  // statement, so the undo below still covers the whole set.
   const { error: unitError } = await supabase.from("rental_units").insert(
     items > 1
       ? [
           firstUnit,
           ...Array.from({ length: items - 1 }, (_, i) => ({
             ...firstUnit,
-            name: `${parsed.data.name} ${i + 2}`,
+            name: numberedUnitName(parsed.data.name, i + 2),
             sort_order: i + 1,
           })),
         ]
@@ -267,6 +270,12 @@ export async function updateOffering(input: unknown): Promise<ActionState> {
     .eq("org_id", orgId)
     .select("id")
     .maybeSingle();
+  // S6: the room is included in a composite, so it may not leave hours mode
+  // (0084's check_component_still_hourly). Say so — the raise alone reached
+  // the owner as the generic error with nothing to act on.
+  if (error && isRpcSentinel(error, "included in a whole studio")) {
+    return { ok: false, error: (await errorsT())("spaces.componentLocked") };
+  }
   if (error) return fail("updateOffering", error);
   if (!data) return generic();
   // S6: a composite's save replaces the rooms it includes (the form always

@@ -111,7 +111,7 @@ select b.org_id, b.id, b.rental_unit_id, 'primary', b.starts_at, b.ends_at,
 -- holds a write grant on booking_units. Equipment rows are RPC-written.
 -- There is no in-place move (reschedule = new row), so starts/ends never
 -- change after insert.
-create function public.sync_booking_units()
+create or replace function public.sync_booking_units()
 returns trigger language plpgsql security definer set search_path = '' as $$
 declare v_reserving boolean; v_kind text;
 begin
@@ -127,7 +127,10 @@ begin
         from public.rental_offering_components c
         join public.rental_units u on u.offering_id = c.component_id
        where c.composite_id = new.rental_offering_id
-         and u.id <> new.rental_unit_id;
+         and u.id <> new.rental_unit_id
+       -- Every compound booking takes its units in the same order, so two
+       -- racing inserts queue on the EXCLUDE instead of deadlocking on it.
+       order by u.id;
     end if;
   elsif new.status is distinct from old.status then
     update public.booking_units
@@ -255,13 +258,16 @@ grant execute on function public.rental_equipment_lines(uuid, jsonb, int) to ser
 -- its lamp), then sort_order. Fewer free than asked → 'taken' (physical
 -- conflict, never degraded). No advisory lock: equipment has no turnover,
 -- the EXCLUDE settles races (ruling 10). Owner-only, called by the RPCs.
-create function public.attach_booking_equipment(
+create or replace function public.attach_booking_equipment(
   p_booking_id uuid, p_org_id uuid, p_timezone text, p_picks jsonb,
   p_starts_at timestamptz, p_ends_at timestamptz, p_reserving boolean, p_prefer_booking_id uuid
 ) returns void language plpgsql security definer set search_path = '' as $$
 declare v_pick jsonb; v_qty int; v_got int;
 begin
-  for v_pick in select * from jsonb_array_elements(coalesce(p_picks, '[]'::jsonb)) loop
+  -- Sorted: two bookings asking for the same two lamps must lock them in
+  -- the same order (see sync_booking_units).
+  for v_pick in select value from jsonb_array_elements(coalesce(p_picks, '[]'::jsonb))
+                 order by value->>'offeringId' loop
     v_qty := (v_pick->>'qty')::int;
     with free as (
       select u.id
@@ -271,7 +277,7 @@ begin
        order by (p_prefer_booking_id is not null and exists (
                    select 1 from public.booking_units pb
                     where pb.booking_id = p_prefer_booking_id and pb.rental_unit_id = u.id)) desc,
-                u.sort_order, u.created_at
+                u.sort_order, u.created_at, u.id
        limit v_qty
     )
     insert into public.booking_units (org_id, booking_id, rental_unit_id, kind, starts_at, ends_at, reserving)
@@ -692,3 +698,25 @@ $$;
 --> statement-breakpoint
 revoke all on function public.reschedule_rental_hours_apply(uuid, uuid, timestamptz, text, boolean)
   from public, anon, authenticated, service_role;
+--> statement-breakpoint
+
+-- ---------- a room that a composite includes cannot leave hours mode (0037
+-- idiom). check_offering_component only guards the LINK; without this the
+-- owner could flip an included room to Nightly and the composite's next save
+-- would raise 'component must be an hourly space' with nothing on the page
+-- to explain it — and until then the studio would include a room it can no
+-- longer block. `update of` fires whenever the columns are written, so a
+-- settings save that keeps the room hourly passes untouched.
+create or replace function public.check_component_still_hourly()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  if (new.range_mode <> 'hours' or new.kind <> 'space')
+     and exists (select 1 from public.rental_offering_components c where c.component_id = new.id) then
+    raise exception 'included in a whole studio';
+  end if;
+  return new;
+end; $$;
+--> statement-breakpoint
+create trigger rental_offerings_component_hourly
+  before update of range_mode, kind on public.rental_offerings
+  for each row execute function public.check_component_still_hourly();

@@ -270,6 +270,8 @@ export type EquipmentOffering = {
 };
 
 export function equipmentLines(equipment: EquipmentOffering[], picks: EquipmentPick[], durationMin: number): Line[] {
+  // Same ceiling as rental_equipment_lines (0084), so the twins agree.
+  if (picks.length > 12) throw new Error("quote_equipment");
   const seen = new Set<string>();
   const hours = durationMin / 60;
   return picks.map((pick) => {

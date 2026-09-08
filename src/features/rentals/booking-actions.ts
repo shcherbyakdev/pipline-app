@@ -105,8 +105,10 @@ async function offeringIsInactive(orgId: string, offeringId: string): Promise<bo
 
 // 'taken' is the RPC's own "no unit survives turnover/blackouts"; 23P01 is
 // the per-unit EXCLUDE guard catching a physical overlap (public-actions).
+// 23P01 = the EXCLUDE lost the race; 40P01 = two compound bookings deadlocked
+// on it (S6: one booking now touches several units). Both mean "just taken".
 function isTaken(error: { message?: string; code?: string }): boolean {
-  return isRpcSentinel(error, "taken") || error.code === "23P01";
+  return isRpcSentinel(error, "taken") || error.code === "23P01" || error.code === "40P01";
 }
 function isStarted(error: { message?: string }): boolean {
   return isRpcSentinel(error, "started");

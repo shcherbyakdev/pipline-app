@@ -302,6 +302,8 @@ describe("equipmentLines (S6)", () => {
     expect(() => equipmentLines([{ ...LAMP, priceCents: null }], [{ offeringId: LAMP.id, qty: 1 }], 60)).toThrow("quote_equipment");
     expect(() => equipmentLines([LAMP], [{ offeringId: LAMP.id, qty: 1 }, { offeringId: LAMP.id, qty: 1 }], 60)).toThrow("quote_equipment");
     expect(() => equipmentLines([LAMP], [{ offeringId: LAMP.id, qty: 3 }], 60)).toThrow("quote_equipment");
+    // rental_equipment_lines' own ceiling (0084), so the twins agree.
+    expect(() => equipmentLines([LAMP], Array.from({ length: 13 }, () => ({ offeringId: LAMP.id, qty: 1 })), 60)).toThrow("quote_equipment");
   });
 });
 

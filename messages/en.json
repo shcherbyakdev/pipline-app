@@ -177,7 +177,8 @@
       "blackoutOrder": "End date must not precede the start date.",
       "blackoutSpan": "Unavailable dates can span at most 2 years.",
       "lastUnit": "That's the space's last unit — to remove it, delete the space.",
-      "compositeHasOneUnit": "A whole studio is one unit — split its rooms instead."
+      "compositeHasOneUnit": "A whole studio is one unit — split its rooms instead.",
+      "componentLocked": "This room is part of a whole studio — remove it there first."
     },
     "clients": {
       "createdNotAssigned": "Client created, but assigning failed. Pick them from the list.",

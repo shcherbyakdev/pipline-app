@@ -46,6 +46,12 @@ describe("resourceGate", () => {
   it("Team (5 seats), spaces, 4 units → allowed", () => {
     expect(resourceGate({ activeStaff: 1, activeUnits: 4 }, SPACES, team5)).toBeNull();
   });
+  it("S6: a count > 1 (an equipment space's items) is weighed as a whole", () => {
+    expect(resourceGate({ activeStaff: 1, activeUnits: 2 }, SPACES, team5, "billing", 2)).toBeNull();
+    expect(resourceGate({ activeStaff: 1, activeUnits: 2 }, SPACES, team5, "billing", 4)).toEqual(
+      planLimitResourceError(5, "billing"),
+    );
+  });
 });
 
 describe("refusalCopy", () => {

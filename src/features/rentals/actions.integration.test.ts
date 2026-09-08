@@ -64,6 +64,13 @@ describe("createOffering — an equipment space's items", () => {
     });
     if (error) throw error;
     orgId = (org as { id: string }).id;
+    // Plan caps are not this suite's subject (hourly-flow precedent): the
+    // premium waitlist flag (default on) caps a new org at Free's two
+    // resources, and an equipment space now spends one slot per item.
+    const { error: flagError } = await admin
+      .from("org_feature_flags")
+      .insert({ org_id: orgId, flag: "premium_waitlist", enabled: false, updated_by: "s6-items-test" });
+    if (flagError) throw flagError;
     actingClient.current = alice;
   });
 
@@ -105,5 +112,34 @@ describe("createOffering — an equipment space's items", () => {
       { name: `${name} 2`, sort_order: 1, active: true },
       { name: `${name} 3`, sort_order: 2, active: true },
     ]);
+  });
+
+  it("the plan gate counts every item, so an over-budget set is refused before anything is written", async () => {
+    const { error: onError } = await admin
+      .from("org_feature_flags")
+      .update({ enabled: true })
+      .eq("org_id", orgId)
+      .eq("flag", "premium_waitlist");
+    if (onError) throw onError;
+    const name = `Capped ${Date.now()}`;
+    try {
+      // Free is two resources and the org already holds three units, but even
+      // an empty org could not take three items at once: gating on one would
+      // land the rest over budget and evict a room from the public page.
+      const refused = await createOffering(equipment(name, 3));
+      expect(refused).toMatchObject({ ok: false });
+      const { data: leftover } = await alice
+        .from("rental_offerings")
+        .select("id")
+        .eq("org_id", orgId)
+        .eq("name", name);
+      expect(leftover).toEqual([]);
+    } finally {
+      await admin
+        .from("org_feature_flags")
+        .update({ enabled: false })
+        .eq("org_id", orgId)
+        .eq("flag", "premium_waitlist");
+    }
   });
 });

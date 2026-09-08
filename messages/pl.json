@@ -177,7 +177,8 @@
       "blackoutOrder": "Data końcowa nie może być wcześniejsza niż początkowa.",
       "blackoutSpan": "Niedostępne daty mogą obejmować najwyżej 2 lata.",
       "lastUnit": "To ostatnia jednostka tej przestrzeni — aby ją usunąć, usuń przestrzeń.",
-      "compositeHasOneUnit": "Całe studio to jedna jednostka — zamiast tego podziel je na sale."
+      "compositeHasOneUnit": "Całe studio to jedna jednostka — zamiast tego podziel je na sale.",
+      "componentLocked": "Ta sala wchodzi w skład całego studia — najpierw usuń ją stamtąd."
     },
     "clients": {
       "createdNotAssigned": "Klient utworzony, ale nie udało się go przypisać. Wybierz go z listy.",
