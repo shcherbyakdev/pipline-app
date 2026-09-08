@@ -580,6 +580,16 @@
       "lead": "Dziękujemy — otrzymaliśmy Twoją płatność, rezerwacja jest potwierdzona.",
       "manageHint": "Aby ją zobaczyć lub zmienić, użyj linku z wiadomości o rezerwacji."
     },
+    "balanceDue": {
+      "subject": "Do zapłaty — {service}, {when}",
+      "lead": "Poniżej opłaty za sesję i kwota do zapłaty.",
+      "pay": "Zapłać {amount}",
+      "payText": "Zapłać {amount}: {url}"
+    },
+    "balanceReceived": {
+      "subject": "Płatność otrzymana — {service}, {when}",
+      "lead": "Dziękujemy — rachunek został rozliczony."
+    },
     "holdExpired": {
       "subject": "Rezerwacja zwolniona — {service}, {when}",
       "lead": "Zaliczka za tę rezerwację nie wpłynęła w terminie, więc termin został zwolniony.",

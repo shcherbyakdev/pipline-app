@@ -161,17 +161,20 @@ describe("startCheckout", () => {
     expect(count).toBe(1);
   });
 
-  it("refuses a booking that is not a live hold", async () => {
+  it("refuses a booking with nothing due", async () => {
     const { orgId, id } = await held("states");
-    // Nothing to pay for: a confirmed booking.
-    await admin.from("bookings").update({ status: "confirmed", hold_expires_at: null }).eq("id", id);
-    expect(await startCheckout(id, URLS, { db: admin, provider })).toEqual({ error: "not_held" });
-    expect(await startCheckout(crypto.randomUUID(), URLS, { db: admin, provider })).toEqual({ error: "not_held" });
+    // Nothing to pay for: a confirmed booking already settled in full.
+    await admin
+      .from("bookings")
+      .update({ status: "confirmed", hold_expires_at: null, paid_cents: 10000 })
+      .eq("id", id);
+    expect(await startCheckout(id, URLS, { db: admin, provider })).toEqual({ error: "nothing_due" });
+    expect(await startCheckout(crypto.randomUUID(), URLS, { db: admin, provider })).toEqual({ error: "nothing_due" });
 
     // A lapsed hold is a dead link, not a session.
     await admin
       .from("bookings")
-      .update({ status: "pending_payment", hold_expires_at: new Date(Date.now() - 60_000).toISOString() })
+      .update({ status: "pending_payment", hold_expires_at: new Date(Date.now() - 60_000).toISOString(), paid_cents: 0 })
       .eq("id", id);
     expect(await startCheckout(id, URLS, { db: admin, provider })).toEqual({ error: "expired" });
 
@@ -183,5 +186,48 @@ describe("startCheckout", () => {
       .eq("id", id);
     expect(await startCheckout(id, URLS, { db: admin, provider })).toEqual({ error: "no_account" });
     expect((await admin.from("booking_payments").select("id").eq("booking_id", id)).data).toEqual([]);
+  });
+
+  it("a confirmed booking pays its balance, and the two kinds never share a session", async () => {
+    const { id } = await held("balance");
+    // 100 zł booked, 30 zł taken → 70 zł outstanding (the fixture's price is 10000).
+    await admin
+      .from("bookings")
+      .update({ status: "confirmed", hold_expires_at: null, paid_cents: 3000 })
+      .eq("id", id);
+    const balance = await startCheckout(id, URLS, { db: admin, provider });
+    expect(balance).toHaveProperty("url");
+    const { data: rows } = await admin
+      .from("booking_payments")
+      .select("kind, amount_cents, checkout_expires_at")
+      .eq("booking_id", id)
+      .eq("status", "pending");
+    expect(rows).toHaveLength(1);
+    expect(rows![0].kind).toBe("balance");
+    expect(rows![0].amount_cents).toBe(7000);
+    // A balance link lives a day, not the hold's few minutes.
+    expect(new Date(rows![0].checkout_expires_at as string).getTime()).toBeGreaterThan(
+      Date.now() + 23 * 3_600_000,
+    );
+
+    // Back to a live hold: the open balance session is NOT this deposit's.
+    await admin
+      .from("bookings")
+      .update({ status: "pending_payment", hold_expires_at: new Date(Date.now() + 30 * 60_000).toISOString() })
+      .eq("id", id);
+    const deposit = await startCheckout(id, URLS, { db: admin, provider });
+    expect(deposit).toHaveProperty("url");
+    expect(deposit).not.toEqual(balance);
+    const { data: kinds } = await admin
+      .from("booking_payments")
+      .select("kind")
+      .eq("booking_id", id)
+      .eq("status", "pending");
+    expect(kinds!.map((r) => r.kind).sort()).toEqual(["balance", "deposit"]);
+
+    // Settled in full: nothing left to open a session for.
+    await admin.from("bookings").update({ status: "confirmed", hold_expires_at: null, paid_cents: 10000 }).eq("id", id);
+    await admin.from("booking_payments").update({ status: "expired" }).eq("booking_id", id);
+    expect(await startCheckout(id, URLS, { db: admin, provider })).toEqual({ error: "nothing_due" });
   });
 });

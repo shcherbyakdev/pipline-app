@@ -153,16 +153,16 @@ async function createHours(handle: string, offeringId: string, hour: number) {
 }
 
 /** The row startCheckout would have written, minus the provider round-trip. */
-async function ledger(bookingId: string, sessionId: string) {
+async function ledger(bookingId: string, sessionId: string, kind = "deposit", amountCents = 5000) {
   const { data: b } = await admin.from("bookings").select("org_id").eq("id", bookingId).single();
   const { data, error } = await admin
     .from("booking_payments")
     .insert({
       org_id: b!.org_id,
       booking_id: bookingId,
-      kind: "deposit",
+      kind,
       provider: "fake",
-      amount_cents: 5000,
+      amount_cents: amountCents,
       currency: "PLN",
       status: "pending",
       checkout_session_id: sessionId,
@@ -390,5 +390,31 @@ describe("POST /api/payments/webhook (fake provider)", () => {
     const over = await admin.rpc("bump_booking_refunded", { p_booking_id: id, p_cents: 9000 });
     expect(over.error).toBeNull();
     expect(await refunded()).toBe(5000);
+  });
+
+  it("a balance payment credits the confirmed booking and sends only the client's receipt", async () => {
+    const { client, orgId, handle } = await newOrg("bal");
+    const { offeringId } = await hoursFixture(client, orgId);
+    // No payment account: the booking is created confirmed and unpaid, so
+    // the whole 10000 is its balance (S7).
+    const { id } = await createHours(handle, offeringId, 10);
+    await ledger(id, "cs_bal_" + id, "balance", 10000);
+    const before = mail.sent.length;
+    const res = await post([
+      {
+        type: "checkout.completed",
+        sessionId: "cs_bal_" + id,
+        paymentIntentId: "pi_bal",
+        amountCents: 10000,
+        paid: true,
+        accountId: "acct_fake_x",
+      },
+    ]);
+    expect(await res.json()).toMatchObject({ processed: 1, outcomes: ["balance"] });
+    const { data: b } = await admin.from("bookings").select("status, paid_cents").eq("id", id).single();
+    expect(b).toEqual({ status: "confirmed", paid_cents: 10000 });
+    // The client's receipt and nothing else — no provider notice on a
+    // booking that did not move.
+    expect(mail.sent.slice(before)).toHaveLength(1);
   });
 });

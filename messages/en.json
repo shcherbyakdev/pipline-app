@@ -516,6 +516,16 @@
       "lead": "Thank you — your payment was received and your booking is confirmed.",
       "manageHint": "To view or change it, use the link in your reservation email."
     },
+    "balanceDue": {
+      "subject": "Balance due — {service}, {when}",
+      "lead": "Your session's charges and balance are below.",
+      "pay": "Pay {amount}",
+      "payText": "Pay {amount}: {url}"
+    },
+    "balanceReceived": {
+      "subject": "Payment received — {service}, {when}",
+      "lead": "Thank you — your balance is settled."
+    },
     "holdExpired": {
       "subject": "Reservation released — {service}, {when}",
       "lead": "The deposit for this reservation was not received in time, so the time was released.",
