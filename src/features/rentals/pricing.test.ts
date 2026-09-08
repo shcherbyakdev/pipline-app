@@ -234,6 +234,25 @@ describe("moneyInfoLines — S3 fee", () => {
   });
 });
 
+describe("moneyInfoLines — S7 charges", () => {
+  it("charge lines after the fee; balance counts them; online wording", () => {
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: 9000, currency: "PLN", cancelPolicy: null, paidCents: 9000,
+      charges: [{ label: "Overtime", qty: 2, cents: 10000 }, { label: "Cleaning", qty: 1, cents: 15000 }], onlinePay: true }, t)).toEqual([
+      "Total: 300 zł", "Overtime × 2 — 100 zł", "Cleaning — 150 zł", "Paid: 90 zł", "460 zł due — pay online or at the venue",
+    ]);
+  });
+  it("write-off drops the balance and prints; unpaid booking with charges shows the balance instead of pay-at-venue", () => {
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: null, currency: "PLN", cancelPolicy: null, paidCents: 30000,
+      charges: [{ label: "Damage", qty: 1, cents: 20000 }], writtenOffCents: 20000 }, t)).toEqual([
+      "Total: 300 zł", "Damage — 200 zł", "Paid: 300 zł", "Written off: 200 zł",
+    ]);
+    expect(moneyInfoLines({ totalCents: 30000, depositCents: null, currency: "PLN", cancelPolicy: null,
+      charges: [{ label: "Cleaning", qty: 1, cents: 15000 }] }, t)).toEqual([
+      "Total: 300 zł", "Cleaning — 150 zł", "450 zł due at the venue",
+    ]);
+  });
+});
+
 describe("changeLines", () => {
   const base = { currency: "PLN", priorFeeCents: 0, paidCents: 9000, refundedCents: 0 };
   it("cheaper slot inside a tier: new total, fee, refund of the excess", () => {

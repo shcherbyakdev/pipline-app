@@ -447,7 +447,13 @@
       "payNow": "Zapłać {amount} teraz, aby potwierdzić",
       "paid": "Zapłacono: {amount}",
       "balanceAtVenue": "{amount} do zapłaty na miejscu",
-      "refund": "Zwrócono: {amount} — zwrot na konto trwa do 3 dni roboczych"
+      "refund": "Zwrócono: {amount} — zwrot na konto trwa do 3 dni roboczych",
+      "chargeLine": "{label} — {amount}",
+      "chargeLineQty": "{label} × {qty} — {amount}",
+      "balanceDue": "{amount} do zapłaty — online lub na miejscu",
+      "writtenOff": "Umorzono: {amount}",
+      "overpaid": "Nadpłata: {amount}",
+      "settled": "Rozliczono"
     },
     "legal": {
       "taxId": "NIP {id}",

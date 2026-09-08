@@ -77,6 +77,11 @@ export type MoneyInfo = {
   /** S2: the booking is dead (expired / cancelled / declined / rescheduled) —
       nobody is turning up, so the lines must not tell the client to bring money. */
   settled?: boolean;
+  /** S7: after-session charges on the row, the write-off, and whether the
+      org can take the balance online (wording of the balance line). */
+  charges?: { label: string; qty: number; cents: number }[];
+  writtenOffCents?: number;
+  onlinePay?: boolean;
 };
 
 // Shared copy for the confirm step, the manage page and both emails. The
@@ -93,6 +98,9 @@ export function moneyInfoLines(i: MoneyInfo, t: UnitsT): string[] {
   const paid = i.paidCents ?? 0;
   const refunded = i.refundedCents ?? 0;
   const fee = i.feeCents ?? 0;
+  const charges = i.charges ?? [];
+  const chargesTotal = charges.reduce((s, c) => s + c.cents, 0);
+  const writtenOff = i.writtenOffCents ?? 0;
   if (i.lines && i.lines.length > 0 && i.currency) {
     for (const l of i.lines) lines.push(`${formatLine(l, i.currency, t)} — ${formatMoney(l.cents, i.currency)}`);
   }
@@ -100,20 +108,31 @@ export function moneyInfoLines(i: MoneyInfo, t: UnitsT): string[] {
   if (fee > 0 && i.currency) {
     lines.push(t(i.settled ? "cancellationFee" : "changeFee", { amount: formatMoney(fee, i.currency) }));
   }
+  if (i.currency) {
+    for (const c of charges) {
+      lines.push(
+        c.qty > 1
+          ? t("chargeLineQty", { label: c.label, qty: c.qty, amount: formatMoney(c.cents, i.currency) })
+          : t("chargeLine", { label: c.label, amount: formatMoney(c.cents, i.currency) }),
+      );
+    }
+  }
+  const held = Math.max(0, paid - refunded);
+  const due = (i.totalCents ?? 0) + fee + chargesTotal - writtenOff - held;
   if (i.currency && paid > 0) {
-    // "Paid" stays gross — the refund line below explains the difference —
-    // but the venue is only owed against what the studio still HOLDS
-    // (changeLines uses the same `held`).
-    const held = Math.max(0, paid - refunded);
     lines.push(t("paid", { amount: formatMoney(paid, i.currency) }));
-    if (!i.settled && i.totalCents !== null && i.totalCents + fee > held) {
-      lines.push(t("balanceAtVenue", { amount: formatMoney(i.totalCents + fee - held, i.currency) }));
+    if (!i.settled && i.totalCents !== null && due > 0) {
+      lines.push(t(i.onlinePay ? "balanceDue" : "balanceAtVenue", { amount: formatMoney(due, i.currency) }));
     }
   } else if (!i.settled) {
     if (i.depositCents !== null && i.currency) lines.push(t("depositDue", { amount: formatMoney(i.depositCents, i.currency) }));
     if (i.holding && i.depositCents !== null && i.currency) lines.push(t("payNow", { amount: formatMoney(i.depositCents, i.currency) }));
-    else if (lines.length > 0) lines.push(t("payAtVenue"));
+    else if (lines.length > 0) {
+      if (chargesTotal > 0 && i.currency && due > 0) lines.push(t(i.onlinePay ? "balanceDue" : "balanceAtVenue", { amount: formatMoney(due, i.currency) }));
+      else lines.push(t("payAtVenue"));
+    }
   }
+  if (writtenOff > 0 && i.currency) lines.push(t("writtenOff", { amount: formatMoney(writtenOff, i.currency) }));
   if (i.currency && refunded > 0) lines.push(t("refund", { amount: formatMoney(refunded, i.currency) }));
   if (!i.settled) {
     const policy = formatCancelPolicy(i.cancelPolicy, t);

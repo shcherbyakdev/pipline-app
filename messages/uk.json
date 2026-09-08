@@ -447,7 +447,13 @@
       "payNow": "Сплатіть {amount} зараз, щоб підтвердити",
       "paid": "Сплачено: {amount}",
       "balanceAtVenue": "{amount} до сплати на місці",
-      "refund": "Повернено: {amount} — повернення на рахунок триває до 3 робочих днів"
+      "refund": "Повернено: {amount} — повернення на рахунок триває до 3 робочих днів",
+      "chargeLine": "{label} — {amount}",
+      "chargeLineQty": "{label} × {qty} — {amount}",
+      "balanceDue": "{amount} до сплати — онлайн або на місці",
+      "writtenOff": "Списано: {amount}",
+      "overpaid": "Переплата: {amount}",
+      "settled": "Розраховано"
     },
     "legal": {
       "taxId": "NIP {id}",
