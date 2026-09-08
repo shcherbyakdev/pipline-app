@@ -230,6 +230,8 @@
       "spaceInactive": "Ta przestrzeń jest nieaktywna — aktywuj ją ponownie, aby przenosić jej rezerwacje.",
       "notHeld": "Ta rezerwacja nie oczekuje już na płatność."
     },
+    "nothingDue": "Do tej rezerwacji nie ma nic do zapłaty.",
+    "noPaymentAccount": "Najpierw połącz konto płatności.",
     "studio": {
       "pageTooLarge": "Ta strona jest zbyt duża, aby ją zapisać — usuń część treści lub zdjęć.",
       "imageRejected": "Użyj obrazu PNG, JPEG lub WebP do 4 MB.",
@@ -858,6 +860,39 @@
     }
   },
   "bookings": {
+    "charges": {
+      "title": "Dopłaty",
+      "kind": {
+        "overtime": "Nadgodziny",
+        "people": "Dodatkowe osoby",
+        "cleaning": "Sprzątanie",
+        "damage": "Uszkodzenia",
+        "other": "Inne"
+      },
+      "label": "Nazwa",
+      "qty": "Ilość",
+      "amount": "Kwota ({currency})",
+      "note": "Notatka (wewnętrzna)",
+      "add": "Dodaj dopłatę",
+      "remove": "Usuń {label}",
+      "minutes": "Minuty nadgodzin",
+      "addOvertime": "Dodaj nadgodziny",
+      "balanceDue": "{amount} do zapłaty",
+      "overpaid": "Nadpłata {amount}",
+      "settled": "Rozliczone",
+      "nothingDue": "Nic do zapłaty",
+      "writtenOff": "Umorzono {amount}",
+      "writtenOffNote": "Umorzono {amount} — {note}",
+      "markPaid": "Oznacz saldo jako zapłacone",
+      "markPaidConfirm": "Potwierdź płatność gotówką",
+      "paid": "Saldo oznaczone jako zapłacone.",
+      "sendLink": "Wyślij link do zapłaty",
+      "linkSent": "Link do zapłaty wysłany.",
+      "noEmailOrAccount": "Wymaga adresu e-mail klienta i aktywnego konta płatności.",
+      "writeOff": "Umórz",
+      "writeOffConfirm": "Potwierdź umorzenie",
+      "writtenOffDone": "Saldo umorzone."
+    },
     "checklist": {
       "addSpace": "Dodaj przestrzeń",
       "addUnit": "Dodaj jednostkę do przestrzeni",

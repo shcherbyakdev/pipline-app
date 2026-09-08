@@ -230,6 +230,8 @@
       "spaceInactive": "This space is inactive — reactivate it to move its bookings.",
       "notHeld": "This booking is no longer awaiting payment."
     },
+    "nothingDue": "Nothing is due on this booking.",
+    "noPaymentAccount": "Connect a payments account first.",
     "studio": {
       "pageTooLarge": "This page is too large to save — remove some content or images.",
       "imageRejected": "Use a PNG, JPEG or WebP image under 4 MB.",
@@ -858,6 +860,39 @@
     }
   },
   "bookings": {
+    "charges": {
+      "title": "Charges",
+      "kind": {
+        "overtime": "Overtime",
+        "people": "Extra people",
+        "cleaning": "Cleaning",
+        "damage": "Damage",
+        "other": "Other"
+      },
+      "label": "Label",
+      "qty": "Qty",
+      "amount": "Amount ({currency})",
+      "note": "Note (internal)",
+      "add": "Add charge",
+      "remove": "Remove {label}",
+      "minutes": "Overtime minutes",
+      "addOvertime": "Add overtime",
+      "balanceDue": "{amount} due",
+      "overpaid": "Overpaid {amount}",
+      "settled": "Settled",
+      "nothingDue": "Nothing due",
+      "writtenOff": "Written off {amount}",
+      "writtenOffNote": "Written off {amount} — {note}",
+      "markPaid": "Mark balance paid",
+      "markPaidConfirm": "Confirm cash payment",
+      "paid": "Balance marked as paid.",
+      "sendLink": "Send balance link",
+      "linkSent": "Balance link sent.",
+      "noEmailOrAccount": "Needs a client email and an active payments account.",
+      "writeOff": "Write off",
+      "writeOffConfirm": "Confirm write-off",
+      "writtenOffDone": "Balance written off."
+    },
     "checklist": {
       "addSpace": "Add a space",
       "addUnit": "Add a unit to your space",
