@@ -9,7 +9,9 @@ import {
 } from "@hugeicons/core-free-icons";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { listPendingRequests, listStatsBookings } from "@/features/scheduling/queries";
+import { listStatsBookings } from "@/features/scheduling/queries";
+import { loadDailyList } from "@/features/scheduling/daily-list";
+import { createClient } from "@/lib/supabase/server";
 import { listActiveStaff } from "@/features/scheduling/staff-queries";
 import { buildYearHeatmap } from "@/features/scheduling/stats";
 import { CELL, HEAT_LEVELS, PENDING_FILL, PENDING_RING, TODAY_OUTLINE } from "./heatmap-cells";
@@ -56,8 +58,11 @@ export default async function OverviewPage({
     ? Math.min(Math.max(requested, minYear), maxYear)
     : currentYear;
 
+  const orgId = settings?.orgId;
+  const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
+
   const [requests, rows, staff] = await Promise.all([
-    listPendingRequests(),
+    orgId ? loadDailyList(await createClient(), orgId, fallbackTitle, now).then((l) => l.requests) : Promise.resolve([]),
     listStatsBookings(
       wallTimeToUtc(`${year}-01-01`, "00:00", timeZone).toISOString(),
       wallTimeToUtc(`${year + 1}-01-01`, "00:00", timeZone).toISOString(),

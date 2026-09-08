@@ -392,21 +392,6 @@ export async function listStatsBookings(fromIso: string, toIso: string): Promise
   }));
 }
 
-/** Live pending requests, oldest start first — the Overview inbox feed. */
-export async function listPendingRequests(): Promise<AdminBooking[]> {
-  // A deleted service leaves no name; the word is the admin's (bookings.fallbackTitle).
-  const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("bookings")
-    .select(BOOKING_COLUMNS)
-    .eq("status", "pending")
-    .gt("starts_at", new Date().toISOString())
-    .order("starts_at", { ascending: true });
-  if (error) throw error;
-  return ((data ?? []) as unknown as BookingRow[]).map((b) => toAdminBooking(b, fallbackTitle));
-}
-
 /** Cheap head-count of live pending requests — the sidebar badge. */
 export async function countPendingRequests(): Promise<number> {
   const supabase = await createClient();
