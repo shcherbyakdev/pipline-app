@@ -3,15 +3,17 @@ import Image from "next/image";
 import { SITE } from "@/features/marketing/site";
 import { HeroClaim } from "./hero-claim";
 import adminWeek from "../images/admin-week.png";
+import publicPhone from "../images/public-phone.png";
 import heroWash from "../images/hero-wash.webp";
 
 /* The page (interfacecraft.dev-referenced, 2026-09-09): a short rule, the
    title in the serif entering word by word (Linear's move: fade, a little
    rise, focus), the sub in the system face, the one input, then the
-   product: a full-width band of the abstract wash seen through fluted
-   glass (ribs, a travelling swell, grain; globals.css "Hero glass") with
-   the admin's week rising from its floor and cropped there. Real
-   screenshot (scripts/landing-shots.mjs); the wash is ours
+   product: a full-width band of the abstract wash in the dark theme's
+   tokens seen through fluted glass (ribs, a travelling swell, grain; globals.css "Hero glass") with
+   the admin's week rising from its floor and cropped there, and the live
+   page on a phone seated over the week's empty weekend columns. Real
+   screenshots (scripts/landing-shots.mjs); the wash is ours
    (scripts/landing-wash.html). */
 const WORD_MS = 60;
 
@@ -49,13 +51,24 @@ export function Hero({ host }: { host: string }) {
         <div aria-hidden="true" className="hero-ribs pointer-events-none absolute inset-0" />
         <div aria-hidden="true" className="hero-grain pointer-events-none absolute inset-0" />
         <div className="hero-rise relative mx-auto w-full max-w-6xl px-4 sm:px-8">
-          <div className="bg-card overflow-hidden rounded-[16px] shadow-[0_24px_80px_-24px_rgb(37_34_40/0.45)] ring-1 ring-white/60 sm:rounded-t-[22px] sm:rounded-b-none">
+          <div className="bg-card overflow-hidden rounded-[16px] shadow-[0_32px_90px_-24px_rgb(0_0_0/0.7)] ring-1 ring-white/15 sm:rounded-t-[22px] sm:rounded-b-none">
             <Image
               src={adminWeek}
               alt={`The ${SITE.name} admin: one studio's week of bookings across Room A, Room B, the make-up room and the whole studio.`}
               priority
               sizes="(min-width: 1152px) 1088px, 100vw"
               className="h-auto w-full"
+            />
+          </div>
+          {/* the live page on a phone, over the weekend columns (the
+              rightmost sixth of the week), so it hides no booking */}
+          <div className="bg-card absolute top-[14%] right-2 w-[40%] overflow-hidden rounded-[18px] shadow-[0_24px_60px_-16px_rgb(0_0_0/0.7)] ring-1 ring-white/15 sm:top-[10%] sm:-right-4 sm:w-[210px] sm:rounded-[26px] lg:-right-6 lg:w-[248px] lg:rounded-[30px]">
+            <Image
+              src={publicPhone}
+              alt="The studio's live booking page on a phone: Room A for four hours, the month with open days, the free windows on a Tuesday."
+              sizes="(min-width: 1024px) 248px, (min-width: 640px) 210px, 40vw"
+              className="h-auto w-full"
+              style={{ aspectRatio: "390 / 600", objectFit: "cover", objectPosition: "top" }}
             />
           </div>
         </div>

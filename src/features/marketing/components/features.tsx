@@ -1,0 +1,40 @@
+import { CalendarClock, Languages, Layers, Link2, Receipt, Sunrise, Tag, Wallet, type LucideIcon } from "lucide-react";
+import { FEATURES, FEATURES_LABEL, type FeatureIcon } from "@/features/marketing/site";
+
+/* What it does, under the product: a small label, then eight lines in two
+   columns, each a small glyph beside a title and one sentence, hairlines
+   between rows. No boxes. Still. */
+const ICON: Record<FeatureIcon, LucideIcon> = {
+  price: Tag,
+  deposit: Wallet,
+  change: CalendarClock,
+  charge: Receipt,
+  studio: Layers,
+  morning: Sunrise,
+  link: Link2,
+  language: Languages,
+};
+
+export function Features() {
+  return (
+    <section aria-labelledby="features-label" className="mx-auto w-full max-w-[46rem] px-5 pt-20 sm:px-8 sm:pt-28">
+      <h2 id="features-label" className="text-foreground text-[13px] font-medium">
+        {FEATURES_LABEL}
+      </h2>
+      <ul className="border-border mt-4 grid border-t sm:grid-cols-2 sm:gap-x-10">
+        {FEATURES.map((f) => {
+          const Icon = ICON[f.icon];
+          return (
+            <li key={f.title} className="border-border grid grid-cols-[16px_1fr] gap-x-3 border-b py-5">
+              <Icon className="text-brand-text mt-[3px] size-4" strokeWidth={1.75} aria-hidden="true" />
+              <div className="min-w-0">
+                <h3 className="text-foreground text-[15px] leading-snug font-medium">{f.title}</h3>
+                <p className="text-muted-foreground mt-1 text-[15px] leading-relaxed">{f.body}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { SITE, FOOTER_LINKS, CTA, COOKIE_NOTICE, CLAIM, ONBOARDING, WELCOME, FORBIDDEN_COPY, PRICING, allInternalHrefs } from "./site";
+import { SITE, FOOTER_LINKS, FEATURES, FEATURES_LABEL, CTA, COOKIE_NOTICE, CLAIM, ONBOARDING, WELCOME, FORBIDDEN_COPY, PRICING, allInternalHrefs } from "./site";
 import { PLANS } from "@/lib/billing/plans";
 
 // Route hrefs → the app directory that must exist for them (route groups omitted from URL).
@@ -19,6 +19,7 @@ const ROUTE_DIRS: Record<string, string> = {
 function landingCorpus(): string {
   return [
     SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
+    FEATURES_LABEL, ...FEATURES.flatMap((f) => [f.title, f.body]),
     ...FOOTER_LINKS.map((l) => l.label),
     ...Object.values(CTA),
     ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
@@ -29,6 +30,12 @@ function landingCorpus(): string {
 describe("site config", () => {
   it("names the product Booklo", () => {
     expect(SITE.name).toBe("Booklo");
+  });
+
+  it("lists eight unique features, one line each", () => {
+    expect(FEATURES).toHaveLength(8);
+    expect(new Set(FEATURES.map((f) => f.title)).size).toBe(8);
+    for (const f of FEATURES) expect(f.body.split(/\s+/).length, f.title).toBeLessThanOrEqual(16);
   });
 
   it("every internal href is an existing route", () => {

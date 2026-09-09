@@ -1,9 +1,11 @@
 <!doctype html><meta charset="utf-8">
 <!--
   The landing hero's backdrop (src/features/marketing/images/hero-wash.webp):
-  an abstract periwinkle wash — layered ridges with painted edges (turbulence
-  displacement + blur), a light pool, a pink and a mint pool, paper grain —
-  drawn from the brand tokens so it is ours, not a stock painting.
+  an abstract wash in the dark theme's tokens (globals.css `.dark`: ground
+  #111212, card #19191b, panel #242526, accent #6975e2) — layered ridges
+  with painted edges (turbulence displacement + blur), one accent light
+  pool, vertical glass streaks (grain is the CSS overlay, not baked) — drawn from our own
+  tokens so it is ours, not a stock painting.
   Re-render: open this file in Chromium at 2400x1400 and screenshot it, e.g.
     node -e 'import("playwright").then(async({chromium})=>{const b=await chromium.launch();const p=await b.newPage({viewport:{width:2400,height:1400}});await p.goto("file://"+process.cwd()+"/scripts/landing-wash.html");await p.waitForTimeout(1200);await p.screenshot({path:"hero-wash.png"});await b.close();})'
   then convert to WebP (quality ~82) into src/features/marketing/images/.
@@ -12,16 +14,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1400" viewBox="0 0 2400 1400">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f6f4ff"/>
-      <stop offset="0.45" stop-color="#ddd8ff"/>
-      <stop offset="1" stop-color="#9f97f3"/>
+      <stop offset="0" stop-color="#202124"/>
+      <stop offset="0.45" stop-color="#18181b"/>
+      <stop offset="1" stop-color="#0f0f10"/>
     </linearGradient>
-    <linearGradient id="r1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cfc8ff"/><stop offset="1" stop-color="#a49bf5"/></linearGradient>
-    <linearGradient id="r2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b3aaf8"/><stop offset="1" stop-color="#8b81ea"/></linearGradient>
-    <linearGradient id="r3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7f74e4"/><stop offset="1" stop-color="#5f54cf"/></linearGradient>
-    <radialGradient id="mint" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#d6f7e4" stop-opacity="0.9"/><stop offset="1" stop-color="#d6f7e4" stop-opacity="0"/></radialGradient>
-    <radialGradient id="pink" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffd9ea" stop-opacity="0.75"/><stop offset="1" stop-color="#ffd9ea" stop-opacity="0"/></radialGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffffff" stop-opacity="0.85"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="r1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2c2d31"/><stop offset="1" stop-color="#242526"/></linearGradient>
+    <linearGradient id="r2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1f1f22"/><stop offset="1" stop-color="#19191b"/></linearGradient>
+    <linearGradient id="r3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#151517"/><stop offset="1" stop-color="#0e0e0f"/></linearGradient>
+    <radialGradient id="mint" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#6975e2" stop-opacity="0.22"/><stop offset="1" stop-color="#6975e2" stop-opacity="0"/></radialGradient>
+    <radialGradient id="pink" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#6975e2" stop-opacity="0.16"/><stop offset="1" stop-color="#6975e2" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#8b94ea" stop-opacity="0.45"/><stop offset="1" stop-color="#8b94ea" stop-opacity="0"/></radialGradient>
     <filter id="paint" x="-10%" y="-10%" width="120%" height="120%">
       <feTurbulence type="fractalNoise" baseFrequency="0.0022 0.0035" numOctaves="3" seed="7" result="n"/>
       <feDisplacementMap in="SourceGraphic" in2="n" scale="140" xChannelSelector="R" yChannelSelector="G"/>
@@ -64,6 +66,6 @@
       <path d="M-100 1080 C 300 980, 560 1000, 860 1060 C 1160 1120, 1460 960, 1760 1010 C 2060 1060, 2260 990, 2500 1040 L 2500 1500 L -100 1500 Z" fill="url(#r3)" opacity="0.92"/>
     </g>
   </g>
-  <rect width="2400" height="1400" filter="url(#grain-dark)" fill="#1a1636"/>
-  <rect width="2400" height="1400" filter="url(#grain-light)" fill="#ffffff"/>
+  <!-- no baked grain: on a dark ground it costs 300 KB of WebP; the CSS
+       overlay (.hero-grain) carries the film noise instead -->
 </svg>

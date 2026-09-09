@@ -57,6 +57,22 @@ export const CLAIM = {
 
 export type NavLink = { label: string; href: string };
 
+/** Under the product: what it does, as short lines. Eight, two columns,
+    one small glyph each (components/features.tsx maps `icon`). */
+export type FeatureIcon = "price" | "deposit" | "change" | "charge" | "studio" | "morning" | "link" | "language";
+export type Feature = { icon: FeatureIcon; title: string; body: string };
+export const FEATURES_LABEL = "What it does";
+export const FEATURES: Feature[] = [
+  { icon: "price", title: "Prices from your rules", body: "First hour and longer tiers, weekday or weekend, people, extras." },
+  { icon: "deposit", title: "Deposits held, then paid", body: "A hold keeps the slot until your deadline. Paid, it's confirmed. Missed, it expires." },
+  { icon: "change", title: "Changes with consequences", body: "Your cancellation tiers set the fee. Refunds are partial when your terms say so." },
+  { icon: "charge", title: "After-session charges", body: "Overtime, extra people, cleaning: added to the same booking, one balance to pay." },
+  { icon: "studio", title: "Whole studio and shared gear", body: "A whole-studio booking blocks every room. One lamp can't be in two rooms." },
+  { icon: "morning", title: "Your morning list", body: "Holds expiring, requests waiting, balances due, changes to confirm. Emailed at 8:00." },
+  { icon: "link", title: "No client accounts", body: "Clients book from your link or your own site, with a name and an email." },
+  { icon: "language", title: "Polish and English", body: "Your page and every client email in the client's language. Your dashboard in yours." },
+];
+
 /** The footer's one line of links. */
 export const FOOTER_LINKS: NavLink[] = [
   { label: CTA.login, href: SITE.links.login },
