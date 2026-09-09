@@ -146,7 +146,7 @@ export function ClaimBar({
           )}
         </button>
       </div>
-      <p id={`${id}-status`} aria-live="polite" className={cn("mt-2 min-h-5 text-[13px]", tone)}>
+      <p id={`${id}-status`} aria-live="polite" className={cn("mt-2.5 min-h-5 text-[14px]", tone)}>
         {status}
       </p>
     </form>

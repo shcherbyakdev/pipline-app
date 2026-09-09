@@ -21,11 +21,11 @@ const VARIANT = {
 
 const SIZE = {
   /* Nav. */
-  md: "h-10 gap-2 px-4 text-[14.5px] sm:px-5",
+  md: "h-10 gap-2 px-4 text-[14px] sm:px-5",
   /* Standalone CTA. */
-  lg: "h-12 gap-2 px-6 text-[15px]",
+  lg: "h-12 gap-2.5 px-6 text-[16px]",
   /* Quiet links next to a button. */
-  text: "h-10 gap-2 px-3 text-[14.5px]",
+  text: "h-10 gap-2 px-3 text-[14px]",
 } as const;
 
 export function marketingButton(variant: keyof typeof VARIANT, size: keyof typeof SIZE, className?: string) {

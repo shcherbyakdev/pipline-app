@@ -76,10 +76,10 @@ export function HowItWorks({ host }: { host: string }) {
   const panel = React.useRef<HTMLDivElement>(null);
   useGrowRatios(panel);
   return (
-    <section aria-labelledby="how-label" className="how relative mx-auto w-full max-w-6xl px-4 pt-20 sm:px-8 sm:pt-28">
+    <section aria-labelledby="how-label" className="how relative mx-auto w-full max-w-6xl px-4 pt-24 sm:px-8 sm:pt-32">
       <div ref={panel} className="how-panel text-primary-foreground sticky top-20 isolate flex h-[min(640px,calc(100dvh-112px))] flex-col p-5 sm:top-24 sm:p-8 md:p-10">
         <div aria-hidden="true" className="how-bg" />
-        <div className="flex items-baseline justify-between text-[13px]">
+        <div className="flex items-baseline justify-between text-[14px]">
           <h2 id="how-label" className="font-medium">
             {HOW_LABEL}
           </h2>
@@ -108,14 +108,14 @@ export function HowItWorks({ host }: { host: string }) {
                 key={s.title}
                 data-active={i === beat ? "" : undefined}
                 aria-current={i === beat ? "step" : undefined}
-                className="how-step border-primary-foreground/10 grid grid-cols-[2ch_1fr] gap-x-4 py-3 not-data-active:max-md:sr-only md:border-t md:py-4 md:first:border-t-0"
+                className="how-step border-primary-foreground/10 grid grid-cols-[2ch_1fr] gap-x-4 py-3 not-data-active:max-md:sr-only md:border-t md:py-5 md:first:border-t-0"
               >
-                <span className="text-primary-foreground/55 pt-[3px] text-[12px] tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+                <span className="text-primary-foreground/55 pt-[5px] text-[13px] tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                 <div>
-                  <h3 className="how-step-title text-[15px] leading-snug font-medium md:text-[17px]">{s.title}</h3>
+                  <h3 className="how-step-title text-[17px] leading-snug font-medium tracking-[-0.01em] md:text-[19px] lg:text-[21px]">{s.title}</h3>
                   <div className="how-step-body">
-                    <p className="text-primary-foreground/70 min-h-0 overflow-hidden text-[14px] leading-relaxed md:text-[15px]">
-                      <span className="block pt-1.5">{s.body}</span>
+                    <p className="text-primary-foreground/70 min-h-0 overflow-hidden text-[15px] leading-relaxed md:text-[16px]">
+                      <span className="block pt-2">{s.body}</span>
                     </p>
                   </div>
                 </div>

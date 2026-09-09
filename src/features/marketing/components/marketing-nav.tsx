@@ -12,7 +12,7 @@ import { BookloLogo } from "./booklo-mark";
    Dashboard alone for someone signed in. */
 const subscribeNoop = () => () => {};
 const pill =
-  "focus-visible:ring-ring inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium transition-[background-color] duration-150 ease-strong outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring inline-flex h-9 items-center rounded-lg px-3.5 text-[14px] font-medium transition-[background-color] duration-150 ease-strong outline-none focus-visible:ring-2";
 
 export function MarketingNav() {
   /* Read from the Supabase cookie via useSyncExternalStore (the
@@ -25,7 +25,7 @@ export function MarketingNav() {
   );
   return (
     <header>
-      <nav aria-label="Main" className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5 sm:px-8">
+      <nav aria-label="Main" className="mx-auto flex h-[72px] w-full max-w-6xl items-center justify-between px-5 sm:px-8">
         <Link href={SITE.links.home} className="text-foreground focus-visible:ring-ring rounded-md text-[22px] outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background">
           <BookloLogo ink />
         </Link>

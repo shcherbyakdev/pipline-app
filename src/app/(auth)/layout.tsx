@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
-import { BookloWordmark } from "@/features/marketing/components/booklo-mark";
+import { BookloLogo } from "@/features/marketing/components/booklo-mark";
 import { LocaleNotice } from "@/i18n/locale-notice";
 
 /* Auth is the seam between the landing and the admin: the landing's ground,
-   the wordmark up top, the form sitting directly on it — no panel, a narrow
+   the logo (mark and wordmark, as in the landing's nav) up top, the form
+   sitting directly on it — no panel, a narrow
    centred column (the Linear-style auth composition). Pages render only
    their content; this shell owns the composition. The language is detected
    (cookie → browser), never picked here: when the browser put the page in a
@@ -18,9 +19,9 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
         <LocaleNotice />
         <Link
           href="/"
-          className="text-foreground focus-visible:ring-ring focus-visible:ring-offset-background rounded-sm text-[23px] outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
+          className="text-foreground focus-visible:ring-ring focus-visible:ring-offset-background rounded-md text-[22px] outline-none focus-visible:ring-2 focus-visible:ring-offset-4"
         >
-          <BookloWordmark />
+          <BookloLogo ink />
         </Link>
         <div className="w-full max-w-[340px]">{children}</div>
       </main>
