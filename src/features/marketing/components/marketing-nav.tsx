@@ -7,14 +7,14 @@ import { CTA, NAV_LINKS, SITE } from "@/features/marketing/site";
 import { hasAuthCookie } from "@/features/marketing/auth-cookie";
 import { DEFAULT_AFTER_LOGIN } from "@/lib/auth/next-path";
 import { marketingButton } from "./marketing-button";
-import { BookloWordmark } from "./booklo-mark";
+import { BookloLogo } from "./booklo-mark";
 import { cn } from "@/lib/utils";
 
-/* Wordmark left, plain links beside it (md+), Log in as a grey pill and Get
-   started as the ink pill on the right; a hamburger below md that opens a
-   small card. Sticky so the primary CTA stays in reach while the page
-   scrolls; the ground shows through at 80% with a light blur. The card
-   closes on link click and on Escape. */
+/* Mark + wordmark left, the links centred (md+), Log in as a quiet link and
+   Get started as the ink pill on the right (the reference's one dark pill);
+   a hamburger below md that opens a small card. Sticky so the primary CTA
+   stays in reach while the page scrolls; the ground shows through at 80%
+   with a light blur. The card closes on link click and on Escape. */
 const subscribeNoop = () => () => {};
 
 export function MarketingNav() {
@@ -32,16 +32,26 @@ export function MarketingNav() {
     () => false,
   );
 
-  /* While the dark band (the section marked data-nav-dark) sits under the
+  /* While a dark panel (any element marked data-nav-dark) sits under the
      bar, the header opts into the `.dark` token scope so its ground, links
      and pills invert. The observer's bottom margin shrinks the viewport to
      roughly the bar's own strip, so "intersecting" means "under the bar". */
   const [overDark, setOverDark] = React.useState(false);
   React.useEffect(() => {
-    const target = document.querySelector("[data-nav-dark]");
-    if (!target) return;
-    const io = new IntersectionObserver(([e]) => setOverDark(e.isIntersecting), { rootMargin: "0px 0px -92% 0px" });
-    io.observe(target);
+    const targets = Array.from(document.querySelectorAll("[data-nav-dark]"));
+    if (targets.length === 0) return;
+    const under = new Set<Element>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) under.add(e.target);
+          else under.delete(e.target);
+        }
+        setOverDark(under.size > 0);
+      },
+      { rootMargin: "0px 0px -92% 0px" },
+    );
+    targets.forEach((t) => io.observe(t));
     return () => io.disconnect();
   }, []);
 
@@ -59,20 +69,20 @@ export function MarketingNav() {
 
   return (
     <header className={cn("bg-background/80 sticky top-0 z-30 backdrop-blur-md transition-[background-color] duration-300", overDark && "dark")}>
-      <nav aria-label="Main" className="mx-auto flex h-[72px] w-full max-w-6xl items-center gap-8 px-5 sm:px-8 lg:gap-10">
+      <nav aria-label="Main" className="relative mx-auto flex h-[72px] w-full max-w-6xl items-center px-5 sm:px-8">
         <Link
           href={SITE.links.home}
-          className="text-foreground focus-visible:ring-ring rounded-sm text-[25px] outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+          className="text-foreground focus-visible:ring-ring rounded-sm text-[24px] outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background"
         >
-          <BookloWordmark />
+          <BookloLogo />
         </Link>
 
-        <ul className="hidden items-center gap-1 md:flex">
+        <ul className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex">
           {NAV_LINKS.map((l) => (
             <li key={l.href}>
               <a
                 href={l.href}
-                className="text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent focus-visible:ring-ring block rounded-full px-3 py-1.5 text-[15px] font-medium transition-[background-color] duration-150 ease-strong outline-none focus-visible:ring-2"
+                className="text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent focus-visible:ring-ring block rounded-full px-3.5 py-1.5 text-[15px] font-medium transition-[background-color] duration-150 ease-strong outline-none focus-visible:ring-2"
               >
                 {l.label}
               </a>
@@ -80,14 +90,14 @@ export function MarketingNav() {
           ))}
         </ul>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5">
           {authed ? (
             <Link href={DEFAULT_AFTER_LOGIN} className={marketingButton("primary", "md")}>
               {CTA.dashboard}
             </Link>
           ) : (
             <>
-              <Link href={SITE.links.login} className={marketingButton("neutral", "md", "hidden sm:inline-flex")}>
+              <Link href={SITE.links.login} className={marketingButton("quiet", "text", "hidden text-foreground sm:inline-flex")}>
                 {CTA.login}
               </Link>
               <Link href={SITE.links.signup} className={marketingButton("primary", "md")}>

@@ -420,10 +420,15 @@
   background: rgb(37 34 40 / 0.12);
 }
 
-/* Hero stage: the reference's wash, white fading into the accent's own
-   tint (Linear accent-tint #f1f1ff, deepened one step). */
-.marketing .stage-wash {
-  background: linear-gradient(180deg, #f4f4fe 0%, #dde0fa 100%);
+/* The landing's panels (components/type.ts PANEL): the reference's washes.
+   The hero runs white into the accent's own tint top to bottom; the
+   lighter panel wash is the same tint, flatter, for the sections that sit
+   between the dark ones. The only gradients in the system. */
+.marketing .hero-wash {
+  background: linear-gradient(180deg, #fefefe 0%, #f7f6fe 45%, #dde0fa 100%);
+}
+.marketing .panel-wash {
+  background: linear-gradient(180deg, #f1f0fc 0%, #e6e4fb 100%);
 }
 
 /* Landing motion. Curves are the strong ease-out; only transform, opacity,
@@ -475,100 +480,14 @@
 }
 .animate-pop { animation: pop 0.25s var(--ease-strong) both; }
 
-/* Hero fragment chips (components/hero.tsx): the booking story told in
-   four chips. They enter on a 70ms stagger from scale .95 (strong
-   ease-out), then take a quiet story beat in booking order — one 3px lift
-   each, strong ease-in-out, on the page's shared 8s cycle. Transform and
-   opacity only; the entrance and the beat never overlap (the beat's first
-   delay clears the last entrance). */
-.marketing .frag {
-  animation:
-    frag-in 0.45s var(--ease-strong) both,
-    frag-beat 8s var(--ease-in-out-strong) infinite;
-}
-.marketing .frag:nth-child(1) { animation-delay: 0ms, 1600ms; }
-.marketing .frag:nth-child(2) { animation-delay: 70ms, 2300ms; }
-.marketing .frag:nth-child(3) { animation-delay: 140ms, 3000ms; }
-.marketing .frag:nth-child(4) { animation-delay: 210ms, 3700ms; }
-@keyframes frag-in { from { opacity: 0; transform: translateY(8px) scale(0.95); } }
-@keyframes frag-beat { 0%, 100% { transform: none; } 4% { transform: translateY(-3px); } 9% { transform: none; } }
-
-/* The widget below enters from the side the channel "comes from" -- and a
-   light blur bridges the crossfade so the two states read as one object. */
-@keyframes enter-right { from { opacity: 0; transform: translateX(16px); filter: blur(4px); } }
-@keyframes enter-left { from { opacity: 0; transform: translateX(-16px); filter: blur(4px); } }
-.animate-enter-right { animation: enter-right 0.35s var(--ease-strong) both; }
-.animate-enter-left { animation: enter-left 0.35s var(--ease-strong) both; }
-
-/* How scenes (components/how-scenes.tsx): three 8s loops. */
-.marketing .hs-type { clip-path: inset(0 0 0 0); animation: hs-type 8s steps(12) infinite; }
-@keyframes hs-type { 0% { clip-path: inset(0 100% 0 0); } 20%, 100% { clip-path: inset(0 0 0 0); } }
-.marketing .hs-caret { animation: hs-caret 1s steps(1) infinite; }
-@keyframes hs-caret { 50% { opacity: 0; } }
-.marketing .hs-grow { animation: hs-grow 8s var(--ease-strong) infinite; }
-@keyframes hs-grow { 0%, 20% { opacity: 0; transform: translateY(8px); } 30%, 92% { opacity: 1; transform: none; } 97%, 100% { opacity: 0; transform: none; } }
-.marketing .hs-row { animation: hs-row 8s var(--ease-strong) infinite; }
-.marketing .hs-row-2 { animation-delay: 0.5s; }
-.marketing .hs-row-3 { animation-delay: 1s; }
-.marketing .hs-row-4 { animation-delay: 1.5s; }
-@keyframes hs-row { 0%, 4% { opacity: 0; transform: translateY(8px); } 10%, 88% { opacity: 1; transform: none; } 94%, 100% { opacity: 0; transform: none; } }
-
-/* Feature cells (components/feature-cells.tsx): four quiet explanatory
-   loops, transform/opacity/clip-path only (plus the brand chip's recolour,
-   which IS that cell's story). The rest of the cells hold still. */
-/* Reschedule picker: the white selection card glides down the three rows
-   (rows are 38px + 8px gap, so the steps are 46px). */
-.marketing .fc-slide { animation: fc-slide 9s var(--ease-in-out-strong) infinite; }
-@keyframes fc-slide {
-  0%, 30% { transform: translateY(0); }
-  33.5%, 63.5% { transform: translateY(46px); }
-  67%, 97% { transform: translateY(92px); }
-  100% { transform: translateY(0); }
-}
-/* Reminders: "sent" lands on the first row, then the second. */
-.marketing .fc-sent { animation: fc-sent 9s var(--ease-strong) infinite; }
-.marketing .fc-sent-2 { animation-name: fc-sent-2; }
-@keyframes fc-sent {
-  0%, 12% { opacity: 0; transform: scale(0.95); }
-  16%, 92% { opacity: 1; transform: none; }
-  96%, 100% { opacity: 0; transform: scale(0.95); }
-}
-@keyframes fc-sent-2 {
-  0%, 32% { opacity: 0; transform: scale(0.95); }
-  36%, 92% { opacity: 1; transform: none; }
-  96%, 100% { opacity: 0; transform: scale(0.95); }
-}
-/* Room's day filling. */
-.marketing .fc-fill { clip-path: inset(0 0 0 0 round 7px); animation: fc-fill 8s var(--ease-strong) infinite; }
-@keyframes fc-fill { 0%, 10% { clip-path: inset(0 100% 0 0 round 7px); opacity: 1; } 16%, 90% { clip-path: inset(0 0 0 0 round 7px); opacity: 1; } 96%, 100% { clip-path: inset(0 0 0 0 round 7px); opacity: 0; } }
-/* Brand: the swatch ring slides (swatches are 30px + 10px gap) while the
-   mini page's avatar and button recolour in step. Base state = the brand
-   periwinkle, so the still (reduced-motion) frame is coherent. */
-.marketing .fc-swatch { transform: translateX(40px); animation: fc-swatch 9s var(--ease-in-out-strong) infinite; }
-@keyframes fc-swatch {
-  0%, 30% { transform: translateX(40px); }
-  33.5%, 63.5% { transform: translateX(80px); }
-  67%, 97% { transform: translateX(120px); }
-  100% { transform: translateX(40px); }
-}
-.marketing .fc-chip { background: var(--brand); animation: fc-chip 9s var(--ease-in-out-strong) infinite; }
-@keyframes fc-chip {
-  0%, 32% { background: var(--brand); }
-  35%, 65% { background: var(--kind-stay); }
-  68.5%, 98% { background: var(--kind-space); }
-  100% { background: var(--brand); }
-}
-
-/* Reduced motion: keep opacity and colour, drop movement; every loop holds
-   its end state. */
+/* Reduced motion: keep opacity and colour, drop movement. The product
+   stories (hero widget, money record, tape chart, morning list) are
+   state-driven and park on their end state via usePrefersReducedMotion;
+   their transitions carry motion-reduce:transition-none inline. */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up { animation: fade-up 0.2s ease both; transform: none; }
-  .animate-enter-right, .animate-enter-left { animation: fade-up 0.2s ease both; transform: none; filter: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
-  .marketing .frag { animation: fade-up 0.2s ease both; transform: none; }
-  .animate-pop,
-  .marketing .hs-type, .marketing .hs-caret, .marketing .hs-grow, .marketing .hs-row, .marketing .fc-slide, .marketing .fc-sent, .marketing .fc-sent-2, .marketing .fc-swatch, .marketing .fc-chip, .marketing .fc-fill { animation: none; }
-  .marketing .hs-type { clip-path: none; }
+  .animate-pop { animation: none; }
 }
 
 /* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text

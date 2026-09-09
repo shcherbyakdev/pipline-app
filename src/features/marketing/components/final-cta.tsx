@@ -5,15 +5,16 @@ import { FINAL_CTA, SITE } from "@/features/marketing/site";
 import { cn } from "@/lib/utils";
 import { ClaimBar } from "./claim-bar";
 import { Reveal } from "./reveal";
-import { H2, SECTION, SECTION_INNER } from "./type";
+import { H2, PANEL, SECTION_INNER } from "./type";
 
-/* The page ends on the claim it opened with, centred — on the landing's one
-   dark band: the section opts into the `.dark` token scope (plum night), and
-   the sticky nav watches `data-nav-dark` to go light while over it. */
+/* The page closes on the claim, centred, on the landing's dark closing
+   panel: the section opts into the `.dark` token scope and the sticky nav
+   watches `data-nav-dark` to invert while over it. The footer shares the
+   scope so the page ends dark. */
 export function FinalCta({ host }: { host: string }) {
   const [handle, setHandle] = React.useState("");
   return (
-    <section aria-labelledby="cta-heading" data-nav-dark className={cn(SECTION, "dark bg-background flex min-h-[80dvh] flex-col justify-center pb-24 md:pb-28")}>
+    <section aria-labelledby="cta-heading" data-nav-dark className={cn(PANEL, "dark bg-background mt-16 flex min-h-[70dvh] flex-col justify-center py-20 sm:mt-20 md:mt-24 md:py-28")}>
       <div className={SECTION_INNER}>
         <Reveal className="mx-auto max-w-2xl text-center">
           <h2 id="cta-heading" className={cn(H2, "md:text-[52px]")}>

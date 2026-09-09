@@ -10,7 +10,8 @@ colors:
   sidebar: "#f6f4fb"
   text-secondary: "#5c5964"
   text-subtle: "#686472"
-  stage-wash: "#e2dcfb"
+  hero-wash: "#dde0fa"
+  panel-wash: "#e6e4fb"
   hairline: "rgb(37 34 40 / 0.08)"
   hairline-strong: "rgb(37 34 40 / 0.12)"
   kind-time: "#6975e2"
@@ -56,11 +57,44 @@ typography:
     letterSpacing: "-0.04em"
   mono:
     fontFamily: "Geist Mono, ui-monospace, monospace"
+  landing-display:
+    fontFamily: "Outfit, Inter, sans-serif"
+    fontSize: "72px"
+    fontWeight: 600
+    letterSpacing: "-0.045em"
+  landing-h2:
+    fontFamily: "Outfit, Inter, sans-serif"
+    fontSize: "52px"
+    fontWeight: 600
+    letterSpacing: "-0.035em"
+  landing-lead:
+    fontFamily: "Inter, system-ui, sans-serif"
+    fontSize: "17px"
+    fontWeight: 400
+  scale:
+    caption: "12px"
+    ui: "13px"
+    body: "14px"
+    landing-body: "15px"
+    landing-record: "16px"
+    landing-lead: "17px"
+    landing-card-title: "19px"
+    landing-step-title: "21px"
+    landing-logo: "24px"
+    landing-h2-xs: "34px"
+    landing-h1-xs: "40px"
+    landing-h2-sm: "42px"
+    landing-h2: "52px"
+    landing-h1-sm: "56px"
+    landing-h1: "72px"
 rounded:
   control: "9999px"
   fragment: "10px"
   card: "14px"
   panel: "18px"
+  landing-card: "24px"
+  landing-panel-sm: "28px"
+  landing-panel: "40px"
 components:
   button-primary:
     backgroundColor: "{colors.ink}"
@@ -113,9 +147,11 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 - **Inter for everything that is read in the product**: body at 400, UI
   labels at 13px/500.
-- **Outfit 500 for landing display type** (`font-display`): the hero (54px
-  desktop, 32px phones) and section H2s (44px desktop) on the marketing
-  pages only. Admin headlines stay Inter.
+- **Outfit 600 for landing display type** (`font-display`, aave.com-referenced
+  2026-09-09): the hero at 72/56/40px (-0.045em), section H2s at 52/42/34px
+  (-0.035em), the 17px Inter lead under them, 19px card titles and 21px step
+  titles, on the marketing pages only (`features/marketing/components/type.ts`).
+  Admin headlines stay Inter.
 - **Hosted booking pages** (`features/booking-page/render/type.ts`) set
   display at weight 500 with -0.025em tracking in the org's own widget
   font (`widget-fonts.ts`; "system" is the visitor's UI face, Geist and
@@ -173,10 +209,13 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 ## Elevation & Depth
 
-The landing hero's stage takes the lavender wash: a top-to-bottom gradient
-from `#f5f3fe` to `stage-wash` (#e2dcfb), the reference's white-into-
-periwinkle fade (`.stage-wash` in globals.css). It is the only gradient in
-the system.
+The landing is a stack of large rounded panels (40px desktop, 28px phones,
+the page's gutter around them; `PANEL` in `features/marketing/components/type.ts`)
+with one wash each: the hero runs the ground into `hero-wash` (#dde0fa) top to
+bottom (`.hero-wash`), the lavender sections take the flatter `panel-wash`
+(#f1f0fc → #e6e4fb), the white sections are `card` with a hairline ring, and
+the dark ones opt into the `.dark` scope. Cards inside a panel are 24px.
+These two washes are the only gradients in the system.
 
 
 Two shadows only, defined as tokens and used via `shadow-(--shadow-card)` /
@@ -237,6 +276,7 @@ another radius on a public page.
   and the active nav icon.
 - Don't hand grey borders, `transition-all`, pure `#000`/`#fff`, or a second
   accent into any surface.
-- The landing is light except **one dark band**: the final CTA section opts
-  into the `.dark` scope (plum night) and carries `data-nav-dark`; the sticky
-  nav inverts while over it. No other marketing surface goes dark.
+- The landing is light except **two dark panels** (the reference's device):
+  the money-record section and the final CTA opt into the `.dark` scope and
+  carry `data-nav-dark`; the sticky nav inverts while over either. No other
+  marketing surface goes dark.

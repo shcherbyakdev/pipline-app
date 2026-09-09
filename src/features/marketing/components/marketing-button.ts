@@ -5,16 +5,18 @@ import { cn } from "@/lib/utils";
    have its own shape without touching the app-wide button, while sharing the
    token palette. Press feedback is a 160ms scale to 0.97; hover colour is
    gated to real pointers. Shape rule for the landing: controls are pills,
-   panels 22-28px, product fragments 10-14px. */
+   panels 40px, cards 24px, product fragments 12px. */
 
 const base =
   "inline-flex shrink-0 items-center justify-center rounded-full font-medium whitespace-nowrap transition-[background-color,transform] duration-[160ms] ease-strong outline-none select-none active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 const VARIANT = {
-  /* Solid ink. */
+  /* Solid ink: the nav's action. */
   primary: "bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85",
-  /* Kept for callers that asked for the old accent pill: ink now. */
-  marker: "bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85",
+  /* Solid periwinkle, white label: the page's main action (the reference's
+     primary pill). Filled with the brand's text step (#4b5bc4), not the
+     accent itself: white on the accent is 4.0:1, on this step 5.9:1. */
+  brand: "bg-brand-text text-white [@media(hover:hover)_and_(pointer:fine)]:hover:bg-brand-text/90",
   /* Lavender ghost (the reference's secondary pill). */
   neutral: "bg-brand/10 text-brand-text [@media(hover:hover)_and_(pointer:fine)]:hover:bg-brand/15",
   /* Plain text link. */
@@ -25,7 +27,7 @@ const SIZE = {
   /* Nav. */
   md: "h-10 gap-2 px-4 text-[14.5px] sm:px-5",
   /* Standalone CTA. */
-  lg: "h-11 gap-2 px-5 text-[15px]",
+  lg: "h-12 gap-2 px-6 text-[15px]",
   /* Quiet links next to a button. */
   text: "h-10 gap-2 px-3 text-[14.5px]",
 } as const;

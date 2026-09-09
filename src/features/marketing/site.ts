@@ -7,19 +7,22 @@ import { SPACES } from "@/features/orgs/vocab";
 
 const BILLING_ON = FLAG_DEFAULTS.billing; // no org on the marketing site: the environment default, by design
 
+/* The landing sells Booklo to multi-room photo and content studios (roadmap
+   2026-09-07, S9): rooms, the whole studio and shared gear booked from one
+   page, prices computed from the studio's rules, deposits held and
+   collected, changes and after-session charges settled on the same
+   booking, and one morning list of what needs a human. The appointments
+   channel runs but is not marketed here (it keeps one FAQ line). */
 export const SITE = {
   name: "Booklo",
-  tagline: "Booking page & widget for appointments and spaces",
+  tagline: "Booking operations for multi-room studios",
   description:
-    "Booklo gives solo providers and small businesses a hosted booking page and an embeddable widget: for appointments, and for spaces like rooms, studios and gear booked by the hour or night. Clients book without an account; confirmations, reminders and rescheduling are handled for you.",
-  // Two lines; `markedWord` is the word in the second line the hero draws a
-  // marker stroke behind (the promise).
-  headline: ["Your booking page.", "Claimed in a minute."],
-  markedWord: "Claimed",
-  subheadline: "Appointments and spaces on one page. Clients pick a time, you both get the email. No accounts, no double bookings.",
-  /** Under the claim bar: three product truths, as words (there are no
-      metrics to show and none may be invented). */
-  truths: ["No client accounts", "No double bookings", "Live in a minute"],
+    "Booklo runs bookings for multi-room photo and content studios: rooms, whole-studio hire and shared gear from one page, prices computed from your rules, deposits held and collected, changes and after-session charges settled on the same booking, and one morning list of what needs you.",
+  /** Above the headline: the product's name for this buyer. */
+  eyebrow: "Booklo for studios",
+  headline: "Studio bookings, settled.",
+  subheadline:
+    "Rooms, whole studio and shared gear on one page. Prices computed, deposits held, changes and overtime charged under your rules.",
   // Flag-conditional (lib/flags.ts): while billing is off there IS no paid
   // ladder to contrast a "Free plan" with, and /pricing 404s — so the note
   // says what is actually true today. Flipping the flag flips the copy.
@@ -37,16 +40,26 @@ export function anchorId(anchor: string): string {
 /** Section headings, sub-lines and body copy. Components stay presentational. */
 export const SECTIONS = {
   how: {
-    eyebrow: "How it works",
-    heading: "From your name to your first booking",
+    heading: "From your rooms to your first paid booking",
     sub: "Three steps. Nothing to install, no setup call.",
   },
-  features: {
-    eyebrow: "Features",
-    heading: "Everything a booking page should do",
-    sub: "Nothing you have to configure twice.",
+  money: {
+    heading: "One booking. One money record.",
+    sub: "Price, deposit, changes and after-session charges live on the same booking, under the rules you publish.",
   },
-  faq: { eyebrow: "FAQ", heading: "Questions, answered" },
+  compound: {
+    heading: "Rooms, the whole studio, shared gear.",
+    sub: "Sell combinations. Booklo knows a whole-studio hire blocks every room, and that one lamp can't be in two rooms at once.",
+  },
+  morning: {
+    heading: "Your morning, in one list.",
+    sub: "Holds expiring, requests waiting, balances due, changes to confirm. Emailed at 08:00 and ready on your phone.",
+  },
+  features: {
+    heading: "Everything else a studio needs",
+    sub: "Included from day one.",
+  },
+  faq: { heading: "Questions, answered" },
 } as const;
 
 /** The Premium section (spec 2026-09-01-premium-waitlist-design.md): while
@@ -59,9 +72,9 @@ export const PREMIUM = {
   shown: !BILLING_ON,
   eyebrow: "Premium",
   heading: "Free while we build. Premium, if you ask.",
-  sub: "Every account starts free. Join the Premium waitlist from your dashboard and use everything it unlocks now, at no cost.",
+  sub: "Every studio starts free. Join the Premium waitlist from your dashboard and use everything it unlocks now, at no cost.",
   perks: [
-    `Up to ${PLANS.pro.limits.bookableResources} bookable people or units`,
+    `Up to ${PLANS.pro.limits.bookableResources} bookable rooms or units`,
     "Reminders for every booking",
     "No Booklo badge on your page",
   ],
@@ -87,10 +100,10 @@ export const COOKIE_NOTICE = {
   dismiss: "Got it",
 } as const;
 
-/** The claim bar (hero + final CTA). The status line is assembled from
-    these: `taken(url)` + ". " + (`tryPrefix` + suggestion | `tryAnother`). */
+/** The claim bar (final CTA). The status line is assembled from these:
+    `taken(url)` + ". " + (`tryPrefix` + suggestion | `tryAnother`). */
 export const CLAIM = {
-  placeholder: "your-name",
+  placeholder: "your-studio",
   button: "Claim",
   hint: "3-50 characters: letters, numbers, dashes.",
   taken: (url: string) => `${url} is taken`,
@@ -101,49 +114,8 @@ export const CLAIM = {
 } as const;
 
 export const FINAL_CTA = {
-  heading: "Claim your page.",
-  sub: "Pick a name, add a service, set your hours. You're bookable.",
-} as const;
-
-/** The hero's tab pill: which channel the mockup previews. Labels come from
-    the product's own vocabulary where it has one. */
-export const HERO_TABS = [
-  { id: "appointments", label: "Appointments" },
-  { id: "spaces", label: SPACES.pickerTitle },
-] as const satisfies ReadonlyArray<{ id: "appointments" | "spaces"; label: string }>;
-
-/** Strip above the nav. Same flag rule as SITE.heroNote. */
-export const ANNOUNCEMENT = {
-  label: "Early access",
-  text: BILLING_ON ? "Free plan for solo providers, no credit card." : "Free while we build, no credit card.",
-  cta: "Claim your page",
-} as const;
-
-/** "Who it's for": a centred heading, then three staggered text blocks (the
-    two things the page books, and both at once), each with the kinds of
-    business it names. */
-export type AudienceBlock = { title: string; body: string; groups: readonly string[] };
-export const AUDIENCE = {
-  eyebrow: "Who it's for",
-  heading: "Built for people who sell their time, or their space.",
-  sub: "Consultants and coaches, but also studios, rooms and gear that clients book by the hour or night. One page, one calendar.",
-  blocks: [
-    {
-      title: "Your time",
-      body: "Consultations, sessions, classes. Clients pick a slot on your calendar and the confirmation goes to both of you.",
-      groups: ["Consultants", "Coaches", "Therapists", "Tutors", "Photographers"],
-    },
-    {
-      title: "Your space",
-      body: "Rooms, studios and gear, booked by the hour, night or day. Each space has units, so two clients never get the same room.",
-      groups: ["Studios", "Coworking", "Rehearsal rooms", "Courts", "Gear rental"],
-    },
-    {
-      title: "Or both, on one page",
-      body: "One address, one calendar, one list of bookings. Clients see only real openings, whatever they are booking.",
-      groups: [],
-    },
-  ] satisfies readonly AudienceBlock[],
+  heading: "Claim your studio's page.",
+  sub: "Pick a name, add your rooms, set your rules. You're bookable.",
 } as const;
 
 export type NavLink = { label: string; href: string };
@@ -160,38 +132,61 @@ export const NAV_LINKS: NavLink[] = [
   { label: "FAQ", href: `/${SITE.anchors.faq}` },
 ];
 
-/** `word` is the one-word verb drawn in a marker stroke beside each step. */
-export type Step = { number: "01" | "02" | "03"; word: string; title: string; body: string };
+/** The three steps: the title's first word is the verb. */
+export type Step = { title: string; body: string };
 
 export const STEPS: Step[] = [
-  { number: "01", word: "Add", title: "Add what you offer and when", body: "Services or spaces: how long they take, when you're open, how many units you have." },
-  { number: "02", word: "Share", title: "Share your link or embed the widget", body: "Every account gets a page at its own address. One line embeds it on your site." },
-  { number: "03", word: "Book", title: "Clients book; you both get confirmations", body: "They see only real openings. Confirmations and reminders go out on their own." },
+  { title: "Add rooms, gear and rules", body: "Rooms and units, whole-studio combos, shared equipment, price tiers, deposit and cancellation terms." },
+  { title: "Share your page or embed it", body: "Every studio gets its own address. One script tag puts the widget on your site." },
+  { title: "Bookings settle themselves", body: "Price computed, deposit held, changes re-priced, overtime added. Each morning you see what still needs you." },
 ];
 
-/** Which product fragment illustrates a feature (components/mocks/feature-mocks.tsx). */
-export type FeatureVisual = "page" | "spaces" | "slot-guard" | "manage" | "embed" | "reminder" | "brand";
-export type Feature = { visual: FeatureVisual; title: string; body: string };
+/** The money spine (the dark panel): three rule cards, each with the
+    terms a studio would publish, as chips. Sample values only. */
+export type RuleCard = { title: string; body: string; chips: readonly string[] };
+export const RULES: readonly RuleCard[] = [
+  {
+    title: "Priced by your rules",
+    body: "First hour and longer-stay tiers, weekday or weekend, people count, extras. The client sees the price before they book.",
+    chips: ["2 h+ tier", "Weekend", "+2 people", "Profoto kit"],
+  },
+  {
+    title: "Held until paid",
+    body: "A hold keeps the slot until the deadline you set. Paid, it's confirmed; missed, it expires and the slot opens again.",
+    chips: ["30% deposit", "4 h to pay", "Expires on its own"],
+  },
+  {
+    title: "Changes with consequences",
+    body: "Reschedules and cancellations follow your tiers. Refunds are partial when your terms say so, never a guess.",
+    chips: ["72 h free", "48 h 50%", "24 h 100%"],
+  },
+] as const;
 
-/** Order is layout order: the bento in features.tsx spans by `visual`. */
+/** The features grid: six things included from day one, one icon each
+    (components/features.tsx maps `icon` to a glyph). */
+export type FeatureIcon = "no-account" | "guard" | "approve" | "notify" | "language" | "embed";
+export type Feature = { icon: FeatureIcon; title: string; body: string };
+
 export const FEATURES: Feature[] = [
-  { visual: "page", title: "Hosted booking page", body: "A clean, mobile-first page at your own address. Nothing to install, nothing to host." },
-  { visual: "spaces", title: "Spaces by the hour or night", body: "Rooms, studios and gear on the same page. Clients pick a window or a stay; units never double up." },
-  { visual: "slot-guard", title: "Double-booking impossible", body: "Slots and units are guarded in the database. Two people can never take the same time." },
-  { visual: "manage", title: "Self-serve cancel & reschedule", body: "Clients manage their booking from a secure link in the email. No back-and-forth." },
-  { visual: "embed", title: "Embed on any site", body: "One script tag. The widget sits inside your page and grows with its content." },
-  { visual: "reminder", title: "Automatic reminders", body: "A reminder goes out before every booking, so fewer no-shows." },
-  { visual: "brand", title: "Your brand", body: "Logo, brand colour and a welcome message. The page looks like yours, not ours." },
+  { icon: "no-account", title: "No client accounts", body: "Clients book from a link with a name and an email. Everything else happens through links in their confirmation." },
+  { icon: "guard", title: "Double-booking impossible", body: "Rooms, the whole studio and shared gear are guarded in the database. Two clients can never take the same hour." },
+  { icon: "approve", title: "Requests you approve", body: "Events, groups over the cap, unusual shoots: mark them as requests and they wait for your yes." },
+  { icon: "notify", title: "Email and push", body: "Confirmations, reminders, holds about to expire and the morning digest, in your inbox and on your phone." },
+  { icon: "language", title: "Polish and English", body: "Your page and every client email in the language the client chose. Your dashboard in yours." },
+  { icon: "embed", title: "Embed anywhere", body: "One script tag puts the booking widget on your site. Page and widget templates match your brand." },
 ];
 
 export type FaqItem = { question: string; answer: string };
 
 export const FAQ: FaqItem[] = [
-  { question: "Do my clients need an account?", answer: "No. They pick a time, enter a name and email, and they're booked. Everything else happens through links in their confirmation email." },
-  { question: "Can I embed it on my own website?", answer: "Yes. Copy one script tag from your dashboard and paste it into any page. The widget adjusts its height automatically." },
-  { question: "Can I rent out a room, a studio or gear?", answer: "Yes. Next to appointments, Booklo books spaces (rooms, studios and gear) by the hour, night or day, from the same page. Each space has units, so two clients can never get the same room." },
-  { question: "What happens if two people pick the same slot?", answer: "Only one booking can win. The other person sees that the slot was just taken and is offered fresh times, never a silent double booking." },
-  { question: "How do clients cancel or reschedule?", answer: "Their confirmation email contains a secure manage link. From there they can cancel or pick another slot; you get notified either way." },
+  { question: "Do my clients need an account?", answer: "No. They pick a room and a window, enter a name and email, pay the deposit and they're booked. Everything else happens through links in their confirmation email." },
+  { question: "How does the deposit work?", answer: "You set the share and the deadline. A hold keeps the slot while the client pays online; if the deadline passes, the hold expires and the slot opens again. Deposits go straight to your own account: Booklo never holds client money." },
+  { question: "Can I rent the whole studio, or a room plus equipment?", answer: "Yes. A whole-studio booking blocks every room it includes, and shared gear like a lamp or a backdrop is booked together with the room. Each has its own price line." },
+  { question: "What happens after the session?", answer: "Overtime, extra people, cleaning or damage are added to the same booking as charges. The client gets one balance to pay online, or you settle it in cash or write it off." },
+  { question: "What if a client moves or cancels?", answer: "Your tiers decide: free until 72 hours before, half after, all of it inside a day, whatever you publish. The price and the refund are recomputed and both of you see the result." },
+  { question: "What if two clients want the same room or lamp?", answer: "Only one booking can win. The other client sees that the window was just taken and is offered fresh times, never a silent double booking." },
+  { question: "Does it work in Polish?", answer: "Yes. Your page, the widget and every client email come in Polish or English, per client. Your dashboard is in the language you pick." },
+  { question: "I also sell sessions with our photographer. Can I book those?", answer: "Booklo has an appointments mode for time with a person, with the same page and widget. A workspace runs one mode or the other, so a studio that mostly sells rooms keeps the rooms." },
   { question: "What data do you store about my clients?", answer: "Name, email and an optional note, nothing else. No documents, no card numbers, no accounts." },
   // Same flag rule as SITE.heroNote: the paid answer names plans that cannot
   // be bought and points at a /pricing that 404s until FLAG_DEFAULTS.billing flips.
@@ -334,12 +329,13 @@ export const WELCOME = {
   dismiss: "Dismiss",
 } as const;
 
-/** Words that must not appear in marketing copy: features not shipped yet
-    (stripe / payment leave after H4; google / calendar sync left with the
-    Google Calendar slice, spec 2026-09-05) and the retired channel words
-    (H5b: "Spaces" is the word; "rentals" plural is the old channel, "Gear
-    rental" the business type stays legal). */
-export const FORBIDDEN_COPY = ["stripe", "payment", "offering", "rentals"] as const;
+/** Words that must not appear in marketing copy: the provider's name
+    (never marketed), the retired channel words (H5b: "Spaces" is the word;
+    "rentals" plural is the old channel, "Gear rental" the business type
+    stays legal) and "offering". "payment" left the list with S2 (holds and
+    collection shipped, roadmap 2026-09-07 S9); "google / calendar sync"
+    stays unmarketed until S11 and is guarded by the corpus test below. */
+export const FORBIDDEN_COPY = ["stripe", "offering", "rentals", "google", "calendar sync"] as const;
 
 /** Every internal href on the page (for route/anchor guard tests). `#` alone is a placeholder and skipped. */
 export function allInternalHrefs(): string[] {
@@ -350,11 +346,3 @@ export function allInternalHrefs(): string[] {
   ];
   return [...new Set(hrefs)].filter((h) => h !== "#");
 }
-
-/** Under each step: four specifics, as short as a label. Shown beside the
-    step in how-it-works.tsx; indexed like STEPS. */
-export const STEP_POINTS: readonly (readonly string[])[] = [
-  ["Services with buffers", "Spaces with units", "Hours per person or room", "Price labels and terms"],
-  ["booklo.co/your-name", "One script tag", "Per-person links", "Your logo and colour"],
-  ["Confirmation to both", "Reminder before", "Self-serve reschedule", "Walk-ins by hand"],
-];
