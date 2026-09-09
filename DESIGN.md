@@ -55,18 +55,13 @@ typography:
     letterSpacing: "-0.04em"
   mono:
     fontFamily: "Geist Mono, ui-monospace, monospace"
-  landing-display:
-    fontFamily: "Outfit, Inter, sans-serif"
-    fontSize: "80px"
-    fontWeight: 600
-    letterSpacing: "-0.045em"
-  landing-h2:
-    fontFamily: "Outfit, Inter, sans-serif"
-    fontSize: "52px"
-    fontWeight: 600
-    letterSpacing: "-0.035em"
+  landing-title:
+    fontFamily: "Newsreader, Georgia, serif"
+    fontSize: "50px"
+    fontWeight: 400
+    letterSpacing: "-0.025em"
   landing-lead:
-    fontFamily: "Inter, system-ui, sans-serif"
+    fontFamily: "system-ui, -apple-system, sans-serif"
     fontSize: "17px"
     fontWeight: 400
   scale:
@@ -79,13 +74,8 @@ typography:
     landing-card-title: "19px"
     landing-step-title: "21px"
     landing-logo: "24px"
-    landing-beat-title: "24px"
-    landing-h2-xs: "34px"
-    landing-h2-sm: "42px"
-    landing-h1-xs: "44px"
-    landing-h2: "52px"
-    landing-h1-sm: "64px"
-    landing-h1: "80px"
+    landing-title-xs: "40px"
+    landing-title: "50px"
 rounded:
   control: "9999px"
   fragment: "10px"
@@ -145,12 +135,12 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 - **Inter for everything that is read in the product**: body at 400, UI
   labels at 13px/500.
-- **Outfit 600 for landing display type** (`font-display`, 2026-09-09): the
-  hero at 80/64/44px (-0.045em), left-aligned, entering word by word;
-  section H2s at 52/42/34px (-0.035em) on a 20ch measure, the 17px Inter
-  lead under them; 24px beat titles, 19px card titles and 21px step titles,
-  on the marketing pages only (`features/marketing/components/type.ts`).
-  Admin headlines stay Inter.
+- **Landing (interfacecraft.dev-referenced, 2026-09-09): the visitor's
+  system face for everything read** (`.marketing` sets `--font-sans` to the
+  system stack; sub 17px, small text 13px) **and Newsreader 400 for the one
+  title** (`font-serif`, 50/40px, -0.025em, entering word by word). The
+  landing is one hero: rule, title, sub, the claim bar, the product in its
+  glass band, a one-line footer. Admin headlines stay Inter.
 - **Hosted booking pages** (`features/booking-page/render/type.ts`) set
   display at weight 500 with -0.025em tracking in the org's own widget
   font (`widget-fonts.ts`; "system" is the visitor's UI face, Geist and
@@ -208,18 +198,13 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 ## Elevation & Depth
 
-The landing hero sits on one full-bleed abstract image, `hero-wash.webp`
-(`features/marketing/images`, rendered from `scripts/landing-wash.html`):
-a painted periwinkle ridge landscape in the brand tokens, near-white at
-the top under the words, deepening under the product (visitors.now-
-referenced treatment, finsepa.com-referenced structure, 2026-09-09). The
-nav is transparent over it until the page scrolls. Elsewhere the soft
-colour is the logo's own silhouette, blurred (`BlobWash` in
-`booklo-mark.tsx`, lavender `brand/30` or mint `kind-space/20`, blur
-64px, a 26s drift) behind the tape chart. Sections sit on the plain
-ground, headings left-aligned; product fragments are 24px white cards with
-a hairline ring and the card shadow; the booking money record is the
-page's one ink card. No other panels, no CSS gradients.
+The landing's product sits in one full-width band of the abstract image
+`hero-wash.webp` (`features/marketing/images`, rendered from
+`scripts/landing-wash.html`): a painted periwinkle ridge landscape in the
+brand tokens with vertical glass streaks baked in, seen through fluted
+glass in CSS (27px ribs, a light swell travelling every 11s, film grain;
+globals.css "Hero glass" / "Hero grain"). The title and the input sit on
+the plain ground above it. No other panels, no CSS gradients.
 
 
 Two shadows only, defined as tokens and used via `shadow-(--shadow-card)` /
@@ -280,8 +265,5 @@ another radius on a public page.
   and the active nav icon.
 - Don't hand grey borders, `transition-all`, pure `#000`/`#fff`, or a second
   accent into any surface.
-- The landing is light except **one dark band**: the final CTA section and
-  the footer opt into the `.dark` scope and the band carries `data-nav-dark`;
-  the sticky nav inverts while over it. Two small ink surfaces sit inside
-  light sections (the money record, the embed bento cell) without inverting
-  the nav.
+- The landing is light throughout: one hero on the plain ground, the
+  product band the only coloured surface.

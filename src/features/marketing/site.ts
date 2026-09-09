@@ -8,11 +8,9 @@ import { SPACES } from "@/features/orgs/vocab";
 const BILLING_ON = FLAG_DEFAULTS.billing; // no org on the marketing site: the environment default, by design
 
 /* The landing sells Booklo to multi-room photo and content studios (roadmap
-   2026-09-07, S9): rooms, the whole studio and shared gear booked from one
-   page, prices computed from the studio's rules, deposits held and
-   collected, changes and after-session charges settled on the same
-   booking, and one morning list of what needs a human. The appointments
-   channel runs but is not marketed here (it keeps one FAQ line). */
+   2026-09-07, S9). It is one hero (interfacecraft.dev-referenced,
+   2026-09-09): the title, the sub, the claim bar and the product. The
+   appointments channel runs but is not marketed. */
 export const SITE = {
   name: "Booklo",
   tagline: "Booking software for multi-room studios",
@@ -26,38 +24,6 @@ export const SITE = {
   // says what is actually true today. Flipping the flag flips the copy.
   heroNote: BILLING_ON ? "Free plan · No credit card" : "Free during early access · No credit card",
   links: { home: "/", login: "/login", signup: "/signup", pricing: "/pricing", waitlist: "/waitlist" },
-  anchors: { how: "#how-it-works", features: "#features", faq: "#faq" },
-} as const;
-
-/** `#features` → `features`, so a section's `id` and the nav href that targets it share one source. */
-export function anchorId(anchor: string): string {
-  if (!anchor.startsWith("#")) throw new Error(`anchor must start with "#": ${anchor}`);
-  return anchor.slice(1);
-}
-
-/** Section headings, sub-lines and body copy. Components stay presentational. */
-export const SECTIONS = {
-  how: {
-    heading: "Set up in an afternoon",
-    sub: "Three steps, nothing to install.",
-  },
-  money: {
-    heading: "The money stays with the booking.",
-    sub: "Price, deposit, changes and extra charges all live on the same booking, under your rules. Scroll through one.",
-  },
-  compound: {
-    heading: "Rooms, the whole studio, shared gear.",
-    sub: "Sell them together. Booklo knows a whole-studio booking blocks every room, and that one lamp can only be in one room at a time.",
-  },
-  morning: {
-    heading: "Every morning, one list.",
-    sub: "Holds about to expire, requests to approve, balances to collect, changes to confirm. Emailed at 8:00 and on your phone.",
-  },
-  features: {
-    heading: "Also in the box",
-    sub: "Included from day one, on every plan.",
-  },
-  faq: { heading: "Common questions" },
 } as const;
 
 /** Call-to-action button labels. */
@@ -76,7 +42,7 @@ export const COOKIE_NOTICE = {
   dismiss: "Got it",
 } as const;
 
-/** The claim bar (hero + final CTA). The status line is assembled from these:
+/** The claim bar (the hero's one input). The status line is assembled from these:
     `taken(url)` + ". " + (`tryPrefix` + suggestion | `tryAnother`). */
 export const CLAIM = {
   placeholder: "your-studio",
@@ -89,98 +55,13 @@ export const CLAIM = {
   checkFailed: "Couldn't check right now. You can still continue.",
 } as const;
 
-export const FINAL_CTA = {
-  heading: "Claim your studio's page.",
-  sub: "Pick a name, add your rooms, set your rules. You're bookable.",
-} as const;
-
 export type NavLink = { label: string; href: string };
 
-// Home-anchored ("/#x", not "#x"): the nav and footer also render on
-// /pricing, /privacy and /terms, where a bare anchor goes nowhere. On the
-// landing itself the browser still scrolls in place (same path).
-export const NAV_LINKS: NavLink[] = [
-  { label: "How it works", href: `/${SITE.anchors.how}` },
-  { label: "Features", href: `/${SITE.anchors.features}` },
-  // Only listed once billing is live (lib/flags.ts) — while off, /pricing 404s
-  // and nothing should link to it from the nav.
-  ...(BILLING_ON ? [{ label: "Pricing", href: SITE.links.pricing }] : []),
-  { label: "FAQ", href: `/${SITE.anchors.faq}` },
-];
-
-/** The three steps: the title's first word is the verb. */
-export type Step = { title: string; body: string };
-
-export const STEPS: Step[] = [
-  { title: "Add your rooms, gear and rules", body: "Rooms, whole-studio packages, shared equipment, prices, deposit and cancellation terms." },
-  { title: "Share your page or embed it", body: "Every studio gets its own web address. One line of code puts the booking widget on your site." },
-  { title: "Bookings run themselves", body: "Prices are worked out, deposits taken, changes repriced, overtime added. Each morning you see what still needs you." },
-];
-
-/** The money story (components/money.tsx): seven beats of one booking, read
-    while the record beside them fills in. The chips are the terms a studio
-    would publish. Sample values only. */
-export type MoneyStep = { title: string; body: string; chips?: readonly string[] };
-export const MONEY_STEPS: readonly MoneyStep[] = [
-  { title: "Priced", body: "Room, duration, people and extras. The price comes from your rules and the client sees it before booking.", chips: ["2 h+ tier", "Weekend", "+2 people", "Profoto kit"] },
-  { title: "Held", body: "A hold keeps the slot until your deadline. If the deposit doesn't arrive, the hold expires and the slot opens again.", chips: ["30% deposit", "4 h to pay"] },
-  { title: "Paid", body: "The deposit arrives and the booking is confirmed. The money goes to your own account, not through Booklo." },
-  { title: "Moved", body: "The client changes the date. Your cancellation tiers set the fee, and both of you see the new total.", chips: ["72 h free", "48 h 50%", "24 h 100%"] },
-  { title: "Overtime", body: "The session runs long. The extra half hour is added to the same booking at your overtime rate." },
-  { title: "Balance", body: "Everything after the deposit becomes one balance, with one link to pay it." },
-  { title: "Collected", body: "Paid online, in cash, or written off. The record closes either way." },
-] as const;
-
-/** The features grid: six things included from day one, one icon each
-    (components/features.tsx maps `icon` to a glyph). */
-/** The "also in the box" list: six short items, one line each. */
-export type Feature = { title: string; body: string };
-
-export const FEATURES: Feature[] = [
-  { title: "No client accounts", body: "Clients book from a link with their name and email. Everything else happens through their confirmation email." },
-  { title: "Your brand on the page", body: "Your logo, your colour, your photos. Page and widget templates to match." },
-  { title: "Requests you approve", body: "Events, big groups, unusual shoots: mark them as requests and they wait for your yes." },
-  { title: "Email and push", body: "Confirmations, reminders, expiring holds and the morning digest, by email and on your phone." },
-  { title: "Polish and English", body: "Your page and every client email in the client's language. Your dashboard in yours." },
-  { title: "Embed anywhere", body: "One line of code puts the booking widget on your own site." },
-];
-
-export type FaqItem = { question: string; answer: string };
-
-export const FAQ: FaqItem[] = [
-  { question: "Do my clients need an account?", answer: "No. They pick a room and a time, enter their name and email, pay the deposit and they're booked. Everything else happens through links in their confirmation email." },
-  { question: "Where does the money go?", answer: "Straight to your own account. Booklo never holds client money. You set the deposit amount and the deadline; if the deadline passes, the hold expires and the slot opens again." },
-  { question: "Does it work in Polish?", answer: "Yes. Your page, the widget and every client email come in Polish or English, per client. Your dashboard is in the language you choose." },
-  { question: "I also sell sessions with our photographer. Can I book those?", answer: "Yes. Booklo also has an appointments mode for booking a person's time, with the same page and widget. A workspace runs one mode or the other." },
-  { question: "What data do you store about my clients?", answer: "Name, email and an optional note, nothing else. No documents, no card numbers, no accounts." },
-  // Same flag rule as SITE.heroNote: the paid answer names plans that cannot
-  // be bought and points at a /pricing that 404s until FLAG_DEFAULTS.billing flips.
-  {
-    question: "What does it cost?",
-    answer: BILLING_ON
-      ? "Free for you and one more person, or two rooms: two bookable resources, reminders for your first 30 bookings each month, unlimited services. Pro and Team add your brand, reminders for every booking and more bookable people and units; see Pricing."
-      : "Booklo is free while we're in early access. Premium is coming: join the waitlist from your dashboard and use everything it unlocks now, at no cost. We'll announce pricing well before anything changes.",
-  },
-];
-
-export type FooterColumn = { heading: string; links: NavLink[] };
-
-export const FOOTER_COLUMNS: FooterColumn[] = [
-  { heading: "Product", links: NAV_LINKS },
-  {
-    heading: "Account",
-    links: [
-      { label: CTA.login, href: SITE.links.login },
-      { label: CTA.getStarted, href: SITE.links.signup },
-    ],
-  },
-  {
-    heading: "Legal",
-    links: [
-      { label: "Privacy", href: "/privacy" },
-      { label: "Terms", href: "/terms" },
-    ],
-  },
+/** The footer's one line of links. */
+export const FOOTER_LINKS: NavLink[] = [
+  { label: CTA.login, href: SITE.links.login },
+  { label: "Privacy", href: "/privacy" },
+  { label: "Terms", href: "/terms" },
 ];
 
 /** One row of the pricing comparison table: a label plus one cell per plan,
@@ -302,12 +183,7 @@ export const WELCOME = {
     stays unmarketed until S11 and is guarded by the corpus test below. */
 export const FORBIDDEN_COPY = ["stripe", "offering", "rentals", "google", "calendar sync"] as const;
 
-/** Every internal href on the page (for route/anchor guard tests). `#` alone is a placeholder and skipped. */
+/** Every internal href on the page (for the route guard test). */
 export function allInternalHrefs(): string[] {
-  const hrefs = [
-    ...Object.values(SITE.links),
-    ...NAV_LINKS.map((l) => l.href),
-    ...FOOTER_COLUMNS.flatMap((c) => c.links.map((l) => l.href)),
-  ];
-  return [...new Set(hrefs)].filter((h) => h !== "#");
+  return [...new Set([...Object.values(SITE.links), ...FOOTER_LINKS.map((l) => l.href)])];
 }

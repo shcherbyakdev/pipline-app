@@ -25,24 +25,6 @@ export function BookloMark({ className }: { className?: string }) {
   );
 }
 
-/* The landing's one shape, used large: the mark's silhouette blurred into
-   a wash behind a product fragment (the hero card, the tape chart), so the
-   page's soft colour comes from the logo itself rather than from a panel.
-   Positioned by the caller; `tone` picks the kind colour. Decorative and
-   pointer-transparent; a very slow drift on the strong in-out curve keeps
-   it alive (transform only, off under reduced motion). */
-export function BlobWash({ tone = "brand", className }: { tone?: "brand" | "space"; className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 200 200"
-      aria-hidden="true"
-      className={cn("blob-wash pointer-events-none absolute blur-[64px]", tone === "brand" ? "fill-brand/30" : "fill-kind-space/20", className)}
-    >
-      <path d={MARK_PATH} />
-    </svg>
-  );
-}
-
 /* Booklo wordmark: just the word, lowercase, in Outfit Semibold tracked
    tight. Sized by the parent's font-size so it works from the nav to the
    footer. */

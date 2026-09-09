@@ -5,35 +5,25 @@ import { HeroClaim } from "./hero-claim";
 import adminWeek from "../images/admin-week.png";
 import heroWash from "../images/hero-wash.webp";
 
-/* The first viewport, centred (finsepa.com-referenced structure,
-   2026-09-09): the headline entering word by word (Linear's move: fade,
-   a little rise, focus), the sub, the one input (the claim bar; the nav
-   carries Get started), then the admin's week rising from the hero's
-   floor, cropped there like a screen coming into view. The whole hero
-   sits on a full-bleed abstract wash in the brand's palette
-   (scripts/landing-wash.html, ours, not a stock painting): near-white
-   under the words, ridges under the product, seen through fluted glass
-   (streaks baked in, ribs and a travelling swell in CSS, then grain).
-   Real screenshot (scripts/landing-shots.mjs). */
+/* The page (interfacecraft.dev-referenced, 2026-09-09): a short rule, the
+   title in the serif entering word by word (Linear's move: fade, a little
+   rise, focus), the sub in the system face, the one input, then the
+   product: a full-width band of the abstract wash seen through fluted
+   glass (ribs, a travelling swell, grain; globals.css "Hero glass") with
+   the admin's week rising from its floor and cropped there. Real
+   screenshot (scripts/landing-shots.mjs); the wash is ours
+   (scripts/landing-wash.html). */
 const WORD_MS = 60;
 
 export function Hero({ host }: { host: string }) {
   const words = SITE.headline.split(" ");
   return (
-    <section aria-labelledby="hero-heading" className="relative -mt-[73px] overflow-x-clip pt-[73px]">
-      {/* the wash behind the whole hero, pulled up under the (transparent)
-          nav: near-white at the top under the words, the ridges rising
-          where the product does */}
-      <Image src={heroWash} alt="" fill priority sizes="100vw" className="object-cover object-bottom" />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="hero-swell absolute inset-y-0 left-0" />
-      </div>
-      <div aria-hidden="true" className="hero-ribs pointer-events-none absolute inset-0" />
-      <div aria-hidden="true" className="hero-grain pointer-events-none absolute inset-0" />
-      <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-12 text-center sm:px-8 sm:pt-16 lg:pt-20">
+    <section aria-labelledby="hero-heading" className="overflow-x-clip">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-20 text-center sm:px-8 sm:pt-28">
+        <span aria-hidden="true" className="bg-border animate-fade-up mb-9 h-px w-16" />
         <h1
           id="hero-heading"
-          className="text-foreground font-display max-w-[15ch] text-[44px] leading-[1.02] font-semibold tracking-[-0.045em] text-balance sm:text-[64px] lg:text-[80px]"
+          className="text-foreground font-serif max-w-[14ch] text-[40px] leading-[1.05] font-normal tracking-[-0.025em] text-balance sm:text-[50px]"
         >
           {words.map((w, i) => (
             <React.Fragment key={i}>
@@ -44,16 +34,21 @@ export function Hero({ host }: { host: string }) {
             </React.Fragment>
           ))}
         </h1>
-
-        <p className="animate-fade-up text-muted-foreground mt-6 max-w-[36rem] text-[17px] leading-relaxed text-balance [animation-delay:260ms] sm:text-[19px]">
+        <p className="animate-fade-up text-muted-foreground mt-5 max-w-[30rem] text-[17px] leading-relaxed text-balance [animation-delay:260ms]">
           {SITE.subheadline}
         </p>
-        <HeroClaim host={host} className="animate-fade-up mt-8 w-full max-w-[520px] text-left [animation-delay:340ms]" />
+        <HeroClaim host={host} className="animate-fade-up mt-8 w-full max-w-[440px] text-left [animation-delay:340ms]" />
       </div>
 
-      {/* the product, rising from the hero's floor */}
-      <div className="relative mt-12 w-full overflow-hidden pb-10 sm:mt-16 sm:h-[520px] sm:pb-0 lg:mt-20 lg:h-[600px]">
-        <div className="hero-rise relative mx-auto w-full max-w-6xl px-4 sm:absolute sm:inset-x-0 sm:top-0 sm:px-8">
+      {/* the product, in the glass band */}
+      <div className="animate-fade-up relative mt-16 w-full overflow-hidden pt-10 pb-10 [animation-delay:440ms] sm:mt-24 sm:h-[560px] sm:pt-14 sm:pb-0 lg:h-[640px] lg:pt-16">
+        <Image src={heroWash} alt="" fill priority sizes="100vw" className="object-cover object-bottom" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="hero-swell absolute inset-y-0 left-0" />
+        </div>
+        <div aria-hidden="true" className="hero-ribs pointer-events-none absolute inset-0" />
+        <div aria-hidden="true" className="hero-grain pointer-events-none absolute inset-0" />
+        <div className="hero-rise relative mx-auto w-full max-w-6xl px-4 sm:px-8">
           <div className="bg-card overflow-hidden rounded-[16px] shadow-[0_24px_80px_-24px_rgb(37_34_40/0.45)] ring-1 ring-white/60 sm:rounded-t-[22px] sm:rounded-b-none">
             <Image
               src={adminWeek}

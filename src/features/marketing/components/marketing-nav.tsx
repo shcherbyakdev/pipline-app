@@ -2,157 +2,39 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
-import { CTA, NAV_LINKS, SITE } from "@/features/marketing/site";
+import { CTA, SITE } from "@/features/marketing/site";
 import { hasAuthCookie } from "@/features/marketing/auth-cookie";
 import { DEFAULT_AFTER_LOGIN } from "@/lib/auth/next-path";
-import { marketingButton } from "./marketing-button";
-import { BookloLogo } from "./booklo-mark";
-import { cn } from "@/lib/utils";
+import { BookloMark } from "./booklo-mark";
 
-/* Mark + wordmark left with the links beside it (md+), Log in as a quiet
-   link and Get started as the ink pill on the right; a hamburger below md
-   that opens a small card. Sticky so the primary CTA stays in reach while
-   the page scrolls; transparent while the page sits at the top (the hero's
-   wash runs under it), then the ground shows through at 80% with a light
-   blur. The card closes on link click and on Escape. */
+/* The mark on the left, one small pill on the right (interfacecraft.dev's
+   nav): Log in for a visitor, Dashboard for someone signed in. Nothing
+   else; the page is one hero and the claim bar is its action. */
 const subscribeNoop = () => () => {};
 
 export function MarketingNav() {
-  const [open, setOpen] = React.useState(false);
-  const toggleRef = React.useRef<HTMLButtonElement>(null);
-
-  /* Signed-in visitors get one Dashboard pill instead of Log in / Get
-     started. Read from the Supabase cookie via useSyncExternalStore (the
+  /* Read from the Supabase cookie via useSyncExternalStore (the
      onboarding-form idiom: no subscription, the value never changes while
-     mounted) so the page stays static; SSR and first paint show the
-     signed-out pair for a beat. */
+     mounted) so the page stays static; SSR and first paint show Log in. */
   const authed = React.useSyncExternalStore(
     subscribeNoop,
     () => hasAuthCookie(document.cookie),
     () => false,
   );
-
-  /* While a dark panel (any element marked data-nav-dark) sits under the
-     bar, the header opts into the `.dark` token scope so its ground, links
-     and pills invert. The observer's bottom margin shrinks the viewport to
-     roughly the bar's own strip, so "intersecting" means "under the bar". */
-  const [overDark, setOverDark] = React.useState(false);
-  /* Scrolled = the sentinel rendered just above the bar has left the
-     viewport. One observer, no scroll listener. */
-  const [scrolled, setScrolled] = React.useState(false);
-  const sentinel = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    const el = sentinel.current;
-    if (!el) return;
-    const io = new IntersectionObserver(([e]) => setScrolled(!e.isIntersecting));
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  React.useEffect(() => {
-    const targets = Array.from(document.querySelectorAll("[data-nav-dark]"));
-    if (targets.length === 0) return;
-    const under = new Set<Element>();
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) under.add(e.target);
-          else under.delete(e.target);
-        }
-        setOverDark(under.size > 0);
-      },
-      { rootMargin: "0px 0px -92% 0px" },
-    );
-    targets.forEach((t) => io.observe(t));
-    return () => io.disconnect();
-  }, []);
-
-  React.useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpen(false);
-        toggleRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
   return (
-    <>
-    <div ref={sentinel} aria-hidden="true" className="h-px w-full" />
-    <header
-      className={cn(
-        "sticky top-0 z-30 transition-[background-color] duration-300",
-        scrolled ? "bg-background/80 backdrop-blur-md" : "bg-transparent",
-        overDark && "dark",
-      )}
-    >
-      <nav aria-label="Main" className="mx-auto flex h-[72px] w-full max-w-6xl items-center gap-8 px-5 sm:px-8 lg:gap-10">
-        <Link
-          href={SITE.links.home}
-          className="text-foreground focus-visible:ring-ring rounded-sm text-[24px] outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background"
-        >
-          <BookloLogo />
+    <header>
+      <nav aria-label="Main" className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5 sm:px-8">
+        <Link href={SITE.links.home} className="focus-visible:ring-ring rounded-md outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background">
+          <BookloMark className="size-8" />
+          <span className="sr-only">{SITE.name}</span>
         </Link>
-
-        <ul className="hidden items-center gap-1 md:flex">
-          {NAV_LINKS.map((l) => (
-            <li key={l.href}>
-              <a
-                href={l.href}
-                className="text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent focus-visible:ring-ring block rounded-full px-3.5 py-1.5 text-[15px] font-medium transition-[background-color] duration-150 ease-strong outline-none focus-visible:ring-2"
-              >
-                {l.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-
-        <div className="ml-auto flex items-center gap-1.5">
-          {authed ? (
-            <Link href={DEFAULT_AFTER_LOGIN} className={marketingButton("primary", "md")}>
-              {CTA.dashboard}
-            </Link>
-          ) : (
-            <>
-              <Link href={SITE.links.login} className={marketingButton("quiet", "text", "hidden text-foreground sm:inline-flex")}>
-                {CTA.login}
-              </Link>
-              <Link href={SITE.links.signup} className={marketingButton("primary", "md")}>
-                {CTA.getStarted}
-              </Link>
-            </>
-          )}
-          <button
-            ref={toggleRef}
-            type="button"
-            className="text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent focus-visible:ring-ring inline-flex size-10 items-center justify-center rounded-full outline-none focus-visible:ring-2 md:hidden"
-            aria-label={open ? "Close menu" : "Open menu"}
-            aria-expanded={open}
-            aria-controls="mobile-nav"
-            onClick={() => setOpen((v) => !v)}
-          >
-            {open ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
-          </button>
-        </div>
+        <Link
+          href={authed ? DEFAULT_AFTER_LOGIN : SITE.links.login}
+          className="bg-secondary text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent focus-visible:ring-ring inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium transition-[background-color] duration-150 ease-strong outline-none focus-visible:ring-2"
+        >
+          {authed ? CTA.dashboard : CTA.login}
+        </Link>
       </nav>
-
-      {open ? (
-        <div id="mobile-nav" className="animate-fade-up bg-card absolute top-full right-4 left-4 mt-2 rounded-2xl p-2 shadow-[var(--shadow-card)] md:hidden">
-          <ul>
-            {[...NAV_LINKS, authed ? { label: CTA.dashboard, href: DEFAULT_AFTER_LOGIN } : { label: CTA.login, href: SITE.links.login }].map((l) => (
-              <li key={l.href}>
-                <a href={l.href} onClick={() => setOpen(false)} className="text-foreground hover:bg-accent block rounded-xl px-3 py-2.5 text-[15px] font-medium">
-                  {l.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
     </header>
-    </>
   );
 }

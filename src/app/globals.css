@@ -357,6 +357,10 @@
    this block is the single place the landing's colours live. */
 .marketing {
   color-scheme: light;
+  /* interfacecraft.dev-referenced (2026-09-09): the visitor's own system
+     face for everything read, Newsreader for the one title. */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
   --background: #fefefe;
   --foreground: #252228;
   --card: #ffffff;
@@ -418,19 +422,6 @@
 }
 .marketing ::selection {
   background: rgb(37 34 40 / 0.12);
-}
-
-/* The landing's shape (components/booklo-mark.tsx BlobWash): the mark's
-   silhouette, blurred, drifting very slowly on the strong in-out curve.
-   Transform only; the layer is promoted once so the blur is never
-   repainted. Off under reduced motion. */
-.marketing .blob-wash {
-  will-change: transform;
-  animation: blob-drift 26s var(--ease-in-out-strong) infinite alternate;
-}
-@keyframes blob-drift {
-  from { translate: 0 0; rotate: 0deg; scale: 1; }
-  to { translate: 3% 4%; rotate: 6deg; scale: 1.06; }
 }
 
 /* Hero glass (components/hero.tsx, futureui.studio "fractal glass
@@ -573,7 +564,6 @@
   .animate-fade-up { animation-name: fade-only; animation-duration: 0.2s; animation-timing-function: ease; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .animate-pop { animation: none; }
-  .marketing .blob-wash { animation: none; }
   .marketing .hw { transform: none; filter: none; animation: fade-only 0.2s ease both; }
   .marketing .hero-rise { transform: none; animation: fade-only 0.2s ease both; }
   .marketing .hero-swell { animation: none; transform: translateX(120%); }

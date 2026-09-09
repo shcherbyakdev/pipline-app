@@ -1,26 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
-import {
-  SITE,
-  NAV_LINKS,
-  FOOTER_COLUMNS,
-  STEPS,
-  MONEY_STEPS,
-  FEATURES,
-  FAQ,
-  SECTIONS,
-  CTA,
-  COOKIE_NOTICE,
-  CLAIM,
-  ONBOARDING,
-  WELCOME,
-  FINAL_CTA,
-  FORBIDDEN_COPY,
-  PRICING,
-  anchorId,
-  allInternalHrefs,
-} from "./site";
+import { SITE, FOOTER_LINKS, CTA, COOKIE_NOTICE, CLAIM, ONBOARDING, WELCOME, FORBIDDEN_COPY, PRICING, allInternalHrefs } from "./site";
 import { PLANS } from "@/lib/billing/plans";
 
 // Route hrefs → the app directory that must exist for them (route groups omitted from URL).
@@ -38,14 +19,9 @@ const ROUTE_DIRS: Record<string, string> = {
 function landingCorpus(): string {
   return [
     SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
-    ...STEPS.flatMap((s) => [s.title, s.body]),
-    ...MONEY_STEPS.flatMap((m) => [m.title, m.body, ...(m.chips ?? [])]),
-    ...FEATURES.flatMap((f) => [f.title, f.body]),
-    ...FAQ.flatMap((f) => [f.question, f.answer]),
-    ...Object.values(SECTIONS).flatMap((s) => [s.heading, "sub" in s ? s.sub : ""]),
+    ...FOOTER_LINKS.map((l) => l.label),
     ...Object.values(CTA),
     ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
-    FINAL_CTA.heading, FINAL_CTA.sub,
     ...Object.values(COOKIE_NOTICE),
   ].join("\n");
 }
@@ -55,54 +31,12 @@ describe("site config", () => {
     expect(SITE.name).toBe("Booklo");
   });
 
-  it("every internal href is an in-page anchor or an existing route", () => {
+  it("every internal href is an existing route", () => {
     for (const href of allInternalHrefs()) {
-      if (href.startsWith("#")) continue;
-      // "/#x" is the home route plus an anchor (nav/footer render on
-      // /pricing, /privacy and /terms too, so their section links must
-      // carry the path).
-      const dir = ROUTE_DIRS[href.startsWith("/#") ? "/" : href];
+      const dir = ROUTE_DIRS[href];
       expect(dir, `no route mapping for ${href}`).toBeDefined();
       expect(existsSync(join(process.cwd(), dir, "page.tsx")), `${dir}/page.tsx missing`).toBe(true);
     }
-  });
-
-  it("every anchor yields a usable id and every nav href is a home-anchored section link or an internal route", () => {
-    const anchors: string[] = Object.values(SITE.anchors);
-    for (const a of anchors) expect(anchorId(a), `bad anchor ${a}`).not.toBe("");
-    for (const l of NAV_LINKS) {
-      // Bare "#x" is relative to the current page and goes nowhere on
-      // /pricing, /privacy or /terms, which render the same nav and footer.
-      const ok = (l.href.startsWith("/#") && anchors.includes(l.href.slice(1))) || l.href in ROUTE_DIRS;
-      expect(ok, `nav href ${l.href} is neither /#anchor nor route`).toBe(true);
-    }
-  });
-
-  it("rejects an anchor without a leading #", () => {
-    expect(() => anchorId("features")).toThrow();
-  });
-
-  // Source-level guard: the sections must take their id from SITE.anchors, not a hardcoded string,
-  // so renaming an anchor can never silently break the nav links that point at it.
-  it("each section derives its id from SITE.anchors", () => {
-    const files: Record<string, keyof typeof SITE.anchors> = {
-      "how-it-works.tsx": "how",
-      "features.tsx": "features",
-      "faq.tsx": "faq",
-    };
-    for (const [file, key] of Object.entries(files)) {
-      const src = readFileSync(join(process.cwd(), "src/features/marketing/components", file), "utf8");
-      expect(src, `${file} should use anchorId(SITE.anchors.${key})`).toContain(`anchorId(SITE.anchors.${key})`);
-    }
-  });
-
-  it("has three steps, seven money beats, six unique features, ≥4 FAQ items", () => {
-    expect(STEPS).toHaveLength(3);
-    expect(MONEY_STEPS).toHaveLength(7);
-    expect(FEATURES).toHaveLength(6);
-    expect(new Set(FEATURES.map((f) => f.title)).size).toBe(6);
-    expect(FAQ.length).toBeGreaterThanOrEqual(4);
-    expect(new Set(FAQ.map((f) => f.question)).size).toBe(FAQ.length);
   });
 
   it("never advertises unshipped features", () => {
@@ -133,8 +67,8 @@ describe("site config", () => {
     expect(landingCorpus()).not.toMatch(/[—–]/);
   });
 
-  // The hero fits the first viewport (2026-09-09 studios cut): one short
-  // display line and a sub of at most twenty words.
+  // The page is one hero (2026-09-09): one short title, a sub of at most
+  // twenty words, the claim bar. Nothing else to fit.
   it("headline is one short line and the sub is at most 20 words", () => {
     expect(SITE.headline.split(/\s+/).length).toBeLessThanOrEqual(5);
     expect(SITE.subheadline.split(/\s+/).length).toBeLessThanOrEqual(20);
@@ -147,14 +81,6 @@ describe("site config", () => {
   it("WELCOME has rentals-specific copy distinct from the appointments copy", () => {
     expect(WELCOME.subRentals).not.toBe(WELCOME.sub);
     expect(WELCOME.subRentals.length).toBeGreaterThan(0);
-  });
-
-  // One label per intent (2026-09-09 critique): every link to /signup says
-  // CTA.getStarted; the claim bar is the hero's own affordance, not a button.
-  it("every sign-up link carries the one Get started label", () => {
-    const links = [...NAV_LINKS, ...FOOTER_COLUMNS.flatMap((c) => c.links)].filter((l) => l.href === SITE.links.signup);
-    expect(links.length).toBeGreaterThan(0);
-    for (const l of links) expect(l.label).toBe(CTA.getStarted);
   });
 
   it("the onboarding picker lists Spaces first (H5b ruling 1)", () => {
@@ -173,11 +99,9 @@ describe("site config", () => {
     );
   });
 
-  it("pricing and the cost FAQ speak of people and rooms, never seats", () => {
+  it("pricing speaks of people and rooms, never seats", () => {
     expect(PRICING.sub).toBe(
       "Free for you and one more person, or two rooms. Pay when you need your brand, reminders for every booking or more bookable resources.",
     );
-    const cost = FAQ.find((f) => f.question === "What does it cost?")!;
-    expect(cost.answer.toLowerCase()).not.toMatch(/seat|team member/);
   });
 });
