@@ -136,6 +136,7 @@ export function NewBookingDialog({
               timeZone={timeZone}
               initialUnitId={spacePrefill?.unitId ?? null}
               initialStartDate={spacePrefill?.date}
+              initialEndDate={spacePrefill?.endDate}
               onDone={close}
             />
           </div>

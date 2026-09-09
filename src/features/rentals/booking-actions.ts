@@ -162,7 +162,7 @@ function engineSpan(startDate: string, endDate: string): number {
 }
 
 export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
-  | { ok: true; unitChanged: boolean; datesChanged: boolean; emailed: boolean }
+  | { ok: true; id: string; unitChanged: boolean; datesChanged: boolean; emailed: boolean }
   | { ok: false; error: string; datesTaken?: boolean }
 > {
   const t = await getTranslations("errors");
@@ -325,6 +325,9 @@ export async function rescheduleRentalBookingAdmin(input: unknown): Promise<
     revalidatePath("/bookings");
     return {
       ok: true,
+      // The move is a NEW row (the old one is 'rescheduled'); a caller that
+      // wants to move it again — the timeline's Undo — needs this id.
+      id: moved.new_booking_id,
       unitChanged: moved.unit_changed,
       datesChanged: moved.dates_changed,
       emailed,
@@ -602,7 +605,7 @@ export async function createRentalBookingHoursAdmin(
 }
 
 export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
-  | { ok: true; unitChanged: boolean; datesChanged: boolean; emailed: boolean }
+  | { ok: true; id: string; unitChanged: boolean; datesChanged: boolean; emailed: boolean }
   | { ok: false; error: string; datesTaken?: boolean }
 > {
   const t = await getTranslations("errors");
@@ -764,6 +767,9 @@ export async function rescheduleRentalHoursAdmin(input: unknown): Promise<
     revalidatePath("/bookings");
     return {
       ok: true,
+      // The move is a NEW row (the old one is 'rescheduled'); a caller that
+      // wants to move it again — the timeline's Undo — needs this id.
+      id: moved.new_booking_id,
       unitChanged: moved.unit_changed,
       datesChanged: moved.dates_changed,
       emailed,

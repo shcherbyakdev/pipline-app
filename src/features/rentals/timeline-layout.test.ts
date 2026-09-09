@@ -134,10 +134,10 @@ describe("detectConflicts (what the DB guard cannot refuse after the fact)", () 
 });
 
 describe("labelDensity (what fits in the bar)", () => {
-  it("wide ⇒ name + dates, medium ⇒ name, narrow ⇒ initials", () => {
+  it("wide ⇒ name + length, medium ⇒ name, narrow ⇒ initials", () => {
     expect(labelDensity(200)).toBe("full");
-    expect(labelDensity(120)).toBe("full");
-    expect(labelDensity(119)).toBe("name");
+    expect(labelDensity(160)).toBe("full");
+    expect(labelDensity(159)).toBe("name");
     expect(labelDensity(48)).toBe("name");
     expect(labelDensity(47)).toBe("initials");
   });
@@ -266,7 +266,7 @@ describe("takenColumns / freeUnitsPerDay (the hotel board's free-rooms row)", ()
   it("nights: occupied nights plus the turnover tail; blackouts too; clamped to the window", () => {
     const taken = takenColumns(
       [stay("a", "2027-05-02", "2027-05-04")],
-      [{ id: "b1", startDate: "2027-04-30", endDate: "2027-05-01", reason: null }],
+      [{ startDate: "2027-04-30", endDate: "2027-05-01" }],
       "nights",
       1,
       TZ,
@@ -326,7 +326,7 @@ describe("moveConflict (live validation while dragging: the same rules as detect
     expect(moveConflict(cand("2027-05-02", "2027-05-05"), others, [], "nights", 1, TZ)).toBe("turnover");
   });
   it("a blackout under the candidate is hard", () => {
-    const bl = [{ id: "b", startDate: "2027-05-02", endDate: "2027-05-02", reason: "paint" }];
+    const bl = [{ id: "b", startDate: "2027-05-02", endDate: "2027-05-02", reason: "paint" }] as const;
     expect(moveConflict(cand("2027-05-01", "2027-05-03"), [], bl, "nights", 0, TZ)).toBe("hard");
   });
 });

@@ -21,6 +21,7 @@ import { defaultBookingsView, effectiveMode, modeOf } from "@/features/orgs/mode
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ZOOMS, parseDays, shiftDays, timelineStart, windowLabel } from "@/features/rentals/timeline-layout";
 import { bufferWindow } from "@/features/rentals/pan";
+import { TimelineJump } from "@/features/rentals/components/timeline-jump";
 import { SEGMENTED_NAV_CLASS, segmentedItemClass } from "@/features/scheduling/components/staff-tabs";
 import { CalendarGrid } from "@/features/scheduling/components/calendar-grid";
 import { CalendarMonth } from "@/features/scheduling/components/calendar-month";
@@ -215,7 +216,7 @@ export default async function BookingsPage({
     nextHref: string;
     prevLabel: string;
     nextLabel: string;
-    label: string;
+    label: ReactNode;
   }) => (
     <>
       <Link href={o.todayHref} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
@@ -227,7 +228,7 @@ export default async function BookingsPage({
       <Link href={o.nextHref} aria-label={o.nextLabel} className={arrowClass}>
         <ChevronRight />
       </Link>
-      <span className="ml-1.5 text-[15px] font-medium tabular-nums">{o.label}</span>
+      {typeof o.label === "string" ? <span className="ml-1.5 text-[15px] font-medium tabular-nums">{o.label}</span> : o.label}
     </>
   );
   const toolbar = (
@@ -282,7 +283,9 @@ export default async function BookingsPage({
       nextHref: `${base}&from=${addDaysISO(fromDate, shift)}`,
       prevLabel: t("timeline.back", { count: shift }),
       nextLabel: t("timeline.forward", { count: shift }),
-      label: windowLabel(fromDate, days, INTL_LOCALES[locale]),
+      // The label is also "go to date" (TimelineJump): pick a day, the
+      // window starts there.
+      label: <TimelineJump from={fromDate} label={windowLabel(fromDate, days, INTL_LOCALES[locale])} hrefBase={base} />,
     });
     const zoom = (
       <nav aria-label={t("timeline.zoom")} className={SEGMENTED_NAV_CLASS}>

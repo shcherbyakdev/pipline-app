@@ -205,9 +205,10 @@ export function stayInWindow(
 
 export type LabelDensity = "full" | "name" | "initials";
 
-/** Name and dates from 120px, the name alone from 48px, initials below. */
+/** Name and length from 160px (one line, so the length needs its room), the
+    name alone from 48px, initials below. */
 export function labelDensity(widthPx: number): LabelDensity {
-  if (widthPx >= 120) return "full";
+  if (widthPx >= 160) return "full";
   if (widthPx >= 48) return "name";
   return "initials";
 }
@@ -465,4 +466,18 @@ export function chipDensity(widthPx: number): ChipDensity {
   if (widthPx >= 56) return "time";
   if (widthPx >= 28) return "hour";
   return "none";
+}
+
+// ---------- v3: links
+
+/** The timeline at a zoom and a start, scope kept. The default zoom writes
+    no param, so the plain Timeline link stays clean. */
+export function timelineHref(days: Zoom, from: string, scopeSuffix: string): string {
+  return `/bookings?view=timeline${days === 28 ? "" : `&days=${days}`}${scopeSuffix}&from=${from}`;
+}
+
+/** The next zoom step in (negative) or out (positive), clamped. */
+export function zoomStep(days: Zoom, direction: -1 | 1): Zoom {
+  const i = ZOOMS.indexOf(days);
+  return ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, i + direction))];
 }
