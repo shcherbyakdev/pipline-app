@@ -17,7 +17,7 @@ export type Initial =
       dragged: boolean;   // a real drag pins the length; a click follows the picked service
       windows: DayWindow[]; // effective windows for `date` — the outside-hours hint only
     }
-  | { kind: "space"; offeringId?: string; unitId?: string | null; date?: string };
+  | { kind: "space"; offeringId?: string; unitId?: string | null; date?: string; endDate?: string };
 
 type Row = { id: string };
 

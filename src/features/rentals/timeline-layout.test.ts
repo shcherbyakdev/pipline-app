@@ -134,10 +134,10 @@ describe("detectConflicts (what the DB guard cannot refuse after the fact)", () 
 });
 
 describe("labelDensity (what fits in the bar)", () => {
-  it("wide ⇒ name + dates, medium ⇒ name, narrow ⇒ initials", () => {
+  it("wide ⇒ name + length, medium ⇒ name, narrow ⇒ initials", () => {
     expect(labelDensity(200)).toBe("full");
-    expect(labelDensity(120)).toBe("full");
-    expect(labelDensity(119)).toBe("name");
+    expect(labelDensity(160)).toBe("full");
+    expect(labelDensity(159)).toBe("name");
     expect(labelDensity(48)).toBe("name");
     expect(labelDensity(47)).toBe("initials");
   });
@@ -229,5 +229,132 @@ describe("zoom", () => {
     expect(timelineStart("2027-05-10", 14)).toBe("2027-05-08");
     expect(timelineStart("2027-05-10", 28)).toBe("2027-05-03");
     expect(timelineStart("2027-05-10", 56)).toBe("2027-05-03");
+  });
+});
+
+// ---------- v3: density, free units, drag maths
+
+import {
+  headerDensity,
+  showsDayNumber,
+  takenColumns,
+  freeUnitsPerDay,
+  movedRange,
+  movedInstant,
+  moveConflict,
+  chipDensity,
+  zoomStep,
+  timelineHref,
+} from "./timeline-layout";
+
+describe("headerDensity (what a day cell can say at a column width)", () => {
+  it("weekday+number from 44px, number from 24px, only Mondays and today below", () => {
+    expect(headerDensity(60)).toBe("weekday");
+    expect(headerDensity(44)).toBe("weekday");
+    expect(headerDensity(30)).toBe("number");
+    expect(headerDensity(16)).toBe("sparse");
+  });
+  it("sparse shows Mondays and today, nothing else", () => {
+    // 2027-05-03 is a Monday
+    expect(showsDayNumber("2027-05-03", "sparse", null)).toBe(true);
+    expect(showsDayNumber("2027-05-04", "sparse", null)).toBe(false);
+    expect(showsDayNumber("2027-05-04", "sparse", "2027-05-04")).toBe(true);
+    expect(showsDayNumber("2027-05-04", "number", null)).toBe(true);
+  });
+});
+
+describe("takenColumns / freeUnitsPerDay (the hotel board's free-rooms row)", () => {
+  it("nights: occupied nights plus the turnover tail; blackouts too; clamped to the window", () => {
+    const taken = takenColumns(
+      [stay("a", "2027-05-02", "2027-05-04")],
+      [{ startDate: "2027-04-30", endDate: "2027-05-01" }],
+      "nights",
+      1,
+      TZ,
+      W,
+      7,
+    );
+    // blackout on 1 May (col 0); nights 2,3 May (cols 1,2); tail on checkout day 4 May (col 3)
+    expect([...taken].sort()).toEqual([0, 1, 2, 3]);
+  });
+  it("days: the return day is held and the tail follows it", () => {
+    const taken = takenColumns([dayStay("a", "2027-05-02", "2027-05-03")], [], "days", 1, TZ, W, 7);
+    expect([...taken].sort()).toEqual([1, 2, 3]);
+  });
+  it("a stay entirely before or after the window marks nothing (clamped, no negative columns)", () => {
+    expect(takenColumns([stay("a", "2027-04-20", "2027-04-25")], [], "nights", 1, TZ, W, 7).size).toBe(0);
+    expect(takenColumns([stay("b", "2027-06-01", "2027-06-03")], [], "nights", 1, TZ, W, 7).size).toBe(0);
+    // a tail that reaches in from before the window is the only thing taken
+    expect([...takenColumns([stay("c", "2027-04-28", "2027-05-01")], [], "nights", 1, TZ, W, 7)]).toEqual([0]);
+  });
+  it("free units per day is the units nobody holds", () => {
+    const free = freeUnitsPerDay([new Set([0, 1]), new Set([1]), new Set()], 3);
+    expect(free).toEqual([2, 1, 3]);
+  });
+});
+
+describe("movedRange (where a bar lands after a move or an edge drag)", () => {
+  const b = stay("a", "2027-05-02", "2027-05-04");
+  it("move shifts both ends", () => {
+    expect(movedRange(b, "nights", TZ, 2, "move")).toEqual({ startDate: "2027-05-04", endDate: "2027-05-06" });
+  });
+  it("edge drags keep at least one night / one day", () => {
+    expect(movedRange(b, "nights", TZ, 1, "start")).toEqual({ startDate: "2027-05-03", endDate: "2027-05-04" });
+    expect(movedRange(b, "nights", TZ, 2, "start")).toBeNull();
+    expect(movedRange(b, "nights", TZ, -1, "end")).toEqual({ startDate: "2027-05-02", endDate: "2027-05-03" });
+    expect(movedRange(b, "nights", TZ, -2, "end")).toBeNull();
+    const d = dayStay("d", "2027-05-02", "2027-05-02");
+    expect(movedRange(d, "days", TZ, 0, "end")).toEqual({ startDate: "2027-05-02", endDate: "2027-05-02" });
+    expect(movedRange(d, "days", TZ, -1, "end")).toBeNull();
+  });
+  it("hours: the same wall time on the new day", () => {
+    const h = hourly("h", "2027-05-02", "10:00", "12:00");
+    expect(movedInstant(h, TZ, 3).toISOString()).toBe(at("2027-05-05", "10:00").toISOString());
+  });
+});
+
+describe("moveConflict (live validation while dragging: the same rules as detectConflicts)", () => {
+  const others = [stay("x", "2027-05-05", "2027-05-08", "X")];
+  const cand = (from: string, to: string) => ({ startsAt: at(from, "15:00"), endsAt: at(to, "11:00") });
+  it("a free run is fine; touching X's nights is hard; landing on X's turnover tail is a turnover clash", () => {
+    expect(moveConflict(cand("2027-05-01", "2027-05-03"), others, [], "nights", 1, TZ)).toBeNull();
+    expect(moveConflict(cand("2027-05-04", "2027-05-06"), others, [], "nights", 1, TZ)).toBe("hard");
+    expect(moveConflict(cand("2027-05-08", "2027-05-10"), others, [], "nights", 1, TZ)).toBe("turnover");
+  });
+  it("the candidate's own tail running into a later check-in counts too", () => {
+    expect(moveConflict(cand("2027-05-02", "2027-05-05"), others, [], "nights", 1, TZ)).toBe("turnover");
+  });
+  it("a blackout under the candidate is hard", () => {
+    const bl = [{ id: "b", startDate: "2027-05-02", endDate: "2027-05-02", reason: "paint" }] as const;
+    expect(moveConflict(cand("2027-05-01", "2027-05-03"), [], bl, "nights", 0, TZ)).toBe("hard");
+  });
+});
+
+describe("moveConflict, hours (clock overlap on the target day)", () => {
+  const others = [hourly("x", "2027-05-02", "12:00", "14:00", "X")];
+  it("adjacent is fine, overlapping is hard, a blackout day is hard", () => {
+    const cand = (from: string, to: string) => ({ startsAt: at("2027-05-02", from), endsAt: at("2027-05-02", to) });
+    expect(moveConflict(cand("10:00", "12:00"), others, [], "hours", 0, TZ)).toBeNull();
+    expect(moveConflict(cand("13:00", "15:00"), others, [], "hours", 0, TZ)).toBe("hard");
+    expect(moveConflict(cand("09:00", "10:00"), [], [{ id: "b", startDate: "2027-05-02", endDate: "2027-05-02", reason: null }], "hours", 0, TZ)).toBe("hard");
+  });
+});
+
+describe("zoomStep / timelineHref", () => {
+  it("steps through the zooms and clamps at both ends; the default zoom writes no param", () => {
+    expect(zoomStep(14, 1)).toBe(28);
+    expect(zoomStep(56, 1)).toBe(56);
+    expect(zoomStep(14, -1)).toBe(14);
+    expect(timelineHref(28, "2027-05-01", "&show=x")).toBe("/bookings?view=timeline&show=x&from=2027-05-01");
+    expect(timelineHref(14, "2027-05-01", "")).toBe("/bookings?view=timeline&days=14&from=2027-05-01");
+  });
+});
+
+describe("chipDensity (what an hourly chip can hold)", () => {
+  it("time + name from 96px, time from 56px, the hour from 28px, nothing below", () => {
+    expect(chipDensity(120)).toBe("full");
+    expect(chipDensity(60)).toBe("time");
+    expect(chipDensity(30)).toBe("hour");
+    expect(chipDensity(20)).toBe("none");
   });
 });

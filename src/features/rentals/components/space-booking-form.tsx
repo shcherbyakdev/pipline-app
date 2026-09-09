@@ -43,12 +43,16 @@ export function SpaceBookingForm({
   offering,
   initialUnitId,
   initialStartDate,
+  initialEndDate,
   timeZone,
   onDone,
 }: {
   offering: OfferingOption;
   initialUnitId?: string | null;
   initialStartDate?: string;
+  /** A drag across the timeline's cells picks the whole run; a click
+      leaves the end for the provider to pick. */
+  initialEndDate?: string;
   timeZone: string;
   onDone: () => void;
 }) {
@@ -73,7 +77,7 @@ export function SpaceBookingForm({
   // the provider's to pick.
   const [range, setRange] = React.useState<RangeValue>(() => ({
     start: initialStartDate ?? null,
-    end: null,
+    end: initialEndDate ?? null,
   }));
 
   // ---- hours (H2) state. A drag's day seeds the 7-day window (falls back

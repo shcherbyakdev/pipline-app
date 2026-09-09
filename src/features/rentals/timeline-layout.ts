@@ -3,7 +3,7 @@
 // say at a given width, and the words on the header. No DB, no clock reads
 // (`now` is injected), org-local dates as "YYYY-MM-DD" strings. The pixel
 // geometry of a bar stays in timeline-geometry.ts.
-import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
+import { addDaysISO, dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 import { zonedParts } from "@/features/scheduling/calendar-geometry";
 import { formatDurationLabel } from "@/features/rentals/hourly";
 import type { UnitsT } from "@/i18n/translator";
@@ -205,9 +205,10 @@ export function stayInWindow(
 
 export type LabelDensity = "full" | "name" | "initials";
 
-/** Name and dates from 120px, the name alone from 48px, initials below. */
+/** Name and length from 160px (one line, so the length needs its room), the
+    name alone from 48px, initials below. */
 export function labelDensity(widthPx: number): LabelDensity {
-  if (widthPx >= 120) return "full";
+  if (widthPx >= 160) return "full";
   if (widthPx >= 48) return "name";
   return "initials";
 }
@@ -327,4 +328,147 @@ export function shiftDays(days: Zoom): number {
     week otherwise, so guests who checked in last week are still on it. */
 export function timelineStart(todayISO: string, days: Zoom): string {
   return addDaysISO(todayISO, days === 14 ? -2 : -7);
+}
+
+// ---------- v3: header density
+
+export type HeaderDensity = "weekday" | "number" | "sparse";
+
+/** Weekday and number from 44px, the number alone from 24px; below that a
+    day cell is blank unless it is a Monday or today (the rule at each Monday
+    still marks the weeks). */
+export function headerDensity(cellPx: number): HeaderDensity {
+  if (cellPx >= 44) return "weekday";
+  if (cellPx >= 24) return "number";
+  return "sparse";
+}
+
+export function showsDayNumber(date: string, density: HeaderDensity, today: string | null): boolean {
+  if (density !== "sparse") return true;
+  return date === today || atNoon(date).getUTCDay() === 1;
+}
+
+// ---------- v3: the free-units row
+
+/** The window columns one unit is NOT free on: its occupied days, the
+    turnover tail after each stay, and its blackouts. Nights/days only — an
+    hourly unit is "free" for the rest of the day whatever is booked. */
+export function takenColumns(
+  stays: readonly { startsAt: Date; endsAt: Date }[],
+  blackouts: readonly { startDate: string; endDate: string }[],
+  mode: RangeMode,
+  turnoverDays: number,
+  timeZone: string,
+  windowStart: string,
+  days: number,
+): Set<number> {
+  const taken = new Set<number>();
+  const mark = (start: string, end: string) => {
+    const from = Math.max(0, daysBetween(windowStart, start));
+    const to = Math.min(days - 1, daysBetween(windowStart, end));
+    for (let i = from; i <= to; i++) taken.add(i);
+  };
+  for (const s of stays) {
+    const occ = occupiedRange(s, mode, timeZone);
+    mark(occ.start, addDaysISO(occ.end, turnoverDays));
+  }
+  for (const b of blackouts) mark(b.startDate, b.endDate);
+  return taken;
+}
+
+/** Per column, how many of the group's units nobody holds. */
+export function freeUnitsPerDay(takenPerUnit: readonly Set<number>[], days: number): number[] {
+  return Array.from({ length: days }, (_, i) => takenPerUnit.filter((t) => !t.has(i)).length);
+}
+
+// ---------- v3: drag maths
+
+export type DragEdge = "move" | "start" | "end";
+
+/** The dates a nights/days stay lands on after dragging its body or one of
+    its edges by `dayDelta` columns. Null when an edge drag would leave less
+    than a night (nights) or a day (days) — the bar just refuses to shrink
+    further. */
+export function movedRange(
+  b: { startsAt: Date; endsAt: Date },
+  mode: RangeMode,
+  timeZone: string,
+  dayDelta: number,
+  edge: DragEdge,
+): { startDate: string; endDate: string } | null {
+  const start = dateInZone(b.startsAt, timeZone);
+  const end = dateInZone(b.endsAt, timeZone);
+  const startDate = edge === "end" ? start : addDaysISO(start, dayDelta);
+  const endDate = edge === "start" ? end : addDaysISO(end, dayDelta);
+  const min = mode === "nights" ? 1 : 0;
+  if (daysBetween(startDate, endDate) < min) return null;
+  return { startDate, endDate };
+}
+
+/** An hourly booking dragged `dayDelta` columns keeps its wall time. */
+export function movedInstant(b: { startsAt: Date }, timeZone: string, dayDelta: number): Date {
+  const p = zonedParts(b.startsAt, timeZone);
+  const date = addDaysISO(p.date, dayDelta);
+  const hh = String(Math.floor(p.minutes / 60)).padStart(2, "0");
+  const mm = String(p.minutes % 60).padStart(2, "0");
+  return wallTimeToUtc(date, `${hh}:${mm}`, timeZone);
+}
+
+const CANDIDATE = "__candidate";
+
+/** Whether a stay dropped at `candidate` would clash with the lane's other
+    stays or blackouts — the same rules the board rings after the fact
+    (detectConflicts), asked before the drop: "hard" for an overlap or a
+    blackout, "turnover" when either party's tail runs into the other's
+    check-in, null when the run is clean. */
+export function moveConflict(
+  candidate: { startsAt: Date; endsAt: Date },
+  others: readonly Stay[],
+  blackouts: readonly Blackout[],
+  mode: RangeMode,
+  turnoverDays: number,
+  timeZone: string,
+): "hard" | "turnover" | null {
+  const found = detectConflicts(
+    [{ id: CANDIDATE, clientName: "", ...candidate }, ...others],
+    blackouts,
+    mode,
+    turnoverDays,
+    timeZone,
+  );
+  let worst: "hard" | "turnover" | null = null;
+  for (const [id, list] of found) {
+    for (const c of list) {
+      if (id !== CANDIDATE && !("withId" in c && c.withId === CANDIDATE)) continue;
+      if (c.kind !== "turnover") return "hard";
+      worst = "turnover";
+    }
+  }
+  return worst;
+}
+
+// ---------- v3: hourly chips
+
+export type ChipDensity = "full" | "time" | "hour" | "none";
+
+/** Time and name from 96px, the time from 56px, the hour from 28px. */
+export function chipDensity(widthPx: number): ChipDensity {
+  if (widthPx >= 96) return "full";
+  if (widthPx >= 56) return "time";
+  if (widthPx >= 28) return "hour";
+  return "none";
+}
+
+// ---------- v3: links
+
+/** The timeline at a zoom and a start, scope kept. The default zoom writes
+    no param, so the plain Timeline link stays clean. */
+export function timelineHref(days: Zoom, from: string, scopeSuffix: string): string {
+  return `/bookings?view=timeline${days === 28 ? "" : `&days=${days}`}${scopeSuffix}&from=${from}`;
+}
+
+/** The next zoom step in (negative) or out (positive), clamped. */
+export function zoomStep(days: Zoom, direction: -1 | 1): Zoom {
+  const i = ZOOMS.indexOf(days);
+  return ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, i + direction))];
 }

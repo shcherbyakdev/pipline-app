@@ -4,53 +4,89 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { TriangleAlert } from "lucide-react";
+import { Search, TriangleAlert, X } from "lucide-react";
+import { toast } from "sonner";
 import type { AdminBooking } from "@/features/scheduling/queries";
 import type { TimelineOffering, TimelineBlackout, TimelinePlacement } from "@/features/rentals/queries";
 import { windowDays } from "@/features/rentals/timeline-geometry";
 import {
   conflictSummary,
+  dayMonth,
   detectConflicts,
+  freeUnitsPerDay,
+  headerDensity,
+  hourlyByDay,
   monthBands,
+  moveConflict,
+  movedInstant,
+  movedRange,
+  showsDayNumber,
+  shiftDays,
   stayInWindow,
   staysByLane,
+  takenColumns,
+  timelineHref,
+  zoomStep,
   type Conflict,
   type Zoom,
 } from "@/features/rentals/timeline-layout";
-import { visibleOffset } from "@/features/rentals/pan";
-import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
+import { rescheduleRentalBookingAdmin, rescheduleRentalHoursAdmin } from "@/features/rentals/booking-actions";
+import { bufferWindow, settledColumn, visibleOffset } from "@/features/rentals/pan";
+import { daysBetween } from "@/features/rentals/range";
+import { addDaysISO, dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 import { isExpiredRequest } from "@/features/scheduling/requests";
-import { zonedParts } from "@/features/scheduling/calendar-geometry";
+import { zonedParts, minToTime } from "@/features/scheduling/calendar-geometry";
 import { BookingDetailDialog } from "@/features/scheduling/components/booking-detail-dialog";
 import { NewBookingDialog } from "@/features/scheduling/components/new-booking-dialog";
 import type { OfferingOption } from "@/features/rentals/offering-option";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { INTL_LOCALES } from "@/i18n/config";
-import { TimelineLane, RAIL_PX, RAIL_PAN_STYLE, isWeekend, zoomInHref, type NewStay } from "./timeline-lane";
-import { usePanChart } from "./use-pan-chart";
+import {
+  TimelineLane,
+  GroupLabel,
+  GROUP_ROW_PX,
+  cellDateLabel,
+  columnClass,
+  isWeekend,
+  zoomInHref,
+  type BarPress,
+  type DragGhost,
+  type NewStay,
+} from "./timeline-lane";
+import { useDragScroll } from "./use-drag-scroll";
+import { useStayDrag, type StayDrop } from "./use-stay-drag";
 
 /* The tape chart: every space, one lane per unit, one column per day.
    Reads top to bottom the way a front desk reads its board — a month strip
-   over the days, a today line through every lane, stays as bars with the
-   hotel handover baked in, hourly rooms as chips, and anything in conflict
-   ringed and counted at the top. The window and zoom live on the URL; the
-   page's toolbar owns the arrows, Today and the zoom, this component owns
-   everything under them.
+   over the days, a today line through every lane, a free-units row per
+   split space, stays as bars with the hotel handover baked in, hourly rooms
+   as chips, and anything in conflict ringed and counted at the top. The
+   window and zoom live on the URL; the page's toolbar owns the arrows,
+   Today, the date picker and the zoom, this component owns everything
+   under them.
 
-   It moves like a map. The page sends three windows' worth of days (the
-   buffer — pan.ts bufferWindow); the chart renders them all and translates
-   the grid so the visible window sits in view (`--base`). A drag adds
-   `--pan` under the hand, so real days scroll in from either side, and the
-   release shifts the visible start in CLIENT state at once — the URL and
-   the server follow in a transition, and when the server's answer lands
-   it is the same window recentred in a fresh buffer, so nothing jumps. */
+   It is one native scroller. The page sends three windows' worth of days
+   (the buffer — pan.ts bufferWindow); the chart renders them all and
+   scrolls to the visible window in a layout effect. The wheel, the
+   trackpad, the scrollbar, a drag on the date header and the keyboard all
+   move it; when a scroll settles, the visible start commits to CLIENT
+   state at once and the URL follows in a transition — the server answers
+   with the same window recentred in a fresh buffer, so nothing jumps.
 
-// A day column never gets narrower than this; below it the visible window
-// overflows (clipped) rather than turning into unreadable slivers.
+   Work happens on the board: click or drag free cells to book them, drag
+   a bar to move it (an edge to change a date) with a live ghost that says
+   whether it may land, and search for a client. */
+
 const MIN_CELL_PX = 14;
+const RAIL_WIDE_PX = 232;
+const RAIL_NARROW_PX = 132;
+const SETTLE_MS = 120;
+const COLLAPSED_KEY = "booklo:timeline-collapsed";
+
+type PendingMove = { id: string; unitId: string; startsAt: string; endsAt: string };
 
 export function Timeline({
   fromDate,
@@ -79,32 +115,35 @@ export function Timeline({
   /** "&show=…" or "" — the links the chart builds keep the page's scope. */
   scopeSuffix: string;
   /** "/bookings?view=timeline…" with zoom and scope, without `from` — a
-      drag through time appends the day it lands on. */
+      settled scroll appends the day it landed on. */
   hrefBase: string;
 }) {
   const t = useTranslations("bookings");
   const tSpaces = useTranslations("spaces");
+  const tErrors = useTranslations("errors");
+  const tu = useTranslations("public.units");
   const intlLocale = INTL_LOCALES[useLocale()];
   // Mon-first two-letter weekdays; the header indexes them by UTC day.
   const weekdays = t("weekdays").split(" ");
   const router = useRouter();
-  const [, startTransition] = React.useTransition();
+  const [isPending, startTransition] = React.useTransition();
+  // A move the server is still confirming draws the stay where it is going;
+  // once the transition (action + refresh) is over, the fresh board has it.
+  const [pendingMoveState, setPendingMove] = React.useState<PendingMove | null>(null);
+  const pendingMove = isPending ? pendingMoveState : null;
 
-  // The visible start is client state so a drag can move it at once; it
-  // resyncs whenever the server sends a new one (arrows, Today, zoom, or
-  // the recentring that follows a drag).
+  // The visible start is client state so a scroll can move it at once. The
+  // URL is the truth whenever nothing of ours is in flight: a commit we
+  // made lands with `fromDate === from` (nothing to do), and a navigation
+  // that discarded our commit (Today, an arrow, the picker) lands with
+  // `isPending` false and a different date — the board follows it.
   const [from, setFrom] = React.useState(fromDate);
-  const [seenFromDate, setSeenFromDate] = React.useState(fromDate);
-  if (fromDate !== seenFromDate) {
-    setSeenFromDate(fromDate);
-    setFrom(fromDate);
-  }
+  if (!isPending && fromDate !== from) setFrom(fromDate);
 
-  const cols = days * 3;
+  const { cols } = bufferWindow(fromDate, days);
   const bufferDays = React.useMemo(() => windowDays(bufferFrom, cols), [bufferFrom, cols]);
   const bands = React.useMemo(() => monthBands(bufferDays, intlLocale), [bufferDays, intlLocale]);
   const visIdx = visibleOffset(bufferFrom, from);
-  const columns = `${RAIL_PX}px repeat(${cols}, minmax(0, 1fr))`;
 
   // The clock, seeded in an effect so the server and first client render
   // agree (CalendarWeek idiom); re-read every minute for the today line.
@@ -123,40 +162,99 @@ export function Timeline({
   const nowFrac = now === null ? 0 : zonedParts(now, timeZone).minutes / 1440;
 
   // A day column is the visible width over the zoom — it decides what a bar
-  // can say and how many days a drag has moved.
-  const scrollRef = React.useRef<HTMLDivElement>(null);
+  // can say and how many days a scroll has moved. The rail narrows on a
+  // phone so the days keep some room.
+  const scrollerRef = React.useRef<HTMLDivElement>(null);
   const [cellPx, setCellPx] = React.useState(40);
+  const [railPx, setRailPx] = React.useState(RAIL_WIDE_PX);
   React.useEffect(() => {
-    const el = scrollRef.current;
+    const el = scrollerRef.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? 0;
-      if (width > 0) setCellPx(Math.max(MIN_CELL_PX, (width - RAIL_PX) / days));
+      if (width <= 0) return;
+      const rail = width < 640 ? RAIL_NARROW_PX : RAIL_WIDE_PX;
+      setRailPx(rail);
+      setCellPx(Math.max(MIN_CELL_PX, (width - rail) / days));
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, [days]);
-  const gridWidth = RAIL_PX + cols * cellPx;
+  const gridWidth = railPx + cols * cellPx;
+  const columns = `${railPx}px repeat(${cols}, ${cellPx}px)`;
+  const density = headerDensity(cellPx);
 
-  // Grab the chart and drag it through time (use-pan-chart.ts).
-  const pan = usePanChart(scrollRef, {
-    cellPx,
-    onShift: (shift) => {
-      const next = addDaysISO(from, shift);
-      setFrom(next);
-      startTransition(() => router.replace(`${hrefBase}&from=${next}`, { scroll: false }));
-    },
-  });
-  // The shifted window paints with a new `--base`; the drag's `--pan` goes
-  // in the same frame, so the days under the hand stay exactly where they are.
-  const resetPan = pan.reset;
+  // ---- position, before paint. When the visible start or the geometry
+  // changed, the board goes to the start (a settled scroll lands exactly
+  // on the column it rounded to; an arrow lands on its window). When only
+  // the buffer moved — our own commit coming back recentred — the board
+  // SHIFTS by the same amount, so a scroll still in progress (a second
+  // swipe, an auto-scroll under a drag) keeps its place instead of snapping
+  // back to the start it committed.
+  const placedRef = React.useRef<{ bufferFrom: string; from: string; cellPx: number; railPx: number } | null>(null);
   React.useLayoutEffect(() => {
-    resetPan();
-  }, [from, resetPan]);
+    const el = scrollerRef.current;
+    if (!el) return;
+    const prev = placedRef.current;
+    placedRef.current = { bufferFrom, from, cellPx, railPx };
+    if (prev && prev.from === from && prev.cellPx === cellPx && prev.railPx === railPx && prev.bufferFrom !== bufferFrom) {
+      el.scrollLeft -= daysBetween(prev.bufferFrom, bufferFrom) * cellPx;
+      return;
+    }
+    el.scrollLeft = visibleOffset(bufferFrom, from) * cellPx;
+  }, [bufferFrom, from, cellPx, railPx]);
 
+  // A scroll that stops commits: the nearest day becomes the visible start
+  // (the layout effect above aligns to it), and the URL — with the server's
+  // recentred buffer — follows in a transition.
+  const settleRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commit = (next: string) => {
+    if (next === from) return;
+    setFrom(next);
+    startTransition(() => router.replace(`${hrefBase}&from=${next}`, { scroll: false }));
+  };
+  const onScroll = () => {
+    if (settleRef.current) clearTimeout(settleRef.current);
+    settleRef.current = setTimeout(() => {
+      const el = scrollerRef.current;
+      if (!el) return;
+      const idx = settledColumn(el.scrollLeft, cellPx);
+      const target = idx * cellPx;
+      const next = addDaysISO(bufferFrom, idx);
+      if (next === from && Math.abs(el.scrollLeft - target) > 0.5) el.scrollLeft = target;
+      commit(next);
+    }, SETTLE_MS);
+  };
+  React.useEffect(() => () => {
+    if (settleRef.current) clearTimeout(settleRef.current);
+  }, []);
+
+  // Ctrl/⌘ + wheel steps the zoom (Bryntum's zoomOnMouseWheel) — a native
+  // listener, because React's is passive and the browser would zoom the page.
+  React.useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    let last = 0;
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const at = Date.now();
+      if (at - last < 400) return;
+      last = at;
+      const next = zoomStep(days, e.deltaY > 0 ? 1 : -1);
+      if (next !== days) router.push(timelineHref(next, from, scopeSuffix));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [days, from, router, scopeSuffix]);
+
+  // Grab the dates and drag the chart through time.
+  const headerDrag = useDragScroll<HTMLDivElement>(scrollerRef);
+
+  // ---- the board's contents
   const [selected, setSelected] = React.useState<AdminBooking | null>(null);
   // null = closed. Opening always mounts a fresh dialog, which is how the
-  // prefill (an empty cell's space/unit/date) reaches its initial state.
+  // prefill (an empty cell's space/unit/dates) reaches its initial state.
   const [newStay, setNewStay] = React.useState<NewStay | null>(null);
   // The whole option, hourly trio included — that is how the dialog knows
   // to open the hours form for a room instead of the nights range picker.
@@ -172,6 +270,19 @@ export function Timeline({
       })),
     [offerings],
   );
+  const offeringsById = React.useMemo(() => new Map(offerings.map((o) => [o.id, o])), [offerings]);
+
+  const shownBookings = React.useMemo(
+    () =>
+      pendingMove
+        ? bookings.map((b) =>
+            b.id === pendingMove.id
+              ? { ...b, rentalUnitId: pendingMove.unitId, startsAt: pendingMove.startsAt, endsAt: pendingMove.endsAt }
+              : b,
+          )
+        : bookings,
+    [bookings, pendingMove],
+  );
 
   const blackoutsByUnit = React.useMemo(() => groupBy(blackouts, (b) => b.unitId), [blackouts]);
   // The stay feed keeps every pending request (rentals/queries.ts) because a
@@ -180,8 +291,8 @@ export function Timeline({
   // the clock is seeded nothing is dropped, so the server and first client
   // render agree.
   const visibleStays = React.useMemo(
-    () => bookings.filter((b) => b.rentalUnitId !== null && (now === null || !isExpiredRequest(b, now))),
-    [bookings, now],
+    () => shownBookings.filter((b) => b.rentalUnitId !== null && (now === null || !isExpiredRequest(b, now))),
+    [shownBookings, now],
   );
   // What a lane OWNS — conflicts are a question about one unit's own stays.
   const staysByUnit = React.useMemo(() => groupBy(visibleStays, (b) => b.rentalUnitId!), [visibleStays]);
@@ -189,7 +300,7 @@ export function Timeline({
   // (a whole studio on each of its rooms, an add-on on its lamps).
   const lanes = React.useMemo(() => staysByLane(visibleStays, placements), [visibleStays, placements]);
   // Which of a lane's bars are ghosts, built once rather than per lane per
-  // pan frame (blackoutsByUnit idiom).
+  // frame (blackoutsByUnit idiom).
   const ghostsByUnit = React.useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (const p of placements) {
@@ -203,12 +314,16 @@ export function Timeline({
   // Conflicts are a per-unit question, detected over every stay the fetch
   // returned (a turnover clash needs the earlier stay even when it checked
   // out before the window) but counted only for stays the VISIBLE window
-  // draws — the banner says "in this window" and Show must have something
+  // draws — the chip says "in this window" and Show must have something
   // to show. Placements are not asked about: a ghost can never overlap the
   // lane's own stays (0084's EXCLUDE forbids it) and counting it here would
   // report the same clash once per room.
-  const { conflicts, perOffering } = React.useMemo(() => {
+  // `conflicts` rings every flagged stay the buffer holds (so nothing rings
+  // "late" as it scrolls in); `inWindow` is what the chip and the group
+  // badges count.
+  const { conflicts, inWindow, perOffering } = React.useMemo(() => {
     const merged = new Map<string, Conflict[]>();
+    const inWindow = new Map<string, Conflict[]>();
     const perOffering = new Map<string, number>();
     for (const o of offerings) {
       let count = 0;
@@ -222,39 +337,332 @@ export function Timeline({
         const found = detectConflicts(stays, blackoutsByUnit.get(u.id) ?? [], o.rangeMode, o.turnoverDays, timeZone);
         for (const s of stays) {
           const list = found.get(s.id);
-          if (!list || !stayInWindow(s, o.rangeMode, timeZone, o.turnoverDays, from, days)) continue;
+          if (!list) continue;
           merged.set(s.id, list);
+          if (!stayInWindow(s, o.rangeMode, timeZone, o.turnoverDays, from, days)) continue;
+          inWindow.set(s.id, list);
           count += 1;
         }
       }
       perOffering.set(o.id, count);
     }
-    return { conflicts: merged, perOffering };
+    return { conflicts: merged, inWindow, perOffering };
   }, [offerings, staysByUnit, blackoutsByUnit, timeZone, from, days]);
   const summary = React.useMemo(
-    () => conflictSummary(conflicts, bookings.map((b) => ({ id: b.id, startsAt: new Date(b.startsAt) }))),
-    [conflicts, bookings],
+    () => conflictSummary(inWindow, shownBookings.map((b) => ({ id: b.id, startsAt: new Date(b.startsAt) }))),
+    [inWindow, shownBookings],
   );
-  // The banner's Show: bring the first conflict into view and open its
-  // card. A tooltip only opens itself on keyboard focus, so the bar is
-  // remounted with the card open (spotlight) and forgets it once the card
-  // closes. Vertical scroll only — the chart's horizontal position is the
-  // translate, and the bar is in the visible window by construction. At
+
+  // The free-units row of a split space: per day, the units nobody holds
+  // (turnover and blackouts count as held). An hourly group counts its
+  // day's bookings instead.
+  const groupCounts = React.useMemo(() => {
+    const out = new Map<string, number[]>();
+    for (const o of offerings) {
+      if (o.units.length < 2) continue;
+      if (o.rangeMode === "hours") {
+        const counts = new Array<number>(cols).fill(0);
+        for (const u of o.units) {
+          const byDay = hourlyByDay(
+            (lanes.get(u.id) ?? []).map((b) => ({ startsAt: new Date(b.startsAt) })),
+            timeZone,
+            bufferFrom,
+            cols,
+          );
+          for (const [idx, list] of byDay) counts[idx] += list.length;
+        }
+        out.set(o.id, counts);
+      } else {
+        const taken = o.units.map((u) =>
+          takenColumns(
+            (lanes.get(u.id) ?? []).map((b) => ({ startsAt: new Date(b.startsAt), endsAt: new Date(b.endsAt) })),
+            blackoutsByUnit.get(u.id) ?? [],
+            o.rangeMode,
+            o.turnoverDays,
+            timeZone,
+            bufferFrom,
+            cols,
+          ),
+        );
+        out.set(o.id, freeUnitsPerDay(taken, cols));
+      }
+    }
+    return out;
+  }, [offerings, lanes, blackoutsByUnit, timeZone, bufferFrom, cols]);
+
+  // ---- collapsed groups, remembered per browser (useSyncExternalStore so
+  // the server and the first client paint agree — everything open — and
+  // the stored state applies right after).
+  const collapsedRaw = React.useSyncExternalStore(collapsedStore.subscribe, collapsedStore.get, () => "[]");
+  const collapsed = React.useMemo(() => new Set(parseIds(collapsedRaw)), [collapsedRaw]);
+  const toggleGroup = React.useCallback((id: string) => {
+    const next = new Set(parseIds(collapsedStore.get()));
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    collapsedStore.set(JSON.stringify([...next]));
+  }, []);
+
+  // ---- search: dim what doesn't match, count, Enter goes to the first.
+  const [query, setQuery] = React.useState("");
+  const searchRef = React.useRef<HTMLInputElement>(null);
+  const q = query.trim().toLowerCase();
+  const matches = React.useMemo(
+    () =>
+      q === ""
+        ? []
+        : visibleStays
+            .filter((b) => b.clientName.toLowerCase().includes(q))
+            .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id)),
+    [visibleStays, q],
+  );
+  const goToStay = (id: string, retry = true): boolean => {
+    const el = document.getElementById(`tl-stay-${id}`);
+    if (!el) {
+      // Inside a collapsed group: open it and look again once it has painted.
+      const b = visibleStays.find((s) => s.id === id);
+      const offeringId = b?.rentalOfferingId;
+      if (retry && offeringId && collapsed.has(offeringId)) {
+        toggleGroup(offeringId);
+        setTimeout(() => goToStay(id, false), 60);
+        return true;
+      }
+      return false;
+    }
+    el.scrollIntoView({ block: "center", inline: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    // After the key that asked for it has finished: focusing the bar while
+    // Enter is still down would hand the bar the keypress and open it.
+    setTimeout(() => el.focus({ preventScroll: true }), 0);
+    return true;
+  };
+
+  // The chip's Show: bring the first conflict into view and open its card.
+  // A tooltip only opens itself on keyboard focus, so the bar is remounted
+  // with the card open (spotlight) and forgets it once the card closes. At
   // the eight-week zoom an hourly conflict is folded into a count pill with
   // no bar of its own — then Show zooms into that week.
   const [spotlightId, setSpotlightId] = React.useState<string | null>(null);
   const showFirstConflict = () => {
     if (!summary.firstId) return;
-    const el = document.getElementById(`tl-stay-${summary.firstId}`);
-    const box = scrollRef.current;
-    if (el && box) {
-      box.scrollTop += el.getBoundingClientRect().top - box.getBoundingClientRect().top - box.clientHeight / 2;
+    if (goToStay(summary.firstId)) {
       setSpotlightId(summary.firstId);
       return;
     }
     const first = bookings.find((b) => b.id === summary.firstId);
     if (first) router.push(zoomInHref(dateInZone(new Date(first.startsAt), timeZone), scopeSuffix));
   };
+
+  // ---- the roving grid: one Tab stop, arrows move between cells and
+  // lanes, Home/End the visible window's ends, PageUp/PageDown a window,
+  // t today, n/p the arrows' step, / the search box.
+  const laneOrder = React.useMemo(
+    () => offerings.flatMap((o) => (o.units.length > 1 && collapsed.has(o.id) ? [] : o.units.map((u) => u.id))),
+    [offerings, collapsed],
+  );
+  const [focusCell, setFocusCell] = React.useState<{ unitId: string; idx: number } | null>(null);
+  const onCellFocus = React.useCallback((unitId: string, idx: number) => setFocusCell({ unitId, idx }), []);
+  const onSpotlightEnd = React.useCallback(() => setSpotlightId(null), []);
+  const focusTarget = (unitId: string, idx: number) => {
+    const el = scrollerRef.current?.querySelector<HTMLElement>(`[data-tl-cell="${unitId}:${idx}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest", inline: "nearest" });
+    el.focus({ preventScroll: true });
+    setFocusCell({ unitId, idx });
+  };
+  const [announce, setAnnounce] = React.useState("");
+  // The layout effect above puts the board on the new start as it paints.
+  const shiftWindow = (delta: number) => {
+    const next = addDaysISO(from, delta);
+    commit(next);
+    setAnnounce(t("timeline.windowMoved", { from: dayMonth(next, intlLocale), to: dayMonth(addDaysISO(next, days - 1), intlLocale) }));
+  };
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const cur = focusCell ?? { unitId: laneOrder[0], idx: visIdx };
+    const lane = Math.max(0, laneOrder.indexOf(cur.unitId));
+    switch (e.key) {
+      case "ArrowLeft":
+        focusTarget(cur.unitId, Math.max(0, cur.idx - 1));
+        break;
+      case "ArrowRight":
+        focusTarget(cur.unitId, Math.min(cols - 1, cur.idx + 1));
+        break;
+      case "ArrowUp":
+        if (lane > 0) focusTarget(laneOrder[lane - 1], cur.idx);
+        break;
+      case "ArrowDown":
+        if (lane < laneOrder.length - 1) focusTarget(laneOrder[lane + 1], cur.idx);
+        break;
+      case "Home":
+        focusTarget(cur.unitId, visIdx);
+        break;
+      case "End":
+        focusTarget(cur.unitId, Math.min(cols - 1, visIdx + days - 1));
+        break;
+      case "PageUp":
+        shiftWindow(-days);
+        break;
+      case "PageDown":
+        shiftWindow(days);
+        break;
+      case "p":
+        shiftWindow(-shiftDays(days));
+        break;
+      case "n":
+        shiftWindow(shiftDays(days));
+        break;
+      case "t":
+        router.push(hrefBase);
+        break;
+      case "/":
+        searchRef.current?.focus();
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+  };
+
+  // ---- moving a stay: the drag, its live ghost, and the drop.
+  const stayDrag = useStayDrag({
+    scrollerRef,
+    cellPx,
+    railPx,
+    bufferFrom,
+    onDrop: (drop) => applyDrop(drop),
+  });
+  const drag = stayDrag.state;
+  const onBarPress: (e: React.PointerEvent, press: BarPress) => void = stayDrag.begin;
+  // Where a dragged stay would land and whether it may — the same rules
+  // the board rings after the fact (moveConflict), asked before the drop.
+  // Called for the drag in progress (the lane draws it) and again for the
+  // drop, with the same answer.
+  const ghostFor = (drag: StayDrop): DragGhost | null => {
+    const b = drag.booking;
+    const offering = offeringsById.get(drag.offeringId);
+    if (!offering) return null;
+    const startsAt = new Date(b.startsAt);
+    const endsAt = new Date(b.endsAt);
+    let cand: { startsAt: Date; endsAt: Date };
+    let label: string;
+    if (drag.mode === "hours") {
+      const s = movedInstant({ startsAt }, timeZone, drag.dayDelta);
+      cand = { startsAt: s, endsAt: new Date(s.getTime() + (endsAt.getTime() - startsAt.getTime())) };
+      label = `${dayMonth(dateInZone(s, timeZone), intlLocale)} ${minToTime(zonedParts(s, timeZone).minutes)}`;
+    } else {
+      const range = movedRange({ startsAt, endsAt }, drag.mode, timeZone, drag.dayDelta, drag.edge) ?? {
+        startDate: dateInZone(startsAt, timeZone),
+        endDate: dateInZone(endsAt, timeZone),
+      };
+      cand = { startsAt: wallTimeToUtc(range.startDate, "12:00", timeZone), endsAt: wallTimeToUtc(range.endDate, "12:00", timeZone) };
+      const n = drag.mode === "nights" ? daysBetween(range.startDate, range.endDate) : daysBetween(range.startDate, range.endDate) + 1;
+      label = `${dayMonth(range.startDate, intlLocale)} → ${dayMonth(range.endDate, intlLocale)} · ${tu(drag.mode === "nights" ? "nights" : "days", { count: n })}`;
+    }
+    // Everything the target lane draws blocks — its own stays and the ghosts
+    // placed on it (a whole studio's rooms are as taken as booked ones).
+    const others = (lanes.get(drag.targetUnitId) ?? [])
+      .filter((s) => s.id !== b.id)
+      .map((s) => ({ id: s.id, clientName: s.clientName, startsAt: new Date(s.startsAt), endsAt: new Date(s.endsAt) }));
+    const started = now !== null && cand.startsAt.getTime() <= now.getTime();
+    const conflict = started
+      ? "hard"
+      : moveConflict(cand, others, blackoutsByUnit.get(drag.targetUnitId) ?? [], offering.rangeMode, offering.turnoverDays, timeZone);
+    return { unitId: drag.targetUnitId, ...cand, conflict, label };
+  };
+  const ghost = drag ? ghostFor(drag) : null;
+
+  function applyDrop(drop: StayDrop) {
+    const g = ghostFor(drop);
+    const b = drop.booking;
+    if (!g) return;
+    const unchanged = drop.targetUnitId === drop.originUnitId && drop.dayDelta === 0;
+    if (unchanged) return;
+    // The server refuses a turnover clash just as it refuses an overlap
+    // (range.ts marks the tail taken), so the board does too — the ghost
+    // was already red.
+    if (g.conflict !== null) {
+      toast.error(t("timeline.dropTaken"));
+      return;
+    }
+    // Normalised to "…Z": the action's schema takes a strict ISO instant, and
+    // the feed's rows carry Postgres's "+00:00" form.
+    const old = { unitId: drop.originUnitId, startsAt: new Date(b.startsAt).toISOString(), endsAt: new Date(b.endsAt).toISOString() };
+    if (drop.mode === "hours") {
+      const next = { unitId: drop.targetUnitId, startsAt: g.startsAt.toISOString(), endsAt: g.endsAt.toISOString() };
+      // A move is a new row; Undo moves THAT row back.
+      const run = (id: string, to: typeof next, undo: typeof next | null) =>
+        move(
+          { ...b, id },
+          to,
+          () => rescheduleRentalHoursAdmin({ id, unitId: to.unitId, startsAt: to.startsAt }),
+          undo ? (newId) => run(newId, undo, null) : null,
+          false,
+        );
+      run(b.id, next, old);
+    } else {
+      const range = movedRange({ startsAt: new Date(b.startsAt), endsAt: new Date(b.endsAt) }, drop.mode, timeZone, drop.dayDelta, drop.edge);
+      if (!range) return;
+      const toDates = (r: { startDate: string; endDate: string }, unitId: string) => ({
+        unitId,
+        startsAt: wallTimeToUtc(r.startDate, "12:00", timeZone).toISOString(),
+        endsAt: wallTimeToUtc(r.endDate, "12:00", timeZone).toISOString(),
+        ...r,
+      });
+      const next = toDates(range, drop.targetUnitId);
+      const oldRange = { startDate: dateInZone(new Date(b.startsAt), timeZone), endDate: dateInZone(new Date(b.endsAt), timeZone) };
+      const prev = toDates(oldRange, drop.originUnitId);
+      const run = (id: string, to: typeof next, undo: typeof next | null) =>
+        move(
+          { ...b, id },
+          to,
+          () => rescheduleRentalBookingAdmin({ id, unitId: to.unitId, startDate: to.startDate, endDate: to.endDate }),
+          undo ? (newId) => run(newId, undo, null) : null,
+          true,
+        );
+      run(b.id, next, prev);
+    }
+  }
+
+  // One move: the bar waits where it is going, the server decides, the toast
+  // says what happened and offers the way back. `router.refresh()` inside
+  // the transition keeps it pending until the fresh board has painted, so
+  // the waiting bar hands over to the real one without a flicker.
+  function move(
+    b: AdminBooking,
+    to: { unitId: string; startsAt: string; endsAt: string },
+    action: () => Promise<
+      { ok: true; id: string; unitChanged: boolean; datesChanged: boolean; emailed: boolean } | { ok: false; error: string; datesTaken?: boolean }
+    >,
+    undo: ((newId: string) => void) | null,
+    isStay: boolean,
+  ) {
+    setPendingMove({ id: b.id, ...to });
+    startTransition(async () => {
+      let result: Awaited<ReturnType<typeof action>>;
+      try {
+        result = await action();
+      } catch {
+        // The actions catch their own failures; this is the transport.
+        result = { ok: false, error: tErrors("generic") };
+      }
+      if (!result.ok) {
+        toast.error(result.error);
+        router.refresh();
+        return;
+      }
+      const key = result.datesChanged
+        ? isStay
+          ? result.emailed ? "move.stayDoneEmailed" : "move.stayDone"
+          : result.emailed ? "move.doneEmailed" : "move.done"
+        : result.unitChanged
+          ? result.emailed ? "move.unitChangedEmailed" : "move.unitChanged"
+          : isStay ? "move.stayDone" : "move.done";
+      toast.success(t(key), undo ? { action: { label: t("timeline.undo"), onClick: () => undo(result.id) } } : undefined);
+      setAnnounce(t(key));
+      router.refresh();
+    });
+  }
 
   if (offerings.length === 0) {
     return (
@@ -267,191 +675,267 @@ export function Timeline({
     );
   }
 
+  const headerPx = 24 + 30;
+  const hasFreeRow = offerings.some((o) => o.units.length > 1 && o.rangeMode !== "hours");
+  const groupRowCount = offerings.filter((o) => o.units.length > 1 && !collapsed.has(o.id)).length + offerings.filter((o) => o.units.length > 1 && collapsed.has(o.id)).length;
   return (
     <TooltipProvider delay={150}>
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-        {summary.count > 0 ? (
-          <div
-            role="status"
-            className="border-destructive/40 bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
-          >
-            <TriangleAlert className="size-4 shrink-0" aria-hidden />
-            <span>
-              {t("timeline.conflicts", { count: summary.count })}
-            </span>
-            <Button variant="ghost" size="sm" className="text-destructive ml-auto h-7" onClick={showFirstConflict}>
-              {t("timeline.show")}
-            </Button>
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
+        {/* the strip: find a client, the conflicts, the legend */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="relative">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" aria-hidden />
+            <Input
+              ref={searchRef}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && matches[0]) {
+                  e.preventDefault();
+                  goToStay(matches[0].id);
+                }
+                if (e.key === "Escape") setQuery("");
+              }}
+              placeholder={t("timeline.search")}
+              aria-label={t("timeline.search")}
+              className="h-8 w-56 pl-8"
+            />
+            {query ? (
+              <button
+                type="button"
+                aria-label={t("timeline.clearSearch")}
+                onClick={() => setQuery("")}
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
+              >
+                <X className="size-3.5" aria-hidden />
+              </button>
+            ) : null}
           </div>
-        ) : null}
+          {q !== "" ? (
+            <span className="text-muted-foreground text-xs tabular-nums" aria-live="polite">
+              {t("timeline.matches", { count: matches.length })}
+            </span>
+          ) : null}
+          {summary.count > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-destructive/40 text-destructive hover:text-destructive h-7 gap-1.5"
+              onClick={showFirstConflict}
+            >
+              <TriangleAlert className="size-3.5" aria-hidden />
+              {t("timeline.conflictChip", { count: summary.count })}
+              <span className="opacity-70">· {t("timeline.show")}</span>
+            </Button>
+          ) : null}
+          {isPending ? (
+            <span className="text-muted-foreground text-xs" aria-hidden>
+              {t("timeline.loading")}
+            </span>
+          ) : null}
+          <Legend className="ml-auto hidden md:flex" />
+        </div>
 
-        {/* The chart fills the viewport under the page chrome, like the week
-            grid — a fixed height, because the shell's main grows with its
-            content and a sticky header needs a bounded scroll container of
-            its own. Vertically it scrolls; lanes stretch to share the
-            height when there are few (minmax(auto, 1fr) rows below).
-            Sideways it is clipped — the position is the translate, never a
-            scrollbar. `--base` puts the visible window in view; `--pan` is
-            the drag in progress; the rail cells undo both and stay put. */}
+        {/* The board: one scroller, both axes. The header sticks to its top
+            and the rail to its left; `scroll-padding` keeps a focused cell
+            clear of both. Sideways it is clipped to whole days once a scroll
+            settles (onScroll), never mid-column. */}
         <div
-          ref={scrollRef}
-          {...pan.handlers}
-          style={{ "--base": `${-visIdx * cellPx}px` } as React.CSSProperties}
+          ref={scrollerRef}
+          data-tl-scroller
+          role="grid"
+          aria-label={t("timeline.window")}
+          aria-busy={isPending || undefined}
+          aria-rowcount={2 + groupRowCount + laneOrder.length}
+          aria-colcount={cols + 1}
+          tabIndex={-1}
+          onScroll={onScroll}
+          onKeyDown={onKeyDown}
+          {...stayDrag.handlers}
+          style={{ scrollPaddingLeft: railPx, scrollPaddingTop: headerPx }}
           className={cn(
-            // Open hand at rest: the chart is draggable through time and the
-            // cursor is the affordance that says so (the legend repeats it).
-            "min-h-[20rem] cursor-grab overflow-x-hidden overflow-y-auto",
-            // Offsets = page chrome above/below the chart inside the panel
-            // shell: 44px header + p-6 + toolbar rows + the panel's top gap
-            // (md:p-2) and border (see AppShell).
-            summary.count > 0 ? "h-[calc(100dvh-17.625rem)]" : "h-[calc(100dvh-14.125rem)]",
-            // While dragging: closed hand, no selection, and nothing under
-            // the moving pointer reacts (no hover cards popping mid-drag —
-            // the container itself still gets the captured events).
-            pan.dragging && "cursor-grabbing select-none **:pointer-events-none **:cursor-grabbing",
+            "relative min-h-0 flex-1 overflow-auto overscroll-x-contain rounded-lg border outline-none",
+            drag && "**:cursor-grabbing select-none",
           )}
         >
-          <div
-            className="flex min-h-full flex-col will-change-transform"
-            style={{ width: gridWidth, transform: "translateX(calc(var(--base, 0px) + var(--pan, 0px)))" }}
-          >
+          <div className="relative" style={{ width: gridWidth }}>
             {/* header: the month strip, then one cell per day. Sticky so the
-                dates stay put while the lanes scroll under them. */}
-            <div className="bg-background sticky top-0 z-30 shrink-0">
-              <div className="grid" style={{ gridTemplateColumns: columns }}>
-                <div className="bg-background sticky left-0 z-30" style={RAIL_PAN_STYLE} />
-                {bands.map((band) => {
-                  // A band that began inside the hidden buffer keeps its label
-                  // at the visible window's edge rather than off-screen.
-                  const hiddenCols = Math.max(0, visIdx - band.colStart);
-                  return (
-                    <div
-                      key={band.label}
-                      className="border-border/60 border-l pb-1 text-sm font-semibold first:border-l-0"
-                      style={{ gridColumn: `${band.colStart + 2} / span ${band.colSpan}` }}
-                    >
-                      {hiddenCols < band.colSpan ? (
-                        <span className="inline-block pl-2" style={{ marginLeft: hiddenCols * cellPx }}>
-                          {band.label}
-                        </span>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                dates stay put while the lanes scroll under them; dragging it
+                pans the chart. */}
+            <div
+              {...headerDrag.handlers}
+              className={cn("bg-background sticky top-0 z-30", headerDrag.dragging ? "cursor-grabbing select-none" : "cursor-grab")}
+            >
+              <div role="row" className="grid" style={{ gridTemplateColumns: columns }}>
+                <div role="columnheader" aria-label={t("timeline.rail")} className="bg-background sticky left-0 z-40" />
+                {bands.map((band) => (
+                  <div
+                    key={band.label}
+                    role="columnheader"
+                    className="border-border/60 flex h-6 items-end border-l pb-0.5 text-[13px] font-semibold first:border-l-0"
+                    style={{ gridColumn: `${band.colStart + 2} / span ${band.colSpan}` }}
+                  >
+                    {/* sticky: a month that began off-screen keeps its name at the visible edge */}
+                    <span className="sticky inline-block pl-2" style={{ left: railPx }}>
+                      {band.label}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="border-border grid border-b" style={{ gridTemplateColumns: columns }}>
-                <div className="bg-background sticky left-0 z-30" style={RAIL_PAN_STYLE} />
+              <div role="row" className="border-border grid border-b" style={{ gridTemplateColumns: columns }}>
+                <div role="columnheader" className="bg-background border-border text-muted-foreground sticky left-0 z-40 flex items-end border-r pb-1 pl-3 text-[11px]">
+                  {/* what the numbers in a group row mean */}
+                  {hasFreeRow ? t("timeline.freePerDay") : null}
+                </div>
                 {bufferDays.map((d) => {
                   const isToday = today === d;
-                  // A narrow column (the 4- and 8-week zooms) keeps the
-                  // number and drops the weekday; weekends stay legible by
-                  // their tint. min-w-0 + overflow-hidden so a label can
-                  // never widen the chart.
-                  const showWeekday = cellPx >= 44;
+                  const label = showsDayNumber(d, density, today);
                   return (
-                    <div key={d} className="flex min-w-0 items-end justify-center overflow-hidden pb-1">
-                      <span
-                        className={cn(
-                          "flex items-baseline gap-1 rounded-md py-0.5",
-                          showWeekday ? "px-1.5" : "px-1",
-                          isToday && "bg-primary text-primary-foreground",
-                        )}
-                      >
-                        {showWeekday ? (
-                          <span
-                            className={cn(
-                              "text-[10px]",
-                              isToday ? "text-primary-foreground/75" : isWeekend(d) ? "text-muted-foreground/60" : "text-muted-foreground",
-                            )}
-                          >
-                            {weekdays[(new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7]}
-                          </span>
-                        ) : null}
-                        <span className={cn("text-xs font-semibold tabular-nums", !isToday && isWeekend(d) && "text-muted-foreground")}>
-                          {Number(d.slice(8, 10))}
-                        </span>
-                      </span>
+                    <div
+                      key={d}
+                      role="columnheader"
+                      className={cn("relative flex h-[30px] min-w-0 items-end justify-center overflow-hidden pb-1", columnClass(d, today), "bg-transparent")}
+                    >
+                      {/* the today marker: the line's head, on the header */}
+                      {isToday ? (
+                        <span
+                          aria-hidden
+                          className="bg-primary absolute bottom-0 h-1 w-1.5 rounded-t-sm"
+                          style={{ left: `calc(${nowFrac * 100}% - 3px)` }}
+                        />
+                      ) : null}
+                      {label ? (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Link
+                                href={`/bookings?view=day&date=${d}${scopeSuffix}`}
+                                aria-label={t("timeline.openDay", { date: cellDateLabel(d, intlLocale) })}
+                                className={cn(
+                                  "focus-visible:ring-ring flex items-baseline gap-1 rounded-md py-0.5 leading-none outline-none focus-visible:ring-2",
+                                  density === "weekday" ? "px-1.5" : "px-1",
+                                  isToday ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                                )}
+                              >
+                                {density === "weekday" ? (
+                                  <span
+                                    className={cn(
+                                      "text-[10px]",
+                                      isToday ? "text-primary-foreground/75" : isWeekend(d) ? "text-muted-foreground/60" : "text-muted-foreground",
+                                    )}
+                                  >
+                                    {weekdays[(new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7]}
+                                  </span>
+                                ) : null}
+                                <span className={cn("text-xs font-semibold tabular-nums", !isToday && isWeekend(d) && "text-muted-foreground")}>
+                                  {Number(d.slice(8, 10))}
+                                </span>
+                              </Link>
+                            }
+                          />
+                          <TooltipContent>{t("timeline.openDay", { date: cellDateLabel(d, intlLocale) })}</TooltipContent>
+                        </Tooltip>
+                      ) : null}
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* body: a column of one grid per space, sharing the leftover
-                height in proportion to their unit counts, so a short board
-                fills the screen and a long one scrolls. */}
-            <div className="relative flex flex-1 flex-col">
+            {/* body: one grid per space. */}
+            <div className="relative">
               {/* the today line: through every lane, at the hour it is now.
                   z-[5]: above the lanes' bars, below the sticky rail (z-20). */}
               {todayIdx >= 0 ? (
                 <div
                   aria-hidden
-                  className="bg-primary pointer-events-none absolute inset-y-0 z-[5] w-0.5"
-                  style={{ left: `calc(${RAIL_PX}px + (100% - ${RAIL_PX}px) * ${(todayIdx + nowFrac) / cols})` }}
+                  className="bg-primary/70 pointer-events-none absolute inset-y-0 z-[5] w-0.5"
+                  style={{ left: railPx + (todayIdx + nowFrac) * cellPx - 1 }}
                 />
               ) : null}
               {offerings.map((offering) => {
                 const conflictCount = perOffering.get(offering.id) ?? 0;
+                const split = offering.units.length > 1;
+                const isCollapsed = split && collapsed.has(offering.id);
+                const counts = groupCounts.get(offering.id);
                 return (
-                  <div
-                    key={offering.id}
-                    className="grid"
-                    style={{
-                      gridTemplateColumns: columns,
-                      // header row as tall as its content; every lane row at
-                      // least its content, then an equal share of the rest
-                      gridTemplateRows: "auto",
-                      gridAutoRows: "minmax(auto, 1fr)",
-                      flex: `${offering.units.length} 1 auto`,
-                    }}
-                  >
-                    <div className="col-span-full">
-                      {/* padding inside the sticky box, so the rail backs the
-                          whole row and the today line never shows through
-                          the gaps above and below the space's name */}
-                      <div
-                        className="bg-background sticky left-0 z-20 flex w-fit items-center gap-2 pt-3 pr-3 pb-1"
-                        style={RAIL_PAN_STYLE}
-                      >
-                        <span className="text-sm font-medium">{offering.name}</span>
-                        <Badge variant="outline">{t(`timeline.mode.${offering.rangeMode}`)}</Badge>
-                        {offering.units.length > 1 ? (
-                          <span className="text-muted-foreground text-xs">
-                            {t("timeline.units", { count: offering.units.length })}
-                          </span>
-                        ) : null}
-                        {conflictCount > 0 ? (
-                          <Badge variant="outline" className="border-destructive/50 text-destructive gap-1">
-                            <TriangleAlert className="size-3" aria-hidden />
-                            {t("timeline.inConflict", { count: conflictCount })}
-                          </Badge>
-                        ) : null}
+                  <div key={offering.id} role="rowgroup" className="grid" style={{ gridTemplateColumns: columns }}>
+                    {split ? (
+                      <div role="row" className="contents">
+                        <div
+                          role="rowheader"
+                          // opaque: cells scrolled under a sticky rail must not show through
+                          className="bg-muted border-border/60 sticky left-0 z-20 flex items-center gap-2 overflow-hidden border-b pr-3 pl-3"
+                          style={{ height: GROUP_ROW_PX }}
+                        >
+                          <GroupLabel
+                            offering={offering}
+                            conflictCount={conflictCount}
+                            collapsed={isCollapsed}
+                            onToggle={() => toggleGroup(offering.id)}
+                            compact={railPx < 200}
+                          />
+                        </div>
+                        {bufferDays.map((d, i) => {
+                          const n = counts?.[i] ?? 0;
+                          const free = offering.rangeMode !== "hours";
+                          return (
+                            <div
+                              key={d}
+                              role="gridcell"
+                              aria-label={free ? t("timeline.freeOn", { count: n, date: cellDateLabel(d, intlLocale) }) : t("timeline.bookedOn", { count: n, date: cellDateLabel(d, intlLocale) })}
+                              className={cn(
+                                "bg-muted/40 border-border/60 flex items-center justify-center border-b text-[11px] tabular-nums",
+                                columnClass(d, today),
+                                free ? (n === 0 ? "text-destructive font-medium" : "text-muted-foreground") : n === 0 ? "text-transparent" : "text-muted-foreground",
+                              )}
+                              style={{ height: GROUP_ROW_PX }}
+                            >
+                              {cellPx >= 20 ? n : ""}
+                            </div>
+                          );
+                        })}
                       </div>
-                    </div>
-                    {offering.units.map((unit) => (
-                      <TimelineLane
-                        key={unit.id}
-                        offering={offering}
-                        unit={unit}
-                        dayList={bufferDays}
-                        days={cols}
-                        zoom={days}
-                        fromDate={bufferFrom}
-                        timeZone={timeZone}
-                        cellPx={cellPx}
-                        today={today}
-                        now={now}
-                        stays={lanes.get(unit.id) ?? []}
-                        ghostIds={ghostsByUnit.get(unit.id)}
-                        blackouts={blackoutsByUnit.get(unit.id) ?? []}
-                        conflicts={conflicts}
-                        spotlightId={spotlightId}
-                        onSpotlightEnd={() => setSpotlightId(null)}
-                        scopeSuffix={scopeSuffix}
-                        onSelect={setSelected}
-                        onNew={setNewStay}
-                      />
-                    ))}
+                    ) : null}
+                    {isCollapsed
+                      ? null
+                      : offering.units.map((unit) => (
+                          <TimelineLane
+                            key={unit.id}
+                            offering={offering}
+                            unit={unit}
+                            dayList={bufferDays}
+                            days={cols}
+                            zoom={days}
+                            fromDate={bufferFrom}
+                            timeZone={timeZone}
+                            cellPx={cellPx}
+                            railPx={railPx}
+                            today={today}
+                            now={now}
+                            stays={lanes.get(unit.id) ?? []}
+                            ghostIds={ghostsByUnit.get(unit.id)}
+                            blackouts={blackoutsByUnit.get(unit.id) ?? []}
+                            conflicts={conflicts}
+                            conflictCount={conflictCount}
+                            spotlightId={spotlightId}
+                            onSpotlightEnd={onSpotlightEnd}
+                            scopeSuffix={scopeSuffix}
+                            headerless={!split}
+                            query={query}
+                            focusIdx={
+                              focusCell ? (focusCell.unitId === unit.id ? focusCell.idx : -1) : laneOrder[0] === unit.id ? visIdx : -1
+                            }
+                            onCellFocus={onCellFocus}
+                            draggingId={drag?.booking.id ?? null}
+                            ghost={ghost && ghost.unitId === unit.id ? ghost : null}
+                            onBarPress={onBarPress}
+                            pendingId={pendingMove?.id ?? null}
+                            onSelect={setSelected}
+                            onNew={setNewStay}
+                          />
+                        ))}
                   </div>
                 );
               })}
@@ -459,7 +943,10 @@ export function Timeline({
           </div>
         </div>
 
-        <Legend />
+        <Legend className="flex md:hidden" />
+        <div aria-live="polite" className="sr-only">
+          {announce}
+        </div>
 
         <BookingDetailDialog
           booking={selected}
@@ -483,7 +970,7 @@ export function Timeline({
             staff={[]}
             defaultStaffId=""
             timeZone={timeZone}
-            initial={{ kind: "space", offeringId: newStay.offeringId, unitId: newStay.unitId, date: newStay.date }}
+            initial={{ kind: "space", offeringId: newStay.offeringId, unitId: newStay.unitId, date: newStay.date, endDate: newStay.endDate }}
           />
         )}
       </div>
@@ -491,13 +978,17 @@ export function Timeline({
   );
 }
 
-function Legend() {
+function Legend({ className }: { className?: string }) {
   const t = useTranslations("bookings");
   return (
-    <ul className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]" aria-label={t("timeline.legend")}>
+    <ul className={cn("text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]", className)} aria-label={t("timeline.legend")}>
       <li className="flex items-center gap-1.5">
-        <span aria-hidden className="bg-card inline-block h-3 w-5 rounded-sm border border-l-[3px] border-l-primary" />
+        <span aria-hidden className="bg-card border-l-primary inline-block h-3 w-5 rounded-sm border border-l-[3px]" />
         {t("timeline.stay")}
+      </li>
+      <li className="flex items-center gap-1.5">
+        <span aria-hidden className="bg-card inline-block h-3 w-5 rounded-sm border border-dashed" />
+        {t("timeline.request")}
       </li>
       <li className="flex items-center gap-1.5">
         <span
@@ -533,4 +1024,49 @@ function groupBy<T>(items: readonly T[], key: (item: T) => string): Map<string, 
     else map.set(k, [it]);
   }
   return map;
+}
+
+/* The collapsed set, in localStorage, as an external store: `set` notifies
+   this tab's listeners (a storage event only reaches OTHER tabs). */
+const listeners = new Set<() => void>();
+// What was last set, for a browser whose storage throws (private mode):
+// the toggle still holds for the page's life.
+let collapsedFallback = "[]";
+const collapsedStore = {
+  get(): string {
+    try {
+      return localStorage.getItem(COLLAPSED_KEY) ?? collapsedFallback;
+    } catch {
+      return collapsedFallback;
+    }
+  },
+  set(value: string) {
+    collapsedFallback = value;
+    try {
+      localStorage.setItem(COLLAPSED_KEY, value);
+    } catch {
+      // No storage: the fallback above carries it.
+    }
+    for (const l of listeners) l();
+  },
+  subscribe(cb: () => void) {
+    listeners.add(cb);
+    window.addEventListener("storage", cb);
+    return () => {
+      listeners.delete(cb);
+      window.removeEventListener("storage", cb);
+    };
+  },
+};
+function parseIds(raw: string): string[] {
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }

@@ -30,6 +30,7 @@ export function DatePicker({
   min,
   disabled,
   className,
+  children,
 }: {
   /** "YYYY-MM-DD", or "" for nothing picked yet. */
   value: string;
@@ -41,6 +42,9 @@ export function DatePicker({
   disabled?: boolean;
   /** Trigger overrides — e.g. the dialog pill (dialogPillClass). */
   className?: string;
+  /** What the trigger says instead of the picked date — the timeline's
+      window label, which opens the picker to jump to a date. */
+  children?: React.ReactNode;
 }) {
   const t = useTranslations("bookings");
   const intlLocale = INTL_LOCALES[useLocale()];
@@ -70,7 +74,7 @@ export function DatePicker({
               className,
             )}
           >
-            {value ? triggerFmt(intlLocale).format(utcDate(value)) : t("datePicker.pick")}
+            {children ?? (value ? triggerFmt(intlLocale).format(utcDate(value)) : t("datePicker.pick"))}
           </button>
         }
       />
