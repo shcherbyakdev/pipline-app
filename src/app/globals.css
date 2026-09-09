@@ -424,56 +424,104 @@
   background: rgb(37 34 40 / 0.12);
 }
 
-/* Hero story (components/hero-story.tsx): one 19s loop over the admin
-   screenshot, CSS only, every player on the same clock (started once the
-   screenshot has risen; 1% = 190ms). Four beats: the cursor glides in on
-   the strong ease-in-out, dips to press, drags two hours (the selection
-   grows with it, same curve, same interval, so they stay in step) while
-   the price tag prices them; the block pops in as the calendar's pending
-   ghost and turns solid when the deposit notice arrives; the cursor grabs
-   the block (it lifts) and carries it one column right and four hours up
-   (block and cursor share the move's keyframes); the overtime tail grows
-   from the block's floor and the charge notice arrives; then everything
-   leaves the way it came and the loop rests. The three notices share one
-   keyframe and take their turns by animation-delay. Percent positions are
-   the screenshot's own grid; cqw sizes follow its width (the box is 1.6:1,
-   so 1% of height = 0.625cqw). Transform and opacity, plus the block's
-   colour flip. The move's curve is written out inside the block's
-   keyframes: Chrome drops a var() in a keyframe's animation-timing-
-   function, and the block must ride the cursor's strong ease-in-out. Reduced motion parks on the end: the block moved and
-   paid, the last notice shown, no cursor. */
-.marketing .hs {
+/* Hero story (components/hero-story.tsx): one 19s loop across the phone
+   and the admin screenshot, CSS only, every player on the same clock
+   (started once the screenshot has risen; 1% = 190ms). Four beats: a tap
+   ripples on the phone's 15:00 chip, the chip fills ink, lifts off and
+   flies into the week on the strong ease-in-out, shrinking as it lands;
+   the block pops in as the calendar's pending ghost with the price tag
+   above it, and turns solid when the deposit notice arrives; the cursor
+   glides in, dips to grab the block (it lifts) and carries it one column
+   right and four hours up (block and cursor share the move's keyframes);
+   the overtime tail grows from the block's floor and the charge notice
+   arrives; then everything leaves the way it came and the loop rests.
+   The three notices share one keyframe and take their turns by
+   animation-delay. The stage is the container: percent positions are the
+   screenshot's own grid, cqw sizes follow its width (the box is 1.6:1, so
+   1% of height = 0.625cqw), and the phone's frame is placed here from the
+   same variables the flight is aimed with (the chip's centre sits 0.2585
+   phone widths in from the phone's right edge and 0.3077 up from its
+   floor). Transform and opacity, plus the block's colour flip. The move's
+   curve is written out inside the keyframes: Chrome drops a var() in a
+   keyframe's animation-timing-function, and the block must ride the
+   cursor's strong ease-in-out. Reduced motion parks on the end: the block
+   moved and paid, the last notice shown, no cursor. */
+.marketing .hero-stage {
   container-type: inline-size;
+  --phone-w: 34cqw;
+  --phone-r: -8px;
+  --phone-b: -20px;
 }
-.marketing .hs :is(.hs-select, .hs-tag, .hs-block, .hs-tail, .hs-time-was, .hs-time-now, .hs-cursor, .hs-notice) {
+@media (min-width: 640px) {
+  .marketing .hero-stage { --phone-w: 210px; --phone-r: -16px; --phone-b: -32px; }
+}
+@media (min-width: 1024px) {
+  .marketing .hero-stage { --phone-w: 248px; --phone-r: -24px; }
+}
+.marketing .hs-phone {
+  position: absolute;
+  right: var(--phone-r);
+  bottom: var(--phone-b);
+  width: var(--phone-w);
+}
+.marketing .hs {
+  --chip-x: calc(100cqw - var(--phone-r) - 0.2585 * var(--phone-w));
+  --chip-y: calc(62.5cqw - var(--phone-b) - 0.3077 * var(--phone-w));
+  /* the block's centre: Wed 15:00–17:00 */
+  --slot-x: 49.625cqw;
+  --slot-y: 45.75cqw;
+}
+.marketing .hs :is(.hs-tap, .hs-fly, .hs-tag, .hs-block, .hs-tail, .hs-time-was, .hs-time-now, .hs-cursor, .hs-notice) {
   animation-duration: 19s;
   animation-delay: 1.4s;
   animation-iteration-count: infinite;
   animation-fill-mode: both;
 }
-.marketing .hs-select,
-.marketing .hs-block {
+/* the tap: a soft disc on the chip */
+.marketing .hs-tap {
   position: absolute;
-  left: 44.5%;
-  top: 66.4%;
-  width: 10.25%;
-  height: 13.6%;
-  border-radius: 0.42cqw;
+  left: var(--chip-x);
+  top: var(--chip-y);
+  width: calc(0.16 * var(--phone-w));
+  height: calc(0.16 * var(--phone-w));
+  translate: -50% -50%;
+  border-radius: 999px;
+  background: rgb(37 34 40 / 0.22);
+  animation-name: hs-tap;
+  animation-timing-function: var(--ease-strong);
 }
-.marketing .hs-select {
-  background: rgb(105 117 226 / 0.14);
-  box-shadow: inset 0 0 0 1px rgb(105 117 226 / 0.55);
-  transform-origin: top;
-  animation-name: hs-select;
-  animation-timing-function: var(--ease-in-out-strong);
+@keyframes hs-tap {
+  0%, 3.2% { opacity: 0.8; transform: scale(0.4); }
+  6.3%, 100% { opacity: 0; transform: scale(1.9); }
 }
-@keyframes hs-select {
-  0%, 8.4% { opacity: 0; transform: scaleY(0.06); }
-  9.5% { opacity: 1; }
-  14.7% { opacity: 1; transform: scaleY(1); }
-  16.3%, 100% { opacity: 0; transform: scaleY(1); }
+/* the chip, filled ink, then in flight to the slot */
+.marketing .hs-fly {
+  position: absolute;
+  left: var(--slot-x);
+  top: var(--slot-y);
+  width: calc(0.1796 * var(--phone-w));
+  height: calc(0.0923 * var(--phone-w));
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  border-radius: calc(0.031 * var(--phone-w));
+  background: #252228;
+  color: #fff;
+  font-size: calc(0.041 * var(--phone-w));
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 8px 20px -8px rgb(37 34 40 / 0.5);
+  --from: translate(calc(var(--chip-x) - var(--slot-x)), calc(var(--chip-y) - var(--slot-y)));
+  animation-name: hs-fly;
+  animation-timing-function: var(--ease-strong);
 }
-/* the price of the dragged hours, a tooltip above the selection */
+@keyframes hs-fly {
+  0%, 3.4% { opacity: 0; transform: var(--from) scale(0.96); }
+  4.2% { opacity: 1; transform: var(--from) scale(1); }
+  7.9% { opacity: 1; transform: var(--from) scale(1); animation-timing-function: cubic-bezier(0.77, 0, 0.175, 1); }
+  13.2% { opacity: 1; }
+  14.2%, 100% { opacity: 0; transform: translate(0, 0) scale(0.55); }
+}
+/* the price of the booked hours, a tooltip above the block */
 .marketing .hs-tag {
   position: absolute;
   left: 44.5%;
@@ -491,10 +539,18 @@
   animation-timing-function: var(--ease-strong);
 }
 @keyframes hs-tag {
-  0%, 12.6% { opacity: 0; transform: translateY(4px); }
-  14.2% { opacity: 1; transform: none; }
-  20% { opacity: 1; transform: none; }
-  22.1%, 100% { opacity: 0; transform: none; }
+  0%, 16.3% { opacity: 0; transform: translateY(4px); }
+  17.9% { opacity: 1; transform: none; }
+  24.2% { opacity: 1; transform: none; }
+  26.3%, 100% { opacity: 0; transform: none; }
+}
+.marketing .hs-block {
+  position: absolute;
+  left: 44.5%;
+  top: 66.4%;
+  width: 10.25%;
+  height: 13.6%;
+  border-radius: 0.42cqw;
 }
 .marketing .hs-block {
   display: flex;
@@ -514,8 +570,8 @@
 .marketing .hs-block-icon { width: 0.83cqw; height: 0.83cqw; vertical-align: -0.07cqw; }
 .marketing .hs-block-muted { color: #6f6d75; }
 @keyframes hs-block {
-  0%, 15% { opacity: 0; transform: translate(0, 0) scale(0.96); border-style: dashed; background: rgb(255 255 255 / 0.5); }
-  16.8% { opacity: 1; transform: translate(0, 0) scale(1); }
+  0%, 12.9% { opacity: 0; transform: translate(0, 0) scale(0.96); border-style: dashed; background: rgb(255 255 255 / 0.5); }
+  14.7% { opacity: 1; transform: translate(0, 0) scale(1); }
   27.9% { border-style: dashed; background: rgb(255 255 255 / 0.5); }
   28.9% { border-style: solid solid solid dashed; background: #fff; }
   50.5% { transform: translate(0, 0) scale(1); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
@@ -576,14 +632,8 @@
   animation-timing-function: var(--ease-in-out-strong);
 }
 @keyframes hs-cursor {
-  0% { opacity: 0; transform: translate(-30cqw, 20cqw); }
-  1.6% { opacity: 1; }
-  7.4% { transform: translate(0, 0); }
-  8.2% { transform: translate(0, 0) scale(0.86); }
-  8.9% { transform: translate(0, 0); }
-  14.7% { transform: translate(0, 8.5cqw); }
-  21% { transform: translate(7cqw, 10cqw); }
-  45.3% { transform: translate(7cqw, 10cqw); }
+  0%, 41.5% { opacity: 0; transform: translate(-30cqw, 20cqw); }
+  43% { opacity: 1; }
   50.5% { transform: translate(0.1cqw, 4.25cqw); }
   51.3% { transform: translate(0.1cqw, 4.25cqw) scale(0.86); }
   52.1% { transform: translate(0.1cqw, 4.25cqw); }
@@ -733,8 +783,8 @@
   .animate-pop { animation: none; }
   .marketing .hw { transform: none; filter: none; animation: fade-only 0.2s ease both; }
   .marketing .hero-rise { transform: none; animation: fade-only 0.2s ease both; }
-  .marketing .hs :is(.hs-select, .hs-tag, .hs-block, .hs-tail, .hs-time-was, .hs-time-now, .hs-cursor, .hs-notice) { animation: none; }
-  .marketing .hs :is(.hs-cursor, .hs-select, .hs-tag, .hs-notice-pay, .hs-notice-move) { display: none; }
+  .marketing .hs :is(.hs-tap, .hs-fly, .hs-tag, .hs-block, .hs-tail, .hs-time-was, .hs-time-now, .hs-cursor, .hs-notice) { animation: none; }
+  .marketing .hs :is(.hs-cursor, .hs-tap, .hs-fly, .hs-tag, .hs-time-was, .hs-notice-pay, .hs-notice-move) { display: none; }
   .marketing .hs-block { transform: translate(10.6cqw, -17cqw); border-style: solid solid solid dashed; border-radius: 0.42cqw 0.42cqw 0 0; background: #fff; }
 }
 

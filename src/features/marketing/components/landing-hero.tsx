@@ -12,8 +12,9 @@ import publicPhone from "../images/public-phone.png";
    product: the admin's week (a real screenshot, scripts/landing-shots.mjs)
    on the plain ground, rising into view, the live page on a phone leaning
    on its bottom-right corner (over the closed weekend, so it hides no
-   booking), and the story of one booking played over both in CSS
-   (hero-story.tsx). */
+   booking), and the story of one booking played across both in CSS
+   (hero-story.tsx): it starts with a tap on the phone and lands in the
+   week. */
 const WORD_MS = 60;
 
 export function Hero({ host }: { host: string }) {
@@ -43,7 +44,7 @@ export function Hero({ host }: { host: string }) {
 
       {/* the product */}
       <div className="hero-rise mx-auto mt-16 w-full max-w-5xl px-4 sm:mt-24 sm:px-8">
-        <div className="relative">
+        <div className="hero-stage relative">
           <div className="bg-card ring-border overflow-hidden rounded-[16px] shadow-[0_24px_60px_-28px_rgb(37_34_40/0.25)] ring-1 sm:rounded-[22px]">
             <Image
               src={adminWeek}
@@ -53,13 +54,15 @@ export function Hero({ host }: { host: string }) {
               className="h-auto w-full"
             />
           </div>
-          <div className="bg-card ring-border absolute -right-2 -bottom-5 w-[34%] overflow-hidden rounded-[18px] shadow-[0_24px_60px_-16px_rgb(37_34_40/0.35)] ring-1 sm:-right-4 sm:-bottom-8 sm:w-[210px] sm:rounded-[26px] lg:-right-6 lg:w-[248px] lg:rounded-[30px]">
+          {/* placed by globals.css (.hs-phone): the story needs the phone's
+              geometry to aim the booking's flight from its 15:00 chip */}
+          <div className="hs-phone bg-card ring-border overflow-hidden rounded-[18px] shadow-[0_24px_60px_-16px_rgb(37_34_40/0.35)] ring-1 sm:rounded-[26px] lg:rounded-[30px]">
             <Image
               src={publicPhone}
-              alt="The studio's live booking page on a phone: Room A for four hours, the month with open days, the free windows on a Tuesday."
+              alt="The studio's live booking page on a phone: Room A for two hours, the month with open days, Wednesday's free windows."
               sizes="(min-width: 1024px) 248px, (min-width: 640px) 210px, 34vw"
               className="h-auto w-full"
-              style={{ aspectRatio: "390 / 600", objectFit: "cover", objectPosition: "top" }}
+              style={{ aspectRatio: "390 / 624", objectFit: "cover", objectPosition: "top" }}
             />
           </div>
           <HeroStory />

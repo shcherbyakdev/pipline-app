@@ -315,10 +315,11 @@ log(`   ${OUT}/admin-week.png`);
 const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
 const phonePage = await phone.newPage();
 await phonePage.goto(`${BASE}/${HANDLE}?lang=en&space=${ids.roomA}`, { waitUntil: "networkidle" });
-await phonePage.getByRole("button", { name: /^4 h/ }).first().click();
+await phonePage.getByRole("button", { name: /^2 h/ }).first().click();
 {
-  // The booked week's Tuesday: a day with real openings between real bookings.
-  const day = addDays(WEEK, 1);
+  // The booked week's Wednesday, two hours: the hero story's client taps
+  // its 15:00 chip (hero-story.tsx), the slot the admin shot leaves open.
+  const day = addDays(WEEK, 2);
   const label = dayCellLabel.format(new Date(`${day}T00:00:00Z`));
   const cell = phonePage.getByRole("option", { name: label });
   await phonePage.locator('[role="listbox"] [role="option"]').first().waitFor({ state: "attached", timeout: 60_000 });

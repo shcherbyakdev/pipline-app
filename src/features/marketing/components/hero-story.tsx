@@ -1,22 +1,25 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import { House01Icon } from "@hugeicons/core-free-icons";
 
-/* The story over the week (globals.css "Hero story"): one 19s CSS loop, no
-   JS, four beats of one booking. A cursor comes in and drags Wednesday
-   15:00–17:00 (the grid's own gesture) while a price tag prices the two
-   hours; the booking lands as the calendar's pending ghost (dashed,
-   translucent); the deposit notice arrives and the block turns solid; the
-   cursor grabs the block and moves it to Thursday 11:00; the session runs
-   half an hour over and the charge is added. Geometry is % of the
-   screenshot (2880×1800: the Wed column starts 44.5% in and is 10.25%
-   wide, Thu one column right; hours are 6.8% tall from 18.8%); the
-   block's type is in cqw so it scales with the screenshot's own. Every
-   notice shares one keyframe and takes its turn by animation-delay.
-   Decorative: the screenshot's alt tells the reader what the admin is. */
+/* The story across the phone and the week (globals.css "Hero story"): one
+   19s CSS loop, no JS, four beats of one booking. A client taps 15:00 on
+   the phone's Wednesday; the chip lifts off and flies into the week,
+   landing as the calendar's pending ghost (dashed, translucent) with the
+   price it worked out; the deposit notice arrives and the block turns
+   solid; the studio's cursor grabs the block and moves it to Thursday
+   11:00; the session runs half an hour over and the charge is added.
+   Geometry is % of the screenshot (2880×1800: the Wed column starts 44.5%
+   in and is 10.25% wide, Thu one column right; hours are 6.8% tall from
+   18.8%) and, for the chip, the phone's own frame (public-phone.png,
+   390×624 shown: the 15:00 chip sits 65.2% in, 77.9% down); the block's
+   type is in cqw so it scales with the screenshot's own. Every notice
+   shares one keyframe and takes its turn by animation-delay. Decorative:
+   the images' alts tell the reader what they are. */
 export function HeroStory() {
   return (
     <div aria-hidden="true" className="hs pointer-events-none absolute inset-0">
-      <div className="hs-select" />
+      <span className="hs-tap" />
+      <span className="hs-fly">15:00</span>
       <span className="hs-tag">2 h · 280 zł</span>
       <div className="hs-block">
         <span className="font-medium">
