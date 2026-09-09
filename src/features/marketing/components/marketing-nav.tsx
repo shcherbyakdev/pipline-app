@@ -5,11 +5,12 @@ import Link from "next/link";
 import { CTA, SITE } from "@/features/marketing/site";
 import { hasAuthCookie } from "@/features/marketing/auth-cookie";
 import { DEFAULT_AFTER_LOGIN } from "@/lib/auth/next-path";
-import { BookloMark } from "./booklo-mark";
+import { BookloLogo } from "./booklo-mark";
 
-/* The mark on the left, one small pill on the right (interfacecraft.dev's
-   nav): Log in for a visitor, Dashboard for someone signed in. Nothing
-   else; the page is one hero and the claim bar is its action. */
+/* The mark (in ink) and the wordmark on the left, one small pill on the right
+   (interfacecraft.dev's nav): Log in for a visitor, Dashboard for someone
+   signed in. Nothing else; the page is one hero and the claim bar is its
+   action. */
 const subscribeNoop = () => () => {};
 
 export function MarketingNav() {
@@ -24,9 +25,8 @@ export function MarketingNav() {
   return (
     <header>
       <nav aria-label="Main" className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-5 sm:px-8">
-        <Link href={SITE.links.home} className="focus-visible:ring-ring rounded-md outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background">
-          <BookloMark className="size-8" />
-          <span className="sr-only">{SITE.name}</span>
+        <Link href={SITE.links.home} className="text-foreground focus-visible:ring-ring rounded-md text-[22px] outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background">
+          <BookloLogo ink />
         </Link>
         <Link
           href={authed ? DEFAULT_AFTER_LOGIN : SITE.links.login}
