@@ -555,7 +555,9 @@ export function Timeline({
       toast.error(t("timeline.dropTaken"));
       return;
     }
-    const old = { unitId: drop.originUnitId, startsAt: b.startsAt, endsAt: b.endsAt };
+    // Normalised to "…Z": the action's schema takes a strict ISO instant, and
+    // the feed's rows carry Postgres's "+00:00" form.
+    const old = { unitId: drop.originUnitId, startsAt: new Date(b.startsAt).toISOString(), endsAt: new Date(b.endsAt).toISOString() };
     if (drop.mode === "hours") {
       const next = { unitId: drop.targetUnitId, startsAt: g.startsAt.toISOString(), endsAt: g.endsAt.toISOString() };
       // A move is a new row; Undo moves THAT row back.
@@ -824,7 +826,7 @@ export function Timeline({
                         <div
                           role="rowheader"
                           // opaque: cells scrolled under a sticky rail must not show through
-                          className="bg-muted border-border/60 sticky left-0 z-20 flex items-center gap-2 border-b pr-3 pl-3"
+                          className="bg-muted border-border/60 sticky left-0 z-20 flex items-center gap-2 overflow-hidden border-b pr-3 pl-3"
                           style={{ height: GROUP_ROW_PX }}
                         >
                           <GroupLabel
@@ -832,6 +834,7 @@ export function Timeline({
                             conflictCount={conflictCount}
                             collapsed={isCollapsed}
                             onToggle={() => toggleGroup(offering.id)}
+                            compact={railPx < 200}
                           />
                         </div>
                         {bufferDays.map((d, i) => {

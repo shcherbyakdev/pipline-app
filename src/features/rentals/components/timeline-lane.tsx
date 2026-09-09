@@ -28,7 +28,7 @@ import { serviceAccent, zonedParts, minToTime } from "@/features/scheduling/cale
 import { dateInZone } from "@/features/scheduling/slots";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { initials } from "@/features/scheduling/staff-slug";
-import { ghostWord } from "@/features/scheduling/hold-label";
+import { ghostWord, holdLabel } from "@/features/scheduling/hold-label";
 import { PAN_THRESHOLD_PX } from "@/features/rentals/pan";
 import { INTL_LOCALES } from "@/i18n/config";
 import { formatMoney } from "@/lib/money";
@@ -318,7 +318,7 @@ export function TimelineLane({
       <div
         role="rowheader"
         className={cn(
-          "bg-background border-border/60 sticky left-0 z-20 flex items-center gap-2 border-b pr-3",
+          "bg-background border-border/60 sticky left-0 z-20 flex items-center gap-2 overflow-hidden border-b pr-3",
           headerless ? "pl-3" : "pl-7",
         )}
         style={{ minHeight: laneHeight }}
@@ -330,6 +330,7 @@ export function TimelineLane({
             collapsed={collapsed}
             onToggle={onToggle}
             inactive={!unit.active}
+            compact={railPx < 200}
           />
         ) : (
           <>
@@ -573,12 +574,15 @@ export function GroupLabel({
   collapsed,
   onToggle,
   inactive = false,
+  compact = false,
 }: {
   offering: TimelineOffering;
   conflictCount: number;
   collapsed?: boolean;
   onToggle?: () => void;
   inactive?: boolean;
+  /** A narrow rail (a phone): the name is what matters, the mode chip goes. */
+  compact?: boolean;
 }) {
   const t = useTranslations("bookings");
   const tCommon = useTranslations("common");
@@ -600,9 +604,11 @@ export function GroupLabel({
       <span className="min-w-0 truncate text-sm font-medium" title={offering.name}>
         {offering.name}
       </span>
-      <Badge variant="outline" className="shrink-0">
-        {t(`timeline.mode.${offering.rangeMode}`)}
-      </Badge>
+      {compact ? null : (
+        <Badge variant="outline" className="shrink-0">
+          {t(`timeline.mode.${offering.rangeMode}`)}
+        </Badge>
+      )}
       {inactive ? (
         <Badge variant="outline" className="shrink-0">
           {tCommon("inactive")}
@@ -704,6 +710,7 @@ function StayBar({
   const isRequest = b.status === "pending";
   const isHold = b.status === "pending_payment";
   const ghost = ghostWord(b.status, t);
+  const holdUntil = isHold ? holdLabel(b, timeZone, intlLocale, t) : null;
   const when = whenLineFor({ startsAt, endsAt, isRental: true, rangeMode: mode }, timeZone, intlLocale);
   const time = mode === "hours" ? minToTime(zonedParts(startsAt, timeZone).minutes) : null;
   const note = b.note ? `“${b.note}”` : null;
@@ -848,7 +855,12 @@ function StayBar({
         {b.clientEmail ? <span className="opacity-70">{b.clientEmail}</span> : null}
         {money ? <span className="opacity-70">{money}</span> : null}
         {note ? <span className="opacity-70">{note}</span> : null}
-        {ghost ? <span>{ghost}</span> : null}
+        {ghost ? (
+          <span>
+            {ghost}
+            {holdUntil ? ` · ${holdUntil}` : ""}
+          </span>
+        ) : null}
         {phase === "current" ? <span>{t("timeline.inHouseNow")}</span> : phase === "past" ? <span className="opacity-70">{t("timeline.ended")}</span> : null}
         {conflicts.map((c, i) => (
           <span key={i} className={cn("flex items-start gap-1", c.kind === "turnover" ? "text-amber-500" : "text-destructive")}>
