@@ -231,3 +231,111 @@ describe("zoom", () => {
     expect(timelineStart("2027-05-10", 56)).toBe("2027-05-03");
   });
 });
+
+// ---------- v3: density, free units, drag maths
+
+import {
+  headerDensity,
+  showsDayNumber,
+  takenColumns,
+  freeUnitsPerDay,
+  dragDelta,
+  movedRange,
+  movedInstant,
+  moveConflict,
+  chipDensity,
+} from "./timeline-layout";
+
+describe("headerDensity (what a day cell can say at a column width)", () => {
+  it("weekday+number from 44px, number from 24px, only Mondays and today below", () => {
+    expect(headerDensity(60)).toBe("weekday");
+    expect(headerDensity(44)).toBe("weekday");
+    expect(headerDensity(30)).toBe("number");
+    expect(headerDensity(16)).toBe("sparse");
+  });
+  it("sparse shows Mondays and today, nothing else", () => {
+    // 2027-05-03 is a Monday
+    expect(showsDayNumber("2027-05-03", "sparse", null)).toBe(true);
+    expect(showsDayNumber("2027-05-04", "sparse", null)).toBe(false);
+    expect(showsDayNumber("2027-05-04", "sparse", "2027-05-04")).toBe(true);
+    expect(showsDayNumber("2027-05-04", "number", null)).toBe(true);
+  });
+});
+
+describe("takenColumns / freeUnitsPerDay (the hotel board's free-rooms row)", () => {
+  it("nights: occupied nights plus the turnover tail; blackouts too; clamped to the window", () => {
+    const taken = takenColumns(
+      [stay("a", "2027-05-02", "2027-05-04")],
+      [{ id: "b1", startDate: "2027-04-30", endDate: "2027-05-01", reason: null }],
+      "nights",
+      1,
+      TZ,
+      W,
+      7,
+    );
+    // blackout on 1 May (col 0); nights 2,3 May (cols 1,2); tail on checkout day 4 May (col 3)
+    expect([...taken].sort()).toEqual([0, 1, 2, 3]);
+  });
+  it("days: the return day is held and the tail follows it", () => {
+    const taken = takenColumns([dayStay("a", "2027-05-02", "2027-05-03")], [], "days", 1, TZ, W, 7);
+    expect([...taken].sort()).toEqual([1, 2, 3]);
+  });
+  it("free units per day is the units nobody holds", () => {
+    const free = freeUnitsPerDay([new Set([0, 1]), new Set([1]), new Set()], 3);
+    expect(free).toEqual([2, 1, 3]);
+  });
+});
+
+describe("dragDelta (pixels to whole days and rows)", () => {
+  it("rounds to the nearest column and lane", () => {
+    expect(dragDelta(-45, 10, 40, 36)).toEqual({ days: -1, rows: 0 });
+    expect(dragDelta(61, 50, 40, 36)).toEqual({ days: 2, rows: 1 });
+    expect(dragDelta(0, 0, 0, 36)).toEqual({ days: 0, rows: 0 });
+  });
+});
+
+describe("movedRange (where a bar lands after a move or an edge drag)", () => {
+  const b = stay("a", "2027-05-02", "2027-05-04");
+  it("move shifts both ends", () => {
+    expect(movedRange(b, "nights", TZ, 2, "move")).toEqual({ startDate: "2027-05-04", endDate: "2027-05-06" });
+  });
+  it("edge drags keep at least one night / one day", () => {
+    expect(movedRange(b, "nights", TZ, 1, "start")).toEqual({ startDate: "2027-05-03", endDate: "2027-05-04" });
+    expect(movedRange(b, "nights", TZ, 2, "start")).toBeNull();
+    expect(movedRange(b, "nights", TZ, -1, "end")).toEqual({ startDate: "2027-05-02", endDate: "2027-05-03" });
+    expect(movedRange(b, "nights", TZ, -2, "end")).toBeNull();
+    const d = dayStay("d", "2027-05-02", "2027-05-02");
+    expect(movedRange(d, "days", TZ, 0, "end")).toEqual({ startDate: "2027-05-02", endDate: "2027-05-02" });
+    expect(movedRange(d, "days", TZ, -1, "end")).toBeNull();
+  });
+  it("hours: the same wall time on the new day", () => {
+    const h = hourly("h", "2027-05-02", "10:00", "12:00");
+    expect(movedInstant(h, TZ, 3).toISOString()).toBe(at("2027-05-05", "10:00").toISOString());
+  });
+});
+
+describe("moveConflict (live validation while dragging: the same rules as detectConflicts)", () => {
+  const others = [stay("x", "2027-05-05", "2027-05-08", "X")];
+  const cand = (from: string, to: string) => ({ startsAt: at(from, "15:00"), endsAt: at(to, "11:00") });
+  it("a free run is fine; touching X's nights is hard; landing on X's turnover tail is a turnover clash", () => {
+    expect(moveConflict(cand("2027-05-01", "2027-05-03"), others, [], "nights", 1, TZ)).toBeNull();
+    expect(moveConflict(cand("2027-05-04", "2027-05-06"), others, [], "nights", 1, TZ)).toBe("hard");
+    expect(moveConflict(cand("2027-05-08", "2027-05-10"), others, [], "nights", 1, TZ)).toBe("turnover");
+  });
+  it("the candidate's own tail running into a later check-in counts too", () => {
+    expect(moveConflict(cand("2027-05-02", "2027-05-05"), others, [], "nights", 1, TZ)).toBe("turnover");
+  });
+  it("a blackout under the candidate is hard", () => {
+    const bl = [{ id: "b", startDate: "2027-05-02", endDate: "2027-05-02", reason: "paint" }];
+    expect(moveConflict(cand("2027-05-01", "2027-05-03"), [], bl, "nights", 0, TZ)).toBe("hard");
+  });
+});
+
+describe("chipDensity (what an hourly chip can hold)", () => {
+  it("time + name from 96px, time from 56px, the hour from 28px, nothing below", () => {
+    expect(chipDensity(120)).toBe("full");
+    expect(chipDensity(60)).toBe("time");
+    expect(chipDensity(30)).toBe("hour");
+    expect(chipDensity(20)).toBe("none");
+  });
+});
