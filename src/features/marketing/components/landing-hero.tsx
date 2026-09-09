@@ -2,9 +2,9 @@ import * as React from "react";
 import Image from "next/image";
 import { SITE } from "@/features/marketing/site";
 import { HeroClaim } from "./hero-claim";
+import { HeroScene } from "./hero-scene";
 import adminWeek from "../images/admin-week.png";
 import publicPhone from "../images/public-phone.png";
-import heroWash from "../images/hero-wash.webp";
 
 /* The page (interfacecraft.dev-referenced, 2026-09-09): a short rule, the
    title in the serif entering word by word (Linear's move: fade, a little
@@ -43,14 +43,11 @@ export function Hero({ host }: { host: string }) {
       </div>
 
       {/* the product, in the glass band */}
-      <div className="animate-fade-up relative mt-16 w-full overflow-hidden pt-10 pb-10 [animation-delay:440ms] sm:mt-24 sm:h-[560px] sm:pt-14 sm:pb-0 lg:h-[640px] lg:pt-16">
-        <Image src={heroWash} alt="" fill priority sizes="100vw" className="object-cover object-bottom" />
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="hero-swell absolute inset-y-0 left-0" />
-        </div>
-        <div aria-hidden="true" className="hero-ribs pointer-events-none absolute inset-0" />
+      <div className="animate-fade-up relative mt-16 w-full overflow-hidden bg-[#111212] pt-10 pb-10 [animation-delay:440ms] sm:mt-24 sm:h-[600px] sm:pt-24 sm:pb-0 lg:h-[680px] lg:pt-28">
+        <HeroScene className="absolute inset-0" />
+        <div aria-hidden="true" className="hero-vignette pointer-events-none absolute inset-0" />
         <div aria-hidden="true" className="hero-grain pointer-events-none absolute inset-0" />
-        <div className="hero-rise relative mx-auto w-full max-w-6xl px-4 sm:px-8">
+        <div className="hero-rise pointer-events-none relative mx-auto w-full max-w-5xl px-4 sm:px-8">
           <div className="bg-card overflow-hidden rounded-[16px] shadow-[0_32px_90px_-24px_rgb(0_0_0/0.7)] ring-1 ring-white/15 sm:rounded-t-[22px] sm:rounded-b-none">
             <Image
               src={adminWeek}

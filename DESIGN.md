@@ -198,15 +198,15 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 ## Elevation & Depth
 
-The landing's product sits in one full-width band of the abstract image
-`hero-wash.webp` (`features/marketing/images`, rendered from
-`scripts/landing-wash.html`): a painted ridge landscape in the dark
-theme's tokens (ground #111212, card #19191b, panel #242526, one accent
-light pool) with vertical glass streaks baked in, seen through fluted
-glass in CSS (27px ribs, a light swell travelling every 11s, film grain as
-an overlay; globals.css "Hero glass" / "Hero grain"). The title and the
-input sit on the plain ground above it; the feature list follows in a
-46rem column. No other panels, no CSS gradients.
+The landing's product sits in one full-width band on the dark theme's
+ground (#111212): a field of tall cubes (three.js, `cube-grid.tsx`,
+Codrops-referenced 2026-09-09) in the dark panel colour (#242526) that
+ripple under the pointer and glow the brand accent (#6975e2) at their
+peaks, with a vignette and film grain over it (globals.css "Hero band" /
+"Hero grain"). It runs only on screen, drops its own ripples when idle,
+and holds one still frame under reduced motion. The title and the input
+sit on the plain ground above it; the feature list follows in a 46rem
+column. No other panels, no CSS gradients.
 
 
 Two shadows only, defined as tokens and used via `shadow-(--shadow-card)` /
@@ -268,5 +268,5 @@ another radius on a public page.
 - Don't hand grey borders, `transition-all`, pure `#000`/`#fff`, or a second
   accent into any surface.
 - The landing is light throughout except the product band, which is the
-  dark theme's ground seen through glass; the title, input and feature
+  dark theme's ground under the cube field; the title, input and feature
   list sit on the plain ground.
