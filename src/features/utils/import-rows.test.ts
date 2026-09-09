@@ -10,10 +10,13 @@ const CTX: ImportContext = {
 };
 
 const HEADER = "space,date,start,end,client_name,client_email,note,paid\n";
+// The fixtures use fixed 2026-10 dates; pin "now" before them so the past-row
+// rule never bites the other cases as the calendar moves on.
+const NOW = new Date("2026-01-01T00:00:00Z");
 
 describe("parseBookingsCsv (S8)", () => {
   it("turns a valid row into an org-local booking with a computed duration", () => {
-    const out = parseBookingsCsv(HEADER + "Room A,2026-10-05,10:00,11:30,Anna Nowak,anna@example.com,paper backdrop,yes\n", CTX);
+    const out = parseBookingsCsv(HEADER + "Room A,2026-10-05,10:00,11:30,Anna Nowak,anna@example.com,paper backdrop,yes\n", CTX, NOW);
     expect(out.invalid).toEqual([]);
     expect(out.ready).toEqual([
       {
@@ -30,7 +33,7 @@ describe("parseBookingsCsv (S8)", () => {
   });
 
   it("matches the space by name case-insensitively and defaults paid to yes, email and note to undefined", () => {
-    const out = parseBookingsCsv("space,date,start,end,client_name\nroom a,2026-10-05,10:00,11:00,Jan\n", CTX);
+    const out = parseBookingsCsv("space,date,start,end,client_name\nroom a,2026-10-05,10:00,11:00,Jan\n", CTX, NOW);
     expect(out.invalid).toEqual([]);
     expect(out.ready[0]).toMatchObject({ offeringId: CTX.spaces[0].id, durationMin: 60, name: "Jan", paid: true });
     expect(out.ready[0].email).toBeUndefined();
@@ -38,7 +41,7 @@ describe("parseBookingsCsv (S8)", () => {
   });
 
   it("reads paid as no for no/false/0", () => {
-    const out = parseBookingsCsv(HEADER + "Room A,2026-10-05,10:00,11:00,Jan,,,no\nRoom A,2026-10-06,10:00,11:00,Jan,,,0\n", CTX);
+    const out = parseBookingsCsv(HEADER + "Room A,2026-10-05,10:00,11:00,Jan,,,no\nRoom A,2026-10-06,10:00,11:00,Jan,,,0\n", CTX, NOW);
     expect(out.ready.map((r) => r.paid)).toEqual([false, false]);
   });
 
@@ -55,6 +58,7 @@ describe("parseBookingsCsv (S8)", () => {
         "Room A,2026-10-05,10:00,11:00,Jan,,,maybe\n" + // bad paid
         "Room A,2026-10-05,10:00,11:00,Jan,,,\n", // valid
       CTX,
+      NOW,
     );
     expect(out.ready).toHaveLength(1);
     expect(out.ready[0].row).toBe(10);
@@ -70,17 +74,28 @@ describe("parseBookingsCsv (S8)", () => {
   });
 
   it("refuses a file without the required columns, an empty file, or more than 500 rows", () => {
-    expect(parseBookingsCsv("space,date\nRoom A,2026-10-05\n", CTX)).toEqual({
+    expect(parseBookingsCsv("space,date\nRoom A,2026-10-05\n", CTX, NOW)).toEqual({
       ready: [],
       invalid: [{ row: 1, reason: expect.stringMatching(/columns/i) }],
     });
-    expect(parseBookingsCsv(HEADER, CTX).invalid[0].reason).toMatch(/no data rows/i);
+    expect(parseBookingsCsv(HEADER, CTX, NOW).invalid[0].reason).toMatch(/no data rows/i);
     const big = HEADER + Array.from({ length: 501 }, () => "Room A,2026-10-05,10:00,11:00,Jan,,,\n").join("");
-    expect(parseBookingsCsv(big, CTX).invalid[0].reason).toMatch(/500/);
+    expect(parseBookingsCsv(big, CTX, NOW).invalid[0].reason).toMatch(/500/);
+  });
+
+  it("rejects a row that starts in the past at preview time (the RPC would refuse it with a generic error)", () => {
+    const now = new Date("2026-10-05T09:30:00Z"); // 11:30 in Warsaw
+    const out = parseBookingsCsv(
+      HEADER + "Room A,2026-10-05,10:00,11:00,Late,,,\n" + "Room A,2026-10-05,12:00,13:00,Fine,,,\n",
+      CTX,
+      now,
+    );
+    expect(out.invalid).toEqual([{ row: 2, reason: expect.stringMatching(/past/i) }]);
+    expect(out.ready.map((r) => r.name)).toEqual(["Fine"]);
   });
 
   it("strips a BOM and tolerates header case and surrounding spaces", () => {
-    const out = parseBookingsCsv("﻿Space, Date ,Start,End,Client_Name\nRoom A,2026-10-05,10:00,11:00,Jan\n", CTX);
+    const out = parseBookingsCsv("﻿Space, Date ,Start,End,Client_Name\nRoom A,2026-10-05,10:00,11:00,Jan\n", CTX, NOW);
     expect(out.invalid).toEqual([]);
     expect(out.ready).toHaveLength(1);
   });

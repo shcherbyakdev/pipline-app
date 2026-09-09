@@ -20,29 +20,45 @@ export function ImportPanel({ orgId }: { orgId: string }) {
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
 
+  const failed = (e: unknown) => setError(e instanceof Error ? e.message : "Something went wrong — check the results table and re-run the file; re-running never duplicates.");
+
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    // Clear the input so picking the SAME file again (after fixing rows in
+    // the sheet) fires change — browsers skip it for an unchanged path.
+    e.target.value = "";
     setPreview(null);
     setResults(null);
     setError(null);
     if (!file) return;
     setFileName(file.name);
-    file.text().then((t) => {
-      setText(t);
-      startTransition(async () => {
-        const out = await previewBookingsImport({ orgId, text: t });
-        if (out.ok) setPreview({ ready: out.ready, invalid: out.invalid });
-        else setError(out.error);
-      });
-    });
+    file
+      .text()
+      .then((t) => {
+        setText(t);
+        startTransition(async () => {
+          try {
+            const out = await previewBookingsImport({ orgId, text: t });
+            if (out.ok) setPreview({ ready: out.ready, invalid: out.invalid });
+            else setError(out.error);
+          } catch (err) {
+            failed(err);
+          }
+        });
+      })
+      .catch(failed);
   }
 
   function confirm() {
     if (!text) return;
     startTransition(async () => {
-      const out = await runBookingsImport({ orgId, text });
-      if (out.ok) setResults(out.results);
-      else setError(out.error);
+      try {
+        const out = await runBookingsImport({ orgId, text });
+        if (out.ok) setResults(out.results);
+        else setError(out.error);
+      } catch (err) {
+        failed(err);
+      }
     });
   }
 

@@ -51,7 +51,7 @@ function fileError(reason: string): ParsedBookingsCsv {
   return { ready: [], invalid: [{ row: 1, reason }] };
 }
 
-export function parseBookingsCsv(text: string, ctx: ImportContext): ParsedBookingsCsv {
+export function parseBookingsCsv(text: string, ctx: ImportContext, now: Date = new Date()): ParsedBookingsCsv {
   const parsed = Papa.parse<Record<string, string>>(text.replace(/^﻿/, ""), {
     header: true,
     skipEmptyLines: true,
@@ -97,10 +97,15 @@ export function parseBookingsCsv(text: string, ctx: ImportContext): ParsedBookin
     const paidRaw = get("paid").toLowerCase();
     if (!PAID_YES.has(paidRaw) && !PAID_NO.has(paidRaw)) return fail(`Bad paid value "${get("paid")}" (yes/no).`);
 
+    // The RPC refuses a start at or before now() with its generic 'not found';
+    // naming it here keeps a same-day export honest at preview time.
+    const startsAt = wallTimeToUtc(date, start, ctx.timeZone);
+    if (startsAt.getTime() <= now.getTime()) return fail("Starts in the past — only future bookings are imported.");
+
     ready.push({
       row,
       offeringId: space.id,
-      startsAt: wallTimeToUtc(date, start, ctx.timeZone).toISOString(),
+      startsAt: startsAt.toISOString(),
       durationMin,
       name,
       email: email || undefined,

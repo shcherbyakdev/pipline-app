@@ -124,7 +124,7 @@ describe("S8 — runImport writes rows through the admin RPC and reports per row
 
     const again = await runImport(admin, rows);
     expect(again.map((r) => r.status)).toEqual(["skipped", "skipped"]);
-    expect(again[0].reason).toMatch(/already|conflict/i);
+    expect(again[0].reason).toMatch(/already imported/i);
   });
 
   it("skips a re-imported row even when the space has a second free unit (idempotency by space + start + client, not by the EXCLUDE)", async () => {
@@ -198,7 +198,7 @@ describe("S8 — the /utils/import actions", () => {
     expect(b).toEqual({ client_name: "Anna Nowak", paid_cents: 15000 });
   });
 
-  it("refuses a malformed org id and a body over the row cap before touching the database", async () => {
+  it("refuses a malformed org id and an empty body before touching the database", async () => {
     expect(await previewBookingsImport({ orgId: "nope", text: csv() })).toMatchObject({ ok: false });
     expect(await runBookingsImport({ orgId: s.orgId, text: "" })).toMatchObject({ ok: false });
   });

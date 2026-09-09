@@ -27,7 +27,7 @@ const isTaken = (e: RpcError) => isRpcSentinel(e, "taken") || e.code === "23P01"
 /** The idempotency key is the row itself — same space, same start, same
     client, still reserving — not the EXCLUDE: a space with a second unit
     would happily take the duplicate on the other unit. */
-async function alreadyImported(admin: SupabaseClient, r: ImportRow): Promise<boolean> {
+async function alreadyImported(admin: SupabaseClient, r: ImportRow): Promise<{ found: boolean } | { error: RpcError }> {
   const { data, error } = await admin
     .from("bookings")
     .select("id")
@@ -36,14 +36,21 @@ async function alreadyImported(admin: SupabaseClient, r: ImportRow): Promise<boo
     .eq("client_name", r.name)
     .in("status", ["confirmed", "pending", "pending_payment"])
     .limit(1);
-  if (error) throw error;
-  return (data ?? []).length > 0;
+  if (error) return { error };
+  return { found: (data ?? []).length > 0 };
 }
 
 export async function runImport(admin: SupabaseClient, rows: ImportRow[]): Promise<ImportResult[]> {
   const out: ImportResult[] = [];
   for (const r of rows) {
-    if (await alreadyImported(admin, r)) {
+    // A lookup that fails is this row's failure, never the run's: rows already
+    // written stay reported, and the operator re-runs for the rest.
+    const seen = await alreadyImported(admin, r);
+    if ("error" in seen) {
+      out.push({ row: r.row, status: "failed", reason: `Could not check for an existing booking: ${describe(seen.error)}` });
+      continue;
+    }
+    if (seen.found) {
       out.push({ row: r.row, status: "skipped", reason: "Already imported (same space, start and client)." });
       continue;
     }
@@ -86,6 +93,6 @@ export async function runImport(admin: SupabaseClient, rows: ImportRow[]): Promi
 /** The RPCs raise `not found` for every setup refusal (outside hours, off
     the grid, inactive space) — name the likely cause instead of echoing it. */
 function describe(e: RpcError): string {
-  if (isRpcSentinel(e, "not found")) return "Refused by the space's setup (outside opening hours, off the duration grid, or inactive).";
+  if (isRpcSentinel(e, "not found")) return "Refused by the space's setup (outside opening hours, off the duration grid, in the past, or inactive).";
   return e.message ? `${e.code ? `${e.code}: ` : ""}${e.message}` : "Unknown error.";
 }

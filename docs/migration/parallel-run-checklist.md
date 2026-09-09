@@ -14,6 +14,7 @@ Studio: ______________________  Handle: ______________  Cut-over date: _________
 - [ ] Payments: Stripe Connect onboarding finished, P24/BLIK live; one 1 zł test booking paid and refunded.
 - [ ] Notifications: every member on the team page, email + push chosen; the 08:00 daily digest on for at least the owner.
 - [ ] One test booking made from the public page end to end (hold → payment → confirmation mail → manage link → cancel → refund).
+- [ ] **Google Calendar NOT connected yet** (Integrations). A connected calendar mirrors every new booking, and with *Invite guests* on it emails a Google invitation to each client — an import of 100 rows would invite 100 clients weeks before cut-over. Connect it after the import, or connect it with *Invite guests* off until the cut-over morning.
 
 ## Week 0 — import future bookings
 
@@ -22,7 +23,8 @@ Studio: ______________________  Handle: ______________  Cut-over date: _________
 - [ ] Open `/utils/import`, pick the org, upload the file, read the preview: **N ready, M invalid** with row numbers. Fix invalid rows in the sheet (unknown space, duration off the grid, bad time) and re-upload until only rows you accept remain.
 - [ ] Confirm. Read the result table: *created* / *skipped* (already imported, or a genuine clash with a booking the studio took directly) / *failed* (outside opening hours, inactive space). Fix and re-run; re-running never duplicates.
 - [ ] Spot-check five imported bookings on the timeline and in the detail dialog: right room, right hour, `paid` rows show no balance, `paid=no` rows show the balance due.
-- [ ] Every client with an email now exists under Clients; no confirmation mails were sent by the import (none are).
+- [ ] Every client with an email now exists under Clients. Booklo itself sends no mail for imported rows (no confirmation, no manage link); the only outbound path is a connected Google Calendar with *Invite guests* on — see Week 0.
+- [ ] Re-run the file straight away if the run stopped early or the result table is missing rows: re-running skips what is already on the calendar. Do it *before* the studio starts moving imported bookings and without editing client names between runs — the skip key is space + start + client name, and a rescheduled or renamed booking is no longer matched.
 
 ## Weeks 1–2 — both tools live
 
@@ -50,3 +52,5 @@ Studio: ______________________  Handle: ______________  Cut-over date: _________
 - Import is hours-mode bookings only; no people count, extras or equipment on imported rows — add those by hand where they matter.
 - The import runs from Booklo's internal back office; the studio does not see or run it.
 - Imported bookings carry no manage link for the client (no mail is sent); a client who needs to move or cancel does it through the studio.
+- One client holding two units of the same space at the same hour imports as one row; the second is reported "already imported" — enter it by hand.
+- A 500-row file is up to 1500 sequential calls (one to two minutes); if the page times out, the bookings written so far are real — re-run for the rest.

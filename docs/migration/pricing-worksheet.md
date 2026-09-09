@@ -49,7 +49,7 @@ Rooms:
 | Priced extras | **Pricing rules → Extras** (see §1) | |
 | Deposit: none / fixed amount / % / full prepayment | **Rules → Deposit** type + value | Bookero "100% online at booking" = *full*. |
 | How long an unpaid reservation is held | Settings → Payments → *Hold for* (30 min / 1 h / 3 h / 24 h) | Org-wide, not per space. |
-| Cancellation ladder (>72 h free, 48–72 h 50 %, <48 h 100 %) | **Rules → Cancellation policy** tiers | One reschedule allowed ≥48 h → same ladder applies; Booklo recomputes price on a move. |
+| Cancellation ladder (>72 h free, 48–72 h 50 %, <48 h 100 %) | **Rules → Cancellation policy** tiers | A client move follows the same ladder (the tier fee is charged, price recomputed at the new time) and the space's minimum notice; there is no "one free reschedule" counter — say so if the old rules had one. |
 | Regulamin / house rules the client must accept | **Rules → Terms** | Checkbox required on the public page when set. |
 | Manual approval of every request | Space → *Require approval* | |
 | Overtime per 30 min, extra cleaning, damage, confetti fee | Not a rule — **After-session charges** on the booking (detail dialog → Charges) | Collected by link or cash, or written off. |
