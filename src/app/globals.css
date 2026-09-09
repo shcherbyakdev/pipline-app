@@ -420,16 +420,35 @@
   background: rgb(37 34 40 / 0.12);
 }
 
-/* The landing's panels (components/type.ts PANEL): the reference's washes.
-   The hero runs white into the accent's own tint top to bottom; the
-   lighter panel wash is the same tint, flatter, for the sections that sit
-   between the dark ones. The only gradients in the system. */
-.marketing .hero-wash {
-  background: linear-gradient(180deg, #fefefe 0%, #f7f6fe 45%, #dde0fa 100%);
+/* The landing's shape (components/booklo-mark.tsx BlobWash): the mark's
+   silhouette, blurred, drifting very slowly on the strong in-out curve.
+   Transform only; the layer is promoted once so the blur is never
+   repainted. Off under reduced motion. */
+.marketing .blob-wash {
+  will-change: transform;
+  animation: blob-drift 26s var(--ease-in-out-strong) infinite alternate;
 }
-.marketing .panel-wash {
-  background: linear-gradient(180deg, #f1f0fc 0%, #e6e4fb 100%);
+@keyframes blob-drift {
+  from { translate: 0 0; rotate: 0deg; scale: 1; }
+  to { translate: 3% 4%; rotate: 6deg; scale: 1.06; }
 }
+
+/* Hero headline (components/hero.tsx): each word rises from behind its
+   own baseline, 70ms apart, on the strong ease-out. The wrapper clips; a
+   little bottom padding keeps descenders inside the clip. */
+.marketing .hw {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+.marketing .hw-in {
+  display: inline-block;
+  transform: translateY(110%);
+  animation: hw-in 0.7s var(--ease-strong) both;
+}
+@keyframes hw-in { to { transform: none; } }
 
 /* Landing motion. Curves are the strong ease-out; only transform, opacity,
    clip-path and filter move; every loop has a reduced-motion variant that
@@ -488,6 +507,8 @@
   .animate-fade-up { animation: fade-up 0.2s ease both; transform: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .animate-pop { animation: none; }
+  .marketing .blob-wash { animation: none; }
+  .marketing .hw-in { transform: none; animation: fade-up 0.2s ease both; }
 }
 
 /* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text

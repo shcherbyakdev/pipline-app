@@ -10,8 +10,6 @@ colors:
   sidebar: "#f6f4fb"
   text-secondary: "#5c5964"
   text-subtle: "#686472"
-  hero-wash: "#dde0fa"
-  panel-wash: "#e6e4fb"
   hairline: "rgb(37 34 40 / 0.08)"
   hairline-strong: "rgb(37 34 40 / 0.12)"
   kind-time: "#6975e2"
@@ -59,7 +57,7 @@ typography:
     fontFamily: "Geist Mono, ui-monospace, monospace"
   landing-display:
     fontFamily: "Outfit, Inter, sans-serif"
-    fontSize: "72px"
+    fontSize: "80px"
     fontWeight: 600
     letterSpacing: "-0.045em"
   landing-h2:
@@ -81,20 +79,20 @@ typography:
     landing-card-title: "19px"
     landing-step-title: "21px"
     landing-logo: "24px"
+    landing-beat-title: "24px"
     landing-h2-xs: "34px"
-    landing-h1-xs: "40px"
     landing-h2-sm: "42px"
+    landing-h1-xs: "44px"
     landing-h2: "52px"
-    landing-h1-sm: "56px"
-    landing-h1: "72px"
+    landing-h1-sm: "64px"
+    landing-h1: "80px"
 rounded:
   control: "9999px"
   fragment: "10px"
   card: "14px"
   panel: "18px"
   landing-card: "24px"
-  landing-panel-sm: "28px"
-  landing-panel: "40px"
+  landing-block: "28px"
 components:
   button-primary:
     backgroundColor: "{colors.ink}"
@@ -147,10 +145,11 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 - **Inter for everything that is read in the product**: body at 400, UI
   labels at 13px/500.
-- **Outfit 600 for landing display type** (`font-display`, aave.com-referenced
-  2026-09-09): the hero at 72/56/40px (-0.045em), section H2s at 52/42/34px
-  (-0.035em), the 17px Inter lead under them, 19px card titles and 21px step
-  titles, on the marketing pages only (`features/marketing/components/type.ts`).
+- **Outfit 600 for landing display type** (`font-display`, 2026-09-09): the
+  hero at 80/64/44px (-0.045em), left-aligned, entering word by word;
+  section H2s at 52/42/34px (-0.035em) on a 20ch measure, the 17px Inter
+  lead under them; 24px beat titles, 19px card titles and 21px step titles,
+  on the marketing pages only (`features/marketing/components/type.ts`).
   Admin headlines stay Inter.
 - **Hosted booking pages** (`features/booking-page/render/type.ts`) set
   display at weight 500 with -0.025em tracking in the org's own widget
@@ -209,13 +208,13 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 ## Elevation & Depth
 
-The landing is a stack of large rounded panels (40px desktop, 28px phones,
-the page's gutter around them; `PANEL` in `features/marketing/components/type.ts`)
-with one wash each: the hero runs the ground into `hero-wash` (#dde0fa) top to
-bottom (`.hero-wash`), the lavender sections take the flatter `panel-wash`
-(#f1f0fc → #e6e4fb), the white sections are `card` with a hairline ring, and
-the dark ones opt into the `.dark` scope. Cards inside a panel are 24px.
-These two washes are the only gradients in the system.
+The landing has no panels and no gradients: its soft colour is the logo's
+own silhouette, blurred (`BlobWash` in `features/marketing/components/booklo-mark.tsx`,
+lavender `brand/30` or mint `kind-space/20`, blur 64px, a 26s drift) behind
+the hero card and the tape chart. Sections sit on the plain ground, headings
+left-aligned; product fragments are 24px white cards with a hairline ring
+and the card shadow, soft blocks (Premium, bento cells) are 24-28px tinted
+fills without chrome; the booking money record is the page's one ink card.
 
 
 Two shadows only, defined as tokens and used via `shadow-(--shadow-card)` /
@@ -276,7 +275,8 @@ another radius on a public page.
   and the active nav icon.
 - Don't hand grey borders, `transition-all`, pure `#000`/`#fff`, or a second
   accent into any surface.
-- The landing is light except **two dark panels** (the reference's device):
-  the money-record section and the final CTA opt into the `.dark` scope and
-  carry `data-nav-dark`; the sticky nav inverts while over either. No other
-  marketing surface goes dark.
+- The landing is light except **one dark band**: the final CTA section and
+  the footer opt into the `.dark` scope and the band carries `data-nav-dark`;
+  the sticky nav inverts while over it. Two small ink surfaces sit inside
+  light sections (the money record, the embed bento cell) without inverting
+  the nav.

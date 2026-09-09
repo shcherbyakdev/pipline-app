@@ -5,7 +5,7 @@ import {
   SITE,
   NAV_LINKS,
   STEPS,
-  RULES,
+  MONEY_STEPS,
   FEATURES,
   FAQ,
   SECTIONS,
@@ -37,9 +37,9 @@ const ROUTE_DIRS: Record<string, string> = {
 /** Everything the landing shows, in one string (lowercased by callers that need it). */
 function landingCorpus(): string {
   return [
-    SITE.eyebrow, SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
+    SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
     ...STEPS.flatMap((s) => [s.title, s.body]),
-    ...RULES.flatMap((r) => [r.title, r.body, ...r.chips]),
+    ...MONEY_STEPS.flatMap((m) => [m.title, m.body, ...(m.chips ?? [])]),
     ...FEATURES.flatMap((f) => [f.title, f.body]),
     ...FAQ.flatMap((f) => [f.question, f.answer]),
     ...Object.values(SECTIONS).flatMap((s) => [s.heading, "sub" in s ? s.sub : ""]),
@@ -97,9 +97,9 @@ describe("site config", () => {
     }
   });
 
-  it("has three steps, three rule cards, six unique features, ≥5 FAQ items", () => {
+  it("has three steps, seven money beats, six unique features, ≥5 FAQ items", () => {
     expect(STEPS).toHaveLength(3);
-    expect(RULES).toHaveLength(3);
+    expect(MONEY_STEPS).toHaveLength(7);
     expect(FEATURES).toHaveLength(6);
     expect(new Set(FEATURES.map((f) => f.title)).size).toBe(6);
     expect(FAQ.length).toBeGreaterThanOrEqual(5);

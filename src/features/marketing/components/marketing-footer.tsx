@@ -2,12 +2,12 @@ import Link from "next/link";
 import { FOOTER_COLUMNS, SITE } from "@/features/marketing/site";
 import { BookloLogo } from "./booklo-mark";
 
-/* The logo, the link columns, one quiet line at the bottom, on the ground
-   under the dark closing panel (the reference ends light, the panel
-   carries the dark). */
+/* The logo, the link columns, one quiet line at the bottom. Part of the
+   landing's dark closing block: the footer shares the CTA band's `.dark`
+   scope so the page ends on the ink ground. */
 export function MarketingFooter() {
   return (
-    <footer className="bg-background">
+    <footer className="dark bg-background border-border border-t">
       <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
         <div className="grid gap-10 py-12 md:grid-cols-[1.6fr_repeat(3,1fr)] md:py-14">
           <div>

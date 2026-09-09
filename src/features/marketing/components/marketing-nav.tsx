@@ -10,9 +10,9 @@ import { marketingButton } from "./marketing-button";
 import { BookloLogo } from "./booklo-mark";
 import { cn } from "@/lib/utils";
 
-/* Mark + wordmark left, the links centred (md+), Log in as a quiet link and
-   Get started as the ink pill on the right (the reference's one dark pill);
-   a hamburger below md that opens a small card. Sticky so the primary CTA
+/* Mark + wordmark left with the links beside it (md+), Log in as a quiet
+   link and Get started as the ink pill on the right; a hamburger below md
+   that opens a small card. Sticky so the primary CTA
    stays in reach while the page scrolls; the ground shows through at 80%
    with a light blur. The card closes on link click and on Escape. */
 const subscribeNoop = () => () => {};
@@ -69,7 +69,7 @@ export function MarketingNav() {
 
   return (
     <header className={cn("bg-background/80 sticky top-0 z-30 backdrop-blur-md transition-[background-color] duration-300", overDark && "dark")}>
-      <nav aria-label="Main" className="relative mx-auto flex h-[72px] w-full max-w-6xl items-center px-5 sm:px-8">
+      <nav aria-label="Main" className="mx-auto flex h-[72px] w-full max-w-6xl items-center gap-8 px-5 sm:px-8 lg:gap-10">
         <Link
           href={SITE.links.home}
           className="text-foreground focus-visible:ring-ring rounded-sm text-[24px] outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background"
@@ -77,7 +77,7 @@ export function MarketingNav() {
           <BookloLogo />
         </Link>
 
-        <ul className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex">
+        <ul className="hidden items-center gap-1 md:flex">
           {NAV_LINKS.map((l) => (
             <li key={l.href}>
               <a

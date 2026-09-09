@@ -23,7 +23,7 @@ export default function LandingPage() {
         <Money />
         <Compound />
         <Morning />
-        <Features />
+        <Features host={host} />
         <Premium />
         <Faq />
         <FinalCta host={host} />

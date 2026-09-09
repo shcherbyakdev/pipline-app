@@ -6,11 +6,11 @@ import { SECTIONS } from "@/features/marketing/site";
 import { cn } from "@/lib/utils";
 import { Reveal } from "./reveal";
 import { useStoryLoop } from "./story-loop";
-import { H2, LEAD, SECTION } from "./type";
+import { H2, LEAD, SECTION, SECTION_INNER } from "./type";
 
-/* The daily action list (the Overview's morning list, spec 2026-09-08 S4)
-   as one card on the plain ground: four groups, one line per thing that
-   needs a human, the action as a pill. The story: the owner works down the
+/* The daily action list (the Overview's morning list, spec 2026-09-08 S4):
+   the heading on the left, the list as one card on the right; four groups,
+   one line per thing that needs a human, the action as a pill. The story: the owner works down the
    list before the first shoot; each pill becomes a check and the count in
    the header falls. Sample names only. */
 
@@ -55,7 +55,7 @@ function List() {
     <div
       aria-hidden="true"
       className={cn(
-        "bg-card ring-border mx-auto w-full max-w-3xl rounded-[24px] shadow-[var(--shadow-card)] ring-1 transition-opacity duration-500 ease-strong motion-reduce:transition-none",
+        "bg-card ring-border w-full rounded-[24px] shadow-[var(--shadow-card)] ring-1 transition-opacity duration-500 ease-strong motion-reduce:transition-none",
         step === S.leave ? "opacity-0" : "opacity-100",
       )}
     >
@@ -109,14 +109,14 @@ function List() {
 export function Morning() {
   return (
     <section aria-labelledby="morning-heading" className={SECTION}>
-      <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
-        <Reveal className="mx-auto max-w-2xl text-center">
+      <div className={cn(SECTION_INNER, "grid gap-10 md:grid-cols-[1fr_1.3fr] md:gap-16 lg:gap-24")}>
+        <Reveal className="md:sticky md:top-28 md:self-start">
           <h2 id="morning-heading" className={H2}>
             {SECTIONS.morning.heading}
           </h2>
-          <p className={cn(LEAD, "mx-auto max-w-xl")}>{SECTIONS.morning.sub}</p>
+          <p className={LEAD}>{SECTIONS.morning.sub}</p>
         </Reveal>
-        <Reveal delay={60} className="mt-12 md:mt-14">
+        <Reveal delay={60}>
           <List />
         </Reveal>
       </div>

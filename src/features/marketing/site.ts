@@ -18,8 +18,6 @@ export const SITE = {
   tagline: "Booking operations for multi-room studios",
   description:
     "Booklo runs bookings for multi-room photo and content studios: rooms, whole-studio hire and shared gear from one page, prices computed from your rules, deposits held and collected, changes and after-session charges settled on the same booking, and one morning list of what needs you.",
-  /** Above the headline: the product's name for this buyer. */
-  eyebrow: "Booklo for studios",
   headline: "Studio bookings, settled.",
   subheadline:
     "Rooms, whole studio and shared gear on one page. Prices computed, deposits held, changes and overtime charged under your rules.",
@@ -45,7 +43,7 @@ export const SECTIONS = {
   },
   money: {
     heading: "One booking. One money record.",
-    sub: "Price, deposit, changes and after-session charges live on the same booking, under the rules you publish.",
+    sub: "Price, deposit, changes and after-session charges live on the same booking, under the rules you publish. Scroll through one.",
   },
   compound: {
     heading: "Rooms, the whole studio, shared gear.",
@@ -141,25 +139,18 @@ export const STEPS: Step[] = [
   { title: "Bookings settle themselves", body: "Price computed, deposit held, changes re-priced, overtime added. Each morning you see what still needs you." },
 ];
 
-/** The money spine (the dark panel): three rule cards, each with the
-    terms a studio would publish, as chips. Sample values only. */
-export type RuleCard = { title: string; body: string; chips: readonly string[] };
-export const RULES: readonly RuleCard[] = [
-  {
-    title: "Priced by your rules",
-    body: "First hour and longer-stay tiers, weekday or weekend, people count, extras. The client sees the price before they book.",
-    chips: ["2 h+ tier", "Weekend", "+2 people", "Profoto kit"],
-  },
-  {
-    title: "Held until paid",
-    body: "A hold keeps the slot until the deadline you set. Paid, it's confirmed; missed, it expires and the slot opens again.",
-    chips: ["30% deposit", "4 h to pay", "Expires on its own"],
-  },
-  {
-    title: "Changes with consequences",
-    body: "Reschedules and cancellations follow your tiers. Refunds are partial when your terms say so, never a guess.",
-    chips: ["72 h free", "48 h 50%", "24 h 100%"],
-  },
+/** The money story (components/money.tsx): seven beats of one booking, read
+    while the record beside them fills in. The chips are the terms a studio
+    would publish. Sample values only. */
+export type MoneyStep = { title: string; body: string; chips?: readonly string[] };
+export const MONEY_STEPS: readonly MoneyStep[] = [
+  { title: "Priced", body: "Room, duration tier, people, extras: the price is computed from your rules and the client sees it before booking.", chips: ["2 h+ tier", "Weekend", "+2 people", "Profoto kit"] },
+  { title: "Held", body: "A hold keeps the slot until the deadline you set. Missed, it expires on its own and the slot opens again.", chips: ["30% deposit", "4 h to pay"] },
+  { title: "Paid", body: "The deposit lands and the booking confirms. Money goes straight to your own account, never through Booklo." },
+  { title: "Moved", body: "The client moves the date. Your tiers price the change, the record shows it, both of you see the new total.", chips: ["72 h free", "48 h 50%", "24 h 100%"] },
+  { title: "Overtime", body: "The session runs long. Half an hour is added to the same booking, at your overtime rate." },
+  { title: "Balance", body: "Everything after the deposit becomes one balance, with one link to pay it." },
+  { title: "Collected", body: "Paid online, settled in cash, or written off. Either way the record closes and the morning list moves on." },
 ] as const;
 
 /** The features grid: six things included from day one, one icon each

@@ -2,12 +2,13 @@ import { BellRing, CheckCheck, Code2, Languages, ShieldCheck, UserRound, type Lu
 import { anchorId, FEATURES, SECTIONS, SITE, type FeatureIcon } from "@/features/marketing/site";
 import { cn } from "@/lib/utils";
 import { Reveal } from "./reveal";
-import { H2, LEAD, SECTION } from "./type";
+import { H2, LEAD, SECTION, SECTION_INNER } from "./type";
 
-/* Everything else, as the reference's grid: a centred heading, then six
-   white cards in three columns, each a brand-coloured glyph, a title and
-   one sentence. Informational, so still. Two columns on tablets, one on
-   phones. */
+/* Everything else, as a bento with rhythm on four columns: 2+1+1 over
+   1+1+2, six cells for six things, the wide cell swapping sides. Cells vary by ground, not by chrome: the guard cell is wide
+   and lavender, one is mint, the embed cell is ink with the real one-line
+   snippet, the rest sit on the soft grey. No rings, no shadows; the
+   grounds do the grouping. Informational, so still. */
 const ICON: Record<FeatureIcon, LucideIcon> = {
   "no-account": UserRound,
   guard: ShieldCheck,
@@ -16,28 +17,50 @@ const ICON: Record<FeatureIcon, LucideIcon> = {
   language: Languages,
   embed: Code2,
 };
+const CELL: Record<FeatureIcon, string> = {
+  guard: "bg-kind-time-soft sm:col-span-2",
+  "no-account": "bg-secondary",
+  approve: "bg-kind-space-soft",
+  notify: "bg-secondary",
+  language: "bg-secondary",
+  embed: "dark bg-background text-foreground sm:col-span-2",
+};
+const ORDER: FeatureIcon[] = ["guard", "no-account", "approve", "notify", "language", "embed"];
 
-export function Features() {
+export function Features({ host }: { host: string }) {
+  const byIcon = new Map(FEATURES.map((f) => [f.icon, f]));
   return (
     <section id={anchorId(SITE.anchors.features)} aria-labelledby="features-heading" className={cn(SECTION, "scroll-mt-20")}>
-      <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
-        <Reveal className="mx-auto max-w-2xl text-center">
+      <div className={SECTION_INNER}>
+        <Reveal>
           <h2 id="features-heading" className={H2}>
             {SECTIONS.features.heading}
           </h2>
-          <p className={cn(LEAD, "mx-auto max-w-lg")}>{SECTIONS.features.sub}</p>
+          <p className={LEAD}>{SECTIONS.features.sub}</p>
         </Reveal>
 
-        <ul className="mt-12 grid gap-4 sm:grid-cols-2 md:mt-14 lg:grid-cols-3">
-          {FEATURES.map((f, i) => {
-            const Icon = ICON[f.icon];
+        <ul className="mt-12 grid gap-3 sm:grid-cols-2 md:mt-16 lg:grid-cols-4">
+          {ORDER.map((icon, i) => {
+            const f = byIcon.get(icon)!;
+            const Icon = ICON[icon];
+            const ink = icon === "embed";
             return (
-              <Reveal as="li" key={f.icon} delay={(i % 3) * 60} className="bg-card ring-border flex min-w-0 flex-col rounded-[24px] p-6 ring-1 sm:p-7">
-                <span className="bg-brand/10 text-brand-text flex size-10 items-center justify-center rounded-full" aria-hidden="true">
+              <Reveal as="li" key={icon} delay={(i % 4) * 50} className={cn("flex min-w-0 flex-col rounded-[24px] p-6 sm:p-7", CELL[icon])}>
+                <span className={cn("flex size-10 items-center justify-center rounded-full", ink ? "bg-secondary text-brand-text" : "bg-card text-brand-text shadow-[var(--shadow-lift)]")} aria-hidden="true">
                   <Icon className="size-5" strokeWidth={2} />
                 </span>
-                <h3 className="text-foreground mt-6 text-[19px] leading-snug font-medium tracking-[-0.01em]">{f.title}</h3>
-                <p className="text-muted-foreground mt-1.5 text-[15px] leading-relaxed">{f.body}</p>
+                <h3 className="text-foreground mt-7 text-[19px] leading-snug font-medium tracking-[-0.01em]">{f.title}</h3>
+                <p className="text-muted-foreground mt-1.5 max-w-[40ch] text-[15px] leading-relaxed">{f.body}</p>
+                {ink ? (
+                  <pre aria-hidden="true" className="bg-secondary text-muted-foreground mt-5 overflow-x-auto rounded-[12px] px-3.5 py-3 font-mono text-[12px] leading-relaxed">
+                    {/* the second line of the real snippet (orgs/components/widget-embed-snippet.ts) */}
+                    <code>
+                      {"<script src=\"https://"}
+                      <span className="text-brand-text">{host}</span>
+                      {"/embed.js\" async></script>"}
+                    </code>
+                  </pre>
+                ) : null}
               </Reveal>
             );
           })}

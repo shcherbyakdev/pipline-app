@@ -5,10 +5,11 @@ import { SECTIONS } from "@/features/marketing/site";
 import { cn } from "@/lib/utils";
 import { Reveal } from "./reveal";
 import { useStoryLoop } from "./story-loop";
-import { H2, LEAD, PANEL } from "./type";
+import { BlobWash } from "./booklo-mark";
+import { H2, LEAD, SECTION, SECTION_INNER } from "./type";
 
-/* Compound resources, on a lavender panel: a centred heading, then one
-   day of the studio as a tape chart telling its own story. Mia books Room
+/* Compound resources: a left-aligned heading, then one day of the studio
+   as a tape chart telling its own story, the mint blob behind it. Mia books Room
    A with the Profoto kit (two rows fill at once); Tom books the whole
    studio (one block across every room); Lena asks for the kit while Mia
    has it and is told it isn't free. The story is the point: a whole-studio
@@ -50,7 +51,7 @@ function Tape() {
   const step = useStoryLoop(AT, PERIOD, S.lena);
   const on = (s: number) => step >= s && step < S.leave;
   return (
-    <div aria-hidden="true" className="bg-card ring-border mx-auto w-full max-w-4xl overflow-x-auto rounded-[24px] p-5 shadow-[var(--shadow-card)] ring-1 sm:p-6">
+    <div aria-hidden="true" className="bg-card ring-border relative w-full overflow-x-auto rounded-[24px] p-5 shadow-[var(--shadow-card)] ring-1 sm:p-6">
       <div className="min-w-[640px]">
         <div className="grid grid-cols-[132px_repeat(12,1fr)] pb-2">
           <p className="text-foreground text-[14px] font-medium">Saturday, Oct 11</p>
@@ -91,15 +92,17 @@ function Tape() {
 
 export function Compound() {
   return (
-    <section aria-labelledby="compound-heading" className={cn(PANEL, "panel-wash mt-3 overflow-hidden py-16 sm:mt-5 sm:py-20 md:py-24")}>
-      <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
-        <Reveal className="mx-auto max-w-2xl text-center">
+    <section aria-labelledby="compound-heading" className={cn(SECTION, "relative overflow-x-clip")}>
+      <div className={SECTION_INNER}>
+        <Reveal>
           <h2 id="compound-heading" className={H2}>
             {SECTIONS.compound.heading}
           </h2>
-          <p className={cn(LEAD, "mx-auto max-w-xl")}>{SECTIONS.compound.sub}</p>
+          <p className={LEAD}>{SECTIONS.compound.sub}</p>
         </Reveal>
-        <Reveal delay={60} className="mt-12 md:mt-14">
+        <Reveal delay={60} className="relative mt-12 md:mt-16">
+          <BlobWash tone="space" className="top-[-30%] right-[-8%] w-[58%] rotate-[32deg]" />
+          <BlobWash className="bottom-[-40%] left-[-12%] w-[44%] rotate-[-20deg] [animation-delay:-9s]" />
           <Tape />
         </Reveal>
       </div>

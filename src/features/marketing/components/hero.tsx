@@ -1,54 +1,61 @@
+import * as React from "react";
 import Link from "next/link";
 import { CTA, SITE } from "@/features/marketing/site";
-import { cn } from "@/lib/utils";
-import { BookloMark } from "./booklo-mark";
 import { marketingButton } from "./marketing-button";
+import { BlobWash } from "./booklo-mark";
 import { BookingWidget } from "./booking-widget";
-import { PANEL } from "./type";
 
-/* The first viewport, the reference's hero panel: one big rounded panel on
-   a white-into-lavender wash, everything centred — the mark with the
-   product's name for this buyer, a one-line display headline, a
-   twenty-word sub, the solid periwinkle action beside the lavender ghost,
-   then the product at real size: a client's booking on a studio's page,
-   playing its own loop (room + gear, price computed, hold placed, deposit
-   paid, confirmed). Everything enters on one short stagger. */
+/* The first viewport, left-aligned: the display headline entering word by
+   word from behind its own baseline, the sub, the ink action beside the
+   lavender ghost. Under it the product at real size, pushed off the grid to
+   the right on wide screens, with the logo's own silhouette blurred into a
+   wash behind it (one lavender, one mint) so the colour comes from the
+   mark, not from a panel. Everything else enters on one short stagger. */
 export function Hero({ host }: { host: string }) {
+  const words = SITE.headline.split(" ");
   return (
-    <section aria-labelledby="hero-heading" className={cn(PANEL, "hero-wash relative overflow-hidden")}>
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-14 text-center sm:px-8 sm:pt-20 lg:pt-24">
-        <p className="animate-fade-up text-muted-foreground flex items-center gap-2 text-[15px] font-medium sm:text-[17px]">
-          <BookloMark className="size-6 sm:size-7" />
-          {SITE.eyebrow}
-        </p>
-
+    <section aria-labelledby="hero-heading" className="relative overflow-x-clip">
+      <div className="mx-auto w-full max-w-6xl px-5 pt-12 sm:px-8 sm:pt-16 lg:pt-20">
         <h1
           id="hero-heading"
-          className="animate-fade-up text-foreground font-display mt-5 text-[40px] leading-[1.02] font-semibold tracking-[-0.045em] text-balance [animation-delay:60ms] sm:text-[56px] lg:text-[72px]"
+          className="text-foreground font-display max-w-[17ch] text-[44px] leading-[1.02] font-semibold tracking-[-0.045em] sm:text-[64px] lg:text-[80px]"
         >
-          {SITE.headline}
+          {words.map((w, i) => (
+            <React.Fragment key={i}>
+              <span className="hw">
+                <span className="hw-in" style={{ animationDelay: `${i * 70}ms` }}>
+                  {w}
+                </span>
+              </span>
+              {i < words.length - 1 ? " " : null}
+            </React.Fragment>
+          ))}
         </h1>
 
-        <p className="animate-fade-up text-muted-foreground mt-5 max-w-[38rem] text-[17px] leading-relaxed text-balance [animation-delay:120ms] sm:text-[19px]">
-          {SITE.subheadline}
-        </p>
-
-        <div className="animate-fade-up mt-8 flex flex-wrap items-center justify-center gap-3 [animation-delay:180ms]">
-          <Link href={SITE.links.signup} className={marketingButton("brand", "lg")}>
-            {CTA.getStarted}
-          </Link>
-          <a href={`/${SITE.anchors.how}`} className={marketingButton("neutral", "lg")}>
-            {CTA.seeHow}
-          </a>
+        <div className="mt-7 flex flex-col gap-7 md:flex-row md:items-end md:justify-between md:gap-12">
+          <p className="animate-fade-up text-muted-foreground max-w-[34rem] text-[17px] leading-relaxed text-balance [animation-delay:240ms] sm:text-[19px]">
+            {SITE.subheadline}
+          </p>
+          <div className="animate-fade-up flex shrink-0 items-center gap-3 [animation-delay:300ms]">
+            <Link href={SITE.links.signup} className={marketingButton("primary", "lg")}>
+              {CTA.getStarted}
+            </Link>
+            <a href={`/${SITE.anchors.how}`} className={marketingButton("neutral", "lg")}>
+              {CTA.seeHow}
+            </a>
+          </div>
         </div>
       </div>
 
-      {/* the product, on the wash */}
-      <div className="animate-fade-up relative mx-auto mt-12 w-full max-w-6xl px-4 pb-10 [animation-delay:280ms] sm:px-8 sm:pb-14 lg:mt-16 lg:pb-16">
+      {/* the product, on the blob */}
+      <div className="animate-fade-up relative mx-auto mt-14 w-full max-w-6xl px-4 [animation-delay:380ms] sm:px-8 lg:mt-20">
+        <BlobWash className="top-[-12%] left-[-6%] w-[70%] rotate-[-14deg]" />
+        <BlobWash tone="space" className="right-[-10%] bottom-[-18%] w-[46%] rotate-[24deg] [animation-delay:-14s]" />
         <div
           id="hero-preview"
           role="img"
           aria-label="An example booking page for a studio: a client picks a room and a lamp kit, a day and a window of hours; the price is computed, a hold is placed, the deposit is paid and the booking is confirmed."
+          className="relative lg:translate-x-[4%]"
         >
           <BookingWidget host={host} />
         </div>
