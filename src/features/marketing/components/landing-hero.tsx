@@ -7,8 +7,8 @@ import adminWeek from "../images/admin-week.png";
 import publicPhone from "../images/public-phone.png";
 
 /* The page (interfacecraft.dev-referenced, 2026-09-09): a short rule, the
-   title in the serif entering word by word (Linear's move: fade, a little
-   rise, focus), the sub in the system face, the one input, then the
+   title in Inter's display cut entering word by word (Linear's move: fade,
+   a little rise, focus), the sub, the one input, then the
    product: the admin's week (a real screenshot, scripts/landing-shots.mjs)
    on the plain ground, rising into view, the live page on a phone leaning
    on its bottom-right corner (over the closed weekend, so it hides no
@@ -25,7 +25,7 @@ export function Hero({ host }: { host: string }) {
         <span aria-hidden="true" className="bg-border animate-fade-up mb-9 h-px w-16" />
         <h1
           id="hero-heading"
-          className="text-foreground font-serif max-w-[14ch] text-[40px] leading-[1.05] font-normal tracking-[-0.025em] text-balance sm:text-[50px]"
+          className="text-foreground max-w-[14ch] text-[40px] leading-[1.08] font-medium tracking-[-0.025em] text-balance sm:text-[52px]"
         >
           {words.map((w, i) => (
             <React.Fragment key={i}>

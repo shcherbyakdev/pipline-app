@@ -5,11 +5,13 @@ import "./globals.css";
 
 // One type voice for the whole product (landing, auth, admin, booking
 // pages): Inter for everything that is read, Geist Mono where a value is a
-// value, Outfit Semibold only for the wordmark. The (marketing) layout
-// re-declares the same variables; both resolve to the same faces.
+// value, Outfit Semibold only for the wordmark. Inter's optical-size axis
+// rides along so the landing's headline (52px) gets the display cut on
+// its own; below 32px it is the text cut the admin already wears.
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin", "cyrillic"],
+  axes: ["opsz"],
 });
 
 const geistMono = Geist_Mono({

@@ -357,10 +357,8 @@
    this block is the single place the landing's colours live. */
 .marketing {
   color-scheme: light;
-  /* interfacecraft.dev-referenced (2026-09-09): the visitor's own system
-     face for everything read, Newsreader for the one title. */
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  /* Type is the product's: Inter from the root layout, its display cut on
+     the headline via the optical-size axis (no override here). */
   --background: #fefefe;
   --foreground: #252228;
   --card: #ffffff;
