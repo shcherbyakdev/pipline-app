@@ -1,17 +1,18 @@
 import * as React from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { CTA, SITE } from "@/features/marketing/site";
-import { marketingButton } from "./marketing-button";
+import { SITE } from "@/features/marketing/site";
 import { BlobWash } from "./booklo-mark";
+import { HeroClaim } from "./hero-claim";
 import adminWeek from "../images/admin-week.png";
 import publicPhone from "../images/public-phone.png";
 
 /* The first viewport, left-aligned. Linear's entrance: every word of the
    headline fades in while rising a little and coming into focus, 60ms
    apart, and the sub, the buttons and the product follow with the same
-   move while the headline is still resolving. Under the headline the ink
-   action beside the lavender ghost, then the product itself: the studio's
+   move while the headline is still resolving. Under the headline the one
+   action, the claim bar (the handle is the product's own hero object; the
+   nav already carries Get started, so no second button here), then the
+   product itself: the studio's
    week in the admin (a real screenshot, scripts/landing-shots.mjs) with
    the hosted booking page on a phone seated over the week's empty
    weekend columns, vertically centred, so it hides nothing that matters;
@@ -19,7 +20,7 @@ import publicPhone from "../images/public-phone.png";
    one mint). */
 const WORD_MS = 60;
 
-export function Hero() {
+export function Hero({ host }: { host: string }) {
   const words = SITE.headline.split(" ");
   return (
     <section aria-labelledby="hero-heading" className="relative overflow-x-clip">
@@ -38,18 +39,11 @@ export function Hero() {
           ))}
         </h1>
 
-        <div className="mt-7 flex flex-col gap-7 md:flex-row md:items-end md:justify-between md:gap-12">
+        <div className="mt-7 flex flex-col gap-7 md:flex-row md:items-start md:justify-between md:gap-12">
           <p className="animate-fade-up text-muted-foreground max-w-[34rem] text-[17px] leading-relaxed text-balance [animation-delay:260ms] sm:text-[19px]">
             {SITE.subheadline}
           </p>
-          <div className="animate-fade-up flex shrink-0 items-center gap-3 [animation-delay:340ms]">
-            <Link href={SITE.links.signup} className={marketingButton("primary", "lg")}>
-              {CTA.getStarted}
-            </Link>
-            <a href={`/${SITE.anchors.how}`} className={marketingButton("neutral", "lg")}>
-              {CTA.seeHow}
-            </a>
-          </div>
+          <HeroClaim host={host} className="animate-fade-up w-full max-w-[480px] shrink-0 [animation-delay:340ms] md:w-[440px] lg:w-[480px]" />
         </div>
       </div>
 

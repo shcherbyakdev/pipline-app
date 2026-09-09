@@ -22,11 +22,12 @@ const PERIOD = 10000;
 const S = { empty: 0, mia: 1, tom: 2, lena: 3, leave: 4 } as const;
 
 const ROWS = ["Room A", "Room B", "Make-up room", "Profoto B10 kit"];
-const HOURS = [8, 10, 12, 14, 16, 18];
-/* The grid: one label column, then twelve hour columns (8:00 to 20:00);
+const HOURS = [10, 12, 14, 16, 18];
+/* The grid: one label column, then ten hour columns (10:00 to 20:00, the
+   hours the story uses, so the chart fits a phone without scrolling);
    four rows. A block is placed by hour and row, so a whole-studio hire is
    one block spanning three rows. */
-const FIRST_HOUR = 8;
+const FIRST_HOUR = 10;
 const col = (h: number) => h - FIRST_HOUR + 2;
 
 const BLOCK = "flex items-center overflow-hidden rounded-[10px] px-2.5 text-[12px] leading-none font-medium whitespace-nowrap transition-[opacity,transform] duration-[350ms] ease-strong motion-reduce:transition-none";
@@ -37,7 +38,7 @@ function Block({ on, from, to, row, rows = 1, tone, children }: { on: boolean; f
         BLOCK,
         on ? "opacity-100" : "scale-95 opacity-0",
         tone === "space" && "bg-kind-space-soft text-kind-space-text",
-        tone === "studio" && "bg-brand text-white",
+        tone === "studio" && "bg-brand-text text-white",
         tone === "taken" && "bg-danger-soft text-danger border-danger/40 border border-dashed",
       )}
       style={{ gridColumn: `${col(from)} / ${col(to)}`, gridRow: `${row} / ${row + rows}` }}
@@ -51,21 +52,21 @@ function Tape() {
   const step = useStoryLoop(AT, PERIOD, S.lena);
   const on = (s: number) => step >= s && step < S.leave;
   return (
-    <div aria-hidden="true" className="bg-card ring-border relative w-full overflow-x-auto rounded-[24px] p-5 shadow-[var(--shadow-card)] ring-1 sm:p-6">
-      <div className="min-w-[640px]">
-        <div className="grid grid-cols-[132px_repeat(12,1fr)] pb-2">
-          <p className="text-foreground text-[14px] font-medium">Saturday, Oct 11</p>
+    <div aria-hidden="true" className="bg-card ring-border relative w-full overflow-hidden rounded-[24px] p-4 shadow-[var(--shadow-card)] ring-1 sm:p-6">
+      <div>
+        <div className="grid grid-cols-[88px_repeat(10,1fr)] pb-2 sm:grid-cols-[132px_repeat(10,1fr)]">
+          <p className="text-foreground truncate pr-2 text-[13px] font-medium sm:text-[14px]">Sat, Oct 11</p>
           {HOURS.map((h) => (
             <span key={h} className="text-subtle font-mono text-[11px] tabular-nums" style={{ gridColumn: col(h) }}>
               {h}:00
             </span>
           ))}
         </div>
-        <div className="relative grid grid-cols-[132px_repeat(12,1fr)] grid-rows-[repeat(4,44px)] gap-y-1.5">
+        <div className="relative grid grid-cols-[88px_repeat(10,1fr)] grid-rows-[repeat(4,44px)] gap-y-1.5 sm:grid-cols-[132px_repeat(10,1fr)]">
           {/* the rows' grounds */}
           {ROWS.map((r, i) => (
             <div key={r} className="bg-secondary col-span-full flex items-center rounded-[12px] px-3" style={{ gridRow: i + 1 }}>
-              <span className="text-foreground text-[13px] font-medium">{r}</span>
+              <span className="text-foreground truncate text-[12px] font-medium sm:text-[13px]">{r}</span>
             </div>
           ))}
           <Block on={on(S.mia)} from={10} to={14} row={1} tone="space">

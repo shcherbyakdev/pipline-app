@@ -13,10 +13,6 @@ const base =
 const VARIANT = {
   /* Solid ink: the nav's action. */
   primary: "bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85",
-  /* Solid periwinkle, white label: the page's main action (the reference's
-     primary pill). Filled with the brand's text step (#4b5bc4), not the
-     accent itself: white on the accent is 4.0:1, on this step 5.9:1. */
-  brand: "bg-brand-text text-white [@media(hover:hover)_and_(pointer:fine)]:hover:bg-brand-text/90",
   /* Lavender ghost (the reference's secondary pill). */
   neutral: "bg-brand/10 text-brand-text [@media(hover:hover)_and_(pointer:fine)]:hover:bg-brand/15",
   /* Plain text link. */

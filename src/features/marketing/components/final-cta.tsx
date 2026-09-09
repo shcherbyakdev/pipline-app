@@ -14,7 +14,7 @@ import { H2, SECTION, SECTION_INNER } from "./type";
 export function FinalCta({ host }: { host: string }) {
   const [handle, setHandle] = React.useState("");
   return (
-    <section aria-labelledby="cta-heading" data-nav-dark className={cn(SECTION, "dark bg-background mt-24 flex min-h-[80dvh] flex-col justify-center pb-24 md:mt-32 md:pb-28")}>
+    <section aria-labelledby="cta-heading" data-nav-dark className={cn(SECTION, "dark bg-background mt-24 flex min-h-[60dvh] flex-col justify-center pb-24 md:mt-32 md:pb-28")}>
       <div className={SECTION_INNER}>
         <Reveal className="mx-auto max-w-2xl text-center">
           <h2 id="cta-heading" className={cn(H2, "mx-auto")}>

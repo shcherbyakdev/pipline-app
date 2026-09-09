@@ -9,13 +9,13 @@ import { H2, SECTION, SECTION_INNER } from "./type";
 export function Faq() {
   return (
     <section id={anchorId(SITE.anchors.faq)} aria-labelledby="faq-heading" className={cn(SECTION, "scroll-mt-20")}>
-      <div className={cn(SECTION_INNER, "max-w-3xl")}>
+      <div className={SECTION_INNER}>
         <Reveal>
           <h2 id="faq-heading" className={H2}>
             {SECTIONS.faq.heading}
           </h2>
         </Reveal>
-        <Reveal delay={60} className="mt-10 md:mt-12">
+        <Reveal delay={60} className="mt-10 max-w-3xl md:mt-12">
           {FAQ.map((item) => (
             <details key={item.question} className="group border-border border-b py-5 first:pt-0">
               <summary className="focus-visible:ring-ring flex cursor-pointer list-none items-center justify-between gap-6 text-[17px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background [&::-webkit-details-marker]:hidden">

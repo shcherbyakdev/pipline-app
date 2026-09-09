@@ -145,7 +145,7 @@ export function Money() {
                   ref={register(i)}
                   data-beat={i}
                   className={cn(
-                    "border-border flex flex-col justify-center border-t py-8 transition-opacity duration-300 ease-strong motion-reduce:transition-none md:min-h-[36vh] md:py-10",
+                    "border-border flex flex-col justify-center border-t py-8 transition-opacity duration-300 ease-strong motion-reduce:transition-none md:min-h-[28vh] md:py-10",
                     active ? "opacity-100" : "opacity-45",
                   )}
                 >

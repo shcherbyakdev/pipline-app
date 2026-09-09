@@ -38,8 +38,8 @@ export function anchorId(anchor: string): string {
 /** Section headings, sub-lines and body copy. Components stay presentational. */
 export const SECTIONS = {
   how: {
-    heading: "Up and running in three steps",
-    sub: "Nothing to install, no setup call.",
+    heading: "Set up in an afternoon",
+    sub: "Three steps, nothing to install.",
   },
   money: {
     heading: "The money stays with the booking.",
@@ -54,38 +54,16 @@ export const SECTIONS = {
     sub: "Holds about to expire, requests to approve, balances to collect, changes to confirm. Emailed at 8:00 and on your phone.",
   },
   features: {
-    heading: "Everything else a studio needs",
-    sub: "Included from day one.",
+    heading: "Also in the box",
+    sub: "Included from day one, on every plan.",
   },
   faq: { heading: "Common questions" },
-} as const;
-
-/** The Premium section (spec 2026-09-01-premium-waitlist-design.md): while
-    billing is off, the upgrade path is the waitlist, and the landing says
-    so. The perks are Pro's limits in the customer's words; the one number
-    reads from PLANS so it can never drift from the gate. Same flag rule as
-    SITE.heroNote: once billing is live this section retires in favour of
-    /pricing, and PREMIUM.shown says so. */
-export const PREMIUM = {
-  shown: !BILLING_ON,
-  eyebrow: "Premium",
-  heading: "Free while we build.",
-  sub: "Every studio starts free. Join the Premium waitlist from your dashboard and get everything it unlocks now, at no cost.",
-  perks: [
-    `Up to ${PLANS.pro.limits.bookableResources} bookable rooms or units`,
-    "Reminders for every booking",
-    "No Booklo badge on your page",
-  ],
-  cta: "Join the waitlist",
-  note: "Sign up or log in, then join from your dashboard.",
 } as const;
 
 /** Call-to-action button labels. */
 export const CTA = {
   login: "Log in",
   getStarted: "Get started",
-  getStartedFree: "Get started free",
-  seeHow: "See how it works",
   dashboard: "Dashboard",
 } as const;
 
@@ -98,7 +76,7 @@ export const COOKIE_NOTICE = {
   dismiss: "Got it",
 } as const;
 
-/** The claim bar (final CTA). The status line is assembled from these:
+/** The claim bar (hero + final CTA). The status line is assembled from these:
     `taken(url)` + ". " + (`tryPrefix` + suggestion | `tryAnother`). */
 export const CLAIM = {
   placeholder: "your-studio",
@@ -155,27 +133,23 @@ export const MONEY_STEPS: readonly MoneyStep[] = [
 
 /** The features grid: six things included from day one, one icon each
     (components/features.tsx maps `icon` to a glyph). */
-export type FeatureIcon = "no-account" | "guard" | "approve" | "notify" | "language" | "embed";
-export type Feature = { icon: FeatureIcon; title: string; body: string };
+/** The "also in the box" list: six short items, one line each. */
+export type Feature = { title: string; body: string };
 
 export const FEATURES: Feature[] = [
-  { icon: "no-account", title: "No client accounts", body: "Clients book from a link with their name and email. Everything else happens through links in their confirmation email." },
-  { icon: "guard", title: "Double-booking impossible", body: "Rooms, the whole studio and shared gear are locked in the database. Two clients can never get the same hour." },
-  { icon: "approve", title: "Requests you approve", body: "Events, big groups, unusual shoots: mark them as requests and they wait for your yes." },
-  { icon: "notify", title: "Email and push", body: "Confirmations, reminders, expiring holds and the morning digest, by email and on your phone." },
-  { icon: "language", title: "Polish and English", body: "Your page and every client email in the client's language. Your dashboard in yours." },
-  { icon: "embed", title: "Embed anywhere", body: "One line of code puts the booking widget on your site. Page and widget templates match your brand." },
+  { title: "No client accounts", body: "Clients book from a link with their name and email. Everything else happens through their confirmation email." },
+  { title: "Your brand on the page", body: "Your logo, your colour, your photos. Page and widget templates to match." },
+  { title: "Requests you approve", body: "Events, big groups, unusual shoots: mark them as requests and they wait for your yes." },
+  { title: "Email and push", body: "Confirmations, reminders, expiring holds and the morning digest, by email and on your phone." },
+  { title: "Polish and English", body: "Your page and every client email in the client's language. Your dashboard in yours." },
+  { title: "Embed anywhere", body: "One line of code puts the booking widget on your own site." },
 ];
 
 export type FaqItem = { question: string; answer: string };
 
 export const FAQ: FaqItem[] = [
   { question: "Do my clients need an account?", answer: "No. They pick a room and a time, enter their name and email, pay the deposit and they're booked. Everything else happens through links in their confirmation email." },
-  { question: "How does the deposit work?", answer: "You set the amount and the deadline. A hold keeps the slot while the client pays online. If the deadline passes, the hold expires and the slot opens again. Deposits go to your own account; Booklo never holds client money." },
-  { question: "Can I rent the whole studio, or a room plus equipment?", answer: "Yes. A whole-studio booking blocks every room in it. Shared gear like a lamp or a backdrop is booked together with the room, each with its own price line." },
-  { question: "What happens after the session?", answer: "Overtime, extra people, cleaning or damage are added to the same booking. The client gets one balance to pay online, or you settle it in cash or write it off." },
-  { question: "What if a client moves or cancels?", answer: "Your tiers decide. For example: free until 72 hours before, half after that, the full amount inside 24 hours. The price and any refund are recalculated and both of you see the result." },
-  { question: "What if two clients want the same room or lamp?", answer: "Only one booking can win. The other client sees the slot was just taken and gets fresh times. There is never a silent double booking." },
+  { question: "Where does the money go?", answer: "Straight to your own account. Booklo never holds client money. You set the deposit amount and the deadline; if the deadline passes, the hold expires and the slot opens again." },
   { question: "Does it work in Polish?", answer: "Yes. Your page, the widget and every client email come in Polish or English, per client. Your dashboard is in the language you choose." },
   { question: "I also sell sessions with our photographer. Can I book those?", answer: "Yes. Booklo also has an appointments mode for booking a person's time, with the same page and widget. A workspace runs one mode or the other." },
   { question: "What data do you store about my clients?", answer: "Name, email and an optional note, nothing else. No documents, no card numbers, no accounts." },
@@ -197,7 +171,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     heading: "Account",
     links: [
       { label: CTA.login, href: SITE.links.login },
-      { label: "Sign up", href: SITE.links.signup },
+      { label: CTA.getStarted, href: SITE.links.signup },
     ],
   },
   {

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import {
   SITE,
   NAV_LINKS,
+  FOOTER_COLUMNS,
   STEPS,
   MONEY_STEPS,
   FEATURES,
@@ -17,7 +18,6 @@ import {
   FINAL_CTA,
   FORBIDDEN_COPY,
   PRICING,
-  PREMIUM,
   anchorId,
   allInternalHrefs,
 } from "./site";
@@ -47,7 +47,6 @@ function landingCorpus(): string {
     ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
     FINAL_CTA.heading, FINAL_CTA.sub,
     ...Object.values(COOKIE_NOTICE),
-    PREMIUM.eyebrow, PREMIUM.heading, PREMIUM.sub, PREMIUM.cta, PREMIUM.note, ...PREMIUM.perks,
   ].join("\n");
 }
 
@@ -97,12 +96,12 @@ describe("site config", () => {
     }
   });
 
-  it("has three steps, seven money beats, six unique features, ≥5 FAQ items", () => {
+  it("has three steps, seven money beats, six unique features, ≥4 FAQ items", () => {
     expect(STEPS).toHaveLength(3);
     expect(MONEY_STEPS).toHaveLength(7);
     expect(FEATURES).toHaveLength(6);
     expect(new Set(FEATURES.map((f) => f.title)).size).toBe(6);
-    expect(FAQ.length).toBeGreaterThanOrEqual(5);
+    expect(FAQ.length).toBeGreaterThanOrEqual(4);
     expect(new Set(FAQ.map((f) => f.question)).size).toBe(FAQ.length);
   });
 
@@ -150,17 +149,20 @@ describe("site config", () => {
     expect(WELCOME.subRentals.length).toBeGreaterThan(0);
   });
 
+  // One label per intent (2026-09-09 critique): every link to /signup says
+  // CTA.getStarted; the claim bar is the hero's own affordance, not a button.
+  it("every sign-up link carries the one Get started label", () => {
+    const links = [...NAV_LINKS, ...FOOTER_COLUMNS.flatMap((c) => c.links)].filter((l) => l.href === SITE.links.signup);
+    expect(links.length).toBeGreaterThan(0);
+    for (const l of links) expect(l.label).toBe(CTA.getStarted);
+  });
+
   it("the onboarding picker lists Spaces first (H5b ruling 1)", () => {
     expect(ONBOARDING.modes.map((m) => m.value)).toEqual(["rentals", "appointments"]);
   });
 
   it("FORBIDDEN_COPY keeps the provider name and the retired channel words, drops 'payment' now that collection shipped (S9), and holds the calendar sync until S11", () => {
     expect(FORBIDDEN_COPY).toEqual(["stripe", "offering", "rentals", "google", "calendar sync"]);
-  });
-
-  it("the Premium section shows while billing is off and reads its number from PLANS", () => {
-    expect(PREMIUM.shown).toBe(true);
-    expect(PREMIUM.perks[0]).toContain(String(PLANS.pro.limits.bookableResources));
   });
 
   it("the resources pricing row reads its numbers from PLANS", () => {
