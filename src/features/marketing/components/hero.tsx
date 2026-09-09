@@ -24,6 +24,7 @@ export function Hero({ host }: { host: string }) {
           nav: near-white at the top under the words, the ridges rising
           where the product does */}
       <Image src={heroWash} alt="" fill priority sizes="100vw" className="object-cover object-bottom" />
+      <div aria-hidden="true" className="hero-grain pointer-events-none absolute inset-0" />
       <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-12 text-center sm:px-8 sm:pt-16 lg:pt-20">
         <h1
           id="hero-heading"
