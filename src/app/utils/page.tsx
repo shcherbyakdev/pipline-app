@@ -11,6 +11,7 @@ import { FLAG_DEFAULTS, FLAG_KEYS, FLAG_META } from "@/lib/flags";
 const TOOLS = [
   { href: "/utils/subscriptions", title: "Subscriptions", blurb: "Grant or revoke a complimentary Pro/Team plan on any org." },
   { href: "/utils/flags", title: "Feature flags", blurb: "Turn dormant features on or off for one org." },
+  { href: "/utils/import", title: "Import bookings", blurb: "Load a migrating studio's future bookings from a CSV (S8 migration kit)." },
 ] as const;
 
 export default async function UtilsHubPage() {
