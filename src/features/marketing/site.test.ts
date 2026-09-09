@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { SITE, FOOTER_LINKS, FEATURES, FEATURES_LABEL, CTA, COOKIE_NOTICE, CLAIM, ONBOARDING, WELCOME, FORBIDDEN_COPY, PRICING, allInternalHrefs } from "./site";
+import { SITE, FOOTER_LINKS, FEATURES, FEATURES_LABEL, HOW_LABEL, HOW_STEPS, CTA, COOKIE_NOTICE, CLAIM, ONBOARDING, WELCOME, FORBIDDEN_COPY, PRICING, allInternalHrefs } from "./site";
 import { PLANS } from "@/lib/billing/plans";
 
 // Route hrefs → the app directory that must exist for them (route groups omitted from URL).
@@ -20,6 +20,7 @@ function landingCorpus(): string {
   return [
     SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
     FEATURES_LABEL, ...FEATURES.flatMap((f) => [f.title, f.body]),
+    HOW_LABEL, ...HOW_STEPS.flatMap((s) => [s.title, s.body]),
     ...FOOTER_LINKS.map((l) => l.label),
     ...Object.values(CTA),
     ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
@@ -36,6 +37,11 @@ describe("site config", () => {
     expect(FEATURES).toHaveLength(8);
     expect(new Set(FEATURES.map((f) => f.title)).size).toBe(8);
     for (const f of FEATURES) expect(f.body.split(/\s+/).length, f.title).toBeLessThanOrEqual(16);
+  });
+
+  it("tells how it works in five short steps", () => {
+    expect(HOW_STEPS).toHaveLength(5);
+    for (const s of HOW_STEPS) expect(s.body.split(/\s+/).length, s.title).toBeLessThanOrEqual(22);
   });
 
   it("every internal href is an existing route", () => {

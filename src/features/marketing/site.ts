@@ -57,6 +57,19 @@ export const CLAIM = {
 
 export type NavLink = { label: string; href: string };
 
+/** Under the hero: how it is used, five steps on a pinned stage that
+    advance as the visitor scrolls (components/how-it-works.tsx draws a
+    small product card for each). */
+export type HowStep = { title: string; body: string };
+export const HOW_LABEL = "How it works";
+export const HOW_STEPS: HowStep[] = [
+  { title: "Set up your rooms", body: "Add each room, the whole studio and shared gear. Set prices from your rules: first hour, longer tiers, weekends." },
+  { title: "Share your page", body: "Send your link or put the widget on your own site. Clients book with a name and an email." },
+  { title: "Clients book and pay", body: "They pick a room and hours. The deposit holds the slot until your deadline." },
+  { title: "Changes handle themselves", body: "Moves and cancellations follow your terms. Overtime is added to the same booking." },
+  { title: "Start the day with a list", body: "Every morning at 8:00: holds expiring, requests waiting, balances due." },
+];
+
 /** Under the product: what it does, as short lines. Eight, two columns,
     one small glyph each (components/features.tsx maps `icon`). */
 export type FeatureIcon = "price" | "deposit" | "change" | "charge" | "studio" | "morning" | "link" | "language";

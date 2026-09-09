@@ -752,6 +752,63 @@
     transition: opacity 250ms var(--ease-strong);
   }
 }
+/* How it works (components/how-it-works.tsx): the ink layer under the
+   pinned panel grows as the panel arrives, scrubbed by the section's view
+   timeline over the last 440px before it pins (the section's top runs
+   from 440px down the viewport to 16px above it, where the sticky top
+   meets the section's padding), from the content's box to --sx/--sy
+   (measured by the component: the viewport less a margin). Transform
+   only, so the scrub never leaves the compositor; without scroll-driven
+   animations, or under reduced motion, the ink is simply the panel. */
+.marketing .how { view-timeline: --how block; }
+.marketing .how-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 22px;
+  background: var(--primary);
+}
+@supports (animation-timeline: view()) {
+  .marketing .how-bg {
+    animation: how-grow linear both;
+    animation-timeline: --how;
+    animation-range: entry calc(100vh - 440px) entry calc(100vh + 16px);
+  }
+}
+@keyframes how-grow {
+  from { transform: scale(1); }
+  to { transform: scale(var(--sx, 1), var(--sy, 1)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marketing .how-bg { animation: none; }
+}
+/* The pinned panel's beats. Cards crossfade with a small rise; the active step's title turns
+   white and its line unfolds (grid rows 0fr to 1fr, the accordion's one
+   sanctioned height move). Strong ease-out, transitions so a fast scroll
+   retargets instead of restarting; reduced motion swaps at once. */
+.marketing .how-visual {
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 0.5s var(--ease-strong), transform 0.5s var(--ease-strong);
+}
+.marketing .how-visual[data-active] { opacity: 1; transform: none; }
+.marketing .how-step-title {
+  color: rgb(255 255 255 / 0.45);
+  transition: color 0.4s var(--ease-strong);
+}
+.marketing .how-step[data-active] .how-step-title { color: #fff; }
+.marketing .how-step-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.5s var(--ease-strong), opacity 0.4s var(--ease-strong);
+}
+.marketing .how-step[data-active] .how-step-body { grid-template-rows: 1fr; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .marketing :is(.how-visual, .how-step-title, .how-step-body) { transition: none; }
+}
+
 /* Features reveal (components/reveal.tsx): the entrances inside a
    `data-reveal` section hold at their first frame until it scrolls into
    view and `data-in` lands; the same fade-up the hero copy uses, so the
