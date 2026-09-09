@@ -474,6 +474,16 @@
   animation-delay: 1.4s;
   animation-iteration-count: infinite;
   animation-fill-mode: both;
+  /* held at the first frame until the stage is in view (hero-stage.tsx);
+     leaving it takes the animation away, so re-entry starts from the top */
+  animation-play-state: paused;
+}
+.marketing .hero-stage:not([data-play]) .hs :is(.hs-tap, .hs-fly, .hs-tag, .hs-block, .hs-tail, .hs-time-was, .hs-time-now, .hs-cursor, .hs-notice) {
+  animation-name: none;
+  opacity: 0;
+}
+.marketing .hero-stage[data-play] .hs :is(.hs-tap, .hs-fly, .hs-tag, .hs-block, .hs-tail, .hs-time-was, .hs-time-now, .hs-cursor, .hs-notice) {
+  animation-play-state: running;
 }
 /* the tap: a soft disc on the chip */
 .marketing .hs-tap {
@@ -588,12 +598,12 @@
 .marketing .hs-time-was { animation-name: hs-time-was; }
 .marketing .hs-time-now { animation-name: hs-time-now; }
 @keyframes hs-time-was {
-  0%, 59.5% { opacity: 1; }
-  61%, 100% { opacity: 0; }
+  0%, 58% { opacity: 1; }
+  59%, 100% { opacity: 0; }
 }
 @keyframes hs-time-now {
-  0%, 59.5% { opacity: 0; }
-  61%, 100% { opacity: 1; }
+  0%, 58% { opacity: 0; }
+  59%, 100% { opacity: 1; }
 }
 /* the half hour the session ran over, hatched, hanging off the block */
 .marketing .hs-tail {
@@ -838,7 +848,7 @@
 }
 .marketing .how-visual[data-active] .how-paid { animation: how-paid 0.3s var(--ease-strong) 0.9s both; }
 .marketing .how-step-title {
-  color: rgb(255 255 255 / 0.45);
+  color: rgb(255 255 255 / 0.58);
   transition: color 0.4s var(--ease-strong);
 }
 .marketing .how-step[data-active] .how-step-title { color: #fff; }
@@ -882,8 +892,9 @@
   .marketing .hw { transform: none; filter: none; animation: fade-only 0.2s ease both; }
   .marketing .hero-rise { transform: none; animation: fade-only 0.2s ease both; }
   .marketing .hs :is(.hs-tap, .hs-fly, .hs-tag, .hs-block, .hs-tail, .hs-time-was, .hs-time-now, .hs-cursor, .hs-notice) { animation: none; }
-  .marketing .hs :is(.hs-cursor, .hs-tap, .hs-fly, .hs-tag, .hs-time-was, .hs-notice-pay, .hs-notice-move) { display: none; }
-  .marketing .hs-block { transform: translate(10.6cqw, -17cqw); border-style: solid solid solid dashed; border-radius: 0.42cqw 0.42cqw 0 0; background: #fff; }
+  .marketing .hs :is(.hs-cursor, .hs-tap, .hs-fly, .hs-tag, .hs-tail, .hs-time-now, .hs-notice-move, .hs-notice-over) { display: none; }
+  .marketing .hero-stage[data-play] .hs :is(.hs-block, .hs-time-was, .hs-notice-pay) { opacity: 1; }
+  .marketing .hs-block { border-style: solid solid solid dashed; background: #fff; }
 }
 
 /* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text

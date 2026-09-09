@@ -9,7 +9,10 @@ export function MarketingFooter() {
       <ul className="flex gap-5">
         {FOOTER_LINKS.map((l) => (
           <li key={l.href}>
-            <Link href={l.href} className="text-muted-foreground hover:text-foreground transition-colors duration-150">
+            <Link
+              href={l.href}
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring -mx-1 inline-flex min-h-8 items-center rounded-md px-1 transition-colors duration-150 outline-none focus-visible:ring-2"
+            >
               {l.label}
             </Link>
           </li>

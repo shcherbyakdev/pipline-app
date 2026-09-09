@@ -25,7 +25,7 @@ export function ClaimBar({
   handle: string;
   onHandleChange: (next: string) => void;
   host: string;
-  /** Shown under the bar while it's idle (empty and unfocused); the format
+  /** Shown under the bar while it's empty; the format
       hint takes its place once the person is typing. */
   idleNote?: string;
   size?: "lg" | "md";
@@ -36,7 +36,6 @@ export function ClaimBar({
   const id = React.useId();
   const [pending, startTransition] = React.useTransition();
   const [result, setResult] = React.useState<HandleCheck | null>(null);
-  const [focused, setFocused] = React.useState(false);
   const url = `${host}/${handle}`;
   const complete = HANDLE_RE.test(handle) && !isReservedHandle(handle);
 
@@ -60,7 +59,9 @@ export function ClaimBar({
     });
   };
 
-  let status: React.ReactNode = focused || handle ? CLAIM.hint : (idleNote ?? CLAIM.hint);
+  // The early-access note stays until typing starts: focusing an empty
+  // field is the moment of commitment, not the moment for rules.
+  let status: React.ReactNode = handle ? CLAIM.hint : (idleNote ?? CLAIM.hint);
   let tone = "text-muted-foreground";
   if (result?.status === "invalid") {
     status = handle && isReservedHandle(handle) ? CLAIM.unavailable : CLAIM.hint;
@@ -122,8 +123,6 @@ export function ClaimBar({
           inputMode="url"
           maxLength={50}
           autoFocus={autoFocus}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           aria-label="Your page name"
           aria-describedby={`${id}-status`}
           aria-invalid={result?.status === "invalid" || result?.status === "taken" || undefined}
@@ -135,7 +134,7 @@ export function ClaimBar({
           type="submit"
           disabled={pending}
           className={cn(
-            "bg-primary text-primary-foreground inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-[14px] font-medium transition-[background-color,transform,opacity] duration-[160ms] ease-strong [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85 active:scale-[0.97] disabled:opacity-60 motion-reduce:transition-none",
+            "bg-primary text-primary-foreground focus-visible:ring-ring inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-[14px] font-medium transition-[background-color,transform,opacity] duration-[160ms] ease-strong outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85 active:scale-[0.97] disabled:opacity-60 motion-reduce:transition-none",
             tall ? "h-9 px-4" : "h-8 px-3.5",
           )}
         >

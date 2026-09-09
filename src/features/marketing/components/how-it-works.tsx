@@ -69,9 +69,9 @@ function useScrollBeat(count: number) {
   return { beat, register };
 }
 
-const VISUALS = [VisualSpaces, VisualShare, VisualBooking, VisualChanges, VisualMorning];
+const VISUALS: React.ComponentType<{ host: string }>[] = [VisualSpaces, VisualShare, VisualBooking, VisualChanges, VisualMorning];
 
-export function HowItWorks() {
+export function HowItWorks({ host }: { host: string }) {
   const { beat, register } = useScrollBeat(HOW_STEPS.length);
   const panel = React.useRef<HTMLDivElement>(null);
   useGrowRatios(panel);
@@ -88,25 +88,29 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <div className="mt-4 grid min-h-0 flex-1 gap-6 md:mt-0 md:grid-cols-[1fr_minmax(0,22rem)] md:gap-12 lg:grid-cols-[1fr_minmax(0,24rem)]">
+        {/* the stage row takes what the steps leave (its cards are absolute,
+            so it has no height of its own) */}
+        <div className="mt-4 grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-6 md:mt-0 md:grid-cols-[1fr_minmax(0,22rem)] md:grid-rows-1 md:gap-12 lg:grid-cols-[1fr_minmax(0,24rem)]">
           {/* the cards, one per beat, stacked on a hairline (the reference's rail) */}
-          <div aria-hidden="true" className="relative min-h-0 md:before:absolute md:before:top-[-40px] md:before:bottom-[-40px] md:before:left-1/2 md:before:w-px md:before:bg-white/10">
+          <div aria-hidden="true" className="relative min-h-0 md:before:absolute md:before:top-0 md:before:bottom-[-40px] md:before:left-1/2 md:before:w-px md:before:bg-white/10">
             {VISUALS.map((Visual, i) => (
               <div key={i} data-active={i === beat ? "" : undefined} className="how-visual absolute inset-0 flex items-center justify-center">
-                <Visual />
+                <Visual host={host} />
               </div>
             ))}
           </div>
 
-          {/* the steps */}
-          <ol className="self-center">
+          {/* the steps: every one stays in the tree; under md only the
+              active one is drawn, the rest read to assistive tech */}
+          <ol className="self-start md:mt-8">
             {HOW_STEPS.map((s, i) => (
               <li
                 key={s.title}
                 data-active={i === beat ? "" : undefined}
-                className="how-step border-primary-foreground/10 grid grid-cols-[2ch_1fr] gap-x-4 py-3 not-data-active:max-md:hidden md:border-t md:py-4 md:first:border-t-0"
+                aria-current={i === beat ? "step" : undefined}
+                className="how-step border-primary-foreground/10 grid grid-cols-[2ch_1fr] gap-x-4 py-3 not-data-active:max-md:sr-only md:border-t md:py-4 md:first:border-t-0"
               >
-                <span className="text-primary-foreground/40 pt-[3px] text-[12px] tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+                <span className="text-primary-foreground/55 pt-[3px] text-[12px] tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                 <div>
                   <h3 className="how-step-title text-[15px] leading-snug font-medium md:text-[17px]">{s.title}</h3>
                   <div className="how-step-body">
@@ -179,13 +183,13 @@ function VisualSpaces() {
   );
 }
 
-function VisualShare() {
+function VisualShare({ host }: { host: string }) {
   return (
     <Card>
       <div className="px-4 pt-4 pb-3">
         <p className="text-muted-foreground text-[12px]">Your booking page</p>
         <div className="bg-secondary mt-2 flex items-center gap-2 rounded-lg px-3 py-2">
-          <span className="flex-1 truncate font-medium">booklo.com/studio-halo</span>
+          <span className="flex-1 truncate font-medium">{host}/studio-halo</span>
           <span className="relative grid size-4 shrink-0 place-items-center">
             <Copy className="how-copy text-muted-foreground col-start-1 row-start-1 size-4" strokeWidth={1.75} aria-hidden="true" />
             <Check className="how-copied col-start-1 row-start-1 size-4 text-[#0f7a3d]" strokeWidth={2.25} aria-hidden="true" />
@@ -194,8 +198,8 @@ function VisualShare() {
       </div>
       <div className="border-border border-t px-4 pt-3 pb-4">
         <p className="text-muted-foreground text-[12px]">On your own site</p>
-        <pre className="text-muted-foreground mt-2 overflow-hidden font-mono text-[11.5px] leading-relaxed whitespace-pre-wrap">
-          {'<script src="booklo.com/embed.js"\n  data-page="studio-halo" async></script>'}
+        <pre className="text-muted-foreground mt-2 overflow-hidden font-mono text-[12px] leading-relaxed whitespace-pre-wrap">
+          {`<script src="https://${host}/embed.js"\n  data-page="studio-halo" async></script>`}
         </pre>
       </div>
     </Card>
@@ -260,7 +264,7 @@ function VisualMorning() {
   return (
     <Card>
       <Row className="justify-between">
-        <span className="font-medium">Wednesday 7 Oct</span>
+        <span className="font-medium">Friday 9 Oct</span>
         <span className="text-muted-foreground tabular-nums">08:00</span>
       </Row>
       <Row>

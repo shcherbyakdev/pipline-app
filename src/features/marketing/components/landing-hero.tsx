@@ -2,6 +2,7 @@ import * as React from "react";
 import Image from "next/image";
 import { SITE } from "@/features/marketing/site";
 import { HeroClaim } from "./hero-claim";
+import { HeroStage } from "./hero-stage";
 import { HeroStory } from "./hero-story";
 import adminWeek from "../images/admin-week.png";
 import publicPhone from "../images/public-phone.png";
@@ -44,12 +45,12 @@ export function Hero({ host }: { host: string }) {
 
       {/* the product */}
       <div className="hero-rise mx-auto mt-16 w-full max-w-5xl px-4 sm:mt-24 sm:px-8">
-        <div className="hero-stage relative">
+        <HeroStage>
           <div className="bg-card ring-border overflow-hidden rounded-[16px] shadow-[0_24px_60px_-28px_rgb(37_34_40/0.25)] ring-1 sm:rounded-[22px]">
             <Image
               src={adminWeek}
               alt={`The ${SITE.name} admin: one studio's week of bookings across Room A, Room B, the make-up room and the whole studio.`}
-              priority
+              preload
               sizes="(min-width: 1152px) 1088px, 100vw"
               className="h-auto w-full"
             />
@@ -66,7 +67,7 @@ export function Hero({ host }: { host: string }) {
             />
           </div>
           <HeroStory />
-        </div>
+        </HeroStage>
       </div>
     </section>
   );
