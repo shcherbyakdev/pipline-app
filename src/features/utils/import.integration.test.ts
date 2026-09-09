@@ -4,13 +4,20 @@
  * mark-paid path while acting as service_role (Booklo staff are not members
  * of the studio's org). Requires the local Supabase stack (npm run setup).
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { generateAccessToken } from "@/lib/tokens/mint";
 import { addDaysISO, dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 
 try { loadEnvFile(".env.local"); } catch { /* CI exports env */ }
+
+// The actions gate on the internal allowlist through the session cookie —
+// there is no request context under vitest, so the guard is the one seam
+// mocked (actions.test.ts idiom); everything past it runs for real.
+vi.mock("./guard", () => ({
+  requireInternal: vi.fn(async () => ({ user: { id: "u1", email: "owner@example.com" } })),
+}));
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -139,5 +146,45 @@ describe("S8 — runImport writes rows through the admin RPC and reports per row
     expect(out[0].status).toBe("created");
     const { data: b } = await admin.from("bookings").select("price_cents, paid_cents").eq("id", out[0].bookingId!).single();
     expect(b).toEqual({ price_cents: null, paid_cents: 0 });
+  });
+});
+
+const { previewBookingsImport, runBookingsImport } = await import("./import-actions");
+
+describe("S8 — the /utils/import actions", () => {
+  let s: Studio;
+  beforeAll(async () => { s = await newStudio("act"); }, 60_000);
+
+  const csv = () =>
+    "space,date,start,end,client_name,client_email,note,paid\n" +
+    `Room A,${d(9)},10:00,11:30,Anna Nowak,anna@example.com,,yes\n` +
+    `Room B,${d(9)},10:00,11:00,Jan,,,\n`;
+
+  it("preview resolves spaces against the org and names the bad row without writing anything", async () => {
+    const out = await previewBookingsImport({ orgId: s.orgId, text: csv() });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.ready.map((r) => [r.row, r.durationMin, r.paid])).toEqual([[2, 90, true]]);
+    expect(out.ready[0].startsAt).toBe(iso(`${d(9)}T10:00`));
+    expect(out.invalid).toEqual([{ row: 3, reason: expect.stringMatching(/Room B/) }]);
+    const { count } = await admin.from("bookings").select("id", { count: "exact", head: true }).eq("org_id", s.orgId);
+    expect(count).toBe(0);
+  });
+
+  it("run writes the ready rows and reports per row; the invalid row is reported, not written", async () => {
+    const out = await runBookingsImport({ orgId: s.orgId, text: csv() });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.results).toEqual([
+      { row: 2, status: "created", bookingId: expect.any(String) },
+      { row: 3, status: "failed", reason: expect.stringMatching(/Room B/) },
+    ]);
+    const { data: b } = await admin.from("bookings").select("client_name, paid_cents").eq("id", out.results[0].bookingId!).single();
+    expect(b).toEqual({ client_name: "Anna Nowak", paid_cents: 15000 });
+  });
+
+  it("refuses a malformed org id and a body over the row cap before touching the database", async () => {
+    expect(await previewBookingsImport({ orgId: "nope", text: csv() })).toMatchObject({ ok: false });
+    expect(await runBookingsImport({ orgId: s.orgId, text: "" })).toMatchObject({ ok: false });
   });
 });
