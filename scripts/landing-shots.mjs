@@ -59,9 +59,9 @@ const BOOKINGS = [
   { d: 3, time: "14:00", h: 4, space: "roomB", name: "Lena Fischer", lamps: 1 },
   { d: 4, time: "12:00", h: 4, space: "roomA", name: "Kasia Wójcik", lamps: 1 },
   { d: 4, time: "10:00", h: 3, space: "roomB", name: "Piotr Mazur" },
-  { d: 5, time: "10:00", h: 4, space: "roomA", name: "Lena Fischer" },
-  { d: 5, time: "11:00", h: 2, space: "makeup", name: "Ania Dąbrowska" },
 ];
+/* The weekend stays empty on purpose: the hero seats the phone over those
+   two columns. Anything booked there from an earlier run is cancelled. */
 
 const dayCellLabel = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 const addDays = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
@@ -151,6 +151,23 @@ async function setHours(client, orgId) {
   log(`   setup: hours 08:00–20:00 daily on ${ids.length} space(s)`);
 }
 
+async function clearWeekend(client, orgId) {
+  const { data, error } = await client
+    .from("bookings")
+    .select("id")
+    .eq("org_id", orgId)
+    .gte("starts_at", `${addDays(WEEK, 5)}T00:00:00Z`)
+    .lt("starts_at", `${addDays(WEEK, 7)}T00:00:00Z`)
+    .in("status", ["confirmed", "pending", "pending_payment"]);
+  if (error) throw error;
+  const ids = (data ?? []).map((b) => b.id);
+  if (ids.length) {
+    const { error: e } = await client.from("bookings").update({ status: "cancelled_by_provider" }).in("id", ids);
+    if (e) throw e;
+    log(`   setup: cancelled ${ids.length} weekend booking(s)`);
+  }
+}
+
 async function existingBookings(client, orgId) {
   const { data, error } = await client
     .from("bookings")
@@ -158,7 +175,7 @@ async function existingBookings(client, orgId) {
     .eq("org_id", orgId)
     .gte("starts_at", `${WEEK}T00:00:00Z`)
     .lt("starts_at", `${addDays(WEEK, 7)}T00:00:00Z`)
-    .neq("status", "cancelled");
+    .in("status", ["confirmed", "pending", "pending_payment"]);
   if (error) throw error;
   return new Set((data ?? []).map((b) => `${b.client_name}|${b.starts_at.slice(0, 10)}`));
 }
@@ -260,6 +277,7 @@ for (const s of SPACES) assert(ids[s.key], `${s.name} missing after create`);
 await setHours(client, orgId);
 
 log("── Bookings");
+await clearWeekend(client, orgId);
 const have = await existingBookings(client, orgId);
 const pub = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const pubPage = await pub.newPage();

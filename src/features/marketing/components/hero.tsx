@@ -13,8 +13,10 @@ import publicPhone from "../images/public-phone.png";
    move while the headline is still resolving. Under the headline the ink
    action beside the lavender ghost, then the product itself: the studio's
    week in the admin (a real screenshot, scripts/landing-shots.mjs) with
-   the hosted booking page on a phone overlapping its corner, both on the
-   logo's own silhouette blurred into a wash (one lavender, one mint). */
+   the hosted booking page on a phone seated over the week's empty
+   weekend columns, vertically centred, so it hides nothing that matters;
+   both on the logo's own silhouette blurred into a wash (one lavender,
+   one mint). */
 const WORD_MS = 60;
 
 export function Hero() {
@@ -52,9 +54,9 @@ export function Hero() {
       </div>
 
       {/* the product, on the blob */}
-      <div className="animate-fade-up relative mx-auto mt-14 w-full max-w-6xl px-4 pb-16 [animation-delay:440ms] sm:px-8 sm:pb-20 lg:mt-20 lg:pb-24">
+      <div className="animate-fade-up relative mx-auto mt-14 w-full max-w-6xl px-4 pb-6 [animation-delay:440ms] sm:px-8 sm:pb-8 lg:mt-20">
         <BlobWash className="top-[-12%] left-[-6%] w-[70%] rotate-[-14deg]" />
-        <BlobWash tone="space" className="right-[-10%] bottom-[-6%] w-[46%] rotate-[24deg] [animation-delay:-14s]" />
+        <BlobWash tone="space" className="right-[-10%] bottom-[-16%] w-[46%] rotate-[24deg] [animation-delay:-14s]" />
         <div className="relative">
           <div className="bg-card ring-border overflow-hidden rounded-[16px] shadow-[var(--shadow-card)] ring-1 sm:rounded-[20px]">
             <Image
@@ -65,8 +67,9 @@ export function Hero() {
               className="h-auto w-full"
             />
           </div>
-          {/* the client's side: the hosted page on a phone, over the corner */}
-          <div className="bg-card ring-border absolute right-3 -bottom-10 w-[132px] overflow-hidden rounded-[18px] shadow-[var(--shadow-lift)] ring-1 sm:right-6 sm:-bottom-14 sm:w-[200px] sm:rounded-[26px] lg:w-[250px] lg:rounded-[30px]">
+          {/* the client's side: the hosted page on a phone, over the weekend
+              columns (the rightmost sixth of the week), centred on the card */}
+          <div className="bg-card ring-border absolute top-1/2 right-2 w-[40%] -translate-y-1/2 overflow-hidden rounded-[18px] shadow-[var(--shadow-lift)] ring-1 sm:-right-4 sm:w-[210px] sm:rounded-[26px] lg:-right-6 lg:w-[248px] lg:rounded-[30px]">
             <Image
               src={publicPhone}
               alt="The studio's public booking page on a phone: Room A for four hours, the month with open days, the free windows on a Tuesday."
