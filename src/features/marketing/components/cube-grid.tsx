@@ -9,7 +9,7 @@ import {
   InstancedMesh,
   MeshStandardMaterial,
   Object3D,
-  PerspectiveCamera,
+  OrthographicCamera,
   Plane,
   Raycaster,
   Scene,
@@ -32,17 +32,17 @@ import { usePrefersReducedMotion } from "./reduced-motion";
    on screen; under reduced motion it draws one still frame. The math is
    on the CPU (a few hundred cubes, no shader patching); the GPU draws. */
 
-const COLS = 28;
-const ROWS = 22;
+const COLS = 14;
+const ROWS = 12;
 const GAP = 1;
-const CUBE = 0.78;
-const HEIGHT = 2.6;
-const AMP = 1;
+const CUBE = 0.86;
+const HEIGHT = 1.1;
+const AMP = 0.55;
 /* Wave shape: how fast the ring travels, how wide it is, its ripple
    frequency, and how long a point keeps sending. */
-const SPEED = 2.6;
-const WIDTH = 2.6;
-const FREQ = 1.4;
+const SPEED = 2;
+const WIDTH = 2.2;
+const FREQ = 1.3;
 const FADE = 3;
 const TRAIL = 40;
 const IDLE_MS = 3000;
@@ -59,7 +59,7 @@ type TrailPoint = { x: number; z: number; t0: number; w: number };
 function jitter(i: number): [number, number] {
   const a = Math.sin(i * 12.9898) * 43758.5453;
   const b = Math.sin(i * 78.233) * 43758.5453;
-  return [((a - Math.floor(a)) - 0.5) * 0.3, ((b - Math.floor(b)) - 0.5) * 0.3];
+  return [((a - Math.floor(a)) - 0.5) * 0.16, ((b - Math.floor(b)) - 0.5) * 0.16];
 }
 
 export function CubeGrid({ className }: { className?: string }) {
@@ -84,10 +84,12 @@ export function CubeGrid({ className }: { className?: string }) {
     renderer.domElement.style.height = "100%";
 
     const scene = new Scene();
-    const camera = new PerspectiveCamera(32, 1, 0.1, 200);
+    /* Orthographic and steep, so the field reads as tiles with a little
+       relief rather than a landscape. */
+    const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
     scene.add(new HemisphereLight(0xffffff, 0x111212, 1.1));
-    const key = new DirectionalLight(0xffffff, 1.6);
-    key.position.set(-6, 14, 8);
+    const key = new DirectionalLight(0xffffff, 1.3);
+    key.position.set(-6, 16, 6);
     scene.add(key);
 
     const count = COLS * ROWS;
@@ -109,18 +111,22 @@ export function CubeGrid({ className }: { className?: string }) {
       }
     }
 
-    /* Frame the grid's width whatever the band's aspect: the camera sits
-       on a 44° slope and backs off until the grid's width fits. */
+    /* Frame the grid's width whatever the band's aspect: the frustum is
+       the grid's width, the camera sits on a 68° slope. */
+    const ELEV = (68 * Math.PI) / 180;
+    const DIST = 60;
     const fit = () => {
       const w = el.clientWidth || 1;
       const h = el.clientHeight || 1;
       renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      const halfFov = (camera.fov * Math.PI) / 360;
-      const dist = (COLS * GAP * 0.54) / (Math.tan(halfFov) * camera.aspect);
-      const elev = (44 * Math.PI) / 180;
-      camera.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist);
-      camera.lookAt(0, HEIGHT * 0.35, 0);
+      const halfW = COLS * GAP * 0.5;
+      const halfH = halfW / (w / h);
+      camera.left = -halfW;
+      camera.right = halfW;
+      camera.top = halfH;
+      camera.bottom = -halfH;
+      camera.position.set(0, Math.sin(ELEV) * DIST, Math.cos(ELEV) * DIST);
+      camera.lookAt(0, 0, 0);
       camera.updateProjectionMatrix();
     };
     fit();
@@ -151,7 +157,7 @@ export function CubeGrid({ className }: { className?: string }) {
       lastInput = now;
       if (last) {
         const d = Math.hypot(hit.x - last.x, hit.z - last.z);
-        if (d < GAP * 0.7) return;
+        if (d < GAP * 0.5) return;
         const speed = d / Math.max(16, now - last.t); // world units per ms
         push(hit.x, hit.z, Math.min(1, 0.25 + speed * 40));
       } else {
@@ -200,8 +206,8 @@ export function CubeGrid({ className }: { className?: string }) {
       }
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      camera.position.x += (tilt.x * 1.2 - camera.position.x) * 0.04;
-      camera.lookAt(tilt.x * 0.4, HEIGHT * 0.35 + tilt.y * 0.3, 0);
+      camera.position.x += (tilt.x * 0.8 - camera.position.x) * 0.04;
+      camera.lookAt(tilt.x * 0.3, 0, -tilt.y * 0.3);
       renderer.render(scene, camera);
     };
 
