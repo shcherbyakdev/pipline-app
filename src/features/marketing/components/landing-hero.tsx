@@ -25,7 +25,7 @@ export function Hero({ host }: { host: string }) {
         <span aria-hidden="true" className="bg-border animate-fade-up mb-9 h-px w-16" />
         <h1
           id="hero-heading"
-          className="text-foreground max-w-[14ch] text-[40px] leading-[1.08] font-medium tracking-[-0.025em] text-balance sm:text-[52px]"
+          className="text-foreground max-w-[14ch] text-[40px] leading-[1.08] font-medium tracking-[-0.025em] text-balance sm:text-[50px]"
         >
           {words.map((w, i) => (
             <React.Fragment key={i}>
