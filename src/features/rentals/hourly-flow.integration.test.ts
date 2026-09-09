@@ -82,6 +82,10 @@ const HANDLE = `h2flow-${Date.now()}`;
 // wall-clock relative, so a fixed calendar literal would eventually fall in
 // the past or fail for the wrong reason once notice-rejection kicks in.
 const d = (n: number) => addDaysISO(dateInZone(new Date(), TZ), n);
+// FIXTURE_RULES has a Sunday surcharge on top of the night one: the S1 lines
+// case below must not land on a Sunday, or it gets two surcharge lines and
+// fails every Thursday. Nudge to Monday.
+const notSunday = (date: string) => (new Date(`${date}T12:00:00Z`).getUTCDay() === 0 ? addDaysISO(date, 1) : date);
 /** Org-local "YYYY-MM-DDTHH:MM" -> timestamptz ISO string. */
 const iso = (dateHour: string) => {
   const [date, time] = dateHour.split("T");
@@ -246,7 +250,7 @@ describe("hourly public booking flow (action layer)", () => {
   it("S1: a booking with people and extras is quoted and the email lists the lines", async () => {
     net.clientIp = "203.0.113.61";
     const res = await hourlyActions.createRentalBookingHours({
-      handle: HANDLE, offeringId: rulesOfferingId, unitId: null, startsAt: iso(`${d(3)}T21:00`), durationMin: 120,
+      handle: HANDLE, offeringId: rulesOfferingId, unitId: null, startsAt: iso(`${notSunday(d(3))}T21:00`), durationMin: 120,
       name: "Ola", email: `ola-s1-${Date.now()}@example.com`, people: 7, extras: [{ id: "arri", qty: 1 }], termsAccepted: false,
     });
     expect(res.ok).toBe(true);
