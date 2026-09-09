@@ -32,18 +32,18 @@ import { usePrefersReducedMotion } from "./reduced-motion";
    on screen; under reduced motion it draws one still frame. The math is
    on the CPU (a few hundred cubes, no shader patching); the GPU draws. */
 
-const COLS = 40;
-const ROWS = 32;
+const COLS = 28;
+const ROWS = 22;
 const GAP = 1;
-const CUBE = 0.7;
+const CUBE = 0.78;
 const HEIGHT = 2.6;
-const AMP = 1.15;
+const AMP = 1;
 /* Wave shape: how fast the ring travels, how wide it is, its ripple
    frequency, and how long a point keeps sending. */
-const SPEED = 3.2;
-const WIDTH = 1.6;
-const FREQ = 2.4;
-const FADE = 2.2;
+const SPEED = 2.6;
+const WIDTH = 2.6;
+const FREQ = 1.4;
+const FADE = 3;
 const TRAIL = 40;
 const IDLE_MS = 3000;
 const AUTO_EVERY_MS = 2400;
