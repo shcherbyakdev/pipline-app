@@ -793,6 +793,50 @@
   transition: opacity 0.5s var(--ease-strong), transform 0.5s var(--ease-strong);
 }
 .marketing .how-visual[data-active] { opacity: 1; transform: none; }
+/* Inside the card that has just come on: rows enter 50ms apart from a
+   short rise (base state visible, so a card on its way out keeps its
+   rows), then the scene's own moment. Counts are registered properties
+   drawn through counters; Chrome, Safari and Firefox all animate them. */
+@property --n {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+@keyframes how-row {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.marketing .how-visual[data-active] .how-card > * {
+  animation: how-row 0.45s var(--ease-strong) both;
+  animation-delay: calc(120ms + var(--i, 0) * 50ms);
+}
+.marketing .how-card > :nth-child(2) { --i: 1; }
+.marketing .how-card > :nth-child(3) { --i: 2; }
+.marketing .how-card > :nth-child(4) { --i: 3; }
+.marketing .how-card > :nth-child(5) { --i: 4; }
+.marketing .how-card > :nth-child(6) { --i: 5; }
+.marketing .how-count-5,
+.marketing .how-count-110 { counter-reset: n var(--n); }
+.marketing .how-count-5 { --n: 5; }
+.marketing .how-count-110 { --n: 110; }
+.marketing .how-count-5::after { content: counter(n); }
+.marketing .how-count-110::after { content: counter(n) " zł"; }
+@keyframes how-count-5 { from { --n: 0; } to { --n: 5; } }
+@keyframes how-count-110 { from { --n: 0; } to { --n: 110; } }
+.marketing .how-visual[data-active] .how-count-5 { animation: how-count-5 0.6s var(--ease-strong) 0.3s both; }
+.marketing .how-visual[data-active] .how-count-110 { animation: how-count-110 0.9s var(--ease-strong) 0.5s both; }
+/* the link, copied a beat after it appears */
+.marketing .how-copied { opacity: 0; transform: scale(0.8); }
+@keyframes how-swap-out { to { opacity: 0; transform: scale(0.8); } }
+@keyframes how-swap-in { to { opacity: 1; transform: none; } }
+.marketing .how-visual[data-active] .how-copy { animation: how-swap-out 0.25s var(--ease-strong) 1.1s both; }
+.marketing .how-visual[data-active] .how-copied { animation: how-swap-in 0.3s var(--ease-strong) 1.15s both; }
+/* the deposit's Paid chip lands last */
+@keyframes how-paid {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
+.marketing .how-visual[data-active] .how-paid { animation: how-paid 0.3s var(--ease-strong) 0.9s both; }
 .marketing .how-step-title {
   color: rgb(255 255 255 / 0.45);
   transition: color 0.4s var(--ease-strong);
@@ -807,6 +851,9 @@
 .marketing .how-step[data-active] .how-step-body { grid-template-rows: 1fr; opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   .marketing :is(.how-visual, .how-step-title, .how-step-body) { transition: none; }
+  .marketing .how-visual[data-active] :is(.how-card > *, .how-count-5, .how-count-110, .how-copy, .how-paid) { animation: none; }
+  .marketing .how-visual[data-active] .how-copied { animation: none; opacity: 1; transform: none; }
+  .marketing .how-visual[data-active] .how-copy { opacity: 0; }
 }
 
 /* Features reveal (components/reveal.tsx): the entrances inside a

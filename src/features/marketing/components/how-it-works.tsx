@@ -10,11 +10,13 @@ import { cn } from "@/lib/utils";
 /* How it works (semaloop.com-referenced, 2026-09-09): an ink panel pinned
    under the nav while the page scrolls four screens; five beats advance
    as invisible sentinels cross the viewport's middle. Left, one product
-   card per beat (the app's own light fragments on the ink), crossfading;
-   right, the five titles, the active one white with its line unfolding
-   beneath (globals.css "How it works"). Every change is a transition on
-   the strong ease-out, so a fast scroll retargets instead of restarting;
-   reduced motion swaps instantly. Under md the panel stacks the card
+   card per beat (the app's own light fragments on the ink), crossfading,
+   its rows entering 50ms apart once it is on, with one moment of its own
+   (a count, a copied link, a paid chip); right, the five titles, the
+   active one white with its line unfolding beneath (globals.css "How it
+   works"). The beat change is a transition on the strong ease-out, so a
+   fast scroll retargets instead of restarting; reduced motion swaps
+   instantly. Under md the panel stacks the card
    above the active step alone (the other titles would eat the stage)
    and stays pinned the same way. The ink itself is a layer under the
    content that grows with the scroll as the panel arrives (the
@@ -88,9 +90,9 @@ export function HowItWorks() {
 
         <div className="mt-4 grid min-h-0 flex-1 gap-6 md:mt-0 md:grid-cols-[1fr_minmax(0,22rem)] md:gap-12 lg:grid-cols-[1fr_minmax(0,24rem)]">
           {/* the cards, one per beat, stacked on a hairline (the reference's rail) */}
-          <div className="relative min-h-0 md:before:absolute md:before:top-[-40px] md:before:bottom-[-40px] md:before:left-1/2 md:before:w-px md:before:bg-white/10">
+          <div aria-hidden="true" className="relative min-h-0 md:before:absolute md:before:top-[-40px] md:before:bottom-[-40px] md:before:left-1/2 md:before:w-px md:before:bg-white/10">
             {VISUALS.map((Visual, i) => (
-              <div key={i} data-active={i === beat ? "" : undefined} className="how-visual absolute inset-0 flex items-center justify-center" aria-hidden={i !== beat}>
+              <div key={i} data-active={i === beat ? "" : undefined} className="how-visual absolute inset-0 flex items-center justify-center">
                 <Visual />
               </div>
             ))}
@@ -144,7 +146,7 @@ function VisualSpaces() {
     <Card>
       <Row className="justify-between">
         <span className="font-medium">Spaces</span>
-        <span className="text-muted-foreground">5</span>
+        <span className="how-count-5 text-muted-foreground tabular-nums" />
       </Row>
       {[
         ["Room A", "140 zł / h"],
@@ -184,7 +186,10 @@ function VisualShare() {
         <p className="text-muted-foreground text-[12px]">Your booking page</p>
         <div className="bg-secondary mt-2 flex items-center gap-2 rounded-lg px-3 py-2">
           <span className="flex-1 truncate font-medium">booklo.com/studio-halo</span>
-          <Copy className="text-muted-foreground size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+          <span className="relative grid size-4 shrink-0 place-items-center">
+            <Copy className="how-copy text-muted-foreground col-start-1 row-start-1 size-4" strokeWidth={1.75} aria-hidden="true" />
+            <Check className="how-copied col-start-1 row-start-1 size-4 text-[#0f7a3d]" strokeWidth={2.25} aria-hidden="true" />
+          </span>
         </div>
       </div>
       <div className="border-border border-t px-4 pt-3 pb-4">
@@ -212,7 +217,7 @@ function VisualBooking() {
         <span>Deposit, 50%</span>
         <span className="flex items-center gap-2 tabular-nums">
           140 zł
-          <span className="bg-success/15 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-medium text-[#0f7a3d]">
+          <span className="how-paid bg-success/15 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-medium text-[#0f7a3d]">
             <Check className="size-3" strokeWidth={2.5} aria-hidden="true" />
             Paid
           </span>
@@ -245,7 +250,7 @@ function VisualChanges() {
       </Row>
       <Row className="justify-between">
         <span className="font-medium">Balance to pay</span>
-        <span className="font-medium tabular-nums">110 zł</span>
+        <span className="how-count-110 font-medium tabular-nums" />
       </Row>
     </Card>
   );
