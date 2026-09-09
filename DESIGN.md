@@ -73,7 +73,7 @@ typography:
     landing-lead: "17px"
     landing-card-title: "19px"
     landing-step-title: "21px"
-    landing-logo: "24px"
+    landing-logo: "22px"
     landing-title-xs: "40px"
     landing-title: "50px"
 rounded:
