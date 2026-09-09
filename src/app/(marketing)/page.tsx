@@ -18,7 +18,7 @@ export default function LandingPage() {
     <>
       <MarketingNav />
       <main className="flex-1">
-        <Hero host={host} />
+        <Hero />
         <HowItWorks />
         <Money />
         <Compound />

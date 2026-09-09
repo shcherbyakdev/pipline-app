@@ -1,7 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { usePrefersReducedMotion } from "./booking-widget";
+
+const REDUCED = "(prefers-reduced-motion: reduce)";
+function subscribeReducedMotion(cb: () => void) {
+  const mq = window.matchMedia(REDUCED);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+export function usePrefersReducedMotion() {
+  return React.useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED).matches,
+    () => false,
+  );
+}
 
 /* A scripted story for a product fragment: `at[i]` is the ms offset at
    which step i begins, `period` the loop length. Returns the current step.
