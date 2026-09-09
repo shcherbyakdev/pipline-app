@@ -208,13 +208,18 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 ## Elevation & Depth
 
-The landing has no panels and no gradients: its soft colour is the logo's
-own silhouette, blurred (`BlobWash` in `features/marketing/components/booklo-mark.tsx`,
-lavender `brand/30` or mint `kind-space/20`, blur 64px, a 26s drift) behind
-the hero card and the tape chart. Sections sit on the plain ground, headings
-left-aligned; product fragments are 24px white cards with a hairline ring
-and the card shadow, soft blocks (Premium, bento cells) are 24-28px tinted
-fills without chrome; the booking money record is the page's one ink card.
+The landing hero sits on one full-bleed abstract image, `hero-wash.webp`
+(`features/marketing/images`, rendered from `scripts/landing-wash.html`):
+a painted periwinkle ridge landscape in the brand tokens, near-white at
+the top under the words, deepening under the product (visitors.now-
+referenced treatment, finsepa.com-referenced structure, 2026-09-09). The
+nav is transparent over it until the page scrolls. Elsewhere the soft
+colour is the logo's own silhouette, blurred (`BlobWash` in
+`booklo-mark.tsx`, lavender `brand/30` or mint `kind-space/20`, blur
+64px, a 26s drift) behind the tape chart. Sections sit on the plain
+ground, headings left-aligned; product fragments are 24px white cards with
+a hairline ring and the card shadow; the booking money record is the
+page's one ink card. No other panels, no CSS gradients.
 
 
 Two shadows only, defined as tokens and used via `shadow-(--shadow-card)` /

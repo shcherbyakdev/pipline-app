@@ -12,9 +12,10 @@ import { cn } from "@/lib/utils";
 
 /* Mark + wordmark left with the links beside it (md+), Log in as a quiet
    link and Get started as the ink pill on the right; a hamburger below md
-   that opens a small card. Sticky so the primary CTA
-   stays in reach while the page scrolls; the ground shows through at 80%
-   with a light blur. The card closes on link click and on Escape. */
+   that opens a small card. Sticky so the primary CTA stays in reach while
+   the page scrolls; transparent while the page sits at the top (the hero's
+   wash runs under it), then the ground shows through at 80% with a light
+   blur. The card closes on link click and on Escape. */
 const subscribeNoop = () => () => {};
 
 export function MarketingNav() {
@@ -37,6 +38,17 @@ export function MarketingNav() {
      and pills invert. The observer's bottom margin shrinks the viewport to
      roughly the bar's own strip, so "intersecting" means "under the bar". */
   const [overDark, setOverDark] = React.useState(false);
+  /* Scrolled = the sentinel rendered just above the bar has left the
+     viewport. One observer, no scroll listener. */
+  const [scrolled, setScrolled] = React.useState(false);
+  const sentinel = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    const el = sentinel.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setScrolled(!e.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   React.useEffect(() => {
     const targets = Array.from(document.querySelectorAll("[data-nav-dark]"));
     if (targets.length === 0) return;
@@ -68,7 +80,15 @@ export function MarketingNav() {
   }, [open]);
 
   return (
-    <header className={cn("bg-background/80 sticky top-0 z-30 backdrop-blur-md transition-[background-color] duration-300", overDark && "dark")}>
+    <>
+    <div ref={sentinel} aria-hidden="true" className="h-px w-full" />
+    <header
+      className={cn(
+        "sticky top-0 z-30 transition-[background-color] duration-300",
+        scrolled ? "bg-background/80 backdrop-blur-md" : "bg-transparent",
+        overDark && "dark",
+      )}
+    >
       <nav aria-label="Main" className="mx-auto flex h-[72px] w-full max-w-6xl items-center gap-8 px-5 sm:px-8 lg:gap-10">
         <Link
           href={SITE.links.home}
@@ -133,5 +153,6 @@ export function MarketingNav() {
         </div>
       ) : null}
     </header>
+    </>
   );
 }

@@ -433,6 +433,16 @@
   to { translate: 3% 4%; rotate: 6deg; scale: 1.06; }
 }
 
+/* Hero product band (components/hero.tsx): the admin screen rises from
+   the band's floor into view, 1.1s on the strong ease-out after the text
+   has settled. Transform and opacity only. */
+.marketing .hero-rise {
+  opacity: 0;
+  transform: translateY(56px);
+  animation: hero-rise 1.1s var(--ease-strong) 520ms both;
+}
+@keyframes hero-rise { to { opacity: 1; transform: none; } }
+
 /* Hero headline (components/hero.tsx): each word fades in while rising
    16px and coming into focus from an 8px blur, 60ms apart, on the strong
    ease-out over 0.9s (the entrance linear.app uses). Opacity, transform
@@ -518,6 +528,7 @@
   .animate-pop { animation: none; }
   .marketing .blob-wash { animation: none; }
   .marketing .hw { transform: none; filter: none; animation: fade-only 0.2s ease both; }
+  .marketing .hero-rise { transform: none; animation: fade-only 0.2s ease both; }
 }
 
 /* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text
