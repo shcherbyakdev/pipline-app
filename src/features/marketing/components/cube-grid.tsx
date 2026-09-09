@@ -22,9 +22,9 @@ import { usePrefersReducedMotion } from "./reduced-motion";
 /* The hero band's ground: a field of glass tiles seen almost straight on
    that light up where the pointer moves (Codrops' wave-propagation cube
    grid for the motion, a Dribbble "abstract glass cube" shot for the
-   material). One InstancedMesh of rounded cubes in a clearcoat material
-   lit low from two sides so only the edges catch, thin dark seams
-   between them; the pointer is
+   material). One InstancedMesh of rounded cubes touching edge to edge in
+   a tinted glass material (transmission, a periwinkle attenuation, a
+   clearcoat) lit low from three sides; the pointer is
    cast onto the tiles' top plane and leaves a trail of points; every
    frame each tile's lift and inner glow is the weighted average of the
    ripples those points send out (a Gaussian window riding an expanding
@@ -38,7 +38,7 @@ import { usePrefersReducedMotion } from "./reduced-motion";
 const COLS = 14;
 const ROWS = 12;
 const GAP = 1;
-const CUBE = 0.9;
+const CUBE = 1;
 const HEIGHT = 0.9;
 const AMP = 0.35;
 /* Wave shape: how fast the ring travels, how wide it is, its ripple
@@ -55,8 +55,8 @@ const AUTO_EVERY_MS = 2400;
    theme's card colour to a lit periwinkle (the accent, brightened so it
    reads as light inside glass). */
 const GROUND = "#0b0b0c";
-const BASE = "#0c0d10";
-const HIGH = "#b6bcff";
+const BASE = "#3b4070";
+const HIGH = "#e2e5ff";
 
 type TrailPoint = { x: number; z: number; t0: number; w: number };
 
@@ -106,13 +106,20 @@ export function CubeGrid({ className }: { className?: string }) {
     scene.add(back);
 
     const count = COLS * ROWS;
-    const geometry = new RoundedBoxGeometry(CUBE, HEIGHT, CUBE, 3, 0.09);
+    const geometry = new RoundedBoxGeometry(CUBE, HEIGHT, CUBE, 3, 0.07);
+    /* Glass: light passes into the tile and is tinted periwinkle on the
+       way through (transmission + attenuation), a clearcoat on top. */
     const material = new MeshPhysicalMaterial({
       color: 0xffffff,
-      roughness: 0.32,
-      metalness: 0.1,
+      roughness: 0.2,
+      metalness: 0,
+      transmission: 0.55,
+      thickness: 1.2,
+      ior: 1.5,
+      attenuationColor: new Color("#6975e2"),
+      attenuationDistance: 1.4,
       clearcoat: 1,
-      clearcoatRoughness: 0.28,
+      clearcoatRoughness: 0.22,
     });
     const mesh = new InstancedMesh(geometry, material, count);
     scene.add(mesh);
@@ -160,7 +167,6 @@ export function CubeGrid({ className }: { className?: string }) {
     const trail: TrailPoint[] = [];
     let last: { x: number; z: number; t: number } | null = null;
     let lastInput = 0;
-    const tilt = { x: 0, y: 0 };
     const push = (x: number, z: number, w: number) => {
       trail.push({ x, z, t0: performance.now(), w });
       if (trail.length > TRAIL) trail.shift();
@@ -168,8 +174,6 @@ export function CubeGrid({ className }: { className?: string }) {
     const onMove = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
       ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1));
-      tilt.x = ndc.x;
-      tilt.y = ndc.y;
       ray.setFromCamera(ndc, camera);
       if (!ray.ray.intersectPlane(top, hit)) return;
       const now = performance.now();
@@ -190,7 +194,7 @@ export function CubeGrid({ className }: { className?: string }) {
     el.addEventListener("pointermove", onMove, { passive: true });
     el.addEventListener("pointerleave", onLeave);
 
-    /* One frame: heights, colours, a breath of camera tilt. */
+    /* One frame: heights and colours; the camera never moves. */
     const halfW = (COLS * GAP) / 2;
     const halfD = (ROWS * GAP) / 2;
     let nextAuto = performance.now() + IDLE_MS;
@@ -225,8 +229,6 @@ export function CubeGrid({ className }: { className?: string }) {
       }
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      camera.position.x += (tilt.x * 0.8 - camera.position.x) * 0.04;
-      camera.lookAt(tilt.x * 0.3, 0, -tilt.y * 0.3);
       renderer.render(scene, camera);
     };
 
