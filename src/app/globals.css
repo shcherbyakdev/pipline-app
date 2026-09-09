@@ -433,9 +433,13 @@
   to { translate: 3% 4%; rotate: 6deg; scale: 1.06; }
 }
 
-/* Hero headline (components/hero.tsx): each word rises from behind its
-   own baseline, 70ms apart, on the strong ease-out. The wrapper clips; a
-   little bottom padding keeps descenders inside the clip. */
+/* Hero headline (components/hero.tsx): the opening words rise from behind
+   their own baseline, blur clearing as they arrive, 110ms apart on the
+   strong ease-out. The last word drops in from above and settles: a fast
+   fall, a 4% dip past the baseline, a small rebound, rest. Its full stop
+   lands last, growing from half size. The `.hw` wrapper clips; its bottom
+   padding keeps descenders and the dip inside the clip. Transform,
+   opacity and filter only. */
 .marketing .hw {
   display: inline-block;
   overflow: hidden;
@@ -446,9 +450,28 @@
 .marketing .hw-in {
   display: inline-block;
   transform: translateY(110%);
-  animation: hw-in 0.7s var(--ease-strong) both;
+  filter: blur(6px);
+  animation: hw-in 0.85s var(--ease-strong) both;
 }
-@keyframes hw-in { to { transform: none; } }
+@keyframes hw-in { to { transform: none; filter: none; } }
+.marketing .hw-drop {
+  display: inline-block;
+  transform: translateY(-115%);
+  animation: hw-drop 1.05s both;
+}
+@keyframes hw-drop {
+  0% { transform: translateY(-115%); animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.6); }
+  52% { transform: translateY(4%); animation-timing-function: var(--ease-strong); }
+  76% { transform: translateY(-1.6%); animation-timing-function: var(--ease-in-out-strong); }
+  100% { transform: translateY(0); }
+}
+.marketing .hw-dot {
+  display: inline-block;
+  transform: scale(0.5) translateY(0.06em);
+  opacity: 0;
+  animation: hw-dot 0.4s var(--ease-strong) both;
+}
+@keyframes hw-dot { to { transform: none; opacity: 1; } }
 
 /* Landing motion. Curves are the strong ease-out; only transform, opacity,
    clip-path and filter move; every loop has a reduced-motion variant that
@@ -457,7 +480,15 @@
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.animate-fade-up { animation: fade-up 0.5s var(--ease-strong) both; }
+/* Longhands on purpose: the `animation` shorthand would reset
+   animation-delay and, being unlayered, beat the `[animation-delay:…]`
+   utilities the hero staggers with. */
+.animate-fade-up {
+  animation-name: fade-up;
+  animation-duration: 0.5s;
+  animation-timing-function: var(--ease-strong);
+  animation-fill-mode: both;
+}
 
 /* Onboarding wizard: a step's content enters once per step (fade + 8px
    rise, admin tempo) — first-run territory, so the entrance is the one
@@ -504,11 +535,11 @@
    state-driven and park on their end state via usePrefersReducedMotion;
    their transitions carry motion-reduce:transition-none inline. */
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-up { animation: fade-up 0.2s ease both; transform: none; }
+  .animate-fade-up { animation-duration: 0.2s; animation-timing-function: ease; transform: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .animate-pop { animation: none; }
   .marketing .blob-wash { animation: none; }
-  .marketing .hw-in { transform: none; animation: fade-up 0.2s ease both; }
+  .marketing .hw-in, .marketing .hw-drop, .marketing .hw-dot { transform: none; filter: none; opacity: 1; animation: fade-up 0.2s ease both; }
 }
 
 /* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text

@@ -15,12 +15,12 @@ const BILLING_ON = FLAG_DEFAULTS.billing; // no org on the marketing site: the e
    channel runs but is not marketed here (it keeps one FAQ line). */
 export const SITE = {
   name: "Booklo",
-  tagline: "Booking operations for multi-room studios",
+  tagline: "Booking software for multi-room studios",
   description:
-    "Booklo runs bookings for multi-room photo and content studios: rooms, whole-studio hire and shared gear from one page, prices computed from your rules, deposits held and collected, changes and after-session charges settled on the same booking, and one morning list of what needs you.",
+    "Booklo is booking software for photo and content studios with more than one room. Clients book rooms, the whole studio or shared gear from one page. Booklo works out the price from your rules, takes the deposit, handles changes and overtime, and shows you what needs attention each morning.",
   headline: "Studio bookings, settled.",
   subheadline:
-    "Rooms, whole studio and shared gear on one page. Prices computed, deposits held, changes and overtime charged under your rules.",
+    "Clients book a room, the whole studio or gear. Booklo works out the price, takes the deposit and handles changes.",
   // Flag-conditional (lib/flags.ts): while billing is off there IS no paid
   // ladder to contrast a "Free plan" with, and /pricing 404s — so the note
   // says what is actually true today. Flipping the flag flips the copy.
@@ -38,26 +38,26 @@ export function anchorId(anchor: string): string {
 /** Section headings, sub-lines and body copy. Components stay presentational. */
 export const SECTIONS = {
   how: {
-    heading: "From your rooms to your first paid booking",
-    sub: "Three steps. Nothing to install, no setup call.",
+    heading: "Up and running in three steps",
+    sub: "Nothing to install, no setup call.",
   },
   money: {
-    heading: "One booking. One money record.",
-    sub: "Price, deposit, changes and after-session charges live on the same booking, under the rules you publish. Scroll through one.",
+    heading: "The money stays with the booking.",
+    sub: "Price, deposit, changes and extra charges all live on the same booking, under your rules. Scroll through one.",
   },
   compound: {
     heading: "Rooms, the whole studio, shared gear.",
-    sub: "Sell combinations. Booklo knows a whole-studio hire blocks every room, and that one lamp can't be in two rooms at once.",
+    sub: "Sell them together. Booklo knows a whole-studio booking blocks every room, and that one lamp can only be in one room at a time.",
   },
   morning: {
-    heading: "Your morning, in one list.",
-    sub: "Holds expiring, requests waiting, balances due, changes to confirm. Emailed at 08:00 and ready on your phone.",
+    heading: "Every morning, one list.",
+    sub: "Holds about to expire, requests to approve, balances to collect, changes to confirm. Emailed at 8:00 and on your phone.",
   },
   features: {
     heading: "Everything else a studio needs",
     sub: "Included from day one.",
   },
-  faq: { heading: "Questions, answered" },
+  faq: { heading: "Common questions" },
 } as const;
 
 /** The Premium section (spec 2026-09-01-premium-waitlist-design.md): while
@@ -69,8 +69,8 @@ export const SECTIONS = {
 export const PREMIUM = {
   shown: !BILLING_ON,
   eyebrow: "Premium",
-  heading: "Free while we build. Premium, if you ask.",
-  sub: "Every studio starts free. Join the Premium waitlist from your dashboard and use everything it unlocks now, at no cost.",
+  heading: "Free while we build.",
+  sub: "Every studio starts free. Join the Premium waitlist from your dashboard and get everything it unlocks now, at no cost.",
   perks: [
     `Up to ${PLANS.pro.limits.bookableResources} bookable rooms or units`,
     "Reminders for every booking",
@@ -134,9 +134,9 @@ export const NAV_LINKS: NavLink[] = [
 export type Step = { title: string; body: string };
 
 export const STEPS: Step[] = [
-  { title: "Add rooms, gear and rules", body: "Rooms and units, whole-studio combos, shared equipment, price tiers, deposit and cancellation terms." },
-  { title: "Share your page or embed it", body: "Every studio gets its own address. One script tag puts the widget on your site." },
-  { title: "Bookings settle themselves", body: "Price computed, deposit held, changes re-priced, overtime added. Each morning you see what still needs you." },
+  { title: "Add your rooms, gear and rules", body: "Rooms, whole-studio packages, shared equipment, prices, deposit and cancellation terms." },
+  { title: "Share your page or embed it", body: "Every studio gets its own web address. One line of code puts the booking widget on your site." },
+  { title: "Bookings run themselves", body: "Prices are worked out, deposits taken, changes repriced, overtime added. Each morning you see what still needs you." },
 ];
 
 /** The money story (components/money.tsx): seven beats of one booking, read
@@ -144,13 +144,13 @@ export const STEPS: Step[] = [
     would publish. Sample values only. */
 export type MoneyStep = { title: string; body: string; chips?: readonly string[] };
 export const MONEY_STEPS: readonly MoneyStep[] = [
-  { title: "Priced", body: "Room, duration tier, people, extras: the price is computed from your rules and the client sees it before booking.", chips: ["2 h+ tier", "Weekend", "+2 people", "Profoto kit"] },
-  { title: "Held", body: "A hold keeps the slot until the deadline you set. Missed, it expires on its own and the slot opens again.", chips: ["30% deposit", "4 h to pay"] },
-  { title: "Paid", body: "The deposit lands and the booking confirms. Money goes straight to your own account, never through Booklo." },
-  { title: "Moved", body: "The client moves the date. Your tiers price the change, the record shows it, both of you see the new total.", chips: ["72 h free", "48 h 50%", "24 h 100%"] },
-  { title: "Overtime", body: "The session runs long. Half an hour is added to the same booking, at your overtime rate." },
+  { title: "Priced", body: "Room, duration, people and extras. The price comes from your rules and the client sees it before booking.", chips: ["2 h+ tier", "Weekend", "+2 people", "Profoto kit"] },
+  { title: "Held", body: "A hold keeps the slot until your deadline. If the deposit doesn't arrive, the hold expires and the slot opens again.", chips: ["30% deposit", "4 h to pay"] },
+  { title: "Paid", body: "The deposit arrives and the booking is confirmed. The money goes to your own account, not through Booklo." },
+  { title: "Moved", body: "The client changes the date. Your cancellation tiers set the fee, and both of you see the new total.", chips: ["72 h free", "48 h 50%", "24 h 100%"] },
+  { title: "Overtime", body: "The session runs long. The extra half hour is added to the same booking at your overtime rate." },
   { title: "Balance", body: "Everything after the deposit becomes one balance, with one link to pay it." },
-  { title: "Collected", body: "Paid online, settled in cash, or written off. Either way the record closes and the morning list moves on." },
+  { title: "Collected", body: "Paid online, in cash, or written off. The record closes either way." },
 ] as const;
 
 /** The features grid: six things included from day one, one icon each
@@ -159,25 +159,25 @@ export type FeatureIcon = "no-account" | "guard" | "approve" | "notify" | "langu
 export type Feature = { icon: FeatureIcon; title: string; body: string };
 
 export const FEATURES: Feature[] = [
-  { icon: "no-account", title: "No client accounts", body: "Clients book from a link with a name and an email. Everything else happens through links in their confirmation." },
-  { icon: "guard", title: "Double-booking impossible", body: "Rooms, the whole studio and shared gear are guarded in the database. Two clients can never take the same hour." },
-  { icon: "approve", title: "Requests you approve", body: "Events, groups over the cap, unusual shoots: mark them as requests and they wait for your yes." },
-  { icon: "notify", title: "Email and push", body: "Confirmations, reminders, holds about to expire and the morning digest, in your inbox and on your phone." },
-  { icon: "language", title: "Polish and English", body: "Your page and every client email in the language the client chose. Your dashboard in yours." },
-  { icon: "embed", title: "Embed anywhere", body: "One script tag puts the booking widget on your site. Page and widget templates match your brand." },
+  { icon: "no-account", title: "No client accounts", body: "Clients book from a link with their name and email. Everything else happens through links in their confirmation email." },
+  { icon: "guard", title: "Double-booking impossible", body: "Rooms, the whole studio and shared gear are locked in the database. Two clients can never get the same hour." },
+  { icon: "approve", title: "Requests you approve", body: "Events, big groups, unusual shoots: mark them as requests and they wait for your yes." },
+  { icon: "notify", title: "Email and push", body: "Confirmations, reminders, expiring holds and the morning digest, by email and on your phone." },
+  { icon: "language", title: "Polish and English", body: "Your page and every client email in the client's language. Your dashboard in yours." },
+  { icon: "embed", title: "Embed anywhere", body: "One line of code puts the booking widget on your site. Page and widget templates match your brand." },
 ];
 
 export type FaqItem = { question: string; answer: string };
 
 export const FAQ: FaqItem[] = [
-  { question: "Do my clients need an account?", answer: "No. They pick a room and a window, enter a name and email, pay the deposit and they're booked. Everything else happens through links in their confirmation email." },
-  { question: "How does the deposit work?", answer: "You set the share and the deadline. A hold keeps the slot while the client pays online; if the deadline passes, the hold expires and the slot opens again. Deposits go straight to your own account: Booklo never holds client money." },
-  { question: "Can I rent the whole studio, or a room plus equipment?", answer: "Yes. A whole-studio booking blocks every room it includes, and shared gear like a lamp or a backdrop is booked together with the room. Each has its own price line." },
-  { question: "What happens after the session?", answer: "Overtime, extra people, cleaning or damage are added to the same booking as charges. The client gets one balance to pay online, or you settle it in cash or write it off." },
-  { question: "What if a client moves or cancels?", answer: "Your tiers decide: free until 72 hours before, half after, all of it inside a day, whatever you publish. The price and the refund are recomputed and both of you see the result." },
-  { question: "What if two clients want the same room or lamp?", answer: "Only one booking can win. The other client sees that the window was just taken and is offered fresh times, never a silent double booking." },
-  { question: "Does it work in Polish?", answer: "Yes. Your page, the widget and every client email come in Polish or English, per client. Your dashboard is in the language you pick." },
-  { question: "I also sell sessions with our photographer. Can I book those?", answer: "Booklo has an appointments mode for time with a person, with the same page and widget. A workspace runs one mode or the other, so a studio that mostly sells rooms keeps the rooms." },
+  { question: "Do my clients need an account?", answer: "No. They pick a room and a time, enter their name and email, pay the deposit and they're booked. Everything else happens through links in their confirmation email." },
+  { question: "How does the deposit work?", answer: "You set the amount and the deadline. A hold keeps the slot while the client pays online. If the deadline passes, the hold expires and the slot opens again. Deposits go to your own account; Booklo never holds client money." },
+  { question: "Can I rent the whole studio, or a room plus equipment?", answer: "Yes. A whole-studio booking blocks every room in it. Shared gear like a lamp or a backdrop is booked together with the room, each with its own price line." },
+  { question: "What happens after the session?", answer: "Overtime, extra people, cleaning or damage are added to the same booking. The client gets one balance to pay online, or you settle it in cash or write it off." },
+  { question: "What if a client moves or cancels?", answer: "Your tiers decide. For example: free until 72 hours before, half after that, the full amount inside 24 hours. The price and any refund are recalculated and both of you see the result." },
+  { question: "What if two clients want the same room or lamp?", answer: "Only one booking can win. The other client sees the slot was just taken and gets fresh times. There is never a silent double booking." },
+  { question: "Does it work in Polish?", answer: "Yes. Your page, the widget and every client email come in Polish or English, per client. Your dashboard is in the language you choose." },
+  { question: "I also sell sessions with our photographer. Can I book those?", answer: "Yes. Booklo also has an appointments mode for booking a person's time, with the same page and widget. A workspace runs one mode or the other." },
   { question: "What data do you store about my clients?", answer: "Name, email and an optional note, nothing else. No documents, no card numbers, no accounts." },
   // Same flag rule as SITE.heroNote: the paid answer names plans that cannot
   // be bought and points at a /pricing that 404s until FLAG_DEFAULTS.billing flips.
@@ -185,7 +185,7 @@ export const FAQ: FaqItem[] = [
     question: "What does it cost?",
     answer: BILLING_ON
       ? "Free for you and one more person, or two rooms: two bookable resources, reminders for your first 30 bookings each month, unlimited services. Pro and Team add your brand, reminders for every booking and more bookable people and units; see Pricing."
-      : "Booklo is free during early access. Premium is on its way: join the waitlist from your dashboard and everything it unlocks is yours now, at no cost. We'll announce pricing well before anything changes, and early users will hear first.",
+      : "Booklo is free while we're in early access. Premium is coming: join the waitlist from your dashboard and use everything it unlocks now, at no cost. We'll announce pricing well before anything changes.",
   },
 ];
 

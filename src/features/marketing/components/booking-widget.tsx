@@ -309,7 +309,7 @@ export function BookingWidget({ host }: { host: string }) {
           <div className="border-border flex h-12 items-center justify-between border-t px-7">
             <div className="flex min-w-0 items-center gap-2.5">
               <span className={cn("text-subtle shrink-0 text-[12px]", EASE, notified && "text-foreground font-medium")}>
-                {notified ? `Confirmed, ${s.client}, ${s.deposit} received` : held ? `Hold placed for ${first}` : paid ? `Deposit from ${first}` : "Pick a window, no account needed"}
+                {notified ? `Confirmed, ${s.client}, ${s.deposit} received` : held ? `Hold placed for ${first}` : paid ? `Deposit from ${first}` : "Pick a time, no account needed"}
               </span>
               <span
                 className={cn(

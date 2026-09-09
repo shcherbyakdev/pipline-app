@@ -12,7 +12,7 @@ import { H2, LEAD, SECTION, SECTION_INNER } from "./type";
    as a tape chart telling its own story, the mint blob behind it. Mia books Room
    A with the Profoto kit (two rows fill at once); Tom books the whole
    studio (one block across every room); Lena asks for the kit while Mia
-   has it and is told it isn't free. The story is the point: a whole-studio
+   has it and is told it is taken. The story is the point: a whole-studio
    hire blocks every room, and one lamp can't be in two rooms. */
 
 /* Steps: 0 empty · 1 Mia + kit · 2 Tom, whole studio · 3 Lena's kit is
@@ -82,7 +82,7 @@ function Tape() {
           </Block>
           {/* later in the DOM, so it paints over Mia's kit block */}
           <Block on={on(S.lena)} from={12} to={15} row={4} tone="taken">
-            Kit not free
+            Kit taken
           </Block>
         </div>
       </div>
