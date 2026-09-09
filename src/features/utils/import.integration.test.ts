@@ -127,6 +127,21 @@ describe("S8 — runImport writes rows through the admin RPC and reports per row
     expect(again[0].reason).toMatch(/already|conflict/i);
   });
 
+  it("skips a re-imported row even when the space has a second free unit (idempotency by space + start + client, not by the EXCLUDE)", async () => {
+    const { error } = await s.owner.from("rental_units").insert({ org_id: s.orgId, offering_id: s.roomId, name: "Room A2", sort_order: 1 });
+    expect(error).toBeNull();
+    const rows = [row({ row: 2, startsAt: iso(`${d(8)}T10:00`), name: "Twice" })];
+    expect((await runImport(admin, rows)).map((r) => r.status)).toEqual(["created"]);
+    const again = await runImport(admin, rows);
+    expect(again[0].status).toBe("skipped");
+    expect(again[0].reason).toMatch(/already/i);
+    const { count } = await admin.from("bookings").select("id", { count: "exact", head: true }).eq("org_id", s.orgId).eq("client_name", "Twice");
+    expect(count).toBe(1);
+    // A different client at the same time on the second unit is a genuine new booking.
+    const other = await runImport(admin, [row({ row: 3, startsAt: iso(`${d(8)}T10:00`), name: "Someone Else" })]);
+    expect(other[0].status).toBe("created");
+  });
+
   it("reports a row the studio's setup refuses (outside opening hours) as failed with the row number, and keeps going", async () => {
     const out = await runImport(admin, [row({ row: 7, startsAt: iso(`${d(6)}T07:00`) }), row({ row: 8, startsAt: iso(`${d(6)}T10:00`) })]);
     expect(out[0]).toMatchObject({ row: 7, status: "failed" });

@@ -1,8 +1,9 @@
 // S8 migration kit: write parsed rows through the admin hours RPC as
 // service_role (0085 admits that caller), one row per call, and report per
 // row. Not atomic on purpose — a studio fixes the two rows that failed and
-// re-runs the file; rows already imported collide on the booking_units
-// EXCLUDE and come back as `skipped`, so a re-run is safe.
+// re-runs the file; a row that is already on the calendar (same space, start,
+// client) is skipped, and a physical collision with anything else comes back
+// as `skipped` too, so a re-run is safe.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateAccessToken } from "@/lib/tokens/mint";
 import { isRpcSentinel } from "@/lib/rpc-sentinel";
@@ -23,9 +24,29 @@ type RpcError = { message?: string; code?: string };
 // booking this row imported last time.
 const isTaken = (e: RpcError) => isRpcSentinel(e, "taken") || e.code === "23P01" || e.code === "40P01";
 
+/** The idempotency key is the row itself — same space, same start, same
+    client, still reserving — not the EXCLUDE: a space with a second unit
+    would happily take the duplicate on the other unit. */
+async function alreadyImported(admin: SupabaseClient, r: ImportRow): Promise<boolean> {
+  const { data, error } = await admin
+    .from("bookings")
+    .select("id")
+    .eq("rental_offering_id", r.offeringId)
+    .eq("starts_at", r.startsAt)
+    .eq("client_name", r.name)
+    .in("status", ["confirmed", "pending", "pending_payment"])
+    .limit(1);
+  if (error) throw error;
+  return (data ?? []).length > 0;
+}
+
 export async function runImport(admin: SupabaseClient, rows: ImportRow[]): Promise<ImportResult[]> {
   const out: ImportResult[] = [];
   for (const r of rows) {
+    if (await alreadyImported(admin, r)) {
+      out.push({ row: r.row, status: "skipped", reason: "Already imported (same space, start and client)." });
+      continue;
+    }
     const { data, error } = await admin.rpc("create_rental_booking_hours_admin", {
       p_offering_id: r.offeringId,
       p_unit_id: null,
