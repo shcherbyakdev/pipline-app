@@ -2,7 +2,7 @@ import * as React from "react";
 import Image from "next/image";
 import { SITE } from "@/features/marketing/site";
 import { HeroClaim } from "./hero-claim";
-import { HeroScene } from "./hero-scene";
+import { TileGrid } from "./tile-grid";
 import adminWeek from "../images/admin-week.png";
 import publicPhone from "../images/public-phone.png";
 
@@ -43,8 +43,8 @@ export function Hero({ host }: { host: string }) {
       </div>
 
       {/* the product, in the glass band */}
-      <div className="animate-fade-up relative mt-16 w-full overflow-hidden bg-[#111212] pt-10 pb-10 [animation-delay:440ms] sm:mt-24 sm:h-[600px] sm:pt-24 sm:pb-0 lg:h-[680px] lg:pt-28">
-        <HeroScene className="absolute inset-0" />
+      <div className="animate-fade-up relative mt-16 w-full overflow-hidden bg-[#1a1b22] pt-10 pb-10 [animation-delay:440ms] sm:mt-24 sm:h-[600px] sm:pt-24 sm:pb-0 lg:h-[680px] lg:pt-28">
+        <TileGrid className="absolute inset-0" />
         <div aria-hidden="true" className="hero-vignette pointer-events-none absolute inset-0" />
         <div aria-hidden="true" className="hero-grain pointer-events-none absolute inset-0" />
         <div className="hero-rise pointer-events-none relative mx-auto w-full max-w-5xl px-4 sm:px-8">

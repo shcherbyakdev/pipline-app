@@ -198,15 +198,16 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 ## Elevation & Depth
 
-The landing's product sits in one full-width band on the dark theme's
-ground (#111212): a field of tall cubes (three.js, `cube-grid.tsx`,
-Codrops-referenced 2026-09-09) in the dark panel colour (#242526) that
-ripple under the pointer and glow the brand accent (#6975e2) at their
-peaks, with a vignette and film grain over it (globals.css "Hero band" /
-"Hero grain"). It runs only on screen, drops its own ripples when idle,
-and holds one still frame under reduced motion. The title and the input
-sit on the plain ground above it; the feature list follows in a 46rem
-column. No other panels, no CSS gradients.
+The landing's product sits in one full-width band of periwinkle glass
+tiles (`tile-grid.tsx`, plain DOM and CSS, globals.css "Hero tiles"):
+a 14-column grid of gradient tiles (#8188c4 → #5c639d) with bevel insets
+on a #1a1b22 seam, each carrying a highlight layer that pulses in a ring
+spreading from the pointer (delay per tile of distance, 70ms a tile,
+dimming with distance; amplitude from pointer speed); idle, a ring starts
+from a random tile; under reduced motion the tiles hold still. A vignette
+and film grain sit over it. The title and the input sit on the plain
+ground above; the feature list follows in a 46rem column. No other
+panels; the tiles are the only gradients.
 
 
 Two shadows only, defined as tokens and used via `shadow-(--shadow-card)` /
@@ -267,6 +268,5 @@ another radius on a public page.
   and the active nav icon.
 - Don't hand grey borders, `transition-all`, pure `#000`/`#fff`, or a second
   accent into any surface.
-- The landing is light throughout except the product band, which is the
-  dark theme's ground under the cube field; the title, input and feature
-  list sit on the plain ground.
+- The landing is light throughout except the product band, the periwinkle
+  tile grid; the title, input and feature list sit on the plain ground.

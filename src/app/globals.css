@@ -424,11 +424,59 @@
   background: rgb(37 34 40 / 0.12);
 }
 
-/* Hero band (components/landing-hero.tsx): the cube grid draws its own
-   ground; over it a vignette darkens the edges so the product stays the
-   subject, then the grain. */
+/* Hero tiles (components/tile-grid.tsx): the band's ground, a grid of
+   periwinkle glass tiles. Each tile is a gradient with bevel highlights
+   (a light top-left inset, a dark bottom-right one) on a dark seam; its
+   highlight layer runs a short pulse whose delay grows with `--d`, the
+   tile's distance from the pointer in tiles (set by the component), so
+   the glow travels outward at 70ms per tile and fades with distance;
+   `--amp` is the pointer's speed, `--pulse` flips between two identical
+   keyframes to restart. Opacity and transform only. A vignette darkens
+   the band's edges above it, then the grain. */
+.marketing .tiles {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 14), 1fr);
+  gap: 2px;
+  align-content: start;
+  background: #1a1b22;
+}
+.marketing .tile {
+  --d: 99;
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: linear-gradient(160deg, #8188c4 0%, #6b72ad 50%, #5c639d 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.32),
+    inset 1px 0 0 rgb(255 255 255 / 0.14),
+    inset -1px -1px 0 rgb(0 0 0 / 0.28);
+  transition: transform 700ms var(--ease-strong);
+}
+.marketing .tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(160deg, #f4f5ff 0%, #d9dcff 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6);
+  opacity: 0;
+  /* the peak: the pointer's speed, dimmed with distance */
+  --peak: calc(var(--amp, 0.8) * clamp(0, 1 - var(--d) / 9, 1));
+  animation: var(--pulse, none) 900ms var(--ease-strong) both;
+  animation-delay: calc(var(--d) * 70ms);
+}
+@keyframes tile-pulse-a {
+  0% { opacity: 0; }
+  30% { opacity: var(--peak); }
+  100% { opacity: 0; }
+}
+@keyframes tile-pulse-b {
+  0% { opacity: 0; }
+  30% { opacity: var(--peak); }
+  100% { opacity: 0; }
+}
 .marketing .hero-vignette {
-  background: radial-gradient(120% 90% at 50% 40%, rgb(17 18 18 / 0) 45%, rgb(17 18 18 / 0.75) 100%);
+  background: radial-gradient(120% 90% at 50% 40%, rgb(26 27 34 / 0) 45%, rgb(26 27 34 / 0.7) 100%);
 }
 
 /* Hero grain (components/hero.tsx): film noise over the wash, a 160px
