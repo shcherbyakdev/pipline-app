@@ -2,19 +2,15 @@ import * as React from "react";
 import Image from "next/image";
 import { SITE } from "@/features/marketing/site";
 import { HeroClaim } from "./hero-claim";
-import { TileGrid } from "./tile-grid";
+import { HeroStory } from "./hero-story";
 import adminWeek from "../images/admin-week.png";
-import publicPhone from "../images/public-phone.png";
 
 /* The page (interfacecraft.dev-referenced, 2026-09-09): a short rule, the
    title in the serif entering word by word (Linear's move: fade, a little
    rise, focus), the sub in the system face, the one input, then the
-   product: a full-width band of the abstract wash in the dark theme's
-   tokens seen through fluted glass (ribs, a travelling swell, grain; globals.css "Hero glass") with
-   the admin's week rising from its floor and cropped there, and the live
-   page on a phone seated over the week's empty weekend columns. Real
-   screenshots (scripts/landing-shots.mjs); the wash is ours
-   (scripts/landing-wash.html). */
+   product: the admin's week (a real screenshot, scripts/landing-shots.mjs)
+   on the plain ground, rising into view, with the story of one booking
+   played over it in CSS (hero-story.tsx). */
 const WORD_MS = 60;
 
 export function Hero({ host }: { host: string }) {
@@ -42,13 +38,10 @@ export function Hero({ host }: { host: string }) {
         <HeroClaim host={host} className="animate-fade-up mt-8 w-full max-w-[440px] text-left [animation-delay:340ms]" />
       </div>
 
-      {/* the product, in the glass band */}
-      <div className="animate-fade-up relative mt-16 w-full overflow-hidden bg-[#1a1b22] pt-10 pb-10 [animation-delay:440ms] sm:mt-24 sm:h-[600px] sm:pt-24 sm:pb-0 lg:h-[680px] lg:pt-28">
-        <TileGrid className="absolute inset-0" />
-        <div aria-hidden="true" className="hero-vignette pointer-events-none absolute inset-0" />
-        <div aria-hidden="true" className="hero-grain pointer-events-none absolute inset-0" />
-        <div className="hero-rise pointer-events-none relative mx-auto w-full max-w-5xl px-4 sm:px-8">
-          <div className="bg-card overflow-hidden rounded-[16px] shadow-[0_32px_90px_-24px_rgb(0_0_0/0.7)] ring-1 ring-white/15 sm:rounded-t-[22px] sm:rounded-b-none">
+      {/* the product */}
+      <div className="hero-rise mx-auto mt-16 w-full max-w-5xl px-4 sm:mt-24 sm:px-8">
+        <div className="relative">
+          <div className="bg-card ring-border overflow-hidden rounded-[16px] shadow-[0_24px_60px_-28px_rgb(37_34_40/0.25)] ring-1 sm:rounded-[22px]">
             <Image
               src={adminWeek}
               alt={`The ${SITE.name} admin: one studio's week of bookings across Room A, Room B, the make-up room and the whole studio.`}
@@ -57,17 +50,7 @@ export function Hero({ host }: { host: string }) {
               className="h-auto w-full"
             />
           </div>
-          {/* the live page on a phone, over the weekend columns (the
-              rightmost sixth of the week), so it hides no booking */}
-          <div className="bg-card absolute top-[14%] right-2 w-[40%] overflow-hidden rounded-[18px] shadow-[0_24px_60px_-16px_rgb(0_0_0/0.7)] ring-1 ring-white/15 sm:top-[10%] sm:-right-4 sm:w-[210px] sm:rounded-[26px] lg:-right-6 lg:w-[248px] lg:rounded-[30px]">
-            <Image
-              src={publicPhone}
-              alt="The studio's live booking page on a phone: Room A for four hours, the month with open days, the free windows on a Tuesday."
-              sizes="(min-width: 1024px) 248px, (min-width: 640px) 210px, 40vw"
-              className="h-auto w-full"
-              style={{ aspectRatio: "390 / 600", objectFit: "cover", objectPosition: "top" }}
-            />
-          </div>
+          <HeroStory />
         </div>
       </div>
     </section>

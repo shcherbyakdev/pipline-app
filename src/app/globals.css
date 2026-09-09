@@ -424,74 +424,139 @@
   background: rgb(37 34 40 / 0.12);
 }
 
-/* Hero tiles (components/tile-grid.tsx): the band's ground, a grid of
-   periwinkle glass tiles. Each tile is a gradient with bevel highlights
-   (a light top-left inset, a dark bottom-right one) on a dark seam; its
-   highlight layer runs a short pulse whose delay grows with `--d`, the
-   tile's distance from the pointer in tiles (set by the component), so
-   the glow travels outward at 70ms per tile and fades with distance;
-   `--amp` is the pointer's speed, `--pulse` flips between two identical
-   keyframes to restart. Opacity and transform only. A vignette darkens
-   the band's edges above it, then the grain. */
-.marketing .tiles {
-  display: grid;
-  grid-template-columns: repeat(var(--cols, 14), 1fr);
-  gap: 2px;
-  align-content: start;
-  background: #1a1b22;
+/* Hero story (components/hero-story.tsx): one 10s loop over the admin
+   screenshot, CSS only, every child on the same clock (started once the
+   screenshot has risen). The cursor glides in on the strong ease-in-out,
+   dips to press, drags the two hours (the selection grows with it, same
+   curve, same interval, so they stay in step), drifts off the block;
+   the block pops in as the calendar's pending ghost and turns solid when
+   the deposit notice slides in from above at 50%; at 82% everything
+   leaves the way it came and the loop rests before it starts over.
+   Percent positions are the screenshot's own grid; cqw sizes follow its
+   width (the box is 1.6:1, so 1% of height = 0.625cqw). Transform and
+   opacity, plus the block's colour flip. Reduced motion parks on the end:
+   the block paid, the notice shown, no cursor. */
+.marketing .hs {
+  container-type: inline-size;
 }
-.marketing .tile {
-  --d: 99;
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 6px;
-  background: linear-gradient(160deg, #8188c4 0%, #6b72ad 50%, #5c639d 100%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.32),
-    inset 1px 0 0 rgb(255 255 255 / 0.14),
-    inset -1px -1px 0 rgb(0 0 0 / 0.28);
-  transition: transform 700ms var(--ease-strong);
+.marketing .hs > * {
+  animation-duration: 10s;
+  animation-delay: 1.4s;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
 }
-.marketing .tile::after {
-  content: "";
+.marketing .hs-select,
+.marketing .hs-block {
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(160deg, #f4f5ff 0%, #d9dcff 100%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6);
-  opacity: 0;
-  /* the peak: the pointer's speed, dimmed with distance */
-  --peak: calc(var(--amp, 0.8) * clamp(0, 1 - var(--d) / 9, 1));
-  animation: var(--pulse, none) 900ms var(--ease-strong) both;
-  animation-delay: calc(var(--d) * 70ms);
+  left: 44.5%;
+  top: 66.4%;
+  width: 10.25%;
+  height: 13.6%;
+  border-radius: 0.42cqw;
 }
-@keyframes tile-pulse-a {
-  0% { opacity: 0; }
-  30% { opacity: var(--peak); }
-  100% { opacity: 0; }
+.marketing .hs-select {
+  background: rgb(105 117 226 / 0.14);
+  box-shadow: inset 0 0 0 1px rgb(105 117 226 / 0.55);
+  transform-origin: top;
+  animation-name: hs-select;
+  animation-timing-function: var(--ease-in-out-strong);
 }
-@keyframes tile-pulse-b {
-  0% { opacity: 0; }
-  30% { opacity: var(--peak); }
-  100% { opacity: 0; }
+@keyframes hs-select {
+  0%, 16% { opacity: 0; transform: scaleY(0.06); }
+  18% { opacity: 1; }
+  28% { opacity: 1; transform: scaleY(1); }
+  31%, 100% { opacity: 0; transform: scaleY(1); }
 }
-.marketing .hero-vignette {
-  background: radial-gradient(120% 90% at 50% 40%, rgb(26 27 34 / 0) 45%, rgb(26 27 34 / 0.7) 100%);
+.marketing .hs-block {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.42cqw;
+  font-size: 0.83cqw;
+  line-height: 1.11cqw;
+  color: #252228;
+  border: 1px solid rgb(37 34 40 / 0.14);
+  border-left: 0.21cqw dashed hsl(340 70% 55%);
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  animation-name: hs-block;
+  animation-timing-function: var(--ease-strong);
+}
+.marketing .hs-block-icon { width: 0.83cqw; height: 0.83cqw; vertical-align: -0.07cqw; }
+.marketing .hs-block-muted { color: #6f6d75; }
+@keyframes hs-block {
+  0%, 29% { opacity: 0; transform: scale(0.96); border-style: dashed; background: rgb(255 255 255 / 0.5); }
+  33% { opacity: 1; transform: none; }
+  51% { border-style: dashed; background: rgb(255 255 255 / 0.5); }
+  53% { border-style: solid solid solid dashed; background: #fff; }
+  82% { opacity: 1; transform: none; border-style: solid solid solid dashed; background: #fff; }
+  88%, 100% { opacity: 0; transform: none; border-style: solid solid solid dashed; background: #fff; }
+}
+.marketing .hs-cursor {
+  position: absolute;
+  left: 49.5%;
+  top: 66.4%;
+  width: clamp(14px, 1.7cqw, 20px);
+  height: auto;
+  transform-origin: 15% 12%;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.25));
+  animation-name: hs-cursor;
+  animation-timing-function: var(--ease-in-out-strong);
+}
+@keyframes hs-cursor {
+  0% { opacity: 0; transform: translate(38cqw, 22cqw); }
+  3% { opacity: 1; }
+  14% { transform: translate(0, 0); }
+  15.2% { transform: translate(0, 0) scale(0.86); }
+  16.4% { transform: translate(0, 0); }
+  28% { transform: translate(0, 8.5cqw); }
+  40% { transform: translate(6.5cqw, 12cqw); }
+  82% { opacity: 1; transform: translate(6.5cqw, 12cqw); }
+  88%, 100% { opacity: 0; transform: translate(6.5cqw, 12cqw); }
+}
+.marketing .hs-notice {
+  position: absolute;
+  top: -12px;
+  right: -8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: min(320px, 82%);
+  padding: 10px 14px 10px 12px;
+  border-radius: 12px;
+  background: #fff;
+  color: #252228;
+  font-size: 13px;
+  line-height: 1.35;
+  box-shadow:
+    inset 0 0 0 1px rgb(37 34 40 / 0.08),
+    0 12px 32px -12px rgb(37 34 40 / 0.3);
+  animation-name: hs-notice;
+  animation-timing-function: var(--ease-strong);
+}
+.marketing .hs-notice-dot {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 999px;
+  background: rgb(1 208 98 / 0.16);
+  color: #0f7a3d;
+}
+.marketing .hs-notice-dot svg { width: 12px; height: 12px; }
+.marketing .hs-notice-muted { color: #6f6d75; font-size: 12px; }
+@keyframes hs-notice {
+  0%, 49% { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  54% { opacity: 1; transform: none; }
+  82% { opacity: 1; transform: none; }
+  86%, 100% { opacity: 0; transform: translateY(-8px) scale(0.97); }
 }
 
-/* Hero grain (components/hero.tsx): film noise over the wash, a 160px
-   SVG turbulence tile repeated, blended in overlay so it speckles both
-   light and dark. Static, pointer-transparent, no repaint cost. */
-.marketing .hero-grain {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 160px 160px;
-  mix-blend-mode: overlay;
-  opacity: 0.5;
-}
-
-/* Hero product band (components/hero.tsx): the admin screen rises from
-   the band's floor into view, 1.1s on the strong ease-out after the text
-   has settled. Transform and opacity only. */
+/* Hero product (components/landing-hero.tsx): the admin screen rises
+   into view, 1.1s on the strong ease-out after the text has settled.
+   Transform and opacity only. */
 .marketing .hero-rise {
   opacity: 0;
   transform: translateY(56px);
@@ -499,7 +564,7 @@
 }
 @keyframes hero-rise { to { opacity: 1; transform: none; } }
 
-/* Hero headline (components/hero.tsx): each word fades in while rising
+/* Hero headline (components/landing-hero.tsx): each word fades in while rising
    16px and coming into focus from an 8px blur, 60ms apart, on the strong
    ease-out over 0.9s (the entrance linear.app uses). Opacity, transform
    and filter only; no clipping. */
@@ -574,16 +639,17 @@
 }
 .animate-pop { animation: pop 0.25s var(--ease-strong) both; }
 
-/* Reduced motion: keep opacity and colour, drop movement. The product
-   stories (hero widget, money record, tape chart, morning list) are
-   state-driven and park on their end state via usePrefersReducedMotion;
-   their transitions carry motion-reduce:transition-none inline. */
+/* Reduced motion: keep opacity and colour, drop movement. The hero story
+   parks on its end state. */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up { animation-name: fade-only; animation-duration: 0.2s; animation-timing-function: ease; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .animate-pop { animation: none; }
   .marketing .hw { transform: none; filter: none; animation: fade-only 0.2s ease both; }
   .marketing .hero-rise { transform: none; animation: fade-only 0.2s ease both; }
+  .marketing .hs > * { animation: none; }
+  .marketing .hs-cursor, .marketing .hs-select { display: none; }
+  .marketing .hs-block { border-style: solid solid solid dashed; background: #fff; }
 }
 
 /* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text
