@@ -1,10 +1,7 @@
 import * as React from "react";
-import Image from "next/image";
 import { SITE } from "@/features/marketing/site";
-import { BlobWash } from "./booklo-mark";
 import { HeroClaim } from "./hero-claim";
-import adminWeek from "../images/admin-week.png";
-import publicPhone from "../images/public-phone.png";
+import { HeroStage } from "./hero-stage";
 
 /* The first viewport, left-aligned. Linear's entrance: every word of the
    headline fades in while rising a little and coming into focus, 60ms
@@ -12,12 +9,7 @@ import publicPhone from "../images/public-phone.png";
    move while the headline is still resolving. Under the headline the one
    action, the claim bar (the handle is the product's own hero object; the
    nav already carries Get started, so no second button here), then the
-   product itself: the studio's
-   week in the admin (a real screenshot, scripts/landing-shots.mjs) with
-   the hosted booking page on a phone seated over the week's empty
-   weekend columns, vertically centred, so it hides nothing that matters;
-   both on the logo's own silhouette blurred into a wash (one lavender,
-   one mint). */
+   product on its stage (hero-stage.tsx). */
 const WORD_MS = 60;
 
 export function Hero({ host }: { host: string }) {
@@ -47,32 +39,9 @@ export function Hero({ host }: { host: string }) {
         </div>
       </div>
 
-      {/* the product, on the blob */}
-      <div className="animate-fade-up relative mx-auto mt-14 w-full max-w-6xl px-4 pb-6 [animation-delay:440ms] sm:px-8 sm:pb-8 lg:mt-20">
-        <BlobWash className="top-[-12%] left-[-6%] w-[70%] rotate-[-14deg]" />
-        <BlobWash tone="space" className="right-[-10%] bottom-[-16%] w-[46%] rotate-[24deg] [animation-delay:-14s]" />
-        <div className="relative">
-          <div className="bg-card ring-border overflow-hidden rounded-[16px] shadow-[var(--shadow-card)] ring-1 sm:rounded-[20px]">
-            <Image
-              src={adminWeek}
-              alt={`The ${SITE.name} admin: one studio's week of bookings across Room A, Room B, the make-up room and the whole studio.`}
-              priority
-              sizes="(min-width: 1152px) 1088px, 100vw"
-              className="h-auto w-full"
-            />
-          </div>
-          {/* the client's side: the hosted page on a phone, over the weekend
-              columns (the rightmost sixth of the week), centred on the card */}
-          <div className="bg-card ring-border absolute top-1/2 right-2 w-[40%] -translate-y-1/2 overflow-hidden rounded-[18px] shadow-[var(--shadow-lift)] ring-1 sm:-right-4 sm:w-[210px] sm:rounded-[26px] lg:-right-6 lg:w-[248px] lg:rounded-[30px]">
-            <Image
-              src={publicPhone}
-              alt="The studio's public booking page on a phone: Room A for four hours, the month with open days, the free windows on a Tuesday."
-              sizes="(min-width: 1024px) 250px, (min-width: 640px) 200px, 132px"
-              className="h-auto w-full"
-              style={{ aspectRatio: "390 / 600", objectFit: "cover", objectPosition: "top" }}
-            />
-          </div>
-        </div>
+      {/* the product, on its stage */}
+      <div className="animate-fade-up mx-auto mt-12 w-full max-w-6xl px-4 [animation-delay:440ms] sm:px-8 lg:mt-16">
+        <HeroStage host={host} />
       </div>
     </section>
   );
