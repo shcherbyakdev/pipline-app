@@ -433,47 +433,6 @@
   to { translate: 3% 4%; rotate: 6deg; scale: 1.06; }
 }
 
-/* Hero stage (components/hero-stage.tsx): the ground running into the
-   brand's tint, the one gradient panel on the page. Layers enter on a
-   stagger (fade + 28px rise + a breath of scale, strong ease-out); then,
-   where scroll-driven animations exist, each depth drifts on `translate`
-   as the stage crosses the viewport (back least, front most), composed
-   with the finished entrance transform. Dots drift on their own. Opacity,
-   transform and translate only. */
-.marketing .stage-wash {
-  background: linear-gradient(180deg, #fcfcff 0%, #ecebfd 42%, #c6c0fb 100%);
-}
-.marketing .st-in {
-  opacity: 0;
-  transform: translateY(28px) scale(0.98);
-  animation: st-in 0.9s var(--ease-strong) both;
-}
-@keyframes st-in { to { opacity: 1; transform: none; } }
-@supports (animation-timeline: view()) {
-  .marketing .st-back, .marketing .st-mid, .marketing .st-front {
-    animation-name: st-in, st-par;
-    animation-duration: 0.9s, auto;
-    animation-timing-function: var(--ease-strong), linear;
-    animation-fill-mode: both, both;
-    animation-timeline: auto, view();
-    animation-range: normal, cover 0% cover 100%;
-  }
-  .marketing .st-back { --par: 14px; }
-  .marketing .st-mid { --par: 30px; }
-  .marketing .st-front { --par: 54px; }
-  @keyframes st-par {
-    from { translate: 0 var(--par); }
-    to { translate: 0 calc(var(--par) * -1); }
-  }
-}
-.marketing .st-dot {
-  animation: st-drift 14s var(--ease-in-out-strong) infinite alternate;
-}
-@keyframes st-drift {
-  from { translate: 0 0; }
-  to { translate: 14px -22px; }
-}
-
 /* Hero headline (components/hero.tsx): each word fades in while rising
    16px and coming into focus from an 8px blur, 60ms apart, on the strong
    ease-out over 0.9s (the entrance linear.app uses). Opacity, transform
@@ -559,8 +518,6 @@
   .animate-pop { animation: none; }
   .marketing .blob-wash { animation: none; }
   .marketing .hw { transform: none; filter: none; animation: fade-only 0.2s ease both; }
-  .marketing .st-in, .marketing .st-back, .marketing .st-mid, .marketing .st-front { transform: none; animation: fade-only 0.2s ease both; }
-  .marketing .st-dot { animation: none; }
 }
 
 /* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text

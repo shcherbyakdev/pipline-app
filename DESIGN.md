@@ -208,18 +208,13 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 ## Elevation & Depth
 
-The landing has one gradient panel: the hero's stage (`.stage-wash`,
-`features/marketing/components/hero-stage.tsx`, incident.io-referenced
-2026-09-09), the ground running into the brand's tint (#fcfcff → #ecebfd →
-#c6c0fb, 24/32px radius), holding the product in layers (admin week in a
-browser window at the back, the hosted page on a phone in front, the money
-record in front right, the embed snippet as a dark code window, one status
-pill, a few drifting brand dots). Elsewhere the soft colour is the logo's
-own silhouette, blurred (`BlobWash` in `booklo-mark.tsx`, lavender
-`brand/30` or mint `kind-space/20`, blur 64px, a 26s drift) behind the tape
-chart. Sections sit on the plain ground, headings left-aligned; product
-fragments are 24px white cards with a hairline ring and the card shadow;
-the booking money record is the page's ink card.
+The landing has no panels and no gradients: its soft colour is the logo's
+own silhouette, blurred (`BlobWash` in `features/marketing/components/booklo-mark.tsx`,
+lavender `brand/30` or mint `kind-space/20`, blur 64px, a 26s drift) behind
+the hero card and the tape chart. Sections sit on the plain ground, headings
+left-aligned; product fragments are 24px white cards with a hairline ring
+and the card shadow, soft blocks (Premium, bento cells) are 24-28px tinted
+fills without chrome; the booking money record is the page's one ink card.
 
 
 Two shadows only, defined as tokens and used via `shadow-(--shadow-card)` /

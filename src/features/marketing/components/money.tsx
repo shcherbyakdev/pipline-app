@@ -68,7 +68,7 @@ function Amount({ children }: { children: React.ReactNode }) {
   return <span className="text-foreground shrink-0 font-mono text-[13px] tabular-nums">{children}</span>;
 }
 
-export function Record({ beat }: { beat: number }) {
+function Record({ beat }: { beat: number }) {
   const on = (s: number) => beat >= s;
   const settled = on(S.collected);
   return (
