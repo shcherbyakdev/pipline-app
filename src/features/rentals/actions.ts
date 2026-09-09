@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { assertCanAddUnit } from "@/lib/billing/gates";
 import { seedDefaultHours } from "@/features/scheduling/default-hours";
+import { isRpcSentinel } from "@/lib/rpc-sentinel";
+import { numberedUnitName } from "./unit-label";
 import {
   offeringInput,
   updateOfferingInput,
@@ -55,7 +57,13 @@ async function currentOrgId(): Promise<string | null> {
     place (patchOffering); the settings form saves the rest. Distributive so
     each mode's branch keeps its own fields. */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
-type OfferingSettings = DistributiveOmit<import("zod").infer<typeof offeringInput>, "name" | "description">;
+// S6's kind/componentIds/itemCount are create-only and never a settings
+// column write, so they are omitted here too: the same helper serves the
+// create payload and the (kind-less) settings payload.
+type OfferingSettings = DistributiveOmit<
+  import("zod").infer<typeof offeringInput>,
+  "name" | "description" | "kind" | "componentIds" | "itemCount"
+>;
 function toOfferingSettingsRow(d: OfferingSettings) {
   const common = {
     range_mode: d.rangeMode,
@@ -105,7 +113,20 @@ function toOfferingSettingsRow(d: OfferingSettings) {
 }
 
 function toOfferingRow(d: import("zod").infer<typeof offeringInput>) {
-  return { name: d.name, description: d.description ?? null, ...toOfferingSettingsRow(d) };
+  return {
+    name: d.name,
+    description: d.description ?? null,
+    // S6: set once, here. The settings form has no `kind` (strict schema),
+    // so an existing space can never change what it is.
+    kind: d.rangeMode === "hours" ? d.kind : "space",
+    ...toOfferingSettingsRow(d),
+  };
+}
+
+/** How many units a new space starts with: one, unless it is an equipment
+    space — there the units ARE the physical items. */
+function itemCountOf(d: import("zod").infer<typeof offeringInput>): number {
+  return d.rangeMode === "hours" && d.kind === "equipment" ? d.itemCount : 1;
 }
 
 /** A single-unit space never shows its unit — the space is the unit — so
@@ -148,7 +169,11 @@ export async function createOffering(input: unknown): Promise<ActionState> {
   // plan gate that would refuse the unit refuses the space — a saved space
   // that could not be booked pointed the owner at "add a unit", which the
   // same gate refused — and a failed unit insert takes the space back out.
-  const refused = await assertCanAddUnit(orgId, supabase);
+  // An equipment space is created with all its items at once, so it spends
+  // that many slots: gate on the whole set, not one (S6 — otherwise the
+  // items land over budget and evict a room from the public list).
+  const items = itemCountOf(parsed.data);
+  const refused = await assertCanAddUnit(orgId, supabase, items);
   if (refused) return refused;
   const { data, error } = await supabase
     .from("rental_offerings")
@@ -156,13 +181,31 @@ export async function createOffering(input: unknown): Promise<ActionState> {
     .select("id")
     .single();
   if (error) return fail("createOffering", error);
-  const { error: unitError } = await supabase.from("rental_units").insert({
+  const firstUnit = {
     org_id: orgId,
     offering_id: data.id,
     name: parsed.data.name,
     description: null,
     active: true,
-  });
+    // Spelled out, not left to the column default: PostgREST unions a bulk
+    // insert's keys and sends NULL for a key a row omits, so one row without
+    // it would break the whole array on sort_order's NOT NULL.
+    sort_order: 0,
+  };
+  // Equipment: every item is a unit, numbered after the first — one
+  // statement, so the undo below still covers the whole set.
+  const { error: unitError } = await supabase.from("rental_units").insert(
+    items > 1
+      ? [
+          firstUnit,
+          ...Array.from({ length: items - 1 }, (_, i) => ({
+            ...firstUnit,
+            name: numberedUnitName(parsed.data.name, i + 2),
+            sort_order: i + 1,
+          })),
+        ]
+      : firstUnit,
+  );
   if (unitError) {
     const { error: undoError } = await supabase
       .from("rental_offerings")
@@ -172,12 +215,34 @@ export async function createOffering(input: unknown): Promise<ActionState> {
     if (undoError) console.error("[rentals] createOffering undo:", undoError);
     return fail("createOffering first unit", unitError);
   }
+  // A composite is the rooms it includes — without them it blocks nothing,
+  // so a failed link takes the whole space back out (units cascade with it).
+  if (parsed.data.rangeMode === "hours" && parsed.data.kind === "composite") {
+    const { error: componentsError } = await supabase.from("rental_offering_components").insert(
+      parsed.data.componentIds.map((component_id) => ({
+        composite_id: data.id,
+        component_id,
+        org_id: orgId,
+      })),
+    );
+    if (componentsError) {
+      const { error: undoError } = await supabase
+        .from("rental_offerings")
+        .delete()
+        .eq("id", data.id)
+        .eq("org_id", orgId);
+      if (undoError) console.error("[rentals] createOffering undo:", undoError);
+      return fail("createOffering components", componentsError);
+    }
+  }
   // An hourly space has no check-in/check-out times to fall back on, so with
   // no weekly hours it offers nothing — the same dead start a new team
   // member used to get. Nights/days spaces have no weekly hours at all
   // (admin IA ruling 4), so only "hours" gets a week.
   let notice: string | undefined;
-  if (parsed.data.rangeMode === "hours") {
+  // Equipment is never booked on its own (it rides a room booking), so a
+  // week of its own would only be noise.
+  if (parsed.data.rangeMode === "hours" && parsed.data.kind !== "equipment") {
     const seedError = await seedDefaultHours(supabase, orgId, { rentalOfferingId: data.id });
     if (seedError) {
       console.error("[rentals] createOffering default hours:", seedError.message);
@@ -205,8 +270,37 @@ export async function updateOffering(input: unknown): Promise<ActionState> {
     .eq("org_id", orgId)
     .select("id")
     .maybeSingle();
+  // S6: the room is included in a composite, so it may not leave hours mode
+  // (0084's check_component_still_hourly). Say so — the raise alone reached
+  // the owner as the generic error with nothing to act on.
+  if (error && isRpcSentinel(error, "included in a whole studio")) {
+    return { ok: false, error: (await errorsT())("spaces.componentLocked") };
+  }
   if (error) return fail("updateOffering", error);
   if (!data) return generic();
+  // S6: a composite's save replaces the rooms it includes (the form always
+  // posts the whole list). Only a composite carries the key. Add first, drop
+  // second, and never in one delete-then-insert: there is no transaction
+  // here, and a failure between the two would leave a studio that includes
+  // NOTHING — it would block no room and take double bookings. This way the
+  // worst a half-done save leaves is a room still included.
+  const componentIds = "componentIds" in rest ? rest.componentIds : undefined;
+  if (componentIds) {
+    const { error: linkError } = await supabase
+      .from("rental_offering_components")
+      .upsert(
+        componentIds.map((component_id) => ({ composite_id: id, component_id, org_id: orgId })),
+        { onConflict: "composite_id,component_id", ignoreDuplicates: true },
+      );
+    if (linkError) return fail("updateOffering components", linkError);
+    const { error: dropError } = await supabase
+      .from("rental_offering_components")
+      .delete()
+      .eq("composite_id", id)
+      .eq("org_id", orgId)
+      .not("component_id", "in", `(${componentIds.join(",")})`);
+    if (dropError) return fail("updateOffering components", dropError);
+  }
   revalidatePath("/rentals");
   revalidatePath(`/rentals/${id}`);
   revalidatePath("/availability");
@@ -290,6 +384,19 @@ export async function createUnit(input: unknown): Promise<ActionState> {
   const orgId = await currentOrgId();
   if (!orgId) return generic();
   const supabase = await createClient();
+  // S6: a composite IS one unit — it holds every room it includes, so a
+  // second unit of its own would reserve nothing. Split the rooms instead.
+  const { data: parent, error: parentError } = await supabase
+    .from("rental_offerings")
+    .select("kind")
+    .eq("id", parsed.data.offeringId)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (parentError) return fail("createUnit", parentError);
+  if (!parent) return generic();
+  if (parent.kind === "composite") {
+    return { ok: false, error: (await errorsT())("spaces.compositeHasOneUnit") };
+  }
   // H5b: a unit spends the plan's resource budget like a person does.
   if (parsed.data.active) {
     const refused = await assertCanAddUnit(orgId, supabase);

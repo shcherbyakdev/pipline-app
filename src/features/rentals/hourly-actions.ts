@@ -8,7 +8,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { clientKeyFrom, generateAccessToken } from "@/lib/tokens";
 import { publicBookingLimiter, publicSlotsLimiter } from "@/lib/tokens/rate-limit";
 import { buildBookingManageUrl } from "@/lib/tokens/booking";
-import { getBookingOrg, getBookingUnitName, loadOrgHourlyContext, type PublicUnit } from "@/lib/booking/public";
+import {
+  getBookingOrg,
+  getBookingUnitName,
+  listEquipmentAvailability,
+  loadOrgHourlyContext,
+  type PublicEquipment,
+  type PublicUnit,
+} from "@/lib/booking/public";
 import { loadPublicResources } from "@/lib/booking/public-offering";
 import { notifyMembers } from "@/features/notifications/notify";
 import { kickCalendarSync } from "@/features/calendar-sync/run";
@@ -122,6 +129,10 @@ export async function getHourlySlots(
       // (HourlyBookingFlow) needs names/descriptions for the ids a slot's
       // `unitIds` carries, not just the ids themselves.
       units: PublicUnit[];
+      // S6: the equipment on offer with what is busy in the window — the
+      // add-on step caps each row with freeUnitsAt. Flight encodes a Date as
+      // "$D<iso>" and revives it client-side, so `busy` arrives as Dates.
+      equipment: PublicEquipment[];
     }
   | { ok: false; error: string }
 > {
@@ -144,10 +155,21 @@ export async function getHourlySlots(
       return publicError(orgLocale, "generic");
     }
     const slots = hourlySlotsFor(ctx, durationMin, from, span);
+    // S6: what equipment is on offer and when it is busy — the add-on step
+    // caps quantities per slot with freeUnitsAt. Capped units never appear
+    // (H5b: the plan's budget applies to a lamp as it does to a room).
+    const resources = await loadPublicResources(ctx.org.orgId); // memoised per request
+    const equipment = await listEquipmentAvailability(
+      ctx.org.orgId,
+      `${from}T00:00:00Z`,
+      `${addDaysISO(from, span)}T23:59:59Z`,
+      { allowedUnitIds: resources?.allowedUnitIds ?? null },
+    );
     return {
       ok: true,
       slots: slots.map((s) => ({ startsAt: s.startsAt.toISOString(), unitIds: s.unitIds })),
       units: ctx.units,
+      equipment,
     };
   } catch (error) {
     console.error("[rentals] getHourlySlots:", error);
@@ -174,7 +196,7 @@ export async function createRentalBookingHours(
   if (!parsed.success) return publicError(orgLocale, "generic");
   // getBookingOrg is memoised per request: the loaders below re-use this read.
   orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
-  const { handle, offeringId, unitId, startsAt, durationMin, name, email, note, termsAccepted, people, extras } =
+  const { handle, offeringId, unitId, startsAt, durationMin, name, email, note, termsAccepted, people, extras, equipment } =
     parsed.data;
 
   try {
@@ -229,6 +251,7 @@ export async function createRentalBookingHours(
         p_token_hash: tokenHash,
         p_people: people,
         p_extras: extras,
+        p_equipment: equipment,
       });
 
     // Same ladder as createRentalBooking (public-actions.ts): explicit unit
@@ -248,7 +271,14 @@ export async function createRentalBookingHours(
       // S1: the quote couldn't be worked out (a duration below the first
       // band, people over the max, or a bad extra pick) — re-open the step
       // rather than the generic error, so the flow can let the client fix it.
-      if (isRpcSentinel(error, "quote_band") || isRpcSentinel(error, "quote_people") || isRpcSentinel(error, "quote_extra")) {
+      if (
+        isRpcSentinel(error, "quote_band") ||
+        isRpcSentinel(error, "quote_people") ||
+        isRpcSentinel(error, "quote_extra") ||
+        // S6: an equipment pick the org can no longer honour (gone, unpriced,
+        // or more than it owns).
+        isRpcSentinel(error, "quote_equipment")
+      ) {
         return publicError(orgLocale, "rentalsQuote", { quote: true });
       }
       if (isTaken(error)) return publicError(orgLocale, "slotTaken", { slotTaken: true });

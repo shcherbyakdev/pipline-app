@@ -8,6 +8,7 @@ import {
   date,
   index,
   jsonb,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 
@@ -69,6 +70,10 @@ export const rentalOfferings = pgTable(
     // Approval feature (0062): public creates insert status='pending'.
     requiresApproval: boolean("requires_approval").default(false).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
+    // S6: 'space' | 'composite' (whole studio ⊃ rooms, one virtual unit) |
+    // 'equipment' (units are the physical items, never the primary offering).
+    // CHECKs in 0084: non-space ⇒ hours mode + unit_selection 'auto'.
+    kind: text("kind").default("space").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("rental_offerings_org_id_idx").on(t.orgId)],
@@ -113,4 +118,26 @@ export const rentalUnitBlackouts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("rental_unit_blackouts_unit_start_idx").on(t.rentalUnitId, t.startDate)],
+);
+
+// S6: which hourly rooms a composite (whole studio) includes. Guard trigger
+// in 0084 pins both offerings to org_id, the composite to kind='composite'
+// and the component to kind='space' in hours mode (no nesting).
+export const rentalOfferingComponents = pgTable(
+  "rental_offering_components",
+  {
+    compositeId: uuid("composite_id")
+      .notNull()
+      .references(() => rentalOfferings.id, { onDelete: "cascade" }),
+    componentId: uuid("component_id")
+      .notNull()
+      .references(() => rentalOfferings.id, { onDelete: "cascade" }),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.compositeId, t.componentId] }),
+    index("rental_offering_components_component_idx").on(t.componentId),
+  ],
 );

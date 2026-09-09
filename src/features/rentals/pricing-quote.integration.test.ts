@@ -10,7 +10,7 @@ import { loadEnvFile } from "node:process";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { generateAccessToken } from "@/lib/tokens/mint";
 import { wallTimeToUtc } from "@/features/scheduling/slots";
-import { quoteHours, sumLines } from "./pricing";
+import { quoteHours, sumLines, equipmentLines, type EquipmentOffering } from "./pricing";
 import {
   FIXTURE_CASES,
   FIXTURE_RULES,
@@ -18,6 +18,8 @@ import {
   FALLBACK_CASES,
   MON,
   SUN,
+  EQUIPMENT_FIXTURES,
+  EQUIPMENT_CASES,
 } from "./pricing-fixture";
 
 try {
@@ -466,5 +468,33 @@ describe("hourly RPCs snapshot the quote", () => {
     });
     expect(error?.code).toBe("23514");
     expect(error?.message).toContain("rental_offerings_pricing_hours_ck");
+  });
+});
+
+describe("S6 lockstep: rental_equipment_lines ≡ equipmentLines", () => {
+  it("every fixture case", async () => {
+    const { client, orgId } = await newOrg("s6eq");
+    const defs: Record<string, EquipmentOffering> = {};
+    for (const [key, f] of Object.entries(EQUIPMENT_FIXTURES)) {
+      const { data, error } = await client.from("rental_offerings").insert({
+        org_id: orgId, name: f.name, kind: "equipment", range_mode: "hours", unit_selection: "auto",
+        slot_increment_min: 30, min_duration_min: 60, max_duration_min: 240,
+        price_cents: f.priceCents, pricing_mode: f.pricingMode,
+      }).select("id").single();
+      if (error) throw error;
+      for (let i = 0; i < f.units; i++) {
+        const { error: ue } = await client.from("rental_units").insert({ org_id: orgId, offering_id: data!.id, name: `${f.name} ${i + 1}`, sort_order: i });
+        if (ue) throw ue;
+      }
+      defs[key] = { id: data!.id as string, name: f.name, priceCents: f.priceCents, pricingMode: f.pricingMode, unitCount: f.units };
+    }
+    for (const c of EQUIPMENT_CASES) {
+      const picks = c.picks.map((p) => ({ offeringId: defs[p.key].id, qty: p.qty }));
+      const { data, error } = await admin.rpc("rental_equipment_lines", { p_org_id: orgId, p_picks: picks, p_duration_min: c.durationMin });
+      expect(error, c.name).toBeNull();
+      expect(data, c.name).toEqual(equipmentLines(Object.values(defs), picks, c.durationMin));
+    }
+    const bad = await admin.rpc("rental_equipment_lines", { p_org_id: orgId, p_picks: [{ offeringId: defs.lamp.id, qty: 3 }], p_duration_min: 60 });
+    expect(bad.error?.message).toMatch(/quote_equipment/);
   });
 });

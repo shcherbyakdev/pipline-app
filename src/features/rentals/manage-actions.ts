@@ -13,6 +13,8 @@ import {
   getBookingMoney,
   getBookingOfferingId,
   getPublicOfferingById,
+  listBookingEquipmentUnitIds,
+  listEquipmentAvailability,
   loadOrgHourlyContext,
   loadOrgRangeContext,
   type PublicOffering,
@@ -40,9 +42,9 @@ import {
   type RangeAvailability,
 } from "./range";
 import { hourlySlotService, isHourlyOffering, unionUnitSlots } from "./hourly";
-import { moneyInfoLines } from "./pricing";
+import { moneyInfoLines, type EquipmentOffering } from "./pricing";
 import type { CancelPolicy } from "./cancel-policy";
-import type { ExtraPick, Line } from "./pricing-rules";
+import type { EquipmentPick, ExtraPick, Line } from "./pricing-rules";
 import {
   manageRangeAvailabilityInput,
   manageHourlySlotsInput,
@@ -82,8 +84,10 @@ function fail(context: string, error: unknown, orgLocale: OrgLocaleSource) {
 
 // 'taken' is the RPC's own "no unit survives turnover/blackouts"; 23P01 is
 // the per-unit EXCLUDE guard catching a physical overlap (public-actions).
+// 23P01 = the EXCLUDE lost the race; 40P01 = two compound bookings deadlocked
+// on it (S6: one booking now touches several units). Both mean "just taken".
 function isTaken(error: { message?: string; code?: string }): boolean {
-  return isRpcSentinel(error, "taken") || error.code === "23P01";
+  return isRpcSentinel(error, "taken") || error.code === "23P01" || error.code === "40P01";
 }
 function isStarted(error: { message?: string }): boolean {
   return isRpcSentinel(error, "started");
@@ -103,6 +107,9 @@ type ManageBookingMoney = {
   cancelPolicy: CancelPolicy | null;
   people: number | null;
   extras: ExtraPick[];
+  // S6: the equipment the booking already holds — the re-quote prices the
+  // same picks against the new slot.
+  equipment: EquipmentPick[];
 };
 
 function toManageBookingMoney(booking: {
@@ -126,6 +133,7 @@ function toManageBookingMoney(booking: {
     cancelPolicy: booking.cancelPolicy,
     people: booking.people,
     extras: (booking.lines ?? []).flatMap((l) => (l.kind === "extra" ? [{ id: l.extraId, qty: l.qty }] : [])),
+    equipment: (booking.lines ?? []).flatMap((l) => (l.kind === "equipment" ? [{ offeringId: l.offeringId, qty: l.qty }] : [])),
   };
 }
 
@@ -402,6 +410,10 @@ export async function getManageHourlySlots(input: unknown): Promise<
       units: PublicUnit[];
       currentUnitId: string;
       booking: ManageBookingMoney;
+      // S6: the definitions the panel's preview needs to re-price
+      // `booking.equipment` (equipmentLines); `units` is the server's own
+      // business, so only the priced definition crosses the wire.
+      equipment: EquipmentOffering[];
     }
   | { ok: false; error: string }
 > {
@@ -429,8 +441,13 @@ export async function getManageHourlySlots(input: unknown): Promise<
     // page.
     const from = addDaysISO(fromDate, -1);
     const span = days + 2;
+    // S6: the equipment this booking carries moves with it — its own units
+    // are busy everywhere the room could go (the RPC re-attaches the same
+    // picks), so a time only one of them can take must not be offered.
+    const equipmentUnitIds = await listBookingEquipmentUnitIds(booking.id);
     const ctx = await loadOrgHourlyContext(booking.orgId, offeringId, booking.orgTimezone, from, span, {
       excludeBookingId: booking.id,
+      alsoBusyUnitIds: equipmentUnitIds,
     });
     if (!ctx || !isHourlyOffering(ctx.offering)) return publicError(orgLocale, "notChangeable");
 
@@ -451,6 +468,12 @@ export async function getManageHourlySlots(input: unknown): Promise<
         }),
       })),
     );
+    const equipment = await listEquipmentAvailability(
+      booking.orgId,
+      `${from}T00:00:00Z`,
+      `${addDaysISO(from, span)}T23:59:59Z`,
+      { excludeBookingId: booking.id },
+    );
     return {
       ok: true,
       slots: slots.map((s) => ({ startsAt: s.startsAt.toISOString(), unitIds: s.unitIds })),
@@ -460,6 +483,9 @@ export async function getManageHourlySlots(input: unknown): Promise<
       currentUnitId: booking.rentalUnitId,
       // S3: same as getManageRangeAvailability — the preview's inputs.
       booking: toManageBookingMoney(booking),
+      equipment: equipment.map((e) => ({
+        id: e.id, name: e.name, priceCents: e.priceCents, pricingMode: e.pricingMode, unitCount: e.unitCount,
+      })),
     };
   } catch (error) {
     return fail("getManageHourlySlots", error, orgLocale);

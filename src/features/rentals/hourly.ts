@@ -78,6 +78,18 @@ export function unionUnitSlots(
   }));
 }
 
+/** How many of these units have no busy interval overlapping [startsAt, endsAt).
+    Touching edges are free (half-open ranges, like the EXCLUDE's tstzrange). */
+export function freeUnitsAt(
+  units: { id: string; busy: { startsAt: Date; endsAt: Date }[] }[],
+  startsAt: Date,
+  endsAt: Date,
+): number {
+  const s = startsAt.getTime();
+  const e = endsAt.getTime();
+  return units.filter((u) => !u.busy.some((b) => b.startsAt.getTime() < e && b.endsAt.getTime() > s)).length;
+}
+
 export function formatDurationLabel(min: number, t: UnitsT): string {
   const h = Math.floor(min / 60);
   const m = min % 60;

@@ -141,6 +141,35 @@ export async function loadBookingSettlement(
   }
 }
 
+/** S6: the OTHER units a booking holds (booking_units, 0084) — the rooms a
+    whole-studio booking swallows, the lamps an add-on reserves. The detail
+    dialog asks for every rental status, not just a settled one: the point of
+    the line is to say what a PENDING request would block. The RLS client is
+    the whole gate — booking_units is readable by the org's members only, so
+    a stranger's uuid comes back empty. Sorted, since PostgREST's order is
+    arbitrary and the line must not reshuffle between two opens. */
+export async function loadBookingAlsoReserved(input: unknown): Promise<string[]> {
+  const parsed = z.object({ id: z.uuid() }).safeParse(input);
+  if (!parsed.success) return [];
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("booking_units")
+      .select("rental_units(name)")
+      .eq("booking_id", parsed.data.id)
+      .eq("reserving", true)
+      .neq("kind", "primary");
+    if (error) { console.error("[payments] loadBookingAlsoReserved:", error); return []; }
+    return (data as unknown as Array<{ rental_units: { name: string } | null }>)
+      .map((r) => r.rental_units?.name)
+      .filter((n): n is string => !!n)
+      .sort();
+  } catch (e) {
+    console.error("[payments] loadBookingAlsoReserved:", e);
+    return [];
+  }
+}
+
 /** One line added to the bill. The RLS client writes it, so the org gate and
     the "the booking is ours" check are the table's policies (0082), not this
     code; `cents` is the CHECK's own arithmetic, restated here. */

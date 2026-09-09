@@ -274,3 +274,44 @@ describe("changeLines", () => {
     expect(changeLines({ ...base, newTotalCents: null, feeCents: 0, feePct: 0 }, t)).toEqual([]);
   });
 });
+
+import { equipmentLines, type EquipmentOffering } from "./pricing";
+import { equipmentPicksSchema } from "./pricing-rules";
+
+const LAMP: EquipmentOffering = { id: "11111111-1111-4111-8111-111111111111", name: "ARRI", priceCents: 5000, pricingMode: "per_unit", unitCount: 2 };
+const SMOKE: EquipmentOffering = { id: "22222222-2222-4222-8222-222222222222", name: "Smoke", priceCents: 8000, pricingMode: "flat", unitCount: 1 };
+
+describe("equipmentLines (S6)", () => {
+  it("per-hour × qty × hours, rounded like the S1 base line", () => {
+    expect(equipmentLines([LAMP], [{ offeringId: LAMP.id, qty: 2 }], 90)).toEqual([
+      { kind: "equipment", offeringId: LAMP.id, label: "ARRI", unit: "hour", qty: 2, unitCents: 5000, cents: 15000 },
+    ]);
+  });
+  it("flat × qty ignores the duration", () => {
+    expect(equipmentLines([SMOKE], [{ offeringId: SMOKE.id, qty: 1 }], 240)).toEqual([
+      { kind: "equipment", offeringId: SMOKE.id, label: "Smoke", unit: "flat", qty: 1, unitCents: 8000, cents: 8000 },
+    ]);
+  });
+  it("keeps pick order and returns [] for no picks", () => {
+    const lines = equipmentLines([LAMP, SMOKE], [{ offeringId: SMOKE.id, qty: 1 }, { offeringId: LAMP.id, qty: 1 }], 60);
+    expect(lines.map((l) => l.kind === "equipment" && l.offeringId)).toEqual([SMOKE.id, LAMP.id]);
+    expect(equipmentLines([LAMP], [], 60)).toEqual([]);
+  });
+  it("refuses unknown, unpriced, duplicate and oversize picks with the sentinel", () => {
+    expect(() => equipmentLines([LAMP], [{ offeringId: SMOKE.id, qty: 1 }], 60)).toThrow("quote_equipment");
+    expect(() => equipmentLines([{ ...LAMP, priceCents: null }], [{ offeringId: LAMP.id, qty: 1 }], 60)).toThrow("quote_equipment");
+    expect(() => equipmentLines([LAMP], [{ offeringId: LAMP.id, qty: 1 }, { offeringId: LAMP.id, qty: 1 }], 60)).toThrow("quote_equipment");
+    expect(() => equipmentLines([LAMP], [{ offeringId: LAMP.id, qty: 3 }], 60)).toThrow("quote_equipment");
+    // rental_equipment_lines' own ceiling (0084), so the twins agree.
+    expect(() => equipmentLines([LAMP], Array.from({ length: 13 }, () => ({ offeringId: LAMP.id, qty: 1 })), 60)).toThrow("quote_equipment");
+  });
+});
+
+describe("equipmentPicksSchema", () => {
+  it("accepts distinct uuid picks with qty 1–99, refuses repeats", () => {
+    expect(equipmentPicksSchema.safeParse([{ offeringId: LAMP.id, qty: 1 }]).success).toBe(true);
+    expect(equipmentPicksSchema.safeParse([{ offeringId: LAMP.id, qty: 0 }]).success).toBe(false);
+    expect(equipmentPicksSchema.safeParse([{ offeringId: LAMP.id, qty: 1 }, { offeringId: LAMP.id, qty: 2 }]).success).toBe(false);
+    expect(equipmentPicksSchema.safeParse([{ offeringId: "nope", qty: 1 }]).success).toBe(false);
+  });
+});

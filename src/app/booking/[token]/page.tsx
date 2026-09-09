@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { clientKeyFrom } from "@/lib/tokens";
 import { resolveBookingToken } from "@/lib/tokens/booking";
-import { getBookingLocale, getOrgLegal, getOrgLocale, resolveClientStaffName } from "@/lib/booking/public";
+import { getBookingLocale, getOrgLegal, getOrgLocale, listBookingAlsoReserved, resolveClientStaffName } from "@/lib/booking/public";
 import { formatUntil, whenLineFor } from "@/features/scheduling/templates";
 import { ManageBooking } from "@/features/scheduling/components/manage-booking";
 import { moneyInfoLines } from "@/features/rentals/pricing";
@@ -82,10 +82,12 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
   // S7: after-session charges and the write-off — rentals only (appointments
   // render byte-identical to before this slice, so nothing is fetched for
   // them and the empty defaults below reproduce the old output exactly).
-  const [settlement, canCollect] =
+  // S6: `alsoReserved` rides along — the rooms a whole-studio booking holds,
+  // the equipment an add-on reserved. Empty for anything with no components.
+  const [settlement, canCollect, alsoReserved] =
     b.rentalUnitId !== null
-      ? await Promise.all([getBookingSettlement(b.id), hasActivePaymentAccount(b.orgId)])
-      : [{ charges: [], writtenOffCents: 0, writtenOffNote: null }, false];
+      ? await Promise.all([getBookingSettlement(b.id), hasActivePaymentAccount(b.orgId), listBookingAlsoReserved(b.id)])
+      : [{ charges: [], writtenOffCents: 0, writtenOffNote: null }, false, [] as string[]];
   const chargesCents = settlement.charges.reduce((s, c) => s + c.cents, 0);
   // What the client still owes, for the "Pay now" button only — the RPC
   // recomputes the real amount when they click.
@@ -163,6 +165,9 @@ export default async function BookingManagePage({ params, searchParams }: PagePr
       {payParam === "failed" ? <p className="text-destructive text-sm">{t("paymentFailed")}</p> : null}
       <div className="flex flex-col gap-1 border-b pb-5 text-sm">
         <p className="font-medium">{b.serviceName}</p>
+        {alsoReserved.length > 0 ? (
+          <p className="text-muted-foreground">{t("alsoReserved", { names: alsoReserved.join(", ") })}</p>
+        ) : null}
         {staffName ? <p className="text-muted-foreground">{tConfirmed("with", { name: staffName })}</p> : null}
         <p className="tabular-nums">
           {whenLineFor(

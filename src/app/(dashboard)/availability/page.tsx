@@ -44,7 +44,10 @@ export default async function AvailabilityPage({
   ]);
   const timezone = settings?.timezone ?? "UTC";
   const activeSpaces = spaceRows.filter((o) => o.active);
-  const hourlySpaces = activeSpaces.filter((o) => o.rangeMode === "hours");
+  // S6: equipment has no week of its own — it is available whenever no other
+  // booking holds the item (listEquipmentAvailability reads occupancy only),
+  // so it must not appear here as hours to set.
+  const hourlySpaces = activeSpaces.filter((o) => o.rangeMode === "hours" && o.kind !== "equipment");
   const hasRangeSpaces = activeSpaces.some((o) => o.rangeMode !== "hours");
 
   // Whose hours are on screen — see resolveOwner for the fallback order.

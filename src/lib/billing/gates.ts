@@ -23,8 +23,8 @@ export function upgradeHint(flags: Pick<Flags, "billing" | "premium_waitlist">, 
 
 /** H5b: people and units share one budget (spec ruling 4/5). The cap comes
     from the entitlements, so a Team org at 5 of 5 is told it has 5. */
-export function resourceGate(usage: ResourceUsage, mode: OrgMode, ent: Entitlements, how: UpgradeHint = "billing"): GateRefusal | null {
-  return canAddResource(countResources(usage, mode), ent) ? null : { reason: "resources", max: ent.bookableResources, how };
+export function resourceGate(usage: ResourceUsage, mode: OrgMode, ent: Entitlements, how: UpgradeHint = "billing", count = 1): GateRefusal | null {
+  return canAddResource(countResources(usage, mode), ent, count) ? null : { reason: "resources", max: ent.bookableResources, how };
 }
 export function serviceGate(serviceCount: number, ent: Entitlements, how: UpgradeHint = "billing"): GateRefusal | null {
   if (canAddService(serviceCount, ent) || ent.publicServices === null) return null;
@@ -43,6 +43,7 @@ export async function evaluateResourceGate(
   orgId: string,
   client: SupabaseClient,
   flags: Pick<Flags, "rentals" | "billing" | "premium_waitlist">,
+  count = 1,
 ): Promise<GateRefusal | null> {
   try {
     const [ent, orgRow, staffRes, unitRes] = await Promise.all([
@@ -58,7 +59,7 @@ export async function evaluateResourceGate(
       offersAppointments: orgRow.data.offers_appointments,
       offersRentals: orgRow.data.offers_rentals,
     });
-    return resourceGate({ activeStaff: staffRes.count ?? 0, activeUnits: unitRes.count ?? 0 }, mode, ent, upgradeHint(flags, ent));
+    return resourceGate({ activeStaff: staffRes.count ?? 0, activeUnits: unitRes.count ?? 0 }, mode, ent, upgradeHint(flags, ent), count);
   } catch (error) {
     console.error("[billing] gate lookup failed (refusing):", error);
     return FAILED;
@@ -102,11 +103,12 @@ export async function assertCanAddStaff(orgId: string, client: SupabaseClient): 
   return refused(await evaluateResourceGate(orgId, client, flags));
 }
 
-/** H5b: a new or reactivated unit spends the same budget a person does. */
-export async function assertCanAddUnit(orgId: string, client: SupabaseClient): Promise<Refused | null> {
+/** H5b: a new or reactivated unit spends the same budget a person does.
+    `count` for a write that adds several at once (S6 equipment items). */
+export async function assertCanAddUnit(orgId: string, client: SupabaseClient, count = 1): Promise<Refused | null> {
   const flags = await orgFlags(orgId, client);
   if (!plansEnforced(flags)) return null;
-  return refused(await evaluateResourceGate(orgId, client, flags));
+  return refused(await evaluateResourceGate(orgId, client, flags, count));
 }
 
 export async function assertCanAddService(orgId: string, client: SupabaseClient): Promise<Refused | null> {

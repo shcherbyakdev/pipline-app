@@ -10,6 +10,7 @@ import type { UnitsT } from "@/i18n/translator";
 import { barSpan, turnoverSpan } from "./timeline-geometry";
 import { daysBetween } from "./range";
 import type { RangeMode } from "./range";
+import type { TimelinePlacement } from "./queries";
 
 type Stay = { id: string; clientName: string; startsAt: Date; endsAt: Date };
 type Blackout = { id: string; startDate: string; endDate: string; reason: string | null };
@@ -55,6 +56,29 @@ export function laneLayout(items: Interval[]): { rows: Map<string, number>; rowC
     rows.set(it.id, row);
   }
   return { rows, rowCount: Math.max(1, rowEnds.length) };
+}
+
+/** S6: which bookings each LANE draws. A stay is on its own unit's lane, and
+    on every lane a placement puts it on — the rooms a whole-studio booking
+    swallows, the lamps an equipment add-on holds. A placement whose booking
+    is not in the feed (scoped away, lapsed) simply has nothing to draw. */
+export function staysByLane<T extends { id: string; rentalUnitId: string | null }>(
+  bookings: readonly T[],
+  placements: readonly TimelinePlacement[],
+): Map<string, T[]> {
+  const byId = new Map(bookings.map((b) => [b.id, b]));
+  const out = new Map<string, T[]>();
+  const push = (unitId: string, b: T) => {
+    const list = out.get(unitId) ?? [];
+    if (!list.some((x) => x.id === b.id)) list.push(b);
+    out.set(unitId, list);
+  };
+  for (const b of bookings) if (b.rentalUnitId !== null) push(b.rentalUnitId, b);
+  for (const p of placements) {
+    const b = byId.get(p.bookingId);
+    if (b) push(p.unitId, b);
+  }
+  return out;
 }
 
 // ---------- conflicts

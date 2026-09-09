@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import type { RangeMode } from "./range";
-import type { PricingRules } from "./pricing-rules";
+import type { PricingRules, OfferingKind } from "./pricing-rules";
 import type { CancelPolicy } from "./cancel-policy";
 import { bookingTitle } from "@/features/scheduling/booking-label";
 import { addDaysISO, wallTimeToUtc } from "@/features/scheduling/slots";
@@ -17,6 +17,11 @@ export type OfferingRow = {
   id: string;
   name: string;
   description: string | null;
+  // S6: space | composite | equipment (rental_offerings.kind, 0084). Set at
+  // create and never edited; non-space kinds are always hourly + auto.
+  kind: OfferingKind;
+  // S6: for a composite, the hourly rooms it includes; empty everywhere else.
+  componentIds: string[];
   rangeMode: RangeMode;
   // H2: nights/days always set these (0056 CHECK); hours reads opening
   // hours from availability_rules instead, so both are null there
@@ -61,13 +66,16 @@ export type OfferingRow = {
 // table embedded a second time under an alias; every query that selects
 // these columns must add `.eq("active_units.active", true)` (the filter
 // lives on the query, not in the select string) — see offeringsQuery.
+// S6's `components` embed names its FK explicitly: rental_offering_components
+// points at rental_offerings twice, so PostgREST cannot pick a side on its own.
 export const OFFERING_COLUMNS =
-  "id, name, description, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, requires_approval, sort_order, price_cents, pricing_mode, deposit_type, deposit_value, cancel_policy, terms_text, pricing, rental_units(count), active_units:rental_units(count)";
+  "id, name, description, kind, range_mode, start_time, end_time, min_stay, max_stay, turnover_days, min_notice_days, booking_window_days, unit_selection, slot_increment_min, min_duration_min, max_duration_min, turnover_min, min_notice_min, active, requires_approval, sort_order, price_cents, pricing_mode, deposit_type, deposit_value, cancel_policy, terms_text, pricing, rental_units(count), active_units:rental_units(count), components:rental_offering_components!rental_offering_components_composite_id_fkey(component_id)";
 
 type OfferingDb = {
   id: string;
   name: string;
   description: string | null;
+  kind: OfferingKind;
   range_mode: RangeMode;
   start_time: string | null;
   end_time: string | null;
@@ -94,6 +102,7 @@ type OfferingDb = {
   pricing: PricingRules | null;
   rental_units: Array<{ count: number }> | null;
   active_units: Array<{ count: number }> | null;
+  components: Array<{ component_id: string }> | null;
 };
 
 function toOffering(o: OfferingDb): OfferingRow {
@@ -101,6 +110,8 @@ function toOffering(o: OfferingDb): OfferingRow {
     id: o.id,
     name: o.name,
     description: o.description,
+    kind: o.kind,
+    componentIds: (o.components ?? []).map((c) => c.component_id),
     rangeMode: o.range_mode,
     startTime: o.start_time,
     endTime: o.end_time,
@@ -238,6 +249,14 @@ export type TimelineBlackout = {
   endDate: string;
   reason: string | null;
 };
+/** S6: a unit a booking occupies that is NOT its own (booking_units, 0084) —
+    every room of a whole-studio composite, every lamp of an equipment
+    add-on. The lane it names draws the booking as a ghost. */
+export type TimelinePlacement = {
+  bookingId: string;
+  unitId: string;
+  kind: "component" | "equipment";
+};
 
 type TimelineOfferingDb = {
   id: string;
@@ -267,7 +286,12 @@ export async function listTimelineData(
   fromDate: string,
   timeZone: string,
   days: number = TIMELINE_DAYS,
-): Promise<{ offerings: TimelineOffering[]; blackouts: TimelineBlackout[]; bookings: AdminBooking[] }> {
+): Promise<{
+  offerings: TimelineOffering[];
+  blackouts: TimelineBlackout[];
+  bookings: AdminBooking[];
+  placements: TimelinePlacement[];
+}> {
   // A deleted service leaves no name; the word is the admin's (bookings.fallbackTitle).
   const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
   const supabase = await createClient();
@@ -299,7 +323,7 @@ export async function listTimelineData(
 
   const allUnitIds = offeringDb.flatMap((o) => (o.rental_units ?? []).map((u) => u.id));
 
-  const [blackoutsRes, bookingsRes] = await Promise.all([
+  const [blackoutsRes, bookingsRes, placementsRes] = await Promise.all([
     allUnitIds.length > 0
       ? supabase
           .from("rental_unit_blackouts")
@@ -318,18 +342,49 @@ export async function listTimelineData(
       .lt("starts_at", toIso)
       .gt("ends_at", fromIso)
       .order("starts_at", { ascending: true }),
+    // S6: the units a booking occupies that are not its own — the rooms a
+    // whole-studio composite swallows, the lamps an add-on holds (0084).
+    // Only reserving rows block anything, and the primary one is the
+    // booking's own lane, already drawn by the feed above.
+    supabase
+      .from("booking_units")
+      .select("booking_id, rental_unit_id, kind")
+      .eq("reserving", true)
+      .neq("kind", "primary")
+      .lt("starts_at", toIso)
+      .gt("ends_at", fromIso),
   ]);
   if (blackoutsRes.error) throw blackoutsRes.error;
   if (bookingsRes.error) throw bookingsRes.error;
+  if (placementsRes.error) throw placementsRes.error;
 
   const bookings = ((bookingsRes.data ?? []) as unknown as BookingRow[]).map((b) => toAdminBooking(b, fallbackTitle));
-  const bookedUnitIds = new Set(bookings.map((b) => b.rentalUnitId).filter((id): id is string => id !== null));
+  const placementRows = (placementsRes.data ?? []) as unknown as Array<{
+    booking_id: string;
+    rental_unit_id: string;
+    kind: TimelinePlacement["kind"];
+  }>;
+  // An inactive unit stays on the chart while something still holds it —
+  // being held by somebody ELSE'S booking counts just the same.
+  const bookedUnitIds = new Set([
+    ...bookings.map((b) => b.rentalUnitId).filter((id): id is string => id !== null),
+    ...placementRows.map((p) => p.rental_unit_id),
+  ]);
   const bookedOfferingIds = new Set(
     bookings.map((b) => b.rentalOfferingId).filter((id): id is string => id !== null),
   );
 
   const offerings: TimelineOffering[] = offeringDb
-    .filter((o) => o.active || bookedOfferingIds.has(o.id))
+    // A space switched off on /rentals writes rental_offerings.active, not
+    // the unit's — so the unit-level guard below never gets a say unless the
+    // space survives this filter first. Something still holding one of its
+    // units (its own booking or another space's) keeps it on the chart.
+    .filter(
+      (o) =>
+        o.active ||
+        bookedOfferingIds.has(o.id) ||
+        (o.rental_units ?? []).some((u) => bookedUnitIds.has(u.id)),
+    )
     .map((o) => ({
       id: o.id,
       name: o.name,
@@ -355,8 +410,11 @@ export async function listTimelineData(
       endDate: b.end_date,
       reason: b.reason,
     }));
+  const placements: TimelinePlacement[] = placementRows
+    .filter((p) => keptUnitIds.has(p.rental_unit_id))
+    .map((p) => ({ bookingId: p.booking_id, unitId: p.rental_unit_id, kind: p.kind }));
 
-  return { offerings, blackouts, bookings };
+  return { offerings, blackouts, bookings, placements };
 }
 
 // The org's settlement currency for money display (single-org session).

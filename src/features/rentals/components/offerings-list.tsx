@@ -74,6 +74,12 @@ function Row({ offering, currency }: { offering: OfferingRow; currency: string }
           {offering.active && offering.activeUnitCount === 0 ? (
             <Badge variant="outline">{t("notBookable")}</Badge>
           ) : null}
+          {/* S6: what kind of thing this row is, where it isn't obvious from
+              the name — a studio that books its rooms, or an add-on item. */}
+          {offering.kind === "composite" ? (
+            <Badge variant="outline">{t("chip.includes", { count: offering.componentIds.length })}</Badge>
+          ) : null}
+          {offering.kind === "equipment" ? <Badge variant="outline">{t("chip.addon")}</Badge> : null}
         </div>
         <p className="text-muted-foreground truncate text-xs">{schedule}</p>
       </div>

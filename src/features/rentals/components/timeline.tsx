@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { TriangleAlert } from "lucide-react";
 import type { AdminBooking } from "@/features/scheduling/queries";
-import type { TimelineOffering, TimelineBlackout } from "@/features/rentals/queries";
+import type { TimelineOffering, TimelineBlackout, TimelinePlacement } from "@/features/rentals/queries";
 import { windowDays } from "@/features/rentals/timeline-geometry";
 import {
   conflictSummary,
   detectConflicts,
   monthBands,
   stayInWindow,
+  staysByLane,
   type Conflict,
   type Zoom,
 } from "@/features/rentals/timeline-layout";
@@ -59,6 +60,7 @@ export function Timeline({
   offerings,
   blackouts,
   bookings,
+  placements,
   scopeSuffix,
   hrefBase,
 }: {
@@ -71,6 +73,9 @@ export function Timeline({
   offerings: TimelineOffering[];
   blackouts: TimelineBlackout[];
   bookings: AdminBooking[];
+  /** S6: the other lanes a booking occupies — a whole-studio stay's rooms,
+      an add-on's lamps. Each one draws the booking as a ghost. */
+  placements: TimelinePlacement[];
   /** "&show=…" or "" — the links the chart builds keep the page's scope. */
   scopeSuffix: string;
   /** "/bookings?view=timeline…" with zoom and scope, without `from` — a
@@ -174,20 +179,34 @@ export function Timeline({
   // unlike the week grid, this feed doesn't filter them out SQL-side. Before
   // the clock is seeded nothing is dropped, so the server and first client
   // render agree.
-  const staysByUnit = React.useMemo(
-    () =>
-      groupBy(
-        bookings.filter((b) => b.rentalUnitId !== null && (now === null || !isExpiredRequest(b, now))),
-        (b) => b.rentalUnitId!,
-      ),
+  const visibleStays = React.useMemo(
+    () => bookings.filter((b) => b.rentalUnitId !== null && (now === null || !isExpiredRequest(b, now))),
     [bookings, now],
   );
+  // What a lane OWNS — conflicts are a question about one unit's own stays.
+  const staysByUnit = React.useMemo(() => groupBy(visibleStays, (b) => b.rentalUnitId!), [visibleStays]);
+  // S6: what a lane DRAWS — its own stays plus every booking placed on it
+  // (a whole studio on each of its rooms, an add-on on its lamps).
+  const lanes = React.useMemo(() => staysByLane(visibleStays, placements), [visibleStays, placements]);
+  // Which of a lane's bars are ghosts, built once rather than per lane per
+  // pan frame (blackoutsByUnit idiom).
+  const ghostsByUnit = React.useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const p of placements) {
+      const set = map.get(p.unitId);
+      if (set) set.add(p.bookingId);
+      else map.set(p.unitId, new Set([p.bookingId]));
+    }
+    return map;
+  }, [placements]);
 
   // Conflicts are a per-unit question, detected over every stay the fetch
   // returned (a turnover clash needs the earlier stay even when it checked
   // out before the window) but counted only for stays the VISIBLE window
   // draws — the banner says "in this window" and Show must have something
-  // to show.
+  // to show. Placements are not asked about: a ghost can never overlap the
+  // lane's own stays (0084's EXCLUDE forbids it) and counting it here would
+  // report the same clash once per room.
   const { conflicts, perOffering } = React.useMemo(() => {
     const merged = new Map<string, Conflict[]>();
     const perOffering = new Map<string, number>();
@@ -422,7 +441,8 @@ export function Timeline({
                         cellPx={cellPx}
                         today={today}
                         now={now}
-                        stays={staysByUnit.get(unit.id) ?? []}
+                        stays={lanes.get(unit.id) ?? []}
+                        ghostIds={ghostsByUnit.get(unit.id)}
                         blackouts={blackoutsByUnit.get(unit.id) ?? []}
                         conflicts={conflicts}
                         spotlightId={spotlightId}

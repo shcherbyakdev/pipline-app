@@ -35,7 +35,7 @@ vi.mock("@/lib/supabase/server", () => ({
 // Dynamic, not static: queries.ts pulls in @/lib/supabase/server → @/env,
 // which parses process.env eagerly at module load. A static import would
 // resolve (and fail) before the loadEnvFile() call above ever runs.
-const { OFFERING_COLUMNS, listOfferings, listTimelineData } = await import("./queries");
+const { OFFERING_COLUMNS, listOfferings, getOffering, listTimelineData } = await import("./queries");
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -182,6 +182,75 @@ describe("listOfferings activeUnitCount", () => {
     const row = (await listOfferings()).find((o) => o.id === off!.id)!;
     expect(row.pricing).toEqual(FIXTURE_RULES);
   });
+
+  // S6: rental_offering_components points at rental_offerings twice, so the
+  // embed has to name its FK — a guess would resolve to the wrong side (or
+  // to nothing). Asserted against live PostgREST, like the count embeds above.
+  it("a composite carries the ids of the rooms it includes", async () => {
+    const hourly = async (name: string) => {
+      const { data, error } = await alice
+        .from("rental_offerings")
+        .insert({
+          org_id: orgId,
+          name,
+          range_mode: "hours",
+          slot_increment_min: 30,
+          min_duration_min: 60,
+          max_duration_min: 240,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data!.id as string;
+    };
+    const [roomA, roomB] = await Promise.all([hourly("Room A"), hourly("Room B")]);
+    const { data: composite, error } = await alice
+      .from("rental_offerings")
+      .insert({
+        org_id: orgId,
+        name: "Whole studio",
+        kind: "composite",
+        range_mode: "hours",
+        slot_increment_min: 30,
+        min_duration_min: 60,
+        max_duration_min: 240,
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    const { error: linkError } = await alice.from("rental_offering_components").insert([
+      { composite_id: composite!.id, component_id: roomA, org_id: orgId },
+      { composite_id: composite!.id, component_id: roomB, org_id: orgId },
+    ]);
+    if (linkError) throw linkError;
+
+    const row = (await getOffering(composite!.id))!;
+    expect(row.kind).toBe("composite");
+    expect([...row.componentIds].sort()).toEqual([roomA, roomB].sort());
+    // A plain room is nobody's composite.
+    expect((await getOffering(roomA))!.componentIds).toEqual([]);
+
+    // updateOffering's replace: add-then-drop, so a half-done save can never
+    // leave a studio including nothing. The two statements are exercised
+    // here because the action itself needs a request-scoped session.
+    const roomC = await hourly("Room C");
+    const next = [roomA, roomC];
+    const { error: upsertError } = await alice
+      .from("rental_offering_components")
+      .upsert(
+        next.map((component_id) => ({ composite_id: composite!.id, component_id, org_id: orgId })),
+        { onConflict: "composite_id,component_id", ignoreDuplicates: true },
+      );
+    expect(upsertError).toBeNull();
+    const { error: dropError } = await alice
+      .from("rental_offering_components")
+      .delete()
+      .eq("composite_id", composite!.id)
+      .eq("org_id", orgId)
+      .not("component_id", "in", `(${next.join(",")})`);
+    expect(dropError).toBeNull();
+    expect([...(await getOffering(composite!.id))!.componentIds].sort()).toEqual([...next].sort());
+  });
 });
 
 // R2 deferral (Task 12): a stay whose checkout falls before the timeline's
@@ -322,5 +391,96 @@ describe("listTimelineData turnover padding", () => {
     // to the nights/days engine.
     expect(room_).toMatchObject({ slotIncrementMin: 30, minDurationMin: 60, maxDurationMin: 120 });
     expect(offerings.find((o) => o.id === offeringId)).toMatchObject({ slotIncrementMin: null, minDurationMin: null, maxDurationMin: null });
+  });
+});
+
+// S6: a whole-studio booking occupies its own unit AND every room the
+// composite includes (0084's sync_booking_units trigger). The tape chart has
+// to hear about those rooms — `placements` is what puts the ghost bar on
+// their lanes — and the primary row must NOT come back, since the booking's
+// own lane is already drawn from the bookings feed.
+describe("listTimelineData placements", () => {
+  const TZ = "Europe/Berlin";
+  const FROM_DATE = "2027-06-14";
+
+  let owner: SupabaseClient;
+  let orgId: string;
+  let wholeUnitId: string;
+  let roomA: { id: string; unitId: string };
+  let roomUnitIds: string[];
+  let bookingId: string;
+
+  beforeAll(async () => {
+    owner = await signedInUser("rentq_placements");
+    const { data: org, error: e1 } = await owner.rpc("create_org", { p_name: "RentQPlacements", p_offers_appointments: false, p_offers_rentals: true });
+    if (e1) throw e1;
+    orgId = (org as { id: string }).id;
+    actingClient.current = owner;
+
+    const hourly = async (name: string, kind: "space" | "composite") => {
+      const { data: off, error } = await owner
+        .from("rental_offerings")
+        .insert({ org_id: orgId, name, kind, range_mode: "hours", slot_increment_min: 30, min_duration_min: 60, max_duration_min: 240 })
+        .select("id")
+        .single();
+      if (error) throw error;
+      const { data: unit, error: uErr } = await owner
+        .from("rental_units")
+        .insert({ org_id: orgId, offering_id: off!.id, name: `${name} unit` })
+        .select("id")
+        .single();
+      if (uErr) throw uErr;
+      return { id: off!.id as string, unitId: unit!.id as string };
+    };
+    const [a, roomB, whole] = [await hourly("Room A", "space"), await hourly("Room B", "space"), await hourly("Whole studio", "composite")];
+    roomA = a;
+    wholeUnitId = whole.unitId;
+    roomUnitIds = [a.unitId, roomB.unitId];
+    const { error: linkError } = await owner.from("rental_offering_components").insert([
+      { composite_id: whole.id, component_id: a.id, org_id: orgId },
+      { composite_id: whole.id, component_id: roomB.id, org_id: orgId },
+    ]);
+    if (linkError) throw linkError;
+
+    // The trigger writes the occupancy rows on any insert, RPC or not.
+    const { data: booking, error: bErr } = await admin
+      .from("bookings")
+      .insert({
+        org_id: orgId,
+        rental_offering_id: whole.id,
+        rental_unit_id: whole.unitId,
+        client_name: "Wes Whole",
+        client_email: "wes@example.com",
+        starts_at: wallTimeToUtc(addDaysISO(FROM_DATE, 1), "10:00", TZ).toISOString(),
+        ends_at: wallTimeToUtc(addDaysISO(FROM_DATE, 1), "14:00", TZ).toISOString(),
+        status: "confirmed",
+        cancel_token_hash: generateAccessToken().tokenHash,
+      })
+      .select("id")
+      .single();
+    if (bErr) throw bErr;
+    bookingId = booking!.id as string;
+  });
+
+  it("returns one component placement per room the whole studio blocks, and no primary row", async () => {
+    const { bookings, placements } = await listTimelineData(FROM_DATE, TZ);
+    expect(bookings.some((b) => b.id === bookingId)).toBe(true);
+    const mine = placements.filter((p) => p.bookingId === bookingId);
+    expect(mine.map((p) => p.unitId).sort()).toEqual([...roomUnitIds].sort());
+    expect(mine.every((p) => p.kind === "component")).toBe(true);
+    expect(mine.some((p) => p.unitId === wholeUnitId)).toBe(false);
+  });
+
+  // Switching a space off writes rental_offerings.active — the offering is
+  // dropped before the unit-level "still booked?" guard ever runs, so a room
+  // parked while a whole-studio booking holds it must survive on the
+  // OFFERING filter or its lane (and its ghost) vanish.
+  it("keeps an inactive room's lane and its placement while a composite holds it", async () => {
+    const { error } = await owner.from("rental_offerings").update({ active: false }).eq("id", roomA.id);
+    if (error) throw error;
+
+    const { offerings, placements } = await listTimelineData(FROM_DATE, TZ);
+    expect(offerings.flatMap((o) => o.units.map((u) => u.id))).toContain(roomA.unitId);
+    expect(placements.some((p) => p.bookingId === bookingId && p.unitId === roomA.unitId)).toBe(true);
   });
 });

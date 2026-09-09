@@ -68,8 +68,11 @@ export function countResources(u: ResourceUsage, mode: OrgMode): number {
   return (mode.offersAppointments ? u.activeStaff : 0) + (mode.offersRentals ? u.activeUnits : 0);
 }
 
-export function canAddResource(count: number, ent: Entitlements): boolean {
-  return count < ent.bookableResources;
+/** `adding` > 1 for a write that spends several slots at once (S6: an
+    equipment space is created with all its items), so it is refused up
+    front rather than half-created. */
+export function canAddResource(count: number, ent: Entitlements, adding = 1): boolean {
+  return count + adding <= ent.bookableResources;
 }
 
 export function canAddService(serviceCount: number, ent: Entitlements): boolean {

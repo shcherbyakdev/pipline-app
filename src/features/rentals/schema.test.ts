@@ -216,3 +216,48 @@ describe("S1 pricing on the offering schemas", () => {
     expect(offeringInput.safeParse({ ...hours, pricing: FIXTURE_RULES, priceCents: null, depositType: "percent", depositValue: 20 }).success).toBe(true);
   });
 });
+
+/* S6: the kind is a create-only choice on the hours branch. A composite
+   (whole studio) names the rooms it includes; an equipment space names how
+   many physical items to make. Nights/days spaces have no kind at all — the
+   DB CHECK (0084) ties every non-space kind to hours + auto assignment. */
+describe("S6 offering kinds", () => {
+  const SETTINGS = { rangeMode: "hours", slotIncrementMin: 30, minDurationMin: 60, maxDurationMin: 240 };
+  const HOURS = { name: "Studio", ...SETTINGS };
+  const NIGHTS = { name: "Cabin", rangeMode: "nights", startTime: "15:00", endTime: "11:00" };
+  const ROOM = "11111111-1111-4111-8111-111111111111";
+
+  it("defaults to a plain space", () => {
+    const r = offeringInput.safeParse(HOURS);
+    expect(r.success && r.data.rangeMode === "hours" && r.data.kind).toBe("space");
+  });
+
+  it("a composite needs at least one included room and auto selection", () => {
+    expect(offeringInput.safeParse({ ...HOURS, kind: "composite", componentIds: [] }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...HOURS, kind: "composite", componentIds: [ROOM], unitSelection: "client_picks" }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...HOURS, kind: "composite", componentIds: [ROOM] }).success).toBe(true);
+  });
+
+  it("equipment takes an item count 1–99 and no pricing rules", () => {
+    expect(offeringInput.safeParse({ ...HOURS, kind: "equipment", itemCount: 3 }).success).toBe(true);
+    expect(offeringInput.safeParse({ ...HOURS, kind: "equipment", itemCount: 0 }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...HOURS, kind: "equipment", itemCount: 100 }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...HOURS, kind: "equipment", pricing: FIXTURE_RULES }).success).toBe(false);
+  });
+
+  it("nights/days spaces refuse a kind", () => {
+    expect(offeringInput.safeParse({ ...NIGHTS, kind: "composite" }).success).toBe(false);
+    expect(offeringInput.safeParse({ ...NIGHTS, kind: "space" }).success).toBe(false);
+  });
+
+  // The kind is set once: the settings form never carries it (strict), but a
+  // composite's save replaces the rooms it includes.
+  it("the settings form takes componentIds but refuses the kind", () => {
+    const id = "8d0b9f2e-3c1a-4b5e-9f6a-1c2d3e4f5a6b";
+    expect(updateOfferingInput.safeParse({ id, ...SETTINGS, componentIds: [ROOM] }).success).toBe(true);
+    expect(updateOfferingInput.safeParse({ id, ...SETTINGS }).success).toBe(true);
+    expect(updateOfferingInput.safeParse({ id, ...SETTINGS, componentIds: [] }).success).toBe(false);
+    expect(updateOfferingInput.safeParse({ id, ...SETTINGS, kind: "composite" }).success).toBe(false);
+    expect(updateOfferingInput.safeParse({ id, ...SETTINGS, itemCount: 2 }).success).toBe(false);
+  });
+});

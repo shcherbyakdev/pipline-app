@@ -10,6 +10,7 @@ import {
   uniqueIndex,
   primaryKey,
   jsonb,
+  unique,
 } from "drizzle-orm/pg-core";
 import { orgs } from "./orgs";
 import { clients } from "./clients";
@@ -259,5 +260,39 @@ export const bookings = pgTable(
     index("bookings_rental_offering_starts_at_idx").on(t.rentalOfferingId, t.startsAt),
     index("bookings_staff_starts_at_idx").on(t.staffId, t.startsAt),
     uniqueIndex("bookings_cancel_token_hash_uq").on(t.cancelTokenHash),
+  ],
+);
+
+// S6 occupancy: one row per booking × unit, the only place a unit's
+// overlap is enforced (EXCLUDE booking_units_no_overlap in 0084, on
+// `reserving` rows). Written by the sync_booking_units trigger (primary +
+// component rows) and by the hours RPCs (equipment rows); never by the app.
+// `bookings.rental_unit_id` stays the primary unit for display.
+export const bookingUnits = pgTable(
+  "booking_units",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    // Cascade: a deleted room takes its component history with it; the
+    // primary FK on bookings still restricts.
+    rentalUnitId: uuid("rental_unit_id")
+      .notNull()
+      .references(() => rentalUnits.id, { onDelete: "cascade" }),
+    // 'primary' | 'component' | 'equipment' — CHECK in 0084.
+    kind: text("kind").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    // = status in ('confirmed','pending','pending_payment'); trigger-maintained.
+    reserving: boolean("reserving").notNull(),
+  },
+  (t) => [
+    index("booking_units_unit_starts_idx").on(t.rentalUnitId, t.startsAt),
+    index("booking_units_booking_idx").on(t.bookingId),
+    unique("booking_units_booking_unit_uq").on(t.bookingId, t.rentalUnitId),
   ],
 );

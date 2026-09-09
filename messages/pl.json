@@ -176,7 +176,9 @@
       "hasBookings": "Ma rezerwacje — zamiast tego dezaktywuj.",
       "blackoutOrder": "Data końcowa nie może być wcześniejsza niż początkowa.",
       "blackoutSpan": "Niedostępne daty mogą obejmować najwyżej 2 lata.",
-      "lastUnit": "To ostatnia jednostka tej przestrzeni — aby ją usunąć, usuń przestrzeń."
+      "lastUnit": "To ostatnia jednostka tej przestrzeni — aby ją usunąć, usuń przestrzeń.",
+      "compositeHasOneUnit": "Całe studio to jedna jednostka — zamiast tego podziel je na sale.",
+      "componentLocked": "Ta sala wchodzi w skład całego studia — najpierw usuń ją stamtąd."
     },
     "clients": {
       "createdNotAssigned": "Klient utworzony, ale nie udało się go przypisać. Wybierz go z listy.",
@@ -289,6 +291,9 @@
       "fewer": "Mniej osób",
       "more": "Więcej osób",
       "extras": "Dodatki",
+      "equipment": "Sprzęt",
+      "available": "{count, plural, one {# dostępny} few {# dostępne} many {# dostępnych} other {# dostępnego}}",
+      "noneLeft": "brak wolnych o tej godzinie",
       "fewerOf": "Mniej: {label}",
       "moreOf": "Więcej: {label}"
     },
@@ -347,6 +352,7 @@
         "requestExpired": "Prośba wygasła"
       },
       "tooManyRequests": "Zbyt wiele żądań — spróbuj ponownie za chwilę.",
+      "alsoReserved": "Zarezerwowano również: {names}",
       "alreadyStarted": "Ta rezerwacja już się rozpoczęła.",
       "awaiting": "{orgName} nie potwierdził jeszcze tej prośby — dostaniesz e-mail, gdy to zrobi.",
       "reschedule": "Przełóż",
@@ -441,6 +447,7 @@
       "from": "od {amount}",
       "perHourShort": "za godzinę",
       "perPiece": "za sztukę",
+      "perBooking": "za rezerwację",
       "line": {
         "base": "{hours} × {rate}",
         "surcharge": "{label} +{pct}%",
@@ -673,6 +680,10 @@
     "unitsEmpty": "Brak jednostek — przestrzeń nie pojawi się na stronie rezerwacji, dopóki nie będzie miała aktywnej jednostki.",
     "blackoutsHint": "Daty, w których tej przestrzeni nie można zarezerwować — konserwacja, własny pobyt, zamknięty tydzień.",
     "splitIntoUnits": "Kilka identycznych sal lub przedmiotów? Podziel tę przestrzeń na jednostki →",
+    "chip": {
+      "includes": "Obejmuje {count, plural, one {# salę} few {# sale} many {# sal} other {# sali}}",
+      "addon": "Dodatek"
+    },
     "field": "Przestrzeń",
     "badge": "Przestrzeń",
     "settings": {
@@ -735,6 +746,20 @@
         "stay": "Pobyt",
         "pricing": "Cennik"
       },
+      "kind": {
+        "label": "Czym to jest?",
+        "space": "Sala",
+        "spaceHint": "Sala lub przedmiot rezerwowany samodzielnie",
+        "composite": "Całe studio",
+        "compositeHint": "Rezerwuje kilka sal naraz i blokuje je wszystkie",
+        "equipment": "Sprzęt",
+        "equipmentHint": "Dodawany do rezerwacji sali; jeden egzemplarz nie może być w dwóch salach"
+      },
+      "includes": "Obejmuje",
+      "includesEmpty": "Najpierw utwórz co najmniej jedną salę godzinową.",
+      "includesRequired": "Wybierz co najmniej jedną salę.",
+      "itemCount": "Ile sztuk",
+      "perBooking": "Za rezerwację",
       "bookedBy": "Rezerwowana",
       "mode": {
         "nights": "Na noce (zameldowanie → wymeldowanie)",
@@ -928,6 +953,7 @@
       "expired": "Zwolniono — nieopłacone"
     },
     "fallbackTitle": "Wizyta",
+    "alsoReserved": "Zarezerwowano również: {names}",
     "weekdays": "Pn Wt Śr Cz Pt So Nd",
     "prevWeek": "Poprzedni tydzień",
     "nextWeek": "Następny tydzień",
