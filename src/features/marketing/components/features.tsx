@@ -1,12 +1,15 @@
-import { CalendarClock, Languages, Layers, Link2, Receipt, Sunrise, Tag, Wallet, type LucideIcon } from "lucide-react";
-import { FEATURES, FEATURES_LABEL, type FeatureIcon } from "@/features/marketing/site";
+import Link from "next/link";
+import { ArrowRight, CalendarClock, Languages, Layers, Link2, Receipt, Sunrise, Tag, Wallet, type LucideIcon } from "lucide-react";
+import { CTA, FEATURES, FEATURES_LABEL, SITE, type FeatureIcon } from "@/features/marketing/site";
+import { marketingButton } from "./marketing-button";
 import { RevealSection } from "./reveal";
 
 /* What it does, under the product: a small label, then eight lines in two
    columns, each a small glyph beside a title and one sentence, hairlines
-   between rows. No boxes. The label and the lines enter the way the hero
-   copy does (fade, a little rise, focus), 60ms apart, once the section
-   scrolls into view. */
+   between rows, then the one action with the early-access note beside
+   it. No boxes. The label, the lines and the action enter the way the
+   hero copy does (fade, a little rise, focus), 60ms apart, once the
+   section scrolls into view. */
 const ROW_MS = 60;
 const ICON: Record<FeatureIcon, LucideIcon> = {
   price: Tag,
@@ -43,6 +46,16 @@ export function Features() {
           );
         })}
       </ul>
+      <p
+        className="animate-fade-up mt-8 flex flex-wrap items-center gap-x-4 gap-y-2"
+        style={{ animationDelay: `${(FEATURES.length + 1) * ROW_MS}ms` }}
+      >
+        <Link href={SITE.links.signup} className={marketingButton("primary", "md")}>
+          {CTA.getStarted}
+          <ArrowRight className="size-4" strokeWidth={2} aria-hidden="true" />
+        </Link>
+        <span className="text-muted-foreground text-[13px]">{SITE.heroNote}</span>
+      </p>
     </RevealSection>
   );
 }

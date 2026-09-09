@@ -7,11 +7,12 @@ import { hasAuthCookie } from "@/features/marketing/auth-cookie";
 import { DEFAULT_AFTER_LOGIN } from "@/lib/auth/next-path";
 import { BookloLogo } from "./booklo-mark";
 
-/* The mark (in ink) and the wordmark on the left, one small pill on the right
-   (interfacecraft.dev's nav): Log in for a visitor, Dashboard for someone
-   signed in. Nothing else; the page is one hero and the claim bar is its
-   action. */
+/* The mark (in ink) and the wordmark on the left, two small pills on the
+   right (interfacecraft.dev's nav): Log in and Get started for a visitor,
+   Dashboard alone for someone signed in. */
 const subscribeNoop = () => () => {};
+const pill =
+  "focus-visible:ring-ring inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium transition-[background-color] duration-150 ease-strong outline-none focus-visible:ring-2";
 
 export function MarketingNav() {
   /* Read from the Supabase cookie via useSyncExternalStore (the
@@ -28,12 +29,22 @@ export function MarketingNav() {
         <Link href={SITE.links.home} className="text-foreground focus-visible:ring-ring rounded-md text-[22px] outline-none focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:ring-offset-background">
           <BookloLogo ink />
         </Link>
-        <Link
-          href={authed ? DEFAULT_AFTER_LOGIN : SITE.links.login}
-          className="bg-secondary text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent focus-visible:ring-ring inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium transition-[background-color] duration-150 ease-strong outline-none focus-visible:ring-2"
-        >
-          {authed ? CTA.dashboard : CTA.login}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={authed ? DEFAULT_AFTER_LOGIN : SITE.links.login}
+            className={`${pill} bg-secondary text-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-accent`}
+          >
+            {authed ? CTA.dashboard : CTA.login}
+          </Link>
+          {authed ? null : (
+            <Link
+              href={SITE.links.signup}
+              className={`${pill} bg-primary text-primary-foreground [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85`}
+            >
+              {CTA.getStarted}
+            </Link>
+          )}
+        </div>
       </nav>
     </header>
   );
