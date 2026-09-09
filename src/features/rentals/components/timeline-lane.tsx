@@ -830,7 +830,8 @@ function StayBar({
                   </span>
                 ) : null}
                 <span className="truncate font-medium">{density === "initials" ? initials(b.clientName) : name}</span>
-                {density === "full" ? <span className="text-muted-foreground truncate text-[11px]">{length}</span> : null}
+                {/* the length stays whole; a long name gives way first */}
+                {density === "full" ? <span className="text-muted-foreground shrink-0 text-[11px]">{length}</span> : null}
                 {showInHouse ? (
                   <span className="bg-primary text-primary-foreground shrink-0 rounded px-1 text-[10px] leading-4">{t("timeline.inHouse")}</span>
                 ) : null}
