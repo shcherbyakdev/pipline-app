@@ -25,7 +25,7 @@ import {
   type Zoom,
 } from "@/features/rentals/timeline-layout";
 import { serviceAccent, zonedParts, minToTime } from "@/features/scheduling/calendar-geometry";
-import { dateInZone } from "@/features/scheduling/slots";
+import { addDaysISO, dateInZone } from "@/features/scheduling/slots";
 import { whenLineFor } from "@/features/scheduling/templates";
 import { initials } from "@/features/scheduling/staff-slug";
 import { ghostWord, holdLabel } from "@/features/scheduling/hold-label";
@@ -35,7 +35,6 @@ import { formatMoney } from "@/lib/money";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { StayDrag } from "./use-stay-drag";
 
 /* One unit's lane on the tape chart. Nights/days stays are bars (hotel
    handover: check-in afternoon to check-out morning, so back-to-back stays
@@ -120,7 +119,10 @@ export function columnClass(date: string, today: string | null): string {
   );
 }
 
-export function TimelineLane({
+/** What a bar hands the chart when pressed: enough to start a drag. */
+export type BarPress = { booking: AdminBooking; mode: TimelineOffering["rangeMode"]; offeringId: string; unitId: string; edge: DragEdge };
+
+export const TimelineLane = React.memo(function TimelineLane({
   offering,
   unit,
   dayList,
@@ -146,7 +148,7 @@ export function TimelineLane({
   query,
   focusIdx,
   onCellFocus,
-  drag,
+  draggingId,
   ghost,
   onBarPress,
   pendingId,
@@ -186,15 +188,17 @@ export function TimelineLane({
       the space and carries its mode chip. */
   headerless: boolean;
   collapsed?: boolean;
-  onToggle?: () => void;
+  onToggle?: (offeringId: string) => void;
   /** The search box's text; bars that don't match dim. */
   query: string;
   /** The column whose cell is the lane's Tab stop (roving focus), or -1. */
   focusIdx: number;
-  onCellFocus: (idx: number) => void;
-  drag: StayDrag | null;
+  onCellFocus: (unitId: string, idx: number) => void;
+  /** The booking being dragged, if any — its own bar dims. */
+  draggingId: string | null;
+  /** The ghost, only when it lands on THIS lane. */
   ghost: DragGhost | null;
-  onBarPress: (e: React.PointerEvent, booking: AdminBooking, edge: DragEdge) => void;
+  onBarPress: (e: React.PointerEvent, press: BarPress) => void;
   /** A move the server is still confirming — its bar waits, dimmed. */
   pendingId: string | null;
   onSelect: (b: AdminBooking) => void;
@@ -240,23 +244,28 @@ export function TimelineLane({
     mode === "hours"
       ? compact ? ROW_PX : Math.max(ROW_PX, maxPerDay * CHIP_PX + 8)
       : (layout?.rowCount ?? 1) * ROW_PX;
-  const todayIdx = today === null ? -1 : dayList.indexOf(today);
 
   // ---- drag across free cells: the run becomes the new booking's dates.
   const trackRef = React.useRef<HTMLDivElement>(null);
-  const [sel, setSel] = React.useState<{ a: number; b: number; dragged: boolean; pointerId: number; x: number } | null>(null);
+  // The anchor and the end are DATES: a settle can recentre the buffer
+  // mid-drag and renumber the columns; the dates stay put.
+  const [sel, setSel] = React.useState<{ a: string; b: string; dragged: boolean; pointerId: number; x: number } | null>(null);
   const colAt = (clientX: number) => {
     const rect = trackRef.current?.getBoundingClientRect();
     if (!rect || cellPx <= 0) return -1;
     return Math.min(days - 1, Math.max(0, Math.floor((clientX - rect.left) / cellPx)));
   };
-  const isPast = (idx: number) => todayIdx >= 0 && idx < todayIdx;
+  // "Past" by date, so a window two months back has no bookable cells even
+  // when today is nowhere in the buffer.
+  const isPast = (idx: number) => today !== null && dayList[idx] < today;
   const onTrackPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "touch" || e.button !== 0) return;
     if ((e.target as HTMLElement).closest("[data-tl-bar],[data-tl-pill],a")) return;
     const idx = colAt(e.clientX);
     if (idx < 0 || isPast(idx) || taken?.has(idx)) return;
-    setSel({ a: idx, b: idx, dragged: false, pointerId: e.pointerId, x: e.clientX });
+    // No text selection while the run is being picked (the click still fires).
+    e.preventDefault();
+    setSel({ a: dayList[idx], b: dayList[idx], dragged: false, pointerId: e.pointerId, x: e.clientX });
   };
   const onTrackPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!sel || mode === "hours") return;
@@ -268,17 +277,18 @@ export function TimelineLane({
         // Already gone; the selection still follows while the pointer is over the lane.
       }
     }
-    let idx = colAt(e.clientX);
-    if (idx < 0) return;
+    const idx = colAt(e.clientX);
+    const a = dayList.indexOf(sel.a);
+    if (idx < 0 || a < 0) return;
     // The run stops at the first taken or past column on the way.
-    const step = idx >= sel.a ? 1 : -1;
-    let end = sel.a;
-    for (let i = sel.a + step; step > 0 ? i <= idx : i >= idx; i += step) {
+    const step = idx >= a ? 1 : -1;
+    let end = a;
+    for (let i = a + step; step > 0 ? i <= idx : i >= idx; i += step) {
       if (taken?.has(i) || isPast(i)) break;
       end = i;
     }
-    idx = end;
-    setSel((s) => (s && (s.b !== idx || !s.dragged) ? { ...s, b: idx, dragged: true } : s));
+    const b = dayList[end];
+    setSel((s) => (s && (s.b !== b || !s.dragged) ? { ...s, b, dragged: true } : s));
   };
   const onTrackPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!sel) return;
@@ -289,25 +299,27 @@ export function TimelineLane({
       // Already released.
     }
     if (e.type === "pointercancel") return;
-    const lo = Math.min(sel.a, sel.b);
-    const hi = Math.max(sel.a, sel.b);
+    const lo = sel.a < sel.b ? sel.a : sel.b;
+    const hi = sel.a < sel.b ? sel.b : sel.a;
     onNew({
       offeringId: offering.id,
       unitId: unit.id,
-      date: dayList[lo],
+      date: lo,
       // Nights: the cells are the nights, so the checkout is the day after
       // the last one; days: the return day is the last cell.
-      endDate: sel.dragged && mode !== "hours" ? (mode === "nights" ? dayList[hi + 1] : dayList[hi]) : undefined,
+      endDate: sel.dragged && mode !== "hours" ? (mode === "nights" ? addDaysISO(hi, 1) : hi) : undefined,
     });
   };
-  const selRange = sel && sel.dragged ? { lo: Math.min(sel.a, sel.b), hi: Math.max(sel.a, sel.b) } : null;
+  const selRange =
+    sel && sel.dragged
+      ? { lo: dayList.indexOf(sel.a < sel.b ? sel.a : sel.b), hi: dayList.indexOf(sel.a < sel.b ? sel.b : sel.a) }
+      : null;
   const selLength = selRange
     ? mode === "nights"
       ? tu("nights", { count: selRange.hi - selRange.lo + 1 })
       : tu("days", { count: selRange.hi - selRange.lo + 1 })
     : null;
 
-  const draggingId = drag?.booking.id ?? null;
   const q = query.trim().toLowerCase();
   const matches = (b: AdminBooking) => q === "" || b.clientName.toLowerCase().includes(q);
 
@@ -328,7 +340,7 @@ export function TimelineLane({
             offering={offering}
             conflictCount={conflictCount}
             collapsed={collapsed}
-            onToggle={onToggle}
+            onToggle={onToggle ? () => onToggle(offering.id) : undefined}
             inactive={!unit.active}
             compact={railPx < 200}
           />
@@ -369,7 +381,7 @@ export function TimelineLane({
                 tabIndex={focusIdx === i ? 0 : -1}
                 aria-disabled={past || undefined}
                 aria-label={t("timeline.newHere", { unit: laneName, date: cellDateLabel(d, intlLocale) })}
-                onFocus={() => onCellFocus(i)}
+                onFocus={() => onCellFocus(unit.id, i)}
                 onKeyDown={(e) => {
                   if (past || (e.key !== "Enter" && e.key !== " ")) return;
                   e.preventDefault();
@@ -496,6 +508,7 @@ export function TimelineLane({
                       dragging={draggingId === b.id}
                       pending={pendingId === b.id}
                       onPress={onBarPress}
+                      unitId={unit.id}
                       style={{
                         top: `calc(${rowMid} - ${BAR_PX / 2}px)`,
                         height: BAR_PX,
@@ -544,6 +557,7 @@ export function TimelineLane({
                     dragging={draggingId === b.id}
                     pending={pendingId === b.id}
                     onPress={onBarPress}
+                    unitId={unit.id}
                     chip
                     style={{
                       top: 4 + i * CHIP_PX,
@@ -558,13 +572,11 @@ export function TimelineLane({
             )}
 
         {/* the drag ghost: where the stay would land, and whether it may */}
-        {ghost && ghost.unitId === unit.id ? (
-          <Ghost ghost={ghost} mode={mode} timeZone={timeZone} fromDate={fromDate} days={days} railPx={railPx} pct={pct} />
-        ) : null}
+        {ghost ? <Ghost ghost={ghost} mode={mode} timeZone={timeZone} fromDate={fromDate} days={days} railPx={railPx} pct={pct} /> : null}
       </div>
     </div>
   );
-}
+});
 
 /** The space's name, mode chip, unit count, conflict count and collapse
     toggle — the rail of a group row, or of a single-unit space's row. */
@@ -656,6 +668,7 @@ function StayBar({
   dragging,
   pending,
   onPress,
+  unitId,
   style,
   onSelect,
 }: {
@@ -680,7 +693,8 @@ function StayBar({
   dim: boolean;
   dragging: boolean;
   pending: boolean;
-  onPress: (e: React.PointerEvent, booking: AdminBooking, edge: DragEdge) => void;
+  onPress: (e: React.PointerEvent, press: BarPress) => void;
+  unitId: string;
   style: React.CSSProperties;
   onSelect: (b: AdminBooking) => void;
 }) {
@@ -760,7 +774,7 @@ function StayBar({
             onPointerDown={(e) => {
               if (!movable) return;
               const edge = (e.target as HTMLElement).dataset.tlEdge as DragEdge | undefined;
-              onPress(e, b, edge ?? "move");
+              onPress(e, { booking: b, mode, offeringId: offering.id, unitId, edge: edge ?? "move" });
             }}
             aria-label={`${name}, ${when}${ghost ? `. ${ghost}` : ""}${flagged ? `. ${conflicts.map((c) => conflictText(t, intlLocale, c)).join(". ")}` : ""}`}
             className={cn(
@@ -879,9 +893,10 @@ function Flag({ hard }: { hard: boolean }) {
   return <TriangleAlert className={cn("size-3 shrink-0", hard ? "text-destructive" : "text-amber-500")} aria-hidden />;
 }
 
-/* Where a dragged stay would land: the run it would hold, green when clean,
-   amber when it would run into a turnover, red when it may not. The label
-   is the drag's live tooltip — the new dates. */
+/* Where a dragged stay would land: the run it would hold, brand when clean,
+   red when it may not (another stay, a turnover tail either way, a
+   blackout — the server refuses all three). The label is the drag's live
+   tooltip — the new dates. */
 function Ghost({
   ghost,
   mode,
@@ -909,11 +924,9 @@ function Ghost({
       aria-hidden
       className={cn(
         "pointer-events-none absolute z-20 flex items-center rounded-md border-2 px-1.5 text-[11px] font-medium",
-        ghost.conflict === "hard"
+        ghost.conflict !== null
           ? "border-destructive bg-destructive/15 text-destructive"
-          : ghost.conflict === "turnover"
-            ? "border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-400"
-            : "border-primary bg-primary/15 text-foreground",
+          : "border-primary bg-primary/15 text-foreground",
       )}
       style={{
         top: mode === "hours" ? 4 : (ROW_PX - BAR_PX) / 2,

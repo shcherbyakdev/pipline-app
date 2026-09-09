@@ -1144,6 +1144,7 @@
       "dragBarHint": "Przeciągnij, aby przenieść; przeciągnij krawędź, aby zmienić datę.",
       "dragChipHint": "Przeciągnij na inny dzień lub jednostkę.",
       "moneyPaid": "{price} · zapłacono {paid}",
+      "freePerDay": "Wolne na dzień",
       "conflictOverlap": "Nakłada się na rezerwację: {name}"
     },
     "welcome": {

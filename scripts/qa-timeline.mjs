@@ -17,8 +17,6 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright")
 const BASE = "http://localhost:3000";
 const OUT = process.env.QA_ARTIFACTS ?? ".playwright-mcp";
 const STATE = process.env.QA_STATE ?? path.join(OUT, "tl-state.json");
-const U103 = "aae5adc0-e02f-4120-aa2b-d327480dbf83";
-const U102 = "676be31b-d169-490b-b935-926aa5b0e1e3";
 const sql = (q) => execSync(`docker exec supabase_db_pipline-app psql -U postgres -At -c "${q.replace(/"/g, '\\"')}"`).toString().trim();
 
 const results = [];
@@ -27,6 +25,10 @@ async function step(name, fn) {
   catch (e) { results.push(["FAIL", name]); console.log("FAIL", name, "→", String(e).split("\n")[0]); await page.screenshot({ path: path.join(OUT, `fail-${name.replace(/\W+/g, "-")}.png`) }); }
   finally { await page.mouse.up().catch(() => {}); }
 }
+// The seed recreates the units, so ids are read, never hard-coded.
+const unitId = (name) => sql(`select u.id from rental_units u join rental_offerings o on o.id=u.offering_id where o.name='Apartment' and u.name='${name}' and u.active order by u.created_at desc limit 1`);
+const U103 = unitId("103");
+const U102 = unitId("102");
 const kasiaId = () => sql(`select id from bookings where client_name='TLQA Kasia Mazur' and status='confirmed'`);
 const assert = (c, m) => { if (!c) throw new Error(m); };
 
@@ -217,7 +219,7 @@ await step("day header links to the Day view", async () => {
 });
 
 await step("conflicts chip Show opens the first conflict's card", async () => {
-  await page.getByRole("button", { name: /2 conflicts/ }).click();
+  await page.getByRole("button", { name: /conflicts?/ }).click();
   await page.waitForTimeout(800);
   const tip = await page.locator('[data-slot="tooltip-content"]').first().textContent().catch(() => "");
   assert(tip?.includes("Overlaps") || tip?.includes("Unavailable") || tip?.includes("Turnover"), `tip=${tip}`);

@@ -31,7 +31,7 @@ import {
   type Zoom,
 } from "@/features/rentals/timeline-layout";
 import { rescheduleRentalBookingAdmin, rescheduleRentalHoursAdmin } from "@/features/rentals/booking-actions";
-import { settledColumn, visibleOffset } from "@/features/rentals/pan";
+import { bufferWindow, settledColumn, visibleOffset } from "@/features/rentals/pan";
 import { daysBetween } from "@/features/rentals/range";
 import { addDaysISO, dateInZone, wallTimeToUtc } from "@/features/scheduling/slots";
 import { isExpiredRequest } from "@/features/scheduling/requests";
@@ -52,6 +52,7 @@ import {
   columnClass,
   isWeekend,
   zoomInHref,
+  type BarPress,
   type DragGhost,
   type NewStay,
 } from "./timeline-lane";
@@ -119,6 +120,7 @@ export function Timeline({
 }) {
   const t = useTranslations("bookings");
   const tSpaces = useTranslations("spaces");
+  const tErrors = useTranslations("errors");
   const tu = useTranslations("public.units");
   const intlLocale = INTL_LOCALES[useLocale()];
   // Mon-first two-letter weekdays; the header indexes them by UTC day.
@@ -130,19 +132,15 @@ export function Timeline({
   const [pendingMoveState, setPendingMove] = React.useState<PendingMove | null>(null);
   const pendingMove = isPending ? pendingMoveState : null;
 
-  // The visible start is client state so a scroll can move it at once; it
-  // resyncs whenever the server sends one we did not ask for (arrows,
-  // Today, zoom, the date picker). One we committed ourselves comes back
-  // as the recentred buffer and must not drag the view back to it.
+  // The visible start is client state so a scroll can move it at once. The
+  // URL is the truth whenever nothing of ours is in flight: a commit we
+  // made lands with `fromDate === from` (nothing to do), and a navigation
+  // that discarded our commit (Today, an arrow, the picker) lands with
+  // `isPending` false and a different date — the board follows it.
   const [from, setFrom] = React.useState(fromDate);
-  const [seenFromDate, setSeenFromDate] = React.useState(fromDate);
-  const [committed, setCommitted] = React.useState<string | null>(null);
-  if (fromDate !== seenFromDate) {
-    setSeenFromDate(fromDate);
-    if (fromDate !== committed) setFrom(fromDate);
-  }
+  if (!isPending && fromDate !== from) setFrom(fromDate);
 
-  const cols = days * 3;
+  const { cols } = bufferWindow(fromDate, days);
   const bufferDays = React.useMemo(() => windowDays(bufferFrom, cols), [bufferFrom, cols]);
   const bands = React.useMemo(() => monthBands(bufferDays, intlLocale), [bufferDays, intlLocale]);
   const visIdx = visibleOffset(bufferFrom, from);
@@ -186,12 +184,23 @@ export function Timeline({
   const columns = `${railPx}px repeat(${cols}, ${cellPx}px)`;
   const density = headerDensity(cellPx);
 
-  // ---- position: the buffer scrolls to the visible window before paint —
-  // whenever the buffer, the geometry or the visible start changes (a
-  // settled scroll lands exactly on the column it rounded to).
+  // ---- position, before paint. When the visible start or the geometry
+  // changed, the board goes to the start (a settled scroll lands exactly
+  // on the column it rounded to; an arrow lands on its window). When only
+  // the buffer moved — our own commit coming back recentred — the board
+  // SHIFTS by the same amount, so a scroll still in progress (a second
+  // swipe, an auto-scroll under a drag) keeps its place instead of snapping
+  // back to the start it committed.
+  const placedRef = React.useRef<{ bufferFrom: string; from: string; cellPx: number; railPx: number } | null>(null);
   React.useLayoutEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
+    const prev = placedRef.current;
+    placedRef.current = { bufferFrom, from, cellPx, railPx };
+    if (prev && prev.from === from && prev.cellPx === cellPx && prev.railPx === railPx && prev.bufferFrom !== bufferFrom) {
+      el.scrollLeft -= daysBetween(prev.bufferFrom, bufferFrom) * cellPx;
+      return;
+    }
     el.scrollLeft = visibleOffset(bufferFrom, from) * cellPx;
   }, [bufferFrom, from, cellPx, railPx]);
 
@@ -202,8 +211,6 @@ export function Timeline({
   const commit = (next: string) => {
     if (next === from) return;
     setFrom(next);
-    setCommitted(next);
-    setPendingMove(null);
     startTransition(() => router.replace(`${hrefBase}&from=${next}`, { scroll: false }));
   };
   const onScroll = () => {
@@ -311,8 +318,12 @@ export function Timeline({
   // to show. Placements are not asked about: a ghost can never overlap the
   // lane's own stays (0084's EXCLUDE forbids it) and counting it here would
   // report the same clash once per room.
-  const { conflicts, perOffering } = React.useMemo(() => {
+  // `conflicts` rings every flagged stay the buffer holds (so nothing rings
+  // "late" as it scrolls in); `inWindow` is what the chip and the group
+  // badges count.
+  const { conflicts, inWindow, perOffering } = React.useMemo(() => {
     const merged = new Map<string, Conflict[]>();
+    const inWindow = new Map<string, Conflict[]>();
     const perOffering = new Map<string, number>();
     for (const o of offerings) {
       let count = 0;
@@ -326,18 +337,20 @@ export function Timeline({
         const found = detectConflicts(stays, blackoutsByUnit.get(u.id) ?? [], o.rangeMode, o.turnoverDays, timeZone);
         for (const s of stays) {
           const list = found.get(s.id);
-          if (!list || !stayInWindow(s, o.rangeMode, timeZone, o.turnoverDays, from, days)) continue;
+          if (!list) continue;
           merged.set(s.id, list);
+          if (!stayInWindow(s, o.rangeMode, timeZone, o.turnoverDays, from, days)) continue;
+          inWindow.set(s.id, list);
           count += 1;
         }
       }
       perOffering.set(o.id, count);
     }
-    return { conflicts: merged, perOffering };
+    return { conflicts: merged, inWindow, perOffering };
   }, [offerings, staysByUnit, blackoutsByUnit, timeZone, from, days]);
   const summary = React.useMemo(
-    () => conflictSummary(conflicts, shownBookings.map((b) => ({ id: b.id, startsAt: new Date(b.startsAt) }))),
-    [conflicts, shownBookings],
+    () => conflictSummary(inWindow, shownBookings.map((b) => ({ id: b.id, startsAt: new Date(b.startsAt) }))),
+    [inWindow, shownBookings],
   );
 
   // The free-units row of a split space: per day, the units nobody holds
@@ -382,12 +395,12 @@ export function Timeline({
   // the stored state applies right after).
   const collapsedRaw = React.useSyncExternalStore(collapsedStore.subscribe, collapsedStore.get, () => "[]");
   const collapsed = React.useMemo(() => new Set(parseIds(collapsedRaw)), [collapsedRaw]);
-  const toggleGroup = (id: string) => {
-    const next = new Set(collapsed);
+  const toggleGroup = React.useCallback((id: string) => {
+    const next = new Set(parseIds(collapsedStore.get()));
     if (next.has(id)) next.delete(id);
     else next.add(id);
     collapsedStore.set(JSON.stringify([...next]));
-  };
+  }, []);
 
   // ---- search: dim what doesn't match, count, Enter goes to the first.
   const [query, setQuery] = React.useState("");
@@ -402,9 +415,19 @@ export function Timeline({
             .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id)),
     [visibleStays, q],
   );
-  const goToStay = (id: string) => {
+  const goToStay = (id: string, retry = true): boolean => {
     const el = document.getElementById(`tl-stay-${id}`);
-    if (!el) return false;
+    if (!el) {
+      // Inside a collapsed group: open it and look again once it has painted.
+      const b = visibleStays.find((s) => s.id === id);
+      const offeringId = b?.rentalOfferingId;
+      if (retry && offeringId && collapsed.has(offeringId)) {
+        toggleGroup(offeringId);
+        setTimeout(() => goToStay(id, false), 60);
+        return true;
+      }
+      return false;
+    }
     el.scrollIntoView({ block: "center", inline: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
     // After the key that asked for it has finished: focusing the bar while
     // Enter is still down would hand the bar the keypress and open it.
@@ -436,6 +459,8 @@ export function Timeline({
     [offerings, collapsed],
   );
   const [focusCell, setFocusCell] = React.useState<{ unitId: string; idx: number } | null>(null);
+  const onCellFocus = React.useCallback((unitId: string, idx: number) => setFocusCell({ unitId, idx }), []);
+  const onSpotlightEnd = React.useCallback(() => setSpotlightId(null), []);
   const focusTarget = (unitId: string, idx: number) => {
     const el = scrollerRef.current?.querySelector<HTMLElement>(`[data-tl-cell="${unitId}:${idx}"]`);
     if (!el) return;
@@ -444,11 +469,10 @@ export function Timeline({
     setFocusCell({ unitId, idx });
   };
   const [announce, setAnnounce] = React.useState("");
+  // The layout effect above puts the board on the new start as it paints.
   const shiftWindow = (delta: number) => {
     const next = addDaysISO(from, delta);
     commit(next);
-    const el = scrollerRef.current;
-    if (el) el.scrollTo({ left: visibleOffset(bufferFrom, next) * cellPx, behavior: prefersReducedMotion() ? "auto" : "smooth" });
     setAnnounce(t("timeline.windowMoved", { from: dayMonth(next, intlLocale), to: dayMonth(addDaysISO(next, days - 1), intlLocale) }));
   };
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -504,9 +528,12 @@ export function Timeline({
   const stayDrag = useStayDrag({
     scrollerRef,
     cellPx,
+    railPx,
+    bufferFrom,
     onDrop: (drop) => applyDrop(drop),
   });
   const drag = stayDrag.state;
+  const onBarPress: (e: React.PointerEvent, press: BarPress) => void = stayDrag.begin;
   // Where a dragged stay would land and whether it may — the same rules
   // the board rings after the fact (moveConflict), asked before the drop.
   // Called for the drag in progress (the lane draws it) and again for the
@@ -551,7 +578,10 @@ export function Timeline({
     if (!g) return;
     const unchanged = drop.targetUnitId === drop.originUnitId && drop.dayDelta === 0;
     if (unchanged) return;
-    if (g.conflict === "hard") {
+    // The server refuses a turnover clash just as it refuses an overlap
+    // (range.ts marks the tail taken), so the board does too — the ghost
+    // was already red.
+    if (g.conflict !== null) {
       toast.error(t("timeline.dropTaken"));
       return;
     }
@@ -609,7 +639,13 @@ export function Timeline({
   ) {
     setPendingMove({ id: b.id, ...to });
     startTransition(async () => {
-      const result = await action();
+      let result: Awaited<ReturnType<typeof action>>;
+      try {
+        result = await action();
+      } catch {
+        // The actions catch their own failures; this is the transport.
+        result = { ok: false, error: tErrors("generic") };
+      }
       if (!result.ok) {
         toast.error(result.error);
         router.refresh();
@@ -640,6 +676,8 @@ export function Timeline({
   }
 
   const headerPx = 24 + 30;
+  const hasFreeRow = offerings.some((o) => o.units.length > 1 && o.rangeMode !== "hours");
+  const groupRowCount = offerings.filter((o) => o.units.length > 1 && !collapsed.has(o.id)).length + offerings.filter((o) => o.units.length > 1 && collapsed.has(o.id)).length;
   return (
     <TooltipProvider delay={150}>
       <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -691,6 +729,11 @@ export function Timeline({
               <span className="opacity-70">· {t("timeline.show")}</span>
             </Button>
           ) : null}
+          {isPending ? (
+            <span className="text-muted-foreground text-xs" aria-hidden>
+              {t("timeline.loading")}
+            </span>
+          ) : null}
           <Legend className="ml-auto hidden md:flex" />
         </div>
 
@@ -704,8 +747,8 @@ export function Timeline({
           role="grid"
           aria-label={t("timeline.window")}
           aria-busy={isPending || undefined}
-          aria-rowcount={laneOrder.length + 1}
-          aria-colcount={cols}
+          aria-rowcount={2 + groupRowCount + laneOrder.length}
+          aria-colcount={cols + 1}
           tabIndex={-1}
           onScroll={onScroll}
           onKeyDown={onKeyDown}
@@ -741,12 +784,9 @@ export function Timeline({
                 ))}
               </div>
               <div role="row" className="border-border grid border-b" style={{ gridTemplateColumns: columns }}>
-                <div role="columnheader" className="bg-background border-border sticky left-0 z-40 flex items-end border-r pb-1 pl-3">
-                  {isPending ? (
-                    <span className="text-muted-foreground text-[11px]" aria-hidden>
-                      {t("timeline.loading")}
-                    </span>
-                  ) : null}
+                <div role="columnheader" className="bg-background border-border text-muted-foreground sticky left-0 z-40 flex items-end border-r pb-1 pl-3 text-[11px]">
+                  {/* what the numbers in a group row mean */}
+                  {hasFreeRow ? t("timeline.freePerDay") : null}
                 </div>
                 {bufferDays.map((d) => {
                   const isToday = today === d;
@@ -880,19 +920,17 @@ export function Timeline({
                             conflicts={conflicts}
                             conflictCount={conflictCount}
                             spotlightId={spotlightId}
-                            onSpotlightEnd={() => setSpotlightId(null)}
+                            onSpotlightEnd={onSpotlightEnd}
                             scopeSuffix={scopeSuffix}
                             headerless={!split}
                             query={query}
                             focusIdx={
                               focusCell ? (focusCell.unitId === unit.id ? focusCell.idx : -1) : laneOrder[0] === unit.id ? visIdx : -1
                             }
-                            onCellFocus={(idx) => setFocusCell({ unitId: unit.id, idx })}
-                            drag={drag}
-                            ghost={ghost}
-                            onBarPress={(e, booking, edge) =>
-                              stayDrag.begin(e, { booking, mode: offering.rangeMode, offeringId: offering.id, unitId: unit.id, edge })
-                            }
+                            onCellFocus={onCellFocus}
+                            draggingId={drag?.booking.id ?? null}
+                            ghost={ghost && ghost.unitId === unit.id ? ghost : null}
+                            onBarPress={onBarPress}
                             pendingId={pendingMove?.id ?? null}
                             onSelect={setSelected}
                             onNew={setNewStay}
@@ -991,19 +1029,23 @@ function groupBy<T>(items: readonly T[], key: (item: T) => string): Map<string, 
 /* The collapsed set, in localStorage, as an external store: `set` notifies
    this tab's listeners (a storage event only reaches OTHER tabs). */
 const listeners = new Set<() => void>();
+// What was last set, for a browser whose storage throws (private mode):
+// the toggle still holds for the page's life.
+let collapsedFallback = "[]";
 const collapsedStore = {
   get(): string {
     try {
-      return localStorage.getItem(COLLAPSED_KEY) ?? "[]";
+      return localStorage.getItem(COLLAPSED_KEY) ?? collapsedFallback;
     } catch {
-      return "[]";
+      return collapsedFallback;
     }
   },
   set(value: string) {
+    collapsedFallback = value;
     try {
       localStorage.setItem(COLLAPSED_KEY, value);
     } catch {
-      // No storage: the toggle still shows for this render via the listeners' re-read.
+      // No storage: the fallback above carries it.
     }
     for (const l of listeners) l();
   },

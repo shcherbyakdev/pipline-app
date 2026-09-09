@@ -239,11 +239,12 @@ import {
   showsDayNumber,
   takenColumns,
   freeUnitsPerDay,
-  dragDelta,
   movedRange,
   movedInstant,
   moveConflict,
   chipDensity,
+  zoomStep,
+  timelineHref,
 } from "./timeline-layout";
 
 describe("headerDensity (what a day cell can say at a column width)", () => {
@@ -280,17 +281,15 @@ describe("takenColumns / freeUnitsPerDay (the hotel board's free-rooms row)", ()
     const taken = takenColumns([dayStay("a", "2027-05-02", "2027-05-03")], [], "days", 1, TZ, W, 7);
     expect([...taken].sort()).toEqual([1, 2, 3]);
   });
+  it("a stay entirely before or after the window marks nothing (clamped, no negative columns)", () => {
+    expect(takenColumns([stay("a", "2027-04-20", "2027-04-25")], [], "nights", 1, TZ, W, 7).size).toBe(0);
+    expect(takenColumns([stay("b", "2027-06-01", "2027-06-03")], [], "nights", 1, TZ, W, 7).size).toBe(0);
+    // a tail that reaches in from before the window is the only thing taken
+    expect([...takenColumns([stay("c", "2027-04-28", "2027-05-01")], [], "nights", 1, TZ, W, 7)]).toEqual([0]);
+  });
   it("free units per day is the units nobody holds", () => {
     const free = freeUnitsPerDay([new Set([0, 1]), new Set([1]), new Set()], 3);
     expect(free).toEqual([2, 1, 3]);
-  });
-});
-
-describe("dragDelta (pixels to whole days and rows)", () => {
-  it("rounds to the nearest column and lane", () => {
-    expect(dragDelta(-45, 10, 40, 36)).toEqual({ days: -1, rows: 0 });
-    expect(dragDelta(61, 50, 40, 36)).toEqual({ days: 2, rows: 1 });
-    expect(dragDelta(0, 0, 0, 36)).toEqual({ days: 0, rows: 0 });
   });
 });
 
@@ -328,6 +327,26 @@ describe("moveConflict (live validation while dragging: the same rules as detect
   it("a blackout under the candidate is hard", () => {
     const bl = [{ id: "b", startDate: "2027-05-02", endDate: "2027-05-02", reason: "paint" }] as const;
     expect(moveConflict(cand("2027-05-01", "2027-05-03"), [], bl, "nights", 0, TZ)).toBe("hard");
+  });
+});
+
+describe("moveConflict, hours (clock overlap on the target day)", () => {
+  const others = [hourly("x", "2027-05-02", "12:00", "14:00", "X")];
+  it("adjacent is fine, overlapping is hard, a blackout day is hard", () => {
+    const cand = (from: string, to: string) => ({ startsAt: at("2027-05-02", from), endsAt: at("2027-05-02", to) });
+    expect(moveConflict(cand("10:00", "12:00"), others, [], "hours", 0, TZ)).toBeNull();
+    expect(moveConflict(cand("13:00", "15:00"), others, [], "hours", 0, TZ)).toBe("hard");
+    expect(moveConflict(cand("09:00", "10:00"), [], [{ id: "b", startDate: "2027-05-02", endDate: "2027-05-02", reason: null }], "hours", 0, TZ)).toBe("hard");
+  });
+});
+
+describe("zoomStep / timelineHref", () => {
+  it("steps through the zooms and clamps at both ends; the default zoom writes no param", () => {
+    expect(zoomStep(14, 1)).toBe(28);
+    expect(zoomStep(56, 1)).toBe(56);
+    expect(zoomStep(14, -1)).toBe(14);
+    expect(timelineHref(28, "2027-05-01", "&show=x")).toBe("/bookings?view=timeline&show=x&from=2027-05-01");
+    expect(timelineHref(14, "2027-05-01", "")).toBe("/bookings?view=timeline&days=14&from=2027-05-01");
   });
 });
 

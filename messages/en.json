@@ -1157,6 +1157,7 @@
       "dragBarHint": "Drag to move; drag an edge to change a date.",
       "dragChipHint": "Drag to another day or unit.",
       "moneyPaid": "{price} · {paid} paid",
+      "freePerDay": "Free per day",
       "conflictOverlap": "Overlaps {name}’s booking"
     },
     "welcome": {

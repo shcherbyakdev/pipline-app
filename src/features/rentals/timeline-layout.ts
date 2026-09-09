@@ -383,15 +383,6 @@ export function freeUnitsPerDay(takenPerUnit: readonly Set<number>[], days: numb
 
 // ---------- v3: drag maths
 
-/** Pointer travel to whole columns and lanes, nearest wins. An unmeasured
-    column (0px) moves nothing. */
-export function dragDelta(dx: number, dy: number, cellPx: number, rowPx: number): { days: number; rows: number } {
-  return {
-    days: cellPx > 0 ? Math.round(dx / cellPx) : 0,
-    rows: rowPx > 0 ? Math.round(dy / rowPx) : 0,
-  };
-}
-
 export type DragEdge = "move" | "start" | "end";
 
 /** The dates a nights/days stay lands on after dragging its body or one of
