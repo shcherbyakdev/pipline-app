@@ -2,12 +2,11 @@
 
 import * as React from "react";
 import {
-  BoxGeometry,
   Color,
   DirectionalLight,
   HemisphereLight,
   InstancedMesh,
-  MeshStandardMaterial,
+  MeshPhysicalMaterial,
   Object3D,
   OrthographicCamera,
   Plane,
@@ -17,27 +16,31 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { usePrefersReducedMotion } from "./reduced-motion";
 
-/* The hero band's ground: a field of tall cubes that ripples where the
-   pointer moves (Codrops, "interactive wave propagation cube grid",
-   2026-07). One InstancedMesh; the pointer is cast onto the cubes' top
-   plane and leaves a trail of points; every frame each cube's height is
-   the weighted average of the ripples those points send out (a Gaussian
-   window riding an expanding circle, fading with age, distance and how
-   fast the pointer was moving), and its colour mixes from the dark
-   theme's panel to the brand accent by height. Waves average rather than
-   stack, so overlapping trails stay calm. Idle for a few seconds (or a
-   touch screen), it drops its own points now and then. Runs only while
-   on screen; under reduced motion it draws one still frame. The math is
-   on the CPU (a few hundred cubes, no shader patching); the GPU draws. */
+/* The hero band's ground: a field of glass tiles seen almost straight on
+   that light up where the pointer moves (Codrops' wave-propagation cube
+   grid for the motion, a Dribbble "abstract glass cube" shot for the
+   material). One InstancedMesh of rounded cubes in a clearcoat material
+   lit low from two sides so only the edges catch, thin dark seams
+   between them; the pointer is
+   cast onto the tiles' top plane and leaves a trail of points; every
+   frame each tile's lift and inner glow is the weighted average of the
+   ripples those points send out (a Gaussian window riding an expanding
+   circle, fading with age, distance and how fast the pointer moved), the
+   glow running from dark glass to the brand accent. Waves average rather
+   than stack, so overlapping trails stay calm. Idle for a few seconds
+   (or a touch screen), it drops its own points now and then. Runs only
+   while on screen; under reduced motion it draws one still frame. The
+   math is on the CPU; the GPU draws. */
 
 const COLS = 14;
 const ROWS = 12;
 const GAP = 1;
-const CUBE = 0.86;
-const HEIGHT = 1.1;
-const AMP = 0.55;
+const CUBE = 0.9;
+const HEIGHT = 0.9;
+const AMP = 0.35;
 /* Wave shape: how fast the ring travels, how wide it is, its ripple
    frequency, and how long a point keeps sending. */
 const SPEED = 2;
@@ -48,10 +51,12 @@ const TRAIL = 40;
 const IDLE_MS = 3000;
 const AUTO_EVERY_MS = 2400;
 
-/* Dark theme's ground, panel and accent (globals.css `.dark`). */
-const GROUND = "#111212";
-const BASE = "#242526";
-const HIGH = "#6975e2";
+/* Seams darker than the dark theme's ground; the glass runs from the
+   theme's card colour to a lit periwinkle (the accent, brightened so it
+   reads as light inside glass). */
+const GROUND = "#0b0b0c";
+const BASE = "#0c0d10";
+const HIGH = "#b6bcff";
 
 type TrailPoint = { x: number; z: number; t0: number; w: number };
 
@@ -84,17 +89,31 @@ export function CubeGrid({ className }: { className?: string }) {
     renderer.domElement.style.height = "100%";
 
     const scene = new Scene();
-    /* Orthographic and steep, so the field reads as tiles with a little
-       relief rather than a landscape. */
+    /* Orthographic and near top-down, so the field reads as tiles. */
     const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
-    scene.add(new HemisphereLight(0xffffff, 0x111212, 1.1));
-    const key = new DirectionalLight(0xffffff, 1.3);
-    key.position.set(-6, 16, 6);
+    /* No environment map: a room reflection lights the flat tops silver.
+       Two low lights catch only the rounded edges, which is what makes
+       the dark tiles read as glass. */
+    scene.add(new HemisphereLight(0xffffff, 0x0b0b0c, 0.22));
+    const key = new DirectionalLight(0xffffff, 2.6);
+    key.position.set(-10, 5, 12);
     scene.add(key);
+    const rim = new DirectionalLight(0xc8ccff, 1.8);
+    rim.position.set(11, 4, -10);
+    scene.add(rim);
+    const back = new DirectionalLight(0xffffff, 1.2);
+    back.position.set(0, 4, -14);
+    scene.add(back);
 
     const count = COLS * ROWS;
-    const geometry = new BoxGeometry(CUBE, HEIGHT, CUBE);
-    const material = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.05 });
+    const geometry = new RoundedBoxGeometry(CUBE, HEIGHT, CUBE, 3, 0.09);
+    const material = new MeshPhysicalMaterial({
+      color: 0xffffff,
+      roughness: 0.32,
+      metalness: 0.1,
+      clearcoat: 1,
+      clearcoatRoughness: 0.28,
+    });
     const mesh = new InstancedMesh(geometry, material, count);
     scene.add(mesh);
 
@@ -112,8 +131,8 @@ export function CubeGrid({ className }: { className?: string }) {
     }
 
     /* Frame the grid's width whatever the band's aspect: the frustum is
-       the grid's width, the camera sits on a 68° slope. */
-    const ELEV = (68 * Math.PI) / 180;
+       the grid's width, the camera sits on a 78° slope. */
+    const ELEV = (78 * Math.PI) / 180;
     const DIST = 60;
     const fit = () => {
       const w = el.clientWidth || 1;
@@ -200,7 +219,7 @@ export function CubeGrid({ className }: { className?: string }) {
         tmp.position.set(cell.x, HEIGHT / 2 + h, cell.z);
         tmp.updateMatrix();
         mesh.setMatrixAt(i, tmp.matrix);
-        const t = Math.max(0, Math.min(1, (h + AMP * 0.15) / AMP));
+        const t = Math.max(0, Math.min(1, (h + AMP * 0.2) / AMP));
         col.copy(base).lerp(high, t * t);
         mesh.setColorAt(i, col);
       }
