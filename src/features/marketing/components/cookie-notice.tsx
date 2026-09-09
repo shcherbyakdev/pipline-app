@@ -10,7 +10,8 @@ const STORAGE_KEY = "booklo_cookie_notice";
 /* Info-only cookie note on the marketing pages (not the app, not the embed:
    a banner inside customers' iframes would be ours, on their site). Only
    essential cookies exist, so there is no consent to collect; one Got it
-   button remembers the dismissal in localStorage. Hidden on SSR and first
+   button remembers the dismissal in localStorage. A slim bar along the
+   bottom, so it never sits on the product. Hidden on SSR and first
    paint (marketing-nav's useSyncExternalStore idiom), so dismissed visitors
    never see a flash. Storage blocked (private mode) reads as dismissed:
    hidden beats nagging forever. */
@@ -42,17 +43,22 @@ export function CookieNotice() {
     <div
       role="region"
       aria-label="Cookie notice"
-      className="animate-fade-up bg-card fixed right-4 bottom-4 left-4 z-40 flex flex-col gap-3 rounded-2xl p-4 shadow-[var(--shadow-card)] sm:left-auto sm:max-w-sm sm:flex-row sm:items-center"
+      className="animate-fade-up bg-card/95 border-border fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-sm"
     >
-      <p className="text-foreground/80 text-sm">
-        {COOKIE_NOTICE.text}{" "}
-        <Link href="/privacy" className="text-foreground underline underline-offset-2">
-          {COOKIE_NOTICE.policy}
-        </Link>
-      </p>
-      <button type="button" onClick={dismiss} className={marketingButton("primary", "md", "self-end sm:self-auto")}>
-        {COOKIE_NOTICE.dismiss}
-      </button>
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-2.5 sm:px-8">
+        <p className="text-foreground/80 text-[13px] leading-snug">
+          {COOKIE_NOTICE.text}{" "}
+          <Link
+            href="/privacy"
+            className="text-foreground focus-visible:ring-ring rounded-sm underline underline-offset-2 outline-none focus-visible:ring-2"
+          >
+            {COOKIE_NOTICE.policy}
+          </Link>
+        </p>
+        <button type="button" onClick={dismiss} className={marketingButton("primary", "md", "h-8 px-3.5 text-[13px]")}>
+          {COOKIE_NOTICE.dismiss}
+        </button>
+      </div>
     </div>
   );
 }

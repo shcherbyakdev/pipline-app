@@ -23,19 +23,33 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
   let verified = false;
-  if (token_hash && type) {
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash });
-    verified = !error;
-  } else if (code) {
-    // Default/hosted email templates use the PKCE ConfirmationURL flow:
-    // GoTrue verifies the token at /auth/v1/verify and 303s here with
-    // ?code=. Exchange it for a session so the emailed link works
-    // regardless of which template flavor built it (our custom templates
-    // link straight here with token_hash instead). The exchange needs the
-    // code-verifier cookie set when the flow started, so a link opened in
-    // a different browser still lands on the error path below.
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    verified = !error;
+  // Every failure is logged with its flavour: a link that does not sign
+  // someone in is the one auth step we cannot reproduce from a report
+  // alone (2026-09-09: a new user saw a server error until a refresh; local
+  // runs of both flavours, dev and production, landed on onboarding).
+  const flavour = token_hash ? `token_hash type=${type}` : code ? "pkce code" : "no token";
+  try {
+    if (token_hash && type) {
+      const { error } = await supabase.auth.verifyOtp({ type, token_hash });
+      verified = !error;
+      if (error) console.error(`[auth/confirm] verifyOtp failed (${flavour}): ${error.code ?? error.name}: ${error.message}`);
+    } else if (code) {
+      // Default/hosted email templates use the PKCE ConfirmationURL flow:
+      // GoTrue verifies the token at /auth/v1/verify and 303s here with
+      // ?code=. Exchange it for a session so the emailed link works
+      // regardless of which template flavor built it (our custom templates
+      // link straight here with token_hash instead). The exchange needs the
+      // code-verifier cookie set when the flow started, so a link opened in
+      // a different browser still lands on the error path below.
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      verified = !error;
+      if (error) console.error(`[auth/confirm] exchangeCodeForSession failed (${flavour}): ${error.code ?? error.name}: ${error.message}`);
+    }
+  } catch (e) {
+    // A thrown error (network, a malformed token) must not become a blank
+    // 500 on the one link a new account depends on; fall through to the
+    // signed-in check and the login page like any other failed link.
+    console.error(`[auth/confirm] threw (${flavour}):`, e);
   }
 
   if (verified) {

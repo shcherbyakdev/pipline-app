@@ -1,49 +1,34 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@/lib/utils";
 
-/* Fades a block up once it scrolls into view. Writes `data-in` straight to
-   the DOM (no state, so nothing re-renders); the transition itself lives in
-   globals.css (`.reveal`) and is off under reduced motion. JS-off is covered
-   by the <noscript> in the (marketing) layout. `delay` staggers siblings. */
-export function Reveal({
-  as = "div",
-  delay = 0,
-  className,
-  children,
-}: {
-  as?: "div" | "li";
-  delay?: number;
-  className?: string;
-  children: React.ReactNode;
-}) {
+/* Holds its children's entrance until the section scrolls into view: the
+   `.animate-fade-up` inside are paused at their first frame while
+   `data-reveal` is on (globals.css "Features reveal"), and run once
+   `data-in` lands. The attribute is server-rendered so the hold is there
+   from first paint; the <noscript> lets JS-off readers see the content. */
+export function RevealSection(props: React.ComponentProps<"section">) {
   const ref = React.useRef<HTMLElement>(null);
-
   React.useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (!("IntersectionObserver" in window)) {
-      el.setAttribute("data-in", "");
-      return;
-    }
     const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          el.setAttribute("data-in", "");
-          io.disconnect();
-        }
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        el.setAttribute("data-in", "");
+        io.disconnect();
       },
-      { threshold: 0.15, rootMargin: "0px 0px -6% 0px" },
+      { threshold: 0.1 },
     );
     io.observe(el);
     return () => io.disconnect();
   }, []);
-
-  return React.createElement(
-    as,
-    { ref, className: cn("reveal", className), style: { "--reveal-delay": `${delay}ms` } },
-    children,
+  return (
+    <>
+      <noscript>
+        <style>{`[data-reveal] .animate-fade-up{animation-play-state:running}`}</style>
+      </noscript>
+      <section ref={ref} data-reveal="" {...props} />
+    </>
   );
 }

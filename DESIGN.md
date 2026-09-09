@@ -10,7 +10,6 @@ colors:
   sidebar: "#f6f4fb"
   text-secondary: "#5c5964"
   text-subtle: "#686472"
-  stage-wash: "#e2dcfb"
   hairline: "rgb(37 34 40 / 0.08)"
   hairline-strong: "rgb(37 34 40 / 0.12)"
   kind-time: "#6975e2"
@@ -56,11 +55,34 @@ typography:
     letterSpacing: "-0.04em"
   mono:
     fontFamily: "Geist Mono, ui-monospace, monospace"
+  landing-title:
+    fontFamily: "Newsreader, Georgia, serif"
+    fontSize: "50px"
+    fontWeight: 400
+    letterSpacing: "-0.025em"
+  landing-lead:
+    fontFamily: "system-ui, -apple-system, sans-serif"
+    fontSize: "17px"
+    fontWeight: 400
+  scale:
+    caption: "12px"
+    ui: "13px"
+    body: "14px"
+    landing-body: "15px"
+    landing-record: "16px"
+    landing-lead: "17px"
+    landing-card-title: "19px"
+    landing-step-title: "21px"
+    landing-logo: "22px"
+    landing-title-xs: "40px"
+    landing-title: "50px"
 rounded:
   control: "9999px"
   fragment: "10px"
   card: "14px"
   panel: "18px"
+  landing-card: "24px"
+  landing-block: "28px"
 components:
   button-primary:
     backgroundColor: "{colors.ink}"
@@ -113,9 +135,12 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 - **Inter for everything that is read in the product**: body at 400, UI
   labels at 13px/500.
-- **Outfit 500 for landing display type** (`font-display`): the hero (54px
-  desktop, 32px phones) and section H2s (44px desktop) on the marketing
-  pages only. Admin headlines stay Inter.
+- **Landing (interfacecraft.dev-referenced, 2026-09-09): the visitor's
+  system face for everything read** (`.marketing` sets `--font-sans` to the
+  system stack; sub 17px, small text 13px) **and Newsreader 400 for the one
+  title** (`font-serif`, 50/40px, -0.025em, entering word by word). The
+  landing is one hero: rule, title, sub, the claim bar, the product in its
+  glass band, a one-line footer. Admin headlines stay Inter.
 - **Hosted booking pages** (`features/booking-page/render/type.ts`) set
   display at weight 500 with -0.025em tracking in the org's own widget
   font (`widget-fonts.ts`; "system" is the visitor's UI face, Geist and
@@ -173,10 +198,16 @@ whose widget theme is dark; `.book-auto` follows the visitor's system.
 
 ## Elevation & Depth
 
-The landing hero's stage takes the lavender wash: a top-to-bottom gradient
-from `#f5f3fe` to `stage-wash` (#e2dcfb), the reference's white-into-
-periwinkle fade (`.stage-wash` in globals.css). It is the only gradient in
-the system.
+The landing's product sits in one full-width band of periwinkle glass
+tiles (`tile-grid.tsx`, plain DOM and CSS, globals.css "Hero tiles"):
+a 14-column grid of gradient tiles (#8188c4 → #5c639d) with bevel insets
+on a #1a1b22 seam, each carrying a highlight layer that pulses in a ring
+spreading from the pointer (delay per tile of distance, 70ms a tile,
+dimming with distance; amplitude from pointer speed); idle, a ring starts
+from a random tile; under reduced motion the tiles hold still. A vignette
+and film grain sit over it. The title and the input sit on the plain
+ground above; the feature list follows in a 46rem column. No other
+panels; the tiles are the only gradients.
 
 
 Two shadows only, defined as tokens and used via `shadow-(--shadow-card)` /
@@ -237,6 +268,5 @@ another radius on a public page.
   and the active nav icon.
 - Don't hand grey borders, `transition-all`, pure `#000`/`#fff`, or a second
   accent into any surface.
-- The landing is light except **one dark band**: the final CTA section opts
-  into the `.dark` scope (plum night) and carries `data-nav-dark`; the sticky
-  nav inverts while over it. No other marketing surface goes dark.
+- The landing is light throughout except the product band, the periwinkle
+  tile grid; the title, input and feature list sit on the plain ground.

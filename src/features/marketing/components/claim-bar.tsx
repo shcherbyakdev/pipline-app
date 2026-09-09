@@ -8,11 +8,11 @@ import { HANDLE_RE, isReservedHandle, normalizeHandle } from "@/features/schedul
 import { CLAIM, SITE } from "@/features/marketing/site";
 import { cn } from "@/lib/utils";
 
-/* "booklo.co/ your-name [Claim →]" (spec §3.5). A white field with a hairline
-   and the ink submit inside it: the page one action, the only
-   place a control is filled. Controlled: the hero owns the handle so
-   the widget can mirror it. Checks availability on submit only; a public
-   page shouldn't hit the DB on every keystroke. */
+/* "booklo.co/ your-studio [Claim →]" (spec §3.5), drawn as one quiet
+   field: a hairline, the address prefix in grey, the ink submit inside.
+   The page's one action. Controlled: the hero owns the handle. Checks
+   availability on submit only; a public page shouldn't hit the DB on
+   every keystroke. */
 export function ClaimBar({
   handle,
   onHandleChange,
@@ -25,7 +25,7 @@ export function ClaimBar({
   handle: string;
   onHandleChange: (next: string) => void;
   host: string;
-  /** Shown under the bar while it's idle (empty and unfocused); the format
+  /** Shown under the bar while it's empty; the format
       hint takes its place once the person is typing. */
   idleNote?: string;
   size?: "lg" | "md";
@@ -36,7 +36,6 @@ export function ClaimBar({
   const id = React.useId();
   const [pending, startTransition] = React.useTransition();
   const [result, setResult] = React.useState<HandleCheck | null>(null);
-  const [focused, setFocused] = React.useState(false);
   const url = `${host}/${handle}`;
   const complete = HANDLE_RE.test(handle) && !isReservedHandle(handle);
 
@@ -60,7 +59,9 @@ export function ClaimBar({
     });
   };
 
-  let status: React.ReactNode = focused || handle ? CLAIM.hint : (idleNote ?? CLAIM.hint);
+  // The early-access note stays until typing starts: focusing an empty
+  // field is the moment of commitment, not the moment for rules.
+  let status: React.ReactNode = handle ? CLAIM.hint : (idleNote ?? CLAIM.hint);
   let tone = "text-muted-foreground";
   if (result?.status === "invalid") {
     status = handle && isReservedHandle(handle) ? CLAIM.unavailable : CLAIM.hint;
@@ -101,11 +102,11 @@ export function ClaimBar({
     <form onSubmit={submit} className={cn("w-full", className)} noValidate>
       <div
         className={cn(
-          "bg-card ring-input focus-within:ring-ring flex items-center gap-2 rounded-full shadow-[var(--shadow-card)] ring-1 transition-shadow duration-200 ease-strong focus-within:ring-2",
-          tall ? "py-1.5 pr-1.5 pl-5" : "py-1 pr-1 pl-4",
+          "bg-card ring-input focus-within:ring-ring flex items-center gap-1.5 rounded-full ring-1 transition-[box-shadow] duration-200 ease-strong focus-within:ring-2",
+          tall ? "py-1 pr-1 pl-4" : "py-1 pr-1 pl-3.5",
         )}
       >
-        <label htmlFor={id} className="text-card-foreground shrink-0 font-mono text-sm sm:text-[15px]">
+        <label htmlFor={id} className="text-muted-foreground shrink-0 text-[15px]">
           {host}/
         </label>
         <input
@@ -122,12 +123,10 @@ export function ClaimBar({
           inputMode="url"
           maxLength={50}
           autoFocus={autoFocus}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           aria-label="Your page name"
           aria-describedby={`${id}-status`}
           aria-invalid={result?.status === "invalid" || result?.status === "taken" || undefined}
-          className="text-card-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent py-2 font-mono text-sm outline-none sm:text-[15px]"
+          className="text-card-foreground placeholder:text-subtle min-w-0 flex-1 bg-transparent py-2 text-[15px] outline-none"
         />
         {/* Always live: a short or bad name submits into the hint below
             rather than greying the page's one action out. */}
@@ -135,8 +134,8 @@ export function ClaimBar({
           type="submit"
           disabled={pending}
           className={cn(
-            "bg-primary text-primary-foreground inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-[15px] font-medium transition-[background-color,transform,opacity] duration-[160ms] ease-strong [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85 active:scale-[0.97] disabled:opacity-60 motion-reduce:transition-none",
-            tall ? "h-11 px-5" : "h-9 px-4",
+            "bg-primary text-primary-foreground focus-visible:ring-ring inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-[14px] font-medium transition-[background-color,transform,opacity] duration-[160ms] ease-strong outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card [@media(hover:hover)_and_(pointer:fine)]:hover:bg-primary/85 active:scale-[0.97] disabled:opacity-60 motion-reduce:transition-none",
+            tall ? "h-9 px-4" : "h-8 px-3.5",
           )}
         >
           {CLAIM.button}
@@ -147,7 +146,7 @@ export function ClaimBar({
           )}
         </button>
       </div>
-      <p id={`${id}-status`} aria-live="polite" className={cn("mt-2 min-h-5 text-[13px]", tone)}>
+      <p id={`${id}-status`} aria-live="polite" className={cn("mt-2.5 min-h-5 text-[14px]", tone)}>
         {status}
       </p>
     </form>

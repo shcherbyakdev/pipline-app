@@ -1,28 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
-import {
-  SITE,
-  NAV_LINKS,
-  STEPS,
-  FEATURES,
-  FAQ,
-  SECTIONS,
-  CTA,
-  COOKIE_NOTICE,
-  CLAIM,
-  ONBOARDING,
-  WELCOME,
-  FINAL_CTA,
-  ANNOUNCEMENT,
-  AUDIENCE,
-  HERO_TABS,
-  FORBIDDEN_COPY,
-  PRICING,
-  PREMIUM,
-  anchorId,
-  allInternalHrefs,
-} from "./site";
+import { SITE, FOOTER_LINKS, FEATURES, FEATURES_LABEL, HOW_LABEL, HOW_STEPS, CTA, COOKIE_NOTICE, CLAIM, ONBOARDING, WELCOME, FORBIDDEN_COPY, PRICING, allInternalHrefs } from "./site";
 import { PLANS } from "@/lib/billing/plans";
 
 // Route hrefs → the app directory that must exist for them (route groups omitted from URL).
@@ -36,76 +15,49 @@ const ROUTE_DIRS: Record<string, string> = {
   "/terms": "src/app/(marketing)/terms",
 };
 
+/** Everything the landing shows, in one string (lowercased by callers that need it). */
+function landingCorpus(): string {
+  return [
+    SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
+    FEATURES_LABEL, ...FEATURES.flatMap((f) => [f.title, f.body]),
+    HOW_LABEL, ...HOW_STEPS.flatMap((s) => [s.title, s.body]),
+    ...FOOTER_LINKS.map((l) => l.label),
+    ...Object.values(CTA),
+    ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
+    ...Object.values(COOKIE_NOTICE),
+  ].join("\n");
+}
+
 describe("site config", () => {
   it("names the product Booklo", () => {
     expect(SITE.name).toBe("Booklo");
   });
 
-  it("every internal href is an in-page anchor or an existing route", () => {
+  it("lists eight unique features, one line each", () => {
+    expect(FEATURES).toHaveLength(8);
+    expect(new Set(FEATURES.map((f) => f.title)).size).toBe(8);
+    for (const f of FEATURES) expect(f.body.split(/\s+/).length, f.title).toBeLessThanOrEqual(16);
+  });
+
+  it("tells how it works in five short steps", () => {
+    expect(HOW_STEPS).toHaveLength(5);
+    for (const s of HOW_STEPS) expect(s.body.split(/\s+/).length, s.title).toBeLessThanOrEqual(22);
+  });
+
+  it("every internal href is an existing route", () => {
     for (const href of allInternalHrefs()) {
-      if (href.startsWith("#")) continue;
-      // "/#x" is the home route plus an anchor (nav/footer render on
-      // /pricing, /privacy and /terms too, so their section links must
-      // carry the path).
-      const dir = ROUTE_DIRS[href.startsWith("/#") ? "/" : href];
+      const dir = ROUTE_DIRS[href];
       expect(dir, `no route mapping for ${href}`).toBeDefined();
       expect(existsSync(join(process.cwd(), dir, "page.tsx")), `${dir}/page.tsx missing`).toBe(true);
     }
   });
 
-  it("every anchor yields a usable id and every nav href is a home-anchored section link or an internal route", () => {
-    const anchors: string[] = Object.values(SITE.anchors);
-    for (const a of anchors) expect(anchorId(a), `bad anchor ${a}`).not.toBe("");
-    for (const l of NAV_LINKS) {
-      // Bare "#x" is relative to the current page and goes nowhere on
-      // /pricing, /privacy or /terms, which render the same nav and footer.
-      const ok = (l.href.startsWith("/#") && anchors.includes(l.href.slice(1))) || l.href in ROUTE_DIRS;
-      expect(ok, `nav href ${l.href} is neither /#anchor nor route`).toBe(true);
-    }
-  });
-
-  it("rejects an anchor without a leading #", () => {
-    expect(() => anchorId("features")).toThrow();
-  });
-
-  // Source-level guard: the sections must take their id from SITE.anchors, not a hardcoded string,
-  // so renaming an anchor can never silently break the nav links that point at it.
-  it("each section derives its id from SITE.anchors", () => {
-    const files: Record<string, keyof typeof SITE.anchors> = {
-      "how-it-works.tsx": "how",
-      "features.tsx": "features",
-      "faq.tsx": "faq",
-    };
-    for (const [file, key] of Object.entries(files)) {
-      const src = readFileSync(join(process.cwd(), "src/features/marketing/components", file), "utf8");
-      expect(src, `${file} should use anchorId(SITE.anchors.${key})`).toContain(`anchorId(SITE.anchors.${key})`);
-    }
-  });
-
-  it("has three numbered steps, seven unique features, ≥5 FAQ items", () => {
-    expect(STEPS.map((s) => s.number)).toEqual(["01", "02", "03"]);
-    expect(FEATURES).toHaveLength(7);
-    expect(new Set(FEATURES.map((f) => f.title)).size).toBe(7);
-    expect(FAQ.length).toBeGreaterThanOrEqual(5);
-    expect(new Set(FAQ.map((f) => f.question)).size).toBe(FAQ.length);
-  });
-
   it("never advertises unshipped features", () => {
     const corpus = [
-      ...SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
-      ...STEPS.flatMap((s) => [s.title, s.body]),
-      ...FEATURES.flatMap((f) => [f.title, f.body]),
-      ...FAQ.flatMap((f) => [f.question, f.answer]),
-      ...Object.values(SECTIONS).flatMap((s) => [
-        s.heading,
-        s.eyebrow,
-        "sub" in s ? s.sub : "",
-      ]),
-      ...Object.values(CTA),
+      landingCorpus(),
       PRICING.heading, PRICING.sub, PRICING.note, PRICING.founder, PRICING.moreComing,
       ...PRICING.rows.flatMap((r) => [r.label, r.free, r.pro, r.team]),
       ...Object.values(PLANS).map((p) => p.blurb),
-      ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
       // ONBOARDING.modes is an array of {value, title, blurb} cards, not a
       // string or a function — flatten it to its titles/blurbs so the
       // picker copy is actually scanned, not silently stringified to
@@ -116,13 +68,6 @@ describe("site config", () => {
         return v;
       }),
       ...Object.values(WELCOME).map((v) => (typeof v === "function" ? v("x") : v)),
-      FINAL_CTA.heading, FINAL_CTA.sub,
-      ...Object.values(ANNOUNCEMENT),
-      AUDIENCE.heading, AUDIENCE.sub, ...AUDIENCE.blocks.flatMap((b) => [b.title, b.body, ...b.groups]),
-      ...SITE.truths,
-      ...HERO_TABS.map((t) => t.label),
-      ...Object.values(COOKIE_NOTICE),
-      PREMIUM.eyebrow, PREMIUM.heading, PREMIUM.sub, PREMIUM.cta, PREMIUM.note, ...PREMIUM.perks,
     ].join("\n").toLowerCase();
     for (const word of FORBIDDEN_COPY) expect(corpus, `copy mentions "${word}"`).not.toContain(word);
   });
@@ -132,31 +77,14 @@ describe("site config", () => {
   // period. Pricing is left out on purpose: its table cells and one row
   // label still carry the dash and the page is off while billing is.
   it("landing copy contains no em- or en-dashes", () => {
-    const landing = [
-      ...SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
-      ...SITE.truths,
-      ...STEPS.flatMap((s) => [s.word, s.title, s.body]),
-      ...FEATURES.flatMap((f) => [f.title, f.body]),
-      ...FAQ.flatMap((f) => [f.question, f.answer]),
-      ...Object.values(SECTIONS).flatMap((s) => [s.heading, s.eyebrow, "sub" in s ? s.sub : ""]),
-      ...Object.values(CTA),
-      ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
-      FINAL_CTA.heading, FINAL_CTA.sub,
-      ...Object.values(ANNOUNCEMENT),
-      AUDIENCE.heading, AUDIENCE.sub, ...AUDIENCE.blocks.flatMap((b) => [b.title, b.body, ...b.groups]),
-      ...Object.values(COOKIE_NOTICE),
-      PREMIUM.eyebrow, PREMIUM.heading, PREMIUM.sub, PREMIUM.cta, PREMIUM.note, ...PREMIUM.perks,
-    ].join("\n");
-    expect(landing).not.toMatch(/[—–]/);
+    expect(landingCorpus()).not.toMatch(/[—–]/);
   });
 
-  it("the marked headline word is in the second headline line", () => {
-    expect(SITE.headline[1]).toContain(SITE.markedWord);
-  });
-
-  it("headline is two short lines (≤ 4 words each)", () => {
-    expect(SITE.headline).toHaveLength(2);
-    for (const line of SITE.headline) expect(line.split(/\s+/).length).toBeLessThanOrEqual(4);
+  // The page is one hero (2026-09-09): one short title, a sub of at most
+  // twenty words, the claim bar. Nothing else to fit.
+  it("headline is one short line and the sub is at most 20 words", () => {
+    expect(SITE.headline.split(/\s+/).length).toBeLessThanOrEqual(5);
+    expect(SITE.subheadline.split(/\s+/).length).toBeLessThanOrEqual(20);
   });
 
   // Rentals-only orgs (welcome-banner.tsx) must not fall back to the
@@ -172,13 +100,8 @@ describe("site config", () => {
     expect(ONBOARDING.modes.map((m) => m.value)).toEqual(["rentals", "appointments"]);
   });
 
-  it("FORBIDDEN_COPY retires the old channel words and keeps the H4 ones (H5b ruling 7); google left with the Google Calendar slice", () => {
-    expect(FORBIDDEN_COPY).toEqual(["stripe", "payment", "offering", "rentals"]);
-  });
-
-  it("the Premium section shows while billing is off and reads its number from PLANS", () => {
-    expect(PREMIUM.shown).toBe(true);
-    expect(PREMIUM.perks[0]).toContain(String(PLANS.pro.limits.bookableResources));
+  it("FORBIDDEN_COPY keeps the provider name and the retired channel words, drops 'payment' now that collection shipped (S9), and holds the calendar sync until S11", () => {
+    expect(FORBIDDEN_COPY).toEqual(["stripe", "offering", "rentals", "google", "calendar sync"]);
   });
 
   it("the resources pricing row reads its numbers from PLANS", () => {
@@ -189,11 +112,9 @@ describe("site config", () => {
     );
   });
 
-  it("pricing and the cost FAQ speak of people and rooms, never seats", () => {
+  it("pricing speaks of people and rooms, never seats", () => {
     expect(PRICING.sub).toBe(
       "Free for you and one more person, or two rooms. Pay when you need your brand, reminders for every booking or more bookable resources.",
     );
-    const cost = FAQ.find((f) => f.question === "What does it cost?")!;
-    expect(cost.answer.toLowerCase()).not.toMatch(/seat|team member/);
   });
 });

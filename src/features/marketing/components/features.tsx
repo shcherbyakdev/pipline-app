@@ -1,51 +1,62 @@
-import { anchorId, FEATURES, SECTIONS, SITE, type FeatureVisual } from "@/features/marketing/site";
-import { cn } from "@/lib/utils";
-import { Reveal } from "./reveal";
-import { FeatureCell } from "./feature-cells";
-import { H2, LEAD, SECTION, SECTION_INNER } from "./type";
+import Link from "next/link";
+import { ArrowRight, CalendarClock, Languages, Layers, Link2, Receipt, Sunrise, Tag, Wallet, type LucideIcon } from "lucide-react";
+import { CTA, FEATURES, FEATURES_LABEL, SITE, type FeatureIcon } from "@/features/marketing/site";
+import { marketingButton } from "./marketing-button";
+import { RevealSection } from "./reveal";
 
-/* A centred heading, then the seven features as a bento with rhythm: 2+1,
-   1+1+1, 2+1. Three cells are tinted (blue, orange, green) and one is ink,
-   the rest sit on the soft grey; every cell holds a product fragment. */
-const LAYOUT: Record<FeatureVisual, string> = {
-  "slot-guard": "bg-kind-time-soft lg:col-span-2",
-  page: "bg-secondary",
-  manage: "bg-secondary",
-  reminder: "bg-kind-stay-soft",
-  embed: "bg-foreground text-background",
-  spaces: "bg-kind-space-soft lg:col-span-2",
-  brand: "bg-secondary",
+/* What it does, under the product: a small label, then eight lines in two
+   columns, each a small glyph beside a title and one sentence, hairlines
+   between rows, then the one action with the early-access note beside
+   it. No boxes. The label, the lines and the action enter the way the
+   hero copy does (fade, a little rise, focus), 60ms apart, once the
+   section scrolls into view. */
+const ROW_MS = 60;
+const ICON: Record<FeatureIcon, LucideIcon> = {
+  price: Tag,
+  deposit: Wallet,
+  change: CalendarClock,
+  charge: Receipt,
+  studio: Layers,
+  morning: Sunrise,
+  link: Link2,
+  language: Languages,
 };
-const ORDER: FeatureVisual[] = ["slot-guard", "page", "manage", "reminder", "embed", "spaces", "brand"];
 
 export function Features() {
-  const byVisual = new Map(FEATURES.map((f) => [f.visual, f]));
   return (
-    <section id={anchorId(SITE.anchors.features)} aria-labelledby="features-heading" className={cn(SECTION, "scroll-mt-20")}>
-      <div className={SECTION_INNER}>
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 id="features-heading" className={H2}>
-            {SECTIONS.features.heading}
-          </h2>
-          <p className={cn(LEAD, "mx-auto max-w-lg")}>{SECTIONS.features.sub}</p>
-        </Reveal>
-
-        <ul className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ORDER.map((visual, i) => {
-            const f = byVisual.get(visual)!;
-            const ink = visual === "embed";
-            return (
-              <Reveal as="li" key={visual} delay={(i % 3) * 60} className={cn("flex min-w-0 flex-col rounded-[22px] p-[22px]", LAYOUT[visual])}>
-                <div aria-hidden="true">
-                  <FeatureCell visual={visual} />
-                </div>
-                <h3 className="mt-[18px] text-[19px] leading-snug font-medium tracking-[-0.01em]">{f.title}</h3>
-                <p className={cn("mt-1.5 max-w-[40ch] text-[14.5px] leading-relaxed", ink ? "text-background/70" : "text-muted-foreground")}>{f.body}</p>
-              </Reveal>
-            );
-          })}
-        </ul>
-      </div>
-    </section>
+    <RevealSection aria-labelledby="features-label" className="mx-auto w-full max-w-[48rem] px-5 pt-24 pb-24 sm:px-8 sm:pt-32 sm:pb-32">
+      <h2 id="features-label" className="animate-fade-up text-foreground text-[14px] font-medium">
+        {FEATURES_LABEL}
+      </h2>
+      <ul className="border-border mt-6 grid border-t sm:grid-cols-2 sm:gap-x-14">
+        {FEATURES.map((f, i) => {
+          const Icon = ICON[f.icon];
+          return (
+            <li
+              key={f.title}
+              className="animate-fade-up border-border grid grid-cols-[16px_1fr] gap-x-3 border-b py-6"
+              style={{ animationDelay: `${(i + 1) * ROW_MS}ms` }}
+            >
+              <Icon className="text-brand-text mt-[5px] size-4" strokeWidth={1.75} aria-hidden="true" />
+              <div className="min-w-0">
+                <h3 className="text-foreground text-[17px] leading-snug font-medium">{f.title}</h3>
+                <p className="text-muted-foreground mt-1.5 text-[15px] leading-relaxed">{f.body}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {/* the closing action, with room around it: the page ends on this */}
+      <p
+        className="animate-fade-up mt-14 flex flex-wrap items-center gap-x-5 gap-y-3 sm:mt-16"
+        style={{ animationDelay: `${(FEATURES.length + 1) * ROW_MS}ms` }}
+      >
+        <Link href={SITE.links.signup} className={marketingButton("primary", "lg")}>
+          {CTA.getStarted}
+          <ArrowRight className="size-4" strokeWidth={2} aria-hidden="true" />
+        </Link>
+        <span className="text-muted-foreground text-[15px]">{SITE.heroNote}</span>
+      </p>
+    </RevealSection>
   );
 }
