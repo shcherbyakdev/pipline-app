@@ -12,8 +12,9 @@ import heroWash from "../images/hero-wash.webp";
    floor, cropped there like a screen coming into view. The whole hero
    sits on a full-bleed abstract wash in the brand's palette
    (scripts/landing-wash.html, ours, not a stock painting): near-white
-   under the words, ridges under the product. Real screenshot
-   (scripts/landing-shots.mjs). */
+   under the words, ridges under the product, seen through fluted glass
+   (streaks baked in, ribs and a travelling swell in CSS, then grain).
+   Real screenshot (scripts/landing-shots.mjs). */
 const WORD_MS = 60;
 
 export function Hero({ host }: { host: string }) {
@@ -24,6 +25,10 @@ export function Hero({ host }: { host: string }) {
           nav: near-white at the top under the words, the ridges rising
           where the product does */}
       <Image src={heroWash} alt="" fill priority sizes="100vw" className="object-cover object-bottom" />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="hero-swell absolute inset-y-0 left-0" />
+      </div>
+      <div aria-hidden="true" className="hero-ribs pointer-events-none absolute inset-0" />
       <div aria-hidden="true" className="hero-grain pointer-events-none absolute inset-0" />
       <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-12 text-center sm:px-8 sm:pt-16 lg:pt-20">
         <h1

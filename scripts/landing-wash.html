@@ -28,6 +28,14 @@
       <feGaussianBlur stdDeviation="18"/>
     </filter>
     <filter id="soft" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="60"/></filter>
+    <!-- fluted-glass streaks (futureui "fractal glass"): a turbulence that
+         is wide across and tight down displaces the painting into vertical
+         smears, then a vertical-only blur pulls them into streaks -->
+    <filter id="streak" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0035 0.09" numOctaves="1" seed="5" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="70" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feGaussianBlur in="d" stdDeviation="0 14"/>
+    </filter>
     <!-- a light bake of grain; the visible film noise is the CSS overlay
          (.hero-grain in globals.css) so the WebP stays small and the grain
          stays crisp at every pixel density -->
@@ -43,15 +51,18 @@
     </filter>
   </defs>
   <rect width="2400" height="1400" fill="url(#sky)"/>
-  <!-- soft light and colour pools -->
-  <ellipse cx="1500" cy="330" rx="900" ry="420" fill="url(#glow)" filter="url(#soft)"/>
-  <ellipse cx="520" cy="620" rx="620" ry="360" fill="url(#pink)" filter="url(#soft)"/>
-  <ellipse cx="1900" cy="820" rx="700" ry="300" fill="url(#mint)" filter="url(#soft)"/>
-  <!-- ridges: far to near, painted edges -->
-  <g filter="url(#paint)">
-    <path d="M-100 760 C 300 560, 520 500, 780 640 C 980 750, 1180 520, 1420 600 C 1650 680, 1850 430, 2100 560 C 2300 660, 2450 640, 2500 700 L 2500 1500 L -100 1500 Z" fill="url(#r1)" opacity="0.85"/>
-    <path d="M-100 900 C 240 780, 480 720, 700 820 C 940 930, 1120 700, 1400 780 C 1700 870, 1900 760, 2500 860 L 2500 1500 L -100 1500 Z" fill="url(#r2)" opacity="0.9"/>
-    <path d="M-100 1080 C 300 980, 560 1000, 860 1060 C 1160 1120, 1460 960, 1760 1010 C 2060 1060, 2260 990, 2500 1040 L 2500 1500 L -100 1500 Z" fill="url(#r3)" opacity="0.92"/>
+  <g filter="url(#streak)">
+    <rect width="2400" height="1400" fill="url(#sky)"/>
+    <!-- soft light and colour pools -->
+    <ellipse cx="1500" cy="330" rx="900" ry="420" fill="url(#glow)" filter="url(#soft)"/>
+    <ellipse cx="520" cy="620" rx="620" ry="360" fill="url(#pink)" filter="url(#soft)"/>
+    <ellipse cx="1900" cy="820" rx="700" ry="300" fill="url(#mint)" filter="url(#soft)"/>
+    <!-- ridges: far to near, painted edges -->
+    <g filter="url(#paint)">
+      <path d="M-100 760 C 300 560, 520 500, 780 640 C 980 750, 1180 520, 1420 600 C 1650 680, 1850 430, 2100 560 C 2300 660, 2450 640, 2500 700 L 2500 1500 L -100 1500 Z" fill="url(#r1)" opacity="0.85"/>
+      <path d="M-100 900 C 240 780, 480 720, 700 820 C 940 930, 1120 700, 1400 780 C 1700 870, 1900 760, 2500 860 L 2500 1500 L -100 1500 Z" fill="url(#r2)" opacity="0.9"/>
+      <path d="M-100 1080 C 300 980, 560 1000, 860 1060 C 1160 1120, 1460 960, 1760 1010 C 2060 1060, 2260 990, 2500 1040 L 2500 1500 L -100 1500 Z" fill="url(#r3)" opacity="0.92"/>
+    </g>
   </g>
   <rect width="2400" height="1400" filter="url(#grain-dark)" fill="#1a1636"/>
   <rect width="2400" height="1400" filter="url(#grain-light)" fill="#ffffff"/>

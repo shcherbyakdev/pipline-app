@@ -433,6 +433,43 @@
   to { translate: 3% 4%; rotate: 6deg; scale: 1.06; }
 }
 
+/* Hero glass (components/hero.tsx, futureui.studio "fractal glass
+   shimmer"-referenced): fluted glass over the wash. The vertical streaks
+   are baked into the image (scripts/landing-wash.html, the `streak`
+   filter); on top, 27px ribs, each with a bright edge and a shadow edge,
+   and a soft band of light that travels across every 11s (the swell),
+   blended in overlay so it brightens and dims the glass rather than
+   painting on it. Transform only; the swell holds still under reduced
+   motion. Layer order: image → swell → ribs → grain → content. */
+.marketing .hero-ribs {
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0.26) 0 1.5px,
+    rgb(255 255 255 / 0.06) 1.5px 7px,
+    rgb(255 255 255 / 0) 7px 19px,
+    rgb(37 34 40 / 0.08) 19px 21px,
+    rgb(255 255 255 / 0.1) 21px 27px
+  );
+}
+.marketing .hero-swell {
+  width: 34%;
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0) 0%,
+    rgb(37 34 40 / 0.16) 28%,
+    rgb(255 255 255 / 0.9) 50%,
+    rgb(37 34 40 / 0.12) 72%,
+    rgb(255 255 255 / 0) 100%
+  );
+  mix-blend-mode: overlay;
+  will-change: transform;
+  animation: hero-swell 11s linear infinite;
+}
+@keyframes hero-swell {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(420%); }
+}
+
 /* Hero grain (components/hero.tsx): film noise over the wash, a 160px
    SVG turbulence tile repeated, blended in overlay so it speckles both
    light and dark. Static, pointer-transparent, no repaint cost. */
@@ -539,6 +576,7 @@
   .marketing .blob-wash { animation: none; }
   .marketing .hw { transform: none; filter: none; animation: fade-only 0.2s ease both; }
   .marketing .hero-rise { transform: none; animation: fade-only 0.2s ease both; }
+  .marketing .hero-swell { animation: none; transform: translateX(120%); }
 }
 
 /* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text
