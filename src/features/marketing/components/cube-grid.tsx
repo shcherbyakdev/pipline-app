@@ -54,9 +54,9 @@ const AUTO_EVERY_MS = 2400;
 /* Seams darker than the dark theme's ground; the glass runs from the
    theme's card colour to a lit periwinkle (the accent, brightened so it
    reads as light inside glass). */
-const GROUND = "#0b0b0c";
-const BASE = "#3b4070";
-const HIGH = "#e2e5ff";
+const GROUND = "#1a1b22";
+const BASE = "#6a70a8";
+const HIGH = "#eef0ff";
 
 type TrailPoint = { x: number; z: number; t0: number; w: number };
 
@@ -87,7 +87,7 @@ export function CubeGrid({ className }: { className?: string }) {
     /* No environment map: a room reflection lights the flat tops silver.
        Two low lights catch only the rounded edges, which is what makes
        the dark tiles read as glass. */
-    scene.add(new HemisphereLight(0xffffff, 0x0b0b0c, 0.22));
+    scene.add(new HemisphereLight(0xffffff, 0x1a1b22, 0.55));
     const key = new DirectionalLight(0xffffff, 2.6);
     key.position.set(-10, 5, 12);
     scene.add(key);
@@ -109,8 +109,8 @@ export function CubeGrid({ className }: { className?: string }) {
       transmission: 0.55,
       thickness: 1.2,
       ior: 1.5,
-      attenuationColor: new Color("#6975e2"),
-      attenuationDistance: 1.4,
+      attenuationColor: new Color("#8b93ee"),
+      attenuationDistance: 2.2,
       clearcoat: 1,
       clearcoatRoughness: 0.22,
     });
