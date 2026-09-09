@@ -95,3 +95,49 @@ describe("S8 — 0085 lets service_role import and settle bookings", () => {
     expect(paid.error).not.toBeNull();
   });
 });
+
+const { runImport } = await import("./import-run");
+
+describe("S8 — runImport writes rows through the admin RPC and reports per row", () => {
+  let s: Studio;
+  beforeAll(async () => { s = await newStudio("run"); }, 60_000);
+
+  const row = (over: Partial<Parameters<typeof runImport>[1][number]>) => ({
+    row: 2, offeringId: s.roomId, startsAt: iso(`${d(5)}T10:00`), durationMin: 60, name: "Imported", paid: true, ...over,
+  });
+
+  it("creates and settles a paid row, leaves an unpaid row owing, and skips both on a re-run", async () => {
+    const rows = [row({ row: 2 }), row({ row: 3, startsAt: iso(`${d(5)}T12:00`), paid: false, email: "c@example.com", note: "old tool #17" })];
+    const first = await runImport(admin, rows);
+    expect(first.map((r) => r.status)).toEqual(["created", "created"]);
+    const { data: a } = await admin.from("bookings").select("status, price_cents, paid_cents").eq("id", first[0].bookingId!).single();
+    expect(a).toMatchObject({ status: "confirmed", price_cents: 10000, paid_cents: 10000 });
+    const { data: b } = await admin.from("bookings").select("paid_cents, client_email, note").eq("id", first[1].bookingId!).single();
+    expect(b).toMatchObject({ paid_cents: 0, client_email: "c@example.com", note: "old tool #17" });
+
+    const again = await runImport(admin, rows);
+    expect(again.map((r) => r.status)).toEqual(["skipped", "skipped"]);
+    expect(again[0].reason).toMatch(/already|conflict/i);
+  });
+
+  it("reports a row the studio's setup refuses (outside opening hours) as failed with the row number, and keeps going", async () => {
+    const out = await runImport(admin, [row({ row: 7, startsAt: iso(`${d(6)}T07:00`) }), row({ row: 8, startsAt: iso(`${d(6)}T10:00`) })]);
+    expect(out[0]).toMatchObject({ row: 7, status: "failed" });
+    expect(out[0].reason).toBeTruthy();
+    expect(out[1]).toMatchObject({ row: 8, status: "created" });
+  });
+
+  it("treats a paid row on an unpriced space as created (nothing to settle)", async () => {
+    const { data: off } = await s.owner.from("rental_offerings").insert({
+      org_id: s.orgId, name: "Free room", range_mode: "hours", slot_increment_min: 30, min_duration_min: 60, max_duration_min: 240,
+    }).select("id").single();
+    await s.owner.from("rental_units").insert({ org_id: s.orgId, offering_id: off!.id, name: "Free room", sort_order: 0 });
+    await s.owner.from("availability_rules").insert(
+      Array.from({ length: 7 }, (_, weekday) => ({ org_id: s.orgId, rental_offering_id: off!.id, weekday, start_time: "09:00", end_time: "21:00" })),
+    );
+    const out = await runImport(admin, [row({ row: 2, offeringId: off!.id as string, startsAt: iso(`${d(7)}T10:00`) })]);
+    expect(out[0].status).toBe("created");
+    const { data: b } = await admin.from("bookings").select("price_cents, paid_cents").eq("id", out[0].bookingId!).single();
+    expect(b).toEqual({ price_cents: null, paid_cents: 0 });
+  });
+});
