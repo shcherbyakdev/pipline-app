@@ -754,16 +754,13 @@
     transition: opacity 250ms var(--ease-strong);
   }
 }
-/* Scroll reveal: components/reveal.tsx sets `data-in` once the element
-   enters the viewport; JS-off is handled by the <noscript> in the
-   (marketing) layout. Siblings stagger by 60ms. */
-.reveal {
-  opacity: 0;
-  transform: translateY(12px);
-  transition: opacity 0.55s var(--ease-strong), transform 0.55s var(--ease-strong);
-  transition-delay: var(--reveal-delay, 0ms);
-}
-.reveal[data-in] { opacity: 1; transform: none; }
+/* Features reveal (components/reveal.tsx): the entrances inside a
+   `data-reveal` section hold at their first frame until it scrolls into
+   view and `data-in` lands; the same fade-up the hero copy uses, so the
+   page has one entrance. JS-off: the component's <noscript> lets them
+   run. */
+.marketing [data-reveal] .animate-fade-up { animation-play-state: paused; }
+.marketing [data-in] .animate-fade-up { animation-play-state: running; }
 
 /* Hero widget (components/booking-widget.tsx): the loop is driven by state,
    so every change is a CSS transition (interruptible, retargets on a mode
@@ -779,7 +776,6 @@
    parks on its end state. */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up { animation-name: fade-only; animation-duration: 0.2s; animation-timing-function: ease; }
-  .reveal { opacity: 1; transform: none; transition: none; }
   .animate-pop { animation: none; }
   .marketing .hw { transform: none; filter: none; animation: fade-only 0.2s ease both; }
   .marketing .hero-rise { transform: none; animation: fade-only 0.2s ease both; }
