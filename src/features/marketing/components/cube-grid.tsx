@@ -60,13 +60,6 @@ const HIGH = "#e2e5ff";
 
 type TrailPoint = { x: number; z: number; t0: number; w: number };
 
-/* Deterministic jitter per cube, so the rings never look machine-drawn. */
-function jitter(i: number): [number, number] {
-  const a = Math.sin(i * 12.9898) * 43758.5453;
-  const b = Math.sin(i * 78.233) * 43758.5453;
-  return [((a - Math.floor(a)) - 0.5) * 0.16, ((b - Math.floor(b)) - 0.5) * 0.16];
-}
-
 export function CubeGrid({ className }: { className?: string }) {
   const host = React.useRef<HTMLDivElement>(null);
   const reduced = usePrefersReducedMotion();
@@ -89,7 +82,7 @@ export function CubeGrid({ className }: { className?: string }) {
     renderer.domElement.style.height = "100%";
 
     const scene = new Scene();
-    /* Orthographic and near top-down, so the field reads as tiles. */
+    /* Orthographic and top-down, so the field reads as a flat grid. */
     const camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
     /* No environment map: a room reflection lights the flat tops silver.
        Two low lights catch only the rounded edges, which is what makes
@@ -131,15 +124,14 @@ export function CubeGrid({ className }: { className?: string }) {
     const cells: { x: number; z: number }[] = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
-        const i = r * COLS + c;
-        const [jx, jz] = jitter(i);
-        cells.push({ x: (c - (COLS - 1) / 2) * GAP + jx, z: (r - (ROWS - 1) / 2) * GAP + jz });
+        cells.push({ x: (c - (COLS - 1) / 2) * GAP, z: (r - (ROWS - 1) / 2) * GAP });
       }
     }
 
     /* Frame the grid's width whatever the band's aspect: the frustum is
-       the grid's width, the camera sits on a 78° slope. */
-    const ELEV = (78 * Math.PI) / 180;
+       the grid's width, the camera looks almost straight down (88°: a
+       hair off vertical keeps lookAt's up vector sane). */
+    const ELEV = (88 * Math.PI) / 180;
     const DIST = 60;
     const fit = () => {
       const w = el.clientWidth || 1;
