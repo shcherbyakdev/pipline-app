@@ -424,23 +424,29 @@
   background: rgb(37 34 40 / 0.12);
 }
 
-/* Hero story (components/hero-story.tsx): one 10s loop over the admin
-   screenshot, CSS only, every child on the same clock (started once the
-   screenshot has risen). The cursor glides in on the strong ease-in-out,
-   dips to press, drags the two hours (the selection grows with it, same
-   curve, same interval, so they stay in step), drifts off the block;
-   the block pops in as the calendar's pending ghost and turns solid when
-   the deposit notice slides in from above at 50%; at 82% everything
-   leaves the way it came and the loop rests before it starts over.
-   Percent positions are the screenshot's own grid; cqw sizes follow its
-   width (the box is 1.6:1, so 1% of height = 0.625cqw). Transform and
-   opacity, plus the block's colour flip. Reduced motion parks on the end:
-   the block paid, the notice shown, no cursor. */
+/* Hero story (components/hero-story.tsx): one 19s loop over the admin
+   screenshot, CSS only, every player on the same clock (started once the
+   screenshot has risen; 1% = 190ms). Four beats: the cursor glides in on
+   the strong ease-in-out, dips to press, drags two hours (the selection
+   grows with it, same curve, same interval, so they stay in step) while
+   the price tag prices them; the block pops in as the calendar's pending
+   ghost and turns solid when the deposit notice arrives; the cursor grabs
+   the block (it lifts) and carries it one column right and four hours up
+   (block and cursor share the move's keyframes); the overtime tail grows
+   from the block's floor and the charge notice arrives; then everything
+   leaves the way it came and the loop rests. The three notices share one
+   keyframe and take their turns by animation-delay. Percent positions are
+   the screenshot's own grid; cqw sizes follow its width (the box is 1.6:1,
+   so 1% of height = 0.625cqw). Transform and opacity, plus the block's
+   colour flip. The move's curve is written out inside the block's
+   keyframes: Chrome drops a var() in a keyframe's animation-timing-
+   function, and the block must ride the cursor's strong ease-in-out. Reduced motion parks on the end: the block moved and
+   paid, the last notice shown, no cursor. */
 .marketing .hs {
   container-type: inline-size;
 }
-.marketing .hs > * {
-  animation-duration: 10s;
+.marketing .hs :is(.hs-select, .hs-tag, .hs-block, .hs-tail, .hs-time-was, .hs-time-now, .hs-cursor, .hs-notice) {
+  animation-duration: 19s;
   animation-delay: 1.4s;
   animation-iteration-count: infinite;
   animation-fill-mode: both;
@@ -462,10 +468,33 @@
   animation-timing-function: var(--ease-in-out-strong);
 }
 @keyframes hs-select {
-  0%, 16% { opacity: 0; transform: scaleY(0.06); }
-  18% { opacity: 1; }
-  28% { opacity: 1; transform: scaleY(1); }
-  31%, 100% { opacity: 0; transform: scaleY(1); }
+  0%, 8.4% { opacity: 0; transform: scaleY(0.06); }
+  9.5% { opacity: 1; }
+  14.7% { opacity: 1; transform: scaleY(1); }
+  16.3%, 100% { opacity: 0; transform: scaleY(1); }
+}
+/* the price of the dragged hours, a tooltip above the selection */
+.marketing .hs-tag {
+  position: absolute;
+  left: 44.5%;
+  top: 66.4%;
+  translate: 0 calc(-100% - 6px);
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: #252228;
+  color: #fff;
+  font-size: max(0.83cqw, 11px);
+  line-height: 1.3;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  animation-name: hs-tag;
+  animation-timing-function: var(--ease-strong);
+}
+@keyframes hs-tag {
+  0%, 12.6% { opacity: 0; transform: translateY(4px); }
+  14.2% { opacity: 1; transform: none; }
+  20% { opacity: 1; transform: none; }
+  22.1%, 100% { opacity: 0; transform: none; }
 }
 .marketing .hs-block {
   display: flex;
@@ -485,12 +514,55 @@
 .marketing .hs-block-icon { width: 0.83cqw; height: 0.83cqw; vertical-align: -0.07cqw; }
 .marketing .hs-block-muted { color: #6f6d75; }
 @keyframes hs-block {
-  0%, 29% { opacity: 0; transform: scale(0.96); border-style: dashed; background: rgb(255 255 255 / 0.5); }
-  33% { opacity: 1; transform: none; }
-  51% { border-style: dashed; background: rgb(255 255 255 / 0.5); }
-  53% { border-style: solid solid solid dashed; background: #fff; }
-  82% { opacity: 1; transform: none; border-style: solid solid solid dashed; background: #fff; }
-  88%, 100% { opacity: 0; transform: none; border-style: solid solid solid dashed; background: #fff; }
+  0%, 15% { opacity: 0; transform: translate(0, 0) scale(0.96); border-style: dashed; background: rgb(255 255 255 / 0.5); }
+  16.8% { opacity: 1; transform: translate(0, 0) scale(1); }
+  27.9% { border-style: dashed; background: rgb(255 255 255 / 0.5); }
+  28.9% { border-style: solid solid solid dashed; background: #fff; }
+  50.5% { transform: translate(0, 0) scale(1); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+  51.6% { transform: translate(0, 0) scale(1.03); box-shadow: 0 10px 24px -8px rgb(0 0 0 / 0.28); }
+  52.1% { transform: translate(0, 0) scale(1.03); animation-timing-function: cubic-bezier(0.77, 0, 0.175, 1); }
+  58.4% { transform: translate(10.6cqw, -17cqw) scale(1.03); box-shadow: 0 10px 24px -8px rgb(0 0 0 / 0.28); }
+  59.5% { transform: translate(10.6cqw, -17cqw) scale(1); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+  78.9% { border-radius: 0.42cqw; }
+  79.5% { border-radius: 0.42cqw 0.42cqw 0 0; }
+  94.7% { opacity: 1; transform: translate(10.6cqw, -17cqw) scale(1); border-style: solid solid solid dashed; background: #fff; }
+  97.9%, 100% { opacity: 0; transform: translate(10.6cqw, -17cqw) scale(1); border-style: solid solid solid dashed; background: #fff; }
+}
+/* the block's hours, swapped once it has settled on Thursday */
+.marketing .hs-time { display: grid; }
+.marketing .hs-time > span { grid-area: 1 / 1; }
+.marketing .hs-time-was { animation-name: hs-time-was; }
+.marketing .hs-time-now { animation-name: hs-time-now; }
+@keyframes hs-time-was {
+  0%, 59.5% { opacity: 1; }
+  61%, 100% { opacity: 0; }
+}
+@keyframes hs-time-now {
+  0%, 59.5% { opacity: 0; }
+  61%, 100% { opacity: 1; }
+}
+/* the half hour the session ran over, hatched, hanging off the block */
+.marketing .hs-tail {
+  position: absolute;
+  left: -0.21cqw;
+  right: -1px;
+  top: 100%;
+  height: 25%;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(37 34 40 / 0.14);
+  border-top: 0;
+  border-left: 0.21cqw dashed hsl(340 70% 55%);
+  border-radius: 0 0 0.42cqw 0.42cqw;
+  background: repeating-linear-gradient(-45deg, rgb(37 34 40 / 0.07) 0 1px, #fff 1px 5px);
+  color: #6f6d75;
+  transform-origin: top;
+  animation-name: hs-tail;
+  animation-timing-function: var(--ease-strong);
+}
+@keyframes hs-tail {
+  0%, 78.9% { opacity: 0; transform: scaleY(0.06); }
+  81.6%, 100% { opacity: 1; transform: scaleY(1); }
 }
 .marketing .hs-cursor {
   position: absolute;
@@ -504,20 +576,26 @@
   animation-timing-function: var(--ease-in-out-strong);
 }
 @keyframes hs-cursor {
-  0% { opacity: 0; transform: translate(38cqw, 22cqw); }
-  3% { opacity: 1; }
-  14% { transform: translate(0, 0); }
-  15.2% { transform: translate(0, 0) scale(0.86); }
-  16.4% { transform: translate(0, 0); }
-  28% { transform: translate(0, 8.5cqw); }
-  40% { transform: translate(6.5cqw, 12cqw); }
-  82% { opacity: 1; transform: translate(6.5cqw, 12cqw); }
-  88%, 100% { opacity: 0; transform: translate(6.5cqw, 12cqw); }
+  0% { opacity: 0; transform: translate(-30cqw, 20cqw); }
+  1.6% { opacity: 1; }
+  7.4% { transform: translate(0, 0); }
+  8.2% { transform: translate(0, 0) scale(0.86); }
+  8.9% { transform: translate(0, 0); }
+  14.7% { transform: translate(0, 8.5cqw); }
+  21% { transform: translate(7cqw, 10cqw); }
+  45.3% { transform: translate(7cqw, 10cqw); }
+  50.5% { transform: translate(0.1cqw, 4.25cqw); }
+  51.3% { transform: translate(0.1cqw, 4.25cqw) scale(0.86); }
+  52.1% { transform: translate(0.1cqw, 4.25cqw); }
+  58.4% { transform: translate(10.7cqw, -12.75cqw); }
+  64% { transform: translate(14cqw, -6cqw); }
+  92.6% { opacity: 1; transform: translate(14cqw, -6cqw); }
+  95.8%, 100% { opacity: 0; transform: translate(14cqw, -6cqw); }
 }
 .marketing .hs-notice {
   position: absolute;
-  top: -12px;
-  right: -8px;
+  top: -10px;
+  left: -6px;
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -534,6 +612,12 @@
   animation-name: hs-notice;
   animation-timing-function: var(--ease-strong);
 }
+@media (min-width: 640px) {
+  .marketing .hs-notice { top: -12px; left: auto; right: -8px; }
+}
+.marketing .hs .hs-notice-pay { animation-delay: 6.4s; }
+.marketing .hs .hs-notice-move { animation-delay: 12.8s; }
+.marketing .hs .hs-notice-over { animation-delay: 16.6s; }
 .marketing .hs-notice-dot {
   display: grid;
   place-items: center;
@@ -542,16 +626,18 @@
   height: 20px;
   margin-top: 1px;
   border-radius: 999px;
-  background: rgb(1 208 98 / 0.16);
-  color: #0f7a3d;
+  background: rgb(105 117 226 / 0.16);
+  color: #4b5bc4;
 }
+.marketing .hs-notice-pay .hs-notice-dot { background: rgb(1 208 98 / 0.16); color: #0f7a3d; }
 .marketing .hs-notice-dot svg { width: 12px; height: 12px; }
 .marketing .hs-notice-muted { color: #6f6d75; font-size: 12px; }
+/* 3.4s on stage: 0.4s in, 2.6s held, 0.4s out */
 @keyframes hs-notice {
-  0%, 49% { opacity: 0; transform: translateY(-8px) scale(0.97); }
-  54% { opacity: 1; transform: none; }
-  82% { opacity: 1; transform: none; }
-  86%, 100% { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  0% { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  2.1% { opacity: 1; transform: none; }
+  15.8% { opacity: 1; transform: none; }
+  17.9%, 100% { opacity: 0; transform: translateY(-8px) scale(0.97); }
 }
 
 /* Hero product (components/landing-hero.tsx): the admin screen rises
@@ -647,9 +733,9 @@
   .animate-pop { animation: none; }
   .marketing .hw { transform: none; filter: none; animation: fade-only 0.2s ease both; }
   .marketing .hero-rise { transform: none; animation: fade-only 0.2s ease both; }
-  .marketing .hs > * { animation: none; }
-  .marketing .hs-cursor, .marketing .hs-select { display: none; }
-  .marketing .hs-block { border-style: solid solid solid dashed; background: #fff; }
+  .marketing .hs :is(.hs-select, .hs-tag, .hs-block, .hs-tail, .hs-time-was, .hs-time-now, .hs-cursor, .hs-notice) { animation: none; }
+  .marketing .hs :is(.hs-cursor, .hs-select, .hs-tag, .hs-notice-pay, .hs-notice-move) { display: none; }
+  .marketing .hs-block { transform: translate(10.6cqw, -17cqw); border-style: solid solid solid dashed; border-radius: 0.42cqw 0.42cqw 0 0; background: #fff; }
 }
 
 /* S3 widget theme surface. Inline style overrides (--widget-bg/--widget-text
