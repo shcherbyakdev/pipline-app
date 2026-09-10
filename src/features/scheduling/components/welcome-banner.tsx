@@ -87,7 +87,7 @@ export function WelcomeBanner({
             {t("setUpPage")}
           </Link>
         )}
-        <Button size="sm" variant="ghost" aria-label={t("dismiss")} onClick={dismiss}>
+        <Button size="sm" variant="ghost" aria-label={tCommon("dismiss")} onClick={dismiss}>
           <HugeiconsIcon icon={Cancel01Icon} size={14} />
         </Button>
       </div>

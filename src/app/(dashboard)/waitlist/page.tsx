@@ -5,25 +5,30 @@ import { CheckmarkCircle02Icon, CrownIcon } from "@hugeicons/core-free-icons";
 import { requireOrg } from "@/lib/auth/session";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { PLANS } from "@/lib/billing/plans";
+import { resourceKind } from "@/lib/billing/entitlements";
+import { effectiveMode, modeOf, type OrgMode } from "@/features/orgs/mode";
 import { getPlanStatus } from "@/features/billing/queries";
 import { joinPremiumWaitlist } from "@/features/billing/waitlist-actions";
 import { Button } from "@/components/ui/button";
 import { PageIntro } from "@/components/shell/page-header";
 
 /** What joining unlocks — Pro's limits, said in the customer's words. The
-    numbers read from PLANS so they can never drift from the gate. */
-const PERKS = [
-  ["resources", { count: PLANS.pro.limits.bookableResources }],
-  ["reminders", { free: PLANS.free.limits.reminderBookingsPerMonth ?? 0 }],
-  ["badge", {}],
-] as const;
+    numbers read from PLANS so they can never drift from the gate, and the
+    first perk names the workspace's own channel: people, or units. */
+const perksFor = (mode: OrgMode) =>
+  [
+    [resourceKind(mode), { count: PLANS.pro.limits.bookableResources }],
+    ["reminders", { free: PLANS.free.limits.reminderBookingsPerMonth ?? 0 }],
+    ["badge", {}],
+  ] as const;
 
 /* The premium waitlist: the pitch, the one button, the joined state. Live
    only while the org's `premium_waitlist` flag resolves true (lib/flags) —
    the sidebar card, the plan tag and the landing all point here. */
 export default async function WaitlistPage({ searchParams }: PageProps<"/waitlist">) {
   const { org } = await requireOrg();
-  if (!(await getDashboardFlags(org.id)).premium_waitlist) notFound();
+  const flags = await getDashboardFlags(org.id);
+  if (!flags.premium_waitlist) notFound();
   const [{ joined, error }, status, t] = await Promise.all([searchParams, getPlanStatus(), getTranslations("billing.waitlist")]);
   const justJoined = joined === "1" && status.waitlisted;
 
@@ -69,7 +74,7 @@ export default async function WaitlistPage({ searchParams }: PageProps<"/waitlis
         <div className="flex flex-col gap-2 border-t pt-4">
           <h3 className="text-subtle text-xs font-medium">{t("perksHeading")}</h3>
           <ul className="flex flex-col gap-1.5">
-            {PERKS.map(([key, values]) => (
+            {perksFor(effectiveMode(flags, modeOf(org))).map(([key, values]) => (
               <li key={key} className="flex items-start gap-2 text-sm">
                 <HugeiconsIcon icon={CheckmarkCircle02Icon} size={16} className="text-brand-text mt-0.5 shrink-0" />
                 <span>{t(`perks.${key}`, values)}</span>

@@ -4,6 +4,8 @@ import * as React from "react";
 import { useFormStatus } from "react-dom";
 import { useTranslations } from "next-intl";
 import type { Translator } from "@/i18n/translator";
+import { resourceKind } from "@/lib/billing/entitlements";
+import type { OrgMode } from "@/features/orgs/mode";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -28,8 +30,9 @@ type T = Translator<"billing.picker">;
    plans.ts changes this table too. Two rows are prose because they aren't
    limits: the team layer (shipped in #39) and the brand basics every plan
    gets. Nothing here names an unshipped feature. */
-const PLAN_ROWS: { label: (t: T) => string; value: (t: T, plan: PlanDef) => string }[] = [
-  { label: (t) => t("rows.resources"), value: (_t, p) => String(p.limits.bookableResources) },
+const PLAN_ROWS: { label: (t: T, mode: OrgMode) => string; value: (t: T, plan: PlanDef) => string }[] = [
+  // People or units, never both: the workspace sells one channel (0073).
+  { label: (t, mode) => t(`rows.${resourceKind(mode)}`), value: (_t, p) => String(p.limits.bookableResources) },
   {
     label: (t) => t("rows.reminders"),
     value: (t, p) =>
@@ -53,10 +56,13 @@ const savingPercent = (plan: PaidPlanId) => Math.round(yearlySaving(plan) * 100)
 
 export function PlanPicker({
   currentPlan,
+  mode,
   founderEligible,
   skipFounder = false,
 }: {
   currentPlan: PlanId;
+  /** The org's effective channel — it decides what the limit row is called. */
+  mode: OrgMode;
   founderEligible: boolean;
   /** After `?error=founder_ended`: the checkout forms tell startCheckout not
       to ask for the Founder code again (checkoutInput.founder), or the retry
@@ -102,6 +108,7 @@ export function PlanPicker({
             plan={PLANS[id]}
             interval={interval}
             currentPlan={currentPlan}
+            mode={mode}
             founderEligible={founderEligible}
             skipFounder={skipFounder}
           />
@@ -115,12 +122,14 @@ function PlanColumn({
   plan,
   interval,
   currentPlan,
+  mode,
   founderEligible,
   skipFounder,
 }: {
   plan: PlanDef;
   interval: Interval;
   currentPlan: PlanId;
+  mode: OrgMode;
   founderEligible: boolean;
   skipFounder: boolean;
 }) {
@@ -165,7 +174,7 @@ function PlanColumn({
       <dl className="flex flex-col gap-1.5 text-xs">
         {PLAN_ROWS.map((row, i) => (
           <div key={i} className="flex items-start justify-between gap-3">
-            <dt className="text-muted-foreground">{row.label(t)}</dt>
+            <dt className="text-muted-foreground">{row.label(t, mode)}</dt>
             <dd className="shrink-0 text-right font-medium">{row.value(t, plan)}</dd>
           </div>
         ))}

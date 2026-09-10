@@ -77,6 +77,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
       ) : (
         <PlanPicker
           currentPlan={overview.entitlements.plan}
+          mode={overview.mode}
           founderEligible={overview.founderEligible && !founderEnded}
           skipFounder={founderEnded}
         />

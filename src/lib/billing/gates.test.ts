@@ -7,12 +7,12 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "test-anon-key";
 
 import { describe, it, expect } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { entitlementsFor, type OrgSubscriptionRow } from "./entitlements";
+import { entitlementsFor, type OrgSubscriptionRow, type ResourceKind } from "./entitlements";
 import { enTranslator } from "@/i18n/test-translator";
 import { refusalCopy, type GateRefusal } from "./refusal";
 const { resourceGate, serviceGate, evaluateResourceGate, evaluateServiceGate, upgradeHint } = await import("./gates");
 const T = enTranslator("errors");
-const planLimitResourceError = (max: number, how: "billing" | "waitlist" | "none"): GateRefusal => ({ reason: "resources", max, how });
+const planLimitResourceError = (max: number, how: "billing" | "waitlist" | "none", kind: ResourceKind = "people"): GateRefusal => ({ reason: "resources", kind, max, how });
 const planLimitServicesError = (max: number, how: "billing" | "waitlist" | "none"): GateRefusal => ({ reason: "services", max, how });
 const GENERIC_WRITE_ERROR: GateRefusal = { reason: "failed", how: "none" };
 
@@ -30,7 +30,7 @@ const SPACES = { offersAppointments: false, offersRentals: true };
 
 describe("resourceGate", () => {
   it("Free, spaces, the backfilled person + two units → the cap copy (both slots spent by units)", () => {
-    expect(resourceGate({ activeStaff: 1, activeUnits: 2 }, SPACES, free)).toEqual(planLimitResourceError(2, "billing"));
+    expect(resourceGate({ activeStaff: 1, activeUnits: 2 }, SPACES, free)).toEqual(planLimitResourceError(2, "billing", "units"));
   });
   it("Free, appointments-only, one person → allowed (you plus one member is free)", () => {
     expect(resourceGate({ activeStaff: 1, activeUnits: 0 }, { offersAppointments: true, offersRentals: false }, free)).toBeNull();
@@ -40,8 +40,8 @@ describe("resourceGate", () => {
   });
   it("Team (5 seats), spaces, 5 units → the cap copy", () => {
     const message = resourceGate({ activeStaff: 1, activeUnits: 5 }, SPACES, team5);
-    expect(message).toEqual(planLimitResourceError(5, "billing"));
-    expect(refusalCopy(T, message!).error).toContain("allows 5 bookable resources");
+    expect(message).toEqual(planLimitResourceError(5, "billing", "units"));
+    expect(refusalCopy(T, message!).error).toContain("covers 5 units");
   });
   it("Team (5 seats), spaces, 4 units → allowed", () => {
     expect(resourceGate({ activeStaff: 1, activeUnits: 4 }, SPACES, team5)).toBeNull();
@@ -49,27 +49,30 @@ describe("resourceGate", () => {
   it("S6: a count > 1 (an equipment space's items) is weighed as a whole", () => {
     expect(resourceGate({ activeStaff: 1, activeUnits: 2 }, SPACES, team5, "billing", 2)).toBeNull();
     expect(resourceGate({ activeStaff: 1, activeUnits: 2 }, SPACES, team5, "billing", 4)).toEqual(
-      planLimitResourceError(5, "billing"),
+      planLimitResourceError(5, "billing", "units"),
     );
   });
 });
 
 describe("refusalCopy", () => {
-  it("one resource explains the budget; more than one names the cap", () => {
+  it("names the org's own channel — people, or units — never \"resources\"", () => {
     expect(refusalCopy(T, planLimitResourceError(1, "billing")).error).toBe(
-      "Free includes 1 bookable resource — one person or one unit. Upgrade in Billing to add more.",
+      "Your plan covers 1 person. Upgrade in Billing to add more.",
     );
     expect(refusalCopy(T, planLimitResourceError(5, "billing")).error).toBe(
-      "Your plan allows 5 bookable resources — people and units together. Upgrade in Billing to add more.",
+      "Your plan covers 5 people. Upgrade in Billing to add more.",
+    );
+    expect(refusalCopy(T, planLimitResourceError(2, "billing", "units")).error).toBe(
+      "Your plan covers 2 units. Upgrade in Billing to add more.",
     );
   });
   it("names the waitlist while that is the way up, and says so when nothing is", () => {
     expect(refusalCopy(T, planLimitResourceError(1, "waitlist"))).toEqual({
-      error: "Free includes 1 bookable resource — one person or one unit. Join the Premium waitlist to add more.",
+      error: "Your plan covers 1 person. Join the Premium waitlist to add more.",
       upgrade: { href: "/waitlist", label: "Join the waitlist" },
     });
-    expect(refusalCopy(T, planLimitResourceError(3, "none"))).toEqual({
-      error: "Your plan allows 3 bookable resources — people and units together. Higher limits come with paid plans.",
+    expect(refusalCopy(T, planLimitResourceError(3, "none", "units"))).toEqual({
+      error: "Your plan covers 3 units. Higher limits come with paid plans.",
       upgrade: null,
     });
     expect(refusalCopy(T, planLimitServicesError(3, "billing"))).toEqual({

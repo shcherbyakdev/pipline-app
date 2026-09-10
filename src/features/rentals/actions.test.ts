@@ -109,7 +109,7 @@ describe("createOffering — a space is bookable the moment it exists", () => {
   it("when the plan refuses the unit, it refuses the space with it — nothing is saved", async () => {
     const refusal: Refused = {
       ok: false,
-      error: "Free includes 1 bookable resource — one person or one unit. Upgrade in Billing to add more.",
+      error: "Your plan covers 2 units. Upgrade in Billing to add more.",
       upgrade: { href: "/billing", label: "Open Billing" },
     };
     assertCanAddUnit.mockResolvedValue(refusal);

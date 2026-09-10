@@ -26,7 +26,7 @@ export async function UsageMeters({ overview }: { overview: BillingOverview }) {
               : t("usage.confirmationsAlways")
         }
       />
-      <StatTile label={t("usage.resources")} value={resources.value} caption={resources.caption} />
+      <StatTile label={resources.label} value={resources.value} caption={resources.caption} />
       <StatTile
         label={t("usage.services")}
         value={serviceCap === null ? String(usage.services) : `${usage.services} / ${serviceCap}`}
