@@ -69,6 +69,16 @@ describe("normalizeStripeEvent", () => {
     const e = normalizeStripeEvent(subEvent("customer.subscription.updated", { cancel_at_period_end: true }) as never, priceMap)!;
     expect(e.subscription).toMatchObject({ status: "active", cancelAtPeriodEnd: true });
   });
+  // What the Customer Portal actually sends (test-mode walk 2026-09-10): the
+  // cancellation is a DATE, and the old flag stays false. Read only the flag
+  // and someone who has just cancelled is told their plan renews.
+  it("a dated cancel_at counts as cancelled even with the flag false", () => {
+    const e = normalizeStripeEvent(
+      subEvent("customer.subscription.updated", { cancel_at_period_end: false, cancel_at: 1_820_000_000 }) as never,
+      priceMap,
+    )!;
+    expect(e.subscription).toMatchObject({ status: "active", cancelAtPeriodEnd: true });
+  });
   it("a LIVE subscription on an unknown price throws, so the provider retries instead of considering it delivered", () => {
     // Returning `subscription: null` here used to record the event with
     // error='no subscription payload' and answer 200 — Stripe never retried,
