@@ -78,13 +78,18 @@ export function HowItWorks({ host }: { host: string }) {
   return (
     <section aria-labelledby="how-heading" className="how relative mx-auto w-full max-w-6xl px-4 pt-24 sm:px-8 sm:pt-32">
       {/* the section's words, above the pinned panel: they scroll away as
-          the ink arrives */}
-      <div className="mx-auto mb-10 max-w-[38rem] text-center sm:mb-14">
+          the ink arrives. The gap below them is the ink's, not theirs
+          (globals.css .how-track) — it has to clear the ink's growth. */}
+      <div className="mx-auto max-w-[38rem] text-center">
         <h2 id="how-heading" className="text-foreground text-[28px] leading-[1.15] font-medium tracking-[-0.02em] text-balance sm:text-[36px]">
           {HOW_HEADING}
         </h2>
         <p className="text-muted-foreground mt-4 text-[17px] leading-relaxed text-balance">{HOW_SUB}</p>
       </div>
+      {/* The panel and the scroll it eats, as one box: the ink's growth is
+          scrubbed by THIS box entering the viewport (globals.css), so the
+          words above it never move the timeline. */}
+      <div className="how-track">
       <div ref={panel} className="how-panel text-primary-foreground sticky top-20 isolate flex h-[min(640px,calc(100dvh-112px))] flex-col p-5 sm:top-24 sm:p-8 md:p-10">
         <div aria-hidden="true" className="how-bg" />
         <div className="flex items-baseline justify-between text-[14px]">
@@ -136,6 +141,7 @@ export function HowItWorks({ host }: { host: string }) {
         {HOW_STEPS.map((s, i) => (
           <div key={s.title} ref={register(i)} data-beat={i} style={{ height: `${BEAT_VH}vh` }} />
         ))}
+      </div>
       </div>
     </section>
   );
