@@ -32,19 +32,16 @@ export function SpaceHeader({
   offering,
   badges,
   meta,
-  children,
 }: {
   offering: OfferingRow;
   /** Mode / inactive / not-bookable, decided by the page. */
   badges: React.ReactNode;
   /** The schedule line under the name. */
   meta: string;
-  /** Sits after the meta line (the copy button, when there is a public link). */
-  children?: React.ReactNode;
 }) {
   const t = useTranslations("spaces");
   const tCommon = useTranslations("common");
-  const [pending, startTransition] = React.useTransition();
+  const [, startTransition] = React.useTransition();
   const [values, setValues] = React.useState({ name: offering.name, description: offering.description ?? "" });
   const saved = React.useRef(values);
   const latest = React.useRef(values);
@@ -113,10 +110,7 @@ export function SpaceHeader({
         onKeyDown={(e) => onKey("description", e)}
         className={cn(inlineClass, "text-muted-foreground w-full max-w-lg resize-none text-sm")}
       />
-      <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-        <span>{meta}</span>
-        <span className={cn(pending && "invisible")}>{children}</span>
-      </div>
+      <p className="text-muted-foreground text-xs">{meta}</p>
     </div>
   );
 }

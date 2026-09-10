@@ -110,13 +110,17 @@ async function newOrg(tag: string, timezone: string) {
   return { ...user, orgId, handle, offeringId: off!.id as string, timezone };
 }
 
-async function createHours(handle: string, offeringId: string, hour: number, name: string) {
+/** A one-hour booking at `hour` on DAY in the ORG's zone: the zone comes
+    from the clock (zones()), so a UTC wall time could land at 23:00 local
+    and run past the 23:59 opening rule — the RPC refused that every day
+    between 09:00 and 09:59 UTC. */
+async function createHours(org: { handle: string; offeringId: string; timezone: string }, hour: number, name: string) {
   const token = generateAccessToken();
   const { data, error } = await admin.rpc("create_rental_booking_hours", {
-    p_handle: handle,
-    p_offering_id: offeringId,
+    p_handle: org.handle,
+    p_offering_id: org.offeringId,
     p_unit_id: null,
-    p_starts_at: wallTimeToUtc(DAY, `${String(hour).padStart(2, "0")}:00`, "Etc/UTC").toISOString(),
+    p_starts_at: wallTimeToUtc(DAY, `${String(hour).padStart(2, "0")}:00`, org.timezone).toISOString(),
     p_duration_min: 60,
     p_name: name,
     p_email: `c${counter++}@example.com`,
@@ -206,9 +210,9 @@ describe("runDailyDigest", () => {
     // The digest_due_orgs tests above left "due" and "yesterday" unstamped.
     await drainDueOrgs();
     org = await newOrg("run", zones().past8);
-    const request = await createHours(org.handle, org.offeringId, 8, "Anna");
+    const request = await createHours(org, 8, "Anna");
     await admin.from("bookings").update({ status: "pending" }).eq("id", request);
-    const hold = await createHours(org.handle, org.offeringId, 10, "Ola");
+    const hold = await createHours(org, 10, "Ola");
     await admin
       .from("bookings")
       .update({ status: "pending_payment", hold_expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() })
@@ -258,7 +262,7 @@ describe("runDailyDigest", () => {
         dailyDigest: { email: false, push: true },
       },
     });
-    const request = await createHours(o.handle, o.offeringId, 12, "Kasia");
+    const request = await createHours(o, 12, "Kasia");
     await admin.from("bookings").update({ status: "pending" }).eq("id", request);
     const r = recorder();
     const out = await runDailyDigest({ db: admin, transport: r.transport, push: r.push });

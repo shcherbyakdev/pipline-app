@@ -251,7 +251,7 @@ export async function createOffering(input: unknown): Promise<ActionState> {
   }
   revalidatePath("/rentals");
   revalidatePath("/availability");
-  return notice ? { ok: true, notice } : { ok: true };
+  return notice ? { ok: true, notice, id: data.id } : { ok: true, id: data.id };
 }
 
 export async function updateOffering(input: unknown): Promise<ActionState> {
@@ -307,16 +307,18 @@ export async function updateOffering(input: unknown): Promise<ActionState> {
   return { ok: true };
 }
 
-/** The in-place header on /rentals/[id]: one field per blur. */
+/** The in-place header on /rentals/[id] (one field per blur) and the
+    rail's approval toggle: one field per call. */
 export async function patchOffering(input: unknown): Promise<ActionState> {
   const parsed = patchOfferingInput.safeParse(input);
   if (!parsed.success) return generic();
   const orgId = await currentOrgId();
   if (!orgId) return generic();
-  const { id, name, description } = parsed.data;
-  const patch: { name?: string; description?: string | null } = {};
+  const { id, name, description, requiresApproval } = parsed.data;
+  const patch: { name?: string; description?: string | null; requires_approval?: boolean } = {};
   if (name !== undefined) patch.name = name;
   if (description !== undefined) patch.description = description;
+  if (requiresApproval !== undefined) patch.requires_approval = requiresApproval;
   if (Object.keys(patch).length === 0) return { ok: true };
   const supabase = await createClient();
   const { data, error } = await supabase

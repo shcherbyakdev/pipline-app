@@ -104,7 +104,7 @@ describe("createOffering — an equipment space's items", () => {
 
   it("three items become three units, numbered 0,1,2 — the bulk insert's rows share their keys", async () => {
     const name = `Lamp ${Date.now()}`;
-    expect(await createOffering(equipment(name, 3))).toEqual({ ok: true });
+    expect(await createOffering(equipment(name, 3))).toEqual({ ok: true, id: expect.any(String) });
     const { kind, units } = await unitsOf(name);
     expect(kind).toBe("equipment");
     expect(units).toEqual([

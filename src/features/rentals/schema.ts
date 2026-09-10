@@ -147,9 +147,10 @@ export const updateOfferingInput = z.union([
     }),
 ]);
 export const offeringIdInput = z.object({ id: z.uuid() });
-/** The space page edits name and description in place, one field per blur;
-    everything else is the settings form (updateOfferingInput). An absent
-    field is left alone; "" on description clears it. */
+/** The space page edits name and description in place (one field per
+    blur) and the rail flips the approval flag on its own; everything else
+    is the settings form (updateOfferingInput). An absent field is left
+    alone; "" on description clears it. */
 export const patchOfferingInput = z.object({
   id: z.uuid(),
   name: z.string().trim().min(1).max(200).optional(),
@@ -157,6 +158,7 @@ export const patchOfferingInput = z.object({
     (v) => (typeof v === "string" && v.trim() === "" ? null : v),
     z.string().trim().max(2000).nullable().optional(),
   ),
+  requiresApproval: z.boolean().optional(),
 });
 export const offeringActiveInput = offeringIdInput.extend({ active: z.boolean() });
 

@@ -36,19 +36,16 @@ export function MemberHeader({
   staff,
   handle,
   badges,
-  children,
 }: {
   staff: StaffRow;
   handle: string | null;
   /** Role / inactive / over-limit, decided by the page. */
   badges: React.ReactNode;
-  /** Sits after the link (the copy button, when there is a public link). */
-  children?: React.ReactNode;
 }) {
   const t = useTranslations("team");
   const tCommon = useTranslations("common");
   const emailInvalid = useTranslations("auth.errors")("emailInvalid");
-  const [pending, startTransition] = React.useTransition();
+  const [, startTransition] = React.useTransition();
   const [values, setValues] = React.useState({
     name: staff.name,
     email: staff.email ?? "",
@@ -165,10 +162,6 @@ export function MemberHeader({
               className={cn(inlineClass, "font-mono text-xs")}
             />
           </span>
-          {/* The copy button carries the SERVER's link; while a new link is
-              on its way it would copy a URL about to 404, so it steps aside
-              until the save has landed and the page re-rendered. */}
-          <span className={cn(pending && "invisible")}>{children}</span>
         </div>
       </div>
     </div>

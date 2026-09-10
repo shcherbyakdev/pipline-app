@@ -112,7 +112,6 @@ export default async function ServiceDetailPage({ params }: PageProps<"/services
               </>
             }
           >
-            {url ? <CopyLinkButton url={url} name={service.name} /> : null}
           </ServiceHeader>
         </div>
 
@@ -149,6 +148,7 @@ export default async function ServiceDetailPage({ params }: PageProps<"/services
       <aside className="flex w-full shrink-0 flex-col gap-8 lg:w-44 lg:pt-1">
         <section className="flex flex-col gap-1">
           <h2 className="mb-1.5 text-[13px] font-medium text-muted-foreground">{t("detail.quickActions")}</h2>
+          {url ? <CopyLinkButton url={url} name={service.name} rail /> : null}
           {url ? (
             <Link href={`/embed?service=${service.id}`} className={railLinkClass}>
               <HugeiconsIcon icon={SourceCodeIcon} size={14} className="text-subtle shrink-0" />

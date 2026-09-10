@@ -726,28 +726,25 @@
       "editHours": "Edytuj godziny →",
       "reactivateToEdit": "Aktywuj ponownie, aby edytować godziny",
       "settings": "Ustawienia",
-      "bookings": "Rezerwacje",
-      "upcoming": "Nadchodzące",
-      "recent": "Ostatnie",
-      "noUpcoming": "Nic nie jest zarezerwowane.",
-      "noRecent": "Brak wcześniejszych rezerwacji.",
-      "note": "„{note}”",
       "quickActions": "Szybkie akcje",
       "embed": "Osadzenie na stronie",
       "timeline": "Zobacz na osi czasu",
       "delete": "Usuń przestrzeń"
     },
     "form": {
-      "namePlaceholder": "Nazwa przestrzeni",
+      "namePlaceholder": {
+        "space": "Nazwa przestrzeni",
+        "composite": "Nazwa pakietu",
+        "equipment": "Nazwa sprzętu"
+      },
       "description": "Opis",
       "descriptionPlaceholder": "Dodaj opis…",
       "section": {
-        "session": "Sesja",
-        "stay": "Pobyt",
-        "pricing": "Cennik"
+        "booking": "Rezerwacja",
+        "price": "Cena",
+        "rules": "Zasady rezerwacji"
       },
       "kind": {
-        "label": "Czym to jest?",
         "space": "Sala",
         "spaceHint": "Sala lub przedmiot rezerwowany samodzielnie",
         "composite": "Całe studio",
@@ -761,31 +758,24 @@
       "itemCount": "Ile sztuk",
       "perBooking": "Za rezerwację",
       "bookedBy": "Rezerwowana",
-      "mode": {
-        "nights": "Na noce (zameldowanie → wymeldowanie)",
-        "days": "Na dni (odbiór → zwrot)",
-        "hours": "Na godziny (rezerwacja godzinowa)"
-      },
       "slotIncrement": "Krok terminów",
-      "minDuration": "Min. czas trwania (min)",
-      "maxDuration": "Maks. czas trwania (min)",
-      "turnoverMinutes": "Przerwa techniczna (minuty)",
+      "minDuration": "Najkrótsza rezerwacja",
+      "maxDuration": "Najdłuższa rezerwacja",
+      "turnoverMinutes": "Przerwa między rezerwacjami",
       "startTime": "Godzina rozpoczęcia",
       "endTime": "Godzina zakończenia",
       "minStay": "Min. pobyt",
       "maxStay": "Maks. pobyt",
       "unlimited": "Bez limitu",
-      "turnoverDays": "Przerwa techniczna (dni)",
+      "turnoverDays": "Dni przerwy między pobytami",
       "price": "Cena ({currency})",
       "unpriced": "Bez ceny",
-      "pricingMode": "Sposób naliczania",
       "perHour": "Za godzinę",
       "perNight": "Za noc",
       "perDay": "Za dzień",
       "flat": "Stała cena za rezerwację",
       "requireApproval": "Wymaga zatwierdzenia",
       "requireApprovalHint": "Nowe rezerwacje czekają na Twoje potwierdzenie zamiast potwierdzać się od razu.",
-      "rules": "Zaliczka, odwołania i zasady rezerwacji",
       "deposit": "Zaliczka",
       "depositNone": "Bez zaliczki",
       "depositFixed": "Stała kwota",
@@ -806,12 +796,11 @@
       "tierUpToStart": "aż do rozpoczęcia",
       "cancelPolicyInvalid": "Sprawdź poziomy odwołania: każdy próg musi być unikalny (i nie dłuższy niż 366 dni).",
       "terms": "Regulamin",
-      "minNoticeMinutes": "Min. wyprzedzenie (minuty)",
-      "minNoticeDays": "Min. wyprzedzenie (dni)",
-      "bookingWindow": "Okno rezerwacji (dni)",
-      "unitSelection": "Wybór jednostki",
-      "unitAuto": "Przypisuj jednostkę automatycznie",
-      "unitClientPicks": "Pozwól klientowi wybrać jednostkę",
+      "minNoticeDays": "dni przed",
+      "bookingWindow": "Rezerwacja najwcześniej",
+      "unitSelection": "Kto wybiera jednostkę",
+      "unitAuto": "Przypisuj automatycznie",
+      "unitClientPicks": "Klient wybiera sam",
       "pricing": {
         "useRules": "Stawki za długość, dopłaty i dodatki",
         "useRulesHint": "Zamiast jednej ceny za godzinę. Cena jest wyliczana dla każdej rezerwacji i pokazywana, zanim klient potwierdzi.",
@@ -859,7 +848,19 @@
         }
       },
       "create": "Utwórz przestrzeń",
-      "created": "Przestrzeń utworzona"
+      "created": "Przestrzeń utworzona",
+      "modeHint": {
+        "hours": "Sesje godzinowe",
+        "nights": "Od zameldowania do wymeldowania",
+        "days": "Od odbioru do zwrotu"
+      },
+      "noGap": "Bez przerwy",
+      "chargedPer": "Naliczane za",
+      "minNotice": "Rezerwacja najpóźniej",
+      "noMinimum": "Bez minimum",
+      "ahead": "{lead} przed",
+      "daysAhead": "dni przed",
+      "lengthOrder": "Najdłuższa rezerwacja nie może być krótsza od najkrótszej."
     },
     "units": {
       "title": "Jednostki",
@@ -886,6 +887,30 @@
         "freed": "Daty zwolnione",
         "removeAria": "Usuń niedostępne daty {range}"
       }
+    },
+    "newTitle": {
+      "space": "Nowa przestrzeń",
+      "composite": "Nowe całe studio",
+      "equipment": "Nowy sprzęt"
+    },
+    "summary": {
+      "gap": "przerwa {gap}",
+      "minStay": "min. {length}",
+      "maxStay": "maks. {length}",
+      "byLength": "{count, plural, one {# stawka} few {# stawki} many {# stawek} other {# stawki}} wg długości",
+      "surcharges": "{count, plural, one {# dopłata} few {# dopłaty} many {# dopłat} other {# dopłaty}}",
+      "people": "{count} os. w cenie",
+      "extras": "{count, plural, one {# dodatek} few {# dodatki} many {# dodatków} other {# dodatku}}",
+      "deposit": "zaliczka {amount}",
+      "depositFull": "Płatne z góry w całości",
+      "noDeposit": "Bez zaliczki",
+      "freeCancel": "Bezpłatne odwołanie",
+      "cancelTiers": "{count, plural, one {# próg odwołania} few {# progi odwołania} many {# progów odwołania} other {# progu odwołania}}",
+      "notice": "najpóźniej {lead} przed",
+      "window": "do {count} dni przed",
+      "clientPicks": "Klient wybiera jednostkę",
+      "terms": "Z regulaminem",
+      "blackouts": "{count, plural, one {# zablokowany termin} few {# zablokowane terminy} many {# zablokowanych terminów} other {# zablokowanego terminu}}"
     }
   },
   "appointments": {

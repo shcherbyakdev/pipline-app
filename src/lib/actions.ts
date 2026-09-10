@@ -7,7 +7,8 @@ import type { UpgradeDoor } from "@/lib/billing/refusal";
 // `upgrade`: a plan cap's way out (lib/billing/refusal.ts), rendered by
 // toastRefusal as the toast's action — beside an error, or beside a notice
 // when the write itself landed (a space saved without its first unit).
+// `id`: what a create made, for a client that lands on the new row's page.
 export type ActionState =
-  | { ok: true; notice?: string; upgrade?: UpgradeDoor | null }
+  | { ok: true; notice?: string; upgrade?: UpgradeDoor | null; id?: string }
   | { ok: false; error: string; upgrade?: UpgradeDoor | null };
 export const GENERIC_WRITE_ERROR = "Couldn't save. Try again.";
