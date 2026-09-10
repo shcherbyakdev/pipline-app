@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import type { RangeMode } from "./range";
 import type { PricingRules, OfferingKind } from "./pricing-rules";
 import type { CancelPolicy } from "./cancel-policy";
-import { bookingTitle } from "@/features/scheduling/booking-label";
 import { addDaysISO, wallTimeToUtc } from "@/features/scheduling/slots";
 import { TIMELINE_DAYS } from "./timeline-geometry";
 import {
@@ -422,80 +421,4 @@ export async function getOrgCurrency(): Promise<string> {
   const supabase = await createClient();
   const { data } = await supabase.from("orgs").select("currency").limit(1).maybeSingle();
   return (data as { currency: string } | null)?.currency ?? "PLN";
-}
-
-export type OfferingBookingRow = {
-  id: string;
-  title: string;
-  clientName: string;
-  startsAt: string;
-  endsAt: string;
-  status: string;
-  note: string | null;
-  rangeMode: RangeMode;
-};
-
-const OFFERING_BOOKINGS_LIMIT = 20;
-const OFFERING_BOOKING_COLS =
-  "id, client_name, starts_at, ends_at, status, note, rental_offerings(name, range_mode), rental_units(name)";
-
-/** A space's stays split around now, by the detail pages' shared rule
-    (scheduling/detail-bookings.ts): "Upcoming" is a confirmed stay not yet ENDED
-    (one in progress is still coming) or a request whose start is still
-    ahead; "Recent" is every terminal row whatever its date, every confirmed
-    stay that has ended, and every request whose start has passed — lapsed,
-    the approval RPC refuses it — so the two pages never disagree and
-    nothing falls between the lists. */
-export async function listOfferingBookings(
-  offeringId: string,
-  now: Date = new Date(),
-): Promise<{ upcoming: OfferingBookingRow[]; recent: OfferingBookingRow[] }> {
-  const supabase = await createClient();
-  const iso = now.toISOString();
-  const [upRes, pastRes] = await Promise.all([
-    supabase
-      .from("bookings")
-      .select(OFFERING_BOOKING_COLS)
-      .eq("rental_offering_id", offeringId)
-      .or(`status.eq.confirmed,status.eq.pending_payment,and(status.eq.pending,starts_at.gt.${iso})`)
-      .gte("ends_at", iso)
-      .order("starts_at")
-      .limit(OFFERING_BOOKINGS_LIMIT),
-    supabase
-      .from("bookings")
-      .select(OFFERING_BOOKING_COLS)
-      .eq("rental_offering_id", offeringId)
-      .or(
-        `status.in.(cancelled_by_client,cancelled_by_provider,rescheduled,declined,expired),` +
-          `and(status.eq.confirmed,ends_at.lt.${iso}),` +
-          `and(status.eq.pending,starts_at.lte.${iso})`,
-      )
-      .order("starts_at", { ascending: false })
-      .limit(OFFERING_BOOKINGS_LIMIT),
-  ]);
-  if (upRes.error) throw upRes.error;
-  if (pastRes.error) throw pastRes.error;
-  type Row = {
-    id: string;
-    client_name: string;
-    starts_at: string;
-    ends_at: string;
-    status: string;
-    note: string | null;
-    rental_offerings: { name: string; range_mode: RangeMode } | null;
-    rental_units: { name: string } | null;
-  };
-  const fallbackTitle = (await getTranslations("bookings"))("fallbackTitle");
-  const map = (rows: unknown): OfferingBookingRow[] =>
-    ((rows ?? []) as Row[]).map((b) => ({
-      id: b.id,
-      title: bookingTitle(b, fallbackTitle),
-      clientName: b.client_name,
-      startsAt: b.starts_at,
-      endsAt: b.ends_at,
-      status: b.status,
-      note: b.note,
-      rangeMode: b.rental_offerings?.range_mode ?? "nights",
-    }));
-  return { upcoming: map(upRes.data), recent: map(pastRes.data) };
 }
