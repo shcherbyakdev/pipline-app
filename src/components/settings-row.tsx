@@ -5,7 +5,10 @@ import { cn } from "@/lib/utils";
 /* Compact settings primitives (Linear settings pattern): a card with a
    header, hairline-separated rows, an optional footer for a save action.
    Rows keep label + control tight (no per-field paragraphs); one short
-   hint at most, muted, below the control. */
+   hint at most, muted, below the control.
+
+   Titleless where the page already names the group above the card (the
+   Settings page's "Interface" / "Business" headings). */
 export function SettingsCard({
   title,
   description,
@@ -13,7 +16,7 @@ export function SettingsCard({
   children,
   className,
 }: {
-  title: string;
+  title?: string;
   description?: React.ReactNode;
   footer?: React.ReactNode;
   children: React.ReactNode;
@@ -21,10 +24,12 @@ export function SettingsCard({
 }) {
   return (
     <section className={cn("bg-card overflow-hidden rounded-lg border", className)}>
-      <header className="flex flex-col gap-0.5 border-b px-4 py-3">
-        <h2 className="text-sm font-medium">{title}</h2>
-        {description ? <p className="text-muted-foreground text-xs">{description}</p> : null}
-      </header>
+      {title ? (
+        <header className="flex flex-col gap-0.5 border-b px-4 py-3">
+          <h2 className="text-sm font-medium">{title}</h2>
+          {description ? <p className="text-muted-foreground text-xs">{description}</p> : null}
+        </header>
+      ) : null}
       <div className="divide-y">{children}</div>
       {footer ? <footer className="bg-secondary/40 flex items-center justify-end gap-2 border-t px-4 py-2.5">{footer}</footer> : null}
     </section>
@@ -65,6 +70,29 @@ export function SettingsRow({
       </Label>
       {children}
       {hintNode}
+    </div>
+  );
+}
+
+/* The preference row: what the setting is on the left, its one control on
+   the right (Linear's Preferences). The control names itself for screen
+   readers (SettingsSelect's `label`), so the heading here is plain text. */
+export function SettingsPrefRow({
+  label,
+  blurb,
+  children,
+}: {
+  label: string;
+  blurb?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-3">
+      <div className="flex flex-col gap-0.5">
+        <p className="text-sm font-medium">{label}</p>
+        {blurb ? <p className="text-muted-foreground text-xs leading-4">{blurb}</p> : null}
+      </div>
+      {children}
     </div>
   );
 }

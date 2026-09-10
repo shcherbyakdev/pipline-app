@@ -8,10 +8,14 @@ import { LanguageSettings } from "@/features/orgs/components/language-settings";
 import { BusinessSettings } from "@/features/orgs/components/business-settings";
 import { ClientContactSettings } from "@/features/orgs/components/client-contact-settings";
 import { PageIntro } from "@/components/shell/page-header";
+import { SettingsCard } from "@/components/settings-row";
 
 /* Settings = the admin panel (per-user Interface prefs) plus one org-level
    "Business" group (H1 ruling; future home for org name / timezone). Anything
-   clients see lives on Booking page / Website embed. */
+   clients see lives on Booking page / Website embed.
+
+   One card per group, hairline rows inside, every choice on a dropdown at
+   the right edge (Linear's Preferences). Each row saves on pick. */
 export default async function SettingsPage() {
   const [{ org }, t] = await Promise.all([requireOrg(), getTranslations("settings")]);
   const mode = modeChoice(org);
@@ -21,18 +25,22 @@ export default async function SettingsPage() {
   const locked =
     mode === "appointments" ? (await listServices()).some((s) => s.active) : (await listOfferings()).some((o) => o.active);
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 p-6">
       <PageIntro>{t("intro")}</PageIntro>
-      <div className="flex flex-col gap-3">
+      <section className="flex flex-col gap-3">
         <h2 className="text-muted-foreground text-sm font-medium">{t("sections.interface")}</h2>
-        <AppearanceSettings />
-        <LanguageSettings />
-      </div>
-      <div className="flex flex-col gap-3">
+        <SettingsCard>
+          <AppearanceSettings />
+          <LanguageSettings />
+        </SettingsCard>
+      </section>
+      <section className="flex flex-col gap-3">
         <h2 className="text-muted-foreground text-sm font-medium">{t("sections.business")}</h2>
-        <BusinessSettings mode={mode} locked={locked} />
-        <ClientContactSettings value={org.clientContact} />
-      </div>
+        <SettingsCard>
+          <BusinessSettings mode={mode} locked={locked} />
+          <ClientContactSettings value={org.clientContact} />
+        </SettingsCard>
+      </section>
     </div>
   );
 }
