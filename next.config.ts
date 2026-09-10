@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const nextConfig: NextConfig = {
+  // `next dev` blocks cross-origin requests to its own dev endpoints, and the
+  // host it was started with is `localhost`: at 127.0.0.1 the HMR websocket
+  // handshake fails, the client bundle never runs, nothing hydrates and every
+  // button on the page is inert (a dismiss ✕ that does nothing, no error).
+  // Same machine, same server — only the name differs. Dev-only setting.
+  allowedDevOrigins: ["127.0.0.1"],
   experimental: {
     // Photo uploads relay through a server action; 15MB cap + multipart
     // overhead (the docs' 10–20KB rule of thumb) needs headroom over the
