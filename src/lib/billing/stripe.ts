@@ -72,6 +72,15 @@ type SubLike = {
   items: { data: Array<{ price: { id: string; metadata?: Record<string, string> }; quantity?: number; current_period_end?: number }> };
 };
 
+/** Seconds → ISO, or null. */
+const iso = (seconds: number | null | undefined) => (seconds ? new Date(seconds * 1000).toISOString() : null);
+
+/** A scheduled cancellation date wins over the renewal date: that is when
+    the org stops being entitled, and what every "ends on" line means. */
+function endsAt(sub: SubLike, item: { current_period_end?: number }): string | null {
+  return iso(sub.cancel_at) ?? iso(item.current_period_end);
+}
+
 function subscriptionFrom(sub: SubLike, priceMap: PriceMap, forceExpired: boolean): BillingSubscription | null {
   const item = sub.items?.data?.[0];
   if (!item) return null;
@@ -85,7 +94,12 @@ function subscriptionFrom(sub: SubLike, priceMap: PriceMap, forceExpired: boolea
     // Team is a fixed-size plan in this slice; quantity → seats is spec §8 item 3.
     seats: mapped.plan === "team" ? TEAM_INCLUDED_RESOURCES : 1,
     status: forceExpired ? "expired" : mapStripeStatus(sub.status),
-    currentPeriodEnd: item.current_period_end ? new Date(item.current_period_end * 1000).toISOString() : null,
+    // The date the plan actually stops. Usually the period end, but a
+    // cancellation can be scheduled for any date (the Dashboard's "cancel on
+    // a specific date", a subscription schedule) — and current-plan.tsx
+    // prints this as "ends on", so taking the renewal date there would tell
+    // an owner their plan runs weeks past the day it really stops.
+    currentPeriodEnd: endsAt(sub, item),
     // Stripe says "this plan is ending" two ways, and the Customer Portal
     // now uses the second: the older `cancel_at_period_end` flag, or a dated
     // `cancel_at` with that flag left FALSE (test-mode walk 2026-09-10 — a

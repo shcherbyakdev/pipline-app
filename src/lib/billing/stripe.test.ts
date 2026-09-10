@@ -84,6 +84,17 @@ describe("normalizeStripeEvent", () => {
     )!;
     expect(e.subscription).toMatchObject({ status: "active", cancelAtPeriodEnd: true });
   });
+
+  // A cancellation can be scheduled for any date, not only the renewal — and
+  // the copy that reads this says "ends on".
+  it("the end date is the cancellation date, not the renewal date", () => {
+    const midPeriod = 1_788_000_000; // before the fixture's period end
+    const e = normalizeStripeEvent(
+      subEvent("customer.subscription.updated", { cancel_at: midPeriod }) as never,
+      priceMap,
+    )!;
+    expect(e.subscription?.currentPeriodEnd).toBe(new Date(midPeriod * 1000).toISOString());
+  });
   it("a LIVE subscription on an unknown price throws, so the provider retries instead of considering it delivered", () => {
     // Returning `subscription: null` here used to record the event with
     // error='no subscription payload' and answer 200 — Stripe never retried,
