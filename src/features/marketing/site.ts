@@ -25,6 +25,10 @@ export const SITE = {
   // ladder to contrast a "Free plan" with, and /pricing 404s — so the note
   // says what is actually true today. Flipping the flag flips the copy.
   heroNote: BILLING_ON ? "Free plan · No credit card required" : "Free during early access · No credit card required",
+  // The footer's address, and where a payment provider's review writes. It
+  // must actually receive mail: a bounced support line reads as an abandoned
+  // business.
+  supportEmail: "support@booklo.co",
   links: { home: "/", login: "/login", signup: "/signup", pricing: "/pricing", waitlist: "/waitlist" },
 } as const;
 
@@ -102,6 +106,7 @@ export const CLOSING = {
 
 /** The footer's one line of links. */
 export const FOOTER_LINKS: NavLink[] = [
+  { label: "Pricing", href: SITE.links.pricing },
   { label: CTA.login, href: SITE.links.login },
   { label: "Privacy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
@@ -123,7 +128,12 @@ const FOUNDER_MONTHLY = formatUsd(PLANS.pro.monthly * FOUNDER_PRICE_FACTOR);
 export const PRICING = {
   heading: "Simple pricing",
   sub: "Free for you and one more person, or two rooms. Pay when you need your brand, reminders for every booking or more bookable resources.",
-  note: "Prices in USD. Taxes are handled at checkout.",
+  // Flag-conditional, like SITE.heroNote: while billing is off there is no
+  // checkout behind these numbers, and a price with no way to pay it has to
+  // say why.
+  note: BILLING_ON
+    ? "Prices in USD. Taxes are handled at checkout."
+    : "Prices in USD. Everything is free during early access; paid plans open later.",
   rows: [
     // H5b: the one row that IS a limit reads it from PLANS so the number can
     // never drift from what the code enforces.
@@ -140,7 +150,9 @@ export const PRICING = {
     { label: "Remove “Powered by Booklo”", free: "—", pro: "✓", team: "✓" },
     { label: "Team layer: per-person links, “Anyone available”, colours", free: "—", pro: "—", team: "✓" },
   ] satisfies PricingRow[],
-  founder: `Early-access accounts get Pro for ${FOUNDER_MONTHLY}/month, locked for life — look for the Founder ribbon in Billing.`,
+  founder: BILLING_ON
+    ? `Early-access accounts get Pro for ${FOUNDER_MONTHLY}/month, locked for life — look for the Founder ribbon in Billing.`
+    : `Early-access accounts get Pro for ${FOUNDER_MONTHLY}/month, locked for life.`,
   moreComing: "More is coming to Pro — early-access accounts hear first.",
 } as const;
 
