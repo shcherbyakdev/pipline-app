@@ -4,7 +4,7 @@ import { FLAG_DEFAULTS, plansEnforced, type Flags } from "@/lib/flags";
 import { getOrgFlags } from "@/lib/flags/resolve";
 import { effectiveMode, type OrgMode } from "@/features/orgs/mode";
 import { getEntitlements } from "./queries";
-import { canAddResource, canAddService, countResources, type Entitlements, type ResourceUsage } from "./entitlements";
+import { canAddResource, canAddService, countResources, resourceKind, type Entitlements, type ResourceUsage } from "./entitlements";
 import { getTranslations } from "next-intl/server";
 import { upgradeHref } from "./upgrade-path";
 import { refusalCopy, type GateRefusal, type UpgradeDoor, type UpgradeHint } from "./refusal";
@@ -21,10 +21,12 @@ export function upgradeHint(flags: Pick<Flags, "billing" | "premium_waitlist">, 
   return href === "/billing" ? "billing" : href === "/waitlist" ? "waitlist" : "none";
 }
 
-/** H5b: people and units share one budget (spec ruling 4/5). The cap comes
-    from the entitlements, so a Team org at 5 of 5 is told it has 5. */
+/** One budget, spent by whichever channel the org sells (spec ruling 4/5).
+    The cap comes from the entitlements, so a Team org at 5 of 5 is told it
+    has 5, and `kind` makes the refusal name that org's own word. */
 export function resourceGate(usage: ResourceUsage, mode: OrgMode, ent: Entitlements, how: UpgradeHint = "billing", count = 1): GateRefusal | null {
-  return canAddResource(countResources(usage, mode), ent, count) ? null : { reason: "resources", max: ent.bookableResources, how };
+  if (canAddResource(countResources(usage, mode), ent, count)) return null;
+  return { reason: "resources", kind: resourceKind(mode), max: ent.bookableResources, how };
 }
 export function serviceGate(serviceCount: number, ent: Entitlements, how: UpgradeHint = "billing"): GateRefusal | null {
   if (canAddService(serviceCount, ent) || ent.publicServices === null) return null;

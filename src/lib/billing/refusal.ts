@@ -1,5 +1,6 @@
 import type { Translator } from "@/i18n/translator";
 import { hrefForHint, type UpgradeHref } from "./upgrade-path";
+import type { ResourceKind } from "./entitlements";
 
 /** Which way out a refusal names — upgradeHref's answer as a key (gates.ts
     upgradeHint): Billing while it is on, the waitlist while that is the
@@ -12,7 +13,7 @@ export type UpgradeHint = "billing" | "waitlist" | "none";
     conservative refusal after a lookup error (spec §7.10). */
 export type GateRefusal =
   | { reason: "services"; max: number; how: UpgradeHint }
-  | { reason: "resources"; max: number; how: UpgradeHint }
+  | { reason: "resources"; kind: ResourceKind; max: number; how: UpgradeHint }
   | { reason: "failed"; how: "none" };
 
 /** The door out of a cap, ready to render: where it goes and what it says. */
@@ -23,9 +24,7 @@ export function refusalCopy(t: Translator<"errors">, r: GateRefusal): { error: s
   const cap =
     r.reason === "services"
       ? t("planLimitServices", { max: r.max })
-      : r.max === 1
-        ? t("planLimitResourceOne")
-        : t("planLimitResources", { max: r.max });
+      : t(r.kind === "people" ? "planLimitPeople" : "planLimitUnits", { max: r.max });
   const href = hrefForHint(r.how);
   return {
     error: `${cap} ${t(`upgradeHint.${r.how}`)}`,

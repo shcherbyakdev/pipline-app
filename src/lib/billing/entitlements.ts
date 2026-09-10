@@ -68,6 +68,15 @@ export function countResources(u: ResourceUsage, mode: OrgMode): number {
   return (mode.offersAppointments ? u.activeStaff : 0) + (mode.offersRentals ? u.activeUnits : 0);
 }
 
+/** Which noun a plan limit is about. A workspace is appointments OR spaces
+    (0073), so its own budget is only ever people or only ever units —
+    "bookable resources (people and units)" described a shape no org has.
+    Callers pass the EFFECTIVE mode, the same one countResources counts. */
+export type ResourceKind = "people" | "units";
+export function resourceKind(mode: OrgMode): ResourceKind {
+  return mode.offersAppointments ? "people" : "units";
+}
+
 /** `adding` > 1 for a write that spends several slots at once (S6: an
     equipment space is created with all its items), so it is refused up
     front rather than half-created. */

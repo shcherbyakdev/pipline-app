@@ -1,5 +1,6 @@
 {
   "common": {
+    "dismiss": "Dismiss",
     "language": "Language",
     "localeNotice": {
       "body": "Booklo is in English, going by your browser's language.",
@@ -170,8 +171,8 @@
     "checkInPassed": "That check-in time has already passed — pick a later date.",
     "notChangeable": "This booking can no longer be changed online.",
     "planLimitServices": "Your plan allows {max} services on your booking page.",
-    "planLimitResourceOne": "Free includes 1 bookable resource — one person or one unit.",
-    "planLimitResources": "Your plan allows {max} bookable resources — people and units together.",
+    "planLimitPeople": "Your plan covers {max, plural, one {# person} other {# people}}.",
+    "planLimitUnits": "Your plan covers {max, plural, one {# unit} other {# units}}.",
     "upgradeHint": {
       "billing": "Upgrade in Billing to add more.",
       "waitlist": "Join the Premium waitlist to add more.",
@@ -1206,7 +1207,6 @@
       "noHandle": "Your workspace is ready.",
       "noHandleSub": "Pick a page address and you're bookable.",
       "setUpPage": "Set up your booking page",
-      "dismiss": "Dismiss",
       "copyFailed": "Couldn't copy — select the link text and copy manually.",
       "dismissFailed": "Couldn't dismiss — try again.",
       "checklist": "Setup checklist",
@@ -1451,13 +1451,13 @@
     },
     "plans": {
       "free": {
-        "blurb": "Everything two people — or two rooms — need to take bookings."
+        "blurb": "Everything you need to start taking bookings."
       },
       "pro": {
-        "blurb": "Your brand, reminders for every booking, up to five bookable people or units."
+        "blurb": "Your brand, and a reminder for every booking."
       },
       "team": {
-        "blurb": "Up to ten bookable people and units, auto-assigned."
+        "blurb": "The highest limits, plus the team layer."
       }
     },
     "picker": {
@@ -1474,7 +1474,8 @@
       "founderRibbon": "Founder price · {price}/mo for life",
       "founderYearlyNote": "Founder price ({price}/mo for life) applies to monthly billing.",
       "rows": {
-        "resources": "Bookable resources (people + units)",
+        "people": "People",
+        "units": "Units",
         "reminders": "Reminder emails",
         "everyBooking": "Every booking",
         "firstBookings": "First {count} bookings a month",
@@ -1495,22 +1496,24 @@
       "everyBookingReminded": "every booking gets a reminder",
       "remindersResume": "reminders resume next month",
       "confirmationsAlways": "confirmations always send",
-      "resources": "Bookable resources",
+      "people": "People",
+      "units": "Units",
       "services": "Services",
       "unlimitedServices": "unlimited on your plan",
       "firstServicesPublic": "only the first {count} are offered publicly",
       "servicesPublic": "offered on your booking page"
     },
     "meter": {
-      "firstBookable": "only the first {count} are bookable publicly",
-      "onPage": "people and units on your booking page"
+      "firstBookable": "only the first {count} are bookable",
+      "onPage": "on your booking page"
     },
     "banner": {
       "managePlan": "Manage plan",
       "upgrade": "Upgrade",
-      "resources": "Your plan allows {cap, plural, one {# bookable resource} other {# bookable resources}} (people and units); {hidden, plural, one {# isn't} other {# aren't}} bookable publicly.",
-      "remindersUsedAll": "You've used all {cap} free reminder bookings this month — bookings made now won't get a reminder until it rolls over.",
-      "remindersUsed": "You've used {used} of {cap} free reminder bookings this month."
+      "people": "{hidden, plural, one {# person isn't} other {# people aren't}} on your booking page — your plan covers {cap}.",
+      "units": "{hidden, plural, one {# unit isn't} other {# units aren't}} on your booking page — your plan covers {cap}.",
+      "remindersUsedAll": "Reminders are paused until next month — all {cap} are used.",
+      "remindersUsed": "{used} of {cap} reminders used this month."
     },
     "planTag": {
       "srPrefix": "Plan:",
@@ -1532,7 +1535,8 @@
       "error": "Couldn’t add you to the list right now. Please try again.",
       "perksHeading": "What’s unlocked",
       "perks": {
-        "resources": "Up to {count} bookable people or units",
+        "people": "Up to {count} bookable people",
+      "units": "Up to {count} bookable units",
         "reminders": "Reminders for every booking, not just the first {free} a month",
         "badge": "No “Powered by Booklo” badge on your page and emails"
       }

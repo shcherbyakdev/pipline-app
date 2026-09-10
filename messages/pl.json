@@ -1,5 +1,6 @@
 {
   "common": {
+    "dismiss": "Zamknij",
     "language": "Język",
     "localeNotice": {
       "body": "Booklo jest po polsku, zgodnie z językiem Twojej przeglądarki.",
@@ -170,8 +171,8 @@
     "checkInPassed": "Godzina zameldowania już minęła — wybierz późniejszą datę.",
     "notChangeable": "Tej rezerwacji nie można już zmienić online.",
     "planLimitServices": "Twój plan pozwala na {max} usług na stronie rezerwacji.",
-    "planLimitResourceOne": "Free obejmuje 1 zasób do rezerwacji — jedną osobę lub jedną jednostkę.",
-    "planLimitResources": "Twój plan pozwala na {max} zasobów do rezerwacji — osób i jednostek łącznie.",
+    "planLimitPeople": "Twój plan obejmuje {max, plural, one {# osobę} few {# osoby} many {# osób} other {# osoby}}.",
+    "planLimitUnits": "Twój plan obejmuje {max, plural, one {# jednostkę} few {# jednostki} many {# jednostek} other {# jednostki}}.",
     "upgradeHint": {
       "billing": "Zmień plan w Rozliczeniach, aby dodać więcej.",
       "waitlist": "Dołącz do listy oczekujących Premium, aby dodać więcej.",
@@ -1193,7 +1194,6 @@
       "noHandle": "Twoja przestrzeń robocza jest gotowa.",
       "noHandleSub": "Wybierz adres strony i można Cię rezerwować.",
       "setUpPage": "Skonfiguruj stronę rezerwacji",
-      "dismiss": "Zamknij",
       "copyFailed": "Nie udało się skopiować — zaznacz tekst linku i skopiuj ręcznie.",
       "dismissFailed": "Nie udało się zamknąć — spróbuj ponownie.",
       "checklist": "Lista startowa",
@@ -1451,13 +1451,13 @@
     },
     "plans": {
       "free": {
-        "blurb": "Wszystko, czego dwie osoby — lub dwie sale — potrzebują, aby przyjmować rezerwacje."
+        "blurb": "Wszystko, czego trzeba, by zacząć przyjmować rezerwacje."
       },
       "pro": {
-        "blurb": "Twoja marka, przypomnienia dla każdej rezerwacji, do pięciu osób lub jednostek do rezerwacji."
+        "blurb": "Twoja marka i przypomnienie do każdej rezerwacji."
       },
       "team": {
-        "blurb": "Do dziesięciu osób i jednostek do rezerwacji, przypisywanych automatycznie."
+        "blurb": "Najwyższe limity plus warstwa zespołowa."
       }
     },
     "picker": {
@@ -1474,7 +1474,8 @@
       "founderRibbon": "Cena Founder · {price}/mies. na zawsze",
       "founderYearlyNote": "Cena Founder ({price}/mies. na zawsze) dotyczy rozliczenia miesięcznego.",
       "rows": {
-        "resources": "Zasoby do rezerwacji (osoby + jednostki)",
+        "people": "Osoby",
+        "units": "Jednostki",
         "reminders": "E-maile z przypomnieniem",
         "everyBooking": "Każda rezerwacja",
         "firstBookings": "Pierwsze {count} rezerwacji w miesiącu",
@@ -1495,22 +1496,24 @@
       "everyBookingReminded": "każda rezerwacja dostaje przypomnienie",
       "remindersResume": "przypomnienia wracają w przyszłym miesiącu",
       "confirmationsAlways": "potwierdzenia zawsze wychodzą",
-      "resources": "Zasoby do rezerwacji",
+      "people": "Osoby",
+      "units": "Jednostki",
       "services": "Usługi",
       "unlimitedServices": "bez limitu w Twoim planie",
       "firstServicesPublic": "publicznie widoczne są tylko pierwsze {count}",
       "servicesPublic": "widoczne na Twojej stronie rezerwacji"
     },
     "meter": {
-      "firstBookable": "publicznie dostępne są tylko pierwsze {count}",
-      "onPage": "osoby i jednostki na Twojej stronie rezerwacji"
+      "firstBookable": "do rezerwacji jest tylko pierwsze {count}",
+      "onPage": "na Twojej stronie rezerwacji"
     },
     "banner": {
       "managePlan": "Zarządzaj planem",
       "upgrade": "Zmień plan",
-      "resources": "Twój plan pozwala na {cap, plural, one {# zasób do rezerwacji} few {# zasoby do rezerwacji} many {# zasobów do rezerwacji} other {# zasobu do rezerwacji}} (osoby i jednostki); {hidden, plural, one {# nie jest dostępny} few {# nie są dostępne} many {# nie jest dostępnych} other {# nie jest dostępnych}} publicznie.",
-      "remindersUsedAll": "Wykorzystano wszystkie {cap} bezpłatne rezerwacje z przypomnieniem w tym miesiącu — nowe rezerwacje nie dostaną przypomnienia do końca miesiąca.",
-      "remindersUsed": "Wykorzystano {used} z {cap} bezpłatnych rezerwacji z przypomnieniem w tym miesiącu."
+      "people": "{hidden, plural, one {# osoba nie jest} few {# osoby nie są} many {# osób nie jest} other {# osoby nie jest}} na Twojej stronie rezerwacji — Twój plan obejmuje {cap}.",
+      "units": "{hidden, plural, one {# jednostka nie jest} few {# jednostki nie są} many {# jednostek nie jest} other {# jednostki nie jest}} na Twojej stronie rezerwacji — Twój plan obejmuje {cap}.",
+      "remindersUsedAll": "Przypomnienia wstrzymane do przyszłego miesiąca — wykorzystano wszystkie {cap}.",
+      "remindersUsed": "Wykorzystano {used} z {cap} przypomnień w tym miesiącu."
     },
     "planTag": {
       "srPrefix": "Plan:",
@@ -1532,7 +1535,8 @@
       "error": "Nie udało się teraz dodać Cię do listy. Spróbuj ponownie.",
       "perksHeading": "Co jest odblokowane",
       "perks": {
-        "resources": "Do {count} osób lub jednostek do rezerwacji",
+        "people": "Do {count} osób do rezerwacji",
+      "units": "Do {count} jednostek do rezerwacji",
         "reminders": "Przypomnienia dla każdej rezerwacji, nie tylko pierwszych {free} w miesiącu",
         "badge": "Bez plakietki „Działa na Booklo” na Twojej stronie i w e-mailach"
       }
