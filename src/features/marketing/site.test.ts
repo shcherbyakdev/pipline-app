@@ -75,10 +75,18 @@ describe("site config", () => {
 
   // The landing's copy rule (2026-08-28 redesign): no em- or en-dashes in
   // anything the page shows. Ranges use a hyphen, asides use a comma or a
-  // period. Pricing is left out on purpose: its table cells and one row
-  // label still carry the dash and the page is off while billing is.
+  // period. Pricing is left out on purpose: it spends the dash as a symbol
+  // ("—" is the not-included cell), which the rule was never about.
   it("landing copy contains no em- or en-dashes", () => {
     expect(landingCorpus()).not.toMatch(/[—–]/);
+  });
+
+  // /pricing is public whether or not billing is on (2026-09-10), so the
+  // footer is the one place it can be found from — and the address beside it
+  // is what a payment provider's review looks for.
+  it("the footer links pricing and offers an address to write to", () => {
+    expect(FOOTER_LINKS.map((l) => l.href)).toContain(SITE.links.pricing);
+    expect(SITE.supportEmail).toMatch(/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/);
   });
 
   // The page is one hero (2026-09-09): a title of two lines at most, a sub
