@@ -14,7 +14,7 @@ Every morning the studio sees **one list of what still needs a human**: requests
 
 ## Rulings
 
-4. **The list leads the page.** Requests, holds, balances render above the year heatmap. This reverses the 2026-09-01 ruling ("the year glance leads the page; requests follow") because Overview is now the studio's action screen, not a glance. Empty sections still render nothing (the 2026-08-31 approval spec §4 rule: an empty box every day is worse than silence). When all three are empty the heatmap is first, as today.
+4. **The list leads the page.** Requests, holds, balances render above the year heatmap. This reverses the 2026-09-01 ruling ("the year glance leads the page; requests follow") because Overview is now the studio's action screen, not a glance. Empty sections still render nothing (the 2026-08-31 approval spec §4 rule: an empty box every day is worse than silence). When all three are empty the heatmap is first, as today. **Amended 2026-09-10:** the heatmap leads again, always (the 2026-09-01 order). It is the only section that is always on the page, so leading with the list made the page's shape depend on the day; the list follows it and still renders nothing when empty.
 5. **Holds window = next 24 hours**, not "before local midnight". Rows print the deadline, so "expiring soon" needs no timezone edge cases, and the 08:00 digest naturally covers the studio's day. A hold whose deadline has passed but which the drain has not yet flipped (≤ 15 min lag) shows as "lapsed" and keeps its Mark paid button — `mark_booking_paid` on a lapsed-but-still-`pending_payment` row is the same cash path the detail dialog offers.
 6. **Balances window = ended within the last 30 days**, balance > 0, cap 50, most recently ended first. Matches S7 ruling 9 (a balance link can only be (re)sent within 30 days after the end). Older balances stay visible on the booking itself. Consequence, accepted: a studio that takes cash at the venue sees every ended session here until it clicks Mark paid — that is the settle-or-write-off workflow the concept brief asks for, and the window bounds the noise.
 7. **The sidebar badge stays requests-only** in this slice. Folding holds and balances into it is a follow-up on the same RPC (one count query instead of three).
@@ -103,7 +103,7 @@ export async function loadDailyList(db: SupabaseClient, orgId: string, fallbackT
 
 ### Overview page
 
-`src/app/(dashboard)/overview/page.tsx` calls `loadDailyList(userClient, orgId, fallbackTitle, now)` and `hasActivePaymentAccount(orgId)` next to the existing stats/staff queries, and mounts `<DailyList list timeZone canCollectOnline />` **above** the Activity section (ruling 4). `listPendingRequests` disappears from the page.
+`src/app/(dashboard)/overview/page.tsx` calls `loadDailyList(userClient, orgId, fallbackTitle, now)` and `hasActivePaymentAccount(orgId)` next to the existing stats/staff queries, and mounts `<DailyList list timeZone canCollectOnline />` **below** the Activity section (ruling 4 as amended 2026-09-10). `listPendingRequests` disappears from the page.
 
 ### Components — `src/features/scheduling/components/daily-list.tsx` (client)
 

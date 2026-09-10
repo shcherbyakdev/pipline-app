@@ -80,11 +80,10 @@ export default async function OverviewPage({
   return (
     <div className="mx-auto flex w-full max-w-6xl gap-12 p-6">
       <div className="flex min-w-0 flex-1 flex-col gap-10">
-        {/* S4 (spec 2026-09-08 ruling 4): the action list leads the page —
-            requests, holds expiring, balances due. Nothing at all when every
-            section is empty, so the year glance is first on a quiet day. */}
-        <DailyList list={list} timeZone={timeZone} canCollectOnline={canCollectOnline} />
-
+        {/* The year glance leads the page, on a busy day as on a quiet one
+            (2026-09-10): it is the one section that is always there, so the
+            page's shape stops depending on how the day is going. Amends S4
+            ruling 4 back to the 2026-09-01 order. */}
         <section className="flex flex-col">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -153,6 +152,11 @@ export default async function OverviewPage({
             </span>
           </div>
         </section>
+
+        {/* Then what needs doing: requests, holds expiring, balances due.
+            Nothing at all when every section is empty (S4 ruling 4's own
+            rule: an empty box every day is worse than silence). */}
+        <DailyList list={list} timeZone={timeZone} canCollectOnline={canCollectOnline} />
       </div>
 
       <aside className="hidden w-44 shrink-0 flex-col gap-8 pt-1 lg:flex">
