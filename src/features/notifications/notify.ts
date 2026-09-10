@@ -31,7 +31,8 @@ export type MemberNotice =
       event: "newBooking" | "newRequest";
       serviceName: string;
       clientName: string;
-      clientEmail: string;
+      clientEmail: string | null;
+      clientPhone?: string | null;
       whenLine: string;
       staffName?: string | null;
       note?: string | null;
@@ -114,6 +115,7 @@ export async function notifyMembers(input: NotifyInput, deps: NotifyDeps = {}): 
           serviceName: input.serviceName,
           clientName: input.clientName,
           clientEmail: input.clientEmail,
+          clientPhone: input.clientPhone,
           whenLine: input.whenLine,
           staffName: input.staffName,
           note: input.note,

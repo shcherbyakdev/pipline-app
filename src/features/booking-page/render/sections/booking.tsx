@@ -27,6 +27,7 @@ export function BookingSection({ section, ctx, pickers, crossLink }: { section: 
             handle={preview ? "preview" : ctx.org.handle}
             orgTimeZone={ctx.org.timeZone}
             currency={ctx.org.currency}
+            clientContact={ctx.org.clientContact}
             layout={resolveLayout(ctx.theme)}
             stayLayout={resolveStayLayout(ctx.theme)}
             services={ctx.services}

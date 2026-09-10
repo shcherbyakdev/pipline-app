@@ -2,6 +2,7 @@
 
 import { emailTranslators } from "@/i18n/emails";
 import { clientMailCopy } from "@/lib/booking/client-locale";
+import { stampBookingPhone } from "@/lib/booking/client-phone";
 import { getTranslations } from "next-intl/server";
 import { revalidatePath } from "next/cache";
 import { kickCalendarSync } from "@/features/calendar-sync/run";
@@ -624,6 +625,7 @@ export async function createBookingAdmin(
       }
       return fail("createBookingAdmin", error);
     }
+    await stampBookingPhone(bookingId as string, org.id, parsed.data.phone);
     kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
     // Past this line the booking EXISTS — nothing below may fail the action,
     // so the whole tail sits in its own catch rather than falling through to

@@ -635,7 +635,10 @@ export function staffNewBookingEmail(t: EmailsT, input: {
 export function providerNewBookingEmail(t: EmailsT, input: {
   serviceName: string;
   clientName: string;
-  clientEmail: string;
+  // Whichever the client gave (orgs.client_contact, 0086); at least one on
+  // a public booking, either may be missing on an admin one.
+  clientEmail: string | null;
+  clientPhone?: string | null;
   whenLine: string;
   staffName?: string | null;
   note?: string | null;
@@ -659,12 +662,13 @@ export function providerNewBookingEmail(t: EmailsT, input: {
     ? `\n  <p style="margin: 0 0 16px; color: #444; white-space: pre-wrap;">${esc(input.note)}</p>`
     : "";
   const footer = requested ? t("providerNew.footerRequest") : t("providerNew.footer");
+  const contact = [input.clientEmail, input.clientPhone].filter((c): c is string => !!c);
   const html = `
 <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
   <p style="margin: 0 0 8px;">${leadHtml}</p>
   <p style="margin: 0 0 4px;">${esc(input.serviceName)}</p>${staffHtmlLine(t, input.staffName)}
   <p style="margin: 0 0 4px;">${esc(input.whenLine)}</p>${(input.infoLines ?? []).map((l) => `\n  <p style="margin: 0 0 4px; color: #444;">${esc(l)}</p>`).join("")}
-  <p style="margin: 0 0 16px; color: #666;">${esc(input.clientEmail)}</p>${noteHtml}
+  <p style="margin: 0 0 16px; color: #666;">${contact.map(esc).join("<br>")}</p>${noteHtml}
   <p style="color: #666; font-size: 12px; margin: 16px 0 0;">${esc(footer)}</p>
 </div>`.trim();
   const text = [
@@ -673,7 +677,7 @@ export function providerNewBookingEmail(t: EmailsT, input: {
     ...staffTextLine(t, input.staffName),
     input.whenLine,
     ...(input.infoLines ?? []),
-    input.clientEmail,
+    ...contact,
     ...(input.note ? ["", input.note] : []),
     "",
     footer,

@@ -108,6 +108,7 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
         handle={handle}
         orgTimeZone={org.timeZone}
         currency={org.currency}
+        clientContact={org.clientContact}
         layout={resolveLayout(theme)}
         stayLayout={resolveStayLayout(theme)}
         services={services}

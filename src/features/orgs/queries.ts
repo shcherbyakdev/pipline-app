@@ -1,4 +1,5 @@
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/config";
+import { clientContactSchema, type ClientContact } from "@/features/orgs/schema";
 import { createClient } from "@/lib/supabase/server";
 import { publicLogoUrl } from "@/lib/storage/branding";
 
@@ -41,11 +42,12 @@ export async function getSchedulingSettings(): Promise<{
   timezone: string;
   currency: string;
   locale: Locale;
+  clientContact: ClientContact;
 } | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("orgs")
-    .select("id, handle, timezone, currency, locale")
+    .select("id, handle, timezone, currency, locale, client_contact")
     .limit(1)
     .maybeSingle();
   if (!data) return null;
@@ -57,5 +59,6 @@ export async function getSchedulingSettings(): Promise<{
     // The column's CHECK is format-only (0069); a code the app does not
     // speak yet reads as the default rather than as an unlisted option.
     locale: isLocale(data.locale) ? data.locale : DEFAULT_LOCALE,
+    clientContact: clientContactSchema.catch("email").parse(data.client_contact),
   };
 }

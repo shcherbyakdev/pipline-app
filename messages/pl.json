@@ -63,6 +63,15 @@
       "blurb": "Jedno na przestrzeń roboczą. Można zmienić, dopóki nie dodasz pierwszej usługi lub przestrzeni.",
       "locked": "Ustawione przy rejestracji. Aby zmienić, najpierw dezaktywuj wszystko, co oferujesz."
     },
+    "clientContact": {
+      "title": "Dane klienta",
+      "blurb": "O co pyta formularz rezerwacji. E-mail to droga, którą docierają potwierdzenia i przypomnienia.",
+      "options": {
+        "email": { "label": "E-mail", "blurb": "Potwierdzenia i przypomnienia wychodzą automatycznie." },
+        "phone": { "label": "Telefon", "blurb": "Bez e-maili — kontaktujesz się z klientami samodzielnie. Link do rezerwacji zostaje na stronie potwierdzenia." },
+        "both": { "label": "E-mail i telefon", "blurb": "Oba wymagane. E-maile wychodzą jak zwykle." }
+      }
+    },
     "copyRefused": "Nie udało się skopiować — zaznacz tekst linku i skopiuj ręcznie.",
     "bookingPage": {
       "title": "Adres, strefa czasowa i język",
@@ -150,7 +159,7 @@
   "errors": {
     "generic": "Nie udało się zapisać. Spróbuj ponownie.",
     "tooManyRequests": "Zbyt wiele żądań — zwolnij.",
-    "tooManyForEmail": "Zbyt wiele rezerwacji na ten adres e-mail w ciągu ostatniej godziny — spróbuj później.",
+    "tooManyForEmail": "Zbyt wiele rezerwacji na te dane kontaktowe w ciągu ostatniej godziny — spróbuj później.",
     "changedTooOften": "Ta rezerwacja była zmieniana zbyt wiele razy w ciągu ostatniej godziny — spróbuj później.",
     "slotTaken": "Ten termin został właśnie zajęty — wybierz inny.",
     "staffUnavailable": "Ten członek zespołu nie może przyjąć tego terminu — wybierz inny.",
@@ -323,6 +332,8 @@
       "name": "Imię i nazwisko",
       "email": "E-mail",
       "emailOptional": "E-mail (opcjonalnie)",
+      "phone": "Telefon",
+      "phoneOptional": "Telefon (opcjonalnie)",
       "note": "Uwagi (opcjonalnie)"
     },
     "confirmed": {
@@ -331,6 +342,8 @@
       "with": "u: {name}",
       "pendingBody": "Nic nie jest jeszcze zarezerwowane — dostaniesz e-mail, gdy tylko prośba zostanie potwierdzona. Zachowaj tę wiadomość; poniższy link to Twój dostęp do prośby.",
       "confirmedBody": "E-mail z potwierdzeniem jest w drodze. Zachowaj go — poniższe linki to Twój dostęp do tej rezerwacji.",
+      "pendingBodyNoEmail": "Nic nie jest jeszcze zarezerwowane — dostaniesz odpowiedź, gdy prośba zostanie potwierdzona. Zachowaj poniższy link; to Twój dostęp do prośby.",
+      "confirmedBodyNoEmail": "Zachowaj poniższe linki — to Twój dostęp do tej rezerwacji.",
       "viewRequest": "Zobacz swoją prośbę",
       "viewBooking": "Zobacz swoją rezerwację",
       "addToCalendar": "Dodaj do kalendarza (.ics)",
@@ -1081,6 +1094,7 @@
     "form": {
       "clientName": "Imię i nazwisko klienta",
       "email": "E-mail — opcjonalnie, potwierdzenie wysyłamy tylko, jeśli jest podany",
+      "phone": "Telefon — opcjonalnie",
       "note": "Uwagi (opcjonalnie)",
       "notePlaceholder": "Dodaj uwagę…",
       "date": "Data",

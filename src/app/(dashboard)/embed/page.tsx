@@ -81,6 +81,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         previewMessages={previewMessages}
         orgLocale={schedulingSettings.locale}
         orgTimeZone={schedulingSettings.timezone}
+        clientContact={schedulingSettings.clientContact}
         initial={parseWidgetTheme(settings.widgetTheme)}
         accentColor={settings.accentColor}
         handle={schedulingSettings.handle}

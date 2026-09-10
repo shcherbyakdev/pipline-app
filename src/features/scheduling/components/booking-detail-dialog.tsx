@@ -277,7 +277,12 @@ function DetailBody({
     </Button>
   );
 
-  const contact = [booking.clientName, booking.clientEmail ?? t("noEmailShort"), booking.note ? `“${booking.note}”` : null]
+  const contact = [
+    booking.clientName,
+    booking.clientEmail ?? (booking.clientPhone ? null : t("noEmailShort")),
+    booking.clientPhone,
+    booking.note ? `“${booking.note}”` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
   return (

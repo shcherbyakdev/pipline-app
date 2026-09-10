@@ -167,6 +167,7 @@ type BookingRow = {
   ends_at: string;
   client_name: string;
   client_email: string | null;
+  client_phone: string | null;
   note: string | null;
   services: { name: string } | null;
   rental_offerings: { name: string } | null;
@@ -199,7 +200,7 @@ export function supabaseSyncStore(db: SupabaseClient): SyncStore {
       const { data, error } = await db
         .from("bookings")
         .select(
-          "id, org_id, status, staff_id, rental_unit_id, starts_at, ends_at, client_name, client_email, note, services(name), rental_offerings(name), rental_units(name), orgs(timezone)",
+          "id, org_id, status, staff_id, rental_unit_id, starts_at, ends_at, client_name, client_email, client_phone, note, services(name), rental_offerings(name), rental_units(name), orgs(timezone)",
         )
         .in("id", ids);
       if (error) throw error;
@@ -213,6 +214,7 @@ export function supabaseSyncStore(db: SupabaseClient): SyncStore {
         endsAt: r.ends_at,
         clientName: r.client_name,
         clientEmail: r.client_email,
+        clientPhone: r.client_phone,
         note: r.note,
         title: bookingTitle(r, "Booking"),
         timeZone: r.orgs?.timezone ?? "UTC",

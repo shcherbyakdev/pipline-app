@@ -54,6 +54,11 @@ export const orgs = pgTable("orgs", {
   // update_org_payments.
   paymentHoldMin: integer("payment_hold_min").default(60).notNull(),
   legal: jsonb("legal").default({}).notNull(),
+  // What the public booking form asks the client for (0086): 'email' |
+  // 'phone' | 'both' (CHECK). The public create RPCs enforce it; admin forms
+  // treat both as optional (walk-ins). Written ONLY via
+  // update_org_client_contact.
+  clientContact: text("client_contact").default("email").notNull(),
 });
 
 export const orgMembers = pgTable(

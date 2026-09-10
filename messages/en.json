@@ -63,6 +63,15 @@
       "blurb": "One per workspace. Changeable until you add your first service or space.",
       "locked": "Set at signup. To change it, deactivate everything you offer first."
     },
+    "clientContact": {
+      "title": "Client details",
+      "blurb": "What the booking form asks for. Email is how confirmations and reminders reach the client.",
+      "options": {
+        "email": { "label": "Email", "blurb": "Confirmation and reminder emails go out automatically." },
+        "phone": { "label": "Phone", "blurb": "No emails — you contact clients yourself. The confirmation page holds their booking link." },
+        "both": { "label": "Email and phone", "blurb": "Both required. Emails go out as usual." }
+      }
+    },
     "copyRefused": "Couldn't copy — select the link text and copy manually.",
     "bookingPage": {
       "title": "Address, timezone & language",
@@ -150,7 +159,7 @@
   "errors": {
     "generic": "Couldn't save. Try again.",
     "tooManyRequests": "Too many requests — slow down.",
-    "tooManyForEmail": "Too many bookings for this email address in the last hour — try again later.",
+    "tooManyForEmail": "Too many bookings with these contact details in the last hour — try again later.",
     "changedTooOften": "This booking has been changed too many times in the last hour — try again later.",
     "slotTaken": "That time was just taken — please pick another.",
     "staffUnavailable": "That team member can't take this time — pick another.",
@@ -323,6 +332,8 @@
       "name": "Name",
       "email": "Email",
       "emailOptional": "Email (optional)",
+      "phone": "Phone",
+      "phoneOptional": "Phone (optional)",
       "note": "Note (optional)"
     },
     "confirmed": {
@@ -332,6 +343,8 @@
       "with": "with {name}",
       "pendingBody": "Nothing is booked yet — you'll get an email as soon as it's confirmed. Keep that email; the link below is your access to the request.",
       "confirmedBody": "A confirmation email is on its way. Keep it — the links below are your access to this booking.",
+      "pendingBodyNoEmail": "Nothing is booked yet — you'll hear back once it's confirmed. Keep the link below; it's your access to the request.",
+      "confirmedBodyNoEmail": "Keep the links below — they are your access to this booking.",
       "payBody": "Pay {amount} to confirm. Unpaid reservations are released automatically.",
       "viewRequest": "View your request",
       "viewBooking": "View your booking",
@@ -1094,6 +1107,7 @@
     "form": {
       "clientName": "Client name",
       "email": "Email — optional, confirmation is sent only if given",
+      "phone": "Phone — optional",
       "note": "Note (optional)",
       "notePlaceholder": "Add a note…",
       "date": "Date",

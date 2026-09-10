@@ -137,7 +137,7 @@ export async function createRentalBooking(
   if (!parsed.success) return publicError(orgLocale, "generic");
   // getBookingOrg is memoised per request: the loaders below re-use this read.
   orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
-  const { handle, offeringId, unitId, startDate, endDate, name, email, note, termsAccepted } = parsed.data;
+  const { handle, offeringId, unitId, startDate, endDate, name, email, phone, note, termsAccepted } = parsed.data;
 
   try {
     const org = await getBookingOrg(handle);
@@ -211,7 +211,10 @@ export async function createRentalBooking(
         p_start_date: startDate,
         p_end_date: endDate,
         p_name: name,
-        p_email: email,
+        // Either may be null; the RPC requires whichever orgs.client_contact
+        // names (0086).
+        p_email: email ?? null,
+        p_phone: phone ?? null,
         p_note: note ?? null,
         p_token_hash: tokenHash,
       });
@@ -345,7 +348,9 @@ export async function createRentalBooking(
               icsUrl: `${env.NEXT_PUBLIC_APP_URL}/booking/${token}/calendar.ics`,
               infoLines: clientInfoLines,
             });
-      await selectTransport().send({
+      // No address (a phone-only org, 0086): the confirmed panel is the
+      // client's only copy — it carries the pay and manage links itself.
+      if (email) await selectTransport().send({
         to: email,
         subject: msg.subject,
         html: msg.html,
@@ -370,7 +375,8 @@ export async function createRentalBooking(
         event: isPending ? "newRequest" : "newBooking",
         serviceName,
         clientName: name,
-        clientEmail: email,
+        clientEmail: email ?? null,
+        clientPhone: phone ?? null,
         whenLine,
         note: note ?? null,
         infoLines,

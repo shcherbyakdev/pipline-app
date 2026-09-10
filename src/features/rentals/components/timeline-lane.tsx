@@ -868,6 +868,7 @@ function StayBar({
           {mode === "hours" ? "" : ` · ${dates}`}
         </span>
         {b.clientEmail ? <span className="opacity-70">{b.clientEmail}</span> : null}
+        {b.clientPhone ? <span className="opacity-70">{b.clientPhone}</span> : null}
         {money ? <span className="opacity-70">{money}</span> : null}
         {note ? <span className="opacity-70">{note}</span> : null}
         {ghost ? (

@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { clientContactSchema, type ClientContact } from "@/features/orgs/schema";
 import {
   addDaysISO,
   type SlotRule,
@@ -51,6 +52,8 @@ export type BookingOrg = {
   /** The org locale as stored (0069) — resolved against LOCALES, the
       visitor's region and `?lang=` by src/i18n/public.ts, never used raw. */
   locale: string;
+  /** Which contact fields the form shows and the create RPCs require (0086). */
+  clientContact: ClientContact;
 };
 
 // Per-request memoised: generateMetadata and the page both resolve the handle.
@@ -58,7 +61,7 @@ export const getBookingOrg = cache(async (handle: string): Promise<BookingOrg | 
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("orgs")
-    .select("id, name, timezone, offers_appointments, offers_rentals, currency, locale")
+    .select("id, name, timezone, offers_appointments, offers_rentals, currency, locale, client_contact")
     .eq("handle", handle)
     .maybeSingle();
   if (error || !data) return null;
@@ -70,6 +73,7 @@ export const getBookingOrg = cache(async (handle: string): Promise<BookingOrg | 
     offersRentals: data.offers_rentals,
     currency: data.currency,
     locale: data.locale,
+    clientContact: clientContactSchema.catch("email").parse(data.client_contact),
   };
 });
 

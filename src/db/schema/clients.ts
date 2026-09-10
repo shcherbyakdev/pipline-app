@@ -15,6 +15,9 @@ export const clients = pgTable(
     // Booking-created clients are keyed by email; hand-created ones may
     // lack it. Partial unique (org_id, lower(email)) lives in 0026.
     email: text("email"),
+    // 0086: normalised like bookings.client_phone. A booking with no email
+    // keys its client by phone instead (partial unique in 0086).
+    phone: text("phone"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [

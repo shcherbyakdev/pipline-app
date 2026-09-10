@@ -17,6 +17,26 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const timeField = z.string().regex(TIME_RE);
 
+// The client's contact pair (0086). Both optional at the type level: the
+// public RPCs require whichever orgs.client_contact names, the admin RPCs
+// require neither (walk-ins). The phone is loose on purpose — digits with
+// the separators people type; client_contact_phone strips those and keeps
+// `+digits`, 6–15 of them.
+export const optionalEmail = z.preprocess(emptyToUndefined, z.email().max(320).optional());
+export const optionalPhone = z.preprocess(
+  emptyToUndefined,
+  z.string().trim().max(30).regex(/^\+?[0-9][0-9 ().\/-]{4,28}$/).optional(),
+);
+
+/** The stored form of a phone (0086): digits with an optional leading '+',
+    the TS twin of client_contact_phone's normalisation. Null when what is
+    left does not fit bookings_client_phone_format — the admin stamp
+    (lib/booking/client-phone.ts) then writes nothing rather than fail. */
+export function normalizePhone(raw: string | null | undefined): string | null {
+  const digits = (raw ?? "").replace(/[^0-9+]/g, "");
+  return /^\+?[0-9]{3,20}$/.test(digits) ? digits : null;
+}
+
 export const serviceInput = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional(),
@@ -198,7 +218,8 @@ export const createBookingInput = z.object({
   serviceId: z.uuid(),
   startsAt: z.iso.datetime(),
   name: z.string().trim().min(1).max(200),
-  email: z.email().max(320),
+  email: optionalEmail,
+  phone: optionalPhone,
   note: z.string().trim().max(2000).optional(),
   staffId: staffChoice.default("any"),
 });
@@ -262,7 +283,8 @@ export const adminCreateBookingInput = z.object({
   durationMin: z.number().int().min(5).max(480).optional(),
   name: z.string().trim().min(1).max(200),
   // "" (untouched optional field) → undefined, mirroring the handle preprocess.
-  email: z.preprocess(emptyToUndefined, z.email().max(320).optional()),
+  email: optionalEmail,
+  phone: optionalPhone,
   note: z.string().trim().max(2000).optional(),
 });
 
