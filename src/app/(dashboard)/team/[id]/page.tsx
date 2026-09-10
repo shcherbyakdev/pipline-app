@@ -126,7 +126,6 @@ export default async function TeamMemberPage({ params }: PageProps<"/team/[id]">
               </>
             }
           >
-            {path ? <CopyLinkButton url={`${env.NEXT_PUBLIC_APP_URL}${path}`} name={staff.name} /> : null}
           </MemberHeader>
         </div>
 
@@ -170,6 +169,7 @@ export default async function TeamMemberPage({ params }: PageProps<"/team/[id]">
 
         <section className="flex flex-col gap-1">
           <h2 className="mb-1.5 text-[13px] font-medium text-muted-foreground">{t("detail.quickActions")}</h2>
+          {path ? <CopyLinkButton url={`${env.NEXT_PUBLIC_APP_URL}${path}`} name={staff.name} rail /> : null}
           {/* The Services page's own create form, here, for this person
               alone (`?staff=`) — so only while they are bookable (a service
               nobody can be booked for is not a service). A capped org gets

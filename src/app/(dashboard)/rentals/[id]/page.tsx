@@ -101,7 +101,6 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
               </>
             }
           >
-            {url ? <CopyLinkButton url={url} name={offering.name} /> : null}
           </SpaceHeader>
         </div>
 
@@ -155,6 +154,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
 
         <section className="flex flex-col gap-1">
           <h2 className="mb-1.5 text-[13px] font-medium text-muted-foreground">{t("detail.quickActions")}</h2>
+          {url ? <CopyLinkButton url={url} name={offering.name} rail /> : null}
           {url ? (
             <Link href={`/embed?space=${offering.id}`} className={railLinkClass}>
               <HugeiconsIcon icon={SourceCodeIcon} size={14} className="text-subtle shrink-0" />
