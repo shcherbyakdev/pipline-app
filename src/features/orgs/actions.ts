@@ -16,6 +16,7 @@ import {
   createOrgWithPageSchema,
   updateAccentInput,
   updateOrgModesInput,
+  updateOrgClientContactInput,
   modeToFlags,
   surfaceThemeInput,
   type OrgState,
@@ -269,5 +270,20 @@ export async function updateOrgModes(input: unknown): Promise<ActionState> {
   }
   // The sidebar/command menu read the flags in the dashboard layout.
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function updateOrgClientContact(input: unknown): Promise<ActionState> {
+  const parsed = updateOrgClientContactInput.safeParse(input);
+  if (!parsed.success) return fail();
+  const { org, error: orgError } = await currentOrgBranding();
+  if (!org) return brandingFail("updateOrgClientContact", orgError ?? "no org");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_org_client_contact", {
+    p_org_id: org.id,
+    p_value: parsed.data.value,
+  });
+  if (error) return brandingFail("updateOrgClientContact", error);
+  revalidatePath("/settings");
   return { ok: true };
 }

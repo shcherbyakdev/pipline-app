@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TIME_RE, HANDLE_RE } from "@/features/scheduling/schema";
+import { TIME_RE, HANDLE_RE, optionalEmail, optionalPhone } from "@/features/scheduling/schema";
 import { daysBetween } from "./range";
 import { pricingRulesSchema, pricingRulesFor, extraPicksSchema, equipmentPicksSchema, OFFERING_KINDS } from "./pricing-rules";
 import { cancelPolicySchema } from "./cancel-policy";
@@ -210,7 +210,8 @@ export const createRentalBookingInput = z.object({
   startDate: z.string().regex(DATE_RE),
   endDate: z.string().regex(DATE_RE),
   name: z.string().trim().min(1).max(200),
-  email: z.email().max(320),
+  email: optionalEmail,
+  phone: optionalPhone,
   note: z.string().trim().max(2000).optional(),
   termsAccepted: z.boolean().default(false),
 });
@@ -272,7 +273,8 @@ export const createRentalAdminInput = z.object({
   startDate: z.string().regex(DATE_RE),
   endDate: z.string().regex(DATE_RE),
   name: z.string().trim().min(1).max(200),
-  email: z.email().max(320).optional(),
+  email: optionalEmail,
+  phone: optionalPhone,
   note: z.string().trim().max(2000).optional(),
 });
 
@@ -297,7 +299,8 @@ export const createRentalBookingHoursInput = z.object({
   startsAt: z.iso.datetime(),
   durationMin: z.number().int().min(5).max(1440),
   name: z.string().trim().min(1).max(200),
-  email: z.email().max(320),
+  email: optionalEmail,
+  phone: optionalPhone,
   note: z.string().trim().max(2000).optional(),
   termsAccepted: z.boolean().default(false),
   // S1: the client's people count (null = the offering's included count) and extras.
@@ -330,7 +333,8 @@ export const createRentalHoursAdminInput = z.object({
   startsAt: z.iso.datetime(),
   durationMin: z.number().int().min(5).max(1440),
   name: z.string().trim().min(1).max(200),
-  email: z.email().max(320).optional(),
+  email: optionalEmail,
+  phone: optionalPhone,
   note: z.string().trim().max(2000).optional(),
 });
 export const rescheduleRentalHoursAdminInput = z.object({

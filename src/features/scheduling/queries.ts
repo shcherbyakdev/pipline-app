@@ -227,6 +227,7 @@ export type AdminBooking = {
   serviceName: string;
   clientName: string;
   clientEmail: string | null;
+  clientPhone: string | null;
   startsAt: string;
   endsAt: string;
   status: string;
@@ -258,7 +259,7 @@ export type AdminBooking = {
 };
 
 export const BOOKING_COLUMNS =
-  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, price_cents, currency, deposit_cents, hold_expires_at, paid_cents, refunded_cents, cancel_policy, fee_cents, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
+  "id, service_id, rental_offering_id, rental_unit_id, client_name, client_email, client_phone, starts_at, ends_at, status, note, rescheduled_from_id, staff_id, price_cents, currency, deposit_cents, hold_expires_at, paid_cents, refunded_cents, cancel_policy, fee_cents, services(name), rental_offerings(name, range_mode), rental_units(name), staff(name, color)";
 
 export type BookingRow = {
   id: string;
@@ -267,6 +268,7 @@ export type BookingRow = {
   rental_unit_id: string | null;
   client_name: string;
   client_email: string | null;
+  client_phone: string | null;
   starts_at: string;
   ends_at: string;
   status: string;
@@ -297,6 +299,7 @@ export function toAdminBooking(b: BookingRow, fallbackTitle: string): AdminBooki
     serviceName: bookingTitle(b, fallbackTitle),
     clientName: b.client_name,
     clientEmail: b.client_email,
+    clientPhone: b.client_phone,
     startsAt: b.starts_at,
     endsAt: b.ends_at,
     status: b.status,

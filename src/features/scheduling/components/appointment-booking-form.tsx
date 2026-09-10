@@ -63,6 +63,7 @@ export function AppointmentBookingForm({
   );
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
+  const [phone, setPhone] = React.useState("");
   const [note, setNote] = React.useState("");
   // Overlap failures render inline (spec: this is a validation error tied
   // to the form, not a fire-and-forget notification) rather than only a
@@ -136,6 +137,7 @@ export function AppointmentBookingForm({
         durationMin,
         name,
         email,
+        phone,
         note: note || undefined,
       });
       if (!result.ok) {
@@ -180,6 +182,16 @@ export function AppointmentBookingForm({
               placeholder={t("form.email")}
               className={cn(fieldClass, "h-9")}
               onChange={(e) => { setEmail(e.target.value); clearOverlap(); }}
+            />
+            <input
+              aria-label={t("form.phone")}
+              type="tel"
+              autoComplete="off"
+              maxLength={30}
+              value={phone}
+              placeholder={t("form.phone")}
+              className={cn(fieldClass, "h-9")}
+              onChange={(e) => { setPhone(e.target.value); clearOverlap(); }}
             />
             <textarea
               aria-label={t("form.note")}

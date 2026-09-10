@@ -33,16 +33,16 @@ export async function listClientOptions(): Promise<ClientOption[]> {
 
 export async function getClient(
   id: string,
-): Promise<{ id: string; name: string; email: string | null; createdAt: string } | null> {
+): Promise<{ id: string; name: string; email: string | null; phone: string | null; createdAt: string } | null> {
   const supabase = await createSupabase();
   const { data, error } = await supabase
     .from("clients")
-    .select("id, name, email, created_at")
+    .select("id, name, email, phone, created_at")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
   return data
-    ? { id: data.id, name: data.name, email: data.email, createdAt: data.created_at }
+    ? { id: data.id, name: data.name, email: data.email, phone: data.phone, createdAt: data.created_at }
     : null;
 }
 
@@ -103,6 +103,7 @@ export type ClientDirectoryRow = {
   id: string;
   name: string;
   email: string | null;
+  phone: string | null;
   bookingCount: number;
 };
 
@@ -111,13 +112,14 @@ export async function listClientsDirectory(): Promise<ClientDirectoryRow[]> {
   const supabase = await createSupabase();
   const { data, error } = await supabase
     .from("clients")
-    .select("id, name, email, bookings(count)")
+    .select("id, name, email, phone, bookings(count)")
     .order("name");
   if (error) throw error;
   type Row = {
     id: string;
     name: string;
     email: string | null;
+    phone: string | null;
     bookings: { count: number }[];
   };
   return ((data ?? []) as unknown as Row[])
@@ -125,6 +127,7 @@ export async function listClientsDirectory(): Promise<ClientDirectoryRow[]> {
       id: c.id,
       name: c.name,
       email: c.email,
+      phone: c.phone,
       bookingCount: c.bookings[0]?.count ?? 0,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));

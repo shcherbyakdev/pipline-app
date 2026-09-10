@@ -9,6 +9,7 @@ import {
   schedulingSettingsInput,
   getSlotsInput,
   createBookingInput,
+  normalizePhone,
   manageTokenInput,
   rescheduleBookingInput,
   adminSlotsInput,
@@ -222,6 +223,27 @@ describe("public inputs", () => {
         email: "not-an-email",
       }).success,
     ).toBe(false);
+  });
+  it("createBookingInput takes either contact and leaves requiring one to the RPC (0086)", () => {
+    const base = {
+      handle: "demo-studio",
+      serviceId: "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+      startsAt: "2027-03-01T10:00:00.000Z",
+      name: "Jamie",
+    };
+    // An untouched field arrives as "" and reads as "not given".
+    const r = createBookingInput.safeParse({ ...base, email: "", phone: " +48 600-123 456 " });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data).toMatchObject({ email: undefined, phone: "+48 600-123 456" });
+    expect(createBookingInput.safeParse({ ...base, email: "", phone: "" }).success).toBe(true);
+    for (const phone of ["12", "abc", "+48 600 123 456 ext 9", "(22) 123 45 67"]) {
+      expect(createBookingInput.safeParse({ ...base, phone }).success, phone).toBe(false);
+    }
+  });
+  it("normalizePhone is the TS twin of the SQL stored form", () => {
+    expect(normalizePhone(" +48 600-123 456 ")).toBe("+48600123456");
+    expect(normalizePhone("600 123 456")).toBe("600123456");
+    for (const bad of ["", null, "1 - -", "+48+600", "1".repeat(21)]) expect(normalizePhone(bad), String(bad)).toBeNull();
   });
 });
 

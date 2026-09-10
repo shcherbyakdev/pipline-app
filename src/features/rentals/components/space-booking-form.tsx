@@ -224,6 +224,7 @@ export function SpaceBookingForm({
 
   function submit(formData: FormData) {
     const email = String(formData.get("email") ?? "").trim();
+    const phone = String(formData.get("phone") ?? "").trim();
     const name = String(formData.get("name") ?? "");
     const note = String(formData.get("note") ?? "") || undefined;
 
@@ -238,6 +239,7 @@ export function SpaceBookingForm({
           durationMin,
           name,
           email: email || undefined,
+          phone: phone || undefined,
           note,
         });
         if (!result.ok) {
@@ -274,6 +276,7 @@ export function SpaceBookingForm({
         endDate: end,
         name,
         email: email || undefined,
+        phone: phone || undefined,
         note,
       });
       if (!result.ok) {
@@ -390,7 +393,7 @@ export function SpaceBookingForm({
                 value={effectiveHourUnitId}
                 onChange={setUnitId}
               />
-              <ClientDetailsFields emailOptional idPrefix="new-rental-hour-" />
+              <ClientDetailsFields optional idPrefix="new-rental-hour-" />
               <Button type="submit" disabled={pending}>
                 {pending ? tCommon("creating") : t("create.button")}
               </Button>
@@ -431,7 +434,7 @@ export function SpaceBookingForm({
                 value={effectiveUnitId}
                 onChange={setUnitId}
               />
-              <ClientDetailsFields emailOptional idPrefix="new-rental-" />
+              <ClientDetailsFields optional idPrefix="new-rental-" />
               <Button type="submit" disabled={pending || !stay?.ok}>
                 {pending ? tCommon("creating") : t("create.button")}
               </Button>

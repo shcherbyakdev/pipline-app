@@ -14,7 +14,8 @@ export type CheckoutInput = {
   amountCents: number;
   currency: string;
   productName: string;
-  customerEmail: string;
+  /** Null for a phone-only booking (0086): Checkout asks for one itself. */
+  customerEmail: string | null;
   successUrl: string;
   cancelUrl: string;
   /** Unix seconds, already clamped by checkoutExpiresAt. */

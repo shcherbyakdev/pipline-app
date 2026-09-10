@@ -12,6 +12,7 @@ import type { RangeAvailability } from "@/features/rentals/range";
 import type { SlotLayout, StayLayout } from "@/lib/widget-theme";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
+import type { ClientContact } from "@/features/orgs/schema";
 import { StaffSwitch } from "@/features/scheduling/components/staff-switch";
 import { staffOffers } from "@/features/scheduling/staff-offers";
 import { RentalBookingFlow } from "@/features/rentals/components/rental-booking-flow";
@@ -49,6 +50,7 @@ export function BookingWidget({
   listOfferings = true,
   layout = "calendar",
   stayLayout = "one-month",
+  clientContact = "email",
 }: {
   handle: string;
   orgTimeZone: string;
@@ -89,6 +91,8 @@ export function BookingWidget({
   layout?: SlotLayout;
   /** How a stay is picked — the stays template (spec §8). */
   stayLayout?: StayLayout;
+  /** Which contact fields the form asks for (orgs.client_contact, 0086). */
+  clientContact?: ClientContact;
 }) {
   const t = useTranslations("public.widget");
   const tu = useTranslations("public.units");
@@ -277,6 +281,7 @@ export function BookingWidget({
         startsAt: slot,
         name: String(formData.get("name") ?? ""),
         email: String(formData.get("email") ?? ""),
+        phone: String(formData.get("phone") ?? ""),
         note: String(formData.get("note") ?? "") || undefined,
       });
       if (result.ok) {
@@ -321,6 +326,7 @@ export function BookingWidget({
         currency={currency}
         onBack={onOfferingBack}
         layout={layout}
+        clientContact={clientContact}
         preview={rentalPreview ? { slots: rentalPreview.slots } : undefined}
       />
     ) : (
@@ -332,6 +338,7 @@ export function BookingWidget({
         currency={currency}
         onBack={onOfferingBack}
         stayLayout={stayLayout}
+        clientContact={clientContact}
         preview={rentalPreview ? { availability: rentalPreview.availability } : undefined}
       />
     );
@@ -345,6 +352,7 @@ export function BookingWidget({
         summary={service && slot ? { title: service.name, whenLine: whenFmt.format(new Date(slot)) } : undefined}
         staffName={doneStaffName}
         pending={donePending}
+        noEmail={clientContact === "phone"}
       />
     );
 
@@ -551,7 +559,7 @@ export function BookingWidget({
               {t("change")}
             </button>
           </div>
-          <ClientDetailsFields />
+          <ClientDetailsFields contact={clientContact} />
           <Button type="submit" size="lg" className="wt-primary mt-1 w-full" disabled={pending || !!preview}>
             {preview
               ? t("preview")

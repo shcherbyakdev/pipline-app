@@ -53,6 +53,7 @@ import {
   rescheduleRentalHoursAdminInput,
 } from "./schema";
 import { getTranslations } from "next-intl/server";
+import { stampBookingPhone } from "@/lib/booking/client-phone";
 import { kickCalendarSync } from "@/features/calendar-sync/run";
 
 // Admin posture (Task 10, the R2 ignoreLimits equivalent): the provider is
@@ -400,6 +401,7 @@ export async function createRentalBookingAdmin(
       if (isTaken(error)) return { ok: false, error: t("datesTaken"), datesTaken: true };
       return fail("createRentalBookingAdmin", error);
     }
+    await stampBookingPhone(bookingId as string, org.id, parsed.data.phone);
     kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
 
     let emailed = false;
@@ -562,6 +564,7 @@ export async function createRentalBookingHoursAdmin(
       if (isTaken(error)) return { ok: false, error: t("slotTaken"), slotTaken: true };
       return fail("createRentalBookingHoursAdmin", error);
     }
+    await stampBookingPhone(bookingId as string, org.id, parsed.data.phone);
     kickCalendarSync(org.id); // Google mirror (spec 2026-09-05 §2.2)
 
     let emailed = false;

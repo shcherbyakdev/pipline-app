@@ -16,6 +16,7 @@ import { StayFields } from "./stay-fields";
 import type { StayLayout } from "@/lib/widget-theme";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
+import type { ClientContact } from "@/features/orgs/schema";
 import { BookingMoneySummary } from "./booking-money-summary";
 import { cn } from "@/lib/utils";
 import { CHANGE_LINK, RECEIPT, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
@@ -31,6 +32,7 @@ export function RentalBookingFlow({
   currency,
   onBack,
   stayLayout = "one-month",
+  clientContact = "email",
   preview,
 }: {
   handle: string;
@@ -40,6 +42,8 @@ export function RentalBookingFlow({
   onBack: (() => void) | null;
   /** How the stay is picked — the stays template (spec §8). */
   stayLayout?: StayLayout;
+  /** Which contact fields the form asks for (orgs.client_contact, 0086). */
+  clientContact?: ClientContact;
   /** Admin live previews: canned availability, never a fetch. */
   preview?: { availability: RangeAvailability };
 }) {
@@ -139,6 +143,7 @@ export function RentalBookingFlow({
         endDate: end,
         name: String(formData.get("name") ?? ""),
         email: String(formData.get("email") ?? ""),
+        phone: String(formData.get("phone") ?? ""),
         note: String(formData.get("note") ?? "") || undefined,
         termsAccepted,
       });
@@ -173,6 +178,7 @@ export function RentalBookingFlow({
         summary={summary ? { title: offering.name, whenLine: summary } : undefined}
         pending={donePending}
         payment={donePayment}
+        noEmail={clientContact === "phone"}
       />
     );
   }
@@ -304,7 +310,7 @@ export function RentalBookingFlow({
               {t("change")}
             </button>
           </div>
-          <ClientDetailsFields idPrefix="rental-" />
+          <ClientDetailsFields contact={clientContact} idPrefix="rental-" />
           <BookingMoneySummary
             offering={offering}
             currency={currency}

@@ -19,6 +19,8 @@ export type SyncBooking = {
   endsAt: string;
   clientName: string;
   clientEmail: string | null;
+  /** 0086; optional so older callers and fixtures need no change. */
+  clientPhone?: string | null;
   note: string | null;
   /** Service name, or the space · unit title (bookingTitle). */
   title: string;
@@ -44,7 +46,7 @@ export function bookingIdFromEventId(eventId: string): string | null {
 
 export function buildEventBody(b: SyncBooking, appUrl: string, opts: { inviteClient?: boolean } = {}): GoogleEventBody {
   const day = dateInZone(new Date(b.startsAt), b.timeZone);
-  const lines = [b.clientEmail, b.note].filter((x): x is string => Boolean(x));
+  const lines = [b.clientEmail, b.clientPhone, b.note].filter((x): x is string => Boolean(x));
   if (lines.length) lines.push("");
   lines.push("Booked through Booklo", `${appUrl}/bookings?date=${day}`);
   const guest = opts.inviteClient && b.clientEmail ? [{ email: b.clientEmail, displayName: b.clientName }] : [];

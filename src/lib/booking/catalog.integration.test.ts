@@ -51,7 +51,7 @@ const { listPublicCatalog } = await import("./catalog");
 async function bookingOrgFromDb(handle: string): Promise<BookingOrg> {
   const { data, error } = await admin
     .from("orgs")
-    .select("id, name, timezone, offers_appointments, offers_rentals, currency, locale")
+    .select("id, name, timezone, offers_appointments, offers_rentals, currency, locale, client_contact")
     .eq("handle", handle)
     .single();
   if (error) throw error;
@@ -63,6 +63,7 @@ async function bookingOrgFromDb(handle: string): Promise<BookingOrg> {
     offersAppointments: data.offers_appointments,
     offersRentals: data.offers_rentals,
     currency: data.currency,
+    clientContact: data.client_contact,
   };
 }
 

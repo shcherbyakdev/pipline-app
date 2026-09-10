@@ -123,7 +123,7 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
       org_timezone: string;
       service_name: string;
       client_name: string;
-      client_email: string;
+      client_email: string | null;
       starts_at: string;
       // 0037: cancel_booking also returns the stay's far end + unit, so the
       // cancellation email can render a range for rentals.
@@ -209,7 +209,8 @@ export async function cancelBooking(input: unknown): Promise<ActionState> {
         // opt out and it did (emailBadgeUrl swallows its own errors).
         badgeUrl: await emailBadgeUrl(row.org_id),
       });
-      await selectTransport().send({
+      // A phone-only booking (0086) has nobody to write to.
+      if (row.client_email) await selectTransport().send({
         to: row.client_email,
         subject: msg.subject,
         html: msg.html,
@@ -318,7 +319,7 @@ export async function rescheduleBooking(
       org_timezone: string;
       service_name: string;
       client_name: string;
-      client_email: string;
+      client_email: string | null;
       old_starts_at: string;
       new_starts_at: string;
       // 0041: the move keeps the original staff member; both come back so the
@@ -357,7 +358,8 @@ export async function rescheduleBooking(
         staffName,
         badgeUrl: await emailBadgeUrl(row.org_id),
       });
-      await selectTransport().send({
+      // A phone-only booking (0086) has nobody to write to.
+      if (row.client_email) await selectTransport().send({
         to: row.client_email,
         subject: msg.subject,
         html: msg.html,

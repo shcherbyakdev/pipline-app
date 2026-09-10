@@ -39,7 +39,7 @@ export async function renderChannelPage({
   const [branding, doc] = await Promise.all([getOrgBranding(org.orgId), getPublishedPage(org.orgId, channel)]);
   const theme = parseWidgetTheme(branding.pageThemeRaw);
   const ctx: RenderContext = {
-    org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency },
+    org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency, clientContact: org.clientContact },
     branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
     theme, services: offering.services, staff: offering.staff, serviceStaffIds: offering.serviceStaffIds, offerings, lockedStaff: null,
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public", crossLink: null,

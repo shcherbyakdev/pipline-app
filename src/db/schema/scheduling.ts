@@ -188,6 +188,10 @@ export const bookings = pgTable(
     clientName: text("client_name").notNull(),
     // nullable since admin walk-ins (calendar slice)
     clientEmail: text("client_email"),
+    // 0086: digits with an optional leading '+', as normalised by
+    // client_contact_phone. Required by the public RPCs iff the org collects
+    // phones (orgs.client_contact); carried across reschedules by trigger.
+    clientPhone: text("client_phone"),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     // 'confirmed' | 'pending' | 'pending_payment' | 'declined' | 'expired' |

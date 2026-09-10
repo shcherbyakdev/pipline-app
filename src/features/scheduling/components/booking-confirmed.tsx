@@ -16,6 +16,7 @@ export function BookingConfirmed({
   staffName,
   pending,
   payment,
+  noEmail = false,
 }: {
   token: string;
   summary?: { title: string; whenLine: string };
@@ -28,6 +29,9 @@ export function BookingConfirmed({
   /** S2 (0079): a HOLD — the slot is reserved until `until`, and `amount` is
       what has to be paid to confirm it. */
   payment?: { until: string; amount: string } | null;
+  /** The org collects phones only (0086): no mail is coming, so the copy
+      must not promise one — the link below is the client's only access. */
+  noEmail?: boolean;
 }) {
   const t = useTranslations("public.confirmed");
   const locale = useLocale();
@@ -50,7 +54,11 @@ export function BookingConfirmed({
           ) : null}
           {staffName ? <p className="mt-0.5 text-sm">{t("with", { name: staffName })}</p> : null}
           <p className="text-muted-foreground mt-1.5 text-sm text-pretty">
-            {payment ? t("payBody", { amount: payment.amount }) : pending ? t("pendingBody") : t("confirmedBody")}
+            {payment
+              ? t("payBody", { amount: payment.amount })
+              : pending
+                ? t(noEmail ? "pendingBodyNoEmail" : "pendingBody")
+                : t(noEmail ? "confirmedBodyNoEmail" : "confirmedBody")}
           </p>
         </div>
       </div>

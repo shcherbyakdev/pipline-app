@@ -1,4 +1,5 @@
 import type { PublicOffering, PublicService, PublicStaff } from "@/lib/booking/public";
+import type { ClientContact } from "@/features/orgs/schema";
 import type { WidgetThemeConfig } from "@/lib/widget-theme";
 import type { SectionType } from "../schema";
 
@@ -19,7 +20,7 @@ export type PreviewChrome = {
 /** Everything a section may need — and nothing a client component can't
     receive from a server one (plain data only, no functions). */
 export type RenderContext = {
-  org: { orgId: string; orgName: string; handle: string; timeZone: string; currency: string };
+  org: { orgId: string; orgName: string; handle: string; timeZone: string; currency: string; clientContact: ClientContact };
   branding: { accentColor: string | null; logoUrl: string | null };
   /** Parsed widget theme; the booking section nests its own WidgetTheme with it. */
   theme: WidgetThemeConfig;

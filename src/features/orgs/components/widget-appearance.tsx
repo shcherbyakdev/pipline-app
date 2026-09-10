@@ -23,6 +23,7 @@ import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import type { EmbedTitles } from "./widget-embed-snippet";
 import { PREVIEW_AVAILABILITY } from "@/features/rentals/preview-availability";
 import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
+import type { ClientContact } from "@/features/orgs/schema";
 
 type Tab = "code" | "style";
 const TABS: readonly Tab[] = ["code", "style"];
@@ -40,6 +41,7 @@ export function WidgetAppearance({
   previewMessages,
   orgLocale,
   orgTimeZone,
+  clientContact,
   initial,
   accentColor,
   handle,
@@ -61,6 +63,8 @@ export function WidgetAppearance({
   previewMessages: Record<Locale, AbstractIntlMessages>;
   orgLocale: Locale;
   orgTimeZone: string;
+  /** What the form asks the client for (Settings → Business), so the preview matches the live embed. */
+  clientContact: ClientContact;
   initial: WidgetThemeConfig;
   accentColor: string | null;
   handle: string | null;
@@ -191,6 +195,7 @@ export function WidgetAppearance({
                 handle="preview"
                 orgTimeZone={orgTimeZone}
                 currency={currency}
+                clientContact={clientContact}
                 layout={resolveLayout(previewConfig)}
                 stayLayout={resolveStayLayout(previewConfig)}
                 services={preview.services}

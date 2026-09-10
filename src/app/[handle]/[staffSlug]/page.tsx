@@ -79,7 +79,7 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
   const theme = parseWidgetTheme(branding.pageThemeRaw);
   const initialServiceId = resolveInitialService(services, sp.service);
   const ctx: RenderContext = {
-    org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency },
+    org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency, clientContact: org.clientContact },
     branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
     theme, services,
     // No serviceStaffIds: the map is only needed to filter a staff step this

@@ -68,4 +68,10 @@ export const surfaceThemeInput = z.object({ surface: z.enum(SURFACES), theme: wi
 
 export const updateOrgModesInput = z.object({ mode: z.enum(ORG_MODES) });
 
+/** What the public form asks the client for (orgs.client_contact, 0086). */
+export const CLIENT_CONTACTS = ["email", "phone", "both"] as const;
+export type ClientContact = (typeof CLIENT_CONTACTS)[number];
+export const clientContactSchema = z.enum(CLIENT_CONTACTS);
+export const updateOrgClientContactInput = z.object({ value: clientContactSchema });
+
 export { GENERIC_WRITE_ERROR, type ActionState } from "@/lib/actions";

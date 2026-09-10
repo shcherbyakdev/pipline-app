@@ -49,9 +49,18 @@ export default async function ClientDetailPage({ params }: PageProps<"/clients/[
           >
             {client.email}
           </a>
-        ) : (
+        ) : null}
+        {client.phone ? (
+          <a
+            href={`tel:${client.phone}`}
+            className="text-muted-foreground hover:text-foreground w-fit px-3 text-sm hover:underline"
+          >
+            {client.phone}
+          </a>
+        ) : null}
+        {!client.email && !client.phone ? (
           <p className="text-muted-foreground px-3 text-sm">{t("detail.noEmail")}</p>
-        )}
+        ) : null}
       </div>
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">

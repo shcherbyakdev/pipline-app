@@ -18,6 +18,7 @@ import { firstDayBeyond, firstLookDays, homeWindow, windowAround, type SlotWindo
 import type { SlotLayout } from "@/lib/widget-theme";
 import { BookingConfirmed } from "@/features/scheduling/components/booking-confirmed";
 import { ClientDetailsFields } from "@/features/scheduling/components/client-details-fields";
+import type { ClientContact } from "@/features/orgs/schema";
 import { BookingMoneySummary } from "./booking-money-summary";
 import { cn } from "@/lib/utils";
 import { CHANGE_LINK, CHIP, RECEIPT, ROW, ROW_LIST, STEP_LABEL } from "@/features/booking-page/render/type";
@@ -45,6 +46,7 @@ export function HourlyBookingFlow({
   currency,
   onBack,
   layout = "calendar",
+  clientContact = "email",
   preview,
 }: {
   handle: string;
@@ -54,6 +56,8 @@ export function HourlyBookingFlow({
   onBack: (() => void) | null;
   /** How start times are shown — shared with the appointment widget (spec §8). */
   layout?: SlotLayout;
+  /** Which contact fields the form asks for (orgs.client_contact, 0086). */
+  clientContact?: ClientContact;
   /** Admin live previews: canned start times, never a fetch. */
   preview?: { slots: string[] };
 }) {
@@ -236,6 +240,7 @@ export function HourlyBookingFlow({
         durationMin,
         name: String(formData.get("name") ?? ""),
         email: String(formData.get("email") ?? ""),
+        phone: String(formData.get("phone") ?? ""),
         note: String(formData.get("note") ?? "") || undefined,
         termsAccepted,
         people,
@@ -327,7 +332,15 @@ export function HourlyBookingFlow({
             ),
           }
         : undefined;
-    return <BookingConfirmed token={doneToken} summary={summary} pending={donePending} payment={donePayment} />;
+    return (
+      <BookingConfirmed
+        token={doneToken}
+        summary={summary}
+        pending={donePending}
+        payment={donePayment}
+        noEmail={clientContact === "phone"}
+      />
+    );
   }
 
   return (
@@ -472,7 +485,7 @@ export function HourlyBookingFlow({
               {t("change")}
             </button>
           </div>
-          <ClientDetailsFields idPrefix="hourly-" />
+          <ClientDetailsFields contact={clientContact} idPrefix="hourly-" />
           {hourly.pricing?.people ? (
             <div className="flex items-center justify-between gap-3">
               <span className={STEP_LABEL}>

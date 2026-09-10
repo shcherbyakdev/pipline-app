@@ -178,7 +178,7 @@ export async function createBooking(
   if (!parsed.success) return publicError(orgLocale, "generic");
   // getBookingOrg is memoised per request: the loaders below re-use this read.
   orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
-  const { handle, serviceId, startsAt, name, email, note, staffId } = parsed.data;
+  const { handle, serviceId, startsAt, name, email, phone, note, staffId } = parsed.data;
 
   try {
     const starts = new Date(startsAt);
@@ -214,7 +214,10 @@ export async function createBooking(
       p_service_id: serviceId,
       p_starts_at: starts.toISOString(),
       p_name: name,
-      p_email: email,
+      // Either may be null; the RPC requires whichever orgs.client_contact
+      // names (0086) and returns 'not found' otherwise, like any bad input.
+      p_email: email ?? null,
+      p_phone: phone ?? null,
       p_note: note ?? null,
       p_token_hash: tokenHash,
       // A named person, or null + the engine's free set for the DB to rank
@@ -301,7 +304,9 @@ export async function createBooking(
             // resolveClientStaffName above: the booking is already committed).
             badgeUrl: await emailBadgeUrl(ctx.org.orgId),
           });
-      await selectTransport().send({
+      // No address (a phone-only org, 0086): the confirmed panel is the
+      // client's only copy, and it says so.
+      if (email) await selectTransport().send({
         to: email,
         subject: msg.subject,
         html: msg.html,
@@ -324,7 +329,8 @@ export async function createBooking(
       event: isPending ? "newRequest" : "newBooking",
       serviceName: ctx.service.name,
       clientName: name,
-      clientEmail: email,
+      clientEmail: email ?? null,
+      clientPhone: phone ?? null,
       whenLine,
       staffName,
       note: note ?? null,

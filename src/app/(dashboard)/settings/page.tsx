@@ -6,6 +6,7 @@ import { listOfferings } from "@/features/rentals/queries";
 import { AppearanceSettings } from "@/features/orgs/components/appearance-settings";
 import { LanguageSettings } from "@/features/orgs/components/language-settings";
 import { BusinessSettings } from "@/features/orgs/components/business-settings";
+import { ClientContactSettings } from "@/features/orgs/components/client-contact-settings";
 import { PageIntro } from "@/components/shell/page-header";
 
 /* Settings = the admin panel (per-user Interface prefs) plus one org-level
@@ -30,6 +31,7 @@ export default async function SettingsPage() {
       <div className="flex flex-col gap-3">
         <h2 className="text-muted-foreground text-sm font-medium">{t("sections.business")}</h2>
         <BusinessSettings mode={mode} locked={locked} />
+        <ClientContactSettings value={org.clientContact} />
       </div>
     </div>
   );

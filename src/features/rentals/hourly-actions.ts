@@ -196,7 +196,7 @@ export async function createRentalBookingHours(
   if (!parsed.success) return publicError(orgLocale, "generic");
   // getBookingOrg is memoised per request: the loaders below re-use this read.
   orgLocale = () => getBookingOrg(parsed.data.handle).then((o) => o?.locale ?? null);
-  const { handle, offeringId, unitId, startsAt, durationMin, name, email, note, termsAccepted, people, extras, equipment } =
+  const { handle, offeringId, unitId, startsAt, durationMin, name, email, phone, note, termsAccepted, people, extras, equipment } =
     parsed.data;
 
   try {
@@ -246,7 +246,10 @@ export async function createRentalBookingHours(
         p_starts_at: starts.toISOString(),
         p_duration_min: durationMin,
         p_name: name,
-        p_email: email,
+        // Either may be null; the RPC requires whichever orgs.client_contact
+        // names (0086).
+        p_email: email ?? null,
+        p_phone: phone ?? null,
         p_note: note ?? null,
         p_token_hash: tokenHash,
         p_people: people,
@@ -399,7 +402,9 @@ export async function createRentalBookingHours(
               badgeUrl: await emailBadgeUrl(ctx.org.orgId),
               infoLines: clientInfoLines,
             });
-      await selectTransport().send({
+      // No address (a phone-only org, 0086): the confirmed panel is the
+      // client's only copy — it carries the pay and manage links itself.
+      if (email) await selectTransport().send({
         to: email,
         subject: msg.subject,
         html: msg.html,
@@ -426,7 +431,8 @@ export async function createRentalBookingHours(
         event: isPending ? "newRequest" : "newBooking",
         serviceName,
         clientName: name,
-        clientEmail: email,
+        clientEmail: email ?? null,
+        clientPhone: phone ?? null,
         whenLine,
         note: note ?? null,
         infoLines,

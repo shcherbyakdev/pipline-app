@@ -21,7 +21,7 @@ type BookingRow = {
   hold_expires_at: string | null;
   deposit_cents: number | null;
   currency: string | null;
-  client_email: string;
+  client_email: string | null;
   starts_at: string;
   ends_at: string;
   rental_unit_id: string | null;

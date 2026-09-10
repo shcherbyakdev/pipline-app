@@ -236,6 +236,7 @@ export function BookingPageBuilder({
       handle: previewHandle,
       timeZone: scheduling.timezone,
       currency: scheduling.currency,
+      clientContact: scheduling.clientContact,
     },
     branding: { accentColor: accent, logoUrl: branding.logoUrl },
     theme: previewTheme,

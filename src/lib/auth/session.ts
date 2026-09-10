@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath } from "@/lib/auth/next-path";
+import { clientContactSchema, type ClientContact } from "@/features/orgs/schema";
 
 // Always validate against the Auth server with getUser() — never getSession().
 export async function getOptionalUser(): Promise<User | null> {
@@ -31,6 +32,8 @@ export type Org = {
   slug: string;
   offersAppointments: boolean;
   offersRentals: boolean;
+  /** What the public form asks clients for (0086). */
+  clientContact: ClientContact;
 };
 
 export async function getCurrentOrg(): Promise<Org | null> {
@@ -40,7 +43,7 @@ export async function getCurrentOrg(): Promise<Org | null> {
   // pick is the floor should that ever change.
   const { data, error } = await supabase
     .from("orgs")
-    .select("id, name, slug, offers_appointments, offers_rentals")
+    .select("id, name, slug, offers_appointments, offers_rentals, client_contact")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -52,6 +55,7 @@ export async function getCurrentOrg(): Promise<Org | null> {
     slug: data.slug,
     offersAppointments: data.offers_appointments,
     offersRentals: data.offers_rentals,
+    clientContact: clientContactSchema.catch("email").parse(data.client_contact),
   };
 }
 
