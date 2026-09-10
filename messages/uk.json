@@ -907,8 +907,6 @@
       "surcharges": "{count, plural, one {# надбавка} few {# надбавки} many {# надбавок} other {# надбавки}}",
       "people": "{count} осіб у вартості",
       "extras": "{count, plural, one {# додаток} few {# додатки} many {# додатків} other {# додатка}}",
-      "approval": "Потрібне підтвердження",
-      "instant": "Підтвердження одразу",
       "deposit": "завдаток {amount}",
       "depositFull": "Повна оплата наперед",
       "noDeposit": "Без завдатку",

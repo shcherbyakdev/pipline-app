@@ -44,7 +44,7 @@ export function priceSummary(o: OfferingRow, currency: string, t: SpacesT, tu: U
 }
 
 export function rulesSummary(o: OfferingRow, currency: string, t: SpacesT, tu: UnitsT): string {
-  const parts: string[] = [t(o.requiresApproval ? "summary.approval" : "summary.instant")];
+  const parts: string[] = [];
   switch (o.depositType) {
     case "fixed":
       parts.push(t("summary.deposit", { amount: formatMoney(o.depositValue ?? 0, currency) }));

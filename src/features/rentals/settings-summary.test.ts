@@ -63,7 +63,7 @@ describe("priceSummary", () => {
 
 describe("rulesSummary", () => {
   it("reads the defaults as one calm line", () => {
-    expect(rulesSummary(hourly, "PLN", t, tu)).toBe("Instant confirmation · No deposit · Free cancellation · up to 180 days ahead");
+    expect(rulesSummary(hourly, "PLN", t, tu)).toBe("No deposit · Free cancellation · up to 180 days ahead");
   });
   it("names every rule that is set", () => {
     const strict: OfferingRow = {
@@ -72,7 +72,7 @@ describe("rulesSummary", () => {
       minNoticeMin: 120, unitCount: 3, unitSelection: "client_picks", termsText: "No smoking",
     };
     expect(rulesSummary(strict, "PLN", t, tu)).toBe(
-      "Approval required · 30% deposit · 2 cancellation tiers · at least 2 hours ahead · up to 180 days ahead · Client picks the unit · Terms attached",
+      "30% deposit · 2 cancellation tiers · at least 2 hours ahead · up to 180 days ahead · Client picks the unit · Terms attached",
     );
     expect(rulesSummary({ ...hourly, depositType: "fixed", depositValue: 5000 }, "PLN", t, tu)).toContain(`${zl(5000)} deposit`);
     expect(rulesSummary({ ...stay, minNoticeDays: 2 }, "PLN", t, tu)).toContain("at least 2 days ahead");

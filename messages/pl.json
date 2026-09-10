@@ -907,8 +907,6 @@
       "surcharges": "{count, plural, one {# dopłata} few {# dopłaty} many {# dopłat} other {# dopłaty}}",
       "people": "{count} os. w cenie",
       "extras": "{count, plural, one {# dodatek} few {# dodatki} many {# dodatków} other {# dodatku}}",
-      "approval": "Wymaga zatwierdzenia",
-      "instant": "Potwierdzenie od razu",
       "deposit": "zaliczka {amount}",
       "depositFull": "Płatne z góry w całości",
       "noDeposit": "Bez zaliczki",

@@ -907,8 +907,6 @@
       "surcharges": "{count, plural, one {# surcharge} other {# surcharges}}",
       "people": "{count} people included",
       "extras": "{count, plural, one {# extra} other {# extras}}",
-      "approval": "Approval required",
-      "instant": "Instant confirmation",
       "deposit": "{amount} deposit",
       "depositFull": "Paid in full",
       "noDeposit": "No deposit",

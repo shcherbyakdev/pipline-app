@@ -25,7 +25,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input, nativeSelectClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { TIME_OPTIONS } from "@/features/scheduling/time-options";
@@ -84,8 +83,10 @@ function Suffixed({ suffix, children }: { suffix: string; children: React.ReactN
    rows — Booking, Price, Booking rules — each closed by default and
    summarising what is saved; open one to change it. Step, min/max and
    deposit type/value are checked together, so this stays one form with one
-   Save. `kind` is a fact of the row (set at create, never edited) and only
-   picks the render branch: equipment answers one question — how much. */
+   Save. Active and Require approval are the rail's own switches
+   (space-toggles.tsx), not fields here. `kind` is a fact of the row (set at
+   create, never edited) and only picks the render branch: equipment
+   answers one question — how much. */
 export function OfferingForm({
   offering,
   currency,
@@ -132,10 +133,6 @@ export function OfferingForm({
   // Controlled so the deposit-value input's semantics (amount vs. percent)
   // and its very presence (none/full take no value) track the select live.
   const [depositType, setDepositType] = React.useState<DepositType>(offering.depositType);
-  // A controlled switch (the one checked-control idiom, ui/switch.tsx) —
-  // Base UI's Switch is a button, so the value travels in state, not FormData.
-  const [requiresApproval, setRequiresApproval] = React.useState(offering.requiresApproval);
-
   const kind = offering.kind;
   const isEquipment = kind === "equipment";
   const effectiveRangeMode: RangeMode = kind === "space" ? rangeMode : "hours";
@@ -170,10 +167,11 @@ export function OfferingForm({
     const common = {
       bookingWindowDays: Number(fd.get("bookingWindowDays")),
       unitSelection: String(fd.get("unitSelection") ?? "auto"),
-      // The header's switch owns this; the settings save carries it along
-      // unchanged (the schema would default an absent flag to true).
+      // The rail's switches own these two (space-toggles.tsx); the settings
+      // save carries them along unchanged from the live row — the schema
+      // would default an absent `active` to true.
       active: offering.active,
-      requiresApproval,
+      requiresApproval: offering.requiresApproval,
       priceCents: price === "" ? null : Math.round(Number(price) * 100),
       pricingMode: String(fd.get("pricingMode") ?? "per_unit"),
       depositType,
@@ -470,13 +468,6 @@ export function OfferingForm({
 
         {isEquipment ? null : (
           <Section title={t("form.section.rules")} summary={rulesSummary(offering, currency, t, tu)}>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex flex-col">
-                <Label htmlFor="offering-requires-approval">{t("form.requireApproval")}</Label>
-                <span className="text-muted-foreground text-xs">{t("form.requireApprovalHint")}</span>
-              </div>
-              <Switch id="offering-requires-approval" checked={requiresApproval} onCheckedChange={setRequiresApproval} />
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="offering-deposit-type">{t("form.deposit")}</Label>
@@ -500,6 +491,7 @@ export function OfferingForm({
                     id="offering-deposit-value"
                     name="depositValue"
                     type="number"
+                    required
                     min={0}
                     step="0.01"
                     defaultValue={seed.depositType === "fixed" && seed.depositValue != null ? seed.depositValue / 100 : ""}
@@ -512,6 +504,7 @@ export function OfferingForm({
                     id="offering-deposit-value"
                     name="depositValue"
                     type="number"
+                    required
                     min={1}
                     max={100}
                     defaultValue={seed.depositType === "percent" && seed.depositValue != null ? seed.depositValue : ""}
