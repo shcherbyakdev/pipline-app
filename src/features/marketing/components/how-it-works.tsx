@@ -4,7 +4,7 @@ import * as React from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { House01Icon } from "@hugeicons/core-free-icons";
 import { ArrowRight, Check, Clock, Copy, Inbox, Layers, Package, Wallet } from "lucide-react";
-import { HOW_LABEL, HOW_STEPS } from "@/features/marketing/site";
+import { HOW_HEADING, HOW_LABEL, HOW_STEPS, HOW_SUB } from "@/features/marketing/site";
 import { cn } from "@/lib/utils";
 
 /* How it works (semaloop.com-referenced, 2026-09-09): an ink panel pinned
@@ -76,13 +76,19 @@ export function HowItWorks({ host }: { host: string }) {
   const panel = React.useRef<HTMLDivElement>(null);
   useGrowRatios(panel);
   return (
-    <section aria-labelledby="how-label" className="how relative mx-auto w-full max-w-6xl px-4 pt-24 sm:px-8 sm:pt-32">
+    <section aria-labelledby="how-heading" className="how relative mx-auto w-full max-w-6xl px-4 pt-24 sm:px-8 sm:pt-32">
+      {/* the section's words, above the pinned panel: they scroll away as
+          the ink arrives */}
+      <div className="mx-auto mb-10 max-w-[38rem] text-center sm:mb-14">
+        <h2 id="how-heading" className="text-foreground text-[28px] leading-[1.15] font-medium tracking-[-0.02em] text-balance sm:text-[36px]">
+          {HOW_HEADING}
+        </h2>
+        <p className="text-muted-foreground mt-4 text-[17px] leading-relaxed text-balance">{HOW_SUB}</p>
+      </div>
       <div ref={panel} className="how-panel text-primary-foreground sticky top-20 isolate flex h-[min(640px,calc(100dvh-112px))] flex-col p-5 sm:top-24 sm:p-8 md:p-10">
         <div aria-hidden="true" className="how-bg" />
         <div className="flex items-baseline justify-between text-[14px]">
-          <h2 id="how-label" className="font-medium">
-            {HOW_LABEL}
-          </h2>
+          <p className="font-medium">{HOW_LABEL}</p>
           <p className="text-primary-foreground/50 tabular-nums">
             {String(beat + 1).padStart(2, "0")} / {String(HOW_STEPS.length).padStart(2, "0")}
           </p>

@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { ArrowRight, CalendarClock, Languages, Layers, Link2, Receipt, Sunrise, Tag, Wallet, type LucideIcon } from "lucide-react";
-import { CTA, FEATURES, FEATURES_LABEL, SITE, type FeatureIcon } from "@/features/marketing/site";
+import { CLOSING, CTA, FEATURES, FEATURES_HEADING, FEATURES_LABEL, FEATURES_SUB, SITE, type FeatureIcon } from "@/features/marketing/site";
 import { marketingButton } from "./marketing-button";
 import { RevealSection } from "./reveal";
 
-/* What it does, under the product: a small label, then eight lines in two
-   columns, each a small glyph beside a title and one sentence, hairlines
-   between rows, then the one action with the early-access note beside
-   it. No boxes. The label, the lines and the action enter the way the
+/* What it does, under the product: a small label, the heading and its
+   sub, then eight lines in two columns, each a small glyph beside a title
+   and one sentence, hairlines between rows, then the page's last words
+   and the one action with the early-access note beside it. No boxes. The label, the lines and the action enter the way the
    hero copy does (fade, a little rise, focus), 60ms apart, once the
    section scrolls into view. */
 const ROW_MS = 60;
@@ -24,11 +24,15 @@ const ICON: Record<FeatureIcon, LucideIcon> = {
 
 export function Features() {
   return (
-    <RevealSection aria-labelledby="features-label" className="mx-auto w-full max-w-[48rem] px-5 pt-24 pb-24 sm:px-8 sm:pt-32 sm:pb-32">
-      <h2 id="features-label" className="animate-fade-up text-foreground text-[14px] font-medium">
-        {FEATURES_LABEL}
+    <RevealSection aria-labelledby="features-heading" className="mx-auto w-full max-w-[48rem] px-5 pt-24 pb-24 sm:px-8 sm:pt-32 sm:pb-32">
+      <p className="animate-fade-up text-muted-foreground text-[14px] font-medium">{FEATURES_LABEL}</p>
+      <h2 id="features-heading" className="animate-fade-up text-foreground mt-3 text-[28px] leading-[1.15] font-medium tracking-[-0.02em] text-balance sm:text-[36px]">
+        {FEATURES_HEADING}
       </h2>
-      <ul className="border-border mt-6 grid border-t sm:grid-cols-2 sm:gap-x-14">
+      <p className="animate-fade-up text-muted-foreground mt-4 max-w-[34rem] text-[17px] leading-relaxed text-balance [animation-delay:60ms]">
+        {FEATURES_SUB}
+      </p>
+      <ul className="border-border mt-10 grid border-t sm:grid-cols-2 sm:gap-x-14">
         {FEATURES.map((f, i) => {
           const Icon = ICON[f.icon];
           return (
@@ -46,17 +50,19 @@ export function Features() {
           );
         })}
       </ul>
-      {/* the closing action, with room around it: the page ends on this */}
-      <p
-        className="animate-fade-up mt-14 flex flex-wrap items-center gap-x-5 gap-y-3 sm:mt-16"
-        style={{ animationDelay: `${(FEATURES.length + 1) * ROW_MS}ms` }}
-      >
-        <Link href={SITE.links.signup} className={marketingButton("primary", "lg")}>
-          {CTA.getStarted}
-          <ArrowRight className="size-4" strokeWidth={2} aria-hidden="true" />
-        </Link>
-        <span className="text-muted-foreground text-[15px]">{SITE.heroNote}</span>
-      </p>
+      {/* the page's last words and the closing action, with room around
+          them: the page ends on this */}
+      <div className="animate-fade-up mt-20 sm:mt-28" style={{ animationDelay: `${(FEATURES.length + 1) * ROW_MS}ms` }}>
+        <h2 className="text-foreground text-[28px] leading-[1.15] font-medium tracking-[-0.02em] text-balance sm:text-[36px]">{CLOSING.heading}</h2>
+        <p className="text-muted-foreground mt-4 max-w-[34rem] text-[17px] leading-relaxed text-balance">{CLOSING.sub}</p>
+        <p className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
+          <Link href={SITE.links.signup} className={marketingButton("primary", "lg")}>
+            {CTA.createPage}
+            <ArrowRight className="size-4" strokeWidth={2} aria-hidden="true" />
+          </Link>
+          <span className="text-muted-foreground text-[15px]">{SITE.heroNote}</span>
+        </p>
+      </div>
     </RevealSection>
   );
 }

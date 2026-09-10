@@ -7,22 +7,24 @@ import { SPACES } from "@/features/orgs/vocab";
 
 const BILLING_ON = FLAG_DEFAULTS.billing; // no org on the marketing site: the environment default, by design
 
-/* The landing sells Booklo to multi-room photo and content studios (roadmap
-   2026-09-07, S9). It is one hero (interfacecraft.dev-referenced,
-   2026-09-09): the title, the sub, the claim bar and the product. The
-   appointments channel runs but is not marketed. */
+/* The landing sells Booklo to studio owners and landlords: people who rent
+   out spaces and equipment (copy 2026-09-10). It is one hero
+   (interfacecraft.dev-referenced, 2026-09-09): the eyebrow, the title, the
+   sub, the claim bar and the product. The appointments channel runs but is
+   not marketed. */
 export const SITE = {
   name: "Booklo",
-  tagline: "Booking software for multi-room studios",
+  // The page title's suffix and the hero's eyebrow.
+  tagline: "Booking software for studio owners and landlords",
   description:
-    "Booklo is booking software for photo and content studios with more than one room. Clients book rooms, the whole studio or shared gear from one page. Booklo works out the price from your rules, takes the deposit, handles changes and overtime, and shows you what needs attention each morning.",
-  headline: "Studio bookings, settled.",
+    "Booklo is booking software for studio owners and landlords. Clients book your spaces and equipment online. Booklo calculates prices using your rates, collects deposits, and keeps booking changes and extra charges together.",
+  headline: "Your spaces, bookings, and payments. In one place.",
   subheadline:
-    "Clients book a room, the whole studio or gear. Booklo works out the price, takes the deposit and handles changes.",
+    "Let clients book your spaces and equipment online. Booklo calculates prices using your rates, collects deposits, and keeps booking changes and extra charges together.",
   // Flag-conditional (lib/flags.ts): while billing is off there IS no paid
   // ladder to contrast a "Free plan" with, and /pricing 404s — so the note
   // says what is actually true today. Flipping the flag flips the copy.
-  heroNote: BILLING_ON ? "Free plan · No credit card" : "Free during early access · No credit card",
+  heroNote: BILLING_ON ? "Free plan · No credit card required" : "Free during early access · No credit card required",
   links: { home: "/", login: "/login", signup: "/signup", pricing: "/pricing", waitlist: "/waitlist" },
 } as const;
 
@@ -30,6 +32,8 @@ export const SITE = {
 export const CTA = {
   login: "Log in",
   getStarted: "Get started",
+  /** The page's closing action (and what the claim bar does, in full). */
+  createPage: "Create your booking page",
   dashboard: "Dashboard",
 } as const;
 
@@ -62,6 +66,8 @@ export type NavLink = { label: string; href: string };
     small product card for each). */
 export type HowStep = { title: string; body: string };
 export const HOW_LABEL = "How it works";
+export const HOW_HEADING = "Set up your spaces. Share your link. Take bookings.";
+export const HOW_SUB = "Add your spaces, availability, and rates. Clients choose a space and time, then pay a deposit to confirm their booking.";
 export const HOW_STEPS: HowStep[] = [
   { title: "Set up your rooms", body: "Add each room, the whole studio and shared gear. Set prices from your rules: first hour, longer tiers, weekends." },
   { title: "Share your page", body: "Send your link or put the widget on your own site. Clients book with a name and an email." },
@@ -75,6 +81,8 @@ export const HOW_STEPS: HowStep[] = [
 export type FeatureIcon = "price" | "deposit" | "change" | "charge" | "studio" | "morning" | "link" | "language";
 export type Feature = { icon: FeatureIcon; title: string; body: string };
 export const FEATURES_LABEL = "What it does";
+export const FEATURES_HEADING = "Built for renting out spaces";
+export const FEATURES_SUB = "Manage availability, flexible rates, deposits, and booking changes from one place.";
 export const FEATURES: Feature[] = [
   { icon: "price", title: "Prices from your rules", body: "First hour and longer tiers, weekday or weekend, people, extras." },
   { icon: "deposit", title: "Deposits held, then paid", body: "A hold keeps the slot until your deadline. Paid, it's confirmed. Missed, it expires." },
@@ -85,6 +93,12 @@ export const FEATURES: Feature[] = [
   { icon: "link", title: "No client accounts", body: "Clients book from your link or your own site, with a name and an email." },
   { icon: "language", title: "Polish and English", body: "Your page and every client email in the client's language. Your dashboard in yours." },
 ];
+
+/** The page's last words, above the closing action (components/features.tsx). */
+export const CLOSING = {
+  heading: "Turn your spaces into bookable spaces.",
+  sub: "Set your rates and availability, then give clients one link to book.",
+} as const;
 
 /** The footer's one line of links. */
 export const FOOTER_LINKS: NavLink[] = [
