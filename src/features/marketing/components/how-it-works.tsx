@@ -48,20 +48,42 @@ function useGrowRatios(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
+/* Which beat the scroll is on, from the sentinels' geometry: they tile the
+   section at one height each (BEAT_VH), so the first one's box answers it
+   alone — how many of their tops the viewport's middle has passed, clamped
+   to the five. Read on a frame, never per event.
+
+   Geometry rather than an IntersectionObserver on each sentinel (until
+   2026-09-10): that only ever spoke while the middle line was INSIDE a
+   sentinel, so above the section and past its end the panel kept whatever
+   it last showed — and a jump between two such places (back-to-top from
+   the footer) fired no callback at all, leaving the panel on step five for
+   the visitor's whole next pass through it. */
 function useScrollBeat(count: number) {
   const refs = React.useRef<(HTMLElement | null)[]>([]);
   const [beat, setBeat] = React.useState(0);
   React.useEffect(() => {
-    const els = refs.current.filter((el): el is HTMLElement => el !== null);
-    if (els.length === 0) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) if (e.isIntersecting) setBeat(Number((e.target as HTMLElement).dataset.beat));
-      },
-      { rootMargin: "-50% 0px -50% 0px", threshold: 0 },
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      const first = refs.current[0];
+      if (!first) return;
+      const { top, height } = first.getBoundingClientRect();
+      if (height === 0) return;
+      const passed = Math.floor((window.innerHeight / 2 - top) / height);
+      setBeat(Math.min(count - 1, Math.max(0, passed)));
+    };
+    const onFrame = () => {
+      if (frame === 0) frame = requestAnimationFrame(read);
+    };
+    read();
+    window.addEventListener("scroll", onFrame, { passive: true });
+    window.addEventListener("resize", onFrame, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onFrame);
+      window.removeEventListener("resize", onFrame);
+      if (frame !== 0) cancelAnimationFrame(frame);
+    };
   }, [count]);
   const register = (i: number) => (el: HTMLElement | null) => {
     refs.current[i] = el;
