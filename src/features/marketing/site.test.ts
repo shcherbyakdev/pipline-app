@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { SITE, FOOTER_LINKS, FEATURES, FEATURES_LABEL, HOW_LABEL, HOW_STEPS, CTA, COOKIE_NOTICE, CLAIM, ONBOARDING, WELCOME, FORBIDDEN_COPY, PRICING, allInternalHrefs } from "./site";
+import { SITE, FOOTER_LINKS, FEATURES, FEATURES_LABEL, FEATURES_HEADING, FEATURES_SUB, HOW_LABEL, HOW_HEADING, HOW_SUB, HOW_STEPS, CLOSING, CTA, COOKIE_NOTICE, CLAIM, ONBOARDING, WELCOME, FORBIDDEN_COPY, PRICING, allInternalHrefs } from "./site";
 import { PLANS } from "@/lib/billing/plans";
 
 // Route hrefs → the app directory that must exist for them (route groups omitted from URL).
@@ -19,8 +19,9 @@ const ROUTE_DIRS: Record<string, string> = {
 function landingCorpus(): string {
   return [
     SITE.headline, SITE.subheadline, SITE.tagline, SITE.description, SITE.heroNote,
-    FEATURES_LABEL, ...FEATURES.flatMap((f) => [f.title, f.body]),
-    HOW_LABEL, ...HOW_STEPS.flatMap((s) => [s.title, s.body]),
+    FEATURES_LABEL, FEATURES_HEADING, FEATURES_SUB, ...FEATURES.flatMap((f) => [f.title, f.body]),
+    HOW_LABEL, HOW_HEADING, HOW_SUB, ...HOW_STEPS.flatMap((s) => [s.title, s.body]),
+    CLOSING.heading, CLOSING.sub,
     ...FOOTER_LINKS.map((l) => l.label),
     ...Object.values(CTA),
     ...Object.values(CLAIM).map((v) => (typeof v === "function" ? v("x") : v)),
@@ -80,11 +81,14 @@ describe("site config", () => {
     expect(landingCorpus()).not.toMatch(/[—–]/);
   });
 
-  // The page is one hero (2026-09-09): one short title, a sub of at most
-  // twenty words, the claim bar. Nothing else to fit.
-  it("headline is one short line and the sub is at most 20 words", () => {
-    expect(SITE.headline.split(/\s+/).length).toBeLessThanOrEqual(5);
-    expect(SITE.subheadline.split(/\s+/).length).toBeLessThanOrEqual(20);
+  // The page is one hero (2026-09-09): a title of two lines at most, a sub
+  // of one short paragraph (copy 2026-09-10), the claim bar. Nothing else
+  // to fit. Every section heading is one sentence or three short ones.
+  it("headline fits two lines and the sub is one short paragraph", () => {
+    expect(SITE.headline.split(/\s+/).length).toBeLessThanOrEqual(8);
+    expect(SITE.subheadline.split(/\s+/).length).toBeLessThanOrEqual(30);
+    for (const h of [HOW_HEADING, FEATURES_HEADING, CLOSING.heading]) expect(h.split(/\s+/).length, h).toBeLessThanOrEqual(9);
+    for (const s of [HOW_SUB, FEATURES_SUB, CLOSING.sub]) expect(s.split(/\s+/).length, s).toBeLessThanOrEqual(24);
   });
 
   // Rentals-only orgs (welcome-banner.tsx) must not fall back to the

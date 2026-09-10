@@ -8,7 +8,7 @@ import adminWeek from "../images/admin-week.png";
 import publicPhone from "../images/public-phone.png";
 
 /* The page (interfacecraft.dev-referenced, 2026-09-09): a short rule, the
-   title in Inter's display cut entering word by word (Linear's move: fade,
+   eyebrow (who it is for), the title in Inter's display cut entering word by word (Linear's move: fade,
    a little rise, focus), the sub, the one input, then the
    product: the admin's week (a real screenshot, scripts/landing-shots.mjs)
    on the plain ground, rising into view, the live page on a phone leaning
@@ -23,10 +23,11 @@ export function Hero({ host }: { host: string }) {
   return (
     <section aria-labelledby="hero-heading" className="overflow-x-clip">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-5 pt-20 text-center sm:px-8 sm:pt-28">
-        <span aria-hidden="true" className="bg-border animate-fade-up mb-9 h-px w-16" />
+        <span aria-hidden="true" className="bg-border animate-fade-up mb-7 h-px w-16" />
+        <p className="animate-fade-up text-muted-foreground mb-5 text-[14px] font-medium">{SITE.tagline}</p>
         <h1
           id="hero-heading"
-          className="text-foreground max-w-[14ch] text-[40px] leading-[1.08] font-medium tracking-[-0.025em] text-balance sm:text-[50px]"
+          className="text-foreground max-w-[24ch] text-[40px] leading-[1.08] font-medium tracking-[-0.025em] text-balance sm:text-[50px]"
         >
           {words.map((w, i) => (
             <React.Fragment key={i}>
@@ -37,7 +38,7 @@ export function Hero({ host }: { host: string }) {
             </React.Fragment>
           ))}
         </h1>
-        <p className="animate-fade-up text-muted-foreground mt-5 max-w-[30rem] text-[17px] leading-relaxed text-balance [animation-delay:260ms]">
+        <p className="animate-fade-up text-muted-foreground mt-5 max-w-[34rem] text-[17px] leading-relaxed text-balance [animation-delay:260ms]">
           {SITE.subheadline}
         </p>
         <HeroClaim host={host} className="animate-fade-up mt-8 w-full max-w-[440px] text-left [animation-delay:340ms]" />
