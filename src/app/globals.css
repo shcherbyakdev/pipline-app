@@ -763,14 +763,20 @@
   }
 }
 /* How it works (components/how-it-works.tsx): the ink layer under the
-   pinned panel grows as the panel arrives, scrubbed by the section's view
-   timeline over the last 440px before it pins (the section's top runs
-   from 440px down the viewport to 16px above it, where the sticky top
-   meets the section's padding), from the content's box to --sx/--sy
-   (measured by the component: the viewport less a margin). Transform
-   only, so the scrub never leaves the compositor; without scroll-driven
-   animations, or under reduced motion, the ink is simply the panel. */
-.marketing .how { view-timeline: --how block; }
+   pinned panel grows as the panel arrives, scrubbed by the TRACK's view
+   timeline (the panel plus the scroll it eats — never the whole section,
+   whose top moves with the words above it) over the last 440px before the
+   panel pins: its top runs from 520px down the viewport to the sticky top
+   at 80px. It grows from the content's box to --sx/--sy (measured by the
+   component: the viewport less a margin). Transform only, so the scrub
+   never leaves the compositor; without scroll-driven animations, or under
+   reduced motion, the ink is simply the panel. */
+.marketing .how-track { view-timeline: --how block; }
+/* The words above the panel must clear the ink: it grows symmetrically, so
+   its top edge rises (viewport - 112px - panel height) / 2 above the
+   panel's own box — (100dvh - 752px) / 2 once the panel is at its 640px
+   cap. Margin, not padding: the timeline above measures the border box. */
+.marketing .how-track { margin-top: max(3.5rem, calc((100dvh - 752px) / 2)); }
 .marketing .how-bg {
   position: absolute;
   inset: 0;
@@ -782,7 +788,7 @@
   .marketing .how-bg {
     animation: how-grow linear both;
     animation-timeline: --how;
-    animation-range: entry calc(100vh - 440px) entry calc(100vh + 16px);
+    animation-range: entry calc(100vh - 520px) entry calc(100vh - 80px);
   }
 }
 @keyframes how-grow {
