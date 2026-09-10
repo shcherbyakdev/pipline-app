@@ -909,7 +909,8 @@
       "notice": "at least {lead} ahead",
       "window": "up to {count} days ahead",
       "clientPicks": "Client picks the unit",
-      "terms": "Terms attached"
+      "terms": "Terms attached",
+      "blackouts": "{count, plural, one {# blocked range} other {# blocked ranges}}"
     }
   },
   "appointments": {

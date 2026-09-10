@@ -17,6 +17,7 @@ import {
   addBlackout,
   deleteBlackout,
 } from "@/features/rentals/actions";
+import { SettingsSection } from "./settings-section";
 import type { UnitRow, BlackoutRow } from "@/features/rentals/queries";
 import { INTL_LOCALES } from "@/i18n/config";
 
@@ -52,13 +53,19 @@ export function UnitsEditor({
   // opens the editor too — its Active checkbox is the only way back.
   const sole = units.length === 1 && units[0].active ? units[0] : undefined;
   const [split, setSplit] = React.useState(sole === undefined);
+  // One row of the space page's settings list (offering-form.tsx `after`):
+  // most spaces never open it, so closed it only says what is blocked.
   if (!split && sole) {
     return (
-      <section className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-sm font-semibold">{t("units.blackouts.title")}</h2>
-          <p className="text-muted-foreground text-xs">{t("blackoutsHint")}</p>
-        </div>
+      <SettingsSection
+        title={t("units.blackouts.title")}
+        summary={
+          sole.blackouts.length === 0
+            ? t("units.blackouts.none")
+            : t("summary.blackouts", { count: sole.blackouts.length })
+        }
+      >
+        <p className="text-muted-foreground text-xs">{t("blackoutsHint")}</p>
         <div className="flex flex-col gap-2">
           <UnitBlackouts offeringId={offeringId} unit={sole} />
         </div>
@@ -69,15 +76,12 @@ export function UnitsEditor({
         >
           {t("splitIntoUnits")}
         </button>
-      </section>
+      </SettingsSection>
     );
   }
   return (
-    <section className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-sm font-semibold">{t("units.title")}</h2>
-        <p className="text-muted-foreground text-xs">{t("unitsHint")}</p>
-      </div>
+    <SettingsSection title={t("units.title")} summary={t("list.unitCount", { count: units.length })}>
+      <p className="text-muted-foreground text-xs">{t("unitsHint")}</p>
 
       <AddUnitForm offeringId={offeringId} />
 
@@ -101,7 +105,7 @@ export function UnitsEditor({
           ))}
         </ol>
       )}
-    </section>
+    </SettingsSection>
   );
 }
 

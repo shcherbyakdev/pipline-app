@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { toastRefusal } from "@/features/billing/refusal-toast";
 import { updateOffering } from "@/features/rentals/actions";
@@ -30,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TIME_OPTIONS } from "@/features/scheduling/time-options";
 import { TimeCombobox } from "@/features/scheduling/components/time-combobox";
 import { PricingRulesEditor } from "./pricing-rules-editor";
+import { SettingsSection as Section } from "./settings-section";
 import { CancelPolicyEditor } from "./cancel-policy-editor";
 
 const selectClass = nativeSelectClass;
@@ -49,24 +49,7 @@ function TimeField({ id, name, label, defaultValue }: { id: string; name: string
 }
 
 const INCREMENT_OPTIONS = [15, 30, 60];
-
-/* One settings row: closed, it reads its saved values as a sentence; open,
-   it is the editor. Native <details>, so closed fields stay in the DOM and
-   FormData still submits them (the one-form-one-Save contract below). */
-function Section({ title, summary, children }: { title: string; summary: string; children: React.ReactNode }) {
-  return (
-    <details className="group">
-      <summary className="flex cursor-pointer list-none items-center gap-3 py-3 select-none [&::-webkit-details-marker]:hidden">
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-sm font-medium">{title}</span>
-          <span className="text-muted-foreground text-xs">{summary}</span>
-        </span>
-        <ChevronRight aria-hidden className="text-muted-foreground size-3.5 shrink-0 transition-transform group-open:rotate-90" />
-      </summary>
-      <div className="flex flex-col gap-4 pt-2 pb-5">{children}</div>
-    </details>
-  );
-}
+const FORM_ID = "space-settings-form";
 
 /** A number input followed by its unit, so the row reads as a sentence. */
 function Suffixed({ suffix, children }: { suffix: string; children: React.ReactNode }) {
@@ -91,12 +74,17 @@ export function OfferingForm({
   offering,
   currency,
   rooms,
+  after,
 }: {
   offering: OfferingRow;
   currency: string;
   /** S6: the org's hourly rooms a composite can include — plain spaces
       only (no nesting), never the composite itself. */
   rooms: { id: string; name: string }[];
+  /** Rows that belong to the same list but save on their own (the units /
+      unavailable-dates row, which carries forms of its own): rendered after
+      this form's rows and before its Save, outside the <form> element. */
+  after?: React.ReactNode;
 }) {
   const t = useTranslations("spaces");
   const tc = useTranslations("common");
@@ -281,8 +269,9 @@ export function OfferingForm({
     mode === "hours" ? t("form.perHour") : mode === "nights" ? t("form.perNight") : t("form.perDay");
 
   return (
-    <form onSubmit={onSubmit} onInvalidCapture={onInvalid} className="flex max-w-lg flex-col">
-      <div className="divide-y border-y">
+    <div className="flex max-w-lg flex-col">
+      {/* The Save sits after `after`'s rows, so it points at the form by id. */}
+      <form id={FORM_ID} onSubmit={onSubmit} onInvalidCapture={onInvalid} className="divide-y border-y">
         {/* Equipment is bought by the item, not booked by the hour: it rides
             a room booking, so none of the schedule applies to it (the
             payload fills the defaults). */}
@@ -559,12 +548,13 @@ export function OfferingForm({
             </div>
           </Section>
         )}
-      </div>
+      </form>
+      {after ? <div className="divide-y border-b">{after}</div> : null}
       <div className="mt-4">
-        <Button type="submit" size="sm" variant="brand" disabled={pending}>
+        <Button type="submit" form={FORM_ID} size="sm" variant="brand" disabled={pending}>
           {pending ? tc("saving") : tc("save")}
         </Button>
       </div>
-    </form>
+    </div>
   );
 }

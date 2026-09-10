@@ -24,9 +24,10 @@ import { env } from "@/env";
 
 /* One space, laid out like a team member's page (main column + rail): the
    header edits itself in place (name, description), then the settings as
-   three closed rows (one Save — its fields validate together), then the
-   dates it can't be booked (and units, once split). Its bookings are the
-   timeline's job (the rail links there, filtered to this space). The rail
+   closed rows — three that the one Save covers (its fields validate
+   together) and a fourth, the dates it can't be booked (units, once
+   split), that saves on its own. Its bookings are the timeline's job (the
+   rail links there, filtered to this space). The rail
    also carries the space's own switches (active, approval — each saves as
    it flips), the week's hours (hourly spaces) and the ways out, delete
    included. */
@@ -114,14 +115,11 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
             rooms={offerings
               .filter((o) => o.id !== offering.id && o.rangeMode === "hours" && o.kind === "space")
               .map(({ id: roomId, name }) => ({ id: roomId, name }))}
+            // S6: a composite IS one unit — it holds every room it includes,
+            // so there is nothing here to split or black out on its own.
+            after={offering.kind === "composite" ? null : <UnitsEditor offeringId={offering.id} units={units} />}
           />
         </section>
-
-        {/* S6: a composite IS one unit — it holds every room it includes, so
-            there is nothing here to split or black out on its own. */}
-        {offering.kind === "composite" ? null : (
-          <UnitsEditor offeringId={offering.id} units={units} />
-        )}
       </div>
 
       {/* The overview page's rail: beside the column on lg, after it below. */}

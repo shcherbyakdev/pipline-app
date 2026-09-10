@@ -909,7 +909,8 @@
       "notice": "najpóźniej {lead} przed",
       "window": "do {count} dni przed",
       "clientPicks": "Klient wybiera jednostkę",
-      "terms": "Z regulaminem"
+      "terms": "Z regulaminem",
+      "blackouts": "{count, plural, one {# zablokowany termin} few {# zablokowane terminy} many {# zablokowanych terminów} other {# zablokowanego terminu}}"
     }
   },
   "appointments": {
