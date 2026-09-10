@@ -6,12 +6,17 @@
 // module semantics), so import it dynamically instead.
 process.env.NEXT_PUBLIC_SUPABASE_URL ??= "http://127.0.0.1:54351";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= "test-anon-key";
+// checkoutParams resolves a price id through env (priceIdFor).
+process.env.STRIPE_PRICE_PRO_MONTH ??= "price_pro_month";
+process.env.STRIPE_PRICE_PRO_YEAR ??= "price_pro_year";
+process.env.STRIPE_PRICE_TEAM_MONTH ??= "price_team_month";
+process.env.STRIPE_PRICE_TEAM_YEAR ??= "price_team_year";
 
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Stripe from "stripe";
-const { mapStripeStatus, planFromPriceId, normalizeStripeEvent, orgIdFromMetadata, isDiscountRejection, withOptionalDiscount } =
+const { mapStripeStatus, planFromPriceId, normalizeStripeEvent, orgIdFromMetadata, isDiscountRejection, withOptionalDiscount, checkoutParams } =
   await import("./stripe");
 import type { PriceMap } from "./stripe";
 import { TEAM_INCLUDED_RESOURCES } from "./plans";
@@ -68,6 +73,27 @@ describe("normalizeStripeEvent", () => {
   it("cancel_at_period_end stays active with the flag", () => {
     const e = normalizeStripeEvent(subEvent("customer.subscription.updated", { cancel_at_period_end: true }) as never, priceMap)!;
     expect(e.subscription).toMatchObject({ status: "active", cancelAtPeriodEnd: true });
+  });
+  // What the Customer Portal actually sends (test-mode walk 2026-09-10): the
+  // cancellation is a DATE, and the old flag stays false. Read only the flag
+  // and someone who has just cancelled is told their plan renews.
+  it("a dated cancel_at counts as cancelled even with the flag false", () => {
+    const e = normalizeStripeEvent(
+      subEvent("customer.subscription.updated", { cancel_at_period_end: false, cancel_at: 1_820_000_000 }) as never,
+      priceMap,
+    )!;
+    expect(e.subscription).toMatchObject({ status: "active", cancelAtPeriodEnd: true });
+  });
+
+  // A cancellation can be scheduled for any date, not only the renewal — and
+  // the copy that reads this says "ends on".
+  it("the end date is the cancellation date, not the renewal date", () => {
+    const midPeriod = 1_788_000_000; // before the fixture's period end
+    const e = normalizeStripeEvent(
+      subEvent("customer.subscription.updated", { cancel_at: midPeriod }) as never,
+      priceMap,
+    )!;
+    expect(e.subscription?.currentPeriodEnd).toBe(new Date(midPeriod * 1000).toISOString());
   });
   it("a LIVE subscription on an unknown price throws, so the provider retries instead of considering it delivered", () => {
     // Returning `subscription: null` here used to record the event with
@@ -152,6 +178,37 @@ describe("normalizeStripeEvent", () => {
     expect(e.type).toBe("subscription_updated");
     expect(e.orgId).toBe(ORG);
     expect(e.subscription).toMatchObject({ plan: "team", interval: "month", seats: TEAM_INCLUDED_RESOURCES, status: "active" });
+  });
+});
+
+describe("checkoutParams", () => {
+  const base = {
+    orgId: ORG, plan: "pro", interval: "month", email: "owner@example.com",
+    returnUrl: "https://booklo.co/billing?checkout=success", cancelUrl: "https://booklo.co/billing",
+  } as const;
+
+  // Stripe refuses a session carrying both, EVEN with the flag false — and
+  // the flag was false, so every Founder checkout was rejected, retried at
+  // list price, and told the member the promo had ended (test-mode walk
+  // 2026-09-10). Omitting it is the same as false.
+  it("never carries allow_promotion_codes, which Stripe refuses next to a discount", () => {
+    expect(checkoutParams(base)).not.toHaveProperty("allow_promotion_codes");
+  });
+
+  it("hands over an existing customer on a resubscribe, never both customer and email", () => {
+    const resubscribe = checkoutParams({ ...base, providerCustomerId: "cus_1" });
+    expect(resubscribe).toMatchObject({ customer: "cus_1" });
+    expect(resubscribe).not.toHaveProperty("customer_email");
+    expect(checkoutParams(base)).toMatchObject({ customer_email: "owner@example.com" });
+  });
+
+  it("carries the org on both the session and the subscription, and sells through Managed Payments", () => {
+    expect(checkoutParams(base)).toMatchObject({
+      mode: "subscription",
+      metadata: { org_id: ORG },
+      subscription_data: { metadata: { org_id: ORG } },
+      managed_payments: { enabled: true },
+    });
   });
 });
 
