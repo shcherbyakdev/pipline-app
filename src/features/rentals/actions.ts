@@ -251,7 +251,7 @@ export async function createOffering(input: unknown): Promise<ActionState> {
   }
   revalidatePath("/rentals");
   revalidatePath("/availability");
-  return notice ? { ok: true, notice } : { ok: true };
+  return notice ? { ok: true, notice, id: data.id } : { ok: true, id: data.id };
 }
 
 export async function updateOffering(input: unknown): Promise<ActionState> {

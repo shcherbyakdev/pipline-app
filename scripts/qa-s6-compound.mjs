@@ -154,25 +154,20 @@ async function login(page) {
 
 /** Creates one space through /rentals/new and returns its id (from the list row). */
 async function createSpace(page, { kind, name, price, rangeMode, components = [], itemCount }) {
-  await page.goto(`${BASE}/rentals/new`, { waitUntil: "domcontentloaded" });
+  // The kind rides the URL (the list's New menu); the form asks only name,
+  // how it's booked, price — and lands on the new space's page.
+  await page.goto(`${BASE}/rentals/new${kind === "space" ? "" : `?kind=${kind}`}`, { waitUntil: "domcontentloaded" });
   await page.locator('input[name="name"]').waitFor({ state: "visible" });
   await page.locator('input[name="name"]').fill(name);
-  if (kind !== "space") await page.locator(`[role="radio"][data-kind="${kind}"]`).click();
-  if (kind === "space") await page.locator("#offering-range-mode").selectOption(rangeMode);
+  if (kind === "space") await page.locator(`input[name="rangeMode"][value="${rangeMode}"]`).check({ force: true });
   for (const room of components) {
     await page.locator("label").filter({ hasText: room }).locator('[role="checkbox"]').click();
   }
   await page.locator("#offering-price").fill(String(price));
   if (itemCount !== undefined) await page.locator("#offering-item-count").fill(String(itemCount));
   await page.getByRole("button", { name: "Create space" }).click();
-  await page.waitForURL(/\/rentals(\?|$)/, { timeout: 60_000 });
-  return findSpaceId(page, name);
-}
-
-async function findSpaceId(page, name) {
-  const href = await page.locator(`a[href^="/rentals/"]`).filter({ hasText: name }).first().getAttribute("href");
-  assert(href, `"${name}" is not in the spaces list`);
-  return href.split("/").pop();
+  await page.waitForURL(/\/rentals\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+  return page.url().split("/").pop();
 }
 
 /** The row of /rentals for one space, as text (badges included). */

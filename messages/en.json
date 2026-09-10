@@ -738,16 +738,19 @@
       "delete": "Delete space"
     },
     "form": {
-      "namePlaceholder": "Space name",
+      "namePlaceholder": {
+        "space": "Space name",
+        "composite": "Package name",
+        "equipment": "Equipment name"
+      },
       "description": "Description",
       "descriptionPlaceholder": "Add a description…",
       "section": {
-        "session": "Session",
-        "stay": "Stay",
-        "pricing": "Pricing"
+        "booking": "Booking",
+        "price": "Price",
+        "rules": "Booking rules"
       },
       "kind": {
-        "label": "What is it?",
         "space": "Room",
         "spaceHint": "A room or item clients book on its own",
         "composite": "Whole studio",
@@ -761,31 +764,24 @@
       "itemCount": "How many items",
       "perBooking": "Per booking",
       "bookedBy": "Booked by",
-      "mode": {
-        "nights": "Nightly (check-in → check-out)",
-        "days": "Daily (pickup → return)",
-        "hours": "Hourly (booked by the hour)"
-      },
-      "slotIncrement": "Slot increment",
-      "minDuration": "Min duration (min)",
-      "maxDuration": "Max duration (min)",
-      "turnoverMinutes": "Turnover (minutes)",
+      "slotIncrement": "Time slots",
+      "minDuration": "Shortest booking",
+      "maxDuration": "Longest booking",
+      "turnoverMinutes": "Gap between bookings",
       "startTime": "Start time",
       "endTime": "End time",
       "minStay": "Min stay",
       "maxStay": "Max stay",
       "unlimited": "Unlimited",
-      "turnoverDays": "Turnover (days)",
+      "turnoverDays": "Days between stays",
       "price": "Price ({currency})",
       "unpriced": "Unpriced",
-      "pricingMode": "Pricing mode",
       "perHour": "Per hour",
       "perNight": "Per night",
       "perDay": "Per day",
       "flat": "Flat per booking",
       "requireApproval": "Require approval",
       "requireApprovalHint": "New bookings wait for your confirmation instead of confirming instantly.",
-      "rules": "Deposit, cancellation & booking rules",
       "deposit": "Deposit",
       "depositNone": "No deposit",
       "depositFixed": "Fixed amount",
@@ -806,12 +802,11 @@
       "tierUpToStart": "up to the start",
       "cancelPolicyInvalid": "Check the cancellation tiers: each lead must be unique (and at most 366 days).",
       "terms": "Terms",
-      "minNoticeMinutes": "Min notice (minutes)",
-      "minNoticeDays": "Min notice (days)",
-      "bookingWindow": "Booking window (days)",
-      "unitSelection": "Unit selection",
-      "unitAuto": "Assign a unit automatically",
-      "unitClientPicks": "Let the client pick a unit",
+      "minNoticeDays": "days ahead",
+      "bookingWindow": "Book up to",
+      "unitSelection": "Who picks the unit",
+      "unitAuto": "Assign automatically",
+      "unitClientPicks": "The client chooses",
       "pricing": {
         "useRules": "Rates by length, surcharges and extras",
         "useRulesHint": "Instead of one price per hour. The price is worked out for each booking and shown before the client confirms.",
@@ -859,7 +854,19 @@
         }
       },
       "create": "Create space",
-      "created": "Space created"
+      "created": "Space created",
+      "modeHint": {
+        "hours": "Sessions by the hour",
+        "nights": "Check-in to check-out",
+        "days": "Pickup to return"
+      },
+      "noGap": "No gap",
+      "chargedPer": "Charged per",
+      "minNotice": "Book at least",
+      "noMinimum": "No minimum",
+      "ahead": "{lead} ahead",
+      "daysAhead": "days ahead",
+      "lengthOrder": "The longest booking must be at least the shortest."
     },
     "units": {
       "title": "Units",
@@ -886,6 +893,31 @@
         "freed": "Dates freed up",
         "removeAria": "Remove unavailable dates {range}"
       }
+    },
+    "newTitle": {
+      "space": "New space",
+      "composite": "New whole studio",
+      "equipment": "New equipment"
+    },
+    "summary": {
+      "gap": "{gap} gap",
+      "minStay": "min {length}",
+      "maxStay": "max {length}",
+      "byLength": "{count, plural, one {# rate} other {# rates}} by length",
+      "surcharges": "{count, plural, one {# surcharge} other {# surcharges}}",
+      "people": "{count} people included",
+      "extras": "{count, plural, one {# extra} other {# extras}}",
+      "approval": "Approval required",
+      "instant": "Instant confirmation",
+      "deposit": "{amount} deposit",
+      "depositFull": "Paid in full",
+      "noDeposit": "No deposit",
+      "freeCancel": "Free cancellation",
+      "cancelTiers": "{count, plural, one {# cancellation tier} other {# cancellation tiers}}",
+      "notice": "at least {lead} ahead",
+      "window": "up to {count} days ahead",
+      "clientPicks": "Client picks the unit",
+      "terms": "Terms attached"
     }
   },
   "appointments": {
@@ -2057,20 +2089,38 @@
       "active": "Active — clients can pay deposits online.",
       "restricted": "Stripe has paused payments on this account and needs more information.",
       "openDashboard": "Open Stripe dashboard",
-      "capability": { "card_payments": "Cards", "p24_payments": "Przelewy24", "blik_payments": "BLIK" },
-      "notice": { "return": "Stripe details saved.", "returnIncomplete": "Stripe still needs a few details — continue setup when you're ready.", "error": "Couldn't reach Stripe. Try again in a moment." }
+      "capability": {
+        "card_payments": "Cards",
+        "p24_payments": "Przelewy24",
+        "blik_payments": "BLIK"
+      },
+      "notice": {
+        "return": "Stripe details saved.",
+        "returnIncomplete": "Stripe still needs a few details — continue setup when you're ready.",
+        "error": "Couldn't reach Stripe. Try again in a moment."
+      }
     },
     "hold": {
       "title": "Payment window",
       "blurb": "How long a booking is held for its deposit. Unpaid bookings are released automatically.",
       "label": "Hold for",
-      "options": { "30": "30 minutes", "60": "1 hour", "180": "3 hours", "1440": "24 hours" }
+      "options": {
+        "30": "30 minutes",
+        "60": "1 hour",
+        "180": "3 hours",
+        "1440": "24 hours"
+      }
     },
     "legal": {
       "title": "Business details",
       "blurb": "Shown in the footer of your booking page. Przelewy24 requires them for online payments.",
-      "legalName": "Legal name", "address": "Address", "taxId": "NIP", "regNo": "REGON or KRS",
-      "termsUrl": "Terms link", "privacyUrl": "Privacy policy link", "refundUrl": "Refund policy link"
+      "legalName": "Legal name",
+      "address": "Address",
+      "taxId": "NIP",
+      "regNo": "REGON or KRS",
+      "termsUrl": "Terms link",
+      "privacyUrl": "Privacy policy link",
+      "refundUrl": "Refund policy link"
     },
     "save": "Save",
     "saved": "Saved"

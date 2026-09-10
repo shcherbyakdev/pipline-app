@@ -202,18 +202,18 @@ async function spaceIds(page) {
 }
 
 async function createSpace(page, s) {
-  await page.goto(`${BASE}/rentals/new`, { waitUntil: "domcontentloaded" });
+  // The kind rides the URL; hourly is the form's default; a create lands
+  // on the new space's page (qa-s6-compound.mjs has the same helper).
+  await page.goto(`${BASE}/rentals/new${s.kind === "space" ? "" : `?kind=${s.kind}`}`, { waitUntil: "domcontentloaded" });
   await page.locator('input[name="name"]').waitFor({ state: "visible" });
   await page.locator('input[name="name"]').fill(s.name);
-  if (s.kind !== "space") await page.locator(`[role="radio"][data-kind="${s.kind}"]`).click();
-  if (s.kind === "space") await page.locator("#offering-range-mode").selectOption("hours");
   for (const room of s.components ?? []) {
     await page.locator("label").filter({ hasText: room }).locator('[role="checkbox"]').click();
   }
   await page.locator("#offering-price").fill(String(s.price));
   if (s.itemCount !== undefined) await page.locator("#offering-item-count").fill(String(s.itemCount));
   await page.getByRole("button", { name: "Create space" }).click();
-  await page.waitForURL(/\/rentals(\?|$)/, { timeout: 60_000 });
+  await page.waitForURL(/\/rentals\/[0-9a-f-]{36}$/, { timeout: 60_000 });
 }
 
 async function book(page, ids, b) {

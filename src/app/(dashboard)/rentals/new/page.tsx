@@ -2,13 +2,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { getOrgCurrency, listOfferings } from "@/features/rentals/queries";
-import { OfferingForm } from "@/features/rentals/components/offering-form";
+import { NewSpaceForm } from "@/features/rentals/components/new-space-form";
+import { OFFERING_KINDS, type OfferingKind } from "@/features/rentals/pricing-rules";
 import { requireOrg } from "@/lib/auth/session";
 import { gateHref } from "@/lib/billing/gate-href";
 import { evaluateResourceGate } from "@/lib/billing/gates";
 
-/* A new space, on a page of its own (no dialog on the list). */
-export default async function NewRentalPage() {
+/* A new space, on a page of its own (no dialog on the list). The kind
+   rides the URL (`?kind=composite|equipment`, from the list's New menu):
+   a plain room is the default and never asks. */
+export default async function NewRentalPage({ searchParams }: PageProps<"/rentals/new">) {
+  const { kind: raw } = await searchParams;
+  const kind: OfferingKind = OFFERING_KINDS.find((k) => k === raw) ?? "space";
   const { org } = await requireOrg();
   const [currency, offerings, doorHref, t] = await Promise.all([
     getOrgCurrency(),
@@ -27,9 +32,11 @@ export default async function NewRentalPage() {
         <Link href="/rentals" className="text-muted-foreground w-fit text-xs hover:underline">
           {t("back")}
         </Link>
-        <h1 className="text-lg font-semibold">{t("newButton")}</h1>
+        <h1 className="text-lg font-semibold">{t(`newTitle.${kind}`)}</h1>
+        {kind === "space" ? null : <p className="text-muted-foreground text-sm">{t(`form.kind.${kind}Hint`)}</p>}
       </div>
-      <OfferingForm
+      <NewSpaceForm
+        kind={kind}
         currency={currency}
         rooms={offerings
           .filter((o) => o.rangeMode === "hours" && o.kind === "space")

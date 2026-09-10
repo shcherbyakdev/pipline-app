@@ -93,7 +93,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("createOffering — a space is bookable the moment it exists", () => {
   it("creates the space's first unit, active and named after the space", async () => {
-    expect(await createOffering(space)).toEqual({ ok: true });
+    expect(await createOffering(space)).toEqual({ ok: true, id: "off-1" });
     const unit = state.inserts.find((i) => i.table === "rental_units");
     expect(unit?.row).toEqual({
       org_id: "org-1",
@@ -160,7 +160,7 @@ const hourlySpace = {
 
 describe("createOffering — an hourly space starts with the default week", () => {
   it("seeds Mon–Fri 09:00–17:00 for the new space", async () => {
-    expect(await createOffering(hourlySpace)).toEqual({ ok: true });
+    expect(await createOffering(hourlySpace)).toEqual({ ok: true, id: "off-1" });
     const hours = state.inserts.filter((i) => i.table === "availability_rules");
     expect(hours).toHaveLength(1);
     const rows = hours[0].row as unknown as Array<Record<string, unknown>>;
@@ -183,6 +183,7 @@ describe("createOffering — an hourly space starts with the default week", () =
     state.hoursInsertError = { message: "boom" };
     expect(await createOffering(hourlySpace)).toEqual({
       ok: true,
+      id: "off-1",
       notice: "Saved the space, but couldn't set its default hours — set them on Availability.",
     });
   });
@@ -196,7 +197,7 @@ describe("createOffering — S6 kinds", () => {
   const rooms = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"];
 
   it("writes the kind once, on create", async () => {
-    expect(await createOffering(equipment)).toEqual({ ok: true });
+    expect(await createOffering(equipment)).toEqual({ ok: true, id: "off-1" });
     expect(state.inserts.find((i) => i.table === "rental_offerings")?.row).toMatchObject({
       kind: "equipment",
     });
@@ -217,7 +218,7 @@ describe("createOffering — S6 kinds", () => {
   });
 
   it("a composite links the rooms it includes, and still gets its own week", async () => {
-    expect(await createOffering({ ...hourlySpace, kind: "composite", componentIds: rooms })).toEqual({ ok: true });
+    expect(await createOffering({ ...hourlySpace, kind: "composite", componentIds: rooms })).toEqual({ ok: true, id: "off-1" });
     const links = state.inserts.find((i) => i.table === "rental_offering_components")!
       .row as unknown as Row[];
     expect(links).toEqual(
@@ -227,7 +228,7 @@ describe("createOffering — S6 kinds", () => {
   });
 
   it("a plain hourly space stays exactly as it was — one unit, no links", async () => {
-    expect(await createOffering(hourlySpace)).toEqual({ ok: true });
+    expect(await createOffering(hourlySpace)).toEqual({ ok: true, id: "off-1" });
     expect(state.inserts.find((i) => i.table === "rental_units")?.row).toEqual({
       org_id: "org-1",
       offering_id: "off-1",

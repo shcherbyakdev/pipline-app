@@ -16,6 +16,7 @@ import { headlinePrice } from "@/features/rentals/pricing";
 import { OfferingForm } from "@/features/rentals/components/offering-form";
 import { SpaceHeader } from "@/features/rentals/components/space-header";
 import { DeleteSpaceButton } from "@/features/rentals/components/delete-space-button";
+import { SpaceActiveSwitch } from "@/features/rentals/components/space-active-switch";
 import { UnitsEditor } from "@/features/rentals/components/units-editor";
 import { Badge } from "@/components/ui/badge";
 import { CopyLinkButton } from "@/components/copy-link-button";
@@ -31,9 +32,11 @@ import { INTL_LOCALES } from "@/i18n/config";
 import { env } from "@/env";
 
 /* One space, laid out like a team member's page (main column + rail): the
-   header edits itself in place, units, then the settings form (one Save —
-   its fields validate together), then bookings. The rail carries the
-   week's hours (hourly spaces) and the ways out, delete included. */
+   header edits itself in place (name, description, on/off), then the
+   settings as three closed rows (one Save — its fields validate together),
+   then the dates it can't be booked (and units, once split), then bookings.
+   The rail carries the week's hours (hourly spaces) and the ways out,
+   delete included. */
 export default async function RentalDetailPage({ params }: PageProps<"/rentals/[id]">) {
   const { id } = await params;
   // uuid guard: a malformed id must 404, not crash the PostgREST query
@@ -42,7 +45,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
 
   // One round of reads; only the hours summary waits on the space itself.
   const offeringP = getOffering(id);
-  const [offering, offerings, units, settings, bookings, availability, locale, t, tc, tu, tb, tAvailability] =
+  const [offering, offerings, units, settings, bookings, availability, locale, t, tu, tb, tAvailability] =
     await Promise.all([
       offeringP,
       // S6: the rooms a composite can include — hourly plain spaces, never
@@ -57,7 +60,6 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
       offeringP.then((o) => (o?.rangeMode === "hours" ? getOfferingAvailabilityAdmin(id) : null)),
       getLocale(),
       getTranslations("spaces"),
-      getTranslations("common"),
       getTranslations("public.units"),
       getTranslations("bookings"),
       getTranslations("availability"),
@@ -134,7 +136,6 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
             badges={
               <>
                 <Badge variant="outline">{t(`mode.${offering.rangeMode}`)}</Badge>
-                {!offering.active ? <Badge variant="outline">{tc("inactive")}</Badge> : null}
                 {offering.active && offering.activeUnitCount === 0 ? (
                   <Badge variant="outline">{t("notBookable")}</Badge>
                 ) : null}
@@ -144,6 +145,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
                   </Badge>
                 ) : null}
                 {offering.kind === "equipment" ? <Badge variant="outline">{t("chip.addon")}</Badge> : null}
+                <SpaceActiveSwitch id={offering.id} active={offering.active} />
               </>
             }
           >
@@ -151,13 +153,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
           </SpaceHeader>
         </div>
 
-        {/* S6: a composite IS one unit — it holds every room it includes, so
-            there is nothing here to split or black out on its own. */}
-        {offering.kind === "composite" ? null : (
-          <UnitsEditor offeringId={offering.id} units={units} />
-        )}
-
-        <section aria-labelledby="space-settings" className="flex flex-col gap-4">
+        <section aria-labelledby="space-settings" className="flex flex-col gap-2">
           <h2 id="space-settings" className="text-sm font-medium">
             {t("detail.settings")}
           </h2>
@@ -169,6 +165,12 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
               .map(({ id: roomId, name }) => ({ id: roomId, name }))}
           />
         </section>
+
+        {/* S6: a composite IS one unit — it holds every room it includes, so
+            there is nothing here to split or black out on its own. */}
+        {offering.kind === "composite" ? null : (
+          <UnitsEditor offeringId={offering.id} units={units} />
+        )}
 
         <section aria-labelledby="space-bookings" className="flex flex-col gap-4">
           <h2 id="space-bookings" className="text-sm font-medium">
