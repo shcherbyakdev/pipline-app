@@ -85,7 +85,7 @@ export function stripePaymentsProvider(): PaymentsProvider {
         {
           mode: "payment",
           line_items: [{ quantity: 1, price_data: { currency: input.currency.toLowerCase(), unit_amount: input.amountCents, product_data: { name: input.productName } } }],
-          customer_email: input.customerEmail,
+          customer_email: input.customerEmail ?? undefined,
           expires_at: input.expiresAt,
           success_url: input.successUrl,
           cancel_url: input.cancelUrl,
