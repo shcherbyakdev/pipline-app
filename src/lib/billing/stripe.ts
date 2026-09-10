@@ -67,6 +67,7 @@ export function orgIdFromMetadata(metadata: Record<string, string> | undefined):
 
 type SubLike = {
   id: string; customer: string | { id: string }; status: string; cancel_at_period_end: boolean;
+  cancel_at?: number | null;
   metadata?: Record<string, string>;
   items: { data: Array<{ price: { id: string; metadata?: Record<string, string> }; quantity?: number; current_period_end?: number }> };
 };
@@ -85,7 +86,15 @@ function subscriptionFrom(sub: SubLike, priceMap: PriceMap, forceExpired: boolea
     seats: mapped.plan === "team" ? TEAM_INCLUDED_RESOURCES : 1,
     status: forceExpired ? "expired" : mapStripeStatus(sub.status),
     currentPeriodEnd: item.current_period_end ? new Date(item.current_period_end * 1000).toISOString() : null,
-    cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end),
+    // Stripe says "this plan is ending" two ways, and the Customer Portal
+    // now uses the second: the older `cancel_at_period_end` flag, or a dated
+    // `cancel_at` with that flag left FALSE (test-mode walk 2026-09-10 — a
+    // portal cancellation set cancel_at to the period end and the flag never
+    // moved, so /billing kept saying "renews on" to someone who had just
+    // cancelled). Either one flips the copy in current-plan.tsx. A cancel_at
+    // in the past needs no special case: the subscription is `canceled` by
+    // then, which mapStripeStatus already reads as expired.
+    cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end || sub.cancel_at),
   };
 }
 
