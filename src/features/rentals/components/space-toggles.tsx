@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { toastRefusal } from "@/features/billing/refusal-toast";
 import { patchOffering, setOfferingActive } from "@/features/rentals/actions";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,9 @@ import type { ActionState } from "@/lib/actions";
 /* The space's two on/off properties, in the rail (Linear keeps an issue's
    properties beside it): each saves the moment it flips — the list row's
    switch does the same for Active — and never waits for the settings
-   form's Save. A refusal snaps the switch back with the action's words. */
+   form's Save, so a "Saved" toast says so (a Save button is what people
+   look for otherwise). A refusal snaps the switch back with the action's
+   words. */
 function Toggle({
   id,
   label,
@@ -25,16 +28,19 @@ function Toggle({
   initial: boolean;
   save: (next: boolean) => Promise<ActionState>;
 }) {
+  const tc = useTranslations("common");
   const [on, setOn] = React.useState(initial);
   const [, startTransition] = React.useTransition();
   const onToggle = (next: boolean) => {
     startTransition(async () => {
       setOn(next);
       const result = await save(next);
-      if (!result.ok) {
-        setOn(!next);
-        toastRefusal(result.error, result.upgrade);
+      if (result.ok) {
+        toast.success(tc("saved"));
+        return;
       }
+      setOn(!next);
+      toastRefusal(result.error, result.upgrade);
     });
   };
   return (
