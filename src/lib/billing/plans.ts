@@ -84,8 +84,13 @@ export function pricePerMonth(plan: PaidPlanId, interval: Interval): number {
   return interval === "month" ? PLANS[plan].monthly : PLANS[plan].yearly / 12;
 }
 
-/** Mirrors the Stripe coupon: 33.3 % off Pro monthly, forever. Monthly only —
-    the coupon does not touch the yearly price. */
+/** Mirrors the Stripe coupon: 33.3 % off Pro monthly, forever. Monthly only
+    at CHECKOUT — startCheckout sends the code for pro+month and nothing
+    else. Stripe scopes a coupon to a product, not a price, so a Founder org
+    that switches to Pro yearly in the Customer Portal keeps the discount
+    ($72/yr rather than $108). Known and accepted 2026-09-10: the cohort is
+    capped at 100, and splitting the intervals into separate products to
+    close it would make the portal's own interval switch clumsier. */
 export const FOUNDER_PRICE_FACTOR = 2 / 3;
 
 /** Whole dollars stay whole ($9, not $9.00); anything else keeps its cents.
