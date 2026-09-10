@@ -211,6 +211,34 @@ export async function withOptionalDiscount<T>(
   }
 }
 
+/** The Checkout Session, minus the discount `withOptionalDiscount` adds.
+    Exported so the shape has a test that does not need the network — which
+    is how the rule below is kept: Stripe refuses a session carrying BOTH
+    `allow_promotion_codes` and `discounts` ("You may only specify one of
+    these parameters"), even with the flag set to false. It was set to false,
+    so every Founder checkout was rejected, retried at list price, and told
+    the member the promo had ended — with the code still at 0 redemptions
+    (test-mode walk 2026-09-10). Omitting the flag IS false: customers cannot
+    type a code, and startCheckout applies the Founder one by id. */
+export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCreateParams {
+  return {
+    mode: "subscription",
+    line_items: [{ price: priceIdFor(input.plan, input.interval), quantity: 1 }],
+    client_reference_id: input.orgId,
+    // Stripe rejects `customer` and `customer_email` together, so this is
+    // an either/or: reuse the org's existing customer on a resubscribe,
+    // otherwise let Stripe create one from the member's address.
+    ...(input.providerCustomerId
+      ? { customer: input.providerCustomerId }
+      : { customer_email: input.email }),
+    metadata: { org_id: input.orgId },
+    subscription_data: { metadata: { org_id: input.orgId } },
+    success_url: input.returnUrl,
+    cancel_url: input.cancelUrl,
+    managed_payments: { enabled: true }, // API ≥ 2025-03-31.basil (spec §6/§7.1)
+  };
+}
+
 export function stripeProvider(): BillingProvider {
   if (!env.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY unset");
   const stripe = new Stripe(env.STRIPE_SECRET_KEY);
@@ -218,26 +246,9 @@ export function stripeProvider(): BillingProvider {
   return {
     name: "stripe",
     async createCheckout(input: CheckoutInput): Promise<CheckoutSession> {
-      const params: Stripe.Checkout.SessionCreateParams = {
-        mode: "subscription",
-        line_items: [{ price: priceIdFor(input.plan, input.interval), quantity: 1 }],
-        client_reference_id: input.orgId,
-        // Stripe rejects `customer` and `customer_email` together, so this is
-        // an either/or: reuse the org's existing customer on a resubscribe,
-        // otherwise let Stripe create one from the member's address.
-        ...(input.providerCustomerId
-          ? { customer: input.providerCustomerId }
-          : { customer_email: input.email }),
-        metadata: { org_id: input.orgId },
-        subscription_data: { metadata: { org_id: input.orgId } },
-        success_url: input.returnUrl,
-        cancel_url: input.cancelUrl,
-        allow_promotion_codes: false,
-        managed_payments: { enabled: true }, // API ≥ 2025-03-31.basil (spec §6/§7.1)
-      };
       const { session, founderFallback } = await withOptionalDiscount(
         (p) => stripe.checkout.sessions.create(p),
-        params,
+        checkoutParams(input),
         input.discountCode,
       );
       if (!session.url) throw new Error("stripe: no checkout url");
