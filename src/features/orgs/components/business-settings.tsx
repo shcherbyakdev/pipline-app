@@ -6,16 +6,17 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { updateOrgModes } from "@/features/orgs/actions";
 import { ORG_MODES, type OrgModeChoice } from "@/features/orgs/schema";
-import { cn } from "@/lib/utils";
+import { SettingsPrefRow } from "@/components/settings-row";
+import { SettingsSelect } from "@/components/settings-select";
 
-/** Each channel's card reads its own namespace (`spaces.settings`,
+/** Each channel reads its own namespace (`spaces.settings`,
     `appointments.settings`) — the one place the channel is named for people. */
 const NS: Record<OrgModeChoice, "spaces" | "appointments"> = { rentals: "spaces", appointments: "appointments" };
 
 /* Org-level "what you offer" (Settings → Business): one channel per
-   workspace (0073). A live radio only while the current channel has nothing
+   workspace (0073). A live choice only while the current channel has nothing
    active in it (`locked` — the page counts, update_org_modes enforces);
-   after that, a fixed label. Optimistic: the card flips at once and rolls
+   after that, a fixed label. Optimistic: the row flips at once and rolls
    back on a failed save. */
 export function BusinessSettings({ mode, locked }: { mode: OrgModeChoice; locked: boolean }) {
   const t = useTranslations();
@@ -24,7 +25,6 @@ export function BusinessSettings({ mode, locked }: { mode: OrgModeChoice; locked
   const [pending, startTransition] = React.useTransition();
 
   const pick = (next: OrgModeChoice) => {
-    if (next === value) return;
     const prev = value;
     setValue(next);
     startTransition(async () => {
@@ -40,48 +40,26 @@ export function BusinessSettings({ mode, locked }: { mode: OrgModeChoice; locked
   };
 
   return (
-    <div className="bg-card flex flex-col gap-3 rounded-xl border p-4">
-      <div>
-        <div className="text-sm font-medium">{t("settings.business.title")}</div>
-        <p className="text-muted-foreground text-sm">{t("settings.business.blurb")}</p>
-      </div>
+    <SettingsPrefRow
+      label={t("settings.business.title")}
+      blurb={locked ? t("settings.business.locked") : t("settings.business.blurb")}
+    >
       {locked ? (
-        <div className="flex flex-col gap-2">
-          <div className="rounded-xl border p-3">
-            <div className="text-sm font-medium">{t(`${NS[mode]}.settings.label`)}</div>
-            <div className="text-muted-foreground text-sm">{t(`${NS[mode]}.settings.blurb`)}</div>
-          </div>
-          <p className="text-muted-foreground text-xs">{t("settings.business.locked")}</p>
-        </div>
+        <span className="text-muted-foreground shrink-0 text-sm">{t(`${NS[mode]}.settings.label`)}</span>
       ) : (
-      /* Native radios in label-cards (the onboarding mode step's idiom). */
-      <fieldset className="flex flex-col gap-2" disabled={pending}>
-        <legend className="sr-only">{t("settings.business.title")}</legend>
-        {ORG_MODES.map((choice) => {
-          const selected = value === choice;
-          return (
-            <label
-              key={choice}
-              className={cn(
-                "flex cursor-pointer flex-col gap-0.5 rounded-xl border p-3 transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring/50",
-                selected ? "border-foreground/40 bg-accent" : "hover:bg-accent/60",
-              )}
-            >
-              <input
-                type="radio"
-                name="business-mode"
-                value={choice}
-                className="sr-only"
-                checked={selected}
-                onChange={() => pick(choice)}
-              />
-              <span className="text-sm font-medium">{t(`${NS[choice]}.settings.label`)}</span>
-              <span className="text-muted-foreground text-sm">{t(`${NS[choice]}.settings.blurb`)}</span>
-            </label>
-          );
-        })}
-      </fieldset>
+        <SettingsSelect
+          label={t("settings.business.title")}
+          value={value}
+          busy={pending}
+          disabled={pending}
+          options={ORG_MODES.map((choice) => ({
+            value: choice,
+            label: t(`${NS[choice]}.settings.label`),
+            hint: t(`${NS[choice]}.settings.blurb`),
+          }))}
+          onSelect={pick}
+        />
       )}
-    </div>
+    </SettingsPrefRow>
   );
 }
