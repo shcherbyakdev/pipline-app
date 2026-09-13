@@ -101,6 +101,32 @@ export function formatUsd(amount: number): string {
   return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
 }
 
+/** How a switch settles — product policy, not a Stripe detail, which is why
+    it lives here with the prices it is derived from. Both the update params
+    (lib/billing/stripe.ts) and the line the member reads afterwards
+    (features/billing/actions.ts) come from this one answer. */
+export type SwitchBilling =
+  /** Upgrading: the difference for what's left of the period is invoiced and
+      charged TODAY. Anything else would hand an org a year of Team for a
+      Pro payment made eleven months ago. */
+  | "charge_now"
+  /** Downgrading: the credit rides to the next invoice. We never pay money
+      back out for a plan someone chose to leave. */
+  | "next_invoice"
+  /** Changing the interval: Stripe credits the unused time, charges the new
+      price and resets the billing date, whatever we ask for — so the period
+      simply starts again today. */
+  | "new_period";
+
+export function switchBilling(
+  from: { plan: PaidPlanId; interval: Interval },
+  to: { plan: PaidPlanId; interval: Interval },
+): SwitchBilling {
+  if (from.interval !== to.interval) return "new_period";
+  // Same interval, so the two monthly numbers are directly comparable.
+  return pricePerMonth(to.plan, to.interval) > pricePerMonth(from.plan, from.interval) ? "charge_now" : "next_invoice";
+}
+
 /** Share of the list price the yearly plan saves, e.g. 0.25 → "save 25%". */
 export function yearlySaving(plan: PaidPlanId): number {
   return 1 - PLANS[plan].yearly / (PLANS[plan].monthly * 12);

@@ -13,6 +13,7 @@ import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { loadEnvFile } from "node:process";
 import { createClient } from "@supabase/supabase-js";
+import Stripe from "stripe";
 try { loadEnvFile(".env.local"); } catch {}
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
@@ -34,6 +35,26 @@ const { data: org } = await db.from("orgs").select("id").eq("handle", "demo-stud
 const row = async () => (await db.from("org_subscriptions").select("plan, billing_interval, cancel_at_period_end, status").eq("org_id", org.id).single()).data;
 const before = await row();
 console.log("starting row:", before);
+
+/* Stripe's side of the story. An upgrade must produce a PAID invoice today —
+   that is the whole question "why weren't we charged?" was asking — and a
+   downgrade must produce none, because its credit rides to the next one. */
+const stripe = process.env.BILLING_PROVIDER === "stripe" ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+const subId = async () => (await db.from("org_subscriptions").select("provider_subscription_id").eq("org_id", org.id).single()).data.provider_subscription_id;
+async function invoices() {
+  if (!stripe) return [];
+  return (await stripe.invoices.list({ subscription: await subId(), limit: 5 })).data;
+}
+/** The invoices this switch created, newest first. */
+async function invoicedSince(ids) {
+  const now = await invoices();
+  return now.filter((i) => !ids.has(i.id));
+}
+const idsOf = (list) => new Set(list.map((i) => i.id));
+
+// Pro → Team is the upgrade whichever way round this run starts.
+const other = before.plan === "pro" ? "team" : "pro";
+const label = (p) => (p === "pro" ? "Pro" : "Team");
 
 const results = [];
 const assert = (c, m) => { if (!c) throw new Error(m); };
@@ -70,13 +91,28 @@ await step(1, "the plan card offers cancel and the card form — not a portal bu
   return (await page.getByText(/Renews on|Ends on/).first().innerText());
 });
 
-await step(2, "switch Pro → Team against the Stripe sandbox", async () => {
-  await page.getByRole("button", { name: "Switch to Team" }).click();
-  await page.waitForURL(/changed=plan/, { timeout: 60_000 });
+await step(2, `switch ${label(before.plan)} → ${label(other)} against the Stripe sandbox`, async () => {
+  const seen = idsOf(await invoices());
+  await page.getByRole("button", { name: `Switch to ${label(other)}` }).click();
+  await page.waitForURL(/changed=(charged|credited)/, { timeout: 60_000 });
   const r = await row();
-  assert(r.plan === "team", `row still says ${r.plan}`);
-  await page.screenshot({ path: path.join(OUT, "billing-2-team.png"), fullPage: true });
-  return `row: ${r.plan} / ${r.billing_interval} · page: ${(await page.locator('[role="status"]').first().innerText())}`;
+  assert(r.plan === other, `row still says ${r.plan}`);
+  const fresh = await invoicedSince(seen);
+  if (other === "team") {
+    // The upgrade: invoiced and SETTLED today, not at the renewal. The total
+    // can be 0 when earlier switches left pending credits — this invoice
+    // sweeps them up — so the test is that one exists and is paid, not that
+    // money always moves.
+    assert(fresh.length === 1, `an upgrade created ${fresh.length} invoices`);
+    assert(fresh[0].status === "paid", `invoice is ${fresh[0].status} for ${fresh[0].total}`);
+    assert(page.url().includes("changed=charged"), "the page didn't say it charged");
+  } else {
+    // The downgrade: nothing billed now, the credit waits for the next one.
+    assert(fresh.length === 0, `a downgrade created an invoice: ${fresh[0]?.id}`);
+    assert(page.url().includes("changed=credited"), "the page didn't say it credited");
+  }
+  await page.screenshot({ path: path.join(OUT, "billing-2-switch.png"), fullPage: true });
+  return `row: ${r.plan}/${r.billing_interval} · stripe: ${fresh.length ? `${fresh[0].status} ${fresh[0].total}` : "no invoice"} · page: ${await page.locator('[role="status"]').first().innerText()}`;
 });
 
 await step(3, "cancel asks first, then schedules the end", async () => {
@@ -113,7 +149,7 @@ await step(5, `switch the interval (${before.billing_interval} → ${otherInterv
   await gotoBilling();
   await tab(otherInterval).click();
   await switchInterval(otherInterval).click();
-  await page.waitForURL(/changed=plan/, { timeout: 60_000 });
+  await page.waitForURL(/changed=interval/, { timeout: 60_000 });
   const r = await row();
   assert(r.billing_interval === otherInterval, `row still says ${r.billing_interval}`);
   assert(r.status === "active", `subscription went ${r.status}`);
@@ -128,10 +164,15 @@ await step(6, "switch back to the plan and interval it started on", async () => 
   await gotoBilling();
   await tab(before.billing_interval).click();
   await switchInterval(before.billing_interval).click();
-  await page.waitForURL(/changed=plan/, { timeout: 60_000 });
+  await page.waitForURL(/changed=interval/, { timeout: 60_000 });
   await gotoBilling();
-  await page.getByRole("button", { name: `Switch to ${before.plan === "pro" ? "Pro" : "Team"}` }).click();
-  await page.waitForURL(/changed=plan/, { timeout: 60_000 });
+  const seen = idsOf(await invoices());
+  await page.getByRole("button", { name: `Switch to ${label(before.plan)}` }).click();
+  await page.waitForURL(/changed=(charged|credited)/, { timeout: 60_000 });
+  // The direction not covered by step 2, and the same rule has to hold.
+  const fresh = await invoicedSince(seen);
+  assert(before.plan === "team" ? fresh.length === 1 && fresh[0].status === "paid" : fresh.length === 0,
+    `the way back invoiced ${fresh.length} times (${fresh.map((i) => `${i.status} ${i.total}`).join(", ") || "none"})`);
   const r = await row();
   assert(r.plan === before.plan && r.billing_interval === before.billing_interval, `left on ${r.plan}/${r.billing_interval}`);
   return `back to ${r.plan} / ${r.billing_interval}`;

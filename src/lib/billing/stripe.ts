@@ -1,7 +1,7 @@
 import "server-only";
 import Stripe from "stripe";
 import { env } from "@/env";
-import { TEAM_INCLUDED_RESOURCES, type Interval, type PaidPlanId } from "./plans";
+import { switchBilling, TEAM_INCLUDED_RESOURCES, type Interval, type PaidPlanId } from "./plans";
 import type { SubscriptionStatus } from "./entitlements";
 import type { BillingEvent, BillingProvider, BillingSubscription, CheckoutInput, CheckoutSession, PortalFlow, SubscriptionChange } from "./provider";
 
@@ -268,13 +268,17 @@ export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCre
 
     - A switch replaces the price ON THE EXISTING ITEM — a bare `items: [{
       price }]` would ADD a second item and bill the org for both plans.
-    - `create_prorations` (the default, named here because it is a money
-      decision): the difference lands on the next invoice rather than being
-      charged the moment someone clicks. The exception is Stripe's, not ours
-      — changing the billing INTERVAL always credits the unused time, charges
-      the new price immediately and resets the billing date, which is why the
-      confirmation copy for an interval switch says so and a plan switch's
-      doesn't.
+    - The proration behaviour follows `switchBilling` (plans.ts), because
+      WHEN the money moves is a product decision: an upgrade is invoiced and
+      charged today (`always_invoice` — verified against a real
+      `managed_payments` subscription: accepted, invoice paid), while a
+      downgrade's credit rides to the next invoice (`create_prorations`).
+      An interval change is Stripe's own rule either way — it credits the
+      unused time, charges the new price and resets the billing date.
+
+      A charge that fails does NOT undo the switch: `payment_behavior`
+      defaults to `allow_incomplete`, so the subscription goes `past_due`,
+      the webhook says so, and /billing shows the "update your card" line.
     - Resume clears the DATE, not the flag. Stripe says "this plan is ending"
       two ways — the `cancel_at_period_end` flag and a dated `cancel_at` —
       and refuses a request carrying both ("Received both
@@ -286,15 +290,16 @@ export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCre
       would leave that cancellation standing while our copy said the plan
       renews.
 
-    ponytail: no immediate-charge path (`always_invoice`) and no proration
-    preview — add both together if "you'll be charged $X today" is wanted on
-    the confirmation. */
-export function subscriptionUpdateParams(itemId: string, change: SubscriptionChange): Stripe.SubscriptionUpdateParams {
+    ponytail: no proration preview — add `invoices.createPreview` if the
+    exact "$X today" is wanted on the button rather than the rule in prose. */
+export function subscriptionUpdateParams(
+  itemId: string, change: SubscriptionChange, from: { plan: PaidPlanId; interval: Interval },
+): Stripe.SubscriptionUpdateParams {
   switch (change.kind) {
     case "switch":
       return {
         items: [{ id: itemId, price: priceIdFor(change.plan, change.interval) }],
-        proration_behavior: "create_prorations",
+        proration_behavior: switchBilling(from, change) === "charge_now" ? "always_invoice" : "create_prorations",
       };
     case "cancel":
       return { cancel_at_period_end: true };
@@ -327,7 +332,7 @@ export function stripeProvider(): BillingProvider {
       if (change.kind === "switch" && !itemId) throw new Error(`stripe: ${current.providerSubscriptionId} has no item to switch`);
       const updated = await stripe.subscriptions.update(
         current.providerSubscriptionId,
-        subscriptionUpdateParams(itemId, change),
+        subscriptionUpdateParams(itemId, change, current),
       );
       // Mapped by the same function the webhook normaliser uses, so what we
       // project here and what the delivery projects a second later cannot

@@ -1432,7 +1432,9 @@
   "billing": {
     "intro": "Twój plan i to, co obejmuje. Dane karty podajesz na bezpiecznej stronie dostawcy płatności.",
     "changed": {
-      "plan": "Plan zaktualizowany. Różnicę rozliczymy na następnej fakturze.",
+      "charged": "Plan zaktualizowany — pobraliśmy różnicę za pozostałą część tego okresu.",
+      "credited": "Plan zaktualizowany — różnicę zaliczymy na poczet następnej faktury.",
+      "interval": "Rozliczenie zaktualizowane — okres zaczyna się dziś, a niewykorzystany czas został zaliczony.",
       "cancelled": "Plan nie odnowi się. Możesz go wznowić w każdej chwili przed zakończeniem.",
       "resumed": "Plan znów odnawia się normalnie."
     },
@@ -1506,7 +1508,7 @@
       "switchTo": "Przejdź na {plan}",
       "switchToYearly": "Przejdź na rozliczenie roczne",
       "switchToMonthly": "Przejdź na rozliczenie miesięczne",
-      "switchNote": "Zmiana planu rozlicza różnicę na następnej fakturze. Przejście między rozliczeniem miesięcznym a rocznym obciąża kartę dzisiaj."
+      "switchNote": "Przejście na wyższy plan obciąża kartę dziś, za pozostałą część okresu. Przejście na niższy zaliczamy na następną fakturę, a zmiana między rozliczeniem miesięcznym a rocznym zaczyna okres od nowa."
     },
     "usage": {
       "reminders": "Rezerwacje z przypomnieniem w tym miesiącu",
