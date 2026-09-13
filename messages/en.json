@@ -220,11 +220,13 @@
     },
     "billing": {
       "checkout": "Couldn't open checkout — try again.",
-      "usePortal": "Change plans in the billing portal.",
+      "changeHere": "Change your plan below — there's no need to buy it again.",
       "complimentary": "Your plan is complimentary right now — there's nothing to buy until it ends.",
       "founderEnded": "The Founder offer has ended — the regular price applies.",
       "portal": "There's no subscription to manage yet.",
-      "portalUnavailable": "Couldn't open the billing portal — try again."
+      "portalUnavailable": "Couldn't open the card page — try again.",
+      "changeFailed": "Couldn't change your plan — nothing moved. Try again.",
+      "subEnded": "That plan has already ended — pick one below to start again."
     },
     "bookings": {
       "notCancellable": "Only a confirmed, upcoming booking can be cancelled.",
@@ -1428,7 +1430,12 @@
     }
   },
   "billing": {
-    "intro": "Your plan and what it covers. Invoices and card details are managed in the secure billing portal.",
+    "intro": "Your plan and what it covers. Card details are entered on your payment provider's secure page.",
+    "changed": {
+      "plan": "Plan updated. The difference is settled on your next invoice.",
+      "cancelled": "Your plan won't renew. You can resume any time before it ends.",
+      "resumed": "Your plan renews as usual again."
+    },
     "checkoutCancelled": "Checkout cancelled — nothing was charged.",
     "complimentary": "Your plan is complimentary. Plans can be bought once it ends.",
     "complimentaryUntil": "Your plan is complimentary until {date}. Plans can be bought once it ends.",
@@ -1443,11 +1450,18 @@
       "noCard": "No card needed",
       "until": "Until {date}",
       "noExpiry": "No expiry",
-      "pastDue": "We couldn't charge your card — update it in the billing portal to keep your plan.",
+      "pastDue": "We couldn't charge your card — update it below to keep your plan.",
       "endedOn": "Ended on {date}",
       "endsOn": "Ends on {date}",
       "renewsOn": "Renews on {date}",
-      "manage": "Manage subscription"
+      "paymentMethod": "Payment method",
+      "cancel": "Cancel plan",
+      "cancelTitle": "Cancel your plan?",
+      "cancelUntil": "Your plan stays active until {date}, and nothing is charged after that. You can resume any time before then.",
+      "cancelNow": "Your plan stops renewing and nothing more is charged. You can resume any time before it ends.",
+      "cancelConfirm": "Cancel plan",
+      "keep": "Keep plan",
+      "resume": "Resume plan"
     },
     "plans": {
       "free": {
@@ -1488,8 +1502,11 @@
       "includedEverywhere": "Included in every plan",
       "upgradeTo": "Upgrade to {plan}",
       "openingCheckout": "Opening checkout…",
-      "openingPortal": "Opening portal…",
-      "switchInPortal": "Switch in the billing portal"
+      "switching": "Switching…",
+      "switchTo": "Switch to {plan}",
+      "switchToYearly": "Switch to yearly",
+      "switchToMonthly": "Switch to monthly",
+      "switchNote": "A plan change settles the difference on your next invoice. Moving between monthly and yearly is charged today."
     },
     "usage": {
       "reminders": "Reminder bookings this month",

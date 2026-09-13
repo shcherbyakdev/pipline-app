@@ -7,11 +7,16 @@ import { badgeShows, entitlementsFor, monthWindow, pickSubscription, type Entitl
 import { activeOverrideRow, type PlanOverride, type PlanOverrideDetails } from "./overrides";
 import { waitlistRow, type WaitlistEntry } from "./waitlist";
 import { isPaidPlan } from "./plans";
+import type { BillingSubscription, ProviderName } from "./provider";
 import { plansEnforced } from "@/lib/flags";
 import { getOrgFlagsAdmin } from "@/lib/flags/resolve";
 import { env } from "@/env";
 
 const SUB_COLS = "plan, status, billing_interval, seats, current_period_end, cancel_at_period_end";
+// The same row plus the provider's own identifiers — what an update has to
+// name. `authenticated` is granted select on the whole table (0043) and RLS
+// scopes it to the member's own org, so this reads with the RLS client.
+const PROVIDER_SUB_COLS = `${SUB_COLS}, provider, provider_customer_id, provider_subscription_id`;
 // What `authenticated` is granted on org_plan_overrides (0046), and all the
 // seam needs. The note and granted_by columns are owner-only — see
 // getPlanOverrideDetails.
@@ -33,6 +38,36 @@ export async function getRawOrgSubscription(orgId: string, client: SupabaseClien
     seats: data.seats,
     currentPeriodEnd: data.current_period_end,
     cancelAtPeriodEnd: data.cancel_at_period_end,
+  };
+}
+
+/** The provider's subscription as a `BillingSubscription` — the shape the
+    provider seam takes back when /billing changes a plan, cancels or resumes
+    (features/billing/actions.ts#applySubscriptionChange). Carries `provider`
+    so the caller can refuse a row THIS provider never minted: a fake-emulator
+    row on a database now pointed at Stripe names a subscription Stripe has
+    never heard of (updatePaymentMethod's rule).
+
+    Null when the org has no row, or one whose plan isn't a paid plan we know
+    — neither is something we can ask a provider to change. */
+export async function getProviderSubscription(
+  orgId: string, client: SupabaseClient,
+): Promise<{ provider: ProviderName; sub: BillingSubscription } | null> {
+  const { data, error } = await client.from("org_subscriptions").select(PROVIDER_SUB_COLS).eq("org_id", orgId).maybeSingle();
+  if (error) throw error;
+  if (!data || !isPaidPlan(data.plan) || !data.provider_subscription_id) return null;
+  return {
+    provider: data.provider as ProviderName,
+    sub: {
+      providerCustomerId: data.provider_customer_id,
+      providerSubscriptionId: data.provider_subscription_id,
+      plan: data.plan,
+      interval: data.billing_interval as BillingSubscription["interval"],
+      seats: data.seats,
+      status: data.status as BillingSubscription["status"],
+      currentPeriodEnd: data.current_period_end,
+      cancelAtPeriodEnd: data.cancel_at_period_end,
+    },
   };
 }
 

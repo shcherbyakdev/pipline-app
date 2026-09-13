@@ -8,7 +8,7 @@
 import type { Interval, PaidPlanId } from "./plans";
 import { TEAM_INCLUDED_RESOURCES } from "./plans";
 import type { OrgSubscriptionRow } from "./entitlements";
-import type { BillingEvent, BillingEventType, BillingSubscription } from "./provider";
+import type { BillingEvent, BillingEventType, BillingSubscription, SubscriptionChange } from "./provider";
 
 // ---------- Test cards (Global Constraints) ----------
 
@@ -93,7 +93,7 @@ export function fakeIds(orgId: string): { customer: string; subscription: string
   return { customer: `cus_fake_${orgId}`, subscription: `sub_fake_${orgId}` };
 }
 
-function seatsFor(plan: PaidPlanId): number {
+export function seatsFor(plan: PaidPlanId): number {
   return plan === "team" ? TEAM_INCLUDED_RESOURCES : 1;
 }
 
@@ -148,6 +148,36 @@ export function checkoutEvents(i: {
     cancelAtPeriodEnd: false,
   };
   return [buildEvent("checkout", i.orgId, i.now, "subscription_created", subscription)];
+}
+
+// ---------- Subscription changes (/billing drives these) ----------
+
+/** What a subscription becomes after `change` — the fake provider's whole
+    `updateSubscription`, kept here so it is pure and testable.
+
+    The interval rule mirrors Stripe's: changing the billing interval resets
+    the billing date (Stripe credits the unused time and charges the new
+    price immediately), while a plan switch at the same interval keeps the
+    period it is in and settles the difference on the next invoice. */
+export function changedSubscription(
+  current: BillingSubscription, change: SubscriptionChange, now: Date,
+): BillingSubscription {
+  switch (change.kind) {
+    case "cancel":
+      return { ...current, cancelAtPeriodEnd: true };
+    case "resume":
+      return { ...current, cancelAtPeriodEnd: false };
+    case "switch":
+      return {
+        ...current,
+        plan: change.plan,
+        seats: seatsFor(change.plan),
+        interval: change.interval,
+        currentPeriodEnd: change.interval === current.interval
+          ? current.currentPeriodEnd
+          : addInterval(now, change.interval).toISOString(),
+      };
+  }
 }
 
 // ---------- Portal actions ----------

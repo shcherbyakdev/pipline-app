@@ -8,6 +8,7 @@ import {
   fakeIds,
   checkoutEvents,
   actionEvents,
+  changedSubscription,
   FAKE_ACTIONS,
   type FakeRow,
 } from "./fake-emulator";
@@ -334,5 +335,29 @@ describe("FAKE_ACTIONS", () => {
     expect(byId("advance_period").enabledWhen(row({ status: "active" }))).toBe(true);
     expect(byId("advance_period").enabledWhen(row({ status: "past_due" }))).toBe(true);
     expect(byId("advance_period").enabledWhen(row({ status: "expired" }))).toBe(false);
+  });
+});
+
+describe("changedSubscription", () => {
+  const sub = {
+    providerCustomerId: "cus_fake", providerSubscriptionId: "sub_fake",
+    plan: "pro" as const, interval: "month" as const, seats: 1,
+    status: "active" as const, currentPeriodEnd: "2026-09-18T12:00:00.000Z", cancelAtPeriodEnd: false,
+  };
+
+  it("cancel and resume only move the flag — a cancelled plan keeps the period it paid for", () => {
+    expect(changedSubscription(sub, { kind: "cancel" }, NOW)).toEqual({ ...sub, cancelAtPeriodEnd: true });
+    expect(changedSubscription({ ...sub, cancelAtPeriodEnd: true }, { kind: "resume" }, NOW)).toEqual(sub);
+  });
+
+  it("a plan switch at the same interval keeps the period; changing the interval resets it", () => {
+    // Stripe's own rule: switching prices doesn't move the billing date
+    // unless the INTERVAL changes, in which case it charges and resets.
+    expect(changedSubscription(sub, { kind: "switch", plan: "team", interval: "month" }, NOW)).toEqual({
+      ...sub, plan: "team", seats: TEAM_INCLUDED_RESOURCES,
+    });
+    expect(changedSubscription(sub, { kind: "switch", plan: "pro", interval: "year" }, NOW)).toEqual({
+      ...sub, interval: "year", currentPeriodEnd: "2027-08-18T12:00:00.000Z",
+    });
   });
 });

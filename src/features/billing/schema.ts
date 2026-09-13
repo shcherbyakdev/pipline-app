@@ -14,6 +14,12 @@ export const checkoutInput = z.object({
   founder: z.enum(["skip"]).optional(),
 });
 
+/** What the switch buttons are allowed to say. The same pair checkout sends,
+    minus the Founder field — a switch never carries a promotion code (the
+    coupon is scoped to the Pro product in Stripe, so it follows the plan by
+    itself). */
+export const planChangeInput = checkoutInput.pick({ plan: true, interval: true });
+
 /* A plain `<form action={serverAction}>` discards whatever the action returns,
    so a failed checkout/portal hop comes back as `/billing?error=<code>` and
    the page renders the matching line (ruling 2026-08-18 — the ActionState
@@ -24,9 +30,9 @@ export const BILLING_ERRORS = {
   checkout: "checkout",
   // A paid org that reaches startCheckout anyway (stale tab, hand-crafted
   // POST): a second checkout would buy a SECOND subscription next to the one
-  // it already pays for, so the answer is the portal, where the switch is a
-  // proration on the existing one.
-  use_portal: "usePortal",
+  // it already pays for, so the answer is the switch buttons on this page,
+  // where the move is a proration on the existing one.
+  change_here: "changeHere",
   // A comped org reaching startCheckout (stale tab, or the picker rendered
   // before the comp was granted): an unexpired override wins outright at the
   // seam, so the purchase would bill a card for entitlements nobody reads.
@@ -40,6 +46,12 @@ export const BILLING_ERRORS = {
   founder_ended: "founderEnded",
   portal: "portal",
   portal_unavailable: "portalUnavailable",
+  // The provider refused, or couldn't be reached, while changing a plan —
+  // nothing moved, and trying again is the whole of the advice.
+  change: "changeFailed",
+  // The subscription has already ended: there is nothing left to switch or
+  // cancel, and buying again is what the picker below is for.
+  sub_ended: "subEnded",
 } as const;
 
 export type BillingErrorCode = keyof typeof BILLING_ERRORS;

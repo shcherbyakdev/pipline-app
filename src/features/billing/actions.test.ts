@@ -1,6 +1,6 @@
-// startCheckout / openPortal at the seam with the provider: what the action
-// asks the provider for (both URLs, the customer, the discount) and where it
-// sends the member for each answer. Everything with I/O is mocked; the
+// The /billing actions at the seam with the provider: what each one asks the
+// provider for (both URLs, the customer, the discount, the change) and where
+// it sends the member for each answer. Everything with I/O is mocked; the
 // provider is a spy. Env is a mutable mock (dev/guard.test.ts idiom) so the
 // Founder pair can be flipped per test.
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -35,19 +35,46 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
+const LIVE_SUB = {
+  providerCustomerId: "cus_stripe_1",
+  providerSubscriptionId: "sub_stripe_1",
+  plan: "pro" as const,
+  interval: "month" as const,
+  seats: 1,
+  status: "active" as const,
+  currentPeriodEnd: "2026-10-01T00:00:00.000Z",
+  cancelAtPeriodEnd: false,
+};
+
 const queries = vi.hoisted(() => ({
   override: null as unknown,
   sub: null as unknown,
+  providerSub: null as unknown,
 }));
 vi.mock("@/lib/billing/queries", () => ({
   getPlanOverride: vi.fn(async () => queries.override),
   getRawOrgSubscription: vi.fn(async () => queries.sub),
+  getProviderSubscription: vi.fn(async () => queries.providerSub),
 }));
 
 const provider = vi.hoisted(() => ({
   createCheckout: vi.fn(),
   createPortalUrl: vi.fn(),
+  updateSubscription: vi.fn(),
 }));
+
+// The projection of our own change — the same RPC path a webhook takes.
+const applyBillingEvents = vi.hoisted(() =>
+  vi.fn(async (_admin: unknown, _events: unknown[]) => ({ processed: 1, skipped: 0 })),
+);
+
+/** The events one call to applyBillingEvents projected. */
+function projected(call: number) {
+  return (applyBillingEvents.mock.calls[call]?.[1] ?? []) as Array<Record<string, unknown>>;
+}
+vi.mock("@/lib/billing/apply-events", () => ({ applyBillingEvents }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/billing/provider", () => ({ selectBillingProvider: () => ({ name: "stripe", ...provider }) }));
 
 vi.mock("next/navigation", () => ({
@@ -59,7 +86,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-const { startCheckout, openPortal } = await import("./actions");
+const { startCheckout, updatePaymentMethod, changePlan, cancelPlan, resumePlan } = await import("./actions");
 
 function form(entries: Record<string, string>): FormData {
   const fd = new FormData();
@@ -75,8 +102,13 @@ beforeEach(() => {
   tables.org_subscriptions = null;
   queries.override = null;
   queries.sub = null;
+  queries.providerSub = null;
   provider.createCheckout.mockReset().mockResolvedValue({ url: "https://checkout.test/cs_1", founderFallback: false });
   provider.createPortalUrl.mockReset().mockResolvedValue("https://portal.test/ps_1");
+  provider.updateSubscription.mockReset().mockImplementation(async (current, change) =>
+    change.kind === "switch" ? { ...current, plan: change.plan, interval: change.interval } : { ...current, cancelAtPeriodEnd: change.kind === "cancel" },
+  );
+  applyBillingEvents.mockClear().mockResolvedValue({ processed: 1, skipped: 0 });
 });
 
 describe("startCheckout", () => {
@@ -139,22 +171,24 @@ describe("startCheckout", () => {
     error.mockRestore();
   });
 
-  it("an org already on a paid plan is sent to the portal instead", async () => {
+  it("an org already on a paid plan switches instead of buying a second subscription", async () => {
     queries.sub = { plan: "pro", status: "active", interval: "month", seats: 1, currentPeriodEnd: null, cancelAtPeriodEnd: false };
-    await expect(startCheckout(form({ plan: "team", interval: "month" }))).rejects.toThrow("REDIRECT:/billing?error=use_portal");
+    await expect(startCheckout(form({ plan: "team", interval: "month" }))).rejects.toThrow("REDIRECT:/billing?error=change_here");
     expect(provider.createCheckout).not.toHaveBeenCalled();
   });
 });
 
-describe("openPortal", () => {
-  it("opens the portal for the row's customer with /billing as the return", async () => {
+describe("updatePaymentMethod", () => {
+  it("deep-links the card form for the row's customer, with /billing as the return", async () => {
     tables.org_subscriptions = { provider_customer_id: "cus_stripe_1", provider: "stripe" };
-    await expect(openPortal()).rejects.toThrow("REDIRECT:https://portal.test/ps_1");
-    expect(provider.createPortalUrl).toHaveBeenCalledWith("cus_stripe_1", "https://app.test/billing");
+    await expect(updatePaymentMethod()).rejects.toThrow("REDIRECT:https://portal.test/ps_1");
+    // The flow matters: the portal's home page would offer cancel and plan
+    // switches next to ours, on the provider's rules.
+    expect(provider.createPortalUrl).toHaveBeenCalledWith("cus_stripe_1", "https://app.test/billing", "payment_method");
   });
 
   it("no row → ?error=portal", async () => {
-    await expect(openPortal()).rejects.toThrow("REDIRECT:/billing?error=portal");
+    await expect(updatePaymentMethod()).rejects.toThrow("REDIRECT:/billing?error=portal");
     expect(provider.createPortalUrl).not.toHaveBeenCalled();
   });
 
@@ -162,9 +196,74 @@ describe("openPortal", () => {
     // The fake emulator's customer id on a database now pointed at Stripe
     // (or the reverse): this provider has never heard of it.
     tables.org_subscriptions = { provider_customer_id: "cus_fake_org", provider: "fake" };
-    await expect(openPortal()).rejects.toThrow("REDIRECT:/billing?error=portal");
+    await expect(updatePaymentMethod()).rejects.toThrow("REDIRECT:/billing?error=portal");
     expect(provider.createPortalUrl).not.toHaveBeenCalled();
     envMock.BILLING_PROVIDER = "fake";
-    await expect(openPortal()).rejects.toThrow("REDIRECT:https://portal.test/ps_1");
+    await expect(updatePaymentMethod()).rejects.toThrow("REDIRECT:https://portal.test/ps_1");
+  });
+});
+
+describe("changePlan / cancelPlan / resumePlan", () => {
+  it("switches the existing subscription and projects the answer, without a second purchase", async () => {
+    queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
+    await expect(changePlan(form({ plan: "team", interval: "year" }))).rejects.toThrow("REDIRECT:/billing?changed=plan");
+    expect(provider.updateSubscription).toHaveBeenCalledWith(LIVE_SUB, { kind: "switch", plan: "team", interval: "year" });
+    expect(provider.createCheckout).not.toHaveBeenCalled();
+    // Projected through the same path a webhook takes, so /billing is right
+    // on the next render rather than polling for the delivery.
+    const events = projected(0);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      provider: "stripe",
+      orgId: ORG.id,
+      type: "subscription_updated",
+      subscription: { plan: "team", interval: "year" },
+    });
+  });
+
+  it("cancel schedules the end, resume clears it", async () => {
+    queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
+    await expect(cancelPlan()).rejects.toThrow("REDIRECT:/billing?changed=cancelled");
+    expect(provider.updateSubscription).toHaveBeenCalledWith(LIVE_SUB, { kind: "cancel" });
+    expect(projected(0)[0]).toMatchObject({ subscription: { cancelAtPeriodEnd: true } });
+
+    queries.providerSub = { provider: "stripe", sub: { ...LIVE_SUB, cancelAtPeriodEnd: true } };
+    await expect(resumePlan()).rejects.toThrow("REDIRECT:/billing?changed=resumed");
+    expect(projected(1)[0]).toMatchObject({ subscription: { cancelAtPeriodEnd: false } });
+  });
+
+  it("refuses what it cannot change: no row, another provider's row, an ended plan", async () => {
+    await expect(cancelPlan()).rejects.toThrow("REDIRECT:/billing?error=portal");
+
+    queries.providerSub = { provider: "fake", sub: LIVE_SUB };
+    await expect(cancelPlan()).rejects.toThrow("REDIRECT:/billing?error=portal");
+
+    queries.providerSub = { provider: "stripe", sub: { ...LIVE_SUB, status: "expired" } };
+    await expect(cancelPlan()).rejects.toThrow("REDIRECT:/billing?error=sub_ended");
+
+    expect(provider.updateSubscription).not.toHaveBeenCalled();
+  });
+
+  it("a switch to the plan the org is already on asks the provider for nothing", async () => {
+    queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
+    await expect(changePlan(form({ plan: "pro", interval: "month" }))).rejects.toThrow("REDIRECT:/billing");
+    expect(provider.updateSubscription).not.toHaveBeenCalled();
+  });
+
+  it("a provider failure lands on ?error=change with nothing projected", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
+    provider.updateSubscription.mockRejectedValue(new Error("boom"));
+    await expect(changePlan(form({ plan: "team", interval: "month" }))).rejects.toThrow("REDIRECT:/billing?error=change");
+    expect(applyBillingEvents).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  it("a projection failure still reports the change — it already happened at the provider", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
+    applyBillingEvents.mockRejectedValue(new Error("rpc down"));
+    await expect(cancelPlan()).rejects.toThrow("REDIRECT:/billing?changed=cancelled");
+    error.mockRestore();
   });
 });

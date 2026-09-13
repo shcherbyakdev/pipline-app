@@ -220,11 +220,13 @@
     },
     "billing": {
       "checkout": "Nie udało się otworzyć kasy — spróbuj ponownie.",
-      "usePortal": "Zmień plan w portalu rozliczeń.",
+      "changeHere": "Zmień plan poniżej — nie musisz kupować go ponownie.",
       "complimentary": "Twój plan jest obecnie bezpłatny — nie ma czego kupować, dopóki nie wygaśnie.",
       "founderEnded": "Oferta Founder dobiegła końca — obowiązuje cena regularna.",
       "portal": "Nie ma jeszcze subskrypcji do zarządzania.",
-      "portalUnavailable": "Nie udało się otworzyć portalu rozliczeń — spróbuj ponownie."
+      "portalUnavailable": "Nie udało się otworzyć strony karty — spróbuj ponownie.",
+      "changeFailed": "Nie udało się zmienić planu — nic się nie zmieniło. Spróbuj ponownie.",
+      "subEnded": "Ten plan już się zakończył — wybierz nowy poniżej, aby zacząć od nowa."
     },
     "bookings": {
       "notCancellable": "Anulować można tylko potwierdzoną, nadchodzącą rezerwację.",
@@ -1428,7 +1430,12 @@
     }
   },
   "billing": {
-    "intro": "Twój plan i to, co obejmuje. Faktury i dane karty obsługuje bezpieczny portal rozliczeń.",
+    "intro": "Twój plan i to, co obejmuje. Dane karty podajesz na bezpiecznej stronie dostawcy płatności.",
+    "changed": {
+      "plan": "Plan zaktualizowany. Różnicę rozliczymy na następnej fakturze.",
+      "cancelled": "Plan nie odnowi się. Możesz go wznowić w każdej chwili przed zakończeniem.",
+      "resumed": "Plan znów odnawia się normalnie."
+    },
     "checkoutCancelled": "Zakup anulowany — nic nie zostało pobrane.",
     "complimentary": "Twój plan jest bezpłatny. Plany będzie można kupić, gdy wygaśnie.",
     "complimentaryUntil": "Twój plan jest bezpłatny do {date}. Plany będzie można kupić, gdy wygaśnie.",
@@ -1443,11 +1450,18 @@
       "noCard": "Bez karty",
       "until": "Do {date}",
       "noExpiry": "Bezterminowo",
-      "pastDue": "Nie udało się obciążyć Twojej karty — zaktualizuj ją w portalu rozliczeń, aby zachować plan.",
+      "pastDue": "Nie udało się obciążyć Twojej karty — zaktualizuj ją poniżej, aby zachować plan.",
       "endedOn": "Zakończony {date}",
       "endsOn": "Kończy się {date}",
       "renewsOn": "Odnawia się {date}",
-      "manage": "Zarządzaj subskrypcją"
+      "paymentMethod": "Metoda płatności",
+      "cancel": "Anuluj plan",
+      "cancelTitle": "Anulować Twój plan?",
+      "cancelUntil": "Plan działa do {date} i po tej dacie nic nie zostanie pobrane. Do tego czasu możesz go wznowić.",
+      "cancelNow": "Plan przestanie się odnawiać i nic więcej nie zostanie pobrane. Możesz go wznowić przed zakończeniem.",
+      "cancelConfirm": "Anuluj plan",
+      "keep": "Zachowaj plan",
+      "resume": "Wznów plan"
     },
     "plans": {
       "free": {
@@ -1488,8 +1502,11 @@
       "includedEverywhere": "W każdym planie",
       "upgradeTo": "Przejdź na {plan}",
       "openingCheckout": "Otwieranie kasy…",
-      "openingPortal": "Otwieranie portalu…",
-      "switchInPortal": "Zmień w portalu rozliczeń"
+      "switching": "Zmieniamy…",
+      "switchTo": "Przejdź na {plan}",
+      "switchToYearly": "Przejdź na rozliczenie roczne",
+      "switchToMonthly": "Przejdź na rozliczenie miesięczne",
+      "switchNote": "Zmiana planu rozlicza różnicę na następnej fakturze. Przejście między rozliczeniem miesięcznym a rocznym obciąża kartę dzisiaj."
     },
     "usage": {
       "reminders": "Rezerwacje z przypomnieniem w tym miesiącu",
