@@ -67,6 +67,11 @@ async function step(n, title, fn) {
 const chromium = await loadChromium();
 const browser = await chromium.launch({ headless: process.env.QA_HEADED !== "1" });
 const context = await browser.newContext({ viewport: { width: 1280, height: 1000 }, locale: "en-GB" });
+/* The locators below are English. The signed-in person's own language comes
+   from user_metadata and is seeded into NEXT_LOCALE by the middleware for
+   any browser that has no cookie yet — so this browser brings its own,
+   which wins, and nobody's saved preference is touched to run the QA. */
+await context.addCookies([{ name: "NEXT_LOCALE", value: "en", url: BASE }]);
 context.setDefaultTimeout(45_000);
 const page = await context.newPage();
 const errors = [];
@@ -91,9 +96,26 @@ await step(1, "the plan card offers cancel and the card form — not a portal bu
   return (await page.getByText(/Renews on|Ends on/).first().innerText());
 });
 
+/** Open a switch, read the confirmation, confirm it. Returns the amount the
+    dialog promised (in minor units, 0 when it said nothing is due) so the
+    caller can hold Stripe to it. */
+async function confirmSwitch(buttonName) {
+  await page.getByRole("button", { name: buttonName }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.waitFor();
+  // The quote arrives from the server; never confirm on "Working out…".
+  await dialog.getByText(/Working out what this costs/).waitFor({ state: "detached" }).catch(() => {});
+  const said = await dialog.innerText();
+  assert(!/Working out what this costs/.test(said), "the dialog never got a quote");
+  const amount = /\$([\d,]+(?:\.\d{2})?) is charged/.exec(said);
+  const promised = amount ? Math.round(Number(amount[1].replace(/,/g, "")) * 100) : 0;
+  await dialog.getByRole("button", { name: /Switch( and pay)?$/ }).click();
+  return { promised, said: said.replace(/\n+/g, " · ") };
+}
+
 await step(2, `switch ${label(before.plan)} → ${label(other)} against the Stripe sandbox`, async () => {
   const seen = idsOf(await invoices());
-  await page.getByRole("button", { name: `Switch to ${label(other)}` }).click();
+  const quote = await confirmSwitch(`Switch to ${label(other)}`);
   await page.waitForURL(/changed=(charged|credited)/, { timeout: 60_000 });
   const r = await row();
   assert(r.plan === other, `row still says ${r.plan}`);
@@ -106,13 +128,18 @@ await step(2, `switch ${label(before.plan)} → ${label(other)} against the Stri
     assert(fresh.length === 1, `an upgrade created ${fresh.length} invoices`);
     assert(fresh[0].status === "paid", `invoice is ${fresh[0].status} for ${fresh[0].total}`);
     assert(page.url().includes("changed=charged"), "the page didn't say it charged");
+    // The whole point of the confirmation: the number shown is the number
+    // billed, to the cent.
+    assert(fresh[0].amount_due === quote.promised,
+      `dialog promised ${quote.promised}, Stripe billed ${fresh[0].amount_due}`);
   } else {
     // The downgrade: nothing billed now, the credit waits for the next one.
     assert(fresh.length === 0, `a downgrade created an invoice: ${fresh[0]?.id}`);
     assert(page.url().includes("changed=credited"), "the page didn't say it credited");
+    assert(quote.promised === 0, `a downgrade quoted ${quote.promised} today`);
   }
   await page.screenshot({ path: path.join(OUT, "billing-2-switch.png"), fullPage: true });
-  return `row: ${r.plan}/${r.billing_interval} · stripe: ${fresh.length ? `${fresh[0].status} ${fresh[0].total}` : "no invoice"} · page: ${await page.locator('[role="status"]').first().innerText()}`;
+  return `dialog: “${quote.said}” · stripe: ${fresh.length ? `${fresh[0].status}, due ${fresh[0].amount_due}` : "no invoice"} · row: ${r.plan}/${r.billing_interval}`;
 });
 
 await step(3, "cancel asks first, then schedules the end", async () => {
@@ -143,12 +170,11 @@ await step(4, "resume clears it", async () => {
 // where the interval switch lives.
 const otherInterval = before.billing_interval === "year" ? "month" : "year";
 const tab = (i) => page.getByRole("button", { name: i === "year" ? "Yearly" : "Monthly", exact: true });
-const switchInterval = (i) => page.getByRole("button", { name: i === "year" ? "Switch to yearly" : "Switch to monthly" });
 
 await step(5, `switch the interval (${before.billing_interval} → ${otherInterval}) — the move Stripe charges for today`, async () => {
   await gotoBilling();
   await tab(otherInterval).click();
-  await switchInterval(otherInterval).click();
+  await confirmSwitch(otherInterval === "year" ? "Switch to yearly" : "Switch to monthly");
   await page.waitForURL(/changed=interval/, { timeout: 60_000 });
   const r = await row();
   assert(r.billing_interval === otherInterval, `row still says ${r.billing_interval}`);
@@ -163,16 +189,18 @@ await step(6, "switch back to the plan and interval it started on", async () => 
   // then races the navigation.
   await gotoBilling();
   await tab(before.billing_interval).click();
-  await switchInterval(before.billing_interval).click();
+  await confirmSwitch(before.billing_interval === "year" ? "Switch to yearly" : "Switch to monthly");
   await page.waitForURL(/changed=interval/, { timeout: 60_000 });
   await gotoBilling();
   const seen = idsOf(await invoices());
-  await page.getByRole("button", { name: `Switch to ${label(before.plan)}` }).click();
+  const quote = await confirmSwitch(`Switch to ${label(before.plan)}`);
   await page.waitForURL(/changed=(charged|credited)/, { timeout: 60_000 });
   // The direction not covered by step 2, and the same rule has to hold.
   const fresh = await invoicedSince(seen);
   assert(before.plan === "team" ? fresh.length === 1 && fresh[0].status === "paid" : fresh.length === 0,
     `the way back invoiced ${fresh.length} times (${fresh.map((i) => `${i.status} ${i.total}`).join(", ") || "none"})`);
+  assert(fresh.length === 0 || fresh[0].amount_due === quote.promised,
+    `dialog promised ${quote.promised}, Stripe billed ${fresh[0]?.amount_due}`);
   const r = await row();
   assert(r.plan === before.plan && r.billing_interval === before.billing_interval, `left on ${r.plan}/${r.billing_interval}`);
   return `back to ${r.plan} / ${r.billing_interval}`;

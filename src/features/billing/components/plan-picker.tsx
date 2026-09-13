@@ -20,8 +20,10 @@ import {
   type PaidPlanId,
   type PlanDef,
   type PlanId,
+  type SwitchBilling,
 } from "@/lib/billing/plans";
-import { changePlan, startCheckout } from "../actions";
+import { ConfirmDialog } from "@/features/booking-page/studio/confirm-dialog";
+import { changePlan, previewPlanChange, startCheckout } from "../actions";
 
 type T = Translator<"billing.picker">;
 
@@ -259,16 +261,22 @@ function PlanCta({
   // waitlist or a comp has no provider subscription to change, and offering
   // it a switch would only be refused.
   if (subscribed) {
+    const changingInterval = plan.id === currentPlan;
     return (
-      <form action={changePlan}>
-        <input type="hidden" name="plan" value={plan.id} />
-        <input type="hidden" name="interval" value={interval} />
-        <SwitchButton>
-          {plan.id === currentPlan
+      <SwitchForm
+        plan={plan}
+        interval={interval}
+        title={
+          changingInterval
+            ? t(interval === "year" ? "confirm.titleYearly" : "confirm.titleMonthly")
+            : t("confirm.titlePlan", { plan: plan.name })
+        }
+        label={
+          changingInterval
             ? t(interval === "year" ? "switchToYearly" : "switchToMonthly")
-            : t("switchTo", { plan: plan.name })}
-        </SwitchButton>
-      </form>
+            : t("switchTo", { plan: plan.name })
+        }
+      />
     );
   }
   return (
@@ -291,11 +299,78 @@ function CheckoutButton({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SwitchButton({ children }: { children: React.ReactNode }) {
+/* Money is never spent by the click that asks for it. The button opens a
+   confirmation, and while it is open the server is asked what the switch
+   would actually cost — the same proration behaviour the switch will use, so
+   the number shown is the number charged. If that answer can't be had, the
+   dialog names the rule instead of inventing a figure; it never says "free"
+   by omission. */
+function SwitchForm({ plan, interval, title, label }: { plan: PlanDef; interval: Interval; title: string; label: string }) {
+  const t = useTranslations("billing.picker");
+  const form = React.useRef<HTMLFormElement>(null);
+  const [confirming, setConfirming] = React.useState(false);
+  const [quote, setQuote] = React.useState<Quote | "unknown" | null>(null);
+  const [, startPreview] = React.useTransition();
+
+  function open() {
+    setQuote(null);
+    setConfirming(true);
+    startPreview(async () => {
+      const answer = await previewPlanChange({ plan: plan.id, interval });
+      setQuote(answer.ok ? answer : "unknown");
+    });
+  }
+
+  const charging = quote !== null && quote !== "unknown" && quote.dueToday > 0;
+  const description =
+    quote === null
+      ? t("confirm.checking")
+      : quote === "unknown"
+        ? t("confirm.unknown")
+        : quote.dueToday > 0
+          ? t("confirm.chargeToday", { amount: formatMinor(quote.dueToday, quote.currency) })
+          // Nothing to pay, for one of two different reasons: a downgrade
+          // leaves a credit behind, an interval change spent it.
+          : quote.billing === "next_invoice"
+            ? t("confirm.credited")
+            : t("confirm.nothingToday");
+
+  return (
+    <form ref={form} action={changePlan}>
+      <input type="hidden" name="plan" value={plan.id} />
+      <input type="hidden" name="interval" value={interval} />
+      <SwitchButton onClick={open}>{label}</SwitchButton>
+      <ConfirmDialog
+        open={confirming}
+        title={title}
+        description={description}
+        confirmLabel={charging ? t("confirm.pay") : t("confirm.switch")}
+        cancelLabel={t("confirm.keep")}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => {
+          setConfirming(false);
+          form.current?.requestSubmit();
+        }}
+      />
+    </form>
+  );
+}
+
+type Quote = { dueToday: number; currency: string; billing: SwitchBilling };
+
+/** Minor units from the provider → the string the member reads. USD keeps
+    the app's own formatter (no cents on whole dollars); anything else falls
+    back to Intl with a pinned locale, the hydration rule everywhere here. */
+function formatMinor(amount: number, currency: string): string {
+  if (currency.toLowerCase() === "usd") return formatUsd(amount / 100);
+  return new Intl.NumberFormat("en-GB", { style: "currency", currency: currency.toUpperCase() }).format(amount / 100);
+}
+
+function SwitchButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   const t = useTranslations("billing.picker");
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="secondary" disabled={pending} className="w-full">
+    <Button type="button" variant="secondary" disabled={pending} className="w-full" onClick={onClick}>
       {pending ? t("switching") : children}
     </Button>
   );

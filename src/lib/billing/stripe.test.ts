@@ -335,14 +335,17 @@ describe("subscriptionUpdateParams", () => {
     expect(params.items).toEqual([{ id: "si_1", price: "price_team_year" }]);
   });
 
-  it("an upgrade invoices today; a downgrade and an interval change don't", () => {
+  it("invoices today whenever the money moves now, so the quote can be exact", () => {
     // always_invoice IS accepted on a Managed Payments subscription —
-    // verified against the sandbox 2026-09-13, invoice paid.
+    // verified against the sandbox 2026-09-13, invoice paid. It is also what
+    // makes the confirmation dialog's number true: the preview asks for the
+    // same behaviour, so what is quoted is what is charged.
     const behaviour = (to: Offer, from: Offer = proYear) =>
       subscriptionUpdateParams("si_1", { kind: "switch", ...to }, from).proration_behavior;
-    expect(behaviour({ plan: "team", interval: "year" })).toBe("always_invoice");
+    expect(behaviour({ plan: "team", interval: "year" })).toBe("always_invoice"); // upgrade
+    expect(behaviour({ plan: "pro", interval: "month" })).toBe("always_invoice"); // interval change
+    // A downgrade's credit belongs on the next invoice, not in a payout.
     expect(behaviour(proYear, { plan: "team", interval: "year" })).toBe("create_prorations");
-    expect(behaviour({ plan: "pro", interval: "month" })).toBe("create_prorations");
   });
 
   it("resume clears the date, and never sends the flag alongside it", () => {

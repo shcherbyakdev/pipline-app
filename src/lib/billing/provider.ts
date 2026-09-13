@@ -56,10 +56,9 @@ export type CheckoutInput = {
     naming the other would ask the provider for a price we can't resolve.
     `cancel`/`resume` flip the scheduled end, they never delete anything —
     a cancelled plan runs to the end of the period it was paid for. */
-export type SubscriptionChange =
-  | { kind: "switch"; plan: PaidPlanId; interval: Interval }
-  | { kind: "cancel" }
-  | { kind: "resume" };
+export type SwitchChange = { kind: "switch"; plan: PaidPlanId; interval: Interval };
+
+export type SubscriptionChange = SwitchChange | { kind: "cancel" } | { kind: "resume" };
 
 export type CheckoutSession = {
   url: string;
@@ -68,6 +67,16 @@ export type CheckoutSession = {
       list price instead. The caller decides whether to send the member on or
       tell them first — startCheckout tells them (`?error=founder_ended`). */
   founderFallback: boolean;
+};
+
+/** What a switch costs, in minor units of `currency`, as the provider would
+    bill it the moment it is asked. Shown BEFORE the click that spends money
+    — the confirmation is the whole point, so a number we are unsure of is
+    worse than none: `dueToday` is what the provider says it will collect
+    now, and nothing is inferred from it. */
+export type ChangePreview = {
+  dueToday: number;
+  currency: string;
 };
 
 /** Which portal screen to open. Only the card form is ours to hand over —
@@ -87,6 +96,9 @@ export interface BillingProvider {
       `current` is our cached row — it carries the ids and saves the adapter
       a read it would otherwise make just to find them. */
   updateSubscription(current: BillingSubscription, change: SubscriptionChange): Promise<BillingSubscription>;
+  /** What `change` would cost if applied right now. Read-only: it must not
+      create, alter or reserve anything at the provider. */
+  previewChange(current: BillingSubscription, change: SwitchChange): Promise<ChangePreview>;
   /** The provider's hosted portal. The ONE screen we don't build: entering a
       card needs Elements, which Managed Payments doesn't support, so the
       card form stays Stripe's (`flow: "payment_method"` deep-links to it). */
