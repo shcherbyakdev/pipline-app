@@ -3,13 +3,23 @@ import Stripe from "stripe";
 import { env } from "@/env";
 import { TEAM_INCLUDED_RESOURCES, type Interval, type PaidPlanId } from "./plans";
 import type { SubscriptionStatus } from "./entitlements";
-import type { BillingEvent, BillingProvider, BillingSubscription, CheckoutInput, CheckoutSession } from "./provider";
+import type { BillingEvent, BillingProvider, BillingSubscription, CheckoutInput, CheckoutSession, PortalFlow, SubscriptionChange } from "./provider";
 
 // Stripe Managed Payments (spec §6/§7.1). The ONLY file in src/ that imports
 // the stripe SDK. Stripe is the merchant of record: Checkout Session in
-// subscription mode with managed_payments enabled; the Customer Portal
-// handles cancel/interval/plan switches; webhooks project state onto our
-// cache. Everything below the two exported pure mappers is I/O.
+// subscription mode with managed_payments enabled; cancel, resume and
+// plan/interval switches are API updates we drive from /billing; webhooks
+// project state onto our cache. Everything below the exported pure mappers
+// is I/O.
+//
+// Why the switches moved in-house: Managed Payments documents both halves —
+// "you can issue refunds and update subscriptions ... with the API", and
+// "you can also offer additional subscription management from your own
+// website using the Customer Portal OR YOUR OWN SOLUTION". What it does NOT
+// allow is Elements ("embeddable web components or other advanced
+// integrations"), so the card form itself stays hosted, and buying a plan
+// stays in Checkout ("creating a subscription outside of Checkout or
+// Payment Links" is unsupported).
 
 export type PriceMap = Record<string, { plan: PaidPlanId; interval: Interval }>;
 
@@ -253,6 +263,46 @@ export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCre
   };
 }
 
+/** The update body for a `SubscriptionChange`. Pure (bar the env price map),
+    so the rules below have a test that doesn't need the network:
+
+    - A switch replaces the price ON THE EXISTING ITEM — a bare `items: [{
+      price }]` would ADD a second item and bill the org for both plans.
+    - `create_prorations` (the default, named here because it is a money
+      decision): the difference lands on the next invoice rather than being
+      charged the moment someone clicks. The exception is Stripe's, not ours
+      — changing the billing INTERVAL always credits the unused time, charges
+      the new price immediately and resets the billing date, which is why the
+      confirmation copy for an interval switch says so and a plan switch's
+      doesn't.
+    - Resume clears the DATE, not the flag. Stripe says "this plan is ending"
+      two ways — the `cancel_at_period_end` flag and a dated `cancel_at` —
+      and refuses a request carrying both ("Received both
+      cancel_at_period_end and cancel_at parameters"). Clearing `cancel_at`
+      (`""` unsets an optional timestamp) clears both, verified against the
+      sandbox, which is also the only thing that undoes a CUSTOMER PORTAL
+      cancellation: the portal sets the date and leaves the flag false
+      (test-mode walk 2026-09-10), so `cancel_at_period_end: false` alone
+      would leave that cancellation standing while our copy said the plan
+      renews.
+
+    ponytail: no immediate-charge path (`always_invoice`) and no proration
+    preview — add both together if "you'll be charged $X today" is wanted on
+    the confirmation. */
+export function subscriptionUpdateParams(itemId: string, change: SubscriptionChange): Stripe.SubscriptionUpdateParams {
+  switch (change.kind) {
+    case "switch":
+      return {
+        items: [{ id: itemId, price: priceIdFor(change.plan, change.interval) }],
+        proration_behavior: "create_prorations",
+      };
+    case "cancel":
+      return { cancel_at_period_end: true };
+    case "resume":
+      return { cancel_at: "" };
+  }
+}
+
 export function stripeProvider(): BillingProvider {
   if (!env.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY unset");
   const stripe = new Stripe(env.STRIPE_SECRET_KEY);
@@ -268,8 +318,34 @@ export function stripeProvider(): BillingProvider {
       if (!session.url) throw new Error("stripe: no checkout url");
       return { url: session.url, founderFallback };
     },
-    async createPortalUrl(providerCustomerId, returnUrl) {
-      const s = await stripe.billingPortal.sessions.create({ customer: providerCustomerId, return_url: returnUrl });
+    async updateSubscription(current, change) {
+      // The retrieve is only for the item id a switch has to name; cancel and
+      // resume address the subscription itself, so they skip the round trip.
+      const itemId = change.kind === "switch"
+        ? (await stripe.subscriptions.retrieve(current.providerSubscriptionId)).items.data[0]?.id
+        : "";
+      if (change.kind === "switch" && !itemId) throw new Error(`stripe: ${current.providerSubscriptionId} has no item to switch`);
+      const updated = await stripe.subscriptions.update(
+        current.providerSubscriptionId,
+        subscriptionUpdateParams(itemId, change),
+      );
+      // Mapped by the same function the webhook normaliser uses, so what we
+      // project here and what the delivery projects a second later cannot
+      // disagree. `forceExpired: false` — an update never ends a plan; a
+      // cancellation is a date, and `status` still reads active until it.
+      const mapped = subscriptionFrom(updated as unknown as SubLike, priceMap, false);
+      if (!mapped) throw new Error(`stripe: unmapped price on ${updated.id} after update`);
+      return mapped;
+    },
+    async createPortalUrl(providerCustomerId, returnUrl, flow?: PortalFlow) {
+      const s = await stripe.billingPortal.sessions.create({
+        customer: providerCustomerId,
+        return_url: returnUrl,
+        // Deep-link straight to the card form when that is what was asked
+        // for: the portal's home page would offer cancel and plan switches
+        // next to ours, in Stripe's styling and on Stripe's rules.
+        ...(flow ? { flow_data: { type: "payment_method_update" as const } } : {}),
+      });
       return s.url;
     },
     parseWebhook(rawBody, headers) {

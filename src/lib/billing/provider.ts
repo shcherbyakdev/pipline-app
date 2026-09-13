@@ -51,6 +51,16 @@ export type CheckoutInput = {
   providerCustomerId?: string;
 };
 
+/** A change to a subscription that already EXISTS. Plan and interval move
+    together because a price is a (plan, interval) pair: switching one without
+    naming the other would ask the provider for a price we can't resolve.
+    `cancel`/`resume` flip the scheduled end, they never delete anything —
+    a cancelled plan runs to the end of the period it was paid for. */
+export type SubscriptionChange =
+  | { kind: "switch"; plan: PaidPlanId; interval: Interval }
+  | { kind: "cancel" }
+  | { kind: "resume" };
+
 export type CheckoutSession = {
   url: string;
   /** The Founder discount was asked for but the provider refused it (the
@@ -60,10 +70,27 @@ export type CheckoutSession = {
   founderFallback: boolean;
 };
 
+/** Which portal screen to open. Only the card form is ours to hand over —
+    everything else the portal can do, /billing now does itself. */
+export type PortalFlow = "payment_method";
+
 export interface BillingProvider {
   readonly name: ProviderName;
   createCheckout(input: CheckoutInput): Promise<CheckoutSession>;
-  createPortalUrl(providerCustomerId: string, returnUrl: string): Promise<string>;
+  /** Apply `change` to the org's existing subscription and answer with what
+      it became. The answer is the point: the caller projects it through the
+      SAME `applyBillingEvents` a webhook goes through, so /billing is right
+      on the next render instead of polling for a delivery that is seconds
+      away. The provider's own event still arrives and lands as a no-op
+      (apply_billing_event orders by `occurred_at`).
+
+      `current` is our cached row — it carries the ids and saves the adapter
+      a read it would otherwise make just to find them. */
+  updateSubscription(current: BillingSubscription, change: SubscriptionChange): Promise<BillingSubscription>;
+  /** The provider's hosted portal. The ONE screen we don't build: entering a
+      card needs Elements, which Managed Payments doesn't support, so the
+      card form stays Stripe's (`flow: "payment_method"` deep-links to it). */
+  createPortalUrl(providerCustomerId: string, returnUrl: string, flow?: PortalFlow): Promise<string>;
   /** Verify the signature and normalise. Throws on a bad signature. */
   parseWebhook(rawBody: string, headers: Headers): BillingEvent[];
 }

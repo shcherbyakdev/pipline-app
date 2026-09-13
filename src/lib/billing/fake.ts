@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/env";
+import { changedSubscription } from "./fake-emulator";
 import type { BillingEvent, BillingProvider, CheckoutInput, CheckoutSession } from "./provider";
 
 export function signFakeWebhook(body: string, secret: string): string {
@@ -31,6 +32,11 @@ export function fakeProvider(): BillingProvider {
       // fallback never happens here (the checkout page prices the discount
       // itself from isFounderEligible).
       return { url: `${env.NEXT_PUBLIC_APP_URL}/dev/billing/checkout?${q}`, founderFallback: false };
+    },
+    // Pure: the caller projects the answer through applyBillingEvents, which
+    // is what writes the row — exactly as it does for Stripe.
+    async updateSubscription(current, change) {
+      return changedSubscription(current, change, new Date());
     },
     async createPortalUrl(_customerId: string, returnUrl: string) {
       const q = new URLSearchParams({ return: returnUrl });

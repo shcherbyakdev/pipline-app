@@ -2,8 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { INTL_LOCALES } from "@/i18n/config";
 import { formatUsd, PLANS, pricePerMonth } from "@/lib/billing/plans";
 import { isOverrideActive } from "@/lib/billing/overrides";
-import { Button } from "@/components/ui/button";
-import { openPortal } from "../actions";
+import { PlanActions } from "./plan-actions";
 import type { BillingOverview } from "../queries";
 
 /** Past tense once the period is behind us; "Ends" while a cancellation is
@@ -13,10 +12,11 @@ function periodKey(sub: NonNullable<BillingOverview["subscription"]>) {
   return sub.cancelAtPeriodEnd || sub.status === "cancelled" ? ("current.endsOn" as const) : ("current.renewsOn" as const);
 }
 
-/* What you are on today, and the one door out: the provider's portal, where
-   cards, invoices, interval switches and cancellations live (spec §7.6).
-   The plan shown is the EFFECTIVE one — a cancelled subscription keeps its
-   plan until the period ends, an expired one already reads Free. */
+/* What you are on today, and what can be done to it: cancel, resume, and the
+   card form (the only hop still hosted by the provider). Switching plans is
+   the picker below. The plan shown is the EFFECTIVE one — a cancelled
+   subscription keeps its plan until the period ends, an expired one already
+   reads Free. */
 export async function CurrentPlan({ overview }: { overview: BillingOverview }) {
   const [t, locale] = await Promise.all([getTranslations("billing"), getLocale()]);
   // Pinned locale + UTC (portal-links-panel precedent): the date must not
@@ -60,12 +60,14 @@ export async function CurrentPlan({ overview }: { overview: BillingOverview }) {
         </>
       )}
 
-      {sub ? (
-        <form action={openPortal}>
-          <Button type="submit" variant="secondary">
-            {t("current.manage")}
-          </Button>
-        </form>
+      {/* An ended subscription has nothing left to cancel or keep paying for;
+          the picker below is the way back, and the actions would only be
+          refused (features/billing/actions.ts#applySubscriptionChange). */}
+      {sub && sub.status !== "expired" ? (
+        <PlanActions
+          cancelling={sub.cancelAtPeriodEnd || sub.status === "cancelled"}
+          endsOn={sub.currentPeriodEnd ? formatDate(sub.currentPeriodEnd) : null}
+        />
       ) : null}
     </div>
   );

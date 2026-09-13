@@ -16,7 +16,7 @@ import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Stripe from "stripe";
-const { mapStripeStatus, planFromPriceId, normalizeStripeEvent, orgIdFromMetadata, isDiscountRejection, withOptionalDiscount, checkoutParams } =
+const { mapStripeStatus, planFromPriceId, normalizeStripeEvent, orgIdFromMetadata, isDiscountRejection, withOptionalDiscount, checkoutParams, subscriptionUpdateParams } =
   await import("./stripe");
 import type { PriceMap } from "./stripe";
 import { TEAM_INCLUDED_RESOURCES } from "./plans";
@@ -321,5 +321,24 @@ describe("withOptionalDiscount", () => {
     await expect(
       withOptionalDiscount(async () => { throw new Error("card_declined"); }, params, undefined),
     ).rejects.toThrow("card_declined");
+  });
+});
+
+describe("subscriptionUpdateParams", () => {
+  it("a switch replaces the price ON the existing item, never adding a second one", () => {
+    // A bare `items: [{ price }]` appends an item: the org would be billed
+    // for both plans at once.
+    const params = subscriptionUpdateParams("si_1", { kind: "switch", plan: "team", interval: "year" });
+    expect(params.items).toEqual([{ id: "si_1", price: "price_team_year" }]);
+    expect(params.proration_behavior).toBe("create_prorations");
+  });
+
+  it("resume clears the date, and never sends the flag alongside it", () => {
+    // Stripe refuses both parameters in one request ("Received both
+    // cancel_at_period_end and cancel_at"), and clearing the DATE is what
+    // undoes a Customer Portal cancellation, which leaves the flag false
+    // (test-mode walk 2026-09-10). Clearing it clears both.
+    expect(subscriptionUpdateParams("si_1", { kind: "cancel" })).toEqual({ cancel_at_period_end: true });
+    expect(subscriptionUpdateParams("si_1", { kind: "resume" })).toEqual({ cancel_at: "" });
   });
 });

@@ -7,9 +7,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 /* The repo had no confirm step anywhere; the builder needs one for Discard,
    "publish with empty sections" and "replace draft with a template". */
 export function ConfirmDialog({
-  open, title, description, confirmLabel, destructive = false, onConfirm, onClose,
+  open, title, description, confirmLabel, cancelLabel, destructive = false, onConfirm, onClose,
 }: {
-  open: boolean; title: string; description: string; confirmLabel: string; destructive?: boolean;
+  open: boolean; title: string; description: string; confirmLabel: string;
+  /** The way OUT, when "Cancel" would be ambiguous next to the confirm —
+      "Keep plan" beside "Cancel plan". Defaults to the common Cancel. */
+  cancelLabel?: string;
+  destructive?: boolean;
   onConfirm: () => void; onClose: () => void;
 }) {
   const tCommon = useTranslations("common");
@@ -21,7 +25,7 @@ export function ConfirmDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>{tCommon("cancel")}</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>{cancelLabel ?? tCommon("cancel")}</Button>
           <Button variant={destructive ? "destructive" : "default"} size="sm" onClick={onConfirm}>{confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>

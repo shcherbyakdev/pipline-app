@@ -21,7 +21,7 @@ import {
   type PlanDef,
   type PlanId,
 } from "@/lib/billing/plans";
-import { openPortal, startCheckout } from "../actions";
+import { changePlan, startCheckout } from "../actions";
 
 type T = Translator<"billing.picker">;
 
@@ -56,11 +56,21 @@ const savingPercent = (plan: PaidPlanId) => Math.round(yearlySaving(plan) * 100)
 
 export function PlanPicker({
   currentPlan,
+  currentInterval,
+  subscribed,
   mode,
   founderEligible,
   skipFounder = false,
 }: {
   currentPlan: PlanId;
+  /** The interval the org is billed on today, when it is billed at all. A
+      column for the current plan on the OTHER interval is a switch, not a
+      dead "Current plan" button. */
+  currentInterval: Interval | null;
+  /** There is a live provider subscription to change. False for an org whose
+      paid plan comes from the waitlist or a comp: it has nothing to switch,
+      so its buttons buy rather than switch. */
+  subscribed: boolean;
   /** The org's effective channel — it decides what the limit row is called. */
   mode: OrgMode;
   founderEligible: boolean;
@@ -70,8 +80,10 @@ export function PlanPicker({
   skipFounder?: boolean;
 }) {
   const t = useTranslations("billing.picker");
-  // Yearly first: it is the cheaper per-month number and the one we want read.
-  const [interval, setBillingInterval] = React.useState<Interval>("year");
+  // Yearly first: it is the cheaper per-month number and the one we want
+  // read — except for an org that is already billed, where the tab it is on
+  // is the one it wants to see first.
+  const [interval, setBillingInterval] = React.useState<Interval>(currentInterval ?? "year");
 
   return (
     <section className="flex flex-col gap-4">
@@ -108,12 +120,21 @@ export function PlanPicker({
             plan={PLANS[id]}
             interval={interval}
             currentPlan={currentPlan}
+            currentInterval={currentInterval}
+            subscribed={subscribed}
             mode={mode}
             founderEligible={founderEligible}
             skipFounder={skipFounder}
           />
         ))}
       </div>
+
+      {/* What a switch costs, in the two shapes Stripe actually does it: a
+          plan change at the same interval prorates onto the next invoice,
+          while changing the interval credits the unused time and charges the
+          new price today. Said once, under the buttons, rather than in a
+          confirmation nobody reads. */}
+      {subscribed ? <p className="text-muted-foreground text-xs">{t("switchNote")}</p> : null}
     </section>
   );
 }
@@ -122,6 +143,8 @@ function PlanColumn({
   plan,
   interval,
   currentPlan,
+  currentInterval,
+  subscribed,
   mode,
   founderEligible,
   skipFounder,
@@ -129,6 +152,8 @@ function PlanColumn({
   plan: PlanDef;
   interval: Interval;
   currentPlan: PlanId;
+  currentInterval: Interval | null;
+  subscribed: boolean;
   mode: OrgMode;
   founderEligible: boolean;
   skipFounder: boolean;
@@ -181,7 +206,14 @@ function PlanColumn({
       </dl>
 
       <div className="mt-auto pt-1">
-        <PlanCta plan={plan} interval={interval} currentPlan={currentPlan} skipFounder={skipFounder} />
+        <PlanCta
+          plan={plan}
+          interval={interval}
+          currentPlan={currentPlan}
+          currentInterval={currentInterval}
+          subscribed={subscribed}
+          skipFounder={skipFounder}
+        />
       </div>
     </div>
   );
@@ -191,15 +223,22 @@ function PlanCta({
   plan,
   interval,
   currentPlan,
+  currentInterval,
+  subscribed,
   skipFounder,
 }: {
   plan: PlanDef;
   interval: Interval;
   currentPlan: PlanId;
+  currentInterval: Interval | null;
+  subscribed: boolean;
   skipFounder: boolean;
 }) {
   const t = useTranslations("billing.picker");
-  if (plan.id === currentPlan) {
+  // The plan AND the interval have to match for this to be what the org is
+  // on: same plan, other tab, is the interval switch.
+  const sameInterval = !subscribed || interval === currentInterval;
+  if (plan.id === currentPlan && sameInterval) {
     return (
       <Button type="button" variant="secondary" disabled className="w-full">
         {t("currentPlan")}
@@ -207,20 +246,28 @@ function PlanCta({
     );
   }
   // Free is where everyone starts; leaving a paid plan is a cancellation,
-  // which lives in the provider's portal — we build no downgrade screens
-  // (spec §7.6).
+  // which lives on the plan card above.
   if (plan.id === "free") {
     return <p className="text-muted-foreground text-center text-xs">{t("includedEverywhere")}</p>;
   }
-  // Any paid → paid move, in EITHER direction, is a change to the
-  // subscription this org already pays for: a proration the portal does and
-  // checkout cannot. A second checkout would buy a second subscription
-  // alongside the first, so the only door here is the portal (startCheckout
-  // refuses the same move server-side).
-  if (isPaidPlan(currentPlan)) {
+  // A live subscription is CHANGED, never bought again: in either direction,
+  // and across intervals, it is one proration on what the org already pays
+  // for. A second checkout would buy a second subscription alongside the
+  // first — startCheckout refuses the same move server-side.
+  //
+  // `subscribed`, not `isPaidPlan(currentPlan)`: an org on Pro through the
+  // waitlist or a comp has no provider subscription to change, and offering
+  // it a switch would only be refused.
+  if (subscribed) {
     return (
-      <form action={openPortal}>
-        <PortalButton />
+      <form action={changePlan}>
+        <input type="hidden" name="plan" value={plan.id} />
+        <input type="hidden" name="interval" value={interval} />
+        <SwitchButton>
+          {plan.id === currentPlan
+            ? t(interval === "year" ? "switchToYearly" : "switchToMonthly")
+            : t("switchTo", { plan: plan.name })}
+        </SwitchButton>
       </form>
     );
   }
@@ -244,12 +291,12 @@ function CheckoutButton({ children }: { children: React.ReactNode }) {
   );
 }
 
-function PortalButton() {
+function SwitchButton({ children }: { children: React.ReactNode }) {
   const t = useTranslations("billing.picker");
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="secondary" disabled={pending} className="w-full">
-      {pending ? t("openingPortal") : t("switchInPortal")}
+      {pending ? t("switching") : children}
     </Button>
   );
 }

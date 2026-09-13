@@ -1,18 +1,21 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/env";
 import { requireOrg } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { selectBillingProvider } from "@/lib/billing/provider";
-import { getPlanOverride, getRawOrgSubscription } from "@/lib/billing/queries";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { applyBillingEvents } from "@/lib/billing/apply-events";
+import { selectBillingProvider, type SubscriptionChange } from "@/lib/billing/provider";
+import { getPlanOverride, getProviderSubscription, getRawOrgSubscription } from "@/lib/billing/queries";
 import { isOverrideActive } from "@/lib/billing/overrides";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { isPaidPlan } from "@/lib/billing/plans";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { isFounderEligible } from "./founder";
-import { checkoutInput } from "./schema";
+import { checkoutInput, planChangeInput } from "./schema";
 
 /** The Founder promotion code when this org qualifies (isFounderEligible) —
     undefined whenever the env pair is unset, which is every environment until
@@ -95,15 +98,15 @@ export async function startCheckout(formData: FormData): Promise<void> {
   if (!current.ok) redirect("/billing?error=checkout");
   // An org that already HAS an effective paid plan never buys a second one:
   // Pro→Team and Team→Pro are both a proration on the existing subscription,
-  // which only the portal can do. Checkout here would create a duplicate
+  // which `changePlan` below does. Checkout here would create a duplicate
   // subscription (and, without the customer id below, a duplicate customer).
-  // The picker already renders the portal link for this case — this is the
+  // The picker renders a switch button for this case — this is the
   // server-side twin of that rule.
-  if (isPaidPlan(entitlementsFor(current.sub, new Date()).plan)) redirect("/billing?error=use_portal");
+  if (isPaidPlan(entitlementsFor(current.sub, new Date()).plan)) redirect("/billing?error=change_here");
   // A row that exists but no longer entitles (expired, or a cancelled period
   // that ran out) is a RESUBSCRIBE: the org already has a provider customer,
   // so hand it over rather than let checkout mint a second one and split the
-  // org's payment history across two customers. Same read as openPortal's.
+  // org's payment history across two customers. Same read as updatePaymentMethod's.
   let providerCustomerId: string | undefined;
   if (current.sub) {
     const { data, error } = await supabase
@@ -119,7 +122,7 @@ export async function startCheckout(formData: FormData): Promise<void> {
     // fake emulator wrote (a dev database pointed at Stripe, or the other
     // way round) carries an id Stripe has never seen, and the session would
     // be refused. Let the provider create a fresh customer instead — the
-    // webhook overwrites the row with the real one (openPortal's twin).
+    // webhook overwrites the row with the real one (updatePaymentMethod's twin).
     providerCustomerId = data.provider === env.BILLING_PROVIDER ? data.provider_customer_id : undefined;
   }
   // The Founder coupon is 33.3 % off Pro MONTHLY, forever (spec §3): sending
@@ -158,9 +161,14 @@ export async function startCheckout(formData: FormData): Promise<void> {
   redirect(session.url);
 }
 
-/** Form action: the provider's portal, where cards, invoices, downgrades and
-    cancellations live — we build none of those screens (spec §7.6). */
-export async function openPortal(): Promise<void> {
+/** Form action: the provider's hosted card form, deep-linked.
+
+    The ONE screen we still hand over. Managed Payments doesn't support
+    Elements ("embeddable web components or other advanced integrations"),
+    so a card field of our own isn't allowed to exist; everything else the
+    portal used to do — cancel, resume, plan and interval switches — is
+    below, in our own pages. */
+export async function updatePaymentMethod(): Promise<void> {
   const { org } = await requireOrg();
   if (!(await getDashboardFlags(org.id)).billing) notFound();
   const supabase = await createClient();
@@ -184,9 +192,101 @@ export async function openPortal(): Promise<void> {
       selectBillingProvider().createPortalUrl(
         data.provider_customer_id,
         `${env.NEXT_PUBLIC_APP_URL}/billing`,
+        "payment_method",
       ),
-    "openPortal",
+    "updatePaymentMethod",
   );
   if (!url) redirect("/billing?error=portal_unavailable");
   redirect(url);
+}
+
+/* ---------- Changing the subscription we already have ---------- */
+
+/** Ask the provider for `change`, then project its answer through the same
+    `applyBillingEvents` a webhook goes through, so /billing tells the truth
+    on the very next render instead of polling for a delivery that is
+    seconds away. The provider's own event still arrives; apply_billing_event
+    orders by `occurred_at`, so it lands as a no-op on the same state.
+
+    Never called from the client — `changePlan`, `cancelPlan` and
+    `resumePlan` below are the three doors, and each re-runs every guard. */
+async function applySubscriptionChange(change: SubscriptionChange, done: string): Promise<void> {
+  const { org } = await requireOrg();
+  if (!(await getDashboardFlags(org.id)).billing) notFound();
+  const supabase = await createClient();
+
+  let row: Awaited<ReturnType<typeof getProviderSubscription>>;
+  try {
+    row = await getProviderSubscription(org.id, supabase);
+  } catch (error) {
+    // A read we could not make is not "no subscription": changing one we
+    // can't see is exactly how an org ends up with a plan nobody asked for
+    // (startCheckout's rule).
+    console.error("[billing] subscription read:", error);
+    redirect("/billing?error=change");
+  }
+  if (!row) redirect("/billing?error=portal");
+  // A row another provider wrote names a subscription THIS provider has
+  // never heard of (updatePaymentMethod's rule): as far as it is concerned
+  // there is nothing to change.
+  if (row.provider !== env.BILLING_PROVIDER) redirect("/billing?error=portal");
+  // An ended subscription has nothing left to change — Stripe refuses to
+  // update a canceled one, and the honest answer is "buy one again".
+  if (row.sub.status === "expired") redirect("/billing?error=sub_ended");
+  // Already exactly what was asked for (a stale tab, a double submit): the
+  // provider would charge nothing and change nothing, so don't ask it.
+  if (change.kind === "switch" && change.plan === row.sub.plan && change.interval === row.sub.interval) {
+    redirect("/billing");
+  }
+
+  const updated = await providerCall(
+    () => selectBillingProvider().updateSubscription(row.sub, change),
+    `applySubscriptionChange(${change.kind})`,
+  );
+  if (!updated) redirect("/billing?error=change");
+
+  const now = new Date();
+  try {
+    await applyBillingEvents(createAdminClient(), [{
+      provider: row.provider,
+      // Ours, not the provider's — the provider's own event for this same
+      // change arrives separately under its own id. Stamped with the
+      // instant so a second change in the same session is never mistaken
+      // for a replay of this one.
+      providerEventId: `${row.provider}-change-${row.sub.providerSubscriptionId}-${now.getTime()}`,
+      occurredAt: now.toISOString(),
+      orgId: org.id,
+      type: "subscription_updated",
+      subscription: updated,
+      raw: { source: "billing", change },
+    }]);
+  } catch (error) {
+    // The change IS made at the provider — saying "couldn't update your
+    // plan" here would be a lie, and the webhook lands the same state
+    // within seconds anyway. Log it and report what actually happened.
+    console.error("[billing] projecting our own change failed (the webhook will land it):", error);
+  }
+  // The shell's plan banner and tag read the same row on every page.
+  revalidatePath("/", "layout");
+  redirect(`/billing?changed=${done}`);
+}
+
+/** Form action: switch the existing subscription to another plan/interval —
+    a proration on what the org already pays for, never a second purchase. */
+export async function changePlan(formData: FormData): Promise<void> {
+  const parsed = planChangeInput.safeParse({ plan: formData.get("plan"), interval: formData.get("interval") });
+  if (!parsed.success) redirect("/billing?error=change");
+  await applySubscriptionChange({ kind: "switch", ...parsed.data }, "plan");
+}
+
+/** Form action: stop the subscription renewing. Not a deletion — the plan
+    runs to the end of the period it was paid for, and `resumePlan` undoes it
+    right up to that moment. */
+export async function cancelPlan(): Promise<void> {
+  await applySubscriptionChange({ kind: "cancel" }, "cancelled");
+}
+
+/** Form action: undo a scheduled cancellation. */
+export async function resumePlan(): Promise<void> {
+  await applySubscriptionChange({ kind: "resume" }, "resumed");
 }

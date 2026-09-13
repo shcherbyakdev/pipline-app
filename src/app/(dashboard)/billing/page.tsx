@@ -13,13 +13,18 @@ import { PlanPicker } from "@/features/billing/components/plan-picker";
 import { UsageMeters } from "@/features/billing/components/usage-meters";
 import { PageIntro } from "@/components/shell/page-header";
 
+/** `?changed=` values applySubscriptionChange can send back, and the
+    `billing.changed.*` keys they name. Anything else is ignored — the line
+    is a receipt for something that happened, so an unknown code shows none. */
+const CHANGED_KEYS = ["plan", "cancelled", "resumed"] as const;
+
 export default async function BillingPage({ searchParams }: PageProps<"/billing">) {
   // Dormant unless the org's `billing` flag resolves true (lib/flags): the
   // route file exists so the Stripe account can be wired first, but nothing
   // links here and it 404s.
   const { org } = await requireOrg();
   if (!(await getDashboardFlags(org.id)).billing) notFound();
-  const [{ checkout, error, plan }, overview, t, te, locale] = await Promise.all([
+  const [{ changed, checkout, error, plan }, overview, t, te, locale] = await Promise.all([
     searchParams,
     getBillingOverview(),
     getTranslations("billing"),
@@ -43,6 +48,10 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
   // that hasn't landed.
   const cancelled = checkout === "cancelled";
   const errorKey = billingErrorKey(error);
+  // What just happened to the subscription, straight from
+  // applySubscriptionChange — the change is already projected, so this is a
+  // receipt, not a promise.
+  const changedKey = CHANGED_KEYS.find((key) => key === changed) ?? null;
   // The Founder code was refused at checkout: the ribbon comes off (the
   // price it names is no longer on offer) and the picker's forms carry
   // `founder=skip` so the next attempt goes straight to list price instead
@@ -53,6 +62,9 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
   // Destructured (current-plan.tsx idiom) so the guard narrows the binding.
   const { override } = overview;
   const comped = isOverrideActive(override, new Date());
+  // An ended subscription is not one the picker can switch — buying again is
+  // the only move, so it reads as "no subscription" here.
+  const liveSub = overview.subscription && overview.subscription.status !== "expired" ? overview.subscription : null;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
@@ -60,6 +72,11 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
       {errorKey ? (
         <p role="alert" className="text-destructive text-sm">
           {te(`billing.${errorKey}`)}
+        </p>
+      ) : null}
+      {changedKey ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {t(`changed.${changedKey}`)}
         </p>
       ) : null}
       {cancelled ? (
@@ -77,6 +94,10 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
       ) : (
         <PlanPicker
           currentPlan={overview.entitlements.plan}
+          // The PROVIDER row, not the effective plan: a waitlist or comp plan
+          // has no subscription to switch (plan-picker.tsx#PlanCta).
+          currentInterval={liveSub?.interval ?? null}
+          subscribed={liveSub !== null}
           mode={overview.mode}
           founderEligible={overview.founderEligible && !founderEnded}
           skipFounder={founderEnded}
