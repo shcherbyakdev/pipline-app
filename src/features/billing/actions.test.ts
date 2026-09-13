@@ -206,7 +206,9 @@ describe("updatePaymentMethod", () => {
 describe("changePlan / cancelPlan / resumePlan", () => {
   it("switches the existing subscription and projects the answer, without a second purchase", async () => {
     queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
-    await expect(changePlan(form({ plan: "team", interval: "year" }))).rejects.toThrow("REDIRECT:/billing?changed=plan");
+    // LIVE_SUB is pro/month, so this also changes the interval: the receipt
+    // says the period restarted, not that anything was charged.
+    await expect(changePlan(form({ plan: "team", interval: "year" }))).rejects.toThrow("REDIRECT:/billing?changed=interval");
     expect(provider.updateSubscription).toHaveBeenCalledWith(LIVE_SUB, { kind: "switch", plan: "team", interval: "year" });
     expect(provider.createCheckout).not.toHaveBeenCalled();
     // Projected through the same path a webhook takes, so /billing is right
@@ -244,6 +246,16 @@ describe("changePlan / cancelPlan / resumePlan", () => {
     expect(provider.updateSubscription).not.toHaveBeenCalled();
   });
 
+  it("the receipt says which way the money moved", async () => {
+    // "Plan updated" alone is the sentence that leaves someone wondering
+    // whether they were just charged (plans.ts#switchBilling).
+    queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
+    await expect(changePlan(form({ plan: "team", interval: "month" }))).rejects.toThrow("REDIRECT:/billing?changed=charged");
+
+    queries.providerSub = { provider: "stripe", sub: { ...LIVE_SUB, plan: "team" as const } };
+    await expect(changePlan(form({ plan: "pro", interval: "month" }))).rejects.toThrow("REDIRECT:/billing?changed=credited");
+  });
+
   it("a switch to the plan the org is already on asks the provider for nothing", async () => {
     queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
     await expect(changePlan(form({ plan: "pro", interval: "month" }))).rejects.toThrow("REDIRECT:/billing");
@@ -254,7 +266,7 @@ describe("changePlan / cancelPlan / resumePlan", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
     provider.updateSubscription.mockRejectedValue(new Error("boom"));
-    await expect(changePlan(form({ plan: "team", interval: "month" }))).rejects.toThrow("REDIRECT:/billing?error=change");
+    await expect(changePlan(form({ plan: "team", interval: "year" }))).rejects.toThrow("REDIRECT:/billing?error=change");
     expect(applyBillingEvents).not.toHaveBeenCalled();
     error.mockRestore();
   });

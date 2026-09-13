@@ -1432,7 +1432,9 @@
   "billing": {
     "intro": "Your plan and what it covers. Card details are entered on your payment provider's secure page.",
     "changed": {
-      "plan": "Plan updated. The difference is settled on your next invoice.",
+      "charged": "Plan updated — you were charged the difference for the rest of this period.",
+      "credited": "Plan updated — the difference is credited to your next invoice.",
+      "interval": "Billing updated — your period starts again today, with the unused time credited.",
       "cancelled": "Your plan won't renew. You can resume any time before it ends.",
       "resumed": "Your plan renews as usual again."
     },
@@ -1506,7 +1508,7 @@
       "switchTo": "Switch to {plan}",
       "switchToYearly": "Switch to yearly",
       "switchToMonthly": "Switch to monthly",
-      "switchNote": "A plan change settles the difference on your next invoice. Moving between monthly and yearly is charged today."
+      "switchNote": "Upgrading is charged today, for what's left of this period. Downgrading is credited to your next invoice, and changing between monthly and yearly starts the period again."
     },
     "usage": {
       "reminders": "Reminder bookings this month",

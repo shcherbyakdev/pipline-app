@@ -12,7 +12,7 @@ import { selectBillingProvider, type SubscriptionChange } from "@/lib/billing/pr
 import { getPlanOverride, getProviderSubscription, getRawOrgSubscription } from "@/lib/billing/queries";
 import { isOverrideActive } from "@/lib/billing/overrides";
 import { entitlementsFor } from "@/lib/billing/entitlements";
-import { isPaidPlan } from "@/lib/billing/plans";
+import { isPaidPlan, switchBilling, type SwitchBilling } from "@/lib/billing/plans";
 import { getDashboardFlags } from "@/lib/flags/resolve";
 import { isFounderEligible } from "./founder";
 import { checkoutInput, planChangeInput } from "./schema";
@@ -202,6 +202,16 @@ export async function updatePaymentMethod(): Promise<void> {
 
 /* ---------- Changing the subscription we already have ---------- */
 
+/** The line the member reads afterwards, one per way a switch settles
+    (plans.ts#switchBilling). Three, not one, because "your plan changed" is
+    exactly the sentence that left someone wondering whether they had just
+    been charged. */
+const SWITCH_RECEIPT: Record<SwitchBilling, string> = {
+  charge_now: "charged",
+  next_invoice: "credited",
+  new_period: "interval",
+};
+
 /** Ask the provider for `change`, then project its answer through the same
     `applyBillingEvents` a webhook goes through, so /billing tells the truth
     on the very next render instead of polling for a delivery that is
@@ -210,7 +220,7 @@ export async function updatePaymentMethod(): Promise<void> {
 
     Never called from the client — `changePlan`, `cancelPlan` and
     `resumePlan` below are the three doors, and each re-runs every guard. */
-async function applySubscriptionChange(change: SubscriptionChange, done: string): Promise<void> {
+async function applySubscriptionChange(change: SubscriptionChange): Promise<void> {
   const { org } = await requireOrg();
   if (!(await getDashboardFlags(org.id)).billing) notFound();
   const supabase = await createClient();
@@ -268,25 +278,29 @@ async function applySubscriptionChange(change: SubscriptionChange, done: string)
   }
   // The shell's plan banner and tag read the same row on every page.
   revalidatePath("/", "layout");
+  const done = change.kind === "switch"
+    ? SWITCH_RECEIPT[switchBilling(row.sub, change)]
+    : change.kind === "cancel" ? "cancelled" : "resumed";
   redirect(`/billing?changed=${done}`);
 }
 
 /** Form action: switch the existing subscription to another plan/interval —
-    a proration on what the org already pays for, never a second purchase. */
+    a proration on what the org already pays for, never a second purchase.
+    An upgrade is charged today; see plans.ts#switchBilling. */
 export async function changePlan(formData: FormData): Promise<void> {
   const parsed = planChangeInput.safeParse({ plan: formData.get("plan"), interval: formData.get("interval") });
   if (!parsed.success) redirect("/billing?error=change");
-  await applySubscriptionChange({ kind: "switch", ...parsed.data }, "plan");
+  await applySubscriptionChange({ kind: "switch", ...parsed.data });
 }
 
 /** Form action: stop the subscription renewing. Not a deletion — the plan
     runs to the end of the period it was paid for, and `resumePlan` undoes it
     right up to that moment. */
 export async function cancelPlan(): Promise<void> {
-  await applySubscriptionChange({ kind: "cancel" }, "cancelled");
+  await applySubscriptionChange({ kind: "cancel" });
 }
 
 /** Form action: undo a scheduled cancellation. */
 export async function resumePlan(): Promise<void> {
-  await applySubscriptionChange({ kind: "resume" }, "resumed");
+  await applySubscriptionChange({ kind: "resume" });
 }

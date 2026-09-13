@@ -16,7 +16,7 @@ import { PageIntro } from "@/components/shell/page-header";
 /** `?changed=` values applySubscriptionChange can send back, and the
     `billing.changed.*` keys they name. Anything else is ignored — the line
     is a receipt for something that happened, so an unknown code shows none. */
-const CHANGED_KEYS = ["plan", "cancelled", "resumed"] as const;
+const CHANGED_KEYS = ["charged", "credited", "interval", "cancelled", "resumed"] as const;
 
 export default async function BillingPage({ searchParams }: PageProps<"/billing">) {
   // Dormant unless the org's `billing` flag resolves true (lib/flags): the
