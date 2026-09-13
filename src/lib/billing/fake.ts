@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/env";
-import { changedSubscription } from "./fake-emulator";
+import { changedSubscription, previewedChange } from "./fake-emulator";
 import type { BillingEvent, BillingProvider, CheckoutInput, CheckoutSession } from "./provider";
 
 export function signFakeWebhook(body: string, secret: string): string {
@@ -37,6 +37,9 @@ export function fakeProvider(): BillingProvider {
     // is what writes the row — exactly as it does for Stripe.
     async updateSubscription(current, change) {
       return changedSubscription(current, change, new Date());
+    },
+    async previewChange(current, change) {
+      return previewedChange(current, change);
     },
     async createPortalUrl(_customerId: string, returnUrl: string) {
       const q = new URLSearchParams({ return: returnUrl });

@@ -6,9 +6,9 @@
 // webhook would take — so walking every scenario locally exercises the same
 // projection code production does.
 import type { Interval, PaidPlanId } from "./plans";
-import { TEAM_INCLUDED_RESOURCES } from "./plans";
+import { PLANS, switchBilling, TEAM_INCLUDED_RESOURCES } from "./plans";
 import type { OrgSubscriptionRow } from "./entitlements";
-import type { BillingEvent, BillingEventType, BillingSubscription, SubscriptionChange } from "./provider";
+import type { BillingEvent, BillingEventType, BillingSubscription, ChangePreview, SubscriptionChange, SwitchChange } from "./provider";
 
 // ---------- Test cards (Global Constraints) ----------
 
@@ -178,6 +178,19 @@ export function changedSubscription(
           : addInterval(now, change.interval).toISOString(),
       };
   }
+}
+
+/** The emulator's answer to "what does this cost today?". Deliberately
+    coarse — a whole period's difference, not a to-the-second proration — so
+    the dialog has a real number to render locally. The shape is what
+    matters: nothing due unless the money moves now. */
+export function previewedChange(current: BillingSubscription, change: SwitchChange): ChangePreview {
+  const price = (plan: typeof change.plan, interval: typeof change.interval) =>
+    interval === "month" ? PLANS[plan].monthly : PLANS[plan].yearly;
+  const due = switchBilling(current, change) === "next_invoice"
+    ? 0
+    : Math.max(price(change.plan, change.interval) - price(current.plan, current.interval), 0);
+  return { dueToday: Math.round(due * 100), currency: "usd" };
 }
 
 // ---------- Portal actions ----------

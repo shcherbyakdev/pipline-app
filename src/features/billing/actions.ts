@@ -8,7 +8,7 @@ import { requireOrg } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { applyBillingEvents } from "@/lib/billing/apply-events";
-import { selectBillingProvider, type SubscriptionChange } from "@/lib/billing/provider";
+import { selectBillingProvider, type SubscriptionChange, type SwitchChange } from "@/lib/billing/provider";
 import { getPlanOverride, getProviderSubscription, getRawOrgSubscription } from "@/lib/billing/queries";
 import { isOverrideActive } from "@/lib/billing/overrides";
 import { entitlementsFor } from "@/lib/billing/entitlements";
@@ -282,6 +282,35 @@ async function applySubscriptionChange(change: SubscriptionChange): Promise<void
     ? SWITCH_RECEIPT[switchBilling(row.sub, change)]
     : change.kind === "cancel" ? "cancelled" : "resumed";
   redirect(`/billing?changed=${done}`);
+}
+
+/** What the confirmation dialog shows before anyone spends money
+    (plan-picker.tsx). Read-only at the provider.
+
+    Returns a verdict rather than throwing: a preview that cannot be made is
+    not a reason to block the switch — the dialog falls back to naming the
+    rule ("the difference for the rest of this period") instead of a number,
+    and the switch itself still enforces every guard. */
+export async function previewPlanChange(
+  input: { plan: string; interval: string },
+): Promise<{ ok: true; dueToday: number; currency: string; billing: SwitchBilling } | { ok: false }> {
+  const parsed = planChangeInput.safeParse(input);
+  if (!parsed.success) return { ok: false };
+  const { org } = await requireOrg();
+  if (!(await getDashboardFlags(org.id)).billing) notFound();
+  try {
+    const row = await getProviderSubscription(org.id, await createClient());
+    if (!row || row.provider !== env.BILLING_PROVIDER || row.sub.status === "expired") return { ok: false };
+    const change: SwitchChange = { kind: "switch", ...parsed.data };
+    const { dueToday, currency } = await selectBillingProvider().previewChange(row.sub, change);
+    // The verdict rides along: "nothing today" means one thing on a
+    // downgrade (a credit is waiting) and another on an interval change
+    // (unused time covered it), and only the server knows which.
+    return { ok: true, dueToday, currency, billing: switchBilling(row.sub, change) };
+  } catch (error) {
+    console.error("[billing] previewPlanChange:", error);
+    return { ok: false };
+  }
 }
 
 /** Form action: switch the existing subscription to another plan/interval —
