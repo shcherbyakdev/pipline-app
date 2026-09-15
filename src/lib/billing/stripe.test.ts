@@ -325,12 +325,27 @@ describe("withOptionalDiscount", () => {
 });
 
 describe("subscriptionUpdateParams", () => {
+  type Offer = { plan: "pro" | "team"; interval: "month" | "year" };
+  const proYear: Offer = { plan: "pro", interval: "year" };
+
   it("a switch replaces the price ON the existing item, never adding a second one", () => {
     // A bare `items: [{ price }]` appends an item: the org would be billed
     // for both plans at once.
-    const params = subscriptionUpdateParams("si_1", { kind: "switch", plan: "team", interval: "year" });
+    const params = subscriptionUpdateParams("si_1", { kind: "switch", plan: "team", interval: "year" }, proYear);
     expect(params.items).toEqual([{ id: "si_1", price: "price_team_year" }]);
-    expect(params.proration_behavior).toBe("create_prorations");
+  });
+
+  it("invoices today whenever the money moves now, so the quote can be exact", () => {
+    // always_invoice IS accepted on a Managed Payments subscription —
+    // verified against the sandbox 2026-09-13, invoice paid. It is also what
+    // makes the confirmation dialog's number true: the preview asks for the
+    // same behaviour, so what is quoted is what is charged.
+    const behaviour = (to: Offer, from: Offer = proYear) =>
+      subscriptionUpdateParams("si_1", { kind: "switch", ...to }, from).proration_behavior;
+    expect(behaviour({ plan: "team", interval: "year" })).toBe("always_invoice"); // upgrade
+    expect(behaviour({ plan: "pro", interval: "month" })).toBe("always_invoice"); // interval change
+    // A downgrade's credit belongs on the next invoice, not in a payout.
+    expect(behaviour(proYear, { plan: "team", interval: "year" })).toBe("create_prorations");
   });
 
   it("resume clears the date, and never sends the flag alongside it", () => {
@@ -338,7 +353,7 @@ describe("subscriptionUpdateParams", () => {
     // cancel_at_period_end and cancel_at"), and clearing the DATE is what
     // undoes a Customer Portal cancellation, which leaves the flag false
     // (test-mode walk 2026-09-10). Clearing it clears both.
-    expect(subscriptionUpdateParams("si_1", { kind: "cancel" })).toEqual({ cancel_at_period_end: true });
-    expect(subscriptionUpdateParams("si_1", { kind: "resume" })).toEqual({ cancel_at: "" });
+    expect(subscriptionUpdateParams("si_1", { kind: "cancel" }, proYear)).toEqual({ cancel_at_period_end: true });
+    expect(subscriptionUpdateParams("si_1", { kind: "resume" }, proYear)).toEqual({ cancel_at: "" });
   });
 });

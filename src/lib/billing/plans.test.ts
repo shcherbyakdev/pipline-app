@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   PLANS, PAID_PLANS, TEAM_INCLUDED_RESOURCES, pricePerMonth,
-  FOUNDER_PRICE_FACTOR, formatUsd, yearlySaving,
+  FOUNDER_PRICE_FACTOR, formatUsd, yearlySaving, switchBilling,
 } from "./plans";
 
 describe("PLANS", () => {
@@ -45,5 +45,24 @@ describe("PLANS", () => {
   it("yearlySaving is per plan", () => {
     expect(Math.round(yearlySaving("pro") * 100)).toBe(25);
     expect(Math.round(yearlySaving("team") * 100)).toBe(17);
+  });
+});
+
+describe("switchBilling", () => {
+  const pro = { plan: "pro" as const, interval: "month" as const };
+  const team = { plan: "team" as const, interval: "month" as const };
+
+  it("an upgrade is charged today; a downgrade waits for the next invoice", () => {
+    // Without this, a yearly org could move to Team eleven months after
+    // paying for Pro and owe nothing until the renewal.
+    expect(switchBilling(pro, team)).toBe("charge_now");
+    expect(switchBilling(team, pro)).toBe("next_invoice");
+  });
+
+  it("changing the interval is its own case, whichever plan it lands on", () => {
+    // Stripe resets the billing date and charges the new price regardless of
+    // what we ask for, so neither of the other two lines would be true.
+    expect(switchBilling(pro, { plan: "pro", interval: "year" })).toBe("new_period");
+    expect(switchBilling({ plan: "team", interval: "year" }, pro)).toBe("new_period");
   });
 });

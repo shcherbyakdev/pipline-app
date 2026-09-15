@@ -1432,7 +1432,9 @@
   "billing": {
     "intro": "Twój plan i to, co obejmuje. Dane karty podajesz na bezpiecznej stronie dostawcy płatności.",
     "changed": {
-      "plan": "Plan zaktualizowany. Różnicę rozliczymy na następnej fakturze.",
+      "charged": "Plan zaktualizowany — pobraliśmy różnicę za pozostałą część tego okresu.",
+      "credited": "Plan zaktualizowany — różnicę zaliczymy na poczet następnej faktury.",
+      "interval": "Rozliczenie zaktualizowane — okres zaczyna się dziś, a niewykorzystany czas został zaliczony.",
       "cancelled": "Plan nie odnowi się. Możesz go wznowić w każdej chwili przed zakończeniem.",
       "resumed": "Plan znów odnawia się normalnie."
     },
@@ -1503,10 +1505,23 @@
       "upgradeTo": "Przejdź na {plan}",
       "openingCheckout": "Otwieranie kasy…",
       "switching": "Zmieniamy…",
+      "confirm": {
+        "titlePlan": "Przejść na {plan}?",
+        "titleYearly": "Przejść na rozliczenie roczne?",
+        "titleMonthly": "Przejść na rozliczenie miesięczne?",
+        "checking": "Liczymy, ile to kosztuje…",
+        "chargeToday": "Dziś pobierzemy z Twojej karty {amount} — różnicę za pozostałą część tego okresu.",
+        "nothingToday": "Dziś nic nie pobierzemy: niewykorzystany czas pokrywa tę kwotę, a resztę zaliczymy na następną fakturę.",
+        "credited": "Dziś nic nie pobierzemy. Niewykorzystany czas obecnego planu zaliczymy na następną fakturę.",
+        "unknown": "Nie udało się pobrać dokładnej kwoty od dostawcy płatności. Po zmianie pobierzemy różnicę za pozostałą część tego okresu.",
+        "pay": "Zmień i zapłać",
+        "switch": "Zmień",
+        "keep": "Zachowaj obecny plan"
+      },
       "switchTo": "Przejdź na {plan}",
       "switchToYearly": "Przejdź na rozliczenie roczne",
       "switchToMonthly": "Przejdź na rozliczenie miesięczne",
-      "switchNote": "Zmiana planu rozlicza różnicę na następnej fakturze. Przejście między rozliczeniem miesięcznym a rocznym obciąża kartę dzisiaj."
+      "switchNote": "Przejście na wyższy plan obciąża kartę dziś, za pozostałą część okresu. Przejście na niższy zaliczamy na następną fakturę, a zmiana między rozliczeniem miesięcznym a rocznym zaczyna okres od nowa."
     },
     "usage": {
       "reminders": "Rezerwacje z przypomnieniem w tym miesiącu",

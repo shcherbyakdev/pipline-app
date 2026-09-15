@@ -1,9 +1,9 @@
 import "server-only";
 import Stripe from "stripe";
 import { env } from "@/env";
-import { TEAM_INCLUDED_RESOURCES, type Interval, type PaidPlanId } from "./plans";
+import { switchBilling, TEAM_INCLUDED_RESOURCES, type Interval, type PaidPlanId } from "./plans";
 import type { SubscriptionStatus } from "./entitlements";
-import type { BillingEvent, BillingProvider, BillingSubscription, CheckoutInput, CheckoutSession, PortalFlow, SubscriptionChange } from "./provider";
+import type { BillingEvent, BillingProvider, BillingSubscription, ChangePreview, CheckoutInput, CheckoutSession, PortalFlow, SubscriptionChange, SwitchChange } from "./provider";
 
 // Stripe Managed Payments (spec §6/§7.1). The ONLY file in src/ that imports
 // the stripe SDK. Stripe is the merchant of record: Checkout Session in
@@ -268,13 +268,17 @@ export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCre
 
     - A switch replaces the price ON THE EXISTING ITEM — a bare `items: [{
       price }]` would ADD a second item and bill the org for both plans.
-    - `create_prorations` (the default, named here because it is a money
-      decision): the difference lands on the next invoice rather than being
-      charged the moment someone clicks. The exception is Stripe's, not ours
-      — changing the billing INTERVAL always credits the unused time, charges
-      the new price immediately and resets the billing date, which is why the
-      confirmation copy for an interval switch says so and a plan switch's
-      doesn't.
+    - The proration behaviour follows `switchBilling` (plans.ts), because
+      WHEN the money moves is a product decision: an upgrade is invoiced and
+      charged today (`always_invoice` — verified against a real
+      `managed_payments` subscription: accepted, invoice paid), while a
+      downgrade's credit rides to the next invoice (`create_prorations`).
+      An interval change is Stripe's own rule either way — it credits the
+      unused time, charges the new price and resets the billing date.
+
+      A charge that fails does NOT undo the switch: `payment_behavior`
+      defaults to `allow_incomplete`, so the subscription goes `past_due`,
+      the webhook says so, and /billing shows the "update your card" line.
     - Resume clears the DATE, not the flag. Stripe says "this plan is ending"
       two ways — the `cancel_at_period_end` flag and a dated `cancel_at` —
       and refuses a request carrying both ("Received both
@@ -286,15 +290,28 @@ export function checkoutParams(input: CheckoutInput): Stripe.Checkout.SessionCre
       would leave that cancellation standing while our copy said the plan
       renews.
 
-    ponytail: no immediate-charge path (`always_invoice`) and no proration
-    preview — add both together if "you'll be charged $X today" is wanted on
-    the confirmation. */
-export function subscriptionUpdateParams(itemId: string, change: SubscriptionChange): Stripe.SubscriptionUpdateParams {
+    ponytail: no proration preview — add `invoices.createPreview` if the
+    exact "$X today" is wanted on the button rather than the rule in prose. */
+/** `always_invoice` whenever the money moves NOW — an upgrade, and an
+    interval change, where Stripe restarts the period anyway. Invoicing it
+    ourselves is what makes the amount knowable in advance: the preview and
+    the update ask for the same behaviour, so the number on the confirmation
+    is the number that gets charged. A downgrade keeps `create_prorations`:
+    its credit belongs on the next invoice. */
+function prorationBehavior(
+  from: { plan: PaidPlanId; interval: Interval }, to: SwitchChange,
+): Stripe.SubscriptionUpdateParams.ProrationBehavior {
+  return switchBilling(from, to) === "next_invoice" ? "create_prorations" : "always_invoice";
+}
+
+export function subscriptionUpdateParams(
+  itemId: string, change: SubscriptionChange, from: { plan: PaidPlanId; interval: Interval },
+): Stripe.SubscriptionUpdateParams {
   switch (change.kind) {
     case "switch":
       return {
         items: [{ id: itemId, price: priceIdFor(change.plan, change.interval) }],
-        proration_behavior: "create_prorations",
+        proration_behavior: prorationBehavior(from, change),
       };
     case "cancel":
       return { cancel_at_period_end: true };
@@ -327,7 +344,7 @@ export function stripeProvider(): BillingProvider {
       if (change.kind === "switch" && !itemId) throw new Error(`stripe: ${current.providerSubscriptionId} has no item to switch`);
       const updated = await stripe.subscriptions.update(
         current.providerSubscriptionId,
-        subscriptionUpdateParams(itemId, change),
+        subscriptionUpdateParams(itemId, change, current),
       );
       // Mapped by the same function the webhook normaliser uses, so what we
       // project here and what the delivery projects a second later cannot
@@ -336,6 +353,25 @@ export function stripeProvider(): BillingProvider {
       const mapped = subscriptionFrom(updated as unknown as SubLike, priceMap, false);
       if (!mapped) throw new Error(`stripe: unmapped price on ${updated.id} after update`);
       return mapped;
+    },
+    async previewChange(current, change): Promise<ChangePreview> {
+      const sub = await stripe.subscriptions.retrieve(current.providerSubscriptionId);
+      const item = sub.items.data[0];
+      if (!item) throw new Error(`stripe: ${current.providerSubscriptionId} has no item to price`);
+      // The SAME proration behaviour the update will send — a preview of a
+      // different behaviour would quote a number nobody is ever charged.
+      const invoice = await stripe.invoices.createPreview({
+        customer: typeof sub.customer === "string" ? sub.customer : sub.customer.id,
+        subscription: current.providerSubscriptionId,
+        subscription_details: {
+          items: [{ id: item.id, price: priceIdFor(change.plan, change.interval) }],
+          proration_behavior: prorationBehavior(current, change),
+        },
+      });
+      // `amount_due` is what Stripe would actually collect: credits and the
+      // customer balance are already taken off it, and it never goes below
+      // zero the way `total` does on a downgrade.
+      return { dueToday: Math.max(invoice.amount_due, 0), currency: invoice.currency };
     },
     async createPortalUrl(providerCustomerId, returnUrl, flow?: PortalFlow) {
       const s = await stripe.billingPortal.sessions.create({

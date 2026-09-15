@@ -1432,7 +1432,9 @@
   "billing": {
     "intro": "Your plan and what it covers. Card details are entered on your payment provider's secure page.",
     "changed": {
-      "plan": "Plan updated. The difference is settled on your next invoice.",
+      "charged": "Plan updated — you were charged the difference for the rest of this period.",
+      "credited": "Plan updated — the difference is credited to your next invoice.",
+      "interval": "Billing updated — your period starts again today, with the unused time credited.",
       "cancelled": "Your plan won't renew. You can resume any time before it ends.",
       "resumed": "Your plan renews as usual again."
     },
@@ -1503,10 +1505,23 @@
       "upgradeTo": "Upgrade to {plan}",
       "openingCheckout": "Opening checkout…",
       "switching": "Switching…",
+      "confirm": {
+        "titlePlan": "Switch to {plan}?",
+        "titleYearly": "Switch to yearly billing?",
+        "titleMonthly": "Switch to monthly billing?",
+        "checking": "Working out what this costs…",
+        "chargeToday": "{amount} is charged to your card today — the difference for the rest of this period.",
+        "nothingToday": "Nothing is charged today: your unused time covers it, and the rest is credited to your next invoice.",
+        "credited": "Nothing is charged today. The unused time on your current plan is credited to your next invoice.",
+        "unknown": "We couldn't reach your payment provider for the exact amount. Switching bills the difference for the rest of this period.",
+        "pay": "Switch and pay",
+        "switch": "Switch",
+        "keep": "Keep current plan"
+      },
       "switchTo": "Switch to {plan}",
       "switchToYearly": "Switch to yearly",
       "switchToMonthly": "Switch to monthly",
-      "switchNote": "A plan change settles the difference on your next invoice. Moving between monthly and yearly is charged today."
+      "switchNote": "Upgrading is charged today, for what's left of this period. Downgrading is credited to your next invoice, and changing between monthly and yearly starts the period again."
     },
     "usage": {
       "reminders": "Reminder bookings this month",

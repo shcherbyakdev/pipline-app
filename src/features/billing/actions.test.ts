@@ -61,6 +61,7 @@ const provider = vi.hoisted(() => ({
   createCheckout: vi.fn(),
   createPortalUrl: vi.fn(),
   updateSubscription: vi.fn(),
+  previewChange: vi.fn(),
 }));
 
 // The projection of our own change — the same RPC path a webhook takes.
@@ -86,7 +87,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-const { startCheckout, updatePaymentMethod, changePlan, cancelPlan, resumePlan } = await import("./actions");
+const { startCheckout, updatePaymentMethod, changePlan, cancelPlan, resumePlan, previewPlanChange } = await import("./actions");
 
 function form(entries: Record<string, string>): FormData {
   const fd = new FormData();
@@ -109,6 +110,7 @@ beforeEach(() => {
     change.kind === "switch" ? { ...current, plan: change.plan, interval: change.interval } : { ...current, cancelAtPeriodEnd: change.kind === "cancel" },
   );
   applyBillingEvents.mockClear().mockResolvedValue({ processed: 1, skipped: 0 });
+  provider.previewChange.mockReset().mockResolvedValue({ dueToday: 1700, currency: "usd" });
 });
 
 describe("startCheckout", () => {
@@ -203,10 +205,45 @@ describe("updatePaymentMethod", () => {
   });
 });
 
+describe("previewPlanChange", () => {
+  it("quotes the switch and says which way it settles", async () => {
+    queries.providerSub = { provider: "stripe", sub: LIVE_SUB }; // pro/month
+    await expect(previewPlanChange({ plan: "team", interval: "month" })).resolves.toEqual({
+      ok: true, dueToday: 1700, currency: "usd", billing: "charge_now",
+    });
+    expect(provider.previewChange).toHaveBeenCalledWith(LIVE_SUB, { kind: "switch", plan: "team", interval: "month" });
+  });
+
+  it("answers 'no quote' rather than throwing — the dialog names the rule instead", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    // No subscription, another provider's row, an ended plan, a bad input,
+    // and a provider that is simply down: none of them may break the dialog.
+    await expect(previewPlanChange({ plan: "team", interval: "month" })).resolves.toEqual({ ok: false });
+    queries.providerSub = { provider: "fake", sub: LIVE_SUB };
+    await expect(previewPlanChange({ plan: "team", interval: "month" })).resolves.toEqual({ ok: false });
+    queries.providerSub = { provider: "stripe", sub: { ...LIVE_SUB, status: "expired" } };
+    await expect(previewPlanChange({ plan: "team", interval: "month" })).resolves.toEqual({ ok: false });
+    queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
+    await expect(previewPlanChange({ plan: "enterprise", interval: "month" })).resolves.toEqual({ ok: false });
+    provider.previewChange.mockRejectedValue(new Error("boom"));
+    await expect(previewPlanChange({ plan: "team", interval: "month" })).resolves.toEqual({ ok: false });
+    error.mockRestore();
+  });
+
+  it("never writes: a preview must not change the subscription", async () => {
+    queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
+    await previewPlanChange({ plan: "team", interval: "year" });
+    expect(provider.updateSubscription).not.toHaveBeenCalled();
+    expect(applyBillingEvents).not.toHaveBeenCalled();
+  });
+});
+
 describe("changePlan / cancelPlan / resumePlan", () => {
   it("switches the existing subscription and projects the answer, without a second purchase", async () => {
     queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
-    await expect(changePlan(form({ plan: "team", interval: "year" }))).rejects.toThrow("REDIRECT:/billing?changed=plan");
+    // LIVE_SUB is pro/month, so this also changes the interval: the receipt
+    // says the period restarted, not that anything was charged.
+    await expect(changePlan(form({ plan: "team", interval: "year" }))).rejects.toThrow("REDIRECT:/billing?changed=interval");
     expect(provider.updateSubscription).toHaveBeenCalledWith(LIVE_SUB, { kind: "switch", plan: "team", interval: "year" });
     expect(provider.createCheckout).not.toHaveBeenCalled();
     // Projected through the same path a webhook takes, so /billing is right
@@ -244,6 +281,16 @@ describe("changePlan / cancelPlan / resumePlan", () => {
     expect(provider.updateSubscription).not.toHaveBeenCalled();
   });
 
+  it("the receipt says which way the money moved", async () => {
+    // "Plan updated" alone is the sentence that leaves someone wondering
+    // whether they were just charged (plans.ts#switchBilling).
+    queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
+    await expect(changePlan(form({ plan: "team", interval: "month" }))).rejects.toThrow("REDIRECT:/billing?changed=charged");
+
+    queries.providerSub = { provider: "stripe", sub: { ...LIVE_SUB, plan: "team" as const } };
+    await expect(changePlan(form({ plan: "pro", interval: "month" }))).rejects.toThrow("REDIRECT:/billing?changed=credited");
+  });
+
   it("a switch to the plan the org is already on asks the provider for nothing", async () => {
     queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
     await expect(changePlan(form({ plan: "pro", interval: "month" }))).rejects.toThrow("REDIRECT:/billing");
@@ -254,7 +301,7 @@ describe("changePlan / cancelPlan / resumePlan", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     queries.providerSub = { provider: "stripe", sub: LIVE_SUB };
     provider.updateSubscription.mockRejectedValue(new Error("boom"));
-    await expect(changePlan(form({ plan: "team", interval: "month" }))).rejects.toThrow("REDIRECT:/billing?error=change");
+    await expect(changePlan(form({ plan: "team", interval: "year" }))).rejects.toThrow("REDIRECT:/billing?error=change");
     expect(applyBillingEvents).not.toHaveBeenCalled();
     error.mockRestore();
   });
