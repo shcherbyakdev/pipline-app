@@ -34,6 +34,7 @@ import { PREVIEW_SLOTS } from "@/features/scheduling/preview-services";
 import { cn } from "@/lib/utils";
 import { badgeShows } from "@/lib/billing/entitlements";
 import { PageIntro } from "@/components/shell/page-header";
+import { CopyLinkButton } from "@/components/copy-link-button";
 import { bookingPath, bookingUrl, hostLabel } from "@/lib/booking/url";
 import { SECTION_TYPES, type PageDocument } from "../schema";
 import {
@@ -68,9 +69,11 @@ function PreviewBadge() {
   return <p className="mt-2 text-center"><PoweredByLabel className="px-2 py-1" /></p>;
 }
 
-/* Booking page builder: Sections / Settings on the left, the hosted page as
-   a visitor will see it on the right — the same PageRenderer + WidgetTheme
-   composition as /[handle], fed by the draft and the unsaved settings. */
+/* Booking page builder: Sections / Style on the left, the hosted page as a
+   visitor will see it on the right — the same PageRenderer + WidgetTheme
+   composition as /[handle], fed by the draft. Everything here publishes
+   with the page; the org's address, timezone, logo and accent live on
+   Settings (design once, share once — spec 2026-09-16). */
 export function BookingPageBuilder({
   previewIntl,
   seed,
@@ -152,10 +155,6 @@ export function BookingPageBuilder({
   const [confirm, setConfirm] = React.useState<"discard" | "publish" | null>(
     null,
   );
-  const [accent, setAccent] = React.useState<string | null>(
-    branding.accentColor,
-  );
-  const [handle, setHandle] = React.useState(scheduling.handle ?? "");
   // Only consulted when the widget theme is Auto: the hosted page then follows
   // the visitor's system, which the preview lets you flip.
   const [scheme, setScheme] = React.useState<Scheme>("light");
@@ -227,7 +226,7 @@ export function BookingPageBuilder({
   }, [themeDirty]);
 
   const host = hostLabel(appUrl);
-  const previewHandle = handle.trim() || "your-handle";
+  const previewHandle = scheduling.handle ?? "your-handle";
   const url = `${host}${bookingPath(previewHandle)}`;
   const ctx: RenderContext = {
     org: {
@@ -238,7 +237,7 @@ export function BookingPageBuilder({
       currency: scheduling.currency,
       clientContact: scheduling.clientContact,
     },
-    branding: { accentColor: accent, logoUrl: branding.logoUrl },
+    branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
     theme: previewTheme,
     services: previewServices,
     staff,
@@ -279,6 +278,13 @@ export function BookingPageBuilder({
           nothing scrolls through above it. */}
       <div className="bg-background sticky -top-6 z-20 -mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 pt-6 pb-4">
         <PageIntro>{t("intro")}</PageIntro>
+        {/* Wraps as a unit with the publish bar's own wrapping, so on a phone
+            the bar never splits beside the link. */}
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+        {/* Share, where the nav group says it is: the whole page's link,
+            beside the page's state. Per-person and per-item links live on
+            those pages. */}
+        {scheduling.handle ? <CopyLinkButton url={bookingUrl(appUrl, scheduling.handle)} name={t("name")} /> : null}
         <PublishBar
           status={draft.status}
           unpublished={draft.unpublished || themeDirty}
@@ -294,6 +300,7 @@ export function BookingPageBuilder({
           }
           onDiscard={() => setConfirm("discard")}
         />
+        </div>
       </div>
       <ConfirmDialog
         open={confirm === "discard"}
@@ -340,15 +347,10 @@ export function BookingPageBuilder({
             <SettingsTab
               layout={draft.doc.layout}
               onLayout={(layout) => draft.update((d) => ({ ...d, layout }))}
-              branding={branding}
-              scheduling={scheduling}
-              appUrl={appUrl}
               theme={theme}
               onTheme={setTheme}
               offersRentals={mode.offersRentals}
               badge={badge}
-              onPreviewAccent={setAccent}
-              onHandleInput={setHandle}
             />
           ) : selected ? (
             <SectionInspector
@@ -428,7 +430,7 @@ export function BookingPageBuilder({
               <NextIntlClientProvider locale={previewIntl.locale} messages={previewIntl.messages} timeZone={scheduling.timezone}>
                 <WidgetTheme
                   config={previewTheme}
-                  accentColor={accent}
+                  accentColor={branding.accentColor}
                   transparent
                   className="flex flex-col"
                 >

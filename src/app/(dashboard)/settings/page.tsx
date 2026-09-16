@@ -1,5 +1,10 @@
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireOrg } from "@/lib/auth/session";
+import { getBrandingSettings, getSchedulingSettings } from "@/features/orgs/queries";
+import { BrandingForm } from "@/features/orgs/components/branding-form";
+import { SchedulingSettingsForm } from "@/features/scheduling/components/scheduling-settings-form";
+import { env } from "@/env";
 import { modeChoice } from "@/features/orgs/schema";
 import { listServices } from "@/features/scheduling/queries";
 import { listOfferings } from "@/features/rentals/queries";
@@ -10,14 +15,17 @@ import { ClientContactSettings } from "@/features/orgs/components/client-contact
 import { PageIntro } from "@/components/shell/page-header";
 import { SettingsCard } from "@/components/settings-row";
 
-/* Settings = the admin panel (per-user Interface prefs) plus one org-level
-   "Business" group (H1 ruling; future home for org name / timezone). Anything
-   clients see lives on Booking page / Website embed.
+/* Settings = the admin panel (per-user Interface prefs) plus the org-level
+   "Business" group: what you offer, client contact, the page address with
+   timezone, currency and language, and the brand (logo, accent). Every card
+   saves on its own — the studio keeps only what publishes with the page
+   (design once, share once, spec 2026-09-16).
 
    One card per group, hairline rows inside, every choice on a dropdown at
    the right edge (Linear's Preferences). Each row saves on pick. */
 export default async function SettingsPage() {
-  const [{ org }, t] = await Promise.all([requireOrg(), getTranslations("settings")]);
+  const [{ org }, t, branding, scheduling] = await Promise.all([requireOrg(), getTranslations("settings"), getBrandingSettings(), getSchedulingSettings()]);
+  if (!branding || !scheduling) notFound();
   const mode = modeChoice(org);
   // The channel is a live choice only while nothing active has been built on
   // it (update_org_modes enforces the same rule); after that Settings shows a
@@ -39,6 +47,10 @@ export default async function SettingsPage() {
         <SettingsCard>
           <BusinessSettings mode={mode} locked={locked} />
           <ClientContactSettings value={org.clientContact} />
+        </SettingsCard>
+        <SchedulingSettingsForm settings={scheduling} appUrl={env.NEXT_PUBLIC_APP_URL} />
+        <SettingsCard title={t("brand.title")} description={t("brand.blurb")}>
+          <BrandingForm settings={branding} />
         </SettingsCard>
       </section>
     </div>

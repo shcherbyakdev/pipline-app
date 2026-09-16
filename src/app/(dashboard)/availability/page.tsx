@@ -96,7 +96,7 @@ export default async function AvailabilityPage({
           {t.rich("timezoneNote", {
             timezone,
             link: (chunks) => (
-              <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
+              <Link href="/settings" className="underline underline-offset-3 hover:text-foreground">
                 {chunks}
               </Link>
             ),

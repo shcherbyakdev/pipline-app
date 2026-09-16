@@ -179,7 +179,9 @@ export async function updateSurfaceTheme(input: unknown): Promise<ActionState> {
     p_theme: cfg,
   });
   if (error) return brandingFail("updateSurfaceTheme", error);
-  revalidatePath(surface === "embed" ? "/embed" : "/booking-page");
+  // The page's look is the embed's too.
+  revalidatePath("/booking-page");
+  revalidatePath("/embed");
   revalidatePath("/bookings");
   return { ok: true };
 }

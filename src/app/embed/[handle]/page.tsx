@@ -82,7 +82,10 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
     { services: parseIds(sp.service), spaces: parseIds(sp.space) },
   );
   const requested = initialRequest(shown.initialServiceId, shown.initialOfferingId);
-  const theme = parseWidgetTheme(branding.themeRaw);
+  // The widget's look is the booking page's own (design once, share once —
+  // spec 2026-09-16); `?theme=` pins light or dark to the host page.
+  const stored = parseWidgetTheme(branding.pageThemeRaw);
+  const theme: typeof stored = sp.theme === "light" || sp.theme === "dark" ? { ...stored, theme: sp.theme } : stored;
   return (
     <PublicIntl locale={locale} timeZone={org.timeZone}>
     {/* No min-h-dvh here: `dvh` resolves against the IFRAME's own viewport,

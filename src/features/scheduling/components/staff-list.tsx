@@ -149,7 +149,7 @@ export function StaffList({
         <p className="text-muted-foreground text-sm">
           {t.rich("noHandle", {
             link: (chunks) => (
-              <Link href="/booking-page" className="underline underline-offset-3 hover:text-foreground">
+              <Link href="/settings" className="underline underline-offset-3 hover:text-foreground">
                 {chunks}
               </Link>
             ),

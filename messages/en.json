@@ -43,12 +43,16 @@
     "notFound": "Not found"
   },
   "settings": {
+    "brand": {
+      "title": "Brand",
+      "blurb": "Logo and accent colour for your booking page and website embed. Saved as you go."
+    },
     "language": {
       "title": "Language",
-      "blurb": "For your admin. The language your clients see is set on your booking page.",
+      "blurb": "For your admin. The language your clients see is set under Business below.",
       "label": "Interface language"
     },
-    "intro": "Your admin preferences and what your business offers.",
+    "intro": "Your admin preferences and your business: what you offer, your page address and your brand.",
     "sections": {
       "interface": "Interface",
       "business": "Business"
@@ -1285,7 +1289,7 @@
     "noHours": "Closed — no hours set",
     "noActive": "Nobody on the team is active right now. <link>Reactivate someone</link> to set hours.",
     "openSpaces": "Open Spaces →",
-    "timezoneNote": "Times are shown in {timezone} · <link>Change on Booking page</link>",
+    "timezoneNote": "Times are shown in {timezone} · <link>Change in Settings</link>",
     "unavailable": "Unavailable",
     "endAfterStart": "End must be after start.",
     "defaultPrompt": {
@@ -1388,7 +1392,7 @@
       "role": "Role",
       "bookable": "Bookable"
     },
-    "noHandle": "Set your booking page handle first on <link>Booking page</link> — then everyone gets their own link.",
+    "noHandle": "Set your booking page address in <link>Settings</link> first — then everyone gets their own link.",
     "servicesCount": "{count, plural, =0 {No services} one {# service} other {# services}}",
     "owner": "Owner",
     "member": "Member",
@@ -1638,7 +1642,7 @@
         "almostHeading": "Almost live",
         "almostSub": "Add what clients book and your page opens at:",
         "noHandle": "Your workspace is ready.",
-        "noHandleSub": "Pick a page address on Booking page and you're bookable.",
+        "noHandleSub": "Pick a page address in Settings and you're bookable.",
         "setUpPage": "Set up your booking page",
         "finish": "Go to your bookings"
       }
@@ -1785,7 +1789,7 @@
     "starter": {
       "title": "How should clients pick a time?",
       "titleSpaces": "How should clients pick dates and times?",
-      "sub": "Pick how this page's widget shows what is free. You can change it any time on Settings — it goes live when you publish.",
+      "sub": "Pick how this page's widget shows what is free. You can change it any time on Style — it goes live when you publish.",
       "firstService": {
         "title": "Add your first service",
         "sub": "It goes straight onto your page. Add more on Services whenever you like.",
@@ -1814,12 +1818,11 @@
         "noticeHint": "You can keep going and publish once it is bookable."
       },
       "back": "Back",
-      "leave": "Leave for now",
       "continue": "Continue",
       "picker": {
         "trigger": "Compare layouts",
         "title": "Widget layout",
-        "sub": "Change how this page shows what is free. It goes live when you publish; the website embed has its own layout.",
+        "sub": "Change how your widget shows what is free, here and on your website. It goes live when you publish.",
         "use": "Use this layout"
       },
       "current": "current",
@@ -1866,10 +1869,10 @@
       "logoRemoved": "Logo removed"
     },
     "name": "Booking page",
-    "intro": "The page clients book you on. Arrange its sections, brand it, then publish.",
+    "intro": "The page clients book you on. Arrange its sections, style it, then publish.",
     "tabs": {
       "sections": "Sections",
-      "settings": "Settings"
+      "settings": "Style"
     },
     "layout": {
       "label": "Page layout",
@@ -1955,10 +1958,8 @@
       "auto": "Auto follows each visitor's system setting. This page always matches, so both variants are readable (use the toggle above)."
     },
     "settings": {
-      "look": "Look",
-      "lookHint": "Logo and accent colour. Saved as you go.",
-      "widget": "Booking page widget",
-      "widgetHint": "This page's own style. The website embed has its own on Website embed. Publishes with the page.",
+      "widget": "Widget style",
+      "widgetHint": "One look for this page and your website embed. Publishes with the page.",
       "pageLayoutHint": "How the page stacks up. Publishes with the page."
     },
     "image": {
@@ -1983,7 +1984,7 @@
       "header": {
         "tagline": "Tagline",
         "taglinePlaceholder": "Colour specialist in Kraków",
-        "taglineHint": "Shown under your name. Logo and accent are on the Settings tab."
+        "taglineHint": "Shown under your name. Logo and accent are in Settings."
       },
       "hero": {
         "image": "Cover image",
@@ -2063,11 +2064,19 @@
       },
       "booking": {
         "titlePlaceholder": "Book a time",
-        "hint": "The widget itself is styled on the Settings tab and on Website embed."
+        "hint": "The widget itself is styled on the Style tab."
       }
     }
   },
   "embed": {
+    "theme": "Theme",
+    "themes": {
+      "page": "Same as booking page",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "themeHint": "Pick Light or Dark to match your website.",
+    "copyPageLink": "Copy page link",
     "rows": {
       "bookingPage": "Booking page"
     },
@@ -2075,11 +2084,6 @@
       "team": "Team",
       "service": "Services",
       "space": "Spaces"
-    },
-    "tabs": {
-      "label": "Website embed",
-      "code": "Code",
-      "style": "Style"
     },
     "pick": {
       "services": "Selected services",
@@ -2094,12 +2098,7 @@
     "copied": "Code copied",
     "copyAddress": "Copy address",
     "addressCopied": "Address copied",
-    "noHandle": "Set a booking page address on <link>Booking page</link> to get your embed code.",
-    "style": {
-      "title": "Widget style",
-      "description": "Logo and accent colour live on <link>Booking page › Look</link>. The booking page keeps its own style."
-    },
-    "saved": "Widget style saved",
+    "noHandle": "Set your booking page address in <link>Settings</link> to get your embed code.",
     "preview": {
       "hostPage": "Your site",
       "lightPage": "Light site",

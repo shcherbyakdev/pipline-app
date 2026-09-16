@@ -22,9 +22,12 @@ export type EmbedPick = {
   show: string;
   /** The ticked services or spaces (whichever `show` names). */
   ids: string[];
-  /** A pinned language; "" = follow the visitor. Neither is stored — both
-      are part of the string you copy. */
+  /** A pinned language; "" = follow the visitor. */
   lang: string;
+  /** "light" | "dark" pins the embed's theme to the host page; "" keeps the
+      booking page's own. Nothing here is stored — all of it is part of the
+      string you copy (spec 2026-09-16). */
+  theme: string;
 };
 
 export function showOptions(input: {
@@ -71,7 +74,7 @@ export function pickTarget(pick: EmbedPick, o: ShowOptions): LinkTarget {
    public pages' own shape) tick those items. Anything the options don't
    list (unknown, the other channel, repeated) is the page. */
 export function initialPick(o: ShowOptions, params: Record<string, string | string[] | undefined>): EmbedPick {
-  const page: EmbedPick = { show: "page", ids: [], lang: "" };
+  const page: EmbedPick = { show: "page", ids: [], lang: "", theme: "" };
   const { staff, service, space } = params;
   if (typeof staff === "string" && o.people.some((p) => p.slug === staff)) return { ...page, show: `staff:${staff}` };
   const ids = (value: string | string[] | undefined, items: ShowItem[]) =>

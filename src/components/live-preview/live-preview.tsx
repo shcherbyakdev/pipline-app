@@ -41,7 +41,9 @@ export function LivePreview({
   const [device, setDevice] = React.useState<Device>("desktop");
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
+      {/* Wraps: at phone width the switches drop under the title instead of
+          pushing the device toggle off-screen. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm font-medium">{title ?? t("title")}</p>
         <div className="flex items-center gap-2">
           {controls}
