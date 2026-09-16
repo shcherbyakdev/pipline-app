@@ -25,9 +25,18 @@ describe("previewFor (the embed page's preview follows the snippet — app/embed
     expect(nobody.lockedStaff).toBeNull();
     expect(previewFor({ staff: "zed" }, input).lockedStaff).toBeNull();
   });
-  it("a service or a space is a first-render request; unknown ids are ignored", () => {
-    expect(previewFor({ service: "s1" }, input).requestedService).toEqual({ id: "s1", key: 1 });
-    expect(previewFor({ space: "o1" }, input).requestedOffering).toEqual({ id: "o1", key: 1 });
-    expect(previewFor({ service: "nope" }, input).requestedService).toBeNull();
+  it("ticked services narrow to them (option order); one is also a first-render request", () => {
+    const one = previewFor({ services: ["s1"] }, input);
+    expect(one.services.map((s) => s.id)).toEqual(["s1"]);
+    expect(one.requestedService).toEqual({ id: "s1", key: 1 });
+    const both = previewFor({ services: ["s2", "s1"] }, input);
+    expect(both.services.map((s) => s.id)).toEqual(["s1", "s2"]);
+    expect(both.requestedService).toBeNull();
+    expect(previewFor({ spaces: ["o1"] }, input).requestedOffering).toEqual({ id: "o1", key: 1 });
+  });
+  it("ids the catalogue doesn't list are dropped; none left is the org flow", () => {
+    const stale = previewFor({ services: ["nope"] }, input);
+    expect(stale.services).toEqual(services);
+    expect(stale.requestedService).toBeNull();
   });
 });

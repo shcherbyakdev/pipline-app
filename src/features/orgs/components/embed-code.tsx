@@ -3,32 +3,28 @@
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { OrgMode } from "@/features/orgs/mode";
-import type { LinkRow } from "@/features/orgs/link-rows";
+import { hasChoice, pickTarget, type EmbedPick, type ShowOptions } from "@/features/orgs/link-rows";
 import { LOCALES, LOCALE_NAMES } from "@/i18n/config";
 import { bookingLink, embedSrc } from "@/lib/booking/url";
 import { copyText } from "@/lib/clipboard";
 import { SELECT_CLASS } from "./appearance-fields";
 import { embedSnippet, type EmbedTitles } from "./widget-embed-snippet";
 
-/** What the Code tab points the snippet at: a linkRows key and a language
-    ("" = follow the visitor). Owned by the page so the preview beside the
-    code can follow both. Neither is stored — they are part of the string
-    you copy, so one site can embed the team in English and another one
-    person in Ukrainian. */
-export type EmbedPick = { key: string; lang: string };
-
 /* The Code tab: one snippet, for one target, in one language. The target
-   (admin IA spec §5: the page, one person, one service or one space) is the
-   old Links & embeds table folded into a select, its rows still from
-   linkRows, grouped by kind. Three copies: the snippet; the widget's bare
-   address, for site builders that embed by URL (Wix, Squarespace) rather
-   than by HTML; and the booking-page link for the same target. */
+   (share links, spec 2026-09-16: the page, one person, or ticked services /
+   spaces) is a select — Selected services / spaces opens a checklist under
+   it. The pick is owned by the page so the preview beside the code can
+   follow it; nothing is stored, the link is the configuration. Three
+   copies: the snippet; the widget's bare address, for site builders that
+   embed by URL (Wix, Squarespace) rather than by HTML; and the booking-page
+   link for the same target. */
 export function EmbedCode({
   appUrl,
   handle,
-  rows,
+  options,
   pick,
   onPick,
   mode,
@@ -36,8 +32,8 @@ export function EmbedCode({
 }: {
   appUrl: string;
   handle: string;
-  /** linkRows for the org — the page row first, then only its own channel. */
-  rows: readonly LinkRow[];
+  /** showOptions for the org: its people and its own channel's items. */
+  options: ShowOptions;
   pick: EmbedPick;
   onPick: (next: EmbedPick) => void;
   mode: OrgMode;
@@ -47,11 +43,11 @@ export function EmbedCode({
   const t = useTranslations("embed");
   const tc = useTranslations("common");
   const refused = useTranslations("settings")("copyRefused");
-  const row = rows.find((r) => r.key === pick.key) ?? rows[0];
+  const target = pickTarget(pick, options);
   const lang = pick.lang || undefined;
-  const snippet = embedSnippet(appUrl, handle, row.target, mode, titles, lang);
-  const name = (r: LinkRow) => ("key" in r.label ? t(`rows.${r.label.key}`) : r.label.name);
-  const kinds = ["team", "service", "space"] as const;
+  const snippet = embedSnippet(appUrl, handle, target, mode, titles, lang);
+  const list = pick.show === "services" ? options.services : pick.show === "spaces" ? options.spaces : null;
+  const tick = (id: string, on: boolean) => onPick({ ...pick, ids: on ? [...pick.ids, id] : pick.ids.filter((x) => x !== id) });
 
   const copy = async (text: string, copied: string) => {
     if (await copyText(text)) toast.success(copied);
@@ -61,27 +57,36 @@ export function EmbedCode({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground text-sm">{t("paste")}</p>
-      {/* Solo org, one service: nothing to choose, so no select. */}
-      {rows.length > 1 ? (
+      {/* Solo org, one service or one space: nothing to choose, so no select. */}
+      {hasChoice(options) ? (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="embed-show" className="text-xs font-medium">
             {t("show")}
           </Label>
-          <select id="embed-show" className={SELECT_CLASS} value={row.key} onChange={(e) => onPick({ ...pick, key: e.target.value })}>
-            {rows.filter((r) => !r.badge).map((r) => (
-              <option key={r.key} value={r.key}>{name(r)}</option>
-            ))}
-            {kinds.map((kind) => {
-              const group = rows.filter((r) => r.badge === kind);
-              return group.length ? (
-                <optgroup key={kind} label={t(`badge.${kind}`)}>
-                  {group.map((r) => (
-                    <option key={r.key} value={r.key}>{name(r)}</option>
-                  ))}
-                </optgroup>
-              ) : null;
-            })}
+          <select id="embed-show" className={SELECT_CLASS} value={pick.show} onChange={(e) => onPick({ ...pick, show: e.target.value, ids: [] })}>
+            <option value="page">{t("rows.bookingPage")}</option>
+            {options.people.length ? (
+              <optgroup label={t("badge.team")}>
+                {options.people.map((p) => (
+                  <option key={p.slug} value={`staff:${p.slug}`}>{p.name}</option>
+                ))}
+              </optgroup>
+            ) : null}
+            {options.services.length ? <option value="services">{t("pick.services")}</option> : null}
+            {options.spaces.length ? <option value="spaces">{t("pick.spaces")}</option> : null}
           </select>
+          {list ? (
+            <fieldset className="mt-1 flex flex-col gap-2">
+              <legend className="sr-only">{t(pick.show === "services" ? "pick.services" : "pick.spaces")}</legend>
+              {list.map((item) => (
+                <label key={item.id} className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={pick.ids.includes(item.id)} onCheckedChange={(c) => tick(item.id, c === true)} />
+                  {item.name}
+                </label>
+              ))}
+              <p className="text-muted-foreground text-xs">{t("pick.hint")}</p>
+            </fieldset>
+          ) : null}
         </div>
       ) : null}
       <div className="flex flex-col gap-1.5">
@@ -104,10 +109,10 @@ export function EmbedCode({
         <Button size="sm" onClick={() => copy(snippet, t("copied"))}>
           {t("copyCode")}
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => copy(embedSrc(appUrl, handle, row.target, lang), t("addressCopied"))}>
+        <Button variant="ghost" size="sm" onClick={() => copy(embedSrc(appUrl, handle, target, lang), t("addressCopied"))}>
           {t("copyAddress")}
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => copy(bookingLink(appUrl, handle, row.target), tc("linkCopied"))}>
+        <Button variant="ghost" size="sm" onClick={() => copy(bookingLink(appUrl, handle, target), tc("linkCopied"))}>
           {tc("copyLink")}
         </Button>
       </div>

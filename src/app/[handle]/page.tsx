@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getBookingOrg, resolveHandleAlias } from "@/lib/booking/public";
-import { bookingPath } from "@/lib/booking/url";
+import { bookingPath, queryOf } from "@/lib/booking/url";
 import { listPublicCatalog, catalogueHas } from "@/lib/booking/catalog";
 import { frontDoor, type Has } from "@/lib/booking/channel-pages";
 import { env } from "@/env";
@@ -33,10 +33,12 @@ export async function generateMetadata({ params, searchParams }: PageProps<"/[ha
 
 export default async function BookPage({ params, searchParams }: PageProps<"/[handle]">) {
   const { handle } = await params;
+  const sp = await searchParams;
   // Typed with capitals (a business card, a spoken URL) → the canonical
-  // lowercase address; anything else off-shape is a 404.
+  // lowercase address; anything else off-shape is a 404. Redirects keep
+  // the query: a share link's items, a pinned language.
   if (handle !== handle.toLowerCase() && HANDLE_RE.test(handle.toLowerCase())) {
-    permanentRedirect(bookingPath(handle.toLowerCase()));
+    permanentRedirect(bookingPath(handle.toLowerCase()) + queryOf(sp));
   }
   if (!HANDLE_RE.test(handle)) notFound();
   const org = await getBookingOrg(handle);
@@ -44,7 +46,7 @@ export default async function BookPage({ params, searchParams }: PageProps<"/[ha
     // A handle the org renamed away from (0052 org_handle_history) keeps
     // working: old emails and printed links follow the org.
     const current = await resolveHandleAlias(handle);
-    if (current) permanentRedirect(bookingPath(current));
+    if (current) permanentRedirect(bookingPath(current) + queryOf(sp));
     notFound();
   }
   // The gated catalogue: services/staff and offerings, each present only
@@ -53,5 +55,5 @@ export default async function BookPage({ params, searchParams }: PageProps<"/[ha
   const has: Has = catalogueHas(catalogue);
   const channel = frontDoor(has);
   if (!channel) notFound();
-  return renderChannelPage({ org, handle, channel, catalogue, searchParams: await searchParams });
+  return renderChannelPage({ org, handle, channel, catalogue, searchParams: sp });
 }

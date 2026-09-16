@@ -1,13 +1,16 @@
 import { filterBookableServices } from "@/lib/booking/bookable";
+import { narrowCatalogue } from "@/features/booking-page/narrow-catalogue";
 import type { LinkTarget } from "@/lib/booking/url";
 
 /* What the preview widget shows for one snippet target — the rule of
    app/embed/[handle]/page.tsx, pure so the page and the preview cannot
    drift: a pinned person narrows the list to what they offer and drops
    spaces; a person who offers nothing drops the lock (the embed degrades,
-   never breaks); a service or space is a first-render request. The
-   catalogue is the preview catalogue (canned stand-ins included), so a
-   person whose org has no real services yet degrades the same way. */
+   never breaks); ticked services or spaces narrow to those, and a single
+   one is a first-render request (narrowCatalogue, the public pages' own
+   helper). The catalogue is the preview catalogue (canned stand-ins
+   included), so a person whose org has no real services yet degrades the
+   same way. */
 export function previewFor<S extends { id: string }, O extends { id: string }, P extends { id: string; slug: string }>(
   target: LinkTarget,
   input: { services: S[]; offerings: O[]; staff: readonly P[]; serviceStaffIds: Record<string, string[]> },
@@ -25,12 +28,15 @@ export function previewFor<S extends { id: string }, O extends { id: string }, P
     if (person && theirs.length > 0) return { ...none, services: theirs, offerings: [], lockedStaff: person };
     return { ...none, services: input.services, offerings: input.offerings };
   }
-  const listed = (items: ReadonlyArray<{ id: string }>, id: string) => items.some((x) => x.id === id);
+  const shown = narrowCatalogue(input, {
+    services: target && "services" in target ? target.services : [],
+    spaces: target && "spaces" in target ? target.spaces : [],
+  });
   return {
     ...none,
-    services: input.services,
-    offerings: input.offerings,
-    requestedService: target && "service" in target && listed(input.services, target.service) ? { id: target.service, key: 1 } : null,
-    requestedOffering: target && "space" in target && listed(input.offerings, target.space) ? { id: target.space, key: 1 } : null,
+    services: shown.services,
+    offerings: shown.offerings,
+    requestedService: shown.initialServiceId ? { id: shown.initialServiceId, key: 1 } : null,
+    requestedOffering: shown.initialOfferingId ? { id: shown.initialOfferingId, key: 1 } : null,
   };
 }

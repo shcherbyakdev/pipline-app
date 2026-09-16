@@ -2081,6 +2081,11 @@
       "code": "Kod",
       "style": "Styl"
     },
+    "pick": {
+      "services": "Wybrane usługi",
+      "spaces": "Wybrane przestrzenie",
+      "hint": "Zaznacz, co ma pokazywać ten link. Jedna pozycja otwiera się od razu. Bez zaznaczenia widać całą stronę."
+    },
     "paste": "Wklej to tam, gdzie widżet ma się pojawić na Twojej witrynie.",
     "show": "Pokaż",
     "language": "Język",

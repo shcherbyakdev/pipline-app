@@ -381,6 +381,10 @@ is never persisted, only a dismissal cookie (ruling 8).
 
 ### Deep links
 
+> Superseded 2026-09-16 (share links design): `?service=` / `?space=` now
+> NARROW the page to the items they name (one id, or a comma list) instead
+> of pre-selecting one; the embed page's Show select gained a checklist.
+
 - `/[handle]` parses `?service=` today; `/embed/[handle]` parses only
   `?staff=`. After this slice both parse `?service=` and `?space=<uuid>`;
   `resolveInitialOffering(offerings, param)` mirrors `resolveInitialService`

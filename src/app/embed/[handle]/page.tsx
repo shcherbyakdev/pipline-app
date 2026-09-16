@@ -5,7 +5,7 @@ import { listPublicCatalog } from "@/lib/booking/catalog";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
 import { getOrgBranding } from "@/lib/org-branding";
-import { resolveInitialOffering, resolveInitialService } from "@/features/booking-page/initial-service";
+import { narrowCatalogue, parseIds } from "@/features/booking-page/narrow-catalogue";
 import { initialRequest } from "@/features/booking-page/render/page-request";
 import { badgeVisible } from "@/lib/billing/entitlements";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
@@ -71,15 +71,17 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
   // drops (pinnedServices empty ⇒ lockedStaff null ⇒ the org flow, spaces
   // included).
   const embedOfferings = lockedStaff ? [] : offerings;
-  // `?service=` / `?space=` (spec §5): the pinned roster wins — a service the
-  // pinned person doesn't offer is ignored. `?space=` resolves against
-  // embedOfferings so a locked embed can never seed a space it doesn't show.
-  // The widget applies a request once per key; key 1 lands on first render,
-  // exactly like the hosted page.
-  const requested = initialRequest(
-    resolveInitialService(services, sp.service),
-    resolveInitialOffering(embedOfferings, sp.space),
+  // Share links (spec 2026-09-16): `?service=` / `?space=` narrow the widget
+  // to the items they name (one, or a comma list); a single one opens at
+  // once. The pinned roster wins — a service the pinned person doesn't
+  // offer is dropped, and `?space=` narrows embedOfferings so a locked embed
+  // can never seed a space it doesn't show. The widget applies a request
+  // once per key; key 1 lands on first render, exactly like the hosted page.
+  const shown = narrowCatalogue(
+    { services, offerings: embedOfferings, staff, serviceStaffIds },
+    { services: parseIds(sp.service), spaces: parseIds(sp.space) },
   );
+  const requested = initialRequest(shown.initialServiceId, shown.initialOfferingId);
   const theme = parseWidgetTheme(branding.themeRaw);
   return (
     <PublicIntl locale={locale} timeZone={org.timeZone}>
@@ -111,8 +113,8 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
         clientContact={org.clientContact}
         layout={resolveLayout(theme)}
         stayLayout={resolveStayLayout(theme)}
-        services={services}
-        offerings={embedOfferings}
+        services={shown.services}
+        offerings={shown.offerings}
         staff={staff}
         serviceStaffIds={serviceStaffIds}
         lockedStaff={lockedStaff}

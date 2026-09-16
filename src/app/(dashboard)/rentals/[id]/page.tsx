@@ -73,7 +73,7 @@ export default async function RentalDetailPage({ params }: PageProps<"/rentals/[
   // org has a handle.
   const url =
     settings?.handle && offering.active
-      ? bookingLink(env.NEXT_PUBLIC_APP_URL, settings.handle, { space: offering.id })
+      ? bookingLink(env.NEXT_PUBLIC_APP_URL, settings.handle, { spaces: [offering.id] })
       : null;
 
   return (

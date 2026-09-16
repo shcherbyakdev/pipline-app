@@ -12,27 +12,35 @@ export function bookingUrl(appUrl: string, handle: string, staffSlug?: string): 
   return `${appUrl.replace(/\/+$/, "")}${bookingPath(handle, staffSlug)}`;
 }
 
+/** The query a redirect carries across (a renamed handle, a typed-in
+    capital): the string-valued params, re-encoded. */
+export function queryOf(params: Record<string, string | string[] | undefined>): string {
+  const qs = new URLSearchParams(Object.entries(params).flatMap(([k, v]) => (typeof v === "string" ? [[k, v] as [string, string]] : []))).toString();
+  return qs ? `?${qs}` : "";
+}
+
 // "https://booklo.co/" → "booklo.co": the prefix shown before a handle field.
 export function hostLabel(appUrl: string): string {
   return appUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "");
 }
 
-/* Per-thing links (admin IA spec §5): what a link or embed opens on. A
-   staff target is a path segment on the hosted page (/<handle>/<slug>) and
-   a `?staff=` query on the embed — the two builders below know which;
-   everything else is the same query on both: a service or space target
-   opens the org's page with it preselected. Slugged short links for
-   services/spaces need a migration and stay deferred. */
+/* Share links (spec 2026-09-16): what a link or embed shows. A staff target
+   is a path segment on the hosted page (/<handle>/<slug>) and a `?staff=`
+   query on the embed — the two builders below know which; the list targets
+   are the same query on both: the page narrowed to those services or
+   spaces (one id is the old single-item link, and still valid). Slugged
+   short links for services/spaces need a migration and stay deferred. */
 export type LinkTarget =
-  | { service: string }
-  | { space: string }
+  | { services: string[] }
+  | { spaces: string[] }
   | { staff: string }
   | null;
 
 export function targetQuery(target?: LinkTarget): string {
   if (!target) return "";
-  if ("service" in target) return `?service=${encodeURIComponent(target.service)}`;
-  if ("space" in target) return `?space=${encodeURIComponent(target.space)}`;
+  const list = (key: string, ids: string[]) => (ids.length ? `?${key}=${ids.map(encodeURIComponent).join(",")}` : "");
+  if ("services" in target) return list("service", target.services);
+  if ("spaces" in target) return list("space", target.spaces);
   return "";
 }
 

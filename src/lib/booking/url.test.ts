@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { bookingLink, bookingPath, bookingUrl, embedSrc, hostLabel, targetQuery } from "./url";
+import { bookingLink, bookingPath, bookingUrl, embedSrc, hostLabel, queryOf, targetQuery } from "./url";
 
 describe("booking URLs", () => {
   it("builds root paths, with an optional staff segment", () => {
@@ -16,9 +16,11 @@ describe("booking URLs", () => {
     expect(hostLabel("https://booklo.co/")).toBe("booklo.co");
     expect(hostLabel("http://localhost:3000")).toBe("localhost:3000");
   });
-  it("targetQuery renders the two query targets, nothing for staff/none", () => {
-    expect(targetQuery({ service: "s1" })).toBe("?service=s1");
-    expect(targetQuery({ space: "o1" })).toBe("?space=o1");
+  it("targetQuery renders the two list targets (one id, or comma-joined), nothing for staff/none/empty", () => {
+    expect(targetQuery({ services: ["s1"] })).toBe("?service=s1");
+    expect(targetQuery({ spaces: ["o1"] })).toBe("?space=o1");
+    expect(targetQuery({ spaces: ["o1", "o2"] })).toBe("?space=o1,o2");
+    expect(targetQuery({ services: [] })).toBe("");
     expect(targetQuery({ staff: "anna" })).toBe("");
     expect(targetQuery(null)).toBe("");
     expect(targetQuery()).toBe("");
@@ -26,19 +28,23 @@ describe("booking URLs", () => {
   it("bookingLink: a staff target is a path segment, everything else a query on the page", () => {
     expect(bookingLink("https://booklo.co", "anna")).toBe("https://booklo.co/anna");
     expect(bookingLink("https://booklo.co/", "anna", { staff: "maria" })).toBe("https://booklo.co/anna/maria");
-    expect(bookingLink("https://booklo.co", "anna", { service: "s1" })).toBe("https://booklo.co/anna?service=s1");
-    expect(bookingLink("https://booklo.co", "anna", { space: "o1" })).toBe("https://booklo.co/anna?space=o1");
+    expect(bookingLink("https://booklo.co", "anna", { services: ["s1"] })).toBe("https://booklo.co/anna?service=s1");
+    expect(bookingLink("https://booklo.co", "anna", { spaces: ["o1", "o2"] })).toBe("https://booklo.co/anna?space=o1,o2");
   });
   it("embedSrc: every target is a query on the embed route", () => {
     expect(embedSrc("https://booklo.co", "anna")).toBe("https://booklo.co/embed/anna");
     expect(embedSrc("https://booklo.co/", "anna", { staff: "maria" })).toBe("https://booklo.co/embed/anna?staff=maria");
-    expect(embedSrc("https://booklo.co", "anna", { space: "o1" })).toBe("https://booklo.co/embed/anna?space=o1");
+    expect(embedSrc("https://booklo.co", "anna", { spaces: ["o1"] })).toBe("https://booklo.co/embed/anna?space=o1");
   });
 
+  it("queryOf keeps the string params of a request across a redirect", () => {
+    expect(queryOf({})).toBe("");
+    expect(queryOf({ space: "o1,o2", lang: "uk", staff: ["a", "b"] })).toBe("?space=o1%2Co2&lang=uk");
+  });
   it("embedSrc: a pinned language rides along with any target", () => {
     expect(embedSrc("https://booklo.co", "anna", undefined, "uk")).toBe("https://booklo.co/embed/anna?lang=uk");
     expect(embedSrc("https://booklo.co", "anna", { staff: "maria" }, "en")).toBe("https://booklo.co/embed/anna?staff=maria&lang=en");
-    expect(embedSrc("https://booklo.co", "anna", { space: "o1" }, "uk")).toBe("https://booklo.co/embed/anna?space=o1&lang=uk");
+    expect(embedSrc("https://booklo.co", "anna", { spaces: ["o1"] }, "uk")).toBe("https://booklo.co/embed/anna?space=o1&lang=uk");
     // Not a language we speak: the embed keeps following the visitor.
     expect(embedSrc("https://booklo.co", "anna", undefined, "ua")).toBe("https://booklo.co/embed/anna");
   });
