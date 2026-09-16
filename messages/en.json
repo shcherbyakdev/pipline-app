@@ -2081,6 +2081,11 @@
       "code": "Code",
       "style": "Style"
     },
+    "pick": {
+      "services": "Selected services",
+      "spaces": "Selected spaces",
+      "hint": "Tick what this link shows. One item opens straight into it. Nothing ticked shows the whole page."
+    },
     "paste": "Paste this where the widget should appear on your site.",
     "show": "Show",
     "language": "Language",

@@ -15,7 +15,7 @@ import { PublicIntl } from "@/i18n/public-provider";
 import { PublicLanguageLinks } from "@/i18n/public-language-links";
 import { getPublishedPage } from "../queries";
 import type { PageChannel } from "../channel";
-import { resolveInitialOffering, resolveInitialService } from "../initial-service";
+import { narrowCatalogue, parseIds } from "../narrow-catalogue";
 import type { RenderContext } from "./context";
 import { PageRenderer, pageContainerClass } from "./page-renderer";
 
@@ -32,6 +32,11 @@ export async function renderChannelPage({
   searchParams: { service?: string | string[]; space?: string | string[]; lang?: string | string[] };
 }) {
   const { offering, offerings } = catalogue;
+  // Share links (spec 2026-09-16): the page shows only what the link names.
+  const shown = narrowCatalogue(
+    { services: offering.services, offerings, staff: offering.staff, serviceStaffIds: offering.serviceStaffIds },
+    { services: parseIds(searchParams.service), spaces: parseIds(searchParams.space) },
+  );
   // The page's language (spec §4 + region): decided once here, before any
   // translation runs, and handed to the client tree by PublicIntl below.
   const locale = await publicLocale(org.locale, searchParams);
@@ -41,7 +46,7 @@ export async function renderChannelPage({
   const ctx: RenderContext = {
     org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency, clientContact: org.clientContact },
     branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
-    theme, services: offering.services, staff: offering.staff, serviceStaffIds: offering.serviceStaffIds, offerings, lockedStaff: null,
+    theme, services: shown.services, staff: shown.staff, serviceStaffIds: offering.serviceStaffIds, offerings: shown.offerings, lockedStaff: null,
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL, mode: "public", crossLink: null,
   };
   return (
@@ -58,8 +63,8 @@ export async function renderChannelPage({
           <PageRenderer
             doc={doc}
             ctx={ctx}
-            initialServiceId={resolveInitialService(offering.services, searchParams.service)}
-            initialOfferingId={resolveInitialOffering(offerings, searchParams.space)}
+            initialServiceId={shown.initialServiceId}
+            initialOfferingId={shown.initialOfferingId}
           />
           {/* Same rule as the embed: the badge shows unless the org both asked
               to hide it and is on a plan that may (spec §5). */}

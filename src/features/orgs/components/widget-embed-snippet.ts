@@ -16,8 +16,8 @@ import { embedSrc, type LinkTarget } from "@/lib/booking/url";
 // 150px iframe shows a sliver; 640 shows the first step. embed.js overwrites
 // it with the measured height as soon as the widget loads.
 //
-// The `target` (admin IA spec §5) pins the embed to one person, one
-// service or one space — `embedSrc` builds the query. A null target is the
+// The `target` (spec 2026-09-16) pins the embed to one person, or to the
+// ticked services or spaces — `embedSrc` builds the query. A null target is the
 // whole-catalogue embed, byte-identical to what solo orgs have always pasted.
 //
 // The iframe `title` is the widget's accessible name on the host page, and
@@ -33,7 +33,7 @@ export function embedTitle(mode: OrgMode | undefined, titles: EmbedTitles): stri
 }
 
 function snippetTitle(target: LinkTarget | undefined, mode: OrgMode | undefined, titles: EmbedTitles): string {
-  if (target && "space" in target) return titles.space;
+  if (target && "spaces" in target) return titles.space;
   if (target) return titles.appointment;
   return embedTitle(mode, titles);
 }

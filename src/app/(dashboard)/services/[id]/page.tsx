@@ -54,7 +54,7 @@ export default async function ServiceDetailPage({ params }: PageProps<"/services
   const bookable = bookableAdminServices([service], staff).length > 0;
   const url =
     settings?.handle && bookable
-      ? bookingLink(env.NEXT_PUBLIC_APP_URL, settings.handle, { service: service.id })
+      ? bookingLink(env.NEXT_PUBLIC_APP_URL, settings.handle, { services: [service.id] })
       : null;
   const meta = [tUnits("minutes", { count: service.durationMin }), service.priceLabel]
     .filter(Boolean)

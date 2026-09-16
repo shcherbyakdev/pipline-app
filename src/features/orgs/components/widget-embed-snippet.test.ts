@@ -40,8 +40,8 @@ describe("embedSnippet targets (spec §5)", () => {
     expect(s).toContain('src="https://app.example.com/embed.js"');
   });
   it("service and space become the matching query", () => {
-    expect(embedSnippet(APP, "acme", { service: "s1" }, undefined, T)).toContain('src="https://app.example.com/embed/acme?service=s1"');
-    expect(embedSnippet(APP, "acme", { space: "o1" }, undefined, T)).toContain('src="https://app.example.com/embed/acme?space=o1"');
+    expect(embedSnippet(APP, "acme", { services: ["s1"] }, undefined, T)).toContain('src="https://app.example.com/embed/acme?service=s1"');
+    expect(embedSnippet(APP, "acme", { spaces: ["o1"] }, undefined, T)).toContain('src="https://app.example.com/embed/acme?space=o1"');
   });
 });
 
@@ -52,8 +52,8 @@ describe("embedSnippet iframe title", () => {
     expect(embedSnippet(APP, "acme", undefined, undefined, T)).toContain('title="Book an appointment"');
   });
   it("a target names its own channel, whatever the org's mode", () => {
-    expect(embedSnippet(APP, "acme", { space: "o1" }, APPTS_ONLY, T)).toContain('title="Book a space"');
-    expect(embedSnippet(APP, "acme", { service: "s1" }, RENTALS_ONLY, T)).toContain('title="Book an appointment"');
+    expect(embedSnippet(APP, "acme", { spaces: ["o1"] }, APPTS_ONLY, T)).toContain('title="Book a space"');
+    expect(embedSnippet(APP, "acme", { services: ["s1"] }, RENTALS_ONLY, T)).toContain('title="Book an appointment"');
     expect(embedSnippet(APP, "acme", { staff: "anna" }, RENTALS_ONLY, T)).toContain('title="Book an appointment"');
   });
 });

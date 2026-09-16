@@ -11,7 +11,7 @@ import { listStaff } from "@/features/scheduling/staff-queries";
 import { listOfferings } from "@/features/rentals/queries";
 import { bookableAdminServices } from "@/lib/booking/bookable";
 import { effectiveMode, modeOf } from "@/features/orgs/mode";
-import { initialRowKey, linkRows } from "@/features/orgs/link-rows";
+import { initialPick, showOptions } from "@/features/orgs/link-rows";
 import { toPreviewCatalog } from "@/lib/booking/preview-catalog";
 import { requireOrg } from "@/lib/auth/session";
 import { parseWidgetTheme } from "@/lib/widget-theme";
@@ -59,11 +59,11 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   const activeStaff = staff.filter((s) => s.active);
   const publicStaff = activeStaff.map(({ id, name, slug, color }) => ({ id, name, slug, color }));
   const titles = { appointment: tTitle("appointment"), space: tTitle("space") };
-  // What the snippet can point at (admin IA spec §5): the page, one person,
-  // one service, one space. A solo team lists no people (there is only one
-  // answer); the Team, Service and Space pages' Embed links land here with
-  // ?staff= / ?service= / ?space= preselected.
-  const rows = linkRows({
+  // What the snippet can show (share links, spec 2026-09-16): the page, one
+  // person, or ticked services / spaces. A solo team lists no people (there
+  // is only one answer); the Team, Service and Space pages' Embed links land
+  // here with ?staff= / ?service= / ?space= preselected.
+  const options = showOptions({
     mode,
     staff: activeStaff.length > 1 ? activeStaff.map((s) => ({ slug: s.slug, name: s.name })) : [],
     services: bookableAdminServices(services, staff).map((s) => ({ id: s.id, name: s.name })),
@@ -73,7 +73,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
       .filter((o) => o.active && o.kind !== "equipment")
       .map((o) => ({ id: o.id, name: o.name })),
   });
-  const initialKey = initialRowKey(rows, await searchParams);
+  const pick = initialPick(options, await searchParams);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
@@ -93,8 +93,8 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         serviceStaffIds={serviceStaffIds}
         mode={mode}
         titles={titles}
-        rows={rows}
-        initialKey={initialKey}
+        options={options}
+        initialPick={pick}
         canHideBadge={canHideBadge}
         upgradeHref={badgeUpgradeHref}
       />

@@ -11,12 +11,12 @@ import { AppearanceFields, contrastOf } from "./appearance-fields";
 // Pure module (no server-only import, no DB) — safe in a client component.
 import { badgeShows } from "@/lib/billing/entitlements";
 import { EmbedPreviewFrame } from "./embed-preview-frame";
-import { EmbedCode, type EmbedPick } from "./embed-code";
+import { EmbedCode } from "./embed-code";
 import { previewFor } from "@/features/orgs/embed-preview";
 import { BookingWidget } from "@/features/scheduling/components/booking-widget";
 import type { PublicOffering, PublicService, PublicStaff } from "@/lib/booking/public";
 import type { OrgMode } from "@/features/orgs/mode";
-import type { LinkRow } from "@/features/orgs/link-rows";
+import { pickTarget, type EmbedPick, type ShowOptions } from "@/features/orgs/link-rows";
 import { Button } from "@/components/ui/button";
 import { SettingsCard } from "@/components/settings-row";
 import { SegmentedTabs } from "@/components/ui/segmented-tabs";
@@ -53,8 +53,8 @@ export function WidgetAppearance({
   serviceStaffIds,
   mode,
   titles,
-  rows,
-  initialKey,
+  options,
+  initialPick,
   canHideBadge = true,
   upgradeHref = null,
 }: {
@@ -84,8 +84,10 @@ export function WidgetAppearance({
   /** The iframe titles in the org's language (public.embedTitle.*). */
   titles: EmbedTitles;
   /** What the snippet can point at (linkRows) and which row a deep link opens on. */
-  rows: readonly LinkRow[];
-  initialKey: string;
+  /** What the Show select offers (showOptions) and where it opens (the
+      Team / Service / Space pages' Embed links land here preselected). */
+  options: ShowOptions;
+  initialPick: EmbedPick;
   // Hiding "Powered by Booklo" is a paid perk (spec §5). Defaults to true, so
   // a caller that doesn't pass it — and the whole flag-off world — behaves
   // exactly as before. The server enforces it regardless (badgeVisible): this
@@ -98,7 +100,7 @@ export function WidgetAppearance({
   const t = useTranslations("embed");
   const tc = useTranslations("common");
   const [tab, setTab] = React.useState<Tab>("code");
-  const [pick, setPick] = React.useState<EmbedPick>({ key: initialKey, lang: "" });
+  const [pick, setPick] = React.useState<EmbedPick>(initialPick);
   const [config, setConfig] = React.useState<WidgetThemeConfig>(initial);
   const [pending, startTransition] = React.useTransition();
 
@@ -112,8 +114,8 @@ export function WidgetAppearance({
   const shown = tab === "code" ? initial : config;
   const previewConfig = { ...shown, hidePoweredBy: !badgeShows(shown.hidePoweredBy, canHideBadge) };
 
-  const row = rows.find((r) => r.key === pick.key) ?? rows[0];
-  const preview = previewFor(row.target, { services: previewServices, offerings: previewOfferings, staff, serviceStaffIds });
+  const target = pickTarget(pick, options);
+  const preview = previewFor(target, { services: previewServices, offerings: previewOfferings, staff, serviceStaffIds });
   const previewLocale = (pick.lang || orgLocale) as Locale;
 
   const save = () => {
@@ -136,7 +138,7 @@ export function WidgetAppearance({
             what was typed on a trip to the other. */}
         <div hidden={tab !== "code"} className="flex flex-col gap-4">
           {handle ? (
-            <EmbedCode appUrl={appUrl} handle={handle} rows={rows} pick={pick} onPick={setPick} mode={mode} titles={titles} />
+            <EmbedCode appUrl={appUrl} handle={handle} options={options} pick={pick} onPick={setPick} mode={mode} titles={titles} />
           ) : (
             <p className="text-muted-foreground text-sm">
               {t.rich("noHandle", {
@@ -191,7 +193,7 @@ export function WidgetAppearance({
               <BookingWidget
                 // A new target or language is a new embed: start it over,
                 // the way a pasted snippet would.
-                key={`${row.key}:${previewLocale}`}
+                key={`${JSON.stringify(target)}:${previewLocale}`}
                 handle="preview"
                 orgTimeZone={orgTimeZone}
                 currency={currency}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getBookingOrg, resolveHandleAlias } from "@/lib/booking/public";
-import { bookingPath } from "@/lib/booking/url";
+import { bookingPath, queryOf } from "@/lib/booking/url";
 import { loadPublicOffering } from "@/lib/booking/public-offering";
 import { filterBookableServices } from "@/lib/booking/bookable";
 import { STAFF_SLUG_RE } from "@/features/scheduling/staff-slug";
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { env } from "@/env";
 import { getPublishedPage } from "@/features/booking-page/queries";
 import { metaDescription, pageMetadata } from "@/features/booking-page/metadata";
-import { resolveInitialService } from "@/features/booking-page/initial-service";
+import { narrowCatalogue, parseIds } from "@/features/booking-page/narrow-catalogue";
 import type { RenderContext } from "@/features/booking-page/render/context";
 import { PageRenderer, pageContainerClass } from "@/features/booking-page/render/page-renderer";
 import { HANDLE_RE } from "@/features/scheduling/handle";
@@ -43,8 +43,10 @@ export async function generateMetadata({ params, searchParams }: PageProps<"/[ha
 // "Anyone available". Rentals are org-level, so this page never lists them.
 export default async function StaffBookPage({ params, searchParams }: PageProps<"/[handle]/[staffSlug]">) {
   const { handle, staffSlug } = await params;
+  const sp = await searchParams;
+  // Redirects keep the query (a share link's items, a pinned language).
   if (handle !== handle.toLowerCase() && HANDLE_RE.test(handle.toLowerCase())) {
-    permanentRedirect(bookingPath(handle.toLowerCase(), staffSlug));
+    permanentRedirect(bookingPath(handle.toLowerCase(), staffSlug) + queryOf(sp));
   }
   if (!HANDLE_RE.test(handle)) notFound();
   // Shape-checked before any DB call, exactly like the handle above.
@@ -53,13 +55,12 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
   if (!org) {
     // Renamed org (0052 org_handle_history): follow it, keeping the person.
     const current = await resolveHandleAlias(handle);
-    if (current) permanentRedirect(bookingPath(current, staffSlug));
+    if (current) permanentRedirect(bookingPath(current, staffSlug) + queryOf(sp));
     notFound();
   }
   // A rentals-only org has no public people — this page IS the appointments
   // channel, so its own mode gates it the same way listPublicCatalog would.
   if (!org.offersAppointments) notFound();
-  const sp = await searchParams;
   const locale = await publicLocale(org.locale, sp);
   setRequestLocale(locale);
   const [offering, branding, doc, t] = await Promise.all([
@@ -77,11 +78,12 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
   // Nothing they can be booked for is not a page worth rendering.
   if (services.length === 0) notFound();
   const theme = parseWidgetTheme(branding.pageThemeRaw);
-  const initialServiceId = resolveInitialService(services, sp.service);
+  // Share links (spec 2026-09-16): `?service=` narrows within what they offer.
+  const shown = narrowCatalogue({ services, offerings: [], staff: [person], serviceStaffIds: offering.serviceStaffIds }, { services: parseIds(sp.service) });
   const ctx: RenderContext = {
     org: { orgId: org.orgId, orgName: org.orgName, handle, timeZone: org.timeZone, currency: org.currency, clientContact: org.clientContact },
     branding: { accentColor: branding.accentColor, logoUrl: branding.logoUrl },
-    theme, services,
+    theme, services: shown.services,
     // No serviceStaffIds: the map is only needed to filter a staff step this
     // page never shows, and shipping the org's whole service→staff graph to
     // the browser for nothing is worse than letting eligibleFor fall back to
@@ -97,7 +99,7 @@ export default async function StaffBookPage({ params, searchParams }: PageProps<
     <div className={bookShellClass(theme.theme)}>
       <WidgetTheme config={theme} accentColor={branding.accentColor} transparent className="flex flex-1 flex-col">
         <main className={cn(BOOK_COLUMN_CLASS, pageContainerClass(doc.layout))}>
-          <PageRenderer doc={doc} ctx={ctx} initialServiceId={initialServiceId} />
+          <PageRenderer doc={doc} ctx={ctx} initialServiceId={shown.initialServiceId} />
           {/* Same rule as /book/[handle] and the embed (spec §5). */}
           {badgeVisible(theme.hidePoweredBy, offering.entitlements) ? <PoweredBy handle={handle} /> : null}
         </main>
