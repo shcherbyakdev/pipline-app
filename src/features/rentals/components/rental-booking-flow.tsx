@@ -222,7 +222,7 @@ export function RentalBookingFlow({
             onSooner={month > homeMonth ? () => changeMonth(homeMonth) : null}
           />
         ) : stayLayout === "fields" ? (
-          <StayFields offering={offering} value={range} onChange={changeRange} open={!!preview}>
+          <StayFields value={range} onChange={changeRange} open={!!preview}>
             <RangePicker
               offering={offering}
               availability={availability}

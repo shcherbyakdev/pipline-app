@@ -35,9 +35,9 @@ function labelFormatters(intlLocale: string) {
 const utcDate = (date: string) => new Date(`${date}T00:00:00Z`);
 const hhmm = (time: string) => time.slice(0, 5);
 
-// "3 nights · check-in 15:00 · check-out 11:00 (Europe/Berlin)". Rentals never
-// convert to the viewer's zone: a check-in time is a wall-clock instruction at
-// the property, so it is shown as-is with the org zone named.
+// "3 nights · from 15:00 · until 11:00 (Europe/Berlin)". Rentals never
+// convert to the viewer's zone: a start time is a wall-clock instruction at
+// the venue, so it is shown as-is with the org zone named.
 export function staySummary(
   offering: PublicOffering,
   start: string,
@@ -51,9 +51,9 @@ export function staySummary(
   // widget) — both are set (0056 CHECK).
   return tu("summary", {
     length: tu(nights ? "nights" : "days", { count: n }),
-    inLabel: tu(nights ? "summaryCheckIn" : "summaryPickup"),
+    inLabel: tu("summaryFrom"),
     inTime: hhmm(offering.startTime!),
-    outLabel: tu(nights ? "summaryCheckOut" : "summaryReturn"),
+    outLabel: tu("summaryUntil"),
     outTime: hhmm(offering.endTime!),
     tz: timeZone,
   });
@@ -142,16 +142,14 @@ export function RangePicker({
   return (
     <div className="flex flex-col gap-4">
       {/* The step prompt leads the picker (aria-live announces the
-          check-in → check-out swap) — below the grids it taught the
+          start → end swap) — below the grids it taught the
           two-click model a viewport too late on phones. */}
       <div className="flex items-center justify-between gap-3">
         <div aria-live="polite" className="min-w-0">
           {!(start && end) ? (
             <p className="text-sm">
               <span className="font-medium">
-                {picking
-                  ? t(offering.rangeMode === "nights" ? "pickCheckOut" : "pickReturn")
-                  : t(offering.rangeMode === "nights" ? "pickCheckIn" : "pickPickup")}
+                {t(picking ? "pickEnd" : "pickStart")}
               </span>{" "}
               <span className="text-muted-foreground">
                 {picking ? t("fadedForStay") : t("faded")}

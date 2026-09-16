@@ -407,21 +407,17 @@
       "howLong": "Jak długo?",
       "duration": "Czas trwania",
       "chooseDuration": "Wybierz czas trwania",
-      "checkIn": "Zameldowanie",
-      "checkOut": "Wymeldowanie",
-      "pickup": "Odbiór",
-      "return": "Zwrot",
-      "pickCheckIn": "Wybierz datę zameldowania.",
-      "pickPickup": "Wybierz datę odbioru.",
-      "pickCheckOut": "Teraz wybierz datę wymeldowania.",
-      "pickReturn": "Teraz wybierz datę zwrotu.",
+      "start": "Data rozpoczęcia",
+      "end": "Data zakończenia",
+      "pickStart": "Wybierz datę rozpoczęcia.",
+      "pickEnd": "Teraz wybierz datę zakończenia.",
       "faded": "Wyszarzone daty są niedostępne.",
-      "fadedForStay": "Wyszarzone daty są niedostępne dla tego pobytu.",
+      "fadedForStay": "Wyszarzone daty nie pasują do wybranej daty rozpoczęcia.",
       "addDate": "Dodaj datę",
       "howManyNights": "Ile nocy?",
       "howManyDays": "Ile dni?",
-      "lengthInNights": "Długość pobytu w nocach",
-      "lengthInDays": "Długość pobytu w dniach",
+      "lengthInNights": "Długość w nocach",
+      "lengthInDays": "Długość w dniach",
       "nextFree": "Najbliższe wolne: {length}.",
       "tapToBook": "Dotknij, aby zarezerwować te daty.",
       "nothingFreePeriod": "Brak wolnych terminów w tym okresie — sprawdź późniejsze daty.",
@@ -442,10 +438,8 @@
       "minNights": "min. {count, plural, one {# noc} few {# noce} many {# nocy} other {# nocy}}",
       "minDays": "min. {count, plural, one {# dzień} few {# dni} many {# dni} other {# dnia}}",
       "summary": "{length} · {inLabel} {inTime} · {outLabel} {outTime} ({tz})",
-      "summaryCheckIn": "zameldowanie",
-      "summaryCheckOut": "wymeldowanie",
-      "summaryPickup": "odbiór",
-      "summaryReturn": "zwrot",
+      "summaryFrom": "od",
+      "summaryUntil": "do",
       "total": "Razem: {amount}",
       "depositDue": "Zaliczka: {amount}",
       "payAtVenue": "Płatność: na miejscu",
@@ -1700,19 +1694,19 @@
     "stayLayouts": {
       "one-month": {
         "label": "Jeden miesiąc",
-        "description": "Siatka miesiąca; dotknij zameldowania, potem wymeldowania."
+        "description": "Siatka miesiąca; dotknij daty rozpoczęcia, potem zakończenia."
       },
       "two-months": {
         "label": "Dwa miesiące",
         "description": "Dwa miesiące obok siebie, te same dwa dotknięcia."
       },
       "fields": {
-        "label": "Pola zameldowania i wymeldowania",
+        "label": "Pola dat",
         "description": "Dwa pola daty; dotknięcie otwiera siatkę miesiąca."
       },
       "next-free": {
-        "label": "Najbliższe wolne pobyty",
-        "description": "Najbliższe wolne okna pasujące do minimalnego pobytu, jedno dotknięcie każde."
+        "label": "Najbliższe wolne terminy",
+        "description": "Najbliższe wolne okna pasujące do minimalnej długości, jedno dotknięcie każde."
       }
     },
     "themes": {
@@ -1830,7 +1824,7 @@
       },
       "current": "bieżący",
       "times": "Terminy",
-      "stays": "Pobyty"
+      "stays": "Daty"
     },
     "appearance": {
       "theme": "Motyw",
@@ -1841,7 +1835,7 @@
         "round": "Okrągłe"
       },
       "layout": "Układ widżetu",
-      "stayLayout": "Układ pobytów",
+      "stayLayout": "Układ dat",
       "font": "Czcionka",
       "fontSystem": "Systemowa",
       "background": "Własne tło",
