@@ -407,20 +407,16 @@
       "howLong": "На скільки?",
       "duration": "Тривалість",
       "chooseDuration": "Оберіть тривалість",
-      "checkIn": "Заїзд",
-      "checkOut": "Виїзд",
-      "pickup": "Отримання",
-      "return": "Повернення",
-      "pickCheckIn": "Оберіть дату заїзду.",
-      "pickPickup": "Оберіть дату отримання.",
-      "pickCheckOut": "Тепер оберіть дату виїзду.",
-      "pickReturn": "Тепер оберіть дату повернення.",
+      "start": "Дата початку",
+      "end": "Дата завершення",
+      "pickStart": "Оберіть дату початку.",
+      "pickEnd": "Тепер оберіть дату завершення.",
       "faded": "Бліді дати недоступні.",
-      "fadedForStay": "Бліді дати недоступні для такого проживання.",
+      "fadedForStay": "Бліді дати не підходять до обраної дати початку.",
       "addDate": "Додати дату",
       "howManyNights": "Скільки ночей?",
       "howManyDays": "Скільки днів?",
-      "lengthInNights": "Тривалість проживання в ночах",
+      "lengthInNights": "Тривалість у ночах",
       "lengthInDays": "Тривалість у днях",
       "nextFree": "Найближчі вільні: {length}.",
       "tapToBook": "Торкніться, щоб забронювати ці дати.",
@@ -442,10 +438,8 @@
       "minNights": "мін. {count, plural, one {# ніч} few {# ночі} many {# ночей} other {# ночі}}",
       "minDays": "мін. {count, plural, one {# день} few {# дні} many {# днів} other {# дня}}",
       "summary": "{length} · {inLabel} {inTime} · {outLabel} {outTime} ({tz})",
-      "summaryCheckIn": "заїзд",
-      "summaryCheckOut": "виїзд",
-      "summaryPickup": "отримання",
-      "summaryReturn": "повернення",
+      "summaryFrom": "з",
+      "summaryUntil": "до",
       "total": "Разом: {amount}",
       "depositDue": "Завдаток: {amount}",
       "payAtVenue": "Оплата: на місці",
@@ -1700,19 +1694,19 @@
     "stayLayouts": {
       "one-month": {
         "label": "Один місяць",
-        "description": "Сітка місяця; торкніться дати заїзду, потім виїзду."
+        "description": "Сітка місяця; торкніться дати початку, потім завершення."
       },
       "two-months": {
         "label": "Два місяці",
         "description": "Два місяці поруч, ті самі два дотики."
       },
       "fields": {
-        "label": "Поля заїзду та виїзду",
+        "label": "Поля дат",
         "description": "Два поля дат; дотик до поля відкриває сітку місяця."
       },
       "next-free": {
-        "label": "Найближчі вільні проживання",
-        "description": "Найближчі вільні вікна, що вміщають мінімальне проживання, один дотик на кожне."
+        "label": "Найближчі вільні дати",
+        "description": "Найближчі вільні вікна, що вміщають мінімальну тривалість, один дотик на кожне."
       }
     },
     "themes": {
@@ -1830,7 +1824,7 @@
       },
       "current": "поточний",
       "times": "Час",
-      "stays": "Проживання"
+      "stays": "Дати"
     },
     "appearance": {
       "theme": "Тема",
@@ -1841,7 +1835,7 @@
         "round": "Округле"
       },
       "layout": "Макет віджета",
-      "stayLayout": "Макет проживань",
+      "stayLayout": "Макет дат",
       "font": "Шрифт",
       "fontSystem": "Системний",
       "background": "Свій колір тла",

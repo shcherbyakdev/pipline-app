@@ -22,7 +22,9 @@ A term missing here is added here first, then used.
 | availability, hours | графік, робочі години | |
 | time / slot | час | never "слот" in client-facing copy |
 | stay (nights) | проживання | |
-| check-in / check-out | заїзд / виїзд | |
+| check-in / check-out | заїзд / виїзд | admin-side only (space settings, timeline); the widget says start / end |
+| start / end date (the date templates, any business) | дата початку / дата завершення | `public.stay.start/end`; the summary line says "з 15:00 · до 11:00" |
+| Dates (widget layout group, beside Times) | Дати | `studio.starter.stays`, "Макет дат" |
 | reschedule / cancel / confirm | перенести / скасувати / підтвердити | |
 | deposit | передоплата | |
 | hold / reservation | утримане бронювання | a time held for payment |
@@ -38,7 +40,7 @@ A term missing here is added here first, then used.
 | night / day / hour (counts) | ніч, ночі, ночей · день, дні, днів · година, години, годин | four ICU forms (one/few/many/other) — `public.units.*` |
 | min / h (short units) | хв / год | "60 хв", "1 год 30 хв" |
 | Powered by Booklo | Працює на Booklo | |
-| pickup / return (day stays) | отримання / повернення | |
+| pickup / return (day stays) | отримання / повернення | admin-side only; the widget says start / end |
 | Overview (admin page, named in provider mails) | «Огляд» | provisional until Wave 3 names the admin nav |
 | booked / cancelled / moved (a client, unknown gender) | забронював(ла) / скасував(ла) / змінив(ла) час | provider-facing mails; only verbs whose feminine is stem + ла take the (ла) ending — never переніс(ла), whose feminine is перенесла |
 | admin nav | Огляд · Бронювання · Клієнти · Простори · Послуги · Команда · Графік · Сторінка бронювання · Код для сайту · Оплата · Налаштування | sidebar sections: Пропозиція (Offer), Поширення (Share) |
@@ -83,8 +85,10 @@ A term missing here is added here first, then used.
 | availability, hours | dostępność, godziny pracy | |
 | time / slot | termin | never "slot" |
 | stay (nights) | pobyt | |
-| check-in / check-out | zameldowanie / wymeldowanie | |
-| pickup / return (day stays) | odbiór / zwrot | |
+| check-in / check-out | zameldowanie / wymeldowanie | admin-side only (space settings, timeline); the widget says start / end |
+| pickup / return (day stays) | odbiór / zwrot | admin-side only; the widget says start / end |
+| start / end date (the date templates, any business) | data rozpoczęcia / data zakończenia | `public.stay.start/end`; the summary line says "od 15:00 · do 11:00" |
+| Dates (widget layout group, beside Times) | Daty | `studio.starter.stays`, "Układ dat" |
 | reschedule / cancel / confirm | przełożyć / anulować / potwierdzić | "przenieść" when the provider moves a booking |
 | deposit | zaliczka | |
 | hold / reservation | rezerwacja wstrzymana | a time held for payment |

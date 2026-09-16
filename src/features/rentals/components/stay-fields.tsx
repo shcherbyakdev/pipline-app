@@ -4,7 +4,6 @@ import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { INTL_LOCALES } from "@/i18n/config";
 import { cn } from "@/lib/utils";
-import type { PublicOffering } from "@/lib/booking/public";
 import type { RangeValue } from "./range-picker";
 
 // Org-local dates: pinned to UTC like every formatter around the range
@@ -13,13 +12,12 @@ const fieldFormatter = (intlLocale: string) =>
   new Intl.DateTimeFormat(intlLocale, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const utcDate = (d: string) => new Date(`${d}T00:00:00Z`);
 
-/* The "Check-in and check-out fields" template (spec §8): two fields at the
-   top; tapping one opens the month grid (the children) beneath them. The
-   grid closes on its own once both dates are set — the flow moves on. */
+/* The "Date fields" template (spec §8): two fields at the top; tapping
+   one opens the month grid (the children) beneath them. The grid closes on
+   its own once both dates are set — the flow moves on. */
 export function StayFields({
-  offering, value, onChange, open: openByDefault = false, children,
+  value, onChange, open: openByDefault = false, children,
 }: {
-  offering: PublicOffering;
   value: RangeValue;
   onChange: (next: RangeValue) => void;
   /** Previews open the grid at once so the template reads as itself. */
@@ -30,14 +28,13 @@ export function StayFields({
   const t = useTranslations("public.stay");
   const fieldFmt = React.useMemo(() => fieldFormatter(INTL_LOCALES[locale]), [locale]);
   const [open, setOpen] = React.useState(openByDefault);
-  const [inLabel, outLabel] =
-    offering.rangeMode === "nights" ? [t("checkIn"), t("checkOut")] : [t("pickup"), t("return")];
+  const [inLabel, outLabel] = [t("start"), t("end")];
   const field = (label: string, date: string | null, active: boolean) => (
     <button
       type="button"
       aria-expanded={open}
       onClick={() => {
-        // Tapping a filled check-out means "start over"; a check-in tap
+        // Tapping a filled end date means "start over"; a start-date tap
         // keeps a picked start so the visitor can go on to the end.
         if (label === outLabel && value.start && value.end) onChange({ start: null, end: null });
         setOpen(true);

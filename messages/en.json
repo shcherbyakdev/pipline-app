@@ -407,21 +407,17 @@
       "howLong": "How long?",
       "duration": "Duration",
       "chooseDuration": "Choose a duration",
-      "checkIn": "Check-in",
-      "checkOut": "Check-out",
-      "pickup": "Pickup",
-      "return": "Return",
-      "pickCheckIn": "Pick your check-in date.",
-      "pickPickup": "Pick your pickup date.",
-      "pickCheckOut": "Now pick your check-out date.",
-      "pickReturn": "Now pick your return date.",
+      "start": "Start date",
+      "end": "End date",
+      "pickStart": "Pick your start date.",
+      "pickEnd": "Now pick your end date.",
       "faded": "Faded dates are unavailable.",
-      "fadedForStay": "Faded dates are unavailable for that stay.",
+      "fadedForStay": "Faded dates aren't available from that start date.",
       "addDate": "Add date",
       "howManyNights": "How many nights?",
       "howManyDays": "How many days?",
-      "lengthInNights": "Length of stay in nights",
-      "lengthInDays": "Length of stay in days",
+      "lengthInNights": "Length in nights",
+      "lengthInDays": "Length in days",
       "nextFree": "Next free {length}.",
       "tapToBook": "Tap one to book those dates.",
       "nothingFreePeriod": "Nothing free in this period — try later dates.",
@@ -442,10 +438,8 @@
       "minNights": "min {count, plural, one {# night} other {# nights}}",
       "minDays": "min {count, plural, one {# day} other {# days}}",
       "summary": "{length} · {inLabel} {inTime} · {outLabel} {outTime} ({tz})",
-      "summaryCheckIn": "check-in",
-      "summaryCheckOut": "check-out",
-      "summaryPickup": "pickup",
-      "summaryReturn": "return",
+      "summaryFrom": "from",
+      "summaryUntil": "until",
       "total": "Total: {amount}",
       "depositDue": "Deposit due: {amount}",
       "payAtVenue": "Payment: pay at the venue",
@@ -1700,19 +1694,19 @@
     "stayLayouts": {
       "one-month": {
         "label": "One month",
-        "description": "A month grid; tap check-in, then check-out."
+        "description": "A month grid; tap the start date, then the end date."
       },
       "two-months": {
         "label": "Two months",
         "description": "Two months side by side, the same two taps."
       },
       "fields": {
-        "label": "Check-in and check-out fields",
+        "label": "Date fields",
         "description": "Two date fields; tapping one opens the month grid."
       },
       "next-free": {
-        "label": "Next free stays",
-        "description": "The soonest free windows that fit the minimum stay, one tap each."
+        "label": "Next free dates",
+        "description": "The soonest free windows that fit the minimum length, one tap each."
       }
     },
     "themes": {
@@ -1830,7 +1824,7 @@
       },
       "current": "current",
       "times": "Times",
-      "stays": "Stays"
+      "stays": "Dates"
     },
     "appearance": {
       "theme": "Theme",
@@ -1841,7 +1835,7 @@
         "round": "Round"
       },
       "layout": "Widget layout",
-      "stayLayout": "Stays layout",
+      "stayLayout": "Dates layout",
       "font": "Font",
       "fontSystem": "System",
       "background": "Background override",
