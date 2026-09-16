@@ -72,11 +72,11 @@ describe("updateOrgModesInput", () => {
 });
 
 
-describe("surfaceThemeInput (spec 2026-09-02 §9: one appearance per surface)", () => {
+describe("surfaceThemeInput (spec 2026-09-16: one look everywhere, stored on the page)", () => {
   const theme = { theme: "light", radius: "subtle", font: "geist", layout: "calendar", stayLayout: "one-month", hidePoweredBy: false };
-  it("names the surface — the hosted page or the website embed — and carries a full theme", () => {
+  it("only the page's look is written — the embed reads it — and it carries a full theme", () => {
     expect(surfaceThemeInput.safeParse({ surface: "page", theme }).success).toBe(true);
-    expect(surfaceThemeInput.safeParse({ surface: "embed", theme }).success).toBe(true);
+    expect(surfaceThemeInput.safeParse({ surface: "embed", theme }).success).toBe(false);
     expect(surfaceThemeInput.safeParse({ surface: "email", theme }).success).toBe(false);
     expect(surfaceThemeInput.safeParse({ theme }).success).toBe(false);
   });

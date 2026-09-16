@@ -20,7 +20,9 @@ import { getDashboardFlags } from "@/lib/flags/resolve";
 import { env } from "@/env";
 
 /* Website embed: the second booking channel — the widget on the org's own
-   site. Copy the snippet; style it against a live preview if you want to. */
+   site. Copy the snippet against a live preview. The widget's look is the
+   booking page's (design once, share once — spec 2026-09-16); nothing on
+   this page is stored. */
 export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   // The preview shows the channel the public widget shows (listPublicCatalog's
   // rule): declared mode ∩ the rentals kill switch, same as /bookings.
@@ -35,12 +37,12 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
   ]);
   if (!settings || !schedulingSettings) notFound();
 
-  // Hiding "Powered by Booklo" is a paid perk (spec §5). While billing is off
-  // nothing is read and every org keeps the toggle it has today. A failed read
-  // fails OPEN (toggle stays usable) rather than 500-ing this page: the same
-  // ruling loadPublicOffering follows, and the badge itself is enforced
-  // server-side regardless (badgeVisible / emailBadgeUrl).
-  const { canHideBadge, upgradeHref: badgeUpgradeHref } = await badgeToggle(settings.orgId);
+  // Hiding "Powered by Booklo" is a paid perk (spec §5): the preview shows
+  // the badge the way the public embed does (badgeShows), whatever the
+  // stored toggle says. A failed read fails OPEN rather than 500-ing this
+  // page — loadPublicOffering's ruling; the badge is enforced server-side
+  // regardless (badgeVisible / emailBadgeUrl).
+  const { canHideBadge } = await badgeToggle(settings.orgId);
 
   const catalog = toPreviewCatalog({ mode, services, offerings });
   // The snippet's iframe title is what a CLIENT's screen reader announces on
@@ -82,7 +84,7 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         orgLocale={schedulingSettings.locale}
         orgTimeZone={schedulingSettings.timezone}
         clientContact={schedulingSettings.clientContact}
-        initial={parseWidgetTheme(settings.widgetTheme)}
+        theme={parseWidgetTheme(settings.pageTheme)}
         accentColor={settings.accentColor}
         handle={schedulingSettings.handle}
         currency={schedulingSettings.currency}
@@ -96,7 +98,6 @@ export default async function EmbedPage({ searchParams }: PageProps<"/embed">) {
         options={options}
         initialPick={pick}
         canHideBadge={canHideBadge}
-        upgradeHref={badgeUpgradeHref}
       />
     </div>
   );

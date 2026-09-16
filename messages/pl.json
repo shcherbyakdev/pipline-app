@@ -43,12 +43,16 @@
     "notFound": "Nie znaleziono"
   },
   "settings": {
+    "brand": {
+      "title": "Marka",
+      "blurb": "Logo i kolor akcentu dla strony rezerwacji i osadzenia na Twojej witrynie. Zapisywane na bieżąco."
+    },
     "language": {
       "title": "Język",
-      "blurb": "Dla Twojego panelu. Język, który widzą klienci, ustawiasz na stronie rezerwacji.",
+      "blurb": "Dla Twojego panelu. Język, który widzą klienci, ustawiasz niżej w sekcji Firma.",
       "label": "Język interfejsu"
     },
-    "intro": "Ustawienia panelu i to, co oferuje Twoja firma.",
+    "intro": "Ustawienia panelu i Twoja firma: co oferujesz, adres strony i marka.",
     "sections": {
       "interface": "Interfejs",
       "business": "Firma"
@@ -1285,7 +1289,7 @@
     "noHours": "Zamknięte — brak ustawionych godzin",
     "noActive": "Nikt w zespole nie jest teraz aktywny. <link>Aktywuj kogoś ponownie</link>, aby ustawić godziny.",
     "openSpaces": "Otwórz Przestrzenie →",
-    "timezoneNote": "Godziny w strefie {timezone} · <link>Zmień na stronie rezerwacji</link>",
+    "timezoneNote": "Godziny w strefie {timezone} · <link>Zmień w Ustawieniach</link>",
     "unavailable": "Niedostępne",
     "endAfterStart": "Koniec musi być po początku.",
     "defaultPrompt": {
@@ -1388,7 +1392,7 @@
       "role": "Rola",
       "bookable": "Do rezerwacji"
     },
-    "noHandle": "Najpierw ustaw adres strony rezerwacji w sekcji <link>Strona rezerwacji</link> — wtedy każdy dostanie własny link.",
+    "noHandle": "Najpierw ustaw adres strony rezerwacji w <link>Ustawieniach</link> — wtedy każdy dostanie własny link.",
     "servicesCount": "{count, plural, =0 {Brak usług} one {# usługa} few {# usługi} many {# usług} other {# usługi}}",
     "owner": "Właściciel",
     "member": "Członek",
@@ -1638,7 +1642,7 @@
         "almostHeading": "Prawie gotowe",
         "almostSub": "Dodaj to, co klienci rezerwują, a Twoja strona otworzy się pod adresem:",
         "noHandle": "Twoja przestrzeń robocza jest gotowa.",
-        "noHandleSub": "Wybierz adres strony w sekcji Strona rezerwacji i można Cię rezerwować.",
+        "noHandleSub": "Wybierz adres strony w Ustawieniach i możesz przyjmować rezerwacje.",
         "setUpPage": "Skonfiguruj stronę rezerwacji",
         "finish": "Przejdź do rezerwacji"
       }
@@ -1785,7 +1789,7 @@
     "starter": {
       "title": "Jak klienci mają wybierać termin?",
       "titleSpaces": "Jak klienci mają wybierać daty i godziny?",
-      "sub": "Wybierz, jak widżet tej strony pokazuje wolne terminy. Możesz to zmienić w każdej chwili w Ustawieniach — zacznie działać po publikacji.",
+      "sub": "Wybierz, jak widżet tej strony pokazuje wolne terminy. Możesz to zmienić w każdej chwili w zakładce Styl — zacznie działać po publikacji.",
       "firstService": {
         "title": "Dodaj pierwszą usługę",
         "sub": "Trafia od razu na Twoją stronę. Więcej dodasz w Usługach, kiedy zechcesz.",
@@ -1814,12 +1818,11 @@
         "noticeHint": "Możesz iść dalej i opublikować, gdy będzie dostępna do rezerwacji."
       },
       "back": "Wstecz",
-      "leave": "Zostaw na razie",
       "continue": "Dalej",
       "picker": {
         "trigger": "Porównaj układy",
         "title": "Układ widżetu",
-        "sub": "Zmień, jak ta strona pokazuje wolne terminy. Zacznie działać po publikacji; osadzenie na stronie ma własny układ.",
+        "sub": "Zmień, jak widżet pokazuje wolne terminy, tutaj i na Twojej witrynie. Zacznie działać po publikacji.",
         "use": "Użyj tego układu"
       },
       "current": "bieżący",
@@ -1866,10 +1869,10 @@
       "logoRemoved": "Logo usunięte"
     },
     "name": "Strona rezerwacji",
-    "intro": "Strona, na której klienci u Ciebie rezerwują. Ułóż sekcje, dodaj markę, opublikuj.",
+    "intro": "Strona, na której klienci u Ciebie rezerwują. Ułóż sekcje, nadaj styl, opublikuj.",
     "tabs": {
       "sections": "Sekcje",
-      "settings": "Ustawienia"
+      "settings": "Styl"
     },
     "layout": {
       "label": "Układ strony",
@@ -1955,10 +1958,8 @@
       "auto": "Auto podąża za ustawieniem systemu każdego odwiedzającego. Ta strona zawsze się dopasowuje, więc oba warianty są czytelne (użyj przełącznika powyżej)."
     },
     "settings": {
-      "look": "Wygląd",
-      "lookHint": "Logo i kolor akcentu. Zapisywane na bieżąco.",
-      "widget": "Widżet strony rezerwacji",
-      "widgetHint": "Własny styl tej strony. Osadzenie na stronie ma swój w sekcji Osadzenie na stronie. Publikuje się razem ze stroną.",
+      "widget": "Styl widżetu",
+      "widgetHint": "Jeden wygląd dla tej strony i osadzenia na Twojej witrynie. Publikuje się razem ze stroną.",
       "pageLayoutHint": "Jak strona się układa. Publikuje się razem ze stroną."
     },
     "image": {
@@ -1983,7 +1984,7 @@
       "header": {
         "tagline": "Slogan",
         "taglinePlaceholder": "Kolorystka z Krakowa",
-        "taglineHint": "Pod Twoją nazwą. Logo i akcent są w zakładce Ustawienia."
+        "taglineHint": "Pod Twoją nazwą. Logo i akcent są w Ustawieniach."
       },
       "hero": {
         "image": "Zdjęcie okładki",
@@ -2063,11 +2064,19 @@
       },
       "booking": {
         "titlePlaceholder": "Zarezerwuj termin",
-        "hint": "Sam widżet stylizujesz w zakładce Ustawienia i w sekcji Osadzenie na stronie."
+        "hint": "Sam widżet stylizujesz w zakładce Styl."
       }
     }
   },
   "embed": {
+    "theme": "Motyw",
+    "themes": {
+      "page": "Jak strona rezerwacji",
+      "light": "Jasny",
+      "dark": "Ciemny"
+    },
+    "themeHint": "Wybierz Jasny lub Ciemny, by pasował do Twojej witryny.",
+    "copyPageLink": "Kopiuj link do strony",
     "rows": {
       "bookingPage": "Strona rezerwacji"
     },
@@ -2075,11 +2084,6 @@
       "team": "Zespół",
       "service": "Usługi",
       "space": "Przestrzenie"
-    },
-    "tabs": {
-      "label": "Osadzenie na stronie",
-      "code": "Kod",
-      "style": "Styl"
     },
     "pick": {
       "services": "Wybrane usługi",
@@ -2094,12 +2098,7 @@
     "copied": "Kod skopiowany",
     "copyAddress": "Kopiuj adres",
     "addressCopied": "Adres skopiowany",
-    "noHandle": "Ustaw adres strony rezerwacji w sekcji <link>Strona rezerwacji</link>, aby dostać kod do osadzenia.",
-    "style": {
-      "title": "Styl widżetu",
-      "description": "Logo i kolor akcentu są w sekcji <link>Strona rezerwacji › Wygląd</link>. Strona rezerwacji zachowuje własny styl."
-    },
-    "saved": "Styl widżetu zapisany",
+    "noHandle": "Ustaw adres strony rezerwacji w <link>Ustawieniach</link>, aby dostać kod do osadzenia.",
     "preview": {
       "hostPage": "Twoja witryna",
       "lightPage": "Jasna witryna",

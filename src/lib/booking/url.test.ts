@@ -48,6 +48,12 @@ describe("booking URLs", () => {
     // Not a language we speak: the embed keeps following the visitor.
     expect(embedSrc("https://booklo.co", "anna", undefined, "ua")).toBe("https://booklo.co/embed/anna");
   });
+  it("embedSrc: a pinned theme rides along too; anything but light/dark keeps the page's look", () => {
+    expect(embedSrc("https://booklo.co", "anna", undefined, undefined, "dark")).toBe("https://booklo.co/embed/anna?theme=dark");
+    expect(embedSrc("https://booklo.co", "anna", { spaces: ["o1"] }, "uk", "light")).toBe("https://booklo.co/embed/anna?space=o1&lang=uk&theme=light");
+    expect(embedSrc("https://booklo.co", "anna", undefined, undefined, "auto")).toBe("https://booklo.co/embed/anna");
+    expect(embedSrc("https://booklo.co", "anna", undefined, undefined, "")).toBe("https://booklo.co/embed/anna");
+  });
 });
 
 // Source guard: nothing outside the legacy redirect folder builds a /book/

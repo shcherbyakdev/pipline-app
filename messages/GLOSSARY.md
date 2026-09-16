@@ -50,6 +50,8 @@ A term missing here is added here first, then used.
 | booking window (days) | Вікно бронювання (днів) | |
 | request (booking approval, admin) | запит | "Очікує підтвердження" for the pending status |
 | layout (widget template) | макет | |
+| Style (studio tab: page layout + widget style) | Стиль | `studio.tabs.settings`; the card is «Стиль віджета» |
+| Brand (Settings card: logo + accent) | Бренд | `settings.brand.*` |
 | section (of the booking page) | розділ | |
 | cover (hero section) | обкладинка | |
 | publish / draft | опублікувати / чернетка | |
@@ -109,6 +111,7 @@ A term missing here is added here first, then used.
 | booking window (days) | Okno rezerwacji (dni) | |
 | date override | wyjątek dla daty | |
 | layout / section / cover | układ / sekcja / okładka | |
+| Style (studio tab) / Brand (Settings card) | Styl / Marka | `studio.tabs.settings`, `settings.brand.*` |
 | publish / draft | opublikuj / wersja robocza | |
 | Free / Pro / Premium | Free / Pro / Premium | plan names stay; "Premium" is the same word |
 | rate by length (hourly-rules pricing) | stawka za długość | `spaces.form.pricing.bands.*`, `public.units.line.base` |

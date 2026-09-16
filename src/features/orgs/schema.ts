@@ -62,7 +62,10 @@ export const widgetThemeInput = z.object({
 /** One appearance per surface (spec 2026-09-02 §9): the hosted booking page
     and the website embed each keep their own theme, layouts and badge
     setting; they share only the widget UI. */
-export const SURFACES = ["page", "embed"] as const;
+// One look everywhere (design once, share once — spec 2026-09-16): the
+// embed reads the page's theme, so only "page" is written. orgs.widget_theme
+// stays in the schema, unread.
+export const SURFACES = ["page"] as const;
 export type Surface = (typeof SURFACES)[number];
 export const surfaceThemeInput = z.object({ surface: z.enum(SURFACES), theme: widgetThemeInput });
 

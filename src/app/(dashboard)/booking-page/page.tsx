@@ -24,7 +24,8 @@ import { env } from "@/env";
 
 /* Booking page: the hosted channel — its sections, address, timezone and
    branding, edited against a live preview of the page itself and published
-   explicitly. (Branding's accent and theme are shared with the website embed.)
+   explicitly. Its widget look is the website embed's too; the address,
+   timezone, logo and accent live on Settings (spec 2026-09-16).
    One page per org: the org's one channel (0073). */
 export default async function BookingPagePage() {
   const { org } = await requireOrg();

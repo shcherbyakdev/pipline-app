@@ -48,10 +48,13 @@ export function embedSnippet(
   // (embedSrc). The iframe `title` stays the ORG's language either way —
   // it is written server-side from the org's locale, not from this pick.
   lang?: string,
+  // Pins light or dark to the host page (spec 2026-09-16); omitted, the
+  // booking page's own theme applies.
+  theme?: string,
 ): string {
   const scriptBase = appUrl.replace(/\/+$/, "");
   return (
-    `<iframe data-rollout-embed src="${embedSrc(appUrl, handle, target, lang)}" `
+    `<iframe data-rollout-embed src="${embedSrc(appUrl, handle, target, lang, theme)}" `
     + `style="width:100%;border:0;height:640px" title="${snippetTitle(target, mode, titles)}"></iframe>\n`
     + `<script src="${scriptBase}/embed.js" async></script>`
   );

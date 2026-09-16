@@ -52,9 +52,16 @@ export function bookingLink(appUrl: string, handle: string, target?: LinkTarget)
 /* `lang` pins the snippet to one language (i18n spec §4, amended
    2026-09-03): the widget sits on someone else's page, so that page's owner
    picks — there is no switcher inside the iframe. Omitted (the default), the
-   embed follows the visitor's region and then the org, exactly as before. */
-export function embedSrc(appUrl: string, handle: string, target?: LinkTarget, lang?: string): string {
+   embed follows the visitor's region and then the org, exactly as before.
+   `theme` pins light or dark to match the host page (design once, share
+   once — spec 2026-09-16); anything else keeps the booking page's look. */
+export function embedSrc(appUrl: string, handle: string, target?: LinkTarget, lang?: string, theme?: string): string {
   const base = `${appUrl.replace(/\/+$/, "")}/embed/${handle}`;
-  if (target && "staff" in target) return withLang(`${base}?staff=${encodeURIComponent(target.staff)}`, lang);
-  return withLang(`${base}${targetQuery(target)}`, lang);
+  const query = target && "staff" in target ? `?staff=${encodeURIComponent(target.staff)}` : targetQuery(target);
+  return withTheme(withLang(`${base}${query}`, lang), theme);
+}
+
+function withTheme(href: string, theme: string | undefined): string {
+  if (theme !== "light" && theme !== "dark") return href;
+  return `${href}${href.includes("?") ? "&" : "?"}theme=${theme}`;
 }

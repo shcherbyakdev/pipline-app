@@ -80,8 +80,8 @@ function LayoutPreview({ group, times, stays, ctx, channel, previewIntl }: { gro
    page asks for the times layout; a spaces page asks a group per kind it
    rents (times for hourly spaces, stays for nights and days), or opens
    straight on the first-space step when there is nothing to rent yet.
-   Picker: a trigger button, dismissable; the layouts are org settings
-   saved at once, so there is no draft to confirm replacing. */
+   Both are dismissable; a pick goes into the page's draft and reaches
+   clients with Publish. */
 export function StarterDialog({
   variant, channel, ctx, layout, stayLayout, needsFirstItem, currency, onApply, finalFocus, previewIntl,
 }: {
@@ -141,11 +141,18 @@ export function StarterDialog({
     dispatch({ kind: "created" });
     router.refresh();
   };
-  const onOpenChange: NonNullable<React.ComponentProps<typeof Dialog>["onOpenChange"]> = (next, details) => {
+  const onOpenChange: NonNullable<React.ComponentProps<typeof Dialog>["onOpenChange"]> = (next) => {
     if (starter && !next) {
-      // The X is ruling 2's Leave exit; Esc/backdrop stay swallowed so an
-      // accidental dismissal mid-flow never navigates away.
-      if (details.reason === "close-press") router.push("/bookings");
+      // Closing the starter (X, Esc, backdrop) is not leaving: the current
+      // pick — the highlighted defaults if untouched — goes into the draft
+      // and the studio shows behind it (design once, share once, spec
+      // 2026-09-16). The first-item step has nothing to apply.
+      if (state.step === "layout") {
+        finish({ step: "done", layout: groups.includes("times") ? times : null, stayLayout: groups.includes("stays") ? stays : null });
+      } else {
+        reset();
+        setOpen(false);
+      }
       return;
     }
     setOpen(next);
@@ -157,13 +164,6 @@ export function StarterDialog({
   const atFirstItem = state.step === "firstItem";
   // Back to the layout step only when there was one (an appointments starter).
   const onBack = state.layout || state.stayLayout ? () => dispatch({ kind: "back" }) : undefined;
-  // Ruling 2's exit, reachable from inside the focus trap: leave the page,
-  // never the step.
-  const leaveButton = (
-    <Button variant="ghost" size="sm" onClick={() => router.push("/bookings")}>
-      {t("starter.leave")}
-    </Button>
-  );
   // The cards' words live in messages, keyed by layout value (widget-theme.ts
   // holds only the values).
   const timesOptions = SLOT_LAYOUTS.map((value) => ({ value, label: t(`layouts.${value}.label`), description: t(`layouts.${value}.description`) }));
@@ -246,7 +246,6 @@ export function StarterDialog({
                 )}
               </div>
             </div>
-            {starter ? <DialogFooterBar className="sm:justify-start">{leaveButton}</DialogFooterBar> : null}
           </>
         ) : (
           <>
@@ -267,7 +266,6 @@ export function StarterDialog({
             </div>
             <DialogFooterBar className="sm:justify-end">
               <div className="flex items-center gap-2">
-                {starter ? leaveButton : null}
                 <Button variant="brand" size="sm" onClick={choose}>
                   {starter ? t("starter.continue") : t("starter.picker.use")}
                 </Button>

@@ -6,7 +6,7 @@ const RENTALS = { offersAppointments: false, offersRentals: true };
 const staff = [{ slug: "anna", name: "Anna" }, { slug: "ben", name: "Ben" }];
 const services = [{ id: "s1", name: "Massage" }, { id: "s2", name: "Facial" }];
 const spaces = [{ id: "o1", name: "Room A" }, { id: "o2", name: "Room B" }];
-const page = { show: "page", ids: [], lang: "" };
+const page = { show: "page", ids: [], lang: "", theme: "" };
 
 describe("showOptions (the embed page's Show select)", () => {
   it("only the org's own channel: people and services, or spaces", () => {
