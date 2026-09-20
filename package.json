@@ -67,7 +67,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
-    "intl-messageformat": "^11.2.14",
+    "intl-messageformat": "^12.1.0",
     "shadcn": "^4.21.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
